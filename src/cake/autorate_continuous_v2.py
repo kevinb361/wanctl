@@ -47,18 +47,20 @@ class Config:
         self.enabled = cm['enabled']
         self.baseline_rtt_initial = cm['baseline_rtt_initial']
 
-        # Download parameters (STATE-BASED FLOORS)
+        # Download parameters (STATE-BASED FLOORS - Phase 2A: 4-state)
         dl = cm['download']
-        # Support both legacy (single floor) and v2 (state-based floors)
+        # Support both legacy (single floor) and v2/v3 (state-based floors)
         if 'floor_green_mbps' in dl:
             self.download_floor_green = dl['floor_green_mbps'] * 1_000_000
             self.download_floor_yellow = dl['floor_yellow_mbps'] * 1_000_000
+            self.download_floor_soft_red = dl.get('floor_soft_red_mbps', dl['floor_yellow_mbps']) * 1_000_000  # Phase 2A
             self.download_floor_red = dl['floor_red_mbps'] * 1_000_000
         else:
             # Legacy: use single floor for all states
             floor = dl['floor_mbps'] * 1_000_000
             self.download_floor_green = floor
             self.download_floor_yellow = floor
+            self.download_floor_soft_red = floor  # Phase 2A
             self.download_floor_red = floor
         self.download_ceiling = dl['ceiling_mbps'] * 1_000_000
         self.download_step_up = dl['step_up_mbps'] * 1_000_000
@@ -83,8 +85,9 @@ class Config:
 
         # Thresholds
         thresh = cm['thresholds']
-        self.target_bloat_ms = thresh['target_bloat_ms']
-        self.warn_bloat_ms = thresh['warn_bloat_ms']
+        self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
+        self.warn_bloat_ms = thresh['warn_bloat_ms']              # YELLOW → SOFT_RED (45ms)
+        self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', 80)  # SOFT_RED → RED (80ms)
         self.alpha_baseline = thresh['alpha_baseline']
         self.alpha_load = thresh['alpha_load']
 
@@ -314,11 +317,12 @@ class RTTMeasurement:
 # =============================================================================
 
 class QueueController:
-    """Controls one queue (download or upload) with 3-zone logic"""
-    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_red: int, ceiling: int, step_up: int, factor_down: float):
+    """Controls one queue (download or upload) with 3-zone or 4-zone logic"""
+    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float):
         self.name = name
         self.floor_green_bps = floor_green
         self.floor_yellow_bps = floor_yellow
+        self.floor_soft_red_bps = floor_soft_red  # Phase 2A
         self.floor_red_bps = floor_red
         self.ceiling_bps = ceiling
         self.step_up_bps = step_up
@@ -327,8 +331,10 @@ class QueueController:
 
         # Hysteresis counters (require consecutive green cycles before stepping up)
         self.green_streak = 0
+        self.soft_red_streak = 0      # Phase 2A: Track SOFT_RED sustain
         self.red_streak = 0
-        self.green_required = 5  # Require 5 consecutive green cycles before stepping up
+        self.green_required = 5        # Require 5 consecutive green cycles before stepping up
+        self.soft_red_required = 3     # Phase 2A: Require 3 cycles (~6s) to confirm SOFT_RED
 
     def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> Tuple[str, int]:
         """
@@ -385,6 +391,90 @@ class QueueController:
         self.current_rate = new_rate
         return zone, new_rate
 
+    def adjust_4state(self, baseline_rtt: float, load_rtt: float, green_threshold: float, soft_red_threshold: float, hard_red_threshold: float) -> Tuple[str, int]:
+        """
+        Apply 4-state logic with hysteresis and return (state, new_rate)
+
+        Phase 2A: Download-only (Spectrum download)
+        Upload continues to use 3-state adjust() method
+
+        States (based on RTT delta from baseline):
+        - GREEN: delta ≤ 15ms -> slowly increase rate (requires consecutive green cycles)
+        - YELLOW: 15ms < delta ≤ 45ms -> hold steady
+        - SOFT_RED: 45ms < delta ≤ 80ms -> clamp to soft_red floor and HOLD (no steering)
+        - RED: delta > 80ms -> aggressive backoff (immediate)
+
+        Hysteresis:
+        - RED: Immediate on 1 sample
+        - SOFT_RED: Requires 3 consecutive samples (~6 seconds)
+        - GREEN: Requires 5 consecutive samples before stepping up
+        - YELLOW: Immediate
+        """
+        delta = load_rtt - baseline_rtt
+
+        # Determine raw state based on thresholds
+        if delta > hard_red_threshold:
+            raw_state = "RED"
+        elif delta > soft_red_threshold:
+            raw_state = "SOFT_RED"
+        elif delta > green_threshold:
+            raw_state = "YELLOW"
+        else:
+            raw_state = "GREEN"
+
+        # Apply sustain logic for SOFT_RED
+        # SOFT_RED requires 3 consecutive samples to confirm
+        if raw_state == "SOFT_RED":
+            self.soft_red_streak += 1
+            self.green_streak = 0
+            self.red_streak = 0
+
+            if self.soft_red_streak >= self.soft_red_required:
+                zone = "SOFT_RED"
+            else:
+                # Not sustained yet - stay in YELLOW
+                zone = "YELLOW"
+        elif raw_state == "RED":
+            self.red_streak += 1
+            self.soft_red_streak = 0
+            self.green_streak = 0
+            zone = "RED"
+        elif raw_state == "YELLOW":
+            self.green_streak = 0
+            self.soft_red_streak = 0
+            self.red_streak = 0
+            zone = "YELLOW"
+        else:  # GREEN
+            self.green_streak += 1
+            self.soft_red_streak = 0
+            self.red_streak = 0
+            zone = "GREEN"
+
+        # Apply rate adjustments with state-appropriate floors
+        new_rate = self.current_rate
+
+        if self.red_streak >= 1:
+            # RED: Immediate aggressive step-down
+            new_rate = int(self.current_rate * self.factor_down)
+            new_rate = max(new_rate, self.floor_red_bps)
+        elif zone == "SOFT_RED":
+            # SOFT_RED: Clamp to soft_red floor and HOLD (no repeated decay)
+            new_rate = max(self.current_rate, self.floor_soft_red_bps)
+        elif self.green_streak >= self.green_required:
+            # GREEN: Only step up after 5 consecutive green cycles
+            new_rate = self.current_rate + self.step_up_bps
+            new_rate = min(new_rate, self.ceiling_bps)
+        else:
+            # YELLOW or not enough green streak -> hold steady
+            # Apply state-appropriate floor
+            if zone == "YELLOW":
+                new_rate = max(new_rate, self.floor_yellow_bps)
+            else:  # GREEN but not sustained
+                new_rate = max(new_rate, self.floor_green_bps)
+
+        self.current_rate = new_rate
+        return zone, new_rate
+
 
 # =============================================================================
 # WAN CONTROLLER
@@ -408,6 +498,7 @@ class WANController:
             name=f"{wan_name}-Download",
             floor_green=config.download_floor_green,
             floor_yellow=config.download_floor_yellow,
+            floor_soft_red=config.download_floor_soft_red,  # Phase 2A
             floor_red=config.download_floor_red,
             ceiling=config.download_ceiling,
             step_up=config.download_step_up,
@@ -418,12 +509,18 @@ class WANController:
             name=f"{wan_name}-Upload",
             floor_green=config.upload_floor_green,
             floor_yellow=config.upload_floor_yellow,
+            floor_soft_red=config.upload_floor_yellow,  # Phase 2A: Upload unchanged, use yellow for soft_red
             floor_red=config.upload_floor_red,
             ceiling=config.upload_ceiling,
             step_up=config.upload_step_up,
             factor_down=config.upload_factor_down
         )
 
+        # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
+        self.green_threshold = config.target_bloat_ms         # 15ms: GREEN → YELLOW
+        self.soft_red_threshold = config.warn_bloat_ms        # 45ms: YELLOW → SOFT_RED
+        self.hard_red_threshold = config.hard_red_bloat_ms    # 80ms: SOFT_RED → RED
+        # Legacy 3-state thresholds (for upload)
         self.target_delta = config.target_bloat_ms
         self.warn_delta = config.warn_bloat_ms
         self.alpha_baseline = config.alpha_baseline
@@ -489,11 +586,13 @@ class WANController:
 
         self.update_ewma(measured_rtt)
 
-        # Adjust both queues using 3-zone logic
-        dl_zone, dl_rate = self.download.adjust(
+        # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
+        dl_zone, dl_rate = self.download.adjust_4state(
             self.baseline_rtt, self.load_rtt,
-            self.target_delta, self.warn_delta
+            self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
         )
+
+        # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
         ul_zone, ul_rate = self.upload.adjust(
             self.baseline_rtt, self.load_rtt,
             self.target_delta, self.warn_delta
@@ -535,6 +634,7 @@ class WANController:
                 if 'download' in state:
                     dl = state['download']
                     self.download.green_streak = dl.get('green_streak', 0)
+                    self.download.soft_red_streak = dl.get('soft_red_streak', 0)  # Phase 2A
                     self.download.red_streak = dl.get('red_streak', 0)
                     self.download.current_rate = dl.get('current_rate', self.download.ceiling_bps)
 
@@ -542,6 +642,7 @@ class WANController:
                 if 'upload' in state:
                     ul = state['upload']
                     self.upload.green_streak = ul.get('green_streak', 0)
+                    self.upload.soft_red_streak = ul.get('soft_red_streak', 0)  # Phase 2A
                     self.upload.red_streak = ul.get('red_streak', 0)
                     self.upload.current_rate = ul.get('current_rate', self.upload.ceiling_bps)
 
@@ -561,11 +662,13 @@ class WANController:
             state = {
                 'download': {
                     'green_streak': self.download.green_streak,
+                    'soft_red_streak': self.download.soft_red_streak,  # Phase 2A
                     'red_streak': self.download.red_streak,
                     'current_rate': self.download.current_rate
                 },
                 'upload': {
                     'green_streak': self.upload.green_streak,
+                    'soft_red_streak': self.upload.soft_red_streak,  # Phase 2A
                     'red_streak': self.upload.red_streak,
                     'current_rate': self.upload.current_rate
                 },
@@ -600,11 +703,13 @@ class ContinuousAutoRate:
             logger = setup_logging(config, debug)
 
             logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
-            logger.info(f"Download: GREEN={config.download_floor_green/1e6:.0f}M, YELLOW={config.download_floor_yellow/1e6:.0f}M, RED={config.download_floor_red/1e6:.0f}M, ceiling={config.download_ceiling/1e6:.0f}M, "
-                       f"step={config.download_step_up/1e6:.1f}M, factor={config.download_factor_down}")
+            logger.info(f"Download: GREEN={config.download_floor_green/1e6:.0f}M, YELLOW={config.download_floor_yellow/1e6:.0f}M, "
+                       f"SOFT_RED={config.download_floor_soft_red/1e6:.0f}M, RED={config.download_floor_red/1e6:.0f}M, "
+                       f"ceiling={config.download_ceiling/1e6:.0f}M, step={config.download_step_up/1e6:.1f}M, factor={config.download_factor_down}")
             logger.info(f"Upload: GREEN={config.upload_floor_green/1e6:.0f}M, YELLOW={config.upload_floor_yellow/1e6:.0f}M, RED={config.upload_floor_red/1e6:.0f}M, ceiling={config.upload_ceiling/1e6:.0f}M, "
                        f"step={config.upload_step_up/1e6:.1f}M, factor={config.upload_factor_down}")
-            logger.info(f"Thresholds: target={config.target_bloat_ms}ms, warn={config.warn_bloat_ms}ms")
+            logger.info(f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→SOFT_RED={config.warn_bloat_ms}ms, SOFT_RED→RED={config.hard_red_bloat_ms}ms")
+            logger.info(f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→RED={config.warn_bloat_ms}ms")
             logger.info(f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}")
             logger.info(f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}")
 
