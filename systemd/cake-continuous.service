@@ -1,0 +1,11 @@
+[Unit]
+Description=CAKE Continuous Autorate - All Queues (Dual-WAN)
+Documentation=https://github.com/kevin/CAKE
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/CAKE
+ExecStart=/usr/bin/python3 /home/kevin/CAKE/autorate_continuous.py --configs /home/kevin/CAKE/configs/att_config.yaml /home/kevin/CAKE/configs/spectrum_config.yaml
+StandardOutput=journal
+StandardError=journal

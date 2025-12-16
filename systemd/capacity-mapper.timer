@@ -1,0 +1,14 @@
+[Unit]
+Description=CAKE Capacity Mapper - Hourly Test Timer
+Documentation=https://github.com/kevin/CAKE
+
+[Timer]
+# Run at the top of every hour
+OnCalendar=hourly
+# Start 5 minutes into the hour (avoid :00 congestion)
+OnCalendar=*:05:00
+AccuracySec=1m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

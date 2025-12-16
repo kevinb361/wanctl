@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Adaptive CAKE Spectrum every 10 minutes (offset +5min)
+Requires=cake-spectrum.service
+
+[Timer]
+OnBootSec=7min
+OnUnitActiveSec=10min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

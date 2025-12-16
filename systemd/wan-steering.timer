@@ -1,0 +1,13 @@
+[Unit]
+Description=Adaptive WAN Steering Timer
+Documentation=file:///home/kevin/CAKE/CLAUDE.md
+Requires=wan-steering.service
+
+[Timer]
+# Run every 2 seconds for responsive steering decisions
+OnBootSec=1min
+OnUnitActiveSec=2s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
