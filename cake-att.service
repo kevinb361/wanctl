@@ -1,0 +1,16 @@
+[Unit]
+Description=Adaptive CAKE Auto-Tuning for ATT
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/adaptive_cake_att
+ExecStart=/usr/bin/python3 /home/kevin/adaptive_cake_att/adaptive_cake_att.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cake-att
+
+[Install]
+WantedBy=multi-user.target

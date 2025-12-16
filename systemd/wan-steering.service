@@ -1,0 +1,24 @@
+[Unit]
+Description=Adaptive WAN Steering Daemon
+Documentation=file:///home/kevin/CAKE/CLAUDE.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/fusion_cake
+ExecStart=/usr/bin/python3 /home/kevin/fusion_cake/wan_steering_daemon.py --config configs/steering_config.yaml
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wan-steering
+
+# Capabilities for ping (raw sockets)
+AmbientCapabilities=CAP_NET_RAW
+
+# Security hardening
+PrivateTmp=no
+NoNewPrivileges=no
+
+[Install]
+WantedBy=multi-user.target

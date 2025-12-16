@@ -1,0 +1,11 @@
+[Unit]
+Description=CAKE Continuous Autorate - Spectrum
+Documentation=https://github.com/kevin/CAKE
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

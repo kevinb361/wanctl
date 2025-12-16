@@ -1,0 +1,19 @@
+[project]
+name = "cake-qos"
+version = "0.1.0"
+description = "Adaptive CAKE QoS automation for MikroTik"
+requires-python = ">=3.12"
+
+dependencies = [
+  "requests",
+  "pyyaml",
+  "paramiko"
+]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+

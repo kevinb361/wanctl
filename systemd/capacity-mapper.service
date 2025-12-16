@@ -1,0 +1,14 @@
+[Unit]
+Description=CAKE Capacity Mapper - Hourly Spectrum Test
+Documentation=https://github.com/kevin/CAKE
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/fusion_cake
+ExecStart=/home/kevin/fusion_cake/capacity_mapper.sh
+StandardOutput=journal
+StandardError=journal
+
+# Timeout after 5 minutes (iperf + overhead)
+TimeoutStartSec=300

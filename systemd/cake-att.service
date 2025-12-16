@@ -1,0 +1,16 @@
+[Unit]
+Description=Adaptive CAKE Binary Search Calibration for ATT
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/fusion_cake
+ExecStart=/usr/bin/python3 /home/kevin/fusion_cake/adaptive_cake.py --config /home/kevin/fusion_cake/configs/att_binary_search.yaml
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cake-att-binary
+
+[Install]
+WantedBy=multi-user.target

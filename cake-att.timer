@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Adaptive CAKE ATT every 10 minutes
+Requires=cake-att.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

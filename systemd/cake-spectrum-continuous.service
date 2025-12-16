@@ -1,0 +1,11 @@
+[Unit]
+Description=CAKE Continuous Autorate - Spectrum
+Documentation=https://github.com/kevin/CAKE
+
+[Service]
+Type=oneshot
+User=kevin
+WorkingDirectory=/home/kevin/fusion_cake
+ExecStart=/usr/bin/python3 /home/kevin/fusion_cake/autorate_continuous.py --configs /home/kevin/fusion_cake/configs/spectrum_config.yaml
+StandardOutput=journal
+StandardError=journal
