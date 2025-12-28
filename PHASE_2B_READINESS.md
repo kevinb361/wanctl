@@ -1,16 +1,33 @@
 # Phase 2B Readiness: Time-of-Day Bias
 
-**Status:** 📋 Planned (Not Yet Implemented)
+**Status:** ✅ **Intentionally Deferred** (Ready to implement, not deployed)
+**Decision Date:** 2025-12-28 (based on 18-day validation period)
 **Prerequisite:** Phase 2A deployed and stable (✅ Complete)
 **Architecture:** Config-only, link-agnostic
 
 ---
 
-## Purpose
+## ⚠️ DEFERRAL DECISION
+
+**Phase 2B is ready to implement but has been intentionally deferred based on validated operational data.**
+
+**Reason:** Analysis of 18-day observation period (2025-12-11 to 2025-12-28) shows Phase 2B is **not needed**:
+
+1. **No predictable time-of-day pattern:** Congestion is random, not consistent enough for preemptive action
+2. **System already effective:** 89.3% GREEN operation, SOFT_RED/RED states rare and brief
+3. **Risk exceeds benefit:** Adds complexity for marginal improvement (<1% GREEN increase estimated)
+
+**See "Reconsideration Criteria" below for conditions that would justify Phase 2B.**
+
+---
+
+## Purpose (If Implemented)
 
 Phase 2B adds **time-of-day awareness** to floor selection without changing core control logic.
 
 **Goal:** Use historical patterns to preemptively adjust floors during known congestion periods.
+
+**Note:** Based on current data, this optimization is not needed. Autorate responds adequately within 2-second cycles.
 
 ---
 
@@ -385,4 +402,83 @@ Future phases (2C, 2D) can add more multipliers:
 
 ---
 
-**Architecture validated:** ✅ Portable controller supports time-of-day bias without code fragmentation.
+## Reconsideration Criteria (IMPORTANT)
+
+Phase 2B should be reconsidered if **any one** of the following conditions is met for **30+ consecutive days**:
+
+### 1. Predictable Time-of-Day Pattern Emerges
+
+**Indicators:**
+- Hourly analysis shows **consistent** evening peaks (e.g., 18:00-21:00 RED > 10% of cycles)
+- Pattern repeats for **14+ consecutive days**
+- Autorate unable to prevent RED states during these hours
+- User complaints during specific hours (gaming, VoIP degradation)
+
+**Check via:**
+```bash
+python3 analyze_logs.py
+grep "18\|19\|20\|21" analysis/hourly_distributions.csv
+# Look for consistent RED state patterns during evening hours
+```
+
+### 2. GREEN Operation Drops Below 80%
+
+**Indicators:**
+- Sustained YELLOW/RED states indicate autorate struggling
+- Time-of-day bias could preemptively lower floors during known congestion windows
+- Delta RTT (mean) exceeds 10ms consistently
+
+**Check via:**
+```bash
+awk -F, 'NR>1 {print $1, $3}' analysis/daily_summary.csv
+# If GREEN% < 80 for 7+ consecutive days, investigate
+```
+
+### 3. Steering Frequency Increases Significantly
+
+**Indicators:**
+- Steering enables exceed 5 per day (averaged over 7 days)
+- Indicates autorate not responding fast enough
+- Time-of-day bias could prevent escalation to RED (steering threshold)
+
+**Check via:**
+```bash
+awk -F, 'NR>1 {print $1, $20}' analysis/daily_summary.csv
+# If steering enables > 5/day sustained, consider Phase 2B
+```
+
+### 4. User Complaints During Specific Hours
+
+**Indicators:**
+- Latency-sensitive applications (gaming, VoIP) degrade during predictable hours
+- Time-of-day bias could proactively lower floors to prevent user-visible impact
+- QoE degradation correlates with specific time windows
+
+### 5. ISP Congestion Pattern Changes
+
+**Indicators:**
+- Spectrum introduces time-based throttling or congestion management
+- Predictable pattern emerges that autorate cannot adapt to quickly enough
+- New consistent pattern not present in validation period
+
+---
+
+## Current Status (2025-12-28)
+
+**Validation period:** 18 days (2025-12-11 to 2025-12-28)
+**Data analyzed:** 231,208 autorate cycles, 604,114 steering assessments
+
+**Criteria assessment:**
+- ✅ **Criterion 1:** No predictable time-of-day pattern (congestion is random)
+- ✅ **Criterion 2:** GREEN operation at 89.3% (well above 80% threshold)
+- ✅ **Criterion 3:** Steering enables <1/day (well below 5/day threshold)
+- ✅ **Criterion 4:** No user complaints (latency protected)
+- ✅ **Criterion 5:** No ISP pattern changes observed
+
+**Decision:** ✅ **None of the reconsideration criteria are met. Phase 2B remains deferred.**
+
+**Monitoring plan:** Re-run `analyze_logs.py` monthly. If any criterion above is met for 30+ consecutive days, reconsider Phase 2B implementation.
+
+---
+
+**Architecture validated:** ✅ Portable controller supports time-of-day bias without code fragmentation (ready to implement when/if needed).
