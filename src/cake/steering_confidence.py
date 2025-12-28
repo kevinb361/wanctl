@@ -125,7 +125,7 @@ def compute_confidence(
     # Clamp to 0-100
     score = max(0, min(100, score))
 
-    logger.debug(f"Confidence={score} signals=[{', '.join(contributors)}]")
+    logger.debug(f"[PHASE2B] Confidence={score} signals=[{', '.join(contributors)}]")
 
     return score, contributors
 
@@ -203,21 +203,21 @@ class TimerManager:
                 # Start timer
                 timer_state.degrade_timer = self.sustain_duration
                 self.logger.info(
-                    f"confidence={confidence} signals={timer_state.confidence_contributors} "
+                    f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"degrade_timer_start={self.sustain_duration}s"
                 )
             else:
                 # Decrement timer
                 timer_state.degrade_timer -= 2  # Assessment interval is 2s
                 self.logger.info(
-                    f"confidence={confidence} signals={timer_state.confidence_contributors} "
+                    f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"degrade_timer={timer_state.degrade_timer}s"
                 )
 
                 if timer_state.degrade_timer <= 0:
                     # Timer expired—steer!
                     self.logger.warning(
-                        f"degrade_timer expired: confidence={confidence} sustained={self.sustain_duration}s"
+                        f"[PHASE2B] degrade_timer expired: confidence={confidence} sustained={self.sustain_duration}s"
                     )
                     timer_state.degrade_timer = None
                     return "ENABLE_STEERING"
@@ -225,7 +225,7 @@ class TimerManager:
             # Confidence dropped below threshold
             if timer_state.degrade_timer is not None:
                 self.logger.info(
-                    f"confidence={confidence} degrade_timer_reset reason=below_threshold"
+                    f"[PHASE2B] confidence={confidence} degrade_timer_reset reason=below_threshold"
                 )
                 timer_state.degrade_timer = None
 
@@ -248,13 +248,13 @@ class TimerManager:
             # Decrement timer
             timer_state.hold_down_timer -= 2
             self.logger.debug(
-                f"hold_down_active remaining={timer_state.hold_down_timer}s "
+                f"[PHASE2B] hold_down_active remaining={timer_state.hold_down_timer}s "
                 f"confidence={timer_state.confidence_score} (ignored)"
             )
 
             if timer_state.hold_down_timer <= 0:
                 # Hold-down expired
-                self.logger.info("hold_down_expired resume_evaluation")
+                self.logger.info("[PHASE2B] hold_down_expired resume_evaluation")
                 timer_state.hold_down_timer = None
 
     def update_recovery_timer(
@@ -291,21 +291,21 @@ class TimerManager:
                 # Start timer
                 timer_state.recovery_timer = self.recovery_duration
                 self.logger.info(
-                    f"confidence={confidence} signals={timer_state.confidence_contributors} "
+                    f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"recovery_timer_start={self.recovery_duration}s"
                 )
             else:
                 # Decrement timer
                 timer_state.recovery_timer -= 2
                 self.logger.info(
-                    f"confidence={confidence} signals={timer_state.confidence_contributors} "
+                    f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"recovery_timer={timer_state.recovery_timer}s"
                 )
 
                 if timer_state.recovery_timer <= 0:
                     # Timer expired—recover!
                     self.logger.info(
-                        f"recovery_timer expired: confidence={confidence} sustained={self.recovery_duration}s"
+                        f"[PHASE2B] recovery_timer expired: confidence={confidence} sustained={self.recovery_duration}s"
                     )
                     timer_state.recovery_timer = None
                     return "DISABLE_STEERING"
@@ -323,7 +323,7 @@ class TimerManager:
                     reason.append(f"drops={drops:.3f}")
 
                 self.logger.info(
-                    f"recovery_timer_reset reason=[{', '.join(reason)}]"
+                    f"[PHASE2B] recovery_timer_reset reason=[{', '.join(reason)}]"
                 )
                 timer_state.recovery_timer = None
 
@@ -442,18 +442,18 @@ class DryRunLogger:
 
         if decision == "ENABLE_STEERING":
             self.logger.warning(
-                f"[DRY-RUN] WOULD_ENABLE_STEERING confidence={confidence} "
+                f"[PHASE2B][DRY-RUN] WOULD_ENABLE_STEERING confidence={confidence} "
                 f"sustained={sustained}s signals=[{signals_str}]"
             )
-            self.logger.info("[DRY-RUN] Would execute: enable mangle rule")
-            self.logger.info("[DRY-RUN] Actual routing unchanged")
+            self.logger.info("[PHASE2B][DRY-RUN] Would execute: enable mangle rule")
+            self.logger.info("[PHASE2B][DRY-RUN] Actual routing unchanged")
         elif decision == "DISABLE_STEERING":
             self.logger.info(
-                f"[DRY-RUN] WOULD_DISABLE_STEERING confidence={confidence} "
+                f"[PHASE2B][DRY-RUN] WOULD_DISABLE_STEERING confidence={confidence} "
                 f"sustained={sustained}s signals=[{signals_str}]"
             )
-            self.logger.info("[DRY-RUN] Would execute: disable mangle rule")
-            self.logger.info("[DRY-RUN] Actual routing unchanged")
+            self.logger.info("[PHASE2B][DRY-RUN] Would execute: disable mangle rule")
+            self.logger.info("[PHASE2B][DRY-RUN] Actual routing unchanged")
 
 
 # =============================================================================
@@ -512,9 +512,9 @@ class Phase2BController:
         # State
         self.timer_state = TimerState()
 
-        self.logger.info("Phase 2B Controller initialized (confidence-based steering)")
+        self.logger.info("[PHASE2B] Controller initialized (confidence-based steering)")
         if dry_run_cfg['enabled']:
-            self.logger.warning("[DRY-RUN] Phase 2B in LOG-ONLY mode - no routing changes")
+            self.logger.warning("[PHASE2B][DRY-RUN] LOG-ONLY mode - no routing changes")
 
     def evaluate(
         self,
@@ -558,6 +558,12 @@ class Phase2BController:
                     confidence,
                     contributors,
                     self.config['confidence']['sustain_duration_sec']
+                )
+
+                # Start hold-down timer
+                self.timer_state.hold_down_timer = self.config['timers']['hold_down_duration_sec']
+                self.logger.info(
+                    f"[PHASE2B] hold_down_timer_start={self.timer_state.hold_down_timer}s"
                 )
 
                 # Record toggle for flap detection
