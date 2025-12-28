@@ -55,6 +55,18 @@ except ImportError as e:
     print("Falling back to legacy RTT-only mode")
     CAKE_AWARE_AVAILABLE = False
 
+# Import Phase 2B modules
+try:
+    from steering_confidence import (
+        Phase2BController,
+        ConfidenceSignals
+    )
+    PHASE2B_AVAILABLE = True
+except ImportError as e:
+    print(f"INFO: Phase 2B modules not found: {e}")
+    print("Phase 2B disabled (not an error if not deployed yet)")
+    PHASE2B_AVAILABLE = False
+
 
 # =============================================================================
 # CONFIGURATION
@@ -136,6 +148,10 @@ class Config:
             'user': self.router_user,
             'ssh_key': self.ssh_key
         }
+
+        # Phase 2B: Confidence-based steering (optional)
+        self.phase2b_config = data.get('steering_v3', {})
+        self.phase2b_enabled = self.phase2b_config.get('enabled', False)
 
 
 # =============================================================================
@@ -625,6 +641,20 @@ class SteeringDaemon:
             self.thresholds = None
             self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
 
+        # Phase 2B: Confidence-based steering (if enabled)
+        if self.config.phase2b_enabled and PHASE2B_AVAILABLE:
+            self.phase2b_controller = Phase2BController(
+                config_v3=config.phase2b_config,
+                logger=logger
+            )
+            self.logger.info("Phase 2B ENABLED - confidence-based steering active")
+            if config.phase2b_config.get('dry_run', {}).get('enabled', False):
+                self.logger.warning("Phase 2B in DRY-RUN mode - no routing changes")
+        else:
+            self.phase2b_controller = None
+            if self.config.phase2b_enabled and not PHASE2B_AVAILABLE:
+                self.logger.warning("Phase 2B requested but modules not available")
+
     def measure_current_rtt(self) -> Optional[float]:
         """Measure current RTT to ping host"""
         return self.rtt_measurement.ping_host(
@@ -913,7 +943,7 @@ class SteeringDaemon:
                 f"good_count={state['good_count']}/{self.config.good_samples}"
             )
 
-        # === Update State Machine ===
+        # === Update State Machine (Phase 2A) ===
         state_changed = self.update_state_machine(signals)
 
         if state_changed:
@@ -921,6 +951,57 @@ class SteeringDaemon:
                 f"State transition: {state['current_state']} "
                 f"(last transition: {state.get('last_transition_time', 'never')})"
             )
+
+        # === Phase 2B Evaluation (Shadow Mode) ===
+        if self.phase2b_controller:
+            # Convert signals for Phase 2B
+            cake_state_str = state.get('congestion_state', 'GREEN')  # GREEN/YELLOW/RED from Phase 2A
+
+            # Calculate drops per second (approximate)
+            drops_per_sec = cake_drops / 2.0  # 2s assessment interval
+
+            # Calculate queue depth percentage (estimate: 1000 packets = 100%)
+            queue_depth_pct = (queued_packets / 1000.0) * 100.0
+
+            # Build confidence signals
+            confidence_signals = ConfidenceSignals(
+                cake_state=cake_state_str,
+                rtt_delta_ms=rtt_delta_ewma,
+                drops_per_sec=drops_per_sec,
+                queue_depth_pct=queue_depth_pct,
+                cake_state_history=state.get('cake_state_history', []),
+                drops_history=state.get('drops_per_sec_history', []),
+                queue_history=state.get('queue_pct_history', [])
+            )
+
+            # Update history for Phase 2B
+            if 'cake_state_history' not in state:
+                state['cake_state_history'] = []
+            if 'drops_per_sec_history' not in state:
+                state['drops_per_sec_history'] = []
+            if 'queue_pct_history' not in state:
+                state['queue_pct_history'] = []
+
+            state['cake_state_history'].append(cake_state_str)
+            state['drops_per_sec_history'].append(drops_per_sec)
+            state['queue_pct_history'].append(queue_depth_pct)
+
+            # Trim history (keep last 60 samples = 2 minutes)
+            if len(state['cake_state_history']) > 60:
+                state['cake_state_history'] = state['cake_state_history'][-60:]
+            if len(state['drops_per_sec_history']) > 60:
+                state['drops_per_sec_history'] = state['drops_per_sec_history'][-60:]
+            if len(state['queue_pct_history']) > 60:
+                state['queue_pct_history'] = state['queue_pct_history'][-60:]
+
+            # Evaluate Phase 2B decision (hypothetical)
+            phase2b_decision = self.phase2b_controller.evaluate(
+                signals=confidence_signals,
+                current_state=state['current_state']
+            )
+
+            # Phase 2B decisions are logged internally by the controller
+            # In dry-run mode, no routing changes occur
 
         # Save state
         self.state_mgr.save()
