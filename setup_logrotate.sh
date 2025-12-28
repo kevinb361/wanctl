@@ -27,11 +27,11 @@ echo ""
 
 # Clean up cake-spectrum logs
 echo "Cleaning logs on cake-spectrum..."
-ssh cake-spectrum 'cd /home/kevin/fusion_cake/logs && rm -f *.log && echo "✓ Logs deleted"'
+ssh cake-spectrum 'cd /home/kevin/wanctl/logs && rm -f *.log && echo "✓ Logs deleted"'
 
 # Clean up cake-att logs
 echo "Cleaning logs on cake-att..."
-ssh cake-att 'cd /home/kevin/fusion_cake/logs && rm -f *.log && echo "✓ Logs deleted"'
+ssh cake-att 'cd /home/kevin/wanctl/logs && rm -f *.log && echo "✓ Logs deleted"'
 
 echo ""
 echo "=== Testing Logrotate Configuration ==="
@@ -45,7 +45,7 @@ echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "Logrotate will run daily and:"
-echo "  - Rotate logs in /home/kevin/fusion_cake/logs/"
+echo "  - Rotate logs in /home/kevin/wanctl/logs/"
 echo "  - Keep 7 days of rotated logs"
 echo "  - Compress old logs (delayed by 1 day)"
 echo ""

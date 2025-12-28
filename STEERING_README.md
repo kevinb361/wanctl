@@ -105,7 +105,7 @@ ssh kevin@10.10.110.246 'journalctl -u wan-steering.service -f'
 ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.json'
 
 # Log file
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/steering.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/steering.log'
 
 # RouterOS rule status
 ssh admin@10.10.99.1 '/ip firewall mangle print where comment~"ADAPTIVE"'
@@ -343,12 +343,12 @@ ssh admin@10.10.99.1 '/ip firewall mangle print stats where comment~"COUNT DSCP"
 - `/home/kevin/.claude/plans/optimized-mapping-ullman.md` - Full implementation plan
 
 ### On cake-spectrum Container (10.10.110.246)
-- `/home/kevin/fusion_cake/wan_steering_daemon.py` - Daemon
-- `/home/kevin/fusion_cake/configs/steering_config.yaml` - Config
+- `/home/kevin/wanctl/wan_steering_daemon.py` - Daemon
+- `/home/kevin/wanctl/configs/steering_config.yaml` - Config
 - `/home/kevin/adaptive_cake_steering/steering_state.json` - State
-- `/home/kevin/fusion_cake/logs/steering.log` - Main log
-- `/home/kevin/fusion_cake/logs/steering_debug.log` - Debug log
-- `/tmp/fusion_cake_steering.lock` - Lock file
+- `/home/kevin/wanctl/logs/steering.log` - Main log
+- `/home/kevin/wanctl/logs/steering_debug.log` - Debug log
+- `/tmp/wanctl_steering.lock` - Lock file
 
 ### On RouterOS (10.10.99.1)
 - Mangle rules: LATENCY_SENSITIVE translation + ADAPTIVE steering

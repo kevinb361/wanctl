@@ -6,8 +6,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=kevin
-WorkingDirectory=/home/kevin/fusion_cake
-ExecStart=/usr/bin/python3 /home/kevin/fusion_cake/adaptive_cake.py --config /home/kevin/fusion_cake/configs/spectrum_binary_search.yaml
+WorkingDirectory=/home/kevin/wanctl
+ExecStart=/usr/bin/python3 /home/kevin/wanctl/adaptive_cake.py --config /home/kevin/wanctl/configs/spectrum_binary_search.yaml
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=cake-spectrum-binary

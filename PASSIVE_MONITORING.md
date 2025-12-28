@@ -81,8 +81,8 @@ On RouterOS, the active tests remain your primary monitoring method.
 cd /home/kevin/CAKE
 
 # Copy to containers
-scp passive_monitor.py configs/*.yaml kevin@10.10.110.247:/home/kevin/fusion_cake/
-scp passive_monitor.py configs/*.yaml kevin@10.10.110.246:/home/kevin/fusion_cake/
+scp passive_monitor.py configs/*.yaml kevin@10.10.110.247:/home/kevin/wanctl/
+scp passive_monitor.py configs/*.yaml kevin@10.10.110.246:/home/kevin/wanctl/
 
 # Copy systemd units
 scp systemd/cake-*-passive.{service,timer} kevin@10.10.110.247:/tmp/
@@ -116,7 +116,7 @@ exit
 ```bash
 # On ATT container
 ssh kevin@10.10.110.247
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 passive_monitor.py --config configs/att_config.yaml --verbose
 ```
 
@@ -148,10 +148,10 @@ Adjust thresholds based on your tolerance for latency/drops.
 
 ```bash
 # ATT
-ssh kevin@10.10.110.247 'tail -f /home/kevin/fusion_cake/logs/cake_passive.log'
+ssh kevin@10.10.110.247 'tail -f /home/kevin/wanctl/logs/cake_passive.log'
 
 # Spectrum
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_passive.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_passive.log'
 ```
 
 ### Check Timer Status

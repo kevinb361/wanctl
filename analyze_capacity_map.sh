@@ -1,7 +1,7 @@
 #!/bin/bash
 # Analyze capacity map data and suggest floor values
 
-LOG_FILE="/home/kevin/fusion_cake/capacity_map.csv"
+LOG_FILE="/home/kevin/wanctl/capacity_map.csv"
 
 if [ ! -f "$LOG_FILE" ]; then
     echo "Error: No capacity map data found at $LOG_FILE"

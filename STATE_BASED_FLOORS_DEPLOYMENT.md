@@ -89,10 +89,10 @@ Current Rate: 95M down / 18M up (at ceiling)
 - ✅ `patch_state_based_floors.py` - Automated patching script
 
 ### **Containers (Deployed):**
-- ✅ `cake-spectrum`: `/home/kevin/fusion_cake/autorate_continuous.py` (v2)
-- ✅ `cake-spectrum`: `/home/kevin/fusion_cake/configs/spectrum_config.yaml` (v2)
-- ✅ `cake-att`: `/home/kevin/fusion_cake/autorate_continuous.py` (v2)
-- ✅ `cake-att`: `/home/kevin/fusion_cake/configs/att_config.yaml` (v2)
+- ✅ `cake-spectrum`: `/home/kevin/wanctl/autorate_continuous.py` (v2)
+- ✅ `cake-spectrum`: `/home/kevin/wanctl/configs/spectrum_config.yaml` (v2)
+- ✅ `cake-att`: `/home/kevin/wanctl/autorate_continuous.py` (v2)
+- ✅ `cake-att`: `/home/kevin/wanctl/configs/att_config.yaml` (v2)
 
 ### **Backups Created:**
 - `autorate_continuous_backup_20251213_*.py` on both containers
@@ -140,22 +140,22 @@ else:
 ### **Check Current Status:**
 ```bash
 # Spectrum
-ssh kevin@10.10.110.246 'tail -20 /home/kevin/fusion_cake/logs/cake_auto.log | grep Spectrum'
+ssh kevin@10.10.110.246 'tail -20 /home/kevin/wanctl/logs/cake_auto.log | grep Spectrum'
 
 # ATT
-ssh kevin@10.10.110.247 'tail -20 /home/kevin/fusion_cake/logs/cake_auto.log | grep ATT'
+ssh kevin@10.10.110.247 'tail -20 /home/kevin/wanctl/logs/cake_auto.log | grep ATT'
 ```
 
 ### **Run Congestion Analysis:**
 ```bash
 ssh kevin@10.10.110.246
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 analyze_congestion_patterns.py logs/cake_auto.log Spectrum 940
 ```
 
 ### **Watch Real-Time:**
 ```bash
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
 ```
 
 ---
@@ -211,13 +211,13 @@ If you need to revert to the old system:
 ```bash
 # Spectrum
 ssh kevin@10.10.110.246
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 cp autorate_continuous_backup_*.py autorate_continuous.py
 # Edit configs/spectrum_config.yaml and change back to single floor_mbps: 150
 
 # ATT
 ssh kevin@10.10.110.247
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 cp autorate_continuous_backup_*.py autorate_continuous.py
 # Edit configs/att_config.yaml and change back to single floor_mbps: 25
 

@@ -24,7 +24,7 @@
 **Configuration file:** `/etc/logrotate.d/cake` (installed on both containers)
 
 **Settings:**
-- **Path:** `/home/kevin/fusion_cake/logs/*.log`
+- **Path:** `/home/kevin/wanctl/logs/*.log`
 - **Frequency:** Daily rotation
 - **Retention:** 7 days of rotated logs
 - **Compression:** Enabled (delayed by 1 day)
@@ -32,7 +32,7 @@
 
 **How it works:**
 - Logrotate runs daily (via system cron)
-- Rotates all `.log` files in `/home/kevin/fusion_cake/logs/`
+- Rotates all `.log` files in `/home/kevin/wanctl/logs/`
 - Renames current log to `filename.log.1`
 - Compresses old logs to `filename.log.2.gz`, etc.
 - Deletes logs older than 7 days
@@ -76,8 +76,8 @@ ssh cake-att 'sudo logrotate -d /etc/logrotate.d/cake'
 
 Expected output:
 ```
-rotating pattern: /home/kevin/fusion_cake/logs/*.log  after 1 days (7 rotations)
-considering log /home/kevin/fusion_cake/logs/cake_auto.log
+rotating pattern: /home/kevin/wanctl/logs/*.log  after 1 days (7 rotations)
+considering log /home/kevin/wanctl/logs/cake_auto.log
   log does not need rotating (log has already been rotated)
 ```
 
@@ -97,7 +97,7 @@ This will immediately rotate logs regardless of when they were last rotated.
 
 ```bash
 # View rotated logs on cake-spectrum
-ssh cake-spectrum 'ls -lh /home/kevin/fusion_cake/logs/'
+ssh cake-spectrum 'ls -lh /home/kevin/wanctl/logs/'
 
 # Should show:
 # cake_auto.log       (current, uncompressed)
@@ -123,7 +123,7 @@ ssh cake-att 'sudo logrotate -f /etc/logrotate.d/cake'
 
 ```bash
 # View logrotate state file
-ssh cake-spectrum 'sudo cat /var/lib/logrotate/status | grep fusion_cake'
+ssh cake-spectrum 'sudo cat /var/lib/logrotate/status | grep wanctl'
 ```
 
 ### Modify Configuration
@@ -156,7 +156,7 @@ If you need to change rotation settings (e.g., keep more days):
 
 **Fix:**
 ```bash
-ssh cake-spectrum 'sudo chown kevin:kevin /home/kevin/fusion_cake/logs/*.log'
+ssh cake-spectrum 'sudo chown kevin:kevin /home/kevin/wanctl/logs/*.log'
 ```
 
 ### Problem: Config File Has Wrong Line Endings
@@ -198,7 +198,7 @@ file /home/kevin/projects/cake/configs/logrotate-cake
 - No manual intervention needed
 
 **Optional:**
-- Monitor disk usage: `ssh cake-spectrum 'du -sh /home/kevin/fusion_cake/logs/'`
+- Monitor disk usage: `ssh cake-spectrum 'du -sh /home/kevin/wanctl/logs/'`
 - If running monthly analysis, consider keeping 30 days: change `rotate 7` to `rotate 30`
 
 ---

@@ -12,7 +12,7 @@ cd /home/kevin/CAKE
 ```
 
 This copies:
-- Script and configs to `/home/kevin/fusion_cake/`
+- Script and configs to `/home/kevin/wanctl/`
 - Systemd units to `/tmp/`
 - Install scripts to `/tmp/`
 
@@ -45,7 +45,7 @@ exit
 systemctl list-timers cake-*
 
 # Watch first run (optional)
-tail -f /home/kevin/fusion_cake/logs/cake_auto.log
+tail -f /home/kevin/wanctl/logs/cake_auto.log
 ```
 
 ## Step 3: Install on Spectrum Container
@@ -77,7 +77,7 @@ exit
 systemctl list-timers cake-*
 
 # Watch first run (optional)
-tail -f /home/kevin/fusion_cake/logs/cake_auto.log
+tail -f /home/kevin/wanctl/logs/cake_auto.log
 ```
 
 ---
@@ -133,12 +133,12 @@ ssh kevin@10.10.110.247 'systemctl list-timers cake-*'
 ssh kevin@10.10.110.246 'systemctl list-timers cake-*'
 
 # Watch logs in real-time
-ssh kevin@10.10.110.247 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
+ssh kevin@10.10.110.247 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
 
 # Check state files (after first run)
-ssh kevin@10.10.110.247 'cat /home/kevin/fusion_cake/att_state.json'
-ssh kevin@10.10.110.246 'cat /home/kevin/fusion_cake/spectrum_state.json'
+ssh kevin@10.10.110.247 'cat /home/kevin/wanctl/att_state.json'
+ssh kevin@10.10.110.246 'cat /home/kevin/wanctl/spectrum_state.json'
 
 # View systemd journal
 ssh kevin@10.10.110.247 'journalctl -u cake-att.service -n 50'
@@ -167,12 +167,12 @@ journalctl -u cake-att.timer
 ### Script errors
 ```bash
 journalctl -u cake-att.service -n 50
-tail /home/kevin/fusion_cake/logs/cake_auto.log
+tail /home/kevin/wanctl/logs/cake_auto.log
 ```
 
 ### Manual test
 ```bash
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 adaptive_cake.py --config configs/att_config.yaml --debug
 ```
 
@@ -188,5 +188,5 @@ python3 -c "import yaml; import pexpect"
 
 | Container | IP | Offset | Config |
 |-----------|---------|--------|--------|
-| ATT | 10.10.110.247 | :02, :12, :22... | `/home/kevin/fusion_cake/configs/att_config.yaml` |
-| Spectrum | 10.10.110.246 | :07, :17, :27... | `/home/kevin/fusion_cake/configs/spectrum_config.yaml` |
+| ATT | 10.10.110.247 | :02, :12, :22... | `/home/kevin/wanctl/configs/att_config.yaml` |
+| Spectrum | 10.10.110.246 | :07, :17, :27... | `/home/kevin/wanctl/configs/spectrum_config.yaml` |

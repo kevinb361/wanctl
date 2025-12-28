@@ -89,14 +89,14 @@ python3 -c "import pexpect, yaml; print('Dependencies OK')"
 
 ```bash
 # Create main directory
-mkdir -p ~/fusion_cake/configs
-mkdir -p ~/fusion_cake/logs
+mkdir -p ~/wanctl/configs
+mkdir -p ~/wanctl/logs
 
 # Create state directory
 mkdir -p ~/adaptive_cake_fiber
 
 # Verify structure
-tree ~/fusion_cake
+tree ~/wanctl
 ```
 
 ## Step 4: Copy Required Files
@@ -105,12 +105,12 @@ From your build machine, copy only the files needed for single-WAN:
 
 ```bash
 # On build machine, copy to Raspberry Pi
-scp /home/kevin/CAKE/autorate_continuous.py pi@<raspi-ip>:~/fusion_cake/
-scp /home/kevin/CAKE/configs/dad_fiber_config.yaml pi@<raspi-ip>:~/fusion_cake/configs/
-scp /home/kevin/CAKE/requirements.txt pi@<raspi-ip>:~/fusion_cake/
+scp /home/kevin/CAKE/autorate_continuous.py pi@<raspi-ip>:~/wanctl/
+scp /home/kevin/CAKE/configs/dad_fiber_config.yaml pi@<raspi-ip>:~/wanctl/configs/
+scp /home/kevin/CAKE/requirements.txt pi@<raspi-ip>:~/wanctl/
 
 # Verify files copied
-ssh pi@<raspi-ip> 'ls -lh ~/fusion_cake/'
+ssh pi@<raspi-ip> 'ls -lh ~/wanctl/'
 ```
 
 **DO NOT COPY:**
@@ -121,7 +121,7 @@ ssh pi@<raspi-ip> 'ls -lh ~/fusion_cake/'
 
 ## Step 5: Create Configuration File
 
-Edit `~/fusion_cake/configs/fiber_config.yaml` on the Raspberry Pi:
+Edit `~/wanctl/configs/fiber_config.yaml` on the Raspberry Pi:
 
 ```yaml
 # CAKE Configuration - Fiber Single-WAN
@@ -180,11 +180,11 @@ state:
 
 # Logging
 logging:
-  main_log: "/home/pi/fusion_cake/logs/cake_auto.log"
-  debug_log: "/home/pi/fusion_cake/logs/cake_auto_debug.log"
+  main_log: "/home/pi/wanctl/logs/cake_auto.log"
+  debug_log: "/home/pi/wanctl/logs/cake_auto_debug.log"
 
 # Lock file
-lock_file: "/tmp/fusion_cake_fiber.lock"
+lock_file: "/tmp/wanctl_fiber.lock"
 lock_timeout: 300
 ```
 
@@ -208,8 +208,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=pi
-WorkingDirectory=/home/pi/fusion_cake
-ExecStart=/usr/bin/python3 /home/pi/fusion_cake/autorate_continuous.py --config /home/pi/fusion_cake/configs/fiber_config.yaml
+WorkingDirectory=/home/pi/wanctl
+ExecStart=/usr/bin/python3 /home/pi/wanctl/autorate_continuous.py --config /home/pi/wanctl/configs/fiber_config.yaml
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=cake-fiber
@@ -240,7 +240,7 @@ EOF
 
 ```bash
 sudo tee /etc/logrotate.d/cake << 'EOF'
-/home/pi/fusion_cake/logs/*.log {
+/home/pi/wanctl/logs/*.log {
     daily
     rotate 7
     compress
@@ -262,7 +262,7 @@ sudo logrotate -f /etc/logrotate.d/cake
 **Test manually before enabling timer:**
 
 ```bash
-cd ~/fusion_cake
+cd ~/wanctl
 python3 autorate_continuous.py --config configs/fiber_config.yaml --debug
 ```
 
@@ -300,7 +300,7 @@ systemctl list-timers cake-*
 ### Check Service Logs
 ```bash
 # Live log monitoring
-tail -f ~/fusion_cake/logs/cake_auto.log
+tail -f ~/wanctl/logs/cake_auto.log
 
 # Systemd journal
 journalctl -u cake-fiber.service -f
@@ -429,10 +429,10 @@ If you prefer proactive calibration over continuous monitoring:
 systemctl status cake-fiber.timer
 
 # Check log size
-du -sh ~/fusion_cake/logs/
+du -sh ~/wanctl/logs/
 
 # Verify rotation working
-ls -lh ~/fusion_cake/logs/*.gz
+ls -lh ~/wanctl/logs/*.gz
 ```
 
 ### Monthly Review
@@ -444,8 +444,8 @@ ls -lh ~/fusion_cake/logs/*.gz
 ## Backup
 
 ```bash
-# Backup entire fusion_cake directory
-tar czf ~/cake_backup_$(date +%Y%m%d).tar.gz ~/fusion_cake ~/adaptive_cake_fiber /etc/systemd/system/cake-fiber.*
+# Backup entire wanctl directory
+tar czf ~/cake_backup_$(date +%Y%m%d).tar.gz ~/wanctl ~/adaptive_cake_fiber /etc/systemd/system/cake-fiber.*
 
 # Copy backup off Raspberry Pi
 scp pi@<raspi-ip>:~/cake_backup_*.tar.gz ~/backups/

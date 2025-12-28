@@ -7,8 +7,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=kevin
-WorkingDirectory=/home/kevin/fusion_cake
-ExecStart=/usr/bin/python3 /home/kevin/fusion_cake/wan_steering_daemon.py --config configs/steering_config.yaml
+WorkingDirectory=/home/kevin/wanctl
+ExecStart=/usr/bin/python3 /home/kevin/wanctl/wan_steering_daemon.py --config configs/steering_config.yaml
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wan-steering

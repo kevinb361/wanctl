@@ -68,12 +68,12 @@ ssh kevin@10.10.110.246 'journalctl -u cake-spectrum.service -f'
 ```bash
 # ATT
 ssh kevin@10.10.110.247
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 adaptive_cake.py --config configs/att_config.yaml --debug
 
 # Spectrum
 ssh kevin@10.10.110.246
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 adaptive_cake.py --config configs/spectrum_config.yaml --debug
 ```
 
@@ -100,7 +100,7 @@ python3 adaptive_cake.py --config configs/spectrum_config.yaml --debug
 ├── deploy_refactored.sh            # Deployment script
 └── README.md                        # This file
 
-/home/kevin/fusion_cake/            # On each container (deployed)
+/home/kevin/wanctl/            # On each container (deployed)
 ├── adaptive_cake.py
 ├── requirements.txt
 └── configs/
@@ -246,7 +246,7 @@ Shows current EWMA values, last caps, and measurement history.
 ### Manual Test Run
 ```bash
 # Normal run
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 adaptive_cake.py --config configs/att_config.yaml
 
 # Debug run (verbose output)
@@ -270,10 +270,10 @@ systemctl status cake-att.service
 journalctl -u cake-att.service --since "10 minutes ago"
 
 # Check script permissions
-ls -l /home/kevin/fusion_cake/adaptive_cake.py
+ls -l /home/kevin/wanctl/adaptive_cake.py
 
 # Test manually
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 adaptive_cake.py --config configs/att_config.yaml --debug
 ```
 
@@ -370,8 +370,8 @@ To add a third WAN connection:
 
 3. **Deploy**:
    ```bash
-   scp configs/newwan_config.yaml user@container:/home/user/fusion_cake/configs/
-   scp adaptive_cake.py user@container:/home/user/fusion_cake/
+   scp configs/newwan_config.yaml user@container:/home/user/wanctl/configs/
+   scp adaptive_cake.py user@container:/home/user/wanctl/
    scp systemd/cake-newwan* user@container:/tmp/
 
    ssh user@container

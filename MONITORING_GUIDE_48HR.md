@@ -62,22 +62,22 @@ Your expert confirmed:
 ### **Quick Status Check (Run Anytime):**
 ```bash
 # Check current state (both WANs)
-ssh kevin@10.10.110.246 'tail -5 /home/kevin/fusion_cake/logs/cake_auto.log | grep Spectrum'
-ssh kevin@10.10.110.247 'tail -5 /home/kevin/fusion_cake/logs/cake_auto.log | grep ATT'
+ssh kevin@10.10.110.246 'tail -5 /home/kevin/wanctl/logs/cake_auto.log | grep Spectrum'
+ssh kevin@10.10.110.247 'tail -5 /home/kevin/wanctl/logs/cake_auto.log | grep ATT'
 ```
 
 ### **Evening Analysis (Run Once Per Day):**
 ```bash
 # Full congestion analysis
 ssh kevin@10.10.110.246
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 analyze_congestion_patterns.py logs/cake_auto.log Spectrum 940
 ```
 
 ### **Watch Real-Time During Peak Hours:**
 ```bash
 # Watch live during 5-10pm
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log | grep -E "GREEN|YELLOW|RED"'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log | grep -E "GREEN|YELLOW|RED"'
 ```
 
 ### **Check Steering Activity:**
@@ -97,7 +97,7 @@ ssh kevin@10.10.110.246 'journalctl -u wan-steering.service --since "18:00" | gr
 
 1. **Start monitoring:**
    ```bash
-   ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
+   ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
    ```
 
 2. **Generate some traffic:**
@@ -134,20 +134,20 @@ If you see this happen once correctly, the system is proven.
 ### **Morning Check (Quick - 2 minutes):**
 ```bash
 # 1. Check overnight state distribution
-ssh kevin@10.10.110.246 "grep -E '\[GREEN|\[YELLOW|\[RED' /home/kevin/fusion_cake/logs/cake_auto.log | tail -1000 | sort | uniq -c"
+ssh kevin@10.10.110.246 "grep -E '\[GREEN|\[YELLOW|\[RED' /home/kevin/wanctl/logs/cake_auto.log | tail -1000 | sort | uniq -c"
 
 # 2. Any crashes or errors?
 ssh kevin@10.10.110.246 'journalctl -u cake-spectrum-continuous.service --since "yesterday" | grep -i error'
 ssh kevin@10.10.110.247 'journalctl -u cake-att-continuous.service --since "yesterday" | grep -i error'
 
 # 3. Current status
-ssh kevin@10.10.110.246 'tail -3 /home/kevin/fusion_cake/logs/cake_auto.log | grep Spectrum'
+ssh kevin@10.10.110.246 'tail -3 /home/kevin/wanctl/logs/cake_auto.log | grep Spectrum'
 ```
 
 ### **Evening Check (During Peak - 5 minutes):**
 ```bash
 # 1. Watch real-time for 2-3 minutes
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
 
 # 2. Note your subjective experience:
 #    - Does internet feel fast?
@@ -216,14 +216,14 @@ This will add Phase 2A:
 ```bash
 # Spectrum
 ssh kevin@10.10.110.246
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 cp autorate_continuous_backup_*.py autorate_continuous.py
 # Edit configs/spectrum_config.yaml:
 # Change floor_green_mbps → floor_mbps: 150 (remove yellow/red)
 
 # ATT
 ssh kevin@10.10.110.247
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 cp autorate_continuous_backup_*.py autorate_continuous.py
 # Edit configs/att_config.yaml:
 # Change floor_green_mbps → floor_mbps: 25 (remove yellow/red)
