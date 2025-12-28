@@ -16,7 +16,7 @@ read -p "Press Enter when autorate is stopped, or Ctrl-C to abort..."
 echo ""
 
 # Verify we're on the right container
-if [ ! -f /home/kevin/fusion_cake/wan_steering_daemon.py ]; then
+if [ ! -f /home/kevin/wanctl/wan_steering_daemon.py ]; then
     echo "ERROR: This script must run on cake-spectrum container (10.10.110.246)"
     echo "Run: ssh kevin@10.10.110.246"
     echo "Then: bash /home/kevin/CAKE/test_steering.sh"
@@ -62,7 +62,7 @@ echo ""
 
 for i in {1..20}; do
     sleep 2
-    LOGLINE=$(tail -1 /home/kevin/fusion_cake/logs/steering.log)
+    LOGLINE=$(tail -1 /home/kevin/wanctl/logs/steering.log)
 
     # Extract key metrics
     if echo "$LOGLINE" | grep -q "RTT="; then

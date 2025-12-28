@@ -35,7 +35,7 @@ Routes latency-sensitive traffic to ATT WAN when Spectrum shows confirmed conges
 - Downloads, streaming, bulk traffic
 
 ### Configuration
-**Location:** `/home/kevin/fusion_cake/configs/steering_config_v2.yaml`
+**Location:** `/home/kevin/wanctl/configs/steering_config_v2.yaml`
 
 **Key settings:**
 ```yaml
@@ -103,7 +103,7 @@ thresholds:
 ```bash
 # Live logs
 ssh kevin@10.10.110.246
-tail -f /home/kevin/fusion_cake/logs/steering.log
+tail -f /home/kevin/wanctl/logs/steering.log
 
 # Current state
 cat /home/kevin/adaptive_cake_steering/steering_state.json | python3 -m json.tool
@@ -142,7 +142,7 @@ Spectrum RECOVERED - disabling adaptive steering
 ├── congestion_assessment.py     # Three-state logic
 └── configs/steering_config_v2.yaml
 
-Deployed to: /home/kevin/fusion_cake/ (10.10.110.246)
+Deployed to: /home/kevin/wanctl/ (10.10.110.246)
 ```
 
 ### Documentation

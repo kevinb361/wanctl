@@ -100,7 +100,7 @@ class Config:
         self.lock_timeout = data['lock_timeout']
 
         # State file (for persisting hysteresis counters)
-        # Derive from lock file path: /tmp/fusion_cake_att.lock -> /tmp/fusion_cake_att_state.json
+        # Derive from lock file path: /tmp/wanctl_att.lock -> /tmp/wanctl_att_state.json
         lock_stem = self.lock_file.stem
         self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
 

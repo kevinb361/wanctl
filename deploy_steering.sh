@@ -24,20 +24,20 @@ command -v ssh >/dev/null 2>&1 || { echo "ERROR: ssh not installed"; exit 1; }
 # Create remote directory structure
 echo "[1/6] Creating remote directories..."
 sshpass -p "$CONTAINER_PASS" ssh ${CONTAINER_USER}@${CONTAINER_IP} \
-  "mkdir -p /home/kevin/fusion_cake/configs /home/kevin/fusion_cake/logs /home/kevin/adaptive_cake_steering"
+  "mkdir -p /home/kevin/wanctl/configs /home/kevin/wanctl/logs /home/kevin/adaptive_cake_steering"
 
 # Copy daemon script
 echo "[2/6] Copying wan_steering_daemon.py..."
-sshpass -p "$CONTAINER_PASS" scp wan_steering_daemon.py ${CONTAINER_USER}@${CONTAINER_IP}:/home/kevin/fusion_cake/
+sshpass -p "$CONTAINER_PASS" scp wan_steering_daemon.py ${CONTAINER_USER}@${CONTAINER_IP}:/home/kevin/wanctl/
 
 # Copy config
 echo "[3/6] Copying steering_config.yaml..."
-sshpass -p "$CONTAINER_PASS" scp configs/steering_config.yaml ${CONTAINER_USER}@${CONTAINER_IP}:/home/kevin/fusion_cake/configs/
+sshpass -p "$CONTAINER_PASS" scp configs/steering_config.yaml ${CONTAINER_USER}@${CONTAINER_IP}:/home/kevin/wanctl/configs/
 
 # Verify requirements.txt is already present (should be from autorate deployment)
 echo "[4/6] Verifying requirements.txt..."
 sshpass -p "$CONTAINER_PASS" ssh ${CONTAINER_USER}@${CONTAINER_IP} \
-  "test -f /home/kevin/fusion_cake/requirements.txt && echo 'requirements.txt exists' || echo 'WARNING: requirements.txt not found'"
+  "test -f /home/kevin/wanctl/requirements.txt && echo 'requirements.txt exists' || echo 'WARNING: requirements.txt not found'"
 
 # Copy systemd units to /tmp for manual installation
 echo "[5/6] Copying systemd units..."
@@ -47,7 +47,7 @@ sshpass -p "$CONTAINER_PASS" scp systemd/wan-steering.timer ${CONTAINER_USER}@${
 # Make script executable
 echo "[6/6] Making daemon executable..."
 sshpass -p "$CONTAINER_PASS" ssh ${CONTAINER_USER}@${CONTAINER_IP} \
-  "chmod +x /home/kevin/fusion_cake/wan_steering_daemon.py"
+  "chmod +x /home/kevin/wanctl/wan_steering_daemon.py"
 
 echo ""
 echo "=========================================="
@@ -83,7 +83,7 @@ echo "# State file:"
 echo "ssh kevin@${CONTAINER_IP} 'cat /home/kevin/adaptive_cake_steering/steering_state.json'"
 echo ""
 echo "# Log file:"
-echo "ssh kevin@${CONTAINER_IP} 'tail -f /home/kevin/fusion_cake/logs/steering.log'"
+echo "ssh kevin@${CONTAINER_IP} 'tail -f /home/kevin/wanctl/logs/steering.log'"
 echo ""
 echo "# RouterOS rule status:"
 echo "ssh admin@10.10.99.1 '/ip firewall mangle print where comment~\"ADAPTIVE\"'"

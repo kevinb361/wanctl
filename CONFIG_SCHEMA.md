@@ -506,7 +506,7 @@ use_median_of_three: true
 **Required:** Yes
 **Purpose:** Main log file (INFO level).
 
-**Example:** `"/home/kevin/fusion_cake/logs/cake_auto.log"`
+**Example:** `"/home/kevin/wanctl/logs/cake_auto.log"`
 
 #### `logging.debug_log`
 
@@ -514,7 +514,7 @@ use_median_of_three: true
 **Required:** Yes
 **Purpose:** Debug log file (DEBUG level).
 
-**Example:** `"/home/kevin/fusion_cake/logs/cake_auto_debug.log"`
+**Example:** `"/home/kevin/wanctl/logs/cake_auto_debug.log"`
 
 **Note:** Configure log rotation (logrotate) to prevent disk exhaustion.
 
@@ -528,7 +528,7 @@ use_median_of_three: true
 **Required:** Yes
 **Purpose:** Lock file to prevent concurrent runs.
 
-**Example:** `"/tmp/fusion_cake_spectrum.lock"`
+**Example:** `"/tmp/wanctl_spectrum.lock"`
 
 #### `lock_timeout`
 

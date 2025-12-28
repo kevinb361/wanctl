@@ -51,7 +51,7 @@ GREEN  (Recovered) - Disable steering, return to Spectrum
 ├── configs/steering_config_v2.yaml # CAKE-aware configuration
 └── CAKE_AWARE_IMPLEMENTATION.md    # This document
 
-Deployed to: /home/kevin/fusion_cake/ on cake-spectrum (10.10.110.246)
+Deployed to: /home/kevin/wanctl/ on cake-spectrum (10.10.110.246)
 ```
 
 ### Key Components
@@ -258,7 +258,7 @@ State transition: SPECTRUM_GOOD
 ```bash
 # Watch live logs
 ssh kevin@10.10.110.246
-tail -f /home/kevin/fusion_cake/logs/steering.log
+tail -f /home/kevin/wanctl/logs/steering.log
 
 # Check current state
 cat /home/kevin/adaptive_cake_steering/steering_state.json | python3 -m json.tool
@@ -351,15 +351,15 @@ ssh admin@10.10.99.1 '/queue/tree print stats where name~"WAN-"'
 **Container:** cake-spectrum (10.10.110.246)
 **Service:** `wan-steering.service` (systemd one-shot)
 **Timer:** `wan-steering.timer` (every 2 seconds)
-**Working directory:** `/home/kevin/fusion_cake/`
-**Logs:** `/home/kevin/fusion_cake/logs/steering.log`
+**Working directory:** `/home/kevin/wanctl/`
+**Logs:** `/home/kevin/wanctl/logs/steering.log`
 **State:** `/home/kevin/adaptive_cake_steering/steering_state.json`
 
 **Dependencies:**
 - Python 3.7+
 - PyYAML
 - SSH access to RouterOS (10.10.99.1)
-- CAKE state file from autorate_continuous (`/tmp/fusion_cake_spectrum_state.json`)
+- CAKE state file from autorate_continuous (`/tmp/wanctl_spectrum_state.json`)
 
 **Systemd commands:**
 ```bash

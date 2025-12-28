@@ -14,7 +14,7 @@ ssh kevin@10.10.110.247 'systemctl list-timers cake-*'
 ssh admin@10.10.99.1 '/queue tree print detail where name~"WAN-"'
 
 # Check steering status
-ssh kevin@10.10.110.246 'tail -20 /home/kevin/fusion_cake/logs/steering.log'
+ssh kevin@10.10.110.246 'tail -20 /home/kevin/wanctl/logs/steering.log'
 
 # Check congestion state
 ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.json'
@@ -41,43 +41,43 @@ ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.j
 **3 active services:**
 
 1. **Continuous CAKE Tuning** (Fast loop)
-   - Script: `/home/kevin/fusion_cake/autorate_continuous.py`
-   - Config: `/home/kevin/fusion_cake/configs/spectrum_config.yaml`
+   - Script: `/home/kevin/wanctl/autorate_continuous.py`
+   - Config: `/home/kevin/wanctl/configs/spectrum_config.yaml`
    - Timer: `cake-spectrum-continuous.timer` (every 2 seconds)
    - Service: `cake-spectrum-continuous.service`
-   - Log: `/home/kevin/fusion_cake/logs/cake_auto.log`
+   - Log: `/home/kevin/wanctl/logs/cake_auto.log`
 
 2. **Binary Search Calibration** (Slow loop)
-   - Script: `/home/kevin/fusion_cake/adaptive_cake.py`
-   - Config: `/home/kevin/fusion_cake/configs/spectrum_binary_search.yaml`
+   - Script: `/home/kevin/wanctl/adaptive_cake.py`
+   - Config: `/home/kevin/wanctl/configs/spectrum_binary_search.yaml`
    - Timer: `cake-spectrum.timer` (every 60 minutes)
    - Service: `cake-spectrum.service`
-   - Log: `/home/kevin/fusion_cake/logs/cake_binary.log`
+   - Log: `/home/kevin/wanctl/logs/cake_binary.log`
 
 3. **Adaptive WAN Steering** (Fast loop)
-   - Script: `/home/kevin/fusion_cake/wan_steering_daemon.py`
-   - Config: `/home/kevin/fusion_cake/configs/steering_config_v2.yaml`
+   - Script: `/home/kevin/wanctl/wan_steering_daemon.py`
+   - Config: `/home/kevin/wanctl/configs/steering_config_v2.yaml`
    - Timer: `wan-steering.timer` (every 2 seconds)
    - Service: `wan-steering.service`
-   - Log: `/home/kevin/fusion_cake/logs/steering.log`
+   - Log: `/home/kevin/wanctl/logs/steering.log`
 
 ### ATT Container (10.10.110.247)
 
 **2 active services:**
 
 1. **Continuous CAKE Tuning** (Fast loop)
-   - Script: `/home/kevin/fusion_cake/autorate_continuous.py`
-   - Config: `/home/kevin/fusion_cake/configs/att_config.yaml`
+   - Script: `/home/kevin/wanctl/autorate_continuous.py`
+   - Config: `/home/kevin/wanctl/configs/att_config.yaml`
    - Timer: `cake-att-continuous.timer` (every 2 seconds)
    - Service: `cake-att-continuous.service`
-   - Log: `/home/kevin/fusion_cake/logs/cake_auto.log`
+   - Log: `/home/kevin/wanctl/logs/cake_auto.log`
 
 2. **Binary Search Calibration** (Slow loop)
-   - Script: `/home/kevin/fusion_cake/adaptive_cake.py`
-   - Config: `/home/kevin/fusion_cake/configs/att_binary_search.yaml`
+   - Script: `/home/kevin/wanctl/adaptive_cake.py`
+   - Config: `/home/kevin/wanctl/configs/att_binary_search.yaml`
    - Timer: `cake-att.timer` (every 60 minutes)
    - Service: `cake-att.service`
-   - Log: `/home/kevin/fusion_cake/logs/cake_binary.log`
+   - Log: `/home/kevin/wanctl/logs/cake_binary.log`
 
 ## Configuration Values
 
@@ -150,19 +150,19 @@ ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.j
 
 ### Containers (Active Files Only)
 
-**Scripts:** `/home/kevin/fusion_cake/`
+**Scripts:** `/home/kevin/wanctl/`
 - `adaptive_cake.py`
 - `autorate_continuous.py`
 - `wan_steering_daemon.py`
 - `cake_stats.py`
 - `congestion_assessment.py`
 
-**Configs:** `/home/kevin/fusion_cake/configs/`
+**Configs:** `/home/kevin/wanctl/configs/`
 - `att_config.yaml` or `spectrum_config.yaml`
 - `att_binary_search.yaml` or `spectrum_binary_search.yaml`
 - `steering_config_v2.yaml` (Spectrum only)
 
-**Logs:** `/home/kevin/fusion_cake/logs/`
+**Logs:** `/home/kevin/wanctl/logs/`
 - `cake_auto.log` - Continuous monitoring
 - `cake_binary.log` - Binary search calibration
 - `steering.log` - Steering decisions (Spectrum only)
@@ -227,13 +227,13 @@ ssh kevin@10.10.110.247 'systemctl list-timers cake-*'
 ### View Logs
 ```bash
 # Live logs (continuous monitoring)
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/cake_auto.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/cake_auto.log'
 
 # Live logs (binary search)
-ssh kevin@10.10.110.247 'tail -f /home/kevin/fusion_cake/logs/cake_binary.log'
+ssh kevin@10.10.110.247 'tail -f /home/kevin/wanctl/logs/cake_binary.log'
 
 # Live logs (steering)
-ssh kevin@10.10.110.246 'tail -f /home/kevin/fusion_cake/logs/steering.log'
+ssh kevin@10.10.110.246 'tail -f /home/kevin/wanctl/logs/steering.log'
 
 # Journalctl (systemd logs)
 ssh kevin@10.10.110.246 'journalctl -u cake-spectrum.service -f'
@@ -257,7 +257,7 @@ ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.j
 ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.json | python3 -c "import sys,json; print(json.load(sys.stdin)[\"congestion_state\"])"'
 
 # Recent steering decisions
-ssh kevin@10.10.110.246 'grep "State transition" /home/kevin/fusion_cake/logs/steering.log | tail -10'
+ssh kevin@10.10.110.246 'grep "State transition" /home/kevin/wanctl/logs/steering.log | tail -10'
 ```
 
 ## Troubleshooting
@@ -277,11 +277,11 @@ ssh kevin@10.10.110.246 'sudo systemctl restart cake-spectrum.service'
 ### Binary Search Permission Error
 **Symptom:** `PermissionError: /var/log/cake_binary.log`
 
-**Fix:** Already resolved! Logging paths updated to `/home/kevin/fusion_cake/logs/`
+**Fix:** Already resolved! Logging paths updated to `/home/kevin/wanctl/logs/`
 
 **Verify fix:**
 ```bash
-ssh kevin@10.10.110.246 'grep "main_log" /home/kevin/fusion_cake/configs/spectrum_binary_search.yaml'
+ssh kevin@10.10.110.246 'grep "main_log" /home/kevin/wanctl/configs/spectrum_binary_search.yaml'
 ```
 
 ### Logs Growing Too Large
@@ -289,7 +289,7 @@ ssh kevin@10.10.110.246 'grep "main_log" /home/kevin/fusion_cake/configs/spectru
 
 **Check rotation status:**
 ```bash
-ssh kevin@10.10.110.246 'ls -lh /home/kevin/fusion_cake/logs/*.gz'
+ssh kevin@10.10.110.246 'ls -lh /home/kevin/wanctl/logs/*.gz'
 ```
 
 ### Steering Not Working
@@ -298,7 +298,7 @@ ssh kevin@10.10.110.246 'ls -lh /home/kevin/fusion_cake/logs/*.gz'
 ssh kevin@10.10.110.246 'systemctl status wan-steering.service'
 
 # Check CAKE-aware mode enabled
-ssh kevin@10.10.110.246 'grep "CAKE-aware" /home/kevin/fusion_cake/logs/steering.log | tail -1'
+ssh kevin@10.10.110.246 'grep "CAKE-aware" /home/kevin/wanctl/logs/steering.log | tail -1'
 
 # Check congestion state
 ssh kevin@10.10.110.246 'cat /home/kevin/adaptive_cake_steering/steering_state.json'
@@ -314,7 +314,7 @@ ssh admin@10.10.99.1 '/ip firewall mangle print where comment~"ADAPTIVE"'
 
 **Check:**
 ```bash
-ssh kevin@10.10.110.246 'grep "DEFERRED" /home/kevin/fusion_cake/logs/cake_binary.log | tail -5'
+ssh kevin@10.10.110.246 'grep "DEFERRED" /home/kevin/wanctl/logs/cake_binary.log | tail -5'
 ```
 
 ## Backups

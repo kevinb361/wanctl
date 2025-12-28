@@ -11,7 +11,7 @@ ATT_HOST="10.10.110.247"
 SPECTRUM_HOST="10.10.110.246"
 SSH_USER="kevin"
 SSH_PASS="d00kie"
-INSTALL_DIR="/home/kevin/fusion_cake"
+INSTALL_DIR="/home/kevin/wanctl"
 
 # Check dependencies
 if ! command -v sshpass &> /dev/null; then

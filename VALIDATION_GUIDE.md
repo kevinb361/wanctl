@@ -33,7 +33,7 @@
 **SSH to cake-spectrum container:**
 ```bash
 ssh kevin@10.10.110.246
-tail -f /home/kevin/fusion_cake/logs/steering.log
+tail -f /home/kevin/wanctl/logs/steering.log
 ```
 
 **Watch for congestion patterns (expected 5-9 PM):**
@@ -143,7 +143,7 @@ State transition: SPECTRUM_GOOD
 **Extract logs:**
 ```bash
 ssh kevin@10.10.110.246
-grep -A5 "RED\|DEGRADED\|RECOVERED" /home/kevin/fusion_cake/logs/steering.log | tail -100
+grep -A5 "RED\|DEGRADED\|RECOVERED" /home/kevin/wanctl/logs/steering.log | tail -100
 ```
 
 ### User Experience Notes

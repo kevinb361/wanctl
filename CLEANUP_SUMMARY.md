@@ -27,7 +27,7 @@
 **Solution:**
 - Updated `configs/spectrum_binary_search.yaml`
 - Updated `configs/att_binary_search.yaml`
-- Changed logging paths to `/home/kevin/fusion_cake/logs/`
+- Changed logging paths to `/home/kevin/wanctl/logs/`
 - Deployed updated configs to containers
 
 **Status:** ✅ Fixed, will take effect on next timer trigger (within 60 minutes)
@@ -160,13 +160,13 @@ cd /home/kevin/CAKE
 **Monitor commands:**
 ```bash
 # Check logs for binary search success
-ssh kevin@10.10.110.246 'tail -50 /home/kevin/fusion_cake/logs/cake_binary.log'
+ssh kevin@10.10.110.246 'tail -50 /home/kevin/wanctl/logs/cake_binary.log'
 
 # Check for errors
 ssh kevin@10.10.110.246 'journalctl -u cake-spectrum.service -n 50'
 
 # Verify log rotation
-ssh kevin@10.10.110.246 'ls -lh /home/kevin/fusion_cake/logs/'
+ssh kevin@10.10.110.246 'ls -lh /home/kevin/wanctl/logs/'
 ```
 
 ### After 1 Week Stability (December 20, 2025)
@@ -201,8 +201,8 @@ cd /home/kevin/CAKE && rm -rf .obsolete/
 - `/home/kevin/CAKE/.obsolete/README.md` - Archived files documentation
 
 ### Deployed to Containers
-- `spectrum_binary_search.yaml` → 10.10.110.246:/home/kevin/fusion_cake/configs/
-- `att_binary_search.yaml` → 10.10.110.247:/home/kevin/fusion_cake/configs/
+- `spectrum_binary_search.yaml` → 10.10.110.246:/home/kevin/wanctl/configs/
+- `att_binary_search.yaml` → 10.10.110.247:/home/kevin/wanctl/configs/
 
 ## System Health
 

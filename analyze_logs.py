@@ -820,14 +820,14 @@ Examples:
             # Copy autorate log
             subprocess.run([
                 'scp', '-i', str(args.ssh_key),
-                f'{args.remote_host}:/home/kevin/fusion_cake/logs/cake_auto.log',
+                f'{args.remote_host}:/home/kevin/wanctl/logs/cake_auto.log',
                 str(autorate_log)
             ], check=True, capture_output=True)
 
             # Copy steering log
             subprocess.run([
                 'scp', '-i', str(args.ssh_key),
-                f'{args.remote_host}:/home/kevin/fusion_cake/logs/steering.log',
+                f'{args.remote_host}:/home/kevin/wanctl/logs/steering.log',
                 str(steering_log)
             ], check=True, capture_output=True)
 

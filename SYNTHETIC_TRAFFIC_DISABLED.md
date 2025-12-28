@@ -39,7 +39,7 @@
 - Test duration: 60 seconds
 - Bandwidth impact: 600-800 MB per execution
 - Purpose: Build hourly capacity profile, detect time-of-day congestion patterns
-- Output: CSV log at `/home/kevin/fusion_cake/capacity_map.csv`
+- Output: CSV log at `/home/kevin/wanctl/capacity_map.csv`
 
 **Why disabled:**
 - Time-of-day pattern analysis complete (18-day validation showed no predictable patterns)
@@ -132,14 +132,14 @@ Should show **no processes** (unless manually started by user).
 **On cake-spectrum:**
 ```bash
 ssh cake-spectrum
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 -m cake.adaptive_cake --config configs/spectrum_binary_search.yaml
 ```
 
 **On cake-att:**
 ```bash
 ssh cake-att
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 python3 -m cake.adaptive_cake --config configs/att_binary_search.yaml
 ```
 
@@ -150,7 +150,7 @@ This runs a single binary search cycle (~2-3 minutes) without re-enabling the ti
 **On cake-spectrum:**
 ```bash
 ssh cake-spectrum
-cd /home/kevin/fusion_cake
+cd /home/kevin/wanctl
 ./capacity_mapper.sh
 ```
 
@@ -221,17 +221,17 @@ ssh cake-att 'systemctl list-timers cake-* --all --no-pager'
 **All tools remain available for manual testing:**
 
 ### Binary Search Tool
-- **Script:** `/home/kevin/fusion_cake/src/cake/adaptive_cake.py`
-- **Configs:** `/home/kevin/fusion_cake/configs/*_binary_search.yaml`
+- **Script:** `/home/kevin/wanctl/src/cake/adaptive_cake.py`
+- **Configs:** `/home/kevin/wanctl/configs/*_binary_search.yaml`
 - **Status:** Available for manual execution
 
 ### Capacity Mapping Tool
-- **Script:** `/home/kevin/fusion_cake/capacity_mapper.sh`
+- **Script:** `/home/kevin/wanctl/capacity_mapper.sh`
 - **Status:** Available for manual execution
-- **Output:** `/home/kevin/fusion_cake/capacity_map.csv`
+- **Output:** `/home/kevin/wanctl/capacity_map.csv`
 
 ### Performance Testing Tool
-- **Script:** `/home/kevin/fusion_cake/test_performance.sh`
+- **Script:** `/home/kevin/wanctl/test_performance.sh`
 - **Status:** Available for manual execution (never automated)
 
 ### External Test Servers
@@ -291,8 +291,8 @@ ssh cake-att 'systemctl list-timers cake-* --all --no-pager'
 **If ISP capacity changes are suspected:**
 ```bash
 # Run binary search manually on both containers
-ssh cake-spectrum 'cd /home/kevin/fusion_cake && python3 -m cake.adaptive_cake --config configs/spectrum_binary_search.yaml'
-ssh cake-att 'cd /home/kevin/fusion_cake && python3 -m cake.adaptive_cake --config configs/att_binary_search.yaml'
+ssh cake-spectrum 'cd /home/kevin/wanctl && python3 -m cake.adaptive_cake --config configs/spectrum_binary_search.yaml'
+ssh cake-att 'cd /home/kevin/wanctl && python3 -m cake.adaptive_cake --config configs/att_binary_search.yaml'
 ```
 
 **Indicators for re-calibration:**
@@ -310,7 +310,7 @@ Re-enable capacity-mapper.timer for 30 days to collect fresh time-of-day data:
 ssh cake-spectrum 'sudo systemctl enable capacity-mapper.timer && sudo systemctl start capacity-mapper.timer'
 ```
 
-After 30 days, analyze `/home/kevin/fusion_cake/capacity_map.csv` for patterns.
+After 30 days, analyze `/home/kevin/wanctl/capacity_map.csv` for patterns.
 
 ---
 

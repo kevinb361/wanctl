@@ -4,7 +4,7 @@
 ATT_HOST="10.10.110.247"
 SPECTRUM_HOST="10.10.110.246"
 SSH_USER="kevin"
-STATE_DIR="/home/kevin/fusion_cake"
+STATE_DIR="/home/kevin/wanctl"
 
 # Colors
 GREEN='\033[0;32m'
@@ -65,7 +65,7 @@ get_wan_status() {
     local LAST_UP_CAP=$(echo "$STATE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('last_up_cap', 0))")
 
     # Get last log entry
-    local LAST_LOG=$(ssh ${SSH_USER}@${HOST} "tail -100 /home/kevin/fusion_cake/logs/cake_auto.log 2>/dev/null | grep 'Test complete' | tail -1")
+    local LAST_LOG=$(ssh ${SSH_USER}@${HOST} "tail -100 /home/kevin/wanctl/logs/cake_auto.log 2>/dev/null | grep 'Test complete' | tail -1")
 
     if [ -n "$LAST_LOG" ]; then
         # Extract timestamp

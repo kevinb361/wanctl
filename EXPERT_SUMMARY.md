@@ -494,7 +494,7 @@ store current for next cycle    # Rolling baseline
 **1. Binary Search Logging Paths**
 - **Problem:** Services failing with `PermissionError: /var/log/cake_binary.log`
 - **Root Cause:** Services run as user `kevin` but tried to write to `/var/log/`
-- **Fix:** Updated `spectrum_binary_search.yaml` and `att_binary_search.yaml` to log to `/home/kevin/fusion_cake/logs/`
+- **Fix:** Updated `spectrum_binary_search.yaml` and `att_binary_search.yaml` to log to `/home/kevin/wanctl/logs/`
 - **Status:** ✅ Fixed, configs deployed to containers
 
 **2. Log Rotation**
