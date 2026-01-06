@@ -377,7 +377,6 @@ class RouterOS:
         """Execute RouterOS command via SSH"""
         args = [
             "ssh", "-i", self.config.ssh_key,
-            "-o", "StrictHostKeyChecking=no",
             f"{self.config.router_user}@{self.config.router_host}",
             cmd
         ]

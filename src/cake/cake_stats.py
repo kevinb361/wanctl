@@ -51,7 +51,6 @@ class CakeStatsReader:
         """Execute RouterOS command via SSH"""
         args = [
             "ssh", "-i", self.ssh_key,
-            "-o", "StrictHostKeyChecking=no",
             self.router_host,
             cmd
         ]
