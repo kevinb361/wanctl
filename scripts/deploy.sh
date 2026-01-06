@@ -10,10 +10,18 @@ if ! command -v sshpass &> /dev/null; then
     exit 1
 fi
 
+# Check if CONTAINER_PASSWORD environment variable is set
+if [ -z "$CONTAINER_PASSWORD" ]; then
+    echo "ERROR: CONTAINER_PASSWORD environment variable not set"
+    echo "Usage: CONTAINER_PASSWORD='your_password' ./deploy.sh"
+    echo "Or: export CONTAINER_PASSWORD='your_password'"
+    exit 1
+fi
+
 ATT_HOST="10.10.110.247"
 SPECTRUM_HOST="10.10.110.246"
 SSH_USER="kevin"
-SSH_PASS="d00kie"
+SSH_PASS="$CONTAINER_PASSWORD"
 
 echo "=== Deploying to ATT container ($ATT_HOST) ==="
 echo "Copying systemd units..."
