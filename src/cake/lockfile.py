@@ -4,17 +4,36 @@ This module provides a context manager for acquiring and releasing lock files,
 ensuring only one instance of a script runs at a time.
 """
 
-import sys
 import time
 import logging
 from pathlib import Path
+
+
+class LockAcquisitionError(Exception):
+    """Raised when a lock file cannot be acquired due to an existing lock.
+
+    This exception indicates another instance is likely running and the caller
+    should exit gracefully rather than proceeding with duplicate execution.
+
+    Attributes:
+        lock_path: Path to the lock file that couldn't be acquired
+        age: Age of the existing lock file in seconds
+    """
+
+    def __init__(self, lock_path: Path, age: float):
+        self.lock_path = lock_path
+        self.age = age
+        super().__init__(
+            f"Lock file {lock_path} exists and is recent ({age:.1f}s old). "
+            "Another instance may be running."
+        )
 
 
 class LockFile:
     """Context manager for lock file to prevent concurrent execution.
 
     Acquires a lock file on entry and releases it on exit. If a recent lock
-    file exists (age < timeout), exits the process to prevent concurrent runs.
+    file exists (age < timeout), raises LockAcquisitionError.
     Stale lock files (age >= timeout) are automatically cleaned up.
 
     Args:
@@ -22,10 +41,17 @@ class LockFile:
         timeout: Maximum age (seconds) before lock is considered stale
         logger: Logger instance for debug/warning messages
 
+    Raises:
+        LockAcquisitionError: If a recent lock file exists (another instance running)
+
     Example:
-        with LockFile(Path("/tmp/myapp.lock"), timeout=300, logger=logger):
-            # Critical section - only one instance runs
-            do_work()
+        try:
+            with LockFile(Path("/tmp/myapp.lock"), timeout=300, logger=logger):
+                # Critical section - only one instance runs
+                do_work()
+        except LockAcquisitionError:
+            # Another instance is running, exit gracefully
+            return 0
     """
 
     def __init__(self, lock_path: Path, timeout: int, logger: logging.Logger):
@@ -39,9 +65,9 @@ class LockFile:
             if age < self.timeout:
                 self.logger.warning(
                     f"Lock file exists and is recent ({age:.1f}s old). "
-                    "Another instance may be running. Exiting."
+                    "Another instance may be running."
                 )
-                sys.exit(0)
+                raise LockAcquisitionError(self.lock_path, age)
             else:
                 self.logger.warning(
                     f"Stale lock file found ({age:.1f}s old). Removing."

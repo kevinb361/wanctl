@@ -21,7 +21,7 @@ import pexpect
 import yaml
 
 from cake.config_base import BaseConfig
-from cake.lockfile import LockFile
+from cake.lockfile import LockFile, LockAcquisitionError
 from cake.logging_utils import setup_logging
 from cake.routeros_ssh import RouterOSSSH
 
@@ -1173,6 +1173,10 @@ def main():
             logger.info("="*60)
             return 0
 
+    except LockAcquisitionError:
+        # Another instance is running - this is normal, not an error
+        logger.debug("Exiting - another instance is running")
+        return 0
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
         return 130
