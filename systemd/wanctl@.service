@@ -14,6 +14,7 @@ WorkingDirectory=/opt/wanctl
 ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml
 
 # Environment
+Environment=PYTHONPATH=/opt
 Environment=WANCTL_STATE_DIR=/var/lib/wanctl
 Environment=WANCTL_LOG_DIR=/var/log/wanctl
 Environment=WANCTL_RUN_DIR=/run/wanctl

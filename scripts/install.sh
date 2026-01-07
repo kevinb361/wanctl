@@ -84,7 +84,7 @@ create_directories() {
     mkdir -p "$CONFIG_DIR/ssh"
     chown -R root:"$SERVICE_GROUP" "$CONFIG_DIR"
     chmod 750 "$CONFIG_DIR"
-    chmod 700 "$CONFIG_DIR/ssh"
+    chmod 750 "$CONFIG_DIR/ssh"
     print_success "$CONFIG_DIR (configs)"
     print_success "$CONFIG_DIR/ssh (SSH keys)"
 
