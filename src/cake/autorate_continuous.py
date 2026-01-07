@@ -23,6 +23,7 @@ from cake.config_base import BaseConfig
 from cake.lockfile import LockFile, LockAcquisitionError
 from cake.logging_utils import setup_logging
 from cake.routeros_ssh import RouterOSSSH
+from cake.state_utils import atomic_write_json
 
 
 # =============================================================================
@@ -572,9 +573,7 @@ class WANController:
                 'timestamp': datetime.datetime.now().isoformat()
             }
 
-            with open(self.config.state_file, 'w') as f:
-                json.dump(state, f, indent=2)
-
+            atomic_write_json(self.config.state_file, state)
             self.logger.debug(f"{self.wan_name}: Saved state to {self.config.state_file}")
         except Exception as e:
             self.logger.warning(f"{self.wan_name}: Could not save state: {e}")

@@ -24,6 +24,7 @@ from cake.config_base import BaseConfig
 from cake.lockfile import LockFile, LockAcquisitionError
 from cake.logging_utils import setup_logging
 from cake.routeros_ssh import RouterOSSSH
+from cake.state_utils import atomic_write_json
 
 
 # =============================================================================
@@ -243,13 +244,9 @@ class StateManager:
         }
 
     def save(self):
-        """Save state to file"""
+        """Save state to file atomically"""
         try:
-            # Ensure parent directory exists
-            self.config.state_file.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(self.config.state_file, 'w') as f:
-                json.dump(self.state, f, indent=2)
+            atomic_write_json(self.config.state_file, self.state)
             self.logger.debug(f"Saved state: {self.state}")
         except Exception as e:
             self.logger.error(f"Failed to save state: {e}")
