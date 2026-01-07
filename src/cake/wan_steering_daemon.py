@@ -42,6 +42,7 @@ except ImportError:
 from cake.config_base import BaseConfig
 from cake.lockfile import LockFile
 from cake.logging_utils import setup_logging
+from cake.retry_utils import retry_with_backoff
 
 # Import CAKE-aware modules
 try:
@@ -305,8 +306,29 @@ class RouterOSController:
         self.config = config
         self.logger = logger
 
+    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def _run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
-        """Execute RouterOS command via SSH"""
+        """
+        Execute RouterOS command via SSH with automatic retry on transient failures.
+
+        Retries on:
+        - Timeout (subprocess.TimeoutExpired)
+        - Connection errors (refused, reset, unreachable)
+
+        Does NOT retry on:
+        - Authentication failures
+        - Command syntax errors
+
+        Args:
+            cmd: RouterOS command to execute
+            capture: Whether to capture stdout/stderr
+
+        Returns:
+            Tuple of (returncode, stdout, stderr)
+
+        Raises:
+            Exception: On non-retryable errors or after max retry attempts
+        """
         args = [
             "ssh", "-i", self.config.ssh_key,
             f"{self.config.router_user}@{self.config.router_host}",
@@ -315,26 +337,18 @@ class RouterOSController:
 
         self.logger.debug(f"RouterOS command: {cmd}")
 
-        try:
-            if capture:
-                res = subprocess.run(
-                    args, text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=self.config.timeout_ssh_command
-                )
-                self.logger.debug(f"RouterOS stdout: {res.stdout}")
-                return res.returncode, res.stdout, res.stderr
-            else:
-                res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
-                return res.returncode, "", ""
-        except subprocess.TimeoutExpired:
-            self.logger.error("RouterOS command timeout")
-            return 1, "", "Timeout"
-        except Exception as e:
-            self.logger.error(f"RouterOS SSH error: {e}")
-            self.logger.debug(traceback.format_exc())
-            return 1, "", str(e)
+        if capture:
+            res = subprocess.run(
+                args, text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.config.timeout_ssh_command
+            )
+            self.logger.debug(f"RouterOS stdout: {res.stdout}")
+            return res.returncode, res.stdout, res.stderr
+        else:
+            res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
+            return res.returncode, "", ""
 
     def get_rule_status(self) -> Optional[bool]:
         """
