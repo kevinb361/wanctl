@@ -27,7 +27,7 @@ Eliminates bufferbloat by continuously monitoring RTT and adjusting queue limits
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/wanctl.git
+git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
 
 # Run installation on target host (requires root)

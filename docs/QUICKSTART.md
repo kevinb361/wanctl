@@ -22,6 +22,7 @@ ssh admin@<router_ip> '/queue tree print where queue=cake'
 ```
 
 You should see output like:
+
 ```
 Flags: X - disabled, I - invalid
 0    name="WAN-Download" parent=wan-interface queue=cake priority=8 limit-at=0
@@ -51,7 +52,7 @@ ssh -i ~/.ssh/router_key admin@<router_ip> '/system resource print'
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/wanctl.git
+git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
 
 # Run installation (creates user, directories, systemd units)
@@ -75,20 +76,20 @@ Edit `/etc/wanctl/wan1.yaml`:
 wan_name: "WAN1"
 
 router:
-  host: "192.168.1.1"          # Your router IP
-  user: "admin"                 # Router SSH user
+  host: "192.168.1.1" # Your router IP
+  user: "admin" # Router SSH user
   ssh_key: "/etc/wanctl/ssh/router.key"
 
 queues:
-  download: "WAN-Download"      # Must match RouterOS queue name
-  upload: "WAN-Upload"          # Must match RouterOS queue name
+  download: "WAN-Download" # Must match RouterOS queue name
+  upload: "WAN-Upload" # Must match RouterOS queue name
 
 # Bandwidth settings (adjust to your connection)
 continuous_monitoring:
   enabled: true
   download:
-    floor_mbps: 50              # Minimum during congestion
-    ceiling_mbps: 500           # Your max download speed
+    floor_mbps: 50 # Minimum during congestion
+    ceiling_mbps: 500 # Your max download speed
   upload:
     floor_mbps: 5
     ceiling_mbps: 50
@@ -107,6 +108,7 @@ sudo -u wanctl python3 -m cake.autorate_continuous \
 ```
 
 **Expected output:**
+
 - Connection to router successful
 - Baseline RTT measurement shown
 - No errors about queue names or permissions
@@ -133,6 +135,7 @@ cat /var/lib/wanctl/wan1_state.json
 ```
 
 You should see:
+
 ```json
 {
   "baseline_rtt": 24.5,

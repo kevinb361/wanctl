@@ -4,6 +4,7 @@ This module provides a context manager for acquiring and releasing lock files,
 ensuring only one instance of a script runs at a time.
 """
 
+import os
 import time
 import logging
 from pathlib import Path
@@ -60,8 +61,25 @@ class LockFile:
         self.logger = logger
 
     def __enter__(self):
-        if self.lock_path.exists():
-            age = time.time() - self.lock_path.stat().st_mtime
+        # Atomic lock acquisition using O_EXCL to prevent race conditions.
+        # O_EXCL fails if file exists, making check-and-create atomic.
+        try:
+            fd = os.open(
+                str(self.lock_path),
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o644
+            )
+            os.close(fd)
+            self.logger.debug(f"Lock acquired: {self.lock_path}")
+            return self
+        except FileExistsError:
+            # Lock file exists - check if stale
+            try:
+                age = time.time() - self.lock_path.stat().st_mtime
+            except FileNotFoundError:
+                # File was removed between our open() and stat() - retry once
+                return self.__enter__()
+
             if age < self.timeout:
                 self.logger.warning(
                     f"Lock file exists and is recent ({age:.1f}s old). "
@@ -69,14 +87,16 @@ class LockFile:
                 )
                 raise LockAcquisitionError(self.lock_path, age)
             else:
+                # Stale lock - attempt to remove and retry
                 self.logger.warning(
                     f"Stale lock file found ({age:.1f}s old). Removing."
                 )
-                self.lock_path.unlink()
-
-        self.lock_path.touch()
-        self.logger.debug(f"Lock acquired: {self.lock_path}")
-        return self
+                try:
+                    self.lock_path.unlink()
+                except FileNotFoundError:
+                    pass  # Another process already removed it
+                # Retry acquisition (recursive, but bounded by timeout check)
+                return self.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.lock_path.exists():

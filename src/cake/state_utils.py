@@ -38,6 +38,10 @@ def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) ->
         dir=file_path.parent
     )
 
+    # Set restrictive permissions immediately (before writing sensitive data)
+    # This prevents potential exposure via world-readable umask defaults
+    os.chmod(tmp_path, 0o600)
+
     try:
         with os.fdopen(fd, 'w') as f:
             json.dump(data, f, indent=indent)
