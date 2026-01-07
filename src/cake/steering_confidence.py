@@ -17,9 +17,7 @@ Design Document: docs/PHASE_2B_DESIGN.md
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional, List, Tuple
-from congestion_assessment import CongestionState
+from typing import List, Optional, Tuple
 
 
 # =============================================================================
@@ -555,8 +553,8 @@ class Phase2BController:
         self.timer_state.confidence_score = confidence
         self.timer_state.confidence_contributors = contributors
 
-        # Check flap penalty
-        effective_threshold = self.flap_detector.check_flapping(
+        # Check flap penalty (result unused but call updates internal state)
+        _ = self.flap_detector.check_flapping(
             self.timer_state,
             self.base_steer_threshold
         )

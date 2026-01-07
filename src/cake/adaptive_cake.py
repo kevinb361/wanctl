@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 
 import pexpect
-import yaml
 
 from cake.config_base import BaseConfig
 from cake.lockfile import LockFile, LockAcquisitionError
@@ -1098,7 +1097,6 @@ def main():
 
             state = state_mgr.state
             do_full_search = False
-            quick_check_triggered_search = False
 
             # Decide: Quick check or full search?
             if not config.quick_check_enabled or not config.use_binary_search:
@@ -1133,7 +1131,6 @@ def main():
                         f"({config.quick_check_bloat_threshold}ms) - escalating to full search"
                     )
                     do_full_search = True
-                    quick_check_triggered_search = True
                 else:
                     logger.info(
                         f"Quick check passed - bloat {max_bloat:.1f}ms within threshold "

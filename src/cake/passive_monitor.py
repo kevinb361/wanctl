@@ -5,17 +5,12 @@ Monitors CAKE queue statistics without active testing
 Run this frequently (e.g., every 30 seconds) between active tests
 """
 import argparse
-import datetime
-import json
 import logging
 import os
 import re
 import subprocess
 import sys
-from pathlib import Path
-from typing import Optional, Dict, Tuple
-
-import yaml
+from typing import Optional, Tuple
 
 from cake.config_base import BaseConfig
 from cake.logging_utils import setup_logging
