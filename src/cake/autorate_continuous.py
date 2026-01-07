@@ -19,32 +19,26 @@ from typing import Optional, List, Tuple
 
 import yaml
 
+from cake.config_base import BaseConfig
 from cake.lockfile import LockFile
+from cake.logging_utils import setup_logging
 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-class Config:
+class Config(BaseConfig):
     """Configuration container loaded from YAML"""
-    def __init__(self, config_path: str):
-        with open(config_path, 'r') as f:
-            data = yaml.safe_load(f)
 
-        self.wan_name = data['wan_name']
-
-        # Router
-        self.router_host = data['router']['host']
-        self.router_user = data['router']['user']
-        self.ssh_key = data['router']['ssh_key']
-
+    def _load_specific_fields(self):
+        """Load autorate-specific configuration fields"""
         # Queues
-        self.queue_down = data['queues']['download']
-        self.queue_up = data['queues']['upload']
+        self.queue_down = self.data['queues']['download']
+        self.queue_up = self.data['queues']['upload']
 
         # Continuous monitoring parameters
-        cm = data['continuous_monitoring']
+        cm = self.data['continuous_monitoring']
         self.enabled = cm['enabled']
         self.baseline_rtt_initial = cm['baseline_rtt_initial']
 
@@ -97,8 +91,8 @@ class Config:
         self.use_median_of_three = cm.get('use_median_of_three', False)
 
         # Lock file
-        self.lock_file = Path(data['lock_file'])
-        self.lock_timeout = data['lock_timeout']
+        self.lock_file = Path(self.data['lock_file'])
+        self.lock_timeout = self.data['lock_timeout']
 
         # State file (for persisting hysteresis counters)
         # Derive from lock file path: /tmp/wanctl_att.lock -> /tmp/wanctl_att_state.json
@@ -106,54 +100,8 @@ class Config:
         self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
 
         # Logging
-        self.main_log = data['logging']['main_log']
-        self.debug_log = data['logging']['debug_log']
-
-
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-def setup_logging(config: Config, debug: bool) -> logging.Logger:
-    """Setup logging with file and optional console output"""
-    logger = logging.getLogger(f"cake_continuous_{config.wan_name.lower()}")
-
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.DEBUG)
-
-    # Ensure log directories exist
-    for path in (config.main_log, config.debug_log):
-        d = os.path.dirname(path)
-        if d and not os.path.isdir(d):
-            os.makedirs(d, exist_ok=True)
-
-    # Main log - INFO level
-    fh = logging.FileHandler(config.main_log)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter(
-        f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-    ))
-    logger.addHandler(fh)
-
-    # Debug log and console - DEBUG level
-    if debug:
-        dfh = logging.FileHandler(config.debug_log)
-        dfh.setLevel(logging.DEBUG)
-        dfh.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(dfh)
-
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(ch)
-
-    return logger
+        self.main_log = self.data['logging']['main_log']
+        self.debug_log = self.data['logging']['debug_log']
 
 
 # =============================================================================
@@ -664,7 +612,7 @@ class ContinuousAutoRate:
         # Load each WAN config and create controller
         for config_file in config_files:
             config = Config(config_file)
-            logger = setup_logging(config, debug)
+            logger = setup_logging(config, "cake_continuous", debug)
 
             logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
             logger.info(f"Download: GREEN={config.download_floor_green/1e6:.0f}M, YELLOW={config.download_floor_yellow/1e6:.0f}M, "

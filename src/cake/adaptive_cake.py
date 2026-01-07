@@ -20,7 +20,9 @@ from typing import Optional, Tuple, Dict, Any
 import pexpect
 import yaml
 
+from cake.config_base import BaseConfig
 from cake.lockfile import LockFile
+from cake.logging_utils import setup_logging
 
 
 # =============================================================================
@@ -70,50 +72,42 @@ def should_skip_calibration(logger: logging.Logger) -> bool:
 # CONFIGURATION
 # =============================================================================
 
-class Config:
+class Config(BaseConfig):
     """Configuration container loaded from YAML"""
-    def __init__(self, config_path: str):
-        with open(config_path, 'r') as f:
-            data = yaml.safe_load(f)
 
-        self.wan_name = data['wan_name']
-
-        # Router
-        self.router_host = data['router']['host']
-        self.router_user = data['router']['user']
-        self.ssh_key = data['router']['ssh_key']
-
+    def _load_specific_fields(self):
+        """Load adaptive_cake-specific configuration fields"""
         # Queues
-        self.queue_down = data['queues']['download']
-        self.queue_up = data['queues']['upload']
+        self.queue_down = self.data['queues']['download']
+        self.queue_up = self.data['queues']['upload']
 
         # Test servers
-        self.netperf_host = data['test']['netperf_host']
-        self.ping_host = data['test']['ping_host']
+        self.netperf_host = self.data['test']['netperf_host']
+        self.ping_host = self.data['test']['ping_host']
 
         # Bandwidth
-        self.down_max = data['bandwidth']['down_max']
-        self.down_min = data['bandwidth']['down_min']
-        self.up_max = data['bandwidth']['up_max']
-        self.up_min = data['bandwidth']['up_min']
+        self.down_max = self.data['bandwidth']['down_max']
+        self.down_min = self.data['bandwidth']['down_min']
+        self.up_max = self.data['bandwidth']['up_max']
+        self.up_min = self.data['bandwidth']['up_min']
 
         # Tuning
-        self.alpha = data['tuning']['alpha']
-        self.alpha_good = data['tuning']['alpha_good_conditions']
-        self.base_rtt = data['tuning']['base_rtt']
+        self.alpha = self.data['tuning']['alpha']
+        self.alpha_good = self.data['tuning']['alpha_good_conditions']
+        self.base_rtt = self.data['tuning']['base_rtt']
 
         # Binary search parameters (Flent/LibreQoS method)
-        self.use_binary_search = data['tuning'].get('use_binary_search', True)
-        self.target_bloat_ms = data['tuning'].get('target_bloat_ms', 10.0)
-        self.binary_search_iterations = data['tuning'].get('binary_search_iterations', 5)
+        self.use_binary_search = self.data['tuning'].get('use_binary_search', True)
+        self.target_bloat_ms = self.data['tuning'].get('target_bloat_ms', 10.0)
+        self.binary_search_iterations = self.data['tuning'].get('binary_search_iterations', 5)
 
         # Quick check mode (validation vs full search)
-        self.quick_check_enabled = data['tuning'].get('quick_check_enabled', True)
-        self.quick_check_bloat_threshold = data['tuning'].get('quick_check_bloat_threshold', 15.0)
-        self.full_search_interval_cycles = data['tuning'].get('full_search_interval_cycles', 6)
+        self.quick_check_enabled = self.data['tuning'].get('quick_check_enabled', True)
+        self.quick_check_bloat_threshold = self.data['tuning'].get('quick_check_bloat_threshold', 15.0)
+        self.full_search_interval_cycles = self.data['tuning'].get('full_search_interval_cycles', 6)
 
         # K-factor
-        kf = data['k_factor']
+        kf = self.data['k_factor']
         self.k_factor_thresholds = [
             (0, 5, kf['delta_0_5ms']),
             (5, 15, kf['delta_5_15ms']),
@@ -122,7 +116,7 @@ class Config:
         ]
 
         # Safety
-        sf = data['safety']
+        sf = self.data['safety']
         self.max_up_factor = sf['max_up_factor']
         self.max_down_factor = sf['max_down_factor']
         self.sanity_fraction = sf['sanity_fraction']
@@ -130,62 +124,16 @@ class Config:
         self.outlier_std_dev = sf['outlier_std_dev']
 
         # State
-        self.state_file = Path(data['state']['file'])
-        self.history_size = data['state']['history_size']
+        self.state_file = Path(self.data['state']['file'])
+        self.history_size = self.data['state']['history_size']
 
         # Logging
-        self.main_log = data['logging']['main_log']
-        self.debug_log = data['logging']['debug_log']
+        self.main_log = self.data['logging']['main_log']
+        self.debug_log = self.data['logging']['debug_log']
 
         # Lock file
-        self.lock_file = Path(data['lock_file'])
-        self.lock_timeout = data['lock_timeout']
-
-
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-def setup_logging(config: Config, debug: bool) -> logging.Logger:
-    """Setup logging with file and optional console output"""
-    logger = logging.getLogger(f"cake_auto_{config.wan_name.lower()}")
-
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.DEBUG)
-
-    # Ensure log directories exist
-    for path in (config.main_log, config.debug_log):
-        d = os.path.dirname(path)
-        if d and not os.path.isdir(d):
-            os.makedirs(d, exist_ok=True)
-
-    # Main log - INFO level
-    fh = logging.FileHandler(config.main_log)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter(
-        f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-    ))
-    logger.addHandler(fh)
-
-    # Debug log and console - DEBUG level
-    if debug:
-        dfh = logging.FileHandler(config.debug_log)
-        dfh.setLevel(logging.DEBUG)
-        dfh.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(dfh)
-
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(ch)
-
-    return logger
+        self.lock_file = Path(self.data['lock_file'])
+        self.lock_timeout = self.data['lock_timeout']
 
 
 # =============================================================================
@@ -1034,7 +982,7 @@ def main():
         return 1
 
     # Setup logging
-    logger = setup_logging(config, args.debug)
+    logger = setup_logging(config, "cake_auto", args.debug)
     logger.info("="*60)
     logger.info(f"Adaptive CAKE - {config.wan_name}")
     logger.info("="*60)

@@ -17,53 +17,30 @@ from typing import Optional, Dict, Tuple
 
 import yaml
 
+from cake.config_base import BaseConfig
+from cake.logging_utils import setup_logging
 
-class Config:
+
+class Config(BaseConfig):
     """Lightweight config loader"""
-    def __init__(self, config_path: str):
-        with open(config_path, 'r') as f:
-            data = yaml.safe_load(f)
 
-        self.wan_name = data['wan_name']
-        self.router_host = data['router']['host']
-        self.router_user = data['router']['user']
-        self.ssh_key = data['router']['ssh_key']
-        self.queue_down = data['queues']['download']
-        self.queue_up = data['queues']['upload']
+    def _load_specific_fields(self):
+        """Load passive_monitor-specific configuration fields"""
+        # Queues
+        self.queue_down = self.data['queues']['download']
+        self.queue_up = self.data['queues']['upload']
 
         # Passive monitoring thresholds
-        pm = data.get('passive_monitoring', {})
+        pm = self.data.get('passive_monitoring', {})
         self.queue_delay_threshold = pm.get('queue_delay_threshold_ms', 10)
         self.drop_rate_threshold = pm.get('drop_rate_threshold_percent', 1.0)
         self.alert_on_issues = pm.get('alert_on_issues', True)
 
-        # Logging
-        log_dir = os.path.dirname(data['logging']['main_log'])
+        # Logging (derived from main_log directory)
+        log_dir = os.path.dirname(self.data['logging']['main_log'])
         self.passive_log = os.path.join(log_dir, 'cake_passive.log')
-
-
-def setup_logging(config: Config) -> logging.Logger:
-    """Setup logging for passive monitor"""
-    logger = logging.getLogger(f"cake_passive_{config.wan_name.lower()}")
-
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.INFO)
-
-    # Ensure log directory exists
-    log_dir = os.path.dirname(config.passive_log)
-    if log_dir and not os.path.isdir(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
-
-    fh = logging.FileHandler(config.passive_log)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter(
-        f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-    ))
-    logger.addHandler(fh)
-
-    return logger
+        # Set main_log for logging_utils compatibility
+        self.main_log = self.passive_log
 
 
 class QueueStats:
@@ -258,7 +235,7 @@ def main():
         return 1
 
     # Setup logging
-    logger = setup_logging(config)
+    logger = setup_logging(config, "cake_passive")
 
     if args.verbose:
         # Add console handler
