@@ -18,3 +18,7 @@ __pycache__/
 # Private config (use CLAUDE.md.example as template)
 CLAUDE.md
 .claude/
+
+# Archives (contain site-specific info)
+.archive/
+docs/.archive/
