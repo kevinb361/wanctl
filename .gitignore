@@ -26,3 +26,26 @@ docs/.archive/
 # Site-specific scripts and data
 capacity_mapper.sh
 capacity_map.csv
+fetch_logs*.py
+
+# Site-specific configs (use examples/ as templates)
+configs/*.yaml
+!configs/examples/
+
+# Site-specific router scripts
+router/
+
+# Obsolete/legacy directories
+.obsolete/
+configs/.obsolete/
+scripts/.obsolete/
+scripts/monitoring/
+
+# Site-specific deployment scripts
+scripts/deploy_*.sh
+!scripts/deploy.sh
+scripts/add_*.sh
+scripts/verify_*.sh
+scripts/test_*.sh
+scripts/fix_*.sh
+scripts/DEPLOYMENT.md
