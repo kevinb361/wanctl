@@ -24,7 +24,7 @@ def sample_config_data():
     return {
         "wan_name": "TestWAN",
         "router": {
-            "host": "10.10.99.1",
+            "host": "192.168.1.1",
             "user": "admin",
             "ssh_key": "/path/to/key"
         },

@@ -788,7 +788,7 @@ def main():
         epilog="""
 Examples:
   %(prog)s --wan-name wan1 --router 192.168.1.1
-  %(prog)s --wan-name cable --router 10.10.99.1 --user admin
+  %(prog)s --wan-name cable --router 192.168.1.1 --user admin
   %(prog)s --wan-name fiber --router 192.168.1.1 --skip-binary-search
         """
     )
