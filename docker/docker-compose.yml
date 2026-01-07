@@ -1,0 +1,98 @@
+# wanctl Docker Compose Configuration
+#
+# Multi-WAN deployment example
+#
+# Usage:
+#   docker-compose up -d wan1      # Start wan1 only
+#   docker-compose up -d           # Start all services
+#   docker-compose logs -f wan1    # View wan1 logs
+#   docker-compose down            # Stop all services
+#
+# Prerequisites:
+#   1. Copy configs/examples/*.yaml.example to ./configs/ and customize
+#   2. Copy your router SSH key to ./ssh/router.key
+#   3. Create state directory: mkdir -p ./state
+#
+
+services:
+  # Primary WAN - continuous monitoring
+  wan1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: wanctl-wan1
+    restart: unless-stopped
+    network_mode: host  # Required for accurate RTT measurements
+    volumes:
+      - ./configs/wan1.yaml:/etc/wanctl/wan.yaml:ro
+      - ./ssh/router.key:/etc/wanctl/ssh/router.key:ro
+      - ./state/wan1:/var/lib/wanctl
+      - ./logs/wan1:/var/log/wanctl
+    environment:
+      - WANCTL_CONFIG=/etc/wanctl/wan.yaml
+    command: ["continuous"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "autorate_continuous"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Secondary WAN - continuous monitoring
+  wan2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: wanctl-wan2
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./configs/wan2.yaml:/etc/wanctl/wan.yaml:ro
+      - ./ssh/router.key:/etc/wanctl/ssh/router.key:ro
+      - ./state/wan2:/var/lib/wanctl
+      - ./logs/wan2:/var/log/wanctl
+    environment:
+      - WANCTL_CONFIG=/etc/wanctl/wan.yaml
+    command: ["continuous"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "autorate_continuous"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Steering daemon (optional - for multi-WAN setups)
+  steering:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: wanctl-steering
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./configs/steering.yaml:/etc/wanctl/steering.yaml:ro
+      - ./configs/wan1.yaml:/etc/wanctl/wan1.yaml:ro  # For baseline RTT
+      - ./ssh/router.key:/etc/wanctl/ssh/router.key:ro
+      - ./state/wan1:/var/lib/wanctl:ro  # Read state from wan1
+      - ./logs/steering:/var/log/wanctl
+    environment:
+      - WANCTL_STEERING_CONFIG=/etc/wanctl/steering.yaml
+    command: ["steering"]
+    depends_on:
+      - wan1
+    profiles:
+      - steering  # Only start with: docker-compose --profile steering up
+
+# Example for single-WAN deployment (uncomment and customize)
+#
+# services:
+#   wan:
+#     build:
+#       context: ..
+#       dockerfile: docker/Dockerfile
+#     container_name: wanctl
+#     restart: unless-stopped
+#     network_mode: host
+#     volumes:
+#       - ./configs/wan.yaml:/etc/wanctl/wan.yaml:ro
+#       - ./ssh/router.key:/etc/wanctl/ssh/router.key:ro
+#       - ./state:/var/lib/wanctl
+#     command: ["continuous"]
