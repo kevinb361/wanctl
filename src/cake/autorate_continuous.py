@@ -22,7 +22,7 @@ import yaml
 from cake.config_base import BaseConfig
 from cake.lockfile import LockFile
 from cake.logging_utils import setup_logging
-from cake.retry_utils import retry_with_backoff
+from cake.routeros_ssh import RouterOSSSH
 
 
 # =============================================================================
@@ -123,51 +123,7 @@ class RouterOS:
     def __init__(self, config: Config, logger: logging.Logger):
         self.config = config
         self.logger = logger
-
-    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def _run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
-        """
-        Execute RouterOS command via SSH with automatic retry on transient failures.
-
-        Retries on:
-        - Timeout (subprocess.TimeoutExpired)
-        - Connection errors (refused, reset, unreachable)
-
-        Does NOT retry on:
-        - Authentication failures
-        - Command syntax errors
-
-        Args:
-            cmd: RouterOS command to execute
-            capture: Whether to capture stdout/stderr
-
-        Returns:
-            Tuple of (returncode, stdout, stderr)
-
-        Raises:
-            Exception: On non-retryable errors or after max retry attempts
-        """
-        args = [
-            "ssh", "-i", self.config.ssh_key,
-            "-o", "ConnectTimeout=10",
-            f"{self.config.router_user}@{self.config.router_host}",
-            cmd
-        ]
-
-        self.logger.debug(f"RouterOS command: {cmd}")
-
-        if capture:
-            res = subprocess.run(
-                args, text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=self.config.timeout_ssh_command
-            )
-            self.logger.debug(f"RouterOS stdout: {res.stdout}")
-            return res.returncode, res.stdout, res.stderr
-        else:
-            res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
-            return res.returncode, "", ""
+        self.ssh = RouterOSSSH.from_config(config, logger)
 
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
         """Set CAKE limits for one WAN"""
@@ -182,7 +138,7 @@ class RouterOS:
             (self.config.queue_up, 'up', up_bps)
         ]:
             queue_type = f"cake-{direction}-{wan_lower}"
-            rc, _, _ = self._run_cmd(
+            rc, _, _ = self.ssh.run_cmd(
                 f'/queue tree set [find name="{queue}"] queue={queue_type} max-limit={bps}'
             )
             if rc != 0:
