@@ -78,9 +78,9 @@ class TestValidateField:
 
     def test_valid_nested_field(self):
         """Test validating a nested field."""
-        data = {"router": {"host": "10.10.99.1"}}
+        data = {"router": {"host": "192.168.1.1"}}
         result = validate_field(data, "router.host", str)
-        assert result == "10.10.99.1"
+        assert result == "192.168.1.1"
 
     def test_missing_required_field_raises(self):
         """Test that missing required field raises error."""
@@ -159,7 +159,7 @@ class TestValidateSchema:
         """Test validating a complete valid schema."""
         data = {
             "name": "test",
-            "router": {"host": "10.10.99.1"},
+            "router": {"host": "192.168.1.1"},
             "value": 50
         }
         schema = [
@@ -169,7 +169,7 @@ class TestValidateSchema:
         ]
         result = validate_schema(data, schema)
         assert result["name"] == "test"
-        assert result["router.host"] == "10.10.99.1"
+        assert result["router.host"] == "192.168.1.1"
         assert result["value"] == 50
 
     def test_schema_with_defaults(self):
