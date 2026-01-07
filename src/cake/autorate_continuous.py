@@ -205,7 +205,8 @@ class RTTMeasurement:
                         # Handle both "12.3" and "12.3 ms" formats
                         rtt = float(rtt_str.replace("ms", ""))
                         rtts.append(rtt)
-                    except:
+                    except (ValueError, IndexError) as e:
+                        self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
                         pass
 
             if not rtts:

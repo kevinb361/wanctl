@@ -425,7 +425,8 @@ class RTTMeasurement:
                 try:
                     rtt = float(line.split("time=")[1].split()[0])
                     rtts.append(rtt)
-                except:
+                except (ValueError, IndexError) as e:
+                    self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
                     pass
         return rtts
 

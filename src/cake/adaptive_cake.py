@@ -184,7 +184,8 @@ class StateManager:
             try:
                 v = float(v)
                 return v if v > 0 else None
-            except:
+            except (ValueError, TypeError) as e:
+                self.logger.debug(f"Failed to parse float for key '{key}': {e}")
                 return None
 
         def safe_int(key):
@@ -194,7 +195,8 @@ class StateManager:
             try:
                 v = int(v)
                 return v if v > 0 else None
-            except:
+            except (ValueError, TypeError) as e:
+                self.logger.debug(f"Failed to parse int for key '{key}': {e}")
                 return None
 
         def safe_list(key):
@@ -451,7 +453,8 @@ class Measurement:
                 try:
                     rtt = float(line.split("time=")[1].split()[0])
                     rtts.append(rtt)
-                except:
+                except (ValueError, IndexError) as e:
+                    self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
                     pass
         return rtts
 
