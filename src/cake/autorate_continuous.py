@@ -34,9 +34,13 @@ class Config(BaseConfig):
 
     def _load_specific_fields(self):
         """Load autorate-specific configuration fields"""
-        # Queues
-        self.queue_down = self.data['queues']['download']
-        self.queue_up = self.data['queues']['upload']
+        # Queues (validated to prevent command injection)
+        self.queue_down = self.validate_identifier(
+            self.data['queues']['download'], 'queues.download'
+        )
+        self.queue_up = self.validate_identifier(
+            self.data['queues']['upload'], 'queues.upload'
+        )
 
         # Continuous monitoring parameters
         cm = self.data['continuous_monitoring']

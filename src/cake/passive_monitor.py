@@ -26,9 +26,13 @@ class Config(BaseConfig):
 
     def _load_specific_fields(self):
         """Load passive_monitor-specific configuration fields"""
-        # Queues
-        self.queue_down = self.data['queues']['download']
-        self.queue_up = self.data['queues']['upload']
+        # Queues (validated to prevent command injection)
+        self.queue_down = self.validate_identifier(
+            self.data['queues']['download'], 'queues.download'
+        )
+        self.queue_up = self.validate_identifier(
+            self.data['queues']['upload'], 'queues.upload'
+        )
 
         # Passive monitoring thresholds
         pm = self.data.get('passive_monitoring', {})
@@ -81,7 +85,7 @@ def get_queue_stats(
     """
     # Get the interface name from queue tree first
     cmd_get_parent = [
-        "ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
+        "ssh", "-i", ssh_key,
         f"{router_user}@{router_host}",
         f'/queue tree print detail where name="{interface}"'
     ]
@@ -111,7 +115,7 @@ def get_queue_stats(
 
         # Now get tc stats for that interface
         cmd_tc = [
-            "ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
+            "ssh", "-i", ssh_key,
             f"{router_user}@{router_host}",
             f"tc -s qdisc show dev {parent_iface}"
         ]

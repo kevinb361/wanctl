@@ -1,8 +1,14 @@
 """Base configuration shared across all CAKE components."""
 
+import re
 import yaml
 from pathlib import Path
 from typing import Any, Dict
+
+
+class ConfigValidationError(ValueError):
+    """Raised when config values fail security validation."""
+    pass
 
 
 class BaseConfig:
@@ -37,7 +43,7 @@ class BaseConfig:
             self.data = yaml.safe_load(f)
 
         # Universal fields (present in all configs)
-        self.wan_name = self.data['wan_name']
+        self.wan_name = self.validate_identifier(self.data['wan_name'], 'wan_name')
 
         # Router SSH configuration
         router = self.data['router']
@@ -67,3 +73,79 @@ class BaseConfig:
                     # ...
         """
         pass
+
+    # =========================================================================
+    # Security validation methods for values used in RouterOS commands
+    # =========================================================================
+
+    # Pattern for safe RouterOS identifiers (queue names, interface names, etc.)
+    # Allows: alphanumeric, dash, underscore, dot (for interface names like ether1.100)
+    _SAFE_IDENTIFIER_PATTERN = re.compile(r'^[A-Za-z0-9_.-]+$')
+
+    # Pattern for safe mangle rule comments
+    # Allows: alphanumeric, dash, underscore, space, colon (for "ADAPTIVE: ..." comments)
+    _SAFE_COMMENT_PATTERN = re.compile(r'^[A-Za-z0-9_.\-: ]+$')
+
+    @classmethod
+    def validate_identifier(cls, value: str, field_name: str) -> str:
+        """Validate a value is safe for use as a RouterOS identifier.
+
+        Used for: queue names, interface names, wan_name, etc.
+
+        Args:
+            value: The value to validate
+            field_name: Name of the config field (for error messages)
+
+        Returns:
+            The validated value (unchanged if valid)
+
+        Raises:
+            ConfigValidationError: If value contains unsafe characters
+        """
+        if not isinstance(value, str):
+            raise ConfigValidationError(
+                f"{field_name}: expected string, got {type(value).__name__}"
+            )
+        if not value:
+            raise ConfigValidationError(f"{field_name}: cannot be empty")
+        if len(value) > 64:
+            raise ConfigValidationError(
+                f"{field_name}: too long ({len(value)} chars, max 64)"
+            )
+        if not cls._SAFE_IDENTIFIER_PATTERN.match(value):
+            raise ConfigValidationError(
+                f"{field_name}: contains invalid characters: '{value}'. "
+                f"Only alphanumeric, dash, underscore, and dot allowed."
+            )
+        return value
+
+    @classmethod
+    def validate_comment(cls, value: str, field_name: str) -> str:
+        """Validate a value is safe for use in a RouterOS mangle rule comment.
+
+        Args:
+            value: The value to validate
+            field_name: Name of the config field (for error messages)
+
+        Returns:
+            The validated value (unchanged if valid)
+
+        Raises:
+            ConfigValidationError: If value contains unsafe characters
+        """
+        if not isinstance(value, str):
+            raise ConfigValidationError(
+                f"{field_name}: expected string, got {type(value).__name__}"
+            )
+        if not value:
+            raise ConfigValidationError(f"{field_name}: cannot be empty")
+        if len(value) > 128:
+            raise ConfigValidationError(
+                f"{field_name}: too long ({len(value)} chars, max 128)"
+            )
+        if not cls._SAFE_COMMENT_PATTERN.match(value):
+            raise ConfigValidationError(
+                f"{field_name}: contains invalid characters: '{value}'. "
+                f"Only alphanumeric, dash, underscore, space, colon, and dot allowed."
+            )
+        return value
