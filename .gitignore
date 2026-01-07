@@ -22,3 +22,7 @@ CLAUDE.md
 # Archives (contain site-specific info)
 .archive/
 docs/.archive/
+
+# Site-specific scripts and data
+capacity_mapper.sh
+capacity_map.csv
