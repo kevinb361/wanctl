@@ -27,6 +27,25 @@ from cake.state_utils import atomic_write_json
 
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Baseline RTT update threshold - only update baseline when delta is minimal
+# This prevents baseline drift under load (architectural invariant)
+BASELINE_UPDATE_THRESHOLD_MS = 3.0
+
+# Default timeout values (seconds)
+DEFAULT_SSH_TIMEOUT = 15
+DEFAULT_PING_TIMEOUT = 1
+
+# Default bloat thresholds (milliseconds)
+DEFAULT_HARD_RED_BLOAT_MS = 80  # SOFT_RED -> RED transition threshold
+
+# Conversion factors
+MBPS_TO_BPS = 1_000_000
+
+
+# =============================================================================
 # CONFIGURATION
 # =============================================================================
 
@@ -52,43 +71,43 @@ class Config(BaseConfig):
         dl = cm['download']
         # Support both legacy (single floor) and v2/v3 (state-based floors)
         if 'floor_green_mbps' in dl:
-            self.download_floor_green = dl['floor_green_mbps'] * 1_000_000
-            self.download_floor_yellow = dl['floor_yellow_mbps'] * 1_000_000
-            self.download_floor_soft_red = dl.get('floor_soft_red_mbps', dl['floor_yellow_mbps']) * 1_000_000  # Phase 2A
-            self.download_floor_red = dl['floor_red_mbps'] * 1_000_000
+            self.download_floor_green = dl['floor_green_mbps'] * MBPS_TO_BPS
+            self.download_floor_yellow = dl['floor_yellow_mbps'] * MBPS_TO_BPS
+            self.download_floor_soft_red = dl.get('floor_soft_red_mbps', dl['floor_yellow_mbps']) * MBPS_TO_BPS  # Phase 2A
+            self.download_floor_red = dl['floor_red_mbps'] * MBPS_TO_BPS
         else:
             # Legacy: use single floor for all states
-            floor = dl['floor_mbps'] * 1_000_000
+            floor = dl['floor_mbps'] * MBPS_TO_BPS
             self.download_floor_green = floor
             self.download_floor_yellow = floor
             self.download_floor_soft_red = floor  # Phase 2A
             self.download_floor_red = floor
-        self.download_ceiling = dl['ceiling_mbps'] * 1_000_000
-        self.download_step_up = dl['step_up_mbps'] * 1_000_000
+        self.download_ceiling = dl['ceiling_mbps'] * MBPS_TO_BPS
+        self.download_step_up = dl['step_up_mbps'] * MBPS_TO_BPS
         self.download_factor_down = dl['factor_down']
 
         # Upload parameters (STATE-BASED FLOORS)
         ul = cm['upload']
         # Support both legacy (single floor) and v2 (state-based floors)
         if 'floor_green_mbps' in ul:
-            self.upload_floor_green = ul['floor_green_mbps'] * 1_000_000
-            self.upload_floor_yellow = ul['floor_yellow_mbps'] * 1_000_000
-            self.upload_floor_red = ul['floor_red_mbps'] * 1_000_000
+            self.upload_floor_green = ul['floor_green_mbps'] * MBPS_TO_BPS
+            self.upload_floor_yellow = ul['floor_yellow_mbps'] * MBPS_TO_BPS
+            self.upload_floor_red = ul['floor_red_mbps'] * MBPS_TO_BPS
         else:
             # Legacy: use single floor for all states
-            floor = ul['floor_mbps'] * 1_000_000
+            floor = ul['floor_mbps'] * MBPS_TO_BPS
             self.upload_floor_green = floor
             self.upload_floor_yellow = floor
             self.upload_floor_red = floor
-        self.upload_ceiling = ul['ceiling_mbps'] * 1_000_000
-        self.upload_step_up = ul['step_up_mbps'] * 1_000_000
+        self.upload_ceiling = ul['ceiling_mbps'] * MBPS_TO_BPS
+        self.upload_step_up = ul['step_up_mbps'] * MBPS_TO_BPS
         self.upload_factor_down = ul['factor_down']
 
         # Thresholds
         thresh = cm['thresholds']
         self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
         self.warn_bloat_ms = thresh['warn_bloat_ms']              # YELLOW → SOFT_RED (45ms)
-        self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', 80)  # SOFT_RED → RED (80ms)
+        self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', DEFAULT_HARD_RED_BLOAT_MS)
         self.alpha_baseline = thresh['alpha_baseline']
         self.alpha_load = thresh['alpha_load']
 
@@ -98,8 +117,8 @@ class Config(BaseConfig):
 
         # Timeouts (with sensible defaults)
         timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', 15)  # seconds
-        self.timeout_ping = timeouts.get('ping', 1)  # seconds (-W parameter)
+        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_SSH_TIMEOUT)
+        self.timeout_ping = timeouts.get('ping', DEFAULT_PING_TIMEOUT)
 
         # Lock file
         self.lock_file = Path(self.data['lock_file'])
@@ -155,7 +174,7 @@ class RouterOS:
 
 class RTTMeasurement:
     """Lightweight RTT measurement via ping"""
-    def __init__(self, logger: logging.Logger, timeout_ping: int = 1):
+    def __init__(self, logger: logging.Logger, timeout_ping: int = DEFAULT_PING_TIMEOUT):
         self.logger = logger
         self.timeout_ping = timeout_ping
 
@@ -463,10 +482,10 @@ class WANController:
         # Slow EWMA for baseline_rtt (ONLY update when line is genuinely idle)
         # This tracks the "normal" RTT without congestion
         #
-        # Critical: Only update baseline when delta is very small (< 3ms)
+        # Critical: Only update baseline when delta is very small
         # This prevents baseline drift during load, which would mask true bloat
         delta = self.load_rtt - self.baseline_rtt
-        if delta < 3.0:
+        if delta < BASELINE_UPDATE_THRESHOLD_MS:
             # Line is idle or nearly idle - safe to update baseline
             self.baseline_rtt = (1 - self.alpha_baseline) * self.baseline_rtt + self.alpha_baseline * measured_rtt
         # else: Under load - freeze baseline to prevent drift

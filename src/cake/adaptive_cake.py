@@ -28,6 +28,33 @@ from cake.state_utils import atomic_write_json
 
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Default bloat thresholds (milliseconds)
+DEFAULT_TARGET_BLOAT_MS = 10.0        # Target for binary search optimization
+DEFAULT_QUICK_CHECK_BLOAT_MS = 15.0   # Threshold to trigger full search
+
+# Default timeout values (seconds)
+DEFAULT_SSH_TIMEOUT = 30
+DEFAULT_PEXPECT_TIMEOUT = 60
+DEFAULT_NETPERF_TIMEOUT = 20
+
+# Binary search parameters
+BINARY_SEARCH_WORST_BLOAT = 999.0     # Sentinel for "no good rate found yet"
+DEFAULT_K_FACTOR_FALLBACK = 0.5       # Conservative fallback when bloat is severe
+
+# Measurement parameters
+PING_INTERVAL_SECONDS = 0.2           # Ping interval during measurements
+BASELINE_PING_DURATION = 3            # Seconds for baseline RTT measurement
+LOADED_PING_DURATION = 10             # Seconds for loaded RTT measurement
+NETPERF_TEST_DURATION = 15            # Seconds for netperf throughput test
+
+# Conversion factors
+MBPS_TO_BPS = 1_000_000
+
+
+# =============================================================================
 # CONGESTION STATE CHECK (Option 2: Gate on Steering State)
 # =============================================================================
 
@@ -111,12 +138,12 @@ class Config(BaseConfig):
 
         # Binary search parameters (Flent/LibreQoS method)
         self.use_binary_search = self.data['tuning'].get('use_binary_search', True)
-        self.target_bloat_ms = self.data['tuning'].get('target_bloat_ms', 10.0)
+        self.target_bloat_ms = self.data['tuning'].get('target_bloat_ms', DEFAULT_TARGET_BLOAT_MS)
         self.binary_search_iterations = self.data['tuning'].get('binary_search_iterations', 5)
 
         # Quick check mode (validation vs full search)
         self.quick_check_enabled = self.data['tuning'].get('quick_check_enabled', True)
-        self.quick_check_bloat_threshold = self.data['tuning'].get('quick_check_bloat_threshold', 15.0)
+        self.quick_check_bloat_threshold = self.data['tuning'].get('quick_check_bloat_threshold', DEFAULT_QUICK_CHECK_BLOAT_MS)
         self.full_search_interval_cycles = self.data['tuning'].get('full_search_interval_cycles', 6)
 
         # K-factor
@@ -150,9 +177,9 @@ class Config(BaseConfig):
 
         # Timeouts (with sensible defaults)
         timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', 30)  # seconds
-        self.timeout_pexpect = timeouts.get('pexpect', 60)  # seconds
-        self.timeout_netperf = timeouts.get('netperf', 20)  # seconds
+        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_SSH_TIMEOUT)
+        self.timeout_pexpect = timeouts.get('pexpect', DEFAULT_PEXPECT_TIMEOUT)
+        self.timeout_netperf = timeouts.get('netperf', DEFAULT_NETPERF_TIMEOUT)
 
         # External state files (with sensible default)
         paths = self.data.get('paths', {})
@@ -456,7 +483,7 @@ class Measurement:
         Uses minimum RTT as baseline (true unloaded latency)
         """
         self.logger.debug("Measuring baseline latency (idle)")
-        out = self._run_pexpect(f"ping -i 0.2 -w 3 {self.config.ping_host}")
+        out = self._run_pexpect(f"ping -i {PING_INTERVAL_SECONDS} -w {BASELINE_PING_DURATION} {self.config.ping_host}")
         rtts = self._parse_ping(out)
 
         if not rtts:
@@ -484,7 +511,7 @@ class Measurement:
         # Start netperf in background
         netperf_cmd = [
             "netperf", "-H", self.config.netperf_host,
-            "-t", "TCP_MAERTS", "-l", "15", "-v", "2"
+            "-t", "TCP_MAERTS", "-l", str(NETPERF_TEST_DURATION), "-v", "2"
         ]
 
         self.logger.debug(f"Starting netperf: {' '.join(netperf_cmd)}")
@@ -500,7 +527,7 @@ class Measurement:
 
         # Measure latency while loaded
         self.logger.debug("Measuring latency under download load")
-        out = self._run_pexpect(f"ping -i 0.2 -w 10 {self.config.ping_host}")
+        out = self._run_pexpect(f"ping -i {PING_INTERVAL_SECONDS} -w {LOADED_PING_DURATION} {self.config.ping_host}")
         rtts_loaded = self._parse_ping(out)
 
         # Get throughput result
@@ -545,7 +572,7 @@ class Measurement:
         # Start netperf in background
         netperf_cmd = [
             "netperf", "-H", self.config.netperf_host,
-            "-t", "TCP_STREAM", "-l", "15", "-v", "2"
+            "-t", "TCP_STREAM", "-l", str(NETPERF_TEST_DURATION), "-v", "2"
         ]
 
         self.logger.debug(f"Starting netperf: {' '.join(netperf_cmd)}")
@@ -561,7 +588,7 @@ class Measurement:
 
         # Measure latency while loaded
         self.logger.debug("Measuring latency under upload load")
-        out = self._run_pexpect(f"ping -i 0.2 -w 10 {self.config.ping_host}")
+        out = self._run_pexpect(f"ping -i {PING_INTERVAL_SECONDS} -w {LOADED_PING_DURATION} {self.config.ping_host}")
         rtts_loaded = self._parse_ping(out)
 
         # Get throughput result
@@ -624,7 +651,7 @@ class Measurement:
 
         return throughput, bloat
 
-    def find_optimal_download_rate(self, router, baseline_rtt: float, target_bloat_ms: float = 10.0, iterations: int = 5) -> Tuple[float, float]:
+    def find_optimal_download_rate(self, router, baseline_rtt: float, target_bloat_ms: float = DEFAULT_TARGET_BLOAT_MS, iterations: int = 5) -> Tuple[float, float]:
         """
         Binary search to find maximum download rate that keeps bloat under target
         This is the Flent/LibreQoS approach: find the rate with acceptable latency
@@ -641,7 +668,7 @@ class Measurement:
         self.logger.info(f"Binary search for optimal download rate (target bloat: {target_bloat_ms}ms)")
 
         best_rate = min_rate
-        best_bloat = 999.0
+        best_bloat = BINARY_SEARCH_WORST_BLOAT
 
         for i in range(iterations):
             test_rate = (min_rate + max_rate) / 2
@@ -666,7 +693,7 @@ class Measurement:
         self.logger.info(f"Optimal download rate: {best_rate:.2f} Mbps (bloat: {best_bloat:.1f}ms)")
         return best_rate, best_bloat
 
-    def find_optimal_upload_rate(self, router, baseline_rtt: float, target_bloat_ms: float = 10.0, iterations: int = 5) -> Tuple[float, float]:
+    def find_optimal_upload_rate(self, router, baseline_rtt: float, target_bloat_ms: float = DEFAULT_TARGET_BLOAT_MS, iterations: int = 5) -> Tuple[float, float]:
         """
         Binary search to find maximum upload rate that keeps bloat under target
         Args:
@@ -682,7 +709,7 @@ class Measurement:
         self.logger.info(f"Binary search for optimal upload rate (target bloat: {target_bloat_ms}ms)")
 
         best_rate = min_rate
-        best_bloat = 999.0
+        best_bloat = BINARY_SEARCH_WORST_BLOAT
 
         for i in range(iterations):
             test_rate = (min_rate + max_rate) / 2
@@ -735,7 +762,7 @@ class Measurement:
 
         return down_mbps, up_mbps, down_bloat, up_bloat
 
-    def run_full_test(self, router=None, use_binary_search: bool = True, target_bloat_ms: float = 10.0) -> Tuple[float, float, float, float]:
+    def run_full_test(self, router=None, use_binary_search: bool = True, target_bloat_ms: float = DEFAULT_TARGET_BLOAT_MS) -> Tuple[float, float, float, float]:
         """
         Run complete measurement cycle using binary search to find optimal rates
         This implements the Flent/LibreQoS methodology:
@@ -800,7 +827,7 @@ class CakeAdjuster:
             if low <= bloat < high:
                 self.logger.debug(f"Bloat={bloat:.1f}ms → k-factor={k}")
                 return k
-        return 0.5  # Fallback
+        return DEFAULT_K_FACTOR_FALLBACK
 
     def compute_caps(
         self,
