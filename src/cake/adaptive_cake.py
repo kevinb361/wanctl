@@ -29,16 +29,23 @@ from cake.logging_utils import setup_logging
 # CONGESTION STATE CHECK (Option 2: Gate on Steering State)
 # =============================================================================
 
-def should_skip_calibration(logger: logging.Logger) -> bool:
+def should_skip_calibration(
+    logger: logging.Logger,
+    steering_state_file: str = "/home/kevin/adaptive_cake_steering/steering_state.json"
+) -> bool:
     """
     Check if steering daemon reports congestion (YELLOW or RED).
 
     Expert guidance: "Never run Dallas tests while YELLOW or RED"
     This prevents calibration tests from contaminating congestion signals.
 
+    Args:
+        logger: Logger instance
+        steering_state_file: Path to steering daemon state file (default: standard location)
+
     Returns True if calibration should be skipped (congestion present)
     """
-    steering_state_path = "/home/kevin/adaptive_cake_steering/steering_state.json"
+    steering_state_path = steering_state_file
 
     # If steering daemon not running or state file doesn't exist, allow calibration
     if not os.path.exists(steering_state_path):
@@ -140,6 +147,13 @@ class Config(BaseConfig):
         self.timeout_ssh_command = timeouts.get('ssh_command', 30)  # seconds
         self.timeout_pexpect = timeouts.get('pexpect', 60)  # seconds
         self.timeout_netperf = timeouts.get('netperf', 20)  # seconds
+
+        # External state files (with sensible default)
+        paths = self.data.get('paths', {})
+        self.steering_state_file = paths.get(
+            'steering_state_file',
+            '/home/kevin/adaptive_cake_steering/steering_state.json'
+        )
 
 
 # =============================================================================
@@ -1015,7 +1029,7 @@ def main():
         with LockFile(config.lock_file, config.lock_timeout, logger):
             # Check congestion state - defer calibration if network under stress
             # Expert: "Never run Dallas tests while YELLOW or RED"
-            if should_skip_calibration(logger):
+            if should_skip_calibration(logger, config.steering_state_file):
                 logger.info("✓ Calibration skipped this cycle - will retry when GREEN")
                 return 0
 
