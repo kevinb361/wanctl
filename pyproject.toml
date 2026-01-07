@@ -17,3 +17,8 @@ package = true
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[dependency-groups]
+dev = [
+    "pyflakes>=3.4.0",
+]
+

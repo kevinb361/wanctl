@@ -24,20 +24,12 @@ import argparse
 import datetime
 import json
 import logging
-import os
 import statistics
 import subprocess
 import sys
-import time
 import traceback
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
-
-try:
-    import yaml
-except ImportError:
-    print("ERROR: PyYAML not installed. Run: pip3 install --user PyYAML")
-    sys.exit(1)
+from typing import Any, Dict, Optional
 
 from cake.config_base import BaseConfig
 from cake.lockfile import LockFile, LockAcquisitionError
@@ -91,7 +83,7 @@ QUEUE_DEPTH_100_PERCENT = 1000.0      # Packets considered "100% queue utilizati
 
 # Import CAKE-aware modules
 try:
-    from cake_stats import CakeStatsReader, CakeStats, CongestionSignals
+    from cake_stats import CakeStatsReader, CongestionSignals
     from congestion_assessment import (
         CongestionState,
         StateThresholds,
@@ -677,8 +669,6 @@ class SteeringDaemon:
         Returns:
             True if routing state changed, False otherwise
         """
-        state = self.state_mgr.state
-
         if self.config.cake_aware:
             return self._update_state_machine_cake_aware(signals)
         else:
@@ -966,13 +956,12 @@ class SteeringDaemon:
                 state['queue_pct_history'] = state['queue_pct_history'][-MAX_HISTORY_SAMPLES:]
 
             # Evaluate Phase 2B decision (hypothetical)
-            phase2b_decision = self.phase2b_controller.evaluate(
+            # Result unused - decisions are logged internally by the controller
+            # In dry-run mode, no routing changes occur
+            _ = self.phase2b_controller.evaluate(
                 signals=confidence_signals,
                 current_state=state['current_state']
             )
-
-            # Phase 2B decisions are logged internally by the controller
-            # In dry-run mode, no routing changes occur
 
         # Save state
         self.state_mgr.save()

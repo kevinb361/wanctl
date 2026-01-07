@@ -8,16 +8,11 @@ import argparse
 import datetime
 import json
 import logging
-import os
 import statistics
 import subprocess
-import sys
-import time
 import traceback
 from pathlib import Path
-from typing import Optional, List, Tuple
-
-import yaml
+from typing import List, Optional, Tuple
 
 from cake.config_base import BaseConfig
 from cake.lockfile import LockFile, LockAcquisitionError

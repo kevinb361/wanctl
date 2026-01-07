@@ -5,7 +5,7 @@ import logging
 import random
 import subprocess
 import time
-from typing import Callable, Tuple, Type
+from typing import Callable
 
 
 def is_retryable_error(exception: Exception) -> bool:
