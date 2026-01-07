@@ -20,14 +20,14 @@ Eliminates bufferbloat by continuously monitoring RTT and adjusting queue limits
 ### Prerequisites
 
 - Mikrotik router running RouterOS 7.x with CAKE queues configured
-- Linux host (LXC container, VM, or bare metal) with Python 3.10+
+- Linux host (LXC container, VM, or bare metal) with Python 3.12+
 - SSH key authentication to router
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/wanctl/wanctl.git
+git clone https://github.com/YOUR_USERNAME/wanctl.git
 cd wanctl
 
 # Run installation on target host (requires root)
@@ -87,6 +87,7 @@ Every 2 seconds:
 ```
 
 **State-dependent floors** prevent bandwidth collapse:
+
 - GREEN: High floor (e.g., 550 Mbps) - normal operation
 - YELLOW: Moderate floor (e.g., 350 Mbps) - early warning
 - SOFT_RED: Aggressive floor (e.g., 275 Mbps) - RTT-only congestion
@@ -96,14 +97,14 @@ Every 2 seconds:
 
 Example configs are provided for common connection types:
 
-| Config | Use Case |
-|--------|----------|
-| `wan1.yaml.example` | Generic primary WAN |
-| `wan2.yaml.example` | Generic secondary WAN |
-| `fiber.yaml.example` | GPON/XGS-PON fiber (low latency) |
-| `cable.yaml.example` | DOCSIS cable (variable latency) |
-| `dsl.yaml.example` | DSL/VDSL (sensitive upload) |
-| `steering.yaml.example` | Multi-WAN traffic steering |
+| Config                  | Use Case                         |
+| ----------------------- | -------------------------------- |
+| `wan1.yaml.example`     | Generic primary WAN              |
+| `wan2.yaml.example`     | Generic secondary WAN            |
+| `fiber.yaml.example`    | GPON/XGS-PON fiber (low latency) |
+| `cable.yaml.example`    | DOCSIS cable (variable latency)  |
+| `dsl.yaml.example`      | DSL/VDSL (sensitive upload)      |
+| `steering.yaml.example` | Multi-WAN traffic steering       |
 
 Copy to `/etc/wanctl/` and customize for your setup.
 
@@ -148,6 +149,7 @@ cat /var/lib/wanctl/wan1_state.json
 ```
 
 **Healthy output:**
+
 ```
 [GREEN/GREEN] RTT=25.5ms, baseline=24.0ms, delta=1.5ms | DL=940M, UL=38M
 ```
@@ -205,4 +207,4 @@ GPL-2.0 - See [LICENSE](LICENSE)
 
 ---
 
-*wanctl aims to be the reference implementation for adaptive CAKE bandwidth control on RouterOS.*
+_wanctl aims to be the reference implementation for adaptive CAKE bandwidth control on RouterOS._
