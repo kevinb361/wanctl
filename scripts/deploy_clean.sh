@@ -22,6 +22,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Files to deploy
 COMMON_FILES=(
     "src/cake/autorate_continuous.py"
+    "src/cake/config_base.py"
+    "src/cake/state_utils.py"
+    "src/cake/lockfile.py"
+    "src/cake/retry_utils.py"
+    "src/cake/logging_utils.py"
+    "src/cake/routeros_ssh.py"
     "requirements.txt"
 )
 
