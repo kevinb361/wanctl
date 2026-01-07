@@ -46,12 +46,14 @@ Production-grade bufferbloat elimination system for dual-WAN MikroTik routers wi
 ### Deploy to Production
 
 **Single command deployment:**
+
 ```bash
 cd /home/kevin/projects/wanctl
 ./scripts/deploy_clean.sh
 ```
 
 This will:
+
 - ✅ Deploy to both ATT and Spectrum containers
 - ✅ Copy unified `autorate_continuous.py` (Phase 2A)
 - ✅ Copy steering daemon to Spectrum
@@ -83,6 +85,7 @@ ssh cake-spectrum 'tail -100 /home/kevin/wanctl/logs/cake_auto.log | grep -i err
 ## What's Running
 
 ### ATT Container (10.10.110.247)
+
 - **Script:** `autorate_continuous.py` (Phase 2A with backward compatibility)
 - **Config:** `att_config.yaml` (legacy 3-state format)
 - **State Machine:** GREEN → YELLOW → RED
@@ -92,6 +95,7 @@ ssh cake-spectrum 'tail -100 /home/kevin/wanctl/logs/cake_auto.log | grep -i err
 - **Typical State:** GREEN/GREEN (delta RTT ~0ms)
 
 ### Spectrum Container (10.10.110.246)
+
 - **Autorate Script:** `autorate_continuous.py` (Phase 2A)
 - **Config:** `spectrum_config.yaml` (4-state format)
 - **State Machine:** GREEN → YELLOW → SOFT_RED → RED
@@ -101,6 +105,7 @@ ssh cake-spectrum 'tail -100 /home/kevin/wanctl/logs/cake_auto.log | grep -i err
 - **Typical State:** GREEN/GREEN (delta RTT ~2-5ms)
 
 **Steering Daemon:**
+
 - **Script:** `wan_steering_daemon.py`
 - **Purpose:** Routes latency-sensitive traffic to ATT during Spectrum congestion
 - **Frequency:** Every 2 seconds
@@ -116,7 +121,16 @@ ssh cake-spectrum 'tail -100 /home/kevin/wanctl/logs/cake_auto.log | grep -i err
 │   ├── wan_steering_daemon.py     # WAN steering daemon
 │   ├── cake_stats.py              # CAKE statistics collector
 │   ├── congestion_assessment.py   # Congestion detection
-│   └── steering_confidence.py     # Steering decision logic
+│   ├── steering_confidence.py     # Steering decision logic
+│   ├── config_base.py             # Config loading and schema validation
+│   ├── state_utils.py             # Atomic file operations
+│   ├── lockfile.py                # Lock file management
+│   └── retry_utils.py             # SSH retry with backoff
+├── tests/                         # Unit test suite (90 tests)
+│   ├── test_config_base.py        # Schema validation tests
+│   ├── test_state_utils.py        # Atomic write tests
+│   ├── test_lockfile.py           # Lock handling tests
+│   └── test_retry_utils.py        # Retry logic tests
 ├── configs/
 │   ├── att_config.yaml            # ATT configuration (3-state)
 │   ├── spectrum_config.yaml       # Spectrum configuration (4-state)
@@ -150,11 +164,48 @@ ssh cake-spectrum 'tail -100 /home/kevin/wanctl/logs/cake_auto.log | grep -i err
     └── steering.log               # Spectrum only
 ```
 
+## Development
+
+### Running Tests
+
+The project includes a unit test suite covering utility modules:
+
+```bash
+cd /home/kevin/projects/wanctl
+
+# Run all tests
+uv run pytest tests/ -v
+
+# Run specific test module
+uv run pytest tests/test_config_base.py -v
+uv run pytest tests/test_state_utils.py -v
+uv run pytest tests/test_lockfile.py -v
+uv run pytest tests/test_retry_utils.py -v
+```
+
+**Test coverage (90 tests):**
+
+- `config_base.py` - Schema validation (validate_field, validate_schema)
+- `state_utils.py` - Atomic file operations (atomic_write_json, safe_read_json)
+- `lockfile.py` - Lock file management (LockFile, LockAcquisitionError)
+- `retry_utils.py` - Retry logic with exponential backoff
+
+### Dev Dependencies
+
+```bash
+# Install dev dependencies
+uv sync --group dev
+
+# Lint for unused imports/variables
+uv run pyflakes src/cake/
+```
+
 ## How It Works
 
 ### Continuous Monitoring (Primary Control Loop)
 
 Every 2 seconds:
+
 1. **Measure baseline RTT** (3 pings to reference hosts)
 2. **Track baseline via EWMA** (slow alpha: 0.015-0.02)
 3. **Measure loaded RTT** (during normal traffic)
@@ -168,6 +219,7 @@ Every 2 seconds:
 7. **Apply to RouterOS** via SSH
 
 **Key Innovation (Phase 2A):**
+
 - **SOFT_RED state** (Spectrum only) handles RTT-only congestion without triggering steering
 - Clamps to 275 Mbps floor and holds (doesn't enable steering)
 - Prevents ~85% of unnecessary steering activations
@@ -176,6 +228,7 @@ Every 2 seconds:
 ### WAN Steering (Secondary Override)
 
 Runs on Spectrum container only, every 2 seconds:
+
 1. **Collect CAKE statistics** (drops, queue depth, packet counts)
 2. **Assess congestion** using multi-signal voting:
    - RTT delta (EWMA smoothed, α=0.3)
@@ -188,10 +241,12 @@ Runs on Spectrum container only, every 2 seconds:
 4. **Enable/disable mangle rule** for latency-sensitive traffic
 
 **What gets steered to ATT:**
+
 - VoIP, DNS, push notifications, gaming, SSH, interactive web
 - DSCP-marked traffic (EF, AF31)
 
 **What stays on Spectrum:**
+
 - Bulk downloads/uploads, video streaming, background traffic
 
 ## Configuration
@@ -199,43 +254,45 @@ Runs on Spectrum container only, every 2 seconds:
 All tuning parameters are in YAML config files.
 
 ### ATT Config (Legacy 3-State)
+
 ```yaml
 continuous_monitoring:
   download:
-    floor_mbps: 25           # Single floor value
+    floor_mbps: 25 # Single floor value
     ceiling_mbps: 95
   thresholds:
-    target_bloat_ms: 3       # GREEN → YELLOW
-    warn_bloat_ms: 10        # YELLOW → RED
+    target_bloat_ms: 3 # GREEN → YELLOW
+    warn_bloat_ms: 10 # YELLOW → RED
 ```
 
 ### Spectrum Config (Phase 2A 4-State)
+
 ```yaml
 continuous_monitoring:
   download:
-    floor_green_mbps: 550    # GREEN state floor
-    floor_yellow_mbps: 350   # YELLOW state floor
+    floor_green_mbps: 550 # GREEN state floor
+    floor_yellow_mbps: 350 # YELLOW state floor
     floor_soft_red_mbps: 275 # SOFT_RED state floor (RTT-only)
-    floor_red_mbps: 200      # RED state floor (hard congestion)
+    floor_red_mbps: 200 # RED state floor (hard congestion)
     ceiling_mbps: 940
   thresholds:
-    target_bloat_ms: 15      # GREEN → YELLOW
-    warn_bloat_ms: 45        # YELLOW → SOFT_RED
-    critical_bloat_ms: 80    # SOFT_RED → RED
+    target_bloat_ms: 15 # GREEN → YELLOW
+    warn_bloat_ms: 45 # YELLOW → SOFT_RED
+    critical_bloat_ms: 80 # SOFT_RED → RED
 ```
 
 **The same `autorate_continuous.py` script handles both formats!** It detects the config schema and adapts accordingly.
 
 ## Performance Characteristics
 
-| Metric | ATT | Spectrum |
-|--------|-----|----------|
-| **Typical State** | GREEN/GREEN | GREEN/GREEN |
-| **Delta RTT** | 0-1ms | 2-5ms |
-| **GREEN Uptime** | ~90% | 89.3% (validated) |
-| **Steering Active** | N/A | <0.03% of time |
-| **Control Frequency** | Every 2s | Every 2s |
-| **Baseline RTT** | 28ms | 24-27ms |
+| Metric                | ATT         | Spectrum          |
+| --------------------- | ----------- | ----------------- |
+| **Typical State**     | GREEN/GREEN | GREEN/GREEN       |
+| **Delta RTT**         | 0-1ms       | 2-5ms             |
+| **GREEN Uptime**      | ~90%        | 89.3% (validated) |
+| **Steering Active**   | N/A         | <0.03% of time    |
+| **Control Frequency** | Every 2s    | Every 2s          |
+| **Baseline RTT**      | 28ms        | 24-27ms           |
 
 ## Safety Mechanisms
 
@@ -250,6 +307,7 @@ continuous_monitoring:
 ## Monitoring & Troubleshooting
 
 ### Check System Health
+
 ```bash
 # Quick health check
 ssh cake-att 'systemctl status cake-att-continuous.service'
@@ -264,6 +322,7 @@ ssh cake-spectrum 'tail -5 /home/kevin/wanctl/logs/steering.log | grep SPECTRUM'
 ```
 
 ### Expected Healthy Output
+
 ```
 ATT: [GREEN/GREEN] RTT=28.0ms, load_ewma=28.0ms, baseline=28.0ms, delta=0.0ms | DL=95M, UL=18M
 Spectrum: [GREEN/GREEN] RTT=25.5ms, load_ewma=27.6ms, baseline=26.9ms, delta=0.7ms | DL=940M, UL=38M
@@ -273,6 +332,7 @@ Spectrum: [GREEN/GREEN] RTT=25.5ms, load_ewma=27.6ms, baseline=26.9ms, delta=0.7
 ### Troubleshooting
 
 **Service won't start:**
+
 ```bash
 # Check logs
 journalctl -u cake-att-continuous.service -n 50
@@ -284,14 +344,17 @@ python3 autorate_continuous.py --configs configs/att_config.yaml --debug
 ```
 
 **Config schema error:**
+
 ```
 KeyError: 'floor_mbps'  →  Wrong script/config combination
 ```
+
 - ATT should use legacy config (`floor_mbps`)
 - Spectrum should use Phase 2A config (`floor_green_mbps`, etc.)
 - Both use the same unified `autorate_continuous.py` script
 
 **Steering not working:**
+
 ```bash
 # Check steering daemon is running
 ssh cake-spectrum 'systemctl status wan-steering.service'
@@ -313,22 +376,34 @@ ssh cake-spectrum 'cat /home/kevin/wanctl/configs/steering_config_v2.yaml | head
 
 ## Recent Changes (2026-01-07)
 
+### ✅ Infrastructure Hardening
+
+- Added config schema validation system (`validate_field`, `validate_schema`)
+- Fixed state file race condition with atomic writes (`state_utils.py`)
+- Replaced sys.exit() with LockAcquisitionError exception for proper lock handling
+- Added unit test suite (90 tests covering utility modules)
+- Dev dependencies: pytest, pyflakes
+
 ### ✅ Config Bug Fixed
+
 - Fixed schema mismatch causing `KeyError: 'floor_mbps'`
 - Deployed correct configs to both containers
 - ATT: Legacy 3-state format
 - Spectrum: Phase 2A 4-state format
 
 ### ✅ Unified Codebase
+
 - Eliminated version file confusion (`_v2`, `_original`)
 - Single `autorate_continuous.py` (Phase 2A with backward compatibility)
 - Same code on both containers, different configs
 
 ### ✅ Container Cleanup
+
 - Removed ~65K of cruft (obsolete scripts, backups, `__pycache__`)
 - Archived to `.obsolete_20260107/` directories
 
 ### ✅ Deployment Unified
+
 - New `scripts/deploy_clean.sh` - single command for both containers
 - SSH key-based (no password prompts)
 - Color-coded progress indicators
@@ -362,6 +437,7 @@ Created by Kevin for MikroTik rb5009 dual-WAN adaptive CAKE system.
 ## Support
 
 For deployment issues:
+
 1. Check `scripts/DEPLOYMENT.md`
 2. Review logs: `journalctl -u cake-*.service` or `/home/kevin/wanctl/logs/`
 3. Verify SSH connectivity to containers and router
