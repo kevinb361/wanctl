@@ -1,0 +1,15 @@
+[Unit]
+Description=wanctl Adaptive WAN Steering Timer
+Documentation=https://github.com/wanctl/wanctl
+Requires=steering.service
+
+[Timer]
+# Start 1 minute after boot (after autorate stabilizes)
+OnBootSec=1min
+
+# Run every 2 seconds for responsive steering decisions
+OnUnitActiveSec=2s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

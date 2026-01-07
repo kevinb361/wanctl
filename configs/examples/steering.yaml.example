@@ -1,0 +1,116 @@
+# wanctl Steering Configuration
+#
+# Multi-WAN steering daemon configuration.
+# Routes latency-sensitive traffic to alternate WAN during congestion.
+#
+# IMPORTANT: Steering requires:
+# 1. Two or more WANs configured with wanctl
+# 2. RouterOS mangle rule for traffic steering
+# 3. Primary WAN's autorate state file for baseline RTT
+#
+# Usage: systemctl enable --now steering.timer
+
+# WAN name for this config (used in logs)
+wan_name: "steering"
+
+# Topology - defines which WANs to monitor and steer between
+topology:
+  # Primary WAN - this is the WAN being monitored for congestion
+  primary_wan: "wan1"
+  primary_wan_config: "/etc/wanctl/wan1.yaml"
+
+  # Alternate WAN - traffic is steered here when primary is congested
+  alternate_wan: "wan2"
+
+# RouterOS connection settings
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
+
+# Mangle rule to toggle (must match your RouterOS configuration)
+# Create a mangle rule with this comment that marks latency-sensitive traffic
+mangle_rule:
+  comment: "ADAPTIVE: Steer latency-sensitive to WAN2"
+
+# CAKE state sources (baseline RTT comes from primary WAN)
+cake_state_sources:
+  primary: "/var/lib/wanctl/wan1_state.json"
+
+# CAKE queue names to monitor (for drops and queue depth)
+cake_queues:
+  primary_download: "WAN-Download-1"    # Primary WAN download queue
+  primary_upload: "WAN-Upload-1"        # Primary WAN upload queue
+
+# RTT measurement settings
+measurement:
+  interval_seconds: 2
+  ping_host: "1.1.1.1"
+  ping_count: 3
+
+# Congestion thresholds for steering decisions
+thresholds:
+  # GREEN: Healthy, no steering needed
+  green_rtt_ms: 5               # RTT delta below this = GREEN
+
+  # YELLOW: Early warning, watch but don't steer yet
+  yellow_rtt_ms: 15             # RTT delta above this = YELLOW
+
+  # RED: Confirmed congestion, enable steering
+  red_rtt_ms: 15                # RTT delta above this (with CAKE signals) = RED
+
+  # CAKE queue thresholds
+  min_drops_red: 1              # Minimum drops required for RED state
+  min_queue_yellow: 10          # Queue depth for YELLOW warning
+  min_queue_red: 50             # Queue depth for RED confirmation
+
+  # Hysteresis - prevents flapping
+  red_samples_required: 2       # Consecutive RED samples before enabling steering
+  green_samples_required: 15    # Consecutive GREEN samples before disabling
+
+  # EWMA smoothing
+  rtt_ewma_alpha: 0.3           # RTT smoothing (higher = less smoothing)
+  queue_ewma_alpha: 0.4         # Queue depth smoothing
+
+# Operational mode
+mode:
+  cake_aware: true              # Use multi-signal detection (recommended)
+  reset_counters: true          # Reset CAKE counters before reading
+  enable_yellow_state: true     # Enable YELLOW early warning state
+
+# State persistence
+state:
+  file: "/var/lib/wanctl/steering_state.json"
+  history_size: 60              # Keep 2 minutes of samples (at 2s intervals)
+
+# Logging
+logging:
+  main_log: "/var/log/wanctl/steering.log"
+  debug_log: "/var/log/wanctl/steering_debug.log"
+  log_cake_stats: true          # Include CAKE stats in logs
+
+# Lock file (prevents concurrent runs)
+lock_file: "/run/wanctl/steering.lock"
+lock_timeout: 300               # 5 minutes
+
+# Timeouts
+timeouts:
+  ssh_command: 30               # SSH command timeout (seconds)
+  ping: 2                       # Per-ping timeout (seconds)
+  ping_total: 10                # Total ping timeout (seconds)
+
+# =============================================================================
+# RouterOS Mangle Rule Example
+# =============================================================================
+#
+# Create this rule on your RouterOS router:
+#
+# /ip firewall mangle add chain=prerouting \
+#     comment="ADAPTIVE: Steer latency-sensitive to WAN2" \
+#     disabled=yes \
+#     connection-state=new \
+#     dscp=ef,af31 \
+#     action=mark-routing new-routing-mark=via-wan2
+#
+# The steering daemon will enable/disable this rule based on congestion.
+# Only NEW connections are steered (existing flows continue on original path).

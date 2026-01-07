@@ -1,0 +1,37 @@
+[Unit]
+Description=wanctl Adaptive CAKE Autorate - %i
+Documentation=https://github.com/wanctl/wanctl
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wanctl
+Group=wanctl
+
+# FHS paths - %i is the WAN instance name (wan1, wan2, etc.)
+WorkingDirectory=/opt/wanctl
+ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml
+
+# Environment
+Environment=WANCTL_STATE_DIR=/var/lib/wanctl
+Environment=WANCTL_LOG_DIR=/var/log/wanctl
+Environment=WANCTL_RUN_DIR=/run/wanctl
+
+# Output
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wanctl-%i
+
+# Capabilities for ping (ICMP raw sockets)
+AmbientCapabilities=CAP_NET_RAW
+
+# Security hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/wanctl /var/log/wanctl /run/wanctl
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,78 @@
+# wanctl Configuration - Primary WAN
+#
+# This is a template for a primary WAN connection.
+# Copy to /etc/wanctl/wan1.yaml and customize for your setup.
+#
+# Usage: systemctl enable --now wanctl@wan1.timer
+
+wan_name: "wan1"  # Used in logs and state files
+
+# RouterOS connection
+# Configure your Mikrotik router access here
+router:
+  host: "192.168.1.1"           # Router IP address
+  user: "admin"                 # RouterOS user with queue tree access
+  ssh_key: "/etc/wanctl/ssh/router.key"  # Path to SSH private key
+
+# Queue names in RouterOS
+# These must match your existing queue tree configuration
+queues:
+  download: "WAN-Download-1"    # Download queue name (max-limit will be adjusted)
+  upload: "WAN-Upload-1"        # Upload queue name (max-limit will be adjusted)
+
+# Continuous monitoring configuration
+continuous_monitoring:
+  enabled: true
+
+  # Baseline RTT - initial estimate, will be measured and tracked
+  # Set this to your typical ping time to 1.1.1.1 when idle
+  baseline_rtt_initial: 25      # milliseconds
+
+  # Download parameters
+  # Tune these based on your connection speed and stability
+  download:
+    floor_green_mbps: 100       # GREEN state: healthy, high floor
+    floor_yellow_mbps: 75       # YELLOW state: early warning, moderate floor
+    floor_soft_red_mbps: 50     # SOFT_RED state: RTT-only congestion (optional)
+    floor_red_mbps: 25          # RED state: severe congestion, lowest floor
+    ceiling_mbps: 500           # Maximum bandwidth (your plan speed minus overhead)
+    step_up_mbps: 5             # How much to increase when recovering (Mbps)
+    factor_down: 0.85           # Backoff factor when congested (0.85 = 15% reduction)
+
+  # Upload parameters
+  upload:
+    floor_mbps: 10              # Minimum upload bandwidth
+    ceiling_mbps: 50            # Maximum upload bandwidth
+    step_up_mbps: 1             # Recovery step size
+    factor_down: 0.90           # Backoff factor (0.90 = 10% reduction)
+
+  # RTT thresholds - controls state transitions
+  # Measured as delta from baseline (loaded_rtt - baseline_rtt)
+  thresholds:
+    target_bloat_ms: 15         # GREEN -> YELLOW threshold (ms)
+    warn_bloat_ms: 45           # YELLOW -> SOFT_RED threshold (ms)
+    hard_red_bloat_ms: 80       # SOFT_RED -> RED threshold (ms)
+    alpha_baseline: 0.02        # Baseline EWMA smoothing (lower = slower tracking)
+    alpha_load: 0.20            # Load RTT EWMA smoothing (higher = faster response)
+
+  # Ping configuration
+  # Multiple hosts provide resilience against reflector issues
+  ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+  use_median_of_three: true     # Use median of 3 pings for noise reduction
+
+# Logging - FHS compliant paths
+logging:
+  main_log: "/var/log/wanctl/wan1.log"
+  debug_log: "/var/log/wanctl/wan1_debug.log"
+
+# Lock file - prevents concurrent runs
+lock_file: "/run/wanctl/wan1.lock"
+lock_timeout: 300               # Lock timeout in seconds
+
+# Timeouts
+timeouts:
+  ssh_command: 15               # SSH command timeout (seconds)
+  ping: 1                       # Per-ping timeout (seconds)
+
+# State file location (for EWMA persistence)
+state_file: "/var/lib/wanctl/wan1_state.json"

@@ -1,0 +1,37 @@
+[Unit]
+Description=wanctl Adaptive WAN Steering Daemon
+Documentation=https://github.com/wanctl/wanctl
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wanctl
+Group=wanctl
+
+# FHS paths
+WorkingDirectory=/opt/wanctl
+ExecStart=/usr/bin/python3 /opt/wanctl/steering/daemon.py --config /etc/wanctl/steering.yaml
+
+# Environment
+Environment=WANCTL_STATE_DIR=/var/lib/wanctl
+Environment=WANCTL_LOG_DIR=/var/log/wanctl
+Environment=WANCTL_RUN_DIR=/run/wanctl
+
+# Output
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wanctl-steering
+
+# Capabilities for ping (ICMP raw sockets)
+AmbientCapabilities=CAP_NET_RAW
+
+# Security hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/wanctl /var/log/wanctl /run/wanctl
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
