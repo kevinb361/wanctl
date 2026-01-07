@@ -1,0 +1,15 @@
+[Unit]
+Description=wanctl Adaptive CAKE Timer - %i
+Documentation=https://github.com/wanctl/wanctl
+Requires=wanctl@%i.service
+
+[Timer]
+# Start 30 seconds after boot
+OnBootSec=30s
+
+# Run every 2 seconds for responsive RTT monitoring
+OnUnitActiveSec=2s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

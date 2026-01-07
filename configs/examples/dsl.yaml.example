@@ -1,0 +1,67 @@
+# wanctl Configuration - DSL/VDSL Connection
+#
+# Template for DSL (ADSL, VDSL, VDSL2) connections.
+# DSL has consistent latency but lower bandwidth and noise sensitivity.
+#
+# Characteristics:
+# - Higher baseline RTT (25-50ms depending on distance)
+# - Very asymmetric (upload much slower than download)
+# - Sensitive to line noise and interference
+# - Requires conservative tuning, especially upload
+
+wan_name: "dsl"
+
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
+
+queues:
+  download: "WAN-Download-DSL"
+  upload: "WAN-Upload-DSL"
+
+continuous_monitoring:
+  enabled: true
+
+  # DSL baseline varies by distance from DSLAM
+  baseline_rtt_initial: 31      # Typical for VDSL2
+
+  # Download - DSL speeds vary by sync rate
+  # Using 3-state (no SOFT_RED) for simpler DSL profile
+  download:
+    floor_mbps: 25              # Conservative floor (line variation)
+    ceiling_mbps: 95            # Realistic max with PTM/PPPoE overhead
+    step_up_mbps: 2             # Moderate recovery
+    factor_down: 0.90           # 10% backoff
+
+  # Upload - DSL upload is VERY sensitive
+  # Be conservative to avoid training issues
+  upload:
+    floor_mbps: 6               # Conservative floor
+    ceiling_mbps: 18            # Safe ceiling with headroom
+    step_up_mbps: 0.5           # Very gentle climb (DSL upload sensitive)
+    factor_down: 0.95           # Very conservative 5% backoff
+
+  # Thresholds - tighter than cable due to lower baseline
+  thresholds:
+    target_bloat_ms: 3          # GREEN -> YELLOW (tight for DSL)
+    warn_bloat_ms: 10           # YELLOW -> RED (no SOFT_RED for DSL)
+    alpha_baseline: 0.015       # Slower smoothing (DSL is noisy)
+    alpha_load: 0.20            # Fast response
+
+  # Single reflector is usually fine for DSL (more stable than cable)
+  ping_hosts: ["1.1.1.1"]
+  use_median_of_three: false    # DSL is stable enough for single ping
+
+logging:
+  main_log: "/var/log/wanctl/dsl.log"
+  debug_log: "/var/log/wanctl/dsl_debug.log"
+
+lock_file: "/run/wanctl/dsl.lock"
+lock_timeout: 300
+
+timeouts:
+  ssh_command: 15
+  ping: 1
+
+state_file: "/var/lib/wanctl/dsl_state.json"

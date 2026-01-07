@@ -1,0 +1,69 @@
+# wanctl Configuration - Fiber Connection (GPON/XGS-PON)
+#
+# Template for high-speed, low-latency fiber connections.
+# Fiber is typically very stable with consistent low latency.
+#
+# Characteristics:
+# - Low baseline RTT (5-15ms typical)
+# - High bandwidth (100M-10G)
+# - Very stable, minimal jitter
+# - Less aggressive tuning needed
+
+wan_name: "fiber"
+
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
+
+queues:
+  download: "WAN-Download-Fiber"
+  upload: "WAN-Upload-Fiber"
+
+continuous_monitoring:
+  enabled: true
+
+  # Fiber typically has very low baseline RTT
+  baseline_rtt_initial: 8       # milliseconds (very low for fiber)
+
+  # Download - fiber is stable, can be less aggressive
+  download:
+    floor_green_mbps: 800       # High floor - fiber rarely degrades
+    floor_yellow_mbps: 600
+    floor_soft_red_mbps: 400
+    floor_red_mbps: 200
+    ceiling_mbps: 950           # Near line rate (1 Gbps plan)
+    step_up_mbps: 20            # Fast recovery - fiber is stable
+    factor_down: 0.90           # Less aggressive backoff needed
+
+  # Upload - symmetrical fiber can handle more
+  upload:
+    floor_mbps: 100
+    ceiling_mbps: 950           # Symmetrical gigabit
+    step_up_mbps: 10
+    factor_down: 0.90
+
+  # Thresholds - tighter for fiber since baseline is so low
+  thresholds:
+    target_bloat_ms: 5          # Tighter threshold for low-latency fiber
+    warn_bloat_ms: 15
+    hard_red_bloat_ms: 30
+    alpha_baseline: 0.01        # Very slow baseline tracking (fiber is stable)
+    alpha_load: 0.15            # Moderate response
+
+  # Single reflector is fine for stable fiber
+  ping_hosts: ["1.1.1.1"]
+  use_median_of_three: false    # Single ping OK for stable connections
+
+logging:
+  main_log: "/var/log/wanctl/fiber.log"
+  debug_log: "/var/log/wanctl/fiber_debug.log"
+
+lock_file: "/run/wanctl/fiber.lock"
+lock_timeout: 300
+
+timeouts:
+  ssh_command: 15
+  ping: 1
+
+state_file: "/var/lib/wanctl/fiber_state.json"

@@ -1,0 +1,116 @@
+# wanctl - AI Assistant Context
+
+This file provides context for AI coding assistants (Claude, Copilot, etc.)
+working with the wanctl codebase.
+
+Copy this to `CLAUDE.md` and customize for your deployment.
+
+## Project Overview
+
+wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS.
+It monitors RTT and adjusts queue limits to eliminate bufferbloat.
+
+## Architecture
+
+### Core Components
+
+- `autorate_continuous.py` - Main control loop (RTT monitoring, state machine)
+- `config_base.py` - Configuration loading and validation
+- `backends/` - Router abstraction layer (RouterOS, future: OpenWrt, etc.)
+
+### Control Model
+
+- All decisions based on RTT **delta** (loaded - baseline), not absolute RTT
+- 4-state download: GREEN → YELLOW → SOFT_RED → RED
+- 3-state upload: GREEN → YELLOW → RED
+- Immediate backoff, slow recovery (asymmetric response)
+
+### Key Invariants
+
+1. Baseline RTT only updates when delta < 3ms (no drift under load)
+2. Floors are enforced after all adjustments (policy, not safety)
+3. State transitions require sustained samples (hysteresis)
+4. EWMA state persists across cycles
+
+## Your Deployment Details
+
+Fill in your specific configuration:
+
+```yaml
+# Router
+router_ip: "192.168.1.1"
+router_user: "admin"
+
+# WANs
+wan1:
+  name: "Primary"
+  type: "fiber"  # or cable, dsl
+  speed: "1000/1000"
+  queue_download: "WAN-Download-1"
+  queue_upload: "WAN-Upload-1"
+
+wan2:
+  name: "Backup"
+  type: "cable"
+  speed: "500/50"
+  queue_download: "WAN-Download-2"
+  queue_upload: "WAN-Upload-2"
+
+# Containers/hosts
+targets:
+  - hostname: "cake-wan1"
+    ip: "10.0.0.10"
+  - hostname: "cake-wan2"
+    ip: "10.0.0.11"
+```
+
+## Change Policy
+
+When modifying this codebase:
+
+1. **Explain before changing** - Describe what you plan to modify
+2. **Prefer analysis over action** - Suggest changes, don't just implement
+3. **Minimal changes** - Don't refactor working code
+4. **Test impact** - Consider production implications
+
+Do NOT change without explicit approval:
+- Core control algorithms
+- State machine logic
+- Timing/thresholds
+- Systemd units
+
+## File Locations
+
+```
+/opt/wanctl/           # Code (installed)
+/etc/wanctl/           # Configuration
+/var/lib/wanctl/       # State files
+/var/log/wanctl/       # Logs
+/run/wanctl/           # Lock files
+```
+
+## Common Tasks
+
+### Deploy to a host
+```bash
+./scripts/deploy.sh wan1 target-host
+```
+
+### Check status
+```bash
+systemctl status wanctl@wan1.timer
+journalctl -u wanctl@wan1 -f
+```
+
+### Read state
+```bash
+cat /var/lib/wanctl/wan1_state.json
+```
+
+## Debugging
+
+Key log patterns to search:
+- `Assessment:` - State machine decisions
+- `Setting limits:` - Bandwidth changes
+- `Baseline updated:` - RTT baseline changes
+- `DEGRADED` / `GOOD` - Steering state changes

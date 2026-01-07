@@ -1,0 +1,70 @@
+# wanctl Configuration - DOCSIS Cable Connection
+#
+# Template for cable modem (DOCSIS 3.0/3.1) connections.
+# Cable has variable latency due to shared spectrum and DOCSIS timing.
+#
+# Characteristics:
+# - Moderate baseline RTT (15-30ms typical)
+# - Variable latency (CMTS contention, DOCSIS MAP cycles)
+# - Asymmetric speeds (fast download, slower upload)
+# - May require median-of-three pings for accuracy
+
+wan_name: "cable"
+
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
+
+queues:
+  download: "WAN-Download-Cable"
+  upload: "WAN-Upload-Cable"
+
+continuous_monitoring:
+  enabled: true
+
+  # Cable typically has ~24-30ms baseline RTT
+  baseline_rtt_initial: 24      # DOCSIS adds latency vs fiber
+
+  # Download - cable can vary significantly
+  # Use 4-state with SOFT_RED for handling RTT-only spikes
+  download:
+    floor_green_mbps: 550       # High floor when CMTS is quiet
+    floor_yellow_mbps: 350      # Moderate floor for early warning
+    floor_soft_red_mbps: 275    # SOFT_RED handles RTT spikes without steering
+    floor_red_mbps: 200         # Emergency floor
+    ceiling_mbps: 940           # Near plan speed (1 Gbps nominal)
+    step_up_mbps: 10            # Moderate recovery
+    factor_down: 0.85           # 15% backoff for DOCSIS tail spikes
+
+  # Upload - cable upload is typically 1:10 or 1:20 of download
+  upload:
+    floor_mbps: 8               # Keep upstream functional
+    ceiling_mbps: 38            # Typical 40 Mbps plan with overhead
+    step_up_mbps: 1             # Gentle climb
+    factor_down: 0.90           # Less aggressive backoff
+
+  # Thresholds - tuned for DOCSIS latency characteristics
+  thresholds:
+    target_bloat_ms: 15         # GREEN -> YELLOW
+    warn_bloat_ms: 45           # YELLOW -> SOFT_RED
+    hard_red_bloat_ms: 80       # SOFT_RED -> RED
+    alpha_baseline: 0.02        # Slow baseline tracking
+    alpha_load: 0.20            # Fast response to load changes
+
+  # Median-of-three helps with DOCSIS reflector variation
+  ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+  use_median_of_three: true     # Essential for cable's variable latency
+
+logging:
+  main_log: "/var/log/wanctl/cable.log"
+  debug_log: "/var/log/wanctl/cable_debug.log"
+
+lock_file: "/run/wanctl/cable.lock"
+lock_timeout: 300
+
+timeouts:
+  ssh_command: 15
+  ping: 1
+
+state_file: "/var/lib/wanctl/cable_state.json"

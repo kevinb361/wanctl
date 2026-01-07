@@ -1,0 +1,66 @@
+# wanctl Configuration - Secondary WAN
+#
+# This is a template for a secondary/backup WAN connection.
+# Copy to /etc/wanctl/wan2.yaml and customize for your setup.
+#
+# Common use cases:
+# - Failover/backup connection
+# - Load balancing secondary
+# - Lower-priority connection for bulk traffic
+#
+# Usage: systemctl enable --now wanctl@wan2.timer
+
+wan_name: "wan2"
+
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
+
+queues:
+  download: "WAN-Download-2"
+  upload: "WAN-Upload-2"
+
+continuous_monitoring:
+  enabled: true
+
+  # Adjust baseline for your secondary connection type
+  baseline_rtt_initial: 30
+
+  # Download - adjust for your secondary WAN's speed
+  # Secondary WANs are often slower (DSL backup for cable, etc.)
+  download:
+    floor_mbps: 25
+    ceiling_mbps: 100
+    step_up_mbps: 2
+    factor_down: 0.90
+
+  # Upload
+  upload:
+    floor_mbps: 5
+    ceiling_mbps: 20
+    step_up_mbps: 0.5
+    factor_down: 0.95
+
+  # Thresholds - tune for your connection type
+  thresholds:
+    target_bloat_ms: 5
+    warn_bloat_ms: 15
+    alpha_baseline: 0.02
+    alpha_load: 0.20
+
+  ping_hosts: ["1.1.1.1"]
+  use_median_of_three: false
+
+logging:
+  main_log: "/var/log/wanctl/wan2.log"
+  debug_log: "/var/log/wanctl/wan2_debug.log"
+
+lock_file: "/run/wanctl/wan2.lock"
+lock_timeout: 300
+
+timeouts:
+  ssh_command: 15
+  ping: 1
+
+state_file: "/var/lib/wanctl/wan2_state.json"
