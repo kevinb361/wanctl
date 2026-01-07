@@ -95,13 +95,13 @@ Before submitting:
 
 To add support for a new router platform:
 
-1. Create `src/cake/backends/<platform>.py`
+1. Create `src/wanctl/backends/<platform>.py`
 2. Implement the `RouterBackend` interface from `base.py`
 3. Add to `__init__.py` factory function
 4. Document the config schema
 5. Test thoroughly before submitting
 
-See `src/cake/backends/routeros.py` as a reference implementation.
+See `src/wanctl/backends/routeros.py` as a reference implementation.
 
 ## Good First Issues
 

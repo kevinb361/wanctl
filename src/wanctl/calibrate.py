@@ -6,8 +6,8 @@ Interactive wizard to discover optimal CAKE bandwidth settings for your connecti
 Uses the Flent/LibreQoS methodology: find maximum throughput with acceptable latency.
 
 Usage:
-    python -m cake.calibrate --wan-name wan1 --router 192.168.1.1
-    python -m cake.calibrate --config /etc/wanctl/wan1.yaml --calibrate
+    python -m wanctl.calibrate --wan-name wan1 --router 192.168.1.1
+    python -m wanctl.calibrate --config /etc/wanctl/wan1.yaml --calibrate
 
 This tool will:
 1. Test connectivity to your router

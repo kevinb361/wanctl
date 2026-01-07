@@ -18,7 +18,7 @@ The calibration tool uses the **Flent/LibreQoS methodology**: instead of measuri
 ./scripts/calibrate.sh --wan-name wan1 --router 192.168.1.1
 
 # Python module directly
-python3 -m cake.calibrate --wan-name wan1 --router 192.168.1.1
+python3 -m wanctl.calibrate --wan-name wan1 --router 192.168.1.1
 ```
 
 ## What It Does
@@ -148,11 +148,11 @@ Results Summary
 
 The tool estimates your connection type based on baseline RTT:
 
-| Baseline RTT | Connection Type | Notes |
-|-------------|-----------------|-------|
-| < 15ms | Fiber | Very stable, tight thresholds |
-| 15-35ms | Cable (DOCSIS) | Variable latency, median-of-three helpful |
-| > 35ms | DSL | Higher baseline, conservative settings |
+| Baseline RTT | Connection Type | Notes                                     |
+| ------------ | --------------- | ----------------------------------------- |
+| < 15ms       | Fiber           | Very stable, tight thresholds             |
+| 15-35ms      | Cable (DOCSIS)  | Variable latency, median-of-three helpful |
+| > 35ms       | DSL             | Higher baseline, conservative settings    |
 
 ## Generated Config
 
@@ -204,6 +204,7 @@ continuous_monitoring:
 ```
 
 **IMPORTANT:** Review and customize the generated config:
+
 - Update queue names to match your RouterOS configuration
 - Adjust floors if needed for your use case
 - Copy your SSH key to `/etc/wanctl/ssh/router.key`
@@ -217,6 +218,7 @@ continuous_monitoring:
 ```
 
 Check:
+
 - Router IP/hostname is correct
 - SSH is enabled on router (`/ip service enable ssh`)
 - SSH key is properly configured
@@ -229,6 +231,7 @@ Check:
 ```
 
 Options:
+
 - Try a different netperf server (`--netperf-host`)
 - Run your own netperf server
 - Use `--skip-binary-search` for RTT-only calibration
@@ -236,6 +239,7 @@ Options:
 ### Zero Throughput
 
 If netperf reports 0 Mbps:
+
 - Check firewall rules (ports 12865-12866 TCP)
 - Try a different netperf server
 - Verify network connectivity
@@ -243,6 +247,7 @@ If netperf reports 0 Mbps:
 ## Re-Calibration
 
 Re-run calibration when:
+
 - Your ISP changes your provisioned speeds
 - You change your network configuration
 - You experience persistent bufferbloat

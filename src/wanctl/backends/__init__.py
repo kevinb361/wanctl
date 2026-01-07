@@ -9,15 +9,15 @@ Currently supported:
 Future backends can be added by implementing the RouterBackend interface.
 
 Usage:
-    from cake.backends import get_backend
+    from wanctl.backends import get_backend
 
     backend = get_backend(config)
     backend.set_bandwidth("WAN-Download-1", 500_000_000)
     stats = backend.get_queue_stats("WAN-Download-1")
 """
 
-from cake.backends.base import RouterBackend
-from cake.backends.routeros import RouterOSBackend
+from wanctl.backends.base import RouterBackend
+from wanctl.backends.routeros import RouterOSBackend
 
 
 def get_backend(config) -> RouterBackend:

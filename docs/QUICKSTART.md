@@ -101,7 +101,7 @@ Run a manual test to verify configuration:
 
 ```bash
 # Run as wanctl user to test permissions
-sudo -u wanctl python3 -m cake.autorate_continuous \
+sudo -u wanctl python3 -m wanctl.autorate_continuous \
     --config /etc/wanctl/wan1.yaml \
     --debug \
     --dry-run

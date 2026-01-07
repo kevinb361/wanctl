@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cake.retry_utils import is_retryable_error, retry_with_backoff
+from wanctl.retry_utils import is_retryable_error, retry_with_backoff
 
 
 class TestIsRetryableError:

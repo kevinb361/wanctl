@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cake.lockfile import LockFile, LockAcquisitionError
+from wanctl.lockfile import LockFile, LockAcquisitionError
 
 
 @pytest.fixture

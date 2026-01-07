@@ -47,9 +47,9 @@ RUN chown -R root:wanctl /etc/wanctl \
 RUN pip install --no-cache-dir pexpect==4.9.0 PyYAML==6.0.1
 
 # Copy application code
-COPY src/cake/*.py /opt/wanctl/
-COPY src/cake/backends/*.py /opt/wanctl/backends/
-COPY src/cake/steering/*.py /opt/wanctl/steering/
+COPY src/wanctl/*.py /opt/wanctl/
+COPY src/wanctl/backends/*.py /opt/wanctl/backends/
+COPY src/wanctl/steering/*.py /opt/wanctl/steering/
 
 # Set permissions on code
 RUN chmod 755 /opt/wanctl \

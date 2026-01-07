@@ -31,38 +31,38 @@ TARGET_SYSTEMD_DIR="/etc/systemd/system"
 
 # Core files to deploy (always needed)
 CORE_FILES=(
-    "src/cake/autorate_continuous.py"
-    "src/cake/config_base.py"
-    "src/cake/state_utils.py"
-    "src/cake/lockfile.py"
-    "src/cake/retry_utils.py"
-    "src/cake/logging_utils.py"
-    "src/cake/routeros_ssh.py"
-    "src/cake/calibrate.py"
+    "src/wanctl/autorate_continuous.py"
+    "src/wanctl/config_base.py"
+    "src/wanctl/state_utils.py"
+    "src/wanctl/lockfile.py"
+    "src/wanctl/retry_utils.py"
+    "src/wanctl/logging_utils.py"
+    "src/wanctl/routeros_ssh.py"
+    "src/wanctl/calibrate.py"
 )
 
 # Backend files (router abstraction)
 BACKEND_FILES=(
-    "src/cake/backends/__init__.py"
-    "src/cake/backends/base.py"
-    "src/cake/backends/routeros.py"
+    "src/wanctl/backends/__init__.py"
+    "src/wanctl/backends/base.py"
+    "src/wanctl/backends/routeros.py"
 )
 
 # Steering module files (optional - for multi-WAN setups)
 STEERING_MODULE_FILES=(
-    "src/cake/steering/__init__.py"
-    "src/cake/steering/daemon.py"
-    "src/cake/steering/cake_stats.py"
-    "src/cake/steering/congestion_assessment.py"
-    "src/cake/steering/steering_confidence.py"
+    "src/wanctl/steering/__init__.py"
+    "src/wanctl/steering/daemon.py"
+    "src/wanctl/steering/cake_stats.py"
+    "src/wanctl/steering/congestion_assessment.py"
+    "src/wanctl/steering/steering_confidence.py"
 )
 
 # Legacy steering files (kept for backward compatibility)
 STEERING_FILES=(
-    "src/cake/wan_steering_daemon.py"
-    "src/cake/cake_stats.py"
-    "src/cake/congestion_assessment.py"
-    "src/cake/steering_confidence.py"
+    "src/wanctl/wan_steering_daemon.py"
+    "src/wanctl/cake_stats.py"
+    "src/wanctl/congestion_assessment.py"
+    "src/wanctl/steering_confidence.py"
 )
 
 # Systemd units
@@ -122,7 +122,7 @@ check_prerequisites() {
     print_step "Checking prerequisites..."
 
     # Check we're in the right directory
-    if [[ ! -f "$PROJECT_ROOT/src/cake/autorate_continuous.py" ]]; then
+    if [[ ! -f "$PROJECT_ROOT/src/wanctl/autorate_continuous.py" ]]; then
         print_error "Must be run from wanctl project directory"
         exit 1
     fi
