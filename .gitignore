@@ -27,6 +27,11 @@ docs/.archive/
 capacity_mapper.sh
 capacity_map.csv
 fetch_logs*.py
+analyze_*.py
+
+# Lock files (users generate their own)
+uv.lock
+*.lock
 
 # Site-specific configs (use examples/ as templates)
 configs/*.yaml

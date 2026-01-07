@@ -44,7 +44,7 @@ RUN chown -R root:wanctl /etc/wanctl \
     && chmod 750 /var/log/wanctl
 
 # Install Python dependencies
-RUN pip install --no-cache-dir pexpect PyYAML
+RUN pip install --no-cache-dir pexpect==4.9.0 PyYAML==6.0.1
 
 # Copy application code
 COPY src/cake/*.py /opt/wanctl/
