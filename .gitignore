@@ -14,3 +14,7 @@ __pycache__/
 
 # Analysis output
 /analysis/
+
+# Private config (use CLAUDE.md.example as template)
+CLAUDE.md
+.claude/
