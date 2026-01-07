@@ -67,10 +67,20 @@ pyflakes src/ tests/
 
 ## Code Style
 
-- Python 3.10+ with type hints
+- Python 3.12+ with type hints
 - Follow existing patterns in the codebase
 - Keep functions focused and well-documented
 - No unnecessary dependencies
+
+Run linting before submitting:
+
+```bash
+# Using ruff (recommended)
+ruff check src/ tests/
+
+# Or pyflakes
+pyflakes src/ tests/
+```
 
 ## Testing
 
@@ -92,6 +102,40 @@ To add support for a new router platform:
 5. Test thoroughly before submitting
 
 See `src/cake/backends/routeros.py` as a reference implementation.
+
+## Good First Issues
+
+New to the project? Here are some areas where contributions are welcome:
+
+### Documentation
+
+- Improve inline code comments
+- Add examples to docstrings
+- Write tutorials for specific use cases
+- Fix typos or unclear wording
+
+### Testing
+
+- Add unit tests for uncovered code paths
+- Add edge case tests for config validation
+- Write integration test helpers
+
+### New Router Backends
+
+Adding support for a new router platform is a great way to contribute:
+
+- **OpenWrt** - CAKE is native, needs SSH/UCI backend
+- **pfSense** - Popular BSD-based firewall
+- **VyOS** - Linux-based network OS
+- **OPNsense** - pfSense fork
+
+### Small Improvements
+
+- Add more descriptive error messages
+- Improve log output formatting
+- Add config validation for edge cases
+
+Look for issues labeled `good first issue` on GitHub, or open an issue to discuss your idea before starting.
 
 ## License
 
