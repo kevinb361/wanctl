@@ -28,22 +28,41 @@ from congestion_assessment import CongestionState
 
 class ConfidenceWeights:
     """
-    Heuristic weights for confidence scoring.
+    Heuristic weights for confidence scoring (0-100 scale).
 
     These are fixed values based on operational experience, NOT statistical
     models or ML. Tuning is done via config thresholds, not weight adjustment.
+
+    Scoring Philosophy:
+    - Total score ranges from 0 (healthy) to 100 (severely degraded)
+    - Base score comes from CAKE state (most authoritative signal)
+    - Additional signals add evidence (RTT, drops, queue depth)
+    - Typical steer threshold: 50-60 (requires RED or multiple signals)
+    - Typical recovery threshold: 15-20 (requires GREEN + clean metrics)
+
+    Rationale for Values:
+    - RED_STATE=50: Strong congestion signal, halfway to max score
+    - SOFT_RED_SUSTAINED=25: Weaker signal, requires sustained confirmation
+    - YELLOW_STATE=10: Early warning, not actionable alone
+    - GREEN_STATE=0: Healthy baseline
+    - RTT deltas: 15-25 points for severe latency (80ms+)
+    - Trend signals: 10 points each for increasing drops or sustained queue pressure
+
+    Design Note: These weights are conservative by design. Steering should only
+    activate when multiple signals agree or when RED state persists. Single
+    transient spikes should not trigger steering.
     """
     # CAKE state base scores
-    RED_STATE = 50
-    SOFT_RED_SUSTAINED = 25  # Requires ≥ 3 cycles
-    YELLOW_STATE = 10
-    GREEN_STATE = 0
+    RED_STATE = 50                # Hard congestion: delta > 80ms, drops > 0
+    SOFT_RED_SUSTAINED = 25       # RTT-only congestion, requires ≥ 3 cycles
+    YELLOW_STATE = 10             # Early warning: delta 15-45ms
+    GREEN_STATE = 0               # Healthy: delta < 15ms
 
     # Additional signal contributions
-    RTT_DELTA_HIGH = 15      # > 80ms
-    RTT_DELTA_SEVERE = 25    # > 120ms
-    DROPS_INCREASING = 10    # Trend over 3 cycles
-    QUEUE_HIGH_SUSTAINED = 10  # ≥ 2 cycles
+    RTT_DELTA_HIGH = 15           # Moderate latency spike: > 80ms
+    RTT_DELTA_SEVERE = 25         # Severe latency spike: > 120ms
+    DROPS_INCREASING = 10         # Rising drop rate over last 3 cycles
+    QUEUE_HIGH_SUSTAINED = 10     # Queue utilization > 50% for ≥ 2 cycles
 
 
 @dataclass

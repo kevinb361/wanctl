@@ -9,7 +9,6 @@ import datetime
 import json
 import logging
 import os
-import re
 import statistics
 import subprocess
 import sys
@@ -19,6 +18,8 @@ from pathlib import Path
 from typing import Optional, List, Tuple
 
 import yaml
+
+from cake.lockfile import LockFile
 
 
 # =============================================================================
@@ -153,42 +154,6 @@ def setup_logging(config: Config, debug: bool) -> logging.Logger:
         logger.addHandler(ch)
 
     return logger
-
-
-# =============================================================================
-# LOCK FILE MANAGEMENT
-# =============================================================================
-
-class LockFile:
-    """Context manager for lock file"""
-    def __init__(self, lock_path: Path, timeout: int, logger: logging.Logger):
-        self.lock_path = lock_path
-        self.timeout = timeout
-        self.logger = logger
-
-    def __enter__(self):
-        if self.lock_path.exists():
-            age = time.time() - self.lock_path.stat().st_mtime
-            if age < self.timeout:
-                self.logger.warning(
-                    f"Lock file exists and is recent ({age:.1f}s old). "
-                    "Another instance may be running. Exiting."
-                )
-                sys.exit(0)
-            else:
-                self.logger.warning(
-                    f"Stale lock file found ({age:.1f}s old). Removing."
-                )
-                self.lock_path.unlink()
-
-        self.lock_path.touch()
-        self.logger.debug(f"Lock acquired: {self.lock_path}")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.lock_path.exists():
-            self.lock_path.unlink()
-            self.logger.debug(f"Lock released: {self.lock_path}")
 
 
 # =============================================================================
