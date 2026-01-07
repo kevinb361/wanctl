@@ -41,16 +41,28 @@ PRs are selectively accepted. Before submitting:
 
 ## Development Setup
 
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup instructions.
+
+Quick start:
+
 ```bash
 # Clone the repo
-git clone https://github.com/wanctl/wanctl.git
+git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+pip install pytest pyflakes  # dev dependencies
 
-# Run tests (if available)
-python -m pytest tests/
+# Run tests
+pytest tests/ -v
+
+# Run linting
+pyflakes src/ tests/
 ```
 
 ## Code Style
