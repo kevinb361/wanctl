@@ -85,18 +85,26 @@ class Config(BaseConfig):
         self.spectrum_state_file = Path(self.data['cake_state_sources']['spectrum'])
         self.att_state_file = self.data['cake_state_sources'].get('att')  # Optional, future use
 
-        # Mangle rule to toggle
-        self.mangle_rule_comment = self.data['mangle_rule']['comment']
+        # Mangle rule to toggle (validated to prevent command injection)
+        self.mangle_rule_comment = self.validate_comment(
+            self.data['mangle_rule']['comment'], 'mangle_rule.comment'
+        )
 
         # RTT measurement
         self.measurement_interval = self.data['measurement']['interval_seconds']
         self.ping_host = self.data['measurement']['ping_host']
         self.ping_count = self.data['measurement']['ping_count']
 
-        # CAKE queue names (for statistics polling)
+        # CAKE queue names (for statistics polling, validated to prevent command injection)
         cake_queues = self.data.get('cake_queues', {})
-        self.spectrum_download_queue = cake_queues.get('spectrum_download', 'WAN-Download-Spectrum')
-        self.spectrum_upload_queue = cake_queues.get('spectrum_upload', 'WAN-Upload-Spectrum')
+        self.spectrum_download_queue = self.validate_identifier(
+            cake_queues.get('spectrum_download', 'WAN-Download-Spectrum'),
+            'cake_queues.spectrum_download'
+        )
+        self.spectrum_upload_queue = self.validate_identifier(
+            cake_queues.get('spectrum_upload', 'WAN-Upload-Spectrum'),
+            'cake_queues.spectrum_upload'
+        )
 
         # Operational mode
         mode = self.data.get('mode', {})

@@ -85,9 +85,13 @@ class Config(BaseConfig):
 
     def _load_specific_fields(self):
         """Load adaptive_cake-specific configuration fields"""
-        # Queues
-        self.queue_down = self.data['queues']['download']
-        self.queue_up = self.data['queues']['upload']
+        # Queues (validated to prevent command injection)
+        self.queue_down = self.validate_identifier(
+            self.data['queues']['download'], 'queues.download'
+        )
+        self.queue_up = self.validate_identifier(
+            self.data['queues']['upload'], 'queues.upload'
+        )
 
         # Test servers
         self.netperf_host = self.data['test']['netperf_host']
