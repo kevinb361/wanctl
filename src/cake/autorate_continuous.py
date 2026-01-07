@@ -20,7 +20,7 @@ from typing import Optional, List, Tuple
 import yaml
 
 from cake.config_base import BaseConfig
-from cake.lockfile import LockFile
+from cake.lockfile import LockFile, LockAcquisitionError
 from cake.logging_utils import setup_logging
 from cake.routeros_ssh import RouterOSSSH
 
@@ -629,6 +629,9 @@ class ContinuousAutoRate:
             try:
                 with LockFile(config.lock_file, config.lock_timeout, logger):
                     controller.run_cycle()
+            except LockAcquisitionError:
+                # Another instance is running - this is normal, not an error
+                logger.debug("Skipping cycle - another instance is running")
             except Exception as e:
                 logger.error(f"Cycle error: {e}")
                 logger.debug(traceback.format_exc())
