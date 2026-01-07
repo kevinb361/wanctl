@@ -4,11 +4,12 @@ CAKE Statistics Reader for RouterOS
 Reads CAKE queue statistics (drops, queue depth) via SSH
 """
 
-import subprocess
 import re
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
+
+from cake.routeros_ssh import RouterOSSSH
 
 
 @dataclass
@@ -41,35 +42,19 @@ class CakeStatsReader:
     def __init__(self, config, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.ssh_key = config.router['ssh_key']
-        self.router_host = f"{config.router['user']}@{config.router['host']}"
+
+        # Create RouterOSSSH instance from config.router dict
+        timeout = getattr(config, 'timeout_ssh_command', 10)
+        self.ssh = RouterOSSSH(
+            host=config.router['host'],
+            user=config.router['user'],
+            ssh_key=config.router['ssh_key'],
+            timeout=timeout,
+            logger=logger
+        )
 
         # Track previous stats for delta calculation (best practice)
         self.previous_stats = {}  # queue_name -> CakeStats
-
-    def _run_cmd(self, cmd: str) -> Tuple[int, str, str]:
-        """Execute RouterOS command via SSH"""
-        args = [
-            "ssh", "-i", self.ssh_key,
-            self.router_host,
-            cmd
-        ]
-
-        try:
-            timeout = getattr(self.config, 'timeout_ssh_command', 10)
-            res = subprocess.run(
-                args, text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=timeout
-            )
-            return res.returncode, res.stdout, res.stderr
-        except subprocess.TimeoutExpired:
-            self.logger.error("RouterOS command timeout")
-            return 1, "", "Timeout"
-        except Exception as e:
-            self.logger.error(f"RouterOS SSH error: {e}")
-            return 1, "", str(e)
 
     def read_stats(self, queue_name: str) -> Optional[CakeStats]:
         """
@@ -82,7 +67,7 @@ class CakeStatsReader:
         Returns CakeStats or None on error
         """
         cmd = f'/queue/tree print stats detail where name="{queue_name}"'
-        rc, out, err = self._run_cmd(cmd)
+        rc, out, err = self.ssh.run_cmd(cmd, capture=True)
 
         if rc != 0:
             self.logger.error(f"Failed to read CAKE stats for {queue_name}: {err}")
@@ -156,7 +141,7 @@ class CakeStatsReader:
         This allows measuring deltas over a specific time window
         """
         cmd = f'/queue/tree reset-counters [find name="{queue_name}"]'
-        rc, _, err = self._run_cmd(cmd)
+        rc, _, err = self.ssh.run_cmd(cmd)
 
         if rc != 0:
             self.logger.error(f"Failed to reset CAKE counters for {queue_name}: {err}")
@@ -168,7 +153,7 @@ class CakeStatsReader:
     def reset_all_counters(self) -> bool:
         """Reset all WAN queue counters"""
         cmd = '/queue/tree reset-counters [find name~"WAN-"]'
-        rc, _, err = self._run_cmd(cmd)
+        rc, _, err = self.ssh.run_cmd(cmd)
 
         if rc != 0:
             self.logger.error(f"Failed to reset all CAKE counters: {err}")
