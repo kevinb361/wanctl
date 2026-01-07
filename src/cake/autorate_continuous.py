@@ -90,6 +90,11 @@ class Config(BaseConfig):
         self.ping_hosts = cm['ping_hosts']
         self.use_median_of_three = cm.get('use_median_of_three', False)
 
+        # Timeouts (with sensible defaults)
+        timeouts = self.data.get('timeouts', {})
+        self.timeout_ssh_command = timeouts.get('ssh_command', 15)  # seconds
+        self.timeout_ping = timeouts.get('ping', 1)  # seconds (-W parameter)
+
         # Lock file
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
@@ -131,12 +136,12 @@ class RouterOS:
                     args, text=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=15
+                    timeout=self.config.timeout_ssh_command
                 )
                 self.logger.debug(f"RouterOS stdout: {res.stdout}")
                 return res.returncode, res.stdout, res.stderr
             else:
-                res = subprocess.run(args, text=True, timeout=15)
+                res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
                 return res.returncode, "", ""
         except subprocess.TimeoutExpired:
             self.logger.error("RouterOS command timeout")
@@ -185,7 +190,7 @@ class RTTMeasurement:
         """
         try:
             result = subprocess.run(
-                ["ping", "-c", str(count), "-W", "1", host],
+                ["ping", "-c", str(count), "-W", str(self.config.timeout_ping), host],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,

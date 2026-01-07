@@ -56,11 +56,12 @@ class CakeStatsReader:
         ]
 
         try:
+            timeout = getattr(self.config, 'timeout_ssh_command', 10)
             res = subprocess.run(
                 args, text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=10
+                timeout=timeout
             )
             return res.returncode, res.stdout, res.stderr
         except subprocess.TimeoutExpired:

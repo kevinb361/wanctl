@@ -135,6 +135,12 @@ class Config(BaseConfig):
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
 
+        # Timeouts (with sensible defaults)
+        timeouts = self.data.get('timeouts', {})
+        self.timeout_ssh_command = timeouts.get('ssh_command', 30)  # seconds
+        self.timeout_pexpect = timeouts.get('pexpect', 60)  # seconds
+        self.timeout_netperf = timeouts.get('netperf', 20)  # seconds
+
 
 # =============================================================================
 # LOCK FILE MANAGEMENT
@@ -308,12 +314,12 @@ class RouterOS:
                     args, text=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=30
+                    timeout=self.config.timeout_ssh_command
                 )
                 self.logger.debug(f"RouterOS stdout: {res.stdout}")
                 return res.returncode, res.stdout, res.stderr
             else:
-                res = subprocess.run(args, text=True, timeout=30)
+                res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
                 return res.returncode, "", ""
         except subprocess.TimeoutExpired:
             self.logger.error("RouterOS command timeout")
@@ -413,7 +419,7 @@ class Measurement:
         self.logger.debug(f"pexpect: {cmd}")
         out = ""
         try:
-            child = pexpect.spawn(cmd, encoding="utf-8", timeout=60)
+            child = pexpect.spawn(cmd, encoding="utf-8", timeout=self.config.timeout_pexpect)
             while True:
                 line = child.readline()
                 if not line:
@@ -513,7 +519,7 @@ class Measurement:
 
         # Get throughput result
         try:
-            stdout, stderr = netperf_proc.communicate(timeout=20)
+            stdout, stderr = netperf_proc.communicate(timeout=self.config.timeout_netperf)
             throughput = self._parse_netperf(stdout)
         except subprocess.TimeoutExpired:
             netperf_proc.kill()
@@ -574,7 +580,7 @@ class Measurement:
 
         # Get throughput result
         try:
-            stdout, stderr = netperf_proc.communicate(timeout=20)
+            stdout, stderr = netperf_proc.communicate(timeout=self.config.timeout_netperf)
             throughput = self._parse_netperf(stdout)
         except subprocess.TimeoutExpired:
             netperf_proc.kill()
