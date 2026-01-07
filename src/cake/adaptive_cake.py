@@ -111,6 +111,70 @@ def should_skip_calibration(
 class Config(BaseConfig):
     """Configuration container loaded from YAML"""
 
+    # Schema for adaptive_cake configuration validation
+    SCHEMA = [
+        # Queue names
+        {"path": "queues.download", "type": str, "required": True},
+        {"path": "queues.upload", "type": str, "required": True},
+
+        # Test servers
+        {"path": "test.netperf_host", "type": str, "required": True},
+        {"path": "test.ping_host", "type": str, "required": True},
+
+        # Bandwidth limits
+        {"path": "bandwidth.down_max", "type": (int, float),
+         "required": True, "min": 1, "max": 10000},
+        {"path": "bandwidth.down_min", "type": (int, float),
+         "required": True, "min": 1, "max": 10000},
+        {"path": "bandwidth.up_max", "type": (int, float),
+         "required": True, "min": 1, "max": 1000},
+        {"path": "bandwidth.up_min", "type": (int, float),
+         "required": True, "min": 1, "max": 1000},
+
+        # Tuning - required fields
+        {"path": "tuning.alpha", "type": float,
+         "required": True, "min": 0.01, "max": 1.0},
+        {"path": "tuning.alpha_good_conditions", "type": float,
+         "required": True, "min": 0.01, "max": 1.0},
+        {"path": "tuning.base_rtt", "type": (int, float),
+         "required": True, "min": 1, "max": 500},
+
+        # K-factor thresholds
+        {"path": "k_factor.delta_0_5ms", "type": float,
+         "required": True, "min": 0.5, "max": 1.5},
+        {"path": "k_factor.delta_5_15ms", "type": float,
+         "required": True, "min": 0.5, "max": 1.5},
+        {"path": "k_factor.delta_15_30ms", "type": float,
+         "required": True, "min": 0.3, "max": 1.0},
+        {"path": "k_factor.delta_30plus", "type": float,
+         "required": True, "min": 0.3, "max": 1.0},
+
+        # Safety limits
+        {"path": "safety.max_up_factor", "type": float,
+         "required": True, "min": 1.0, "max": 2.0},
+        {"path": "safety.max_down_factor", "type": float,
+         "required": True, "min": 1.0, "max": 2.0},
+        {"path": "safety.sanity_fraction", "type": float,
+         "required": True, "min": 0.1, "max": 0.5},
+        {"path": "safety.health_fraction", "type": float,
+         "required": True, "min": 0.05, "max": 0.3},
+        {"path": "safety.outlier_std_dev", "type": float,
+         "required": True, "min": 1.0, "max": 5.0},
+
+        # State persistence
+        {"path": "state.file", "type": str, "required": True},
+        {"path": "state.history_size", "type": int,
+         "required": True, "min": 1, "max": 100},
+
+        # Logging
+        {"path": "logging.main_log", "type": str, "required": True},
+        {"path": "logging.debug_log", "type": str, "required": True},
+
+        # Lock file
+        {"path": "lock_file", "type": str, "required": True},
+        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
+    ]
+
     def _load_specific_fields(self):
         """Load adaptive_cake-specific configuration fields"""
         # Queues (validated to prevent command injection)
