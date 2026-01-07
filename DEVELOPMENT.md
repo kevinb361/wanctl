@@ -60,7 +60,7 @@ pytest tests/test_config_base.py -v
 
 ```bash
 pip install pytest-cov
-pytest tests/ --cov=src/cake --cov-report=term-missing
+pytest tests/ --cov=src/wanctl --cov-report=term-missing
 ```
 
 ## Linting
@@ -74,14 +74,14 @@ pyflakes src/ tests/
 ### Verify Syntax
 
 ```bash
-python3 -m py_compile src/cake/*.py
+python3 -m py_compile src/wanctl/*.py
 ```
 
 ## Project Structure
 
 ```
 wanctl/
-├── src/cake/                 # Main package
+├── src/wanctl/               # Main package
 │   ├── autorate_continuous.py  # Primary entry point
 │   ├── calibrate.py            # Calibration wizard
 │   ├── config_base.py          # Configuration framework
@@ -102,7 +102,7 @@ wanctl/
 
 ## Adding a New Router Backend
 
-1. Create `src/cake/backends/<platform>.py`
+1. Create `src/wanctl/backends/<platform>.py`
 2. Implement the `RouterBackend` interface:
 
 ```python
@@ -126,11 +126,11 @@ class MyRouterBackend(RouterBackend):
         pass
 ```
 
-3. Register in `src/cake/backends/__init__.py`
+3. Register in `src/wanctl/backends/__init__.py`
 4. Add example config in `configs/examples/`
 5. Document in README
 
-See `src/cake/backends/routeros.py` as a reference.
+See `src/wanctl/backends/routeros.py` as a reference.
 
 ## Testing Without Hardware
 
@@ -145,7 +145,7 @@ The test suite uses mocks and doesn't require actual router hardware. For integr
 ### Debug a Configuration Issue
 
 ```bash
-python3 -m cake.autorate_continuous \
+python3 -m wanctl.autorate_continuous \
     --config /path/to/config.yaml \
     --debug \
     --dry-run
@@ -160,7 +160,7 @@ ssh -i /path/to/key admin@router-ip '/system resource print'
 ### Validate Config Syntax
 
 ```python
-from cake.config_base import load_config
+from wanctl.config_base import load_config
 config = load_config('/path/to/config.yaml')
 ```
 

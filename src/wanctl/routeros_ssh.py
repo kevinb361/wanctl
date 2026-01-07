@@ -5,7 +5,7 @@ all CAKE system components, eliminating code duplication and ensuring
 consistent behavior (retry logic, timeouts, logging).
 
 Usage:
-    from cake.routeros_ssh import RouterOSSSH
+    from wanctl.routeros_ssh import RouterOSSSH
 
     ssh = RouterOSSSH(
         host="192.168.1.1",
@@ -21,7 +21,7 @@ import logging
 import subprocess
 from typing import Tuple
 
-from cake.retry_utils import retry_with_backoff
+from wanctl.retry_utils import retry_with_backoff
 
 
 class RouterOSSSH:

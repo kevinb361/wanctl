@@ -19,8 +19,8 @@ import re
 import logging
 from typing import Optional
 
-from cake.backends.base import RouterBackend
-from cake.routeros_ssh import RouterOSSSH
+from wanctl.backends.base import RouterBackend
+from wanctl.routeros_ssh import RouterOSSSH
 
 
 class RouterOSBackend(RouterBackend):

@@ -64,11 +64,13 @@ systemctl list-timers wanctl@*
 ## Timer Schedule
 
 ### Regular Tests (Every 10 minutes)
+
 - **WAN1**: Starts 2 min after boot, then every 10 minutes
 - **WAN2**: Starts 7 min after boot, then every 10 minutes
 - **Offset**: 5 minutes between tests to prevent interference
 
 ### Nightly Resets (Twice Daily)
+
 - **Both WANs**: 3:00 AM and 3:00 PM
 - Clears EWMA state and unshapes queues to prevent drift
 
@@ -77,12 +79,14 @@ systemctl list-timers wanctl@*
 ## Monitoring
 
 ### View Timer Status
+
 ```bash
 # On target container
 ssh user@<wan-host> 'systemctl list-timers wanctl@*'
 ```
 
 ### View Live Logs
+
 ```bash
 # WAN1 logs
 ssh user@<wan1-host> 'journalctl -u wanctl@wan1.service -f'
@@ -92,6 +96,7 @@ ssh user@<wan2-host> 'journalctl -u wanctl@wan2.service -f'
 ```
 
 ### View Historical Logs
+
 ```bash
 # Last 50 entries
 ssh user@<wan-host> 'journalctl -u wanctl@wan1.service -n 50'
@@ -101,6 +106,7 @@ ssh user@<wan-host> 'journalctl -u wanctl@wan1.service --since yesterday'
 ```
 
 ### Check Log Files
+
 ```bash
 # Main log
 ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous.log'
@@ -114,6 +120,7 @@ ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous_debug.log'
 ## Troubleshooting
 
 ### Service Not Running
+
 ```bash
 # Check service status
 systemctl status wanctl@wan1.service
@@ -126,19 +133,22 @@ journalctl -u wanctl@wan1.service --since "10 minutes ago"
 ```
 
 ### Manual Test Run
+
 ```bash
 # On target container
 cd /opt/wanctl
-python3 -m cake.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
+python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
 ```
 
 ### Reset State Manually
+
 ```bash
 # On target container
-python3 -m cake.autorate_continuous --config /etc/wanctl/wan1.yaml --reset
+python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --reset
 ```
 
 ### Stop Timers Temporarily
+
 ```bash
 # Stop without disabling (will restart after reboot)
 sudo systemctl stop wanctl@wan1.timer
@@ -148,6 +158,7 @@ sudo systemctl disable --now wanctl@wan1.timer
 ```
 
 ### Re-enable After Stopping
+
 ```bash
 sudo systemctl enable --now wanctl@wan1.timer
 ```
@@ -157,15 +168,18 @@ sudo systemctl enable --now wanctl@wan1.timer
 ## Files Created
 
 ### Per-WAN Container
+
 - `/etc/systemd/system/wanctl@.service` - Main service template
 - `/etc/systemd/system/wanctl@.timer` - 10-minute timer template
 - `/etc/systemd/system/wanctl@-reset.service` - Reset service template
 - `/etc/systemd/system/wanctl@-reset.timer` - Twice-daily reset timer
 
 ### Configuration
+
 - `/etc/wanctl/<wan_name>.yaml` - WAN-specific configuration
 
 ### State Files
+
 - `/var/lib/wanctl/<wan_name>_state.json` - Persisted EWMA state
 
 ---

@@ -2,7 +2,7 @@
 
 import pytest
 
-from cake.config_base import (
+from wanctl.config_base import (
     ConfigValidationError,
     _get_nested,
     _type_name,

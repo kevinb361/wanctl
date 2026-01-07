@@ -160,11 +160,11 @@ wanctl is designed to support multiple router platforms. Currently only RouterOS
 
 To add a new backend (e.g., OpenWrt, pfSense):
 
-1. Create `src/cake/backends/<platform>.py`
+1. Create `src/wanctl/backends/<platform>.py`
 2. Implement the `RouterBackend` interface
 3. Add to factory in `__init__.py`
 
-See `src/cake/backends/base.py` for the interface definition.
+See `src/wanctl/backends/base.py` for the interface definition.
 
 ## Acknowledgments
 

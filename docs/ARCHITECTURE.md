@@ -10,6 +10,7 @@
 > **The controller is link-agnostic. Behavior is invariant across all deployments.**
 
 This system runs **identical code** on:
+
 - DOCSIS cable (Spectrum 940/38 Mbps)
 - VDSL2 DSL (AT&T 95/18 Mbps)
 - GPON fiber (future deployments)
@@ -28,7 +29,7 @@ All variability is expressed exclusively through **configuration parameters**.
 **Constraint:** One implementation serves all link types.
 
 ```
-src/cake/autorate_continuous_v2.py
+src/wanctl/autorate_continuous.py
     ↓
     Runs unchanged on:
     - DOCSIS (Spectrum)
@@ -38,25 +39,26 @@ src/cake/autorate_continuous_v2.py
 ```
 
 **Verification:**
+
 ```bash
 # Same Python file, different configs
-cake-spectrum: python -m cake.autorate_continuous_v2 --config spectrum_config.yaml
-cake-att:      python -m cake.autorate_continuous_v2 --config att_config.yaml
-cake-fiber:    python -m cake.autorate_continuous_v2 --config fiber_config.yaml
+wan-spectrum: python -m wanctl.autorate_continuous --config spectrum_config.yaml
+wan-att:      python -m wanctl.autorate_continuous --config att_config.yaml
+wan-fiber:    python -m wanctl.autorate_continuous --config fiber_config.yaml
 ```
 
 ### 2. Configuration-Driven Behavior
 
 **All behavioral differences live in YAML:**
 
-| Behavior | Parameter | Example Values |
-|----------|-----------|----------------|
-| Floor values | `floor_green_mbps` | 550M (cable), 25M (DSL), 800M (fiber) |
-| Ceiling values | `ceiling_mbps` | 940M (cable), 95M (DSL), 950M (fiber) |
-| Bloat thresholds | `target_bloat_ms` | 15ms (cable), 3ms (DSL), 10ms (fiber) |
-| Baseline RTT | `baseline_rtt_initial` | 24ms (cable), 31ms (DSL), 5ms (fiber) |
-| Step-up speed | `step_up_mbps` | 10M (cable), 2M (DSL), 20M (fiber) |
-| Backoff aggression | `factor_down` | 0.85 (cable), 0.90 (DSL), 0.90 (fiber) |
+| Behavior           | Parameter              | Example Values                         |
+| ------------------ | ---------------------- | -------------------------------------- |
+| Floor values       | `floor_green_mbps`     | 550M (cable), 25M (DSL), 800M (fiber)  |
+| Ceiling values     | `ceiling_mbps`         | 940M (cable), 95M (DSL), 950M (fiber)  |
+| Bloat thresholds   | `target_bloat_ms`      | 15ms (cable), 3ms (DSL), 10ms (fiber)  |
+| Baseline RTT       | `baseline_rtt_initial` | 24ms (cable), 31ms (DSL), 5ms (fiber)  |
+| Step-up speed      | `step_up_mbps`         | 10M (cable), 2M (DSL), 20M (fiber)     |
+| Backoff aggression | `factor_down`          | 0.85 (cable), 0.90 (DSL), 0.90 (fiber) |
 
 **The controller doesn't know or care what link type it's managing.**
 
@@ -86,11 +88,13 @@ SOFT_RED ──[delta > hard_red_bloat_ms]──> RED
 ### 4. N-State Flexibility
 
 The same code supports:
+
 - **3-state:** Set `floor_soft_red_mbps == floor_yellow_mbps`
 - **4-state:** Set `floor_soft_red_mbps` to a distinct value (Phase 2A)
 - **Future N-state:** Add more floors and thresholds via config
 
 **Upload vs. Download:**
+
 - Spectrum: Download=4-state, Upload=3-state
 - AT&T: Both=3-state
 - Fiber: TBD (likely both=3-state)
@@ -193,6 +197,7 @@ floor_*_mbps ≤ ceiling_mbps (for all states)
 ```
 
 **Typical values:**
+
 - `alpha_baseline`: 0.015-0.02 (slow tracking)
 - `alpha_load`: 0.20 (fast response)
 
@@ -201,6 +206,7 @@ floor_*_mbps ≤ ceiling_mbps (for all states)
 Upload state does **not** influence download state.
 
 Configs may use:
+
 - Download: 4-state
 - Upload: 3-state
 
@@ -216,11 +222,12 @@ If config lacks `floor_*_mbps` state-based values:
 
 ```yaml
 download:
-  floor_mbps: 50  # Legacy single floor
+  floor_mbps: 50 # Legacy single floor
   ceiling_mbps: 100
 ```
 
 **Controller behavior:**
+
 ```python
 floor_green = floor_yellow = floor_soft_red = floor_red = 50M
 # Degrades to 3-state with single floor
@@ -243,6 +250,7 @@ floor_soft_red_mbps = floor_yellow_mbps  # Fallback to 3-state
 ### 1. Testability
 
 A single codebase means:
+
 - One set of unit tests
 - One integration test suite
 - Bugs fixed once, everywhere
@@ -250,6 +258,7 @@ A single codebase means:
 ### 2. Maintainability
 
 No need to synchronize:
+
 - DSL-specific patches
 - Cable-specific tuning
 - Fiber-specific heuristics
@@ -259,6 +268,7 @@ No need to synchronize:
 ### 3. Predictability
 
 Same control algorithm means:
+
 - Deterministic behavior
 - Reproducible issues
 - Easier debugging
@@ -276,11 +286,12 @@ New features (e.g., Phase 2B time-of-day bias) work on **all link types** immedi
 **Proposal:** Use historical congestion data to preemptively adjust floors.
 
 **Implementation:**
+
 ```yaml
 tod_bias:
   enabled: true
-  evening_floor_multiplier: 0.85  # Lower floor during 6-9pm
-  morning_floor_multiplier: 1.0   # Normal floor during off-peak
+  evening_floor_multiplier: 0.85 # Lower floor during 6-9pm
+  morning_floor_multiplier: 1.0 # Normal floor during off-peak
 ```
 
 **No link-specific logic required.**
@@ -292,11 +303,12 @@ Cable naturally has evening congestion; DSL may not. The controller doesn't care
 **Proposal:** Use CAKE drop/queue stats to validate congestion state.
 
 **Implementation:**
+
 ```yaml
 cake_corroboration:
   enabled: true
-  drop_threshold: 10  # Drops/sec to confirm RED
-  queue_threshold: 0.8  # Queue utilization to confirm YELLOW
+  drop_threshold: 10 # Drops/sec to confirm RED
+  queue_threshold: 0.8 # Queue utilization to confirm YELLOW
 ```
 
 **Same code, all deployments.**
@@ -306,11 +318,12 @@ cake_corroboration:
 **Proposal:** Adjust thresholds based on observed variance.
 
 **Implementation:**
+
 ```yaml
 adaptive_thresholds:
   enabled: true
-  variance_window: 300  # 5min history
-  threshold_headroom: 1.5  # Multiplier above baseline
+  variance_window: 300 # 5min history
+  threshold_headroom: 1.5 # Multiplier above baseline
 ```
 
 **Link-agnostic.**
@@ -336,12 +349,14 @@ Before deploying any new phase or feature:
 ### DOCSIS Cable (Spectrum)
 
 **Characteristics:**
+
 - High capacity (900+ Mbps)
 - Variable latency (CMTS scheduler)
 - Evening congestion
 - Upstream affects downstream RTT
 
 **Config strategy:**
+
 - 4-state download (GREEN/YELLOW/SOFT_RED/RED)
 - 3-state upload
 - Higher floors (550M/350M/275M/200M)
@@ -352,12 +367,14 @@ Before deploying any new phase or feature:
 ### VDSL2 DSL (AT&T)
 
 **Characteristics:**
+
 - Lower capacity (~95/18 Mbps)
 - Stable latency
 - Less congestion variance
 - Upload sensitive to backoff
 
 **Config strategy:**
+
 - 3-state both directions
 - Lower floors (25M/6M)
 - Tight bloat tolerance (3/10ms)
@@ -368,12 +385,14 @@ Before deploying any new phase or feature:
 ### GPON Fiber (Future)
 
 **Characteristics:**
+
 - Very high capacity (900+ Mbps symmetric)
 - Low latency (~5ms)
 - Minimal congestion
 - Fast recovery possible
 
 **Config strategy:**
+
 - 3-state both directions
 - High floors (800M/800M)
 - Moderate bloat tolerance (10/30ms)
@@ -388,6 +407,7 @@ Before deploying any new phase or feature:
 The CAKE controller is a **portable, link-agnostic congestion control system**.
 
 **Key principles:**
+
 1. Single codebase for all deployments
 2. All behavioral differences expressed in configuration
 3. No medium-specific or ISP-specific logic
@@ -396,6 +416,7 @@ The CAKE controller is a **portable, link-agnostic congestion control system**.
 6. Future phases remain config-only
 
 **This architecture enables:**
+
 - Rapid deployment to new links (just write a config)
 - Consistent behavior across deployments
 - Simplified testing and maintenance

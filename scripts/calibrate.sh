@@ -159,8 +159,8 @@ check_prerequisites() {
     fi
 
     # Check for calibrate.py
-    if [[ ! -f "$PROJECT_ROOT/src/cake/calibrate.py" ]]; then
-        print_error "calibrate.py not found at $PROJECT_ROOT/src/cake/"
+    if [[ ! -f "$PROJECT_ROOT/src/wanctl/calibrate.py" ]]; then
+        print_error "calibrate.py not found at $PROJECT_ROOT/src/wanctl/"
         ((missing++))
     fi
 
@@ -284,7 +284,7 @@ interactive_wizard() {
 run_calibration() {
     print_header "Running Calibration"
 
-    local python_cmd="python3 -m cake.calibrate"
+    local python_cmd="python3 -m wanctl.calibrate"
     local args=(
         "--wan-name" "$WAN_NAME"
         "--router" "$ROUTER_HOST"
@@ -313,7 +313,7 @@ run_calibration() {
     echo ""
 
     # Execute calibration
-    python3 -m cake.calibrate "${args[@]}"
+    python3 -m wanctl.calibrate "${args[@]}"
 }
 
 # Parse arguments

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cake.state_utils import atomic_write_json, safe_read_json
+from wanctl.state_utils import atomic_write_json, safe_read_json
 
 
 class TestAtomicWriteJson:

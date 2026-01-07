@@ -12,7 +12,7 @@ Components:
 - steering_confidence.py: Phase 2B confidence-based steering (optional)
 
 Usage:
-    from cake.steering import SteeringDaemon, CongestionState
+    from wanctl.steering import SteeringDaemon, CongestionState
 """
 
 from .cake_stats import CakeStats, CakeStatsReader, CongestionSignals

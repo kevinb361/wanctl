@@ -52,4 +52,4 @@ jobs:
           python-version: "3.12"
 
       - name: Check Python syntax
-        run: python3 -m py_compile src/cake/*.py src/cake/**/*.py
+        run: python3 -m py_compile src/wanctl/*.py src/wanctl/**/*.py

@@ -12,9 +12,9 @@ dependencies = [
 ]
 
 [project.scripts]
-wanctl = "cake.autorate_continuous:main"
-wanctl-calibrate = "cake.calibrate:main"
-wanctl-steering = "cake.steering.daemon:main"
+wanctl = "wanctl.autorate_continuous:main"
+wanctl-calibrate = "wanctl.calibrate:main"
+wanctl-steering = "wanctl.steering.daemon:main"
 
 [tool.uv]
 package = true
@@ -49,5 +49,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["cake"]
+known-first-party = ["wanctl"]
 

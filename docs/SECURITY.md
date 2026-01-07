@@ -5,23 +5,27 @@
 SSH host key validation has been **enabled** across all wanctl code. The insecure `StrictHostKeyChecking=no` flag has been removed from:
 
 ### Production Code (Critical)
-- `src/cake/autorate_continuous.py` - Main bandwidth controller
-- `src/cake/wan_steering_daemon.py` - WAN steering daemon
-- `src/cake/cake_stats.py` - CAKE statistics collector
-- `src/cake/adaptive_cake.py` - CAKE management
+
+- `src/wanctl/autorate_continuous.py` - Main bandwidth controller
+- `src/wanctl/steering/daemon.py` - WAN steering daemon
+- `src/wanctl/steering/cake_stats.py` - CAKE statistics collector
+- `src/wanctl/routeros_ssh.py` - RouterOS SSH client
 
 ### Utility Scripts
+
 - `scripts/deploy.sh` - Deployment script
 
 ## Why This Matters
 
 **Before (Insecure):**
+
 - SSH connections accepted ANY host key
 - Vulnerable to Man-in-the-Middle (MITM) attacks
 - Attacker could intercept and modify RouterOS commands
 - Could manipulate CAKE queues, routing rules, firewall settings
 
 **After (Secure):**
+
 - SSH verifies router's identity using known_hosts
 - MITM attacks blocked (connection refused if key doesn't match)
 - Router identity validated on every connection
@@ -71,6 +75,7 @@ grep <router_ip> ~/.ssh/known_hosts
 After adding the host keys, test SSH connectivity:
 
 ### From Controller:
+
 ```bash
 ssh user@<controller-host>
 ssh -i ~/.ssh/<router_ssh_key> admin@<router_ip> '/system resource print'
@@ -85,6 +90,7 @@ Should connect WITHOUT prompting to accept host key.
 **Cause:** Router's host key not in known_hosts
 
 **Fix:**
+
 ```bash
 ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 ```
@@ -94,6 +100,7 @@ ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 **Cause:** SSH key file permissions or authentication issue (unrelated to this change)
 
 **Fix:**
+
 ```bash
 chmod 600 ~/.ssh/<router_ssh_key>
 ls -la ~/.ssh/<router_ssh_key>  # Should show -rw-------
@@ -106,6 +113,7 @@ ls -la ~/.ssh/<router_ssh_key>  # Should show -rw-------
 **Impact:** SSH will REFUSE to connect (this is intentional security!)
 
 **Fix (only if you know why the key changed):**
+
 ```bash
 # Remove old key
 ssh-keygen -R <router_ip>
@@ -121,17 +129,20 @@ ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 If you deploy the updated code WITHOUT adding host keys to known_hosts:
 
 **Symptom:**
+
 - CAKE controllers will fail to connect to router
 - Logs will show: `Host key verification failed`
 - CAKE limits will NOT be updated
 - System falls back to last known good state (queues unchanged)
 
 **Impact:**
+
 - Bandwidth shaping stops adapting
 - WAN steering stops working (if configured)
 - Bufferbloat returns (no CAKE adjustments)
 
 **Resolution:**
+
 - Add host keys to known_hosts (see Steps above)
 - Restart systemd timers: `systemctl restart wanctl@wan1.timer`
 
@@ -147,10 +158,12 @@ Before deploying security-fixed code:
 ## Security Notes
 
 ### Good Practice
+
 - Host keys should be added via `ssh-keyscan` (automated, scriptable)
 - Alternative: SSH manually once and accept key (interactive)
 
 ### What NOT To Do
+
 - Don't add `-o StrictHostKeyChecking=no` back to the code
 - Don't disable host key checking globally in ~/.ssh/config
 - Don't copy known_hosts from untrusted sources
@@ -160,9 +173,11 @@ Before deploying security-fixed code:
 If you want to verify the host key is legitimate:
 
 1. **On the router (MikroTik):**
+
    ```routeros
    /ip ssh print
    ```
+
    Shows SSH host key fingerprint
 
 2. **Compare with what you added:**
