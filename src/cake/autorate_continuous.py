@@ -194,8 +194,9 @@ class RouterOS:
 
 class RTTMeasurement:
     """Lightweight RTT measurement via ping"""
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger, timeout_ping: int = 1):
         self.logger = logger
+        self.timeout_ping = timeout_ping
 
     def ping_host(self, host: str, count: int = 5) -> Optional[float]:
         """
@@ -204,7 +205,7 @@ class RTTMeasurement:
         """
         try:
             result = subprocess.run(
-                ["ping", "-c", str(count), "-W", str(self.config.timeout_ping), host],
+                ["ping", "-c", str(count), "-W", str(self.timeout_ping), host],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -647,7 +648,7 @@ class ContinuousAutoRate:
 
             # Create shared instances
             router = RouterOS(config, logger)
-            rtt_measurement = RTTMeasurement(logger)
+            rtt_measurement = RTTMeasurement(logger, config.timeout_ping)
 
             # Create WAN controller
             wan_controller = WANController(config.wan_name, config, router, rtt_measurement, logger)

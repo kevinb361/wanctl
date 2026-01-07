@@ -72,7 +72,8 @@ def get_queue_stats(
     router_user: str,
     ssh_key: str,
     interface: str,
-    logger: logging.Logger
+    logger: logging.Logger,
+    timeout: int = 10
 ) -> Optional[QueueStats]:
     """
     Get CAKE queue statistics from router
@@ -91,7 +92,7 @@ def get_queue_stats(
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=config.timeout_ssh_command
+            timeout=timeout
         )
 
         if result.returncode != 0:
@@ -120,7 +121,7 @@ def get_queue_stats(
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=config.timeout_ssh_command
+            timeout=timeout
         )
 
         if result.returncode != 0:
@@ -259,7 +260,8 @@ def main():
         config.router_user,
         config.ssh_key,
         config.queue_down,
-        logger
+        logger,
+        config.timeout_ssh_command
     )
 
     up_stats = get_queue_stats(
@@ -267,7 +269,8 @@ def main():
         config.router_user,
         config.ssh_key,
         config.queue_up,
-        logger
+        logger,
+        config.timeout_ssh_command
     )
 
     if down_stats is None and up_stats is None:
