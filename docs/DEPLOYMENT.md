@@ -3,60 +3,60 @@
 ## Quick Deployment (Automated)
 
 ```bash
-cd /home/kevin/CAKE
-./deploy.sh
+cd /path/to/wanctl
+./scripts/deploy.sh <wan_name> <target_host>
 ```
 
-This will automatically deploy and enable all timers on both containers.
+This will automatically deploy and enable all timers on the target container.
 
 ---
 
 ## Manual Deployment
 
-### For ATT Container (10.10.110.247)
+### For Primary WAN Container
 
 ```bash
-# Copy files
-scp cake-att*.service cake-att*.timer kevin@10.10.110.247:/tmp/
+# Copy files to target (adjust hostname/IP for your setup)
+scp wanctl@<wan1-host>.service wanctl@<wan1-host>.timer user@<wan1-host>:/tmp/
 
 # SSH into container
-ssh kevin@10.10.110.247
+ssh user@<wan1-host>
 
 # Install units
-sudo mv /tmp/cake-att*.service /tmp/cake-att*.timer /etc/systemd/system/
+sudo mv /tmp/wanctl@*.service /tmp/wanctl@*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # Enable and start timers
-sudo systemctl enable cake-att.timer
-sudo systemctl enable cake-att-reset.timer
-sudo systemctl start cake-att.timer
-sudo systemctl start cake-att-reset.timer
+sudo systemctl enable wanctl@wan1.timer
+sudo systemctl enable wanctl@wan1-reset.timer
+sudo systemctl start wanctl@wan1.timer
+sudo systemctl start wanctl@wan1-reset.timer
 
 # Verify
-systemctl list-timers cake-*
+systemctl list-timers wanctl@*
 ```
 
-### For Spectrum Container (10.10.110.246)
+### For Secondary WAN Container (Dual-WAN Setup)
 
 ```bash
-# Copy files
-scp cake-spectrum*.service cake-spectrum*.timer kevin@10.10.110.246:/tmp/
+# Copy files to target
+scp wanctl@<wan2-host>.service wanctl@<wan2-host>.timer user@<wan2-host>:/tmp/
 
 # SSH into container
-ssh kevin@10.10.110.246
+ssh user@<wan2-host>
 
 # Install units
-sudo mv /tmp/cake-spectrum*.service /tmp/cake-spectrum*.timer /etc/systemd/system/
+sudo mv /tmp/wanctl@*.service /tmp/wanctl@*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # Enable and start timers
-sudo systemctl enable cake-spectrum.timer
-sudo systemctl enable cake-spectrum-reset.timer
-sudo systemctl start cake-spectrum.timer
-sudo systemctl start cake-spectrum-reset.timer
+sudo systemctl enable wanctl@wan2.timer
+sudo systemctl enable wanctl@wan2-reset.timer
+sudo systemctl start wanctl@wan2.timer
+sudo systemctl start wanctl@wan2-reset.timer
 
 # Verify
-systemctl list-timers cake-*
+systemctl list-timers wanctl@*
 ```
 
 ---
@@ -64,8 +64,8 @@ systemctl list-timers cake-*
 ## Timer Schedule
 
 ### Regular Tests (Every 10 minutes)
-- **ATT**: Starts 2 min after boot, then every 10 minutes (e.g., :00, :10, :20, :30...)
-- **Spectrum**: Starts 7 min after boot, then every 10 minutes (e.g., :05, :15, :25, :35...)
+- **WAN1**: Starts 2 min after boot, then every 10 minutes
+- **WAN2**: Starts 7 min after boot, then every 10 minutes
 - **Offset**: 5 minutes between tests to prevent interference
 
 ### Nightly Resets (Twice Daily)
@@ -78,38 +78,35 @@ systemctl list-timers cake-*
 
 ### View Timer Status
 ```bash
-# On ATT container
-ssh kevin@10.10.110.247 'systemctl list-timers cake-*'
-
-# On Spectrum container
-ssh kevin@10.10.110.246 'systemctl list-timers cake-*'
+# On target container
+ssh user@<wan-host> 'systemctl list-timers wanctl@*'
 ```
 
 ### View Live Logs
 ```bash
-# ATT logs
-ssh kevin@10.10.110.247 'journalctl -u cake-att.service -f'
+# WAN1 logs
+ssh user@<wan1-host> 'journalctl -u wanctl@wan1.service -f'
 
-# Spectrum logs
-ssh kevin@10.10.110.246 'journalctl -u cake-spectrum.service -f'
+# WAN2 logs
+ssh user@<wan2-host> 'journalctl -u wanctl@wan2.service -f'
 ```
 
 ### View Historical Logs
 ```bash
 # Last 50 entries
-ssh kevin@10.10.110.247 'journalctl -u cake-att.service -n 50'
+ssh user@<wan-host> 'journalctl -u wanctl@wan1.service -n 50'
 
 # Since yesterday
-ssh kevin@10.10.110.247 'journalctl -u cake-att.service --since yesterday'
+ssh user@<wan-host> 'journalctl -u wanctl@wan1.service --since yesterday'
 ```
 
-### Check Log Files (from scripts)
+### Check Log Files
 ```bash
 # Main log
-ssh kevin@10.10.110.247 'tail -f /var/log/cake_auto.log'
+ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous.log'
 
 # Debug log (if --debug was used)
-ssh kevin@10.10.110.247 'tail -f /var/log/cake_auto_debug.log'
+ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous_debug.log'
 ```
 
 ---
@@ -119,62 +116,57 @@ ssh kevin@10.10.110.247 'tail -f /var/log/cake_auto_debug.log'
 ### Service Not Running
 ```bash
 # Check service status
-systemctl status cake-att.service
+systemctl status wanctl@wan1.service
 
 # Check timer status
-systemctl status cake-att.timer
+systemctl status wanctl@wan1.timer
 
 # View recent errors
-journalctl -u cake-att.service --since "10 minutes ago"
+journalctl -u wanctl@wan1.service --since "10 minutes ago"
 ```
 
 ### Manual Test Run
 ```bash
-# On ATT container
-cd ~/adaptive_cake_att
-python3 adaptive_cake_att.py --debug
-
-# On Spectrum container
-cd ~/adaptive_cake_spectrum
-python3 adaptive_cake_spectrum.py --debug
+# On target container
+cd /opt/wanctl
+python3 -m cake.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
 ```
 
 ### Reset State Manually
 ```bash
-# On either container
-cd ~/adaptive_cake_<isp>
-python3 adaptive_cake_<isp>.py --reset
+# On target container
+python3 -m cake.autorate_continuous --config /etc/wanctl/wan1.yaml --reset
 ```
 
 ### Stop Timers Temporarily
 ```bash
 # Stop without disabling (will restart after reboot)
-sudo systemctl stop cake-att.timer
+sudo systemctl stop wanctl@wan1.timer
 
 # Stop and disable (won't restart after reboot)
-sudo systemctl disable --now cake-att.timer
+sudo systemctl disable --now wanctl@wan1.timer
 ```
 
 ### Re-enable After Stopping
 ```bash
-sudo systemctl enable --now cake-att.timer
+sudo systemctl enable --now wanctl@wan1.timer
 ```
 
 ---
 
 ## Files Created
 
-### ATT Container
-- `/etc/systemd/system/cake-att.service` - Main service
-- `/etc/systemd/system/cake-att.timer` - 10-minute timer
-- `/etc/systemd/system/cake-att-reset.service` - Reset service
-- `/etc/systemd/system/cake-att-reset.timer` - Twice-daily reset timer
+### Per-WAN Container
+- `/etc/systemd/system/wanctl@.service` - Main service template
+- `/etc/systemd/system/wanctl@.timer` - 10-minute timer template
+- `/etc/systemd/system/wanctl@-reset.service` - Reset service template
+- `/etc/systemd/system/wanctl@-reset.timer` - Twice-daily reset timer
 
-### Spectrum Container
-- `/etc/systemd/system/cake-spectrum.service` - Main service
-- `/etc/systemd/system/cake-spectrum.timer` - 10-minute timer (offset +5min)
-- `/etc/systemd/system/cake-spectrum-reset.service` - Reset service
-- `/etc/systemd/system/cake-spectrum-reset.timer` - Twice-daily reset timer
+### Configuration
+- `/etc/wanctl/<wan_name>.yaml` - WAN-specific configuration
+
+### State Files
+- `/var/lib/wanctl/<wan_name>_state.json` - Persisted EWMA state
 
 ---
 
@@ -183,7 +175,7 @@ sudo systemctl enable --now cake-att.timer
 1. **First Run**: Scripts will measure throughput and establish baseline EWMA values
 2. **Convergence**: Over 30-60 minutes, EWMA will stabilize around true capacity
 3. **Steady State**: CAKE limits adjust automatically based on measured conditions
-4. **Under Load**: k-factor reduces limits when latency increases
+4. **Under Load**: Bandwidth reduces when latency increases
 5. **Idle**: Limits increase gradually when headroom available
 6. **Reset**: Twice daily, state clears and queues unshaped to prevent drift
 

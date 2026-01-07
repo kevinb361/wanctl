@@ -5,16 +5,13 @@
 SSH host key validation has been **enabled** across all wanctl code. The insecure `StrictHostKeyChecking=no` flag has been removed from:
 
 ### Production Code (Critical)
-- ✅ `src/cake/autorate_continuous_v2.py` - Main bandwidth controller
-- ✅ `src/cake/wan_steering_daemon.py` - WAN steering daemon
-- ✅ `src/cake/cake_stats.py` - CAKE statistics collector
-- ✅ `src/cake/autorate_continuous.py` - Alternative controller
-- ✅ `src/cake/adaptive_cake.py` - CAKE management
+- `src/cake/autorate_continuous.py` - Main bandwidth controller
+- `src/cake/wan_steering_daemon.py` - WAN steering daemon
+- `src/cake/cake_stats.py` - CAKE statistics collector
+- `src/cake/adaptive_cake.py` - CAKE management
 
 ### Utility Scripts
-- ✅ `fetch_logs.py` - Log fetching tool
-- ✅ `fetch_logs_pexpect.py` - Alternative log fetcher
-- ✅ `scripts/deploy.sh` - Deployment script
+- `scripts/deploy.sh` - Deployment script
 
 ## Why This Matters
 
@@ -31,63 +28,55 @@ SSH host key validation has been **enabled** across all wanctl code. The insecur
 
 ## Required Setup (One-Time)
 
-You must add the router's SSH host key to `~/.ssh/known_hosts` on **both containers**:
+You must add the router's SSH host key to `~/.ssh/known_hosts` on each controller host:
 
-### Step 1: On cake-att Container (10.10.110.247)
+### Step 1: On Primary WAN Controller
 
 ```bash
-ssh kevin@10.10.110.247
+ssh user@<wan1-controller>
 
-# Add router's SSH host keys
-ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
+# Add router's SSH host keys (replace with your router IP)
+ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 
 # Verify it was added
-grep 10.10.99.1 ~/.ssh/known_hosts
+grep <router_ip> ~/.ssh/known_hosts
 ```
 
-### Step 2: On cake-spectrum Container (10.10.110.246)
+### Step 2: On Secondary WAN Controller (Dual-WAN Setup)
 
 ```bash
-ssh kevin@10.10.110.248
+ssh user@<wan2-controller>
 
 # Add router's SSH host keys
-ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
+ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 
 # Verify it was added
-grep 10.10.99.1 ~/.ssh/known_hosts
+grep <router_ip> ~/.ssh/known_hosts
 ```
 
 ### Step 3: On Your Build Machine (Optional)
 
-If you run scripts from your build machine (10.10.99.x):
+If you run scripts from your build machine:
 
 ```bash
 # Add router's SSH host keys
-ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
+ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 
 # Verify
-grep 10.10.99.1 ~/.ssh/known_hosts
+grep <router_ip> ~/.ssh/known_hosts
 ```
 
 ## Testing
 
 After adding the host keys, test SSH connectivity:
 
-### From cake-att:
+### From Controller:
 ```bash
-ssh kevin@10.10.110.247
-ssh -i ~/.ssh/mikrotik_cake admin@10.10.99.1 '/system resource print'
+ssh user@<controller-host>
+ssh -i ~/.ssh/<router_ssh_key> admin@<router_ip> '/system resource print'
 ```
 
 Should connect WITHOUT prompting to accept host key.
-
-### From cake-spectrum:
-```bash
-ssh kevin@10.10.110.246
-ssh -i ~/.ssh/mikrotik_cake admin@10.10.99.1 '/system resource print'
-```
-
-Should connect WITHOUT prompting.
 
 ## Troubleshooting
 
@@ -97,7 +86,7 @@ Should connect WITHOUT prompting.
 
 **Fix:**
 ```bash
-ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
+ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 ```
 
 ### Error: "Permission denied (publickey)"
@@ -106,8 +95,8 @@ ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
 
 **Fix:**
 ```bash
-chmod 600 ~/.ssh/mikrotik_cake
-ls -la ~/.ssh/mikrotik_cake  # Should show -rw-------
+chmod 600 ~/.ssh/<router_ssh_key>
+ls -la ~/.ssh/<router_ssh_key>  # Should show -rw-------
 ```
 
 ### Warning: "REMOTE HOST IDENTIFICATION HAS CHANGED"
@@ -119,13 +108,13 @@ ls -la ~/.ssh/mikrotik_cake  # Should show -rw-------
 **Fix (only if you know why the key changed):**
 ```bash
 # Remove old key
-ssh-keygen -R 10.10.99.1
+ssh-keygen -R <router_ip>
 
 # Add new key
-ssh-keyscan -H 10.10.99.1 >> ~/.ssh/known_hosts
+ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
 ```
 
-**⚠️ WARNING:** Only do this if you know WHY the host key changed (e.g., you reinstalled RouterOS). If it changed unexpectedly, you may be under MITM attack!
+**WARNING:** Only do this if you know WHY the host key changed (e.g., you reinstalled RouterOS). If it changed unexpectedly, you may be under MITM attack!
 
 ## What Happens If You Don't Do This
 
@@ -139,20 +128,19 @@ If you deploy the updated code WITHOUT adding host keys to known_hosts:
 
 **Impact:**
 - Bandwidth shaping stops adapting
-- WAN steering stops working
+- WAN steering stops working (if configured)
 - Bufferbloat returns (no CAKE adjustments)
 
 **Resolution:**
-- Add host keys to known_hosts (see Step 1 & 2 above)
-- Restart systemd timers: `systemctl restart cake-att.timer cake-spectrum.timer`
+- Add host keys to known_hosts (see Steps above)
+- Restart systemd timers: `systemctl restart wanctl@wan1.timer`
 
 ## Deployment Checklist
 
 Before deploying security-fixed code:
 
-- [ ] Added router host key to cake-att container's known_hosts
-- [ ] Added router host key to cake-spectrum container's known_hosts
-- [ ] Tested SSH connectivity from both containers
+- [ ] Added router host key to each controller's known_hosts
+- [ ] Tested SSH connectivity from each controller
 - [ ] Verified autorate can execute RouterOS commands
 - [ ] Checked systemd logs for "Host key verification failed" errors
 
@@ -163,9 +151,9 @@ Before deploying security-fixed code:
 - Alternative: SSH manually once and accept key (interactive)
 
 ### What NOT To Do
-- ❌ Don't add `-o StrictHostKeyChecking=no` back to the code
-- ❌ Don't disable host key checking globally in ~/.ssh/config
-- ❌ Don't copy known_hosts from untrusted sources
+- Don't add `-o StrictHostKeyChecking=no` back to the code
+- Don't disable host key checking globally in ~/.ssh/config
+- Don't copy known_hosts from untrusted sources
 
 ### Verifying Host Key Fingerprint (Paranoid Mode)
 
@@ -179,23 +167,20 @@ If you want to verify the host key is legitimate:
 
 2. **Compare with what you added:**
    ```bash
-   ssh-keygen -l -f <(ssh-keyscan 10.10.99.1 2>/dev/null)
+   ssh-keygen -l -f <(ssh-keyscan <router_ip> 2>/dev/null)
    ```
    Fingerprints should match!
 
-## Related Security Fixes
+## Related Security Improvements
 
 This is part of a larger security hardening effort:
 
-1. ✅ **Removed hardcoded passwords** - Now uses environment variables
-2. ✅ **Enabled SSH host key validation** - This document
-3. 🔜 **Input validation** - Queue names and mangle rule comments
-4. 🔜 **Fixed bare except clauses** - Proper error handling
-
-See `docs/SECURITY_FIXES.md` for complete list.
+1. **Removed hardcoded passwords** - Now uses environment variables/config files
+2. **Enabled SSH host key validation** - This document
+3. **Input validation** - Queue names and mangle rule comments validated
+4. **Proper error handling** - Fixed bare except clauses
 
 ---
 
-**Created:** 2026-01-06
 **Impact:** Critical - Required for system operation after update
 **Priority:** Must complete BEFORE deploying security-fixed code

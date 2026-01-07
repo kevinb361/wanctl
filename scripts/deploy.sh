@@ -114,7 +114,7 @@ usage() {
     echo ""
     echo "Examples:"
     echo "  $0 wan1 cake-wan1                  # Deploy wan1 to host cake-wan1"
-    echo "  $0 wan2 10.10.110.248 --with-steering  # Deploy with steering"
+    echo "  $0 wan2 192.168.1.100 --with-steering  # Deploy with steering"
     echo "  $0 --install-only cake-wan1       # Just run installation on target"
 }
 

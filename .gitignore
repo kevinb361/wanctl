@@ -48,4 +48,9 @@ scripts/add_*.sh
 scripts/verify_*.sh
 scripts/test_*.sh
 scripts/fix_*.sh
+scripts/container_install_*.sh
 scripts/DEPLOYMENT.md
+
+# Site-specific logrotate configs
+configs/logrotate*.conf
+configs/logrotate-cake

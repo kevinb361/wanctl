@@ -59,7 +59,7 @@ MBPS_TO_BPS = 1_000_000
 
 def should_skip_calibration(
     logger: logging.Logger,
-    steering_state_file: str = "/home/kevin/adaptive_cake_steering/steering_state.json"
+    steering_state_file: str = "/var/lib/wanctl/steering_state.json"
 ) -> bool:
     """
     Check if steering daemon reports congestion (YELLOW or RED).
@@ -248,7 +248,7 @@ class Config(BaseConfig):
         paths = self.data.get('paths', {})
         self.steering_state_file = paths.get(
             'steering_state_file',
-            '/home/kevin/adaptive_cake_steering/steering_state.json'
+            '/var/lib/wanctl/steering_state.json'
         )
 
 
