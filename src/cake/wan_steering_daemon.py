@@ -124,6 +124,38 @@ except ImportError as e:
 class Config(BaseConfig):
     """Configuration loaded from YAML"""
 
+    # Schema for wan_steering_daemon configuration validation
+    SCHEMA = [
+        # CAKE state sources
+        {"path": "cake_state_sources.spectrum", "type": str, "required": True},
+
+        # Mangle rule
+        {"path": "mangle_rule.comment", "type": str, "required": True},
+
+        # Measurement
+        {"path": "measurement.interval_seconds", "type": (int, float),
+         "required": True, "min": 1, "max": 60},
+        {"path": "measurement.ping_host", "type": str, "required": True},
+        {"path": "measurement.ping_count", "type": int,
+         "required": True, "min": 1, "max": 20},
+
+        # State persistence
+        {"path": "state.file", "type": str, "required": True},
+        {"path": "state.history_size", "type": int,
+         "required": True, "min": 1, "max": 1000},
+
+        # Logging
+        {"path": "logging.main_log", "type": str, "required": True},
+        {"path": "logging.debug_log", "type": str, "required": True},
+
+        # Lock file
+        {"path": "lock_file", "type": str, "required": True},
+        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
+
+        # Thresholds (required section, individual fields have defaults)
+        {"path": "thresholds", "type": dict, "required": True},
+    ]
+
     def _load_specific_fields(self):
         """Load steering daemon-specific configuration fields"""
         # CAKE state sources (baseline RTT)

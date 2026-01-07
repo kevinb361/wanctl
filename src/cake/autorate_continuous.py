@@ -52,6 +52,55 @@ MBPS_TO_BPS = 1_000_000
 class Config(BaseConfig):
     """Configuration container loaded from YAML"""
 
+    # Schema for autorate_continuous configuration validation
+    SCHEMA = [
+        # Queue names
+        {"path": "queues.download", "type": str, "required": True},
+        {"path": "queues.upload", "type": str, "required": True},
+
+        # Continuous monitoring - required structure
+        {"path": "continuous_monitoring.enabled", "type": bool, "required": True},
+        {"path": "continuous_monitoring.baseline_rtt_initial", "type": (int, float),
+         "required": True, "min": 1, "max": 500},
+
+        # Download parameters - ceiling is required, floors validated in _load_specific_fields
+        {"path": "continuous_monitoring.download.ceiling_mbps", "type": (int, float),
+         "required": True, "min": 1, "max": 10000},
+        {"path": "continuous_monitoring.download.step_up_mbps", "type": (int, float),
+         "required": True, "min": 0.1, "max": 100},
+        {"path": "continuous_monitoring.download.factor_down", "type": float,
+         "required": True, "min": 0.1, "max": 1.0},
+
+        # Upload parameters
+        {"path": "continuous_monitoring.upload.ceiling_mbps", "type": (int, float),
+         "required": True, "min": 1, "max": 1000},
+        {"path": "continuous_monitoring.upload.step_up_mbps", "type": (int, float),
+         "required": True, "min": 0.1, "max": 100},
+        {"path": "continuous_monitoring.upload.factor_down", "type": float,
+         "required": True, "min": 0.1, "max": 1.0},
+
+        # Thresholds
+        {"path": "continuous_monitoring.thresholds.target_bloat_ms", "type": (int, float),
+         "required": True, "min": 1, "max": 100},
+        {"path": "continuous_monitoring.thresholds.warn_bloat_ms", "type": (int, float),
+         "required": True, "min": 1, "max": 200},
+        {"path": "continuous_monitoring.thresholds.alpha_baseline", "type": float,
+         "required": True, "min": 0.001, "max": 1.0},
+        {"path": "continuous_monitoring.thresholds.alpha_load", "type": float,
+         "required": True, "min": 0.01, "max": 1.0},
+
+        # Ping hosts
+        {"path": "continuous_monitoring.ping_hosts", "type": list, "required": True},
+
+        # Logging
+        {"path": "logging.main_log", "type": str, "required": True},
+        {"path": "logging.debug_log", "type": str, "required": True},
+
+        # Lock file
+        {"path": "lock_file", "type": str, "required": True},
+        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
+    ]
+
     def _load_specific_fields(self):
         """Load autorate-specific configuration fields"""
         # Queues (validated to prevent command injection)

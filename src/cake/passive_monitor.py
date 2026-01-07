@@ -24,6 +24,16 @@ from cake.logging_utils import setup_logging
 class Config(BaseConfig):
     """Lightweight config loader"""
 
+    # Schema for passive_monitor configuration validation
+    SCHEMA = [
+        # Queue names
+        {"path": "queues.download", "type": str, "required": True},
+        {"path": "queues.upload", "type": str, "required": True},
+
+        # Logging (main_log required, passive_log derived from it)
+        {"path": "logging.main_log", "type": str, "required": True},
+    ]
+
     def _load_specific_fields(self):
         """Load passive_monitor-specific configuration fields"""
         # Queues (validated to prevent command injection)
