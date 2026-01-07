@@ -1,6 +1,6 @@
-# wanctl v1.0.0-rc1
+# wanctl v1.0.0-rc2
 
-**Release Candidate 1** - First public release candidate for testing.
+**Release Candidate 2** - Fixes packaging issues identified in RC1 audit.
 
 ## What is wanctl?
 
@@ -19,24 +19,39 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS. It elimin
 ```bash
 git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
+pip install .
+```
+
+Or for system-wide deployment:
+
+```bash
 sudo ./scripts/install.sh
 ```
 
 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
 
-## What's New in RC1
+## What's New in RC2
 
-### Repository Cleanup
+### Packaging Fixes (from RC1 audit)
+- **Added `__version__`** - Package now exports version for programmatic access
+- **Added CLI entry points** - `wanctl`, `wanctl-calibrate`, `wanctl-steering` commands
+- **Fixed CLI argument** - Changed `--configs` to `--config` to match systemd unit
+- **Synced dependency versions** - `requirements.txt` now matches `pyproject.toml`
+- **Fixed systemd URLs** - Corrected GitHub repository URLs in all unit files
+
+### From RC1
+
+#### Repository Cleanup
 - Removed deprecated modules and analysis scripts
 - Removed site-specific configurations
 - Standardized file permissions (644 for files, 755 for scripts)
 - Fixed package name: `cake-qos` → `wanctl`
 
-### Security Fixes
+#### Security Fixes
 - **Fixed race condition in lock file** - Now uses atomic `O_EXCL` creation
 - **Fixed temp file permissions** - Explicit 0600 permissions on state files
 
-### Developer Experience
+#### Developer Experience
 - Added GitHub Actions CI (lint + test on every PR)
 - Added `DEVELOPMENT.md` with setup and contribution guide
 - Added `CONFIG_SCHEMA.md` with full configuration reference
@@ -44,7 +59,7 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
 - Pinned all dependency versions
 - Added "Good First Issues" guidance for contributors
 
-### Documentation
+#### Documentation
 - Complete configuration schema documentation
 - Improved CONTRIBUTING.md with test instructions
 - Example configs for fiber, cable, DSL, and multi-WAN setups
@@ -97,14 +112,9 @@ This is a release candidate. Please test and report issues:
 1. **Fresh install** - Follow QUICKSTART.md on a new system
 2. **Upgrade** - If upgrading from a previous version, backup configs first
 3. **Multi-WAN** - Test steering if using dual-WAN setup
+4. **pip install** - Verify `wanctl --help` works after `pip install .`
 
 Report issues at: https://github.com/kevinb361/wanctl/issues
-
-## Checksums
-
-```
-SHA256: (generate after tagging)
-```
 
 ## Acknowledgments
 
@@ -119,4 +129,4 @@ GPL-2.0 - See [LICENSE](LICENSE) for details.
 
 ---
 
-**Full Changelog**: https://github.com/kevinb361/wanctl/commits/v1.0.0-rc1
+**Full Changelog**: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc1...v1.0.0-rc2
