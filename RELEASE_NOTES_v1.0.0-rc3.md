@@ -1,6 +1,6 @@
-# wanctl v1.0.0-rc2
+# wanctl v1.0.0-rc3
 
-**Release Candidate 2** - Fixes packaging issues identified in RC1 audit.
+**Release Candidate 3** - Package renamed from `cake` to `wanctl` to avoid confusion with the CAKE qdisc project.
 
 ## What is wanctl?
 
@@ -30,9 +30,22 @@ sudo ./scripts/install.sh
 
 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
 
-## What's New in RC2
+## What's New in RC3
 
-### Packaging Fixes (from RC1 audit)
+### Package Rename: `cake` → `wanctl`
+
+**BREAKING CHANGE**: The Python package has been renamed from `cake` to `wanctl` to avoid confusion with the [CAKE qdisc](https://www.bufferbloat.net/projects/codel/wiki/Cake/) project.
+
+- Renamed `src/cake/` → `src/wanctl/`
+- All imports changed from `cake.*` to `wanctl.*`
+- Module invocation changed: `python -m wanctl.autorate_continuous`
+- Updated all documentation, scripts, and deployment files
+
+**Migration**: If upgrading from RC2, update any custom scripts that import from `cake.*` to use `wanctl.*` instead.
+
+### From RC2
+
+#### Packaging Fixes (from RC1 audit)
 - **Added `__version__`** - Package now exports version for programmatic access
 - **Added CLI entry points** - `wanctl`, `wanctl-calibrate`, `wanctl-steering` commands
 - **Fixed CLI argument** - Changed `--configs` to `--config` to match systemd unit
@@ -45,7 +58,6 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
 - Removed deprecated modules and analysis scripts
 - Removed site-specific configurations
 - Standardized file permissions (644 for files, 755 for scripts)
-- Fixed package name: `cake-qos` → `wanctl`
 
 #### Security Fixes
 - **Fixed race condition in lock file** - Now uses atomic `O_EXCL` creation
@@ -70,6 +82,29 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
 - MikroTik RouterOS with CAKE queues configured
 - SSH key authentication to router
 - Linux host (tested on Debian 12, Ubuntu 22.04)
+
+## Usage
+
+### CLI Commands (after pip install)
+
+```bash
+# Main controller
+wanctl --config /etc/wanctl/wan1.yaml
+
+# Calibration wizard
+wanctl-calibrate --wan-name wan1 --router 192.168.1.1
+
+# Steering daemon (multi-WAN)
+wanctl-steering --config /etc/wanctl/steering.yaml
+```
+
+### Python Module
+
+```bash
+python -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml
+python -m wanctl.calibrate --wan-name wan1 --router 192.168.1.1
+python -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml
+```
 
 ## Configuration
 
@@ -110,7 +145,7 @@ See `configs/examples/` for complete examples.
 This is a release candidate. Please test and report issues:
 
 1. **Fresh install** - Follow QUICKSTART.md on a new system
-2. **Upgrade** - If upgrading from a previous version, backup configs first
+2. **Upgrade** - If upgrading from RC2, update any `cake.*` imports to `wanctl.*`
 3. **Multi-WAN** - Test steering if using dual-WAN setup
 4. **pip install** - Verify `wanctl --help` works after `pip install .`
 
@@ -129,4 +164,4 @@ GPL-2.0 - See [LICENSE](LICENSE) for details.
 
 ---
 
-**Full Changelog**: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc1...v1.0.0-rc2
+**Full Changelog**: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc2...v1.0.0-rc3
