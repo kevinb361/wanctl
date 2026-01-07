@@ -45,6 +45,50 @@ from cake.logging_utils import setup_logging
 from cake.routeros_ssh import RouterOSSSH
 from cake.state_utils import atomic_write_json
 
+
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Default timeout values (seconds)
+DEFAULT_SSH_TIMEOUT = 30
+DEFAULT_PING_TOTAL_TIMEOUT = 10
+
+# Default congestion thresholds (milliseconds)
+DEFAULT_BAD_THRESHOLD_MS = 25.0       # RTT delta threshold for bad state
+DEFAULT_RECOVERY_THRESHOLD_MS = 12.0  # RTT delta threshold for recovery
+
+# Default sample counts for state transitions
+DEFAULT_GOOD_SAMPLES = 15             # Consecutive good samples before recovery
+DEFAULT_GREEN_SAMPLES_REQUIRED = 15   # Consecutive GREEN samples before steering off
+
+# Default RTT thresholds for congestion states (milliseconds)
+DEFAULT_GREEN_RTT_MS = 5.0            # Below this = GREEN
+DEFAULT_YELLOW_RTT_MS = 15.0          # Above this = YELLOW
+DEFAULT_RED_RTT_MS = 15.0             # Above this (with drops) = RED
+
+# Default queue thresholds (packets)
+DEFAULT_MIN_QUEUE_YELLOW = 10         # Queue depth for YELLOW warning
+DEFAULT_MIN_QUEUE_RED = 50            # Queue depth for RED (deeper congestion)
+
+# Default EWMA smoothing factors
+DEFAULT_RTT_EWMA_ALPHA = 0.3
+DEFAULT_QUEUE_EWMA_ALPHA = 0.4
+
+# History and state limits
+MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
+MAX_HISTORY_SAMPLES = 60              # Maximum samples in history (2 minutes at 2s intervals)
+ASSESSMENT_INTERVAL_SECONDS = 2.0     # Time between assessments
+
+# Baseline RTT sanity bounds (milliseconds)
+MIN_SANE_BASELINE_RTT = 5.0
+MAX_SANE_BASELINE_RTT = 100.0
+BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
+
+# Queue depth percentage estimation
+QUEUE_DEPTH_100_PERCENT = 1000.0      # Packets considered "100% queue utilization"
+
+
 # Import CAKE-aware modules
 try:
     from cake_stats import CakeStatsReader, CakeStats, CongestionSignals
@@ -117,22 +161,22 @@ class Config(BaseConfig):
         thresholds = self.data['thresholds']
 
         # Legacy RTT-only thresholds (backward compatibility)
-        self.bad_threshold_ms = thresholds.get('bad_threshold_ms', 25.0)
-        self.recovery_threshold_ms = thresholds.get('recovery_threshold_ms', 12.0)
+        self.bad_threshold_ms = thresholds.get('bad_threshold_ms', DEFAULT_BAD_THRESHOLD_MS)
+        self.recovery_threshold_ms = thresholds.get('recovery_threshold_ms', DEFAULT_RECOVERY_THRESHOLD_MS)
         self.bad_samples = thresholds.get('bad_samples', 8)
-        self.good_samples = thresholds.get('good_samples', 15)
+        self.good_samples = thresholds.get('good_samples', DEFAULT_GOOD_SAMPLES)
 
         # CAKE-aware thresholds (three-state model)
-        self.green_rtt_ms = thresholds.get('green_rtt_ms', 5.0)
-        self.yellow_rtt_ms = thresholds.get('yellow_rtt_ms', 15.0)
-        self.red_rtt_ms = thresholds.get('red_rtt_ms', 15.0)
+        self.green_rtt_ms = thresholds.get('green_rtt_ms', DEFAULT_GREEN_RTT_MS)
+        self.yellow_rtt_ms = thresholds.get('yellow_rtt_ms', DEFAULT_YELLOW_RTT_MS)
+        self.red_rtt_ms = thresholds.get('red_rtt_ms', DEFAULT_RED_RTT_MS)
         self.min_drops_red = thresholds.get('min_drops_red', 1)
-        self.min_queue_yellow = thresholds.get('min_queue_yellow', 10)
-        self.min_queue_red = thresholds.get('min_queue_red', 50)
-        self.rtt_ewma_alpha = thresholds.get('rtt_ewma_alpha', 0.3)
-        self.queue_ewma_alpha = thresholds.get('queue_ewma_alpha', 0.4)
+        self.min_queue_yellow = thresholds.get('min_queue_yellow', DEFAULT_MIN_QUEUE_YELLOW)
+        self.min_queue_red = thresholds.get('min_queue_red', DEFAULT_MIN_QUEUE_RED)
+        self.rtt_ewma_alpha = thresholds.get('rtt_ewma_alpha', DEFAULT_RTT_EWMA_ALPHA)
+        self.queue_ewma_alpha = thresholds.get('queue_ewma_alpha', DEFAULT_QUEUE_EWMA_ALPHA)
         self.red_samples_required = thresholds.get('red_samples_required', 2)
-        self.green_samples_required = thresholds.get('green_samples_required', 15)
+        self.green_samples_required = thresholds.get('green_samples_required', DEFAULT_GREEN_SAMPLES_REQUIRED)
 
         # State persistence
         self.state_file = Path(self.data['state']['file'])
@@ -149,9 +193,9 @@ class Config(BaseConfig):
 
         # Timeouts (with sensible defaults)
         timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', 30)  # seconds
+        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get('ping', 2)  # seconds (-W parameter)
-        self.timeout_ping_total = timeouts.get('ping_total', 10)  # seconds (subprocess timeout)
+        self.timeout_ping_total = timeouts.get('ping_total', DEFAULT_PING_TOTAL_TIMEOUT)
 
         # Router dict for CakeStatsReader
         self.router = {
@@ -282,8 +326,8 @@ class SteeringState:
         self.state["last_transition_time"] = transition["timestamp"]
 
         # Keep only last 50 transitions
-        if len(self.state["transitions"]) > 50:
-            self.state["transitions"] = self.state["transitions"][-50:]
+        if len(self.state["transitions"]) > MAX_TRANSITIONS_HISTORY:
+            self.state["transitions"] = self.state["transitions"][-MAX_TRANSITIONS_HISTORY:]
 
     def reset(self):
         """Reset state to initial values"""
@@ -479,7 +523,7 @@ class BaselineLoader:
                 baseline_rtt = float(state['ewma']['baseline_rtt'])
 
                 # Sanity check (typical range: 5-100ms)
-                if 5.0 <= baseline_rtt <= 100.0:
+                if MIN_SANE_BASELINE_RTT <= baseline_rtt <= MAX_SANE_BASELINE_RTT:
                     self.logger.debug(f"Loaded baseline RTT from CAKE state: {baseline_rtt:.2f}ms")
                     return baseline_rtt
                 else:
@@ -570,7 +614,7 @@ class SteeringDaemon:
 
             if old_baseline is None:
                 self.logger.info(f"Initialized baseline RTT: {baseline_rtt:.2f}ms")
-            elif abs(baseline_rtt - old_baseline) > 5.0:
+            elif abs(baseline_rtt - old_baseline) > BASELINE_CHANGE_THRESHOLD:
                 self.logger.info(f"Baseline RTT updated: {old_baseline:.2f}ms → {baseline_rtt:.2f}ms")
 
             return True
@@ -853,10 +897,10 @@ class SteeringDaemon:
             cake_state_str = state.get('congestion_state', 'GREEN')  # GREEN/YELLOW/RED from Phase 2A
 
             # Calculate drops per second (approximate)
-            drops_per_sec = cake_drops / 2.0  # 2s assessment interval
+            drops_per_sec = cake_drops / ASSESSMENT_INTERVAL_SECONDS
 
-            # Calculate queue depth percentage (estimate: 1000 packets = 100%)
-            queue_depth_pct = (queued_packets / 1000.0) * 100.0
+            # Calculate queue depth percentage (estimate)
+            queue_depth_pct = (queued_packets / QUEUE_DEPTH_100_PERCENT) * 100.0
 
             # Build confidence signals
             confidence_signals = ConfidenceSignals(
@@ -882,12 +926,12 @@ class SteeringDaemon:
             state['queue_pct_history'].append(queue_depth_pct)
 
             # Trim history (keep last 60 samples = 2 minutes)
-            if len(state['cake_state_history']) > 60:
-                state['cake_state_history'] = state['cake_state_history'][-60:]
-            if len(state['drops_per_sec_history']) > 60:
-                state['drops_per_sec_history'] = state['drops_per_sec_history'][-60:]
-            if len(state['queue_pct_history']) > 60:
-                state['queue_pct_history'] = state['queue_pct_history'][-60:]
+            if len(state['cake_state_history']) > MAX_HISTORY_SAMPLES:
+                state['cake_state_history'] = state['cake_state_history'][-MAX_HISTORY_SAMPLES:]
+            if len(state['drops_per_sec_history']) > MAX_HISTORY_SAMPLES:
+                state['drops_per_sec_history'] = state['drops_per_sec_history'][-MAX_HISTORY_SAMPLES:]
+            if len(state['queue_pct_history']) > MAX_HISTORY_SAMPLES:
+                state['queue_pct_history'] = state['queue_pct_history'][-MAX_HISTORY_SAMPLES:]
 
             # Evaluate Phase 2B decision (hypothetical)
             phase2b_decision = self.phase2b_controller.evaluate(
