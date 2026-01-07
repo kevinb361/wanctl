@@ -39,7 +39,9 @@ except ImportError:
     print("ERROR: PyYAML not installed. Run: pip3 install --user PyYAML")
     sys.exit(1)
 
+from cake.config_base import BaseConfig
 from cake.lockfile import LockFile
+from cake.logging_utils import setup_logging
 
 # Import CAKE-aware modules
 try:
@@ -73,44 +75,36 @@ except ImportError as e:
 # CONFIGURATION
 # =============================================================================
 
-class Config:
+class Config(BaseConfig):
     """Configuration loaded from YAML"""
-    def __init__(self, config_path: str):
-        with open(config_path, 'r') as f:
-            data = yaml.safe_load(f)
 
-        self.wan_name = data['wan_name']
-
+    def _load_specific_fields(self):
+        """Load steering daemon-specific configuration fields"""
         # CAKE state sources (baseline RTT)
-        self.spectrum_state_file = Path(data['cake_state_sources']['spectrum'])
-        self.att_state_file = data['cake_state_sources'].get('att')  # Optional, future use
-
-        # RouterOS connection
-        self.router_host = data['router']['host']
-        self.router_user = data['router']['user']
-        self.ssh_key = data['router']['ssh_key']
+        self.spectrum_state_file = Path(self.data['cake_state_sources']['spectrum'])
+        self.att_state_file = self.data['cake_state_sources'].get('att')  # Optional, future use
 
         # Mangle rule to toggle
-        self.mangle_rule_comment = data['mangle_rule']['comment']
+        self.mangle_rule_comment = self.data['mangle_rule']['comment']
 
         # RTT measurement
-        self.measurement_interval = data['measurement']['interval_seconds']
-        self.ping_host = data['measurement']['ping_host']
-        self.ping_count = data['measurement']['ping_count']
+        self.measurement_interval = self.data['measurement']['interval_seconds']
+        self.ping_host = self.data['measurement']['ping_host']
+        self.ping_count = self.data['measurement']['ping_count']
 
         # CAKE queue names (for statistics polling)
-        cake_queues = data.get('cake_queues', {})
+        cake_queues = self.data.get('cake_queues', {})
         self.spectrum_download_queue = cake_queues.get('spectrum_download', 'WAN-Download-Spectrum')
         self.spectrum_upload_queue = cake_queues.get('spectrum_upload', 'WAN-Upload-Spectrum')
 
         # Operational mode
-        mode = data.get('mode', {})
+        mode = self.data.get('mode', {})
         self.cake_aware = mode.get('cake_aware', False) and CAKE_AWARE_AVAILABLE
         self.reset_counters = mode.get('reset_counters', True)
         self.enable_yellow_state = mode.get('enable_yellow_state', True)
 
         # State machine thresholds
-        thresholds = data['thresholds']
+        thresholds = self.data['thresholds']
 
         # Legacy RTT-only thresholds (backward compatibility)
         self.bad_threshold_ms = thresholds.get('bad_threshold_ms', 25.0)
@@ -131,17 +125,17 @@ class Config:
         self.green_samples_required = thresholds.get('green_samples_required', 15)
 
         # State persistence
-        self.state_file = Path(data['state']['file'])
-        self.history_size = data['state']['history_size']
+        self.state_file = Path(self.data['state']['file'])
+        self.history_size = self.data['state']['history_size']
 
         # Logging
-        self.main_log = data['logging']['main_log']
-        self.debug_log = data['logging']['debug_log']
-        self.log_cake_stats = data['logging'].get('log_cake_stats', True)
+        self.main_log = self.data['logging']['main_log']
+        self.debug_log = self.data['logging']['debug_log']
+        self.log_cake_stats = self.data['logging'].get('log_cake_stats', True)
 
         # Lock file
-        self.lock_file = Path(data['lock_file'])
-        self.lock_timeout = data['lock_timeout']
+        self.lock_file = Path(self.data['lock_file'])
+        self.lock_timeout = self.data['lock_timeout']
 
         # Router dict for CakeStatsReader
         self.router = {
@@ -151,54 +145,8 @@ class Config:
         }
 
         # Phase 2B: Confidence-based steering (optional)
-        self.phase2b_config = data.get('steering_v3', {})
+        self.phase2b_config = self.data.get('steering_v3', {})
         self.phase2b_enabled = self.phase2b_config.get('enabled', False)
-
-
-# =============================================================================
-# LOGGING SETUP
-# =============================================================================
-
-def setup_logging(config: Config, debug: bool) -> logging.Logger:
-    """Setup logging with file and optional console output"""
-    logger = logging.getLogger(f"wan_steering_{config.wan_name.lower()}")
-
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.DEBUG)
-
-    # Ensure log directories exist
-    for path in (config.main_log, config.debug_log):
-        d = os.path.dirname(path)
-        if d and not os.path.isdir(d):
-            os.makedirs(d, exist_ok=True)
-
-    # Main log - INFO level
-    fh = logging.FileHandler(config.main_log)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter(
-        f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-    ))
-    logger.addHandler(fh)
-
-    # Debug log and console - DEBUG level
-    if debug:
-        dfh = logging.FileHandler(config.debug_log)
-        dfh.setLevel(logging.DEBUG)
-        dfh.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(dfh)
-
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(logging.Formatter(
-            f"%(asctime)s [{config.wan_name}] [%(levelname)s] %(message)s"
-        ))
-        logger.addHandler(ch)
-
-    return logger
 
 
 # =============================================================================
@@ -995,7 +943,7 @@ def main():
         return 1
 
     # Setup logging
-    logger = setup_logging(config, args.debug)
+    logger = setup_logging(config, "wan_steering", args.debug)
     logger.info("=" * 60)
     logger.info(f"WAN Steering Daemon - {config.wan_name}")
     logger.info("=" * 60)
