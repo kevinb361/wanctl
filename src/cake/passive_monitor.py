@@ -42,6 +42,10 @@ class Config(BaseConfig):
         # Set main_log for logging_utils compatibility
         self.main_log = self.passive_log
 
+        # Timeouts (with sensible defaults)
+        timeouts = self.data.get('timeouts', {})
+        self.timeout_ssh_command = timeouts.get('ssh_command', 10)  # seconds
+
 
 class QueueStats:
     """CAKE queue statistics"""
@@ -87,7 +91,7 @@ def get_queue_stats(
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=10
+            timeout=config.timeout_ssh_command
         )
 
         if result.returncode != 0:
@@ -116,7 +120,7 @@ def get_queue_stats(
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=10
+            timeout=config.timeout_ssh_command
         )
 
         if result.returncode != 0:

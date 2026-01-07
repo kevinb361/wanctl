@@ -137,6 +137,12 @@ class Config(BaseConfig):
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
 
+        # Timeouts (with sensible defaults)
+        timeouts = self.data.get('timeouts', {})
+        self.timeout_ssh_command = timeouts.get('ssh_command', 30)  # seconds
+        self.timeout_ping = timeouts.get('ping', 2)  # seconds (-W parameter)
+        self.timeout_ping_total = timeouts.get('ping_total', 10)  # seconds (subprocess timeout)
+
         # Router dict for CakeStatsReader
         self.router = {
             'host': self.router_host,
@@ -315,12 +321,12 @@ class RouterOSController:
                     args, text=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=30
+                    timeout=self.config.timeout_ssh_command
                 )
                 self.logger.debug(f"RouterOS stdout: {res.stdout}")
                 return res.returncode, res.stdout, res.stderr
             else:
-                res = subprocess.run(args, text=True, timeout=30)
+                res = subprocess.run(args, text=True, timeout=self.config.timeout_ssh_command)
                 return res.returncode, "", ""
         except subprocess.TimeoutExpired:
             self.logger.error("RouterOS command timeout")
@@ -435,7 +441,7 @@ class RTTMeasurement:
         Ping host and return median RTT in milliseconds
         Returns None on failure
         """
-        cmd = ["ping", "-c", str(count), "-W", "2", host]
+        cmd = ["ping", "-c", str(count), "-W", str(self.config.timeout_ping), host]
 
         try:
             result = subprocess.run(
@@ -443,7 +449,7 @@ class RTTMeasurement:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=10
+                timeout=self.config.timeout_ping_total
             )
 
             if result.returncode != 0:
