@@ -3,3 +3,14 @@ __pycache__/
 *.pyc
 .env
 *.egg-info/
+
+# Logs
+*.log
+/logs/
+/analysis_logs/
+
+# State files
+*_state.json
+
+# Analysis output
+/analysis/
