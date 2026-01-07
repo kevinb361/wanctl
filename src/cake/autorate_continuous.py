@@ -708,7 +708,7 @@ def main():
         description="Continuous CAKE Auto-Tuning with 3-Zone Controller"
     )
     parser.add_argument(
-        '--configs', nargs='+', required=True,
+        '--config', nargs='+', required=True,
         help='One or more config files (supports single-WAN or multi-WAN)'
     )
     parser.add_argument(
@@ -719,7 +719,7 @@ def main():
     args = parser.parse_args()
 
     # Create controller
-    controller = ContinuousAutoRate(args.configs, debug=args.debug)
+    controller = ContinuousAutoRate(args.config, debug=args.debug)
 
     # Run one cycle (systemd timer will invoke repeatedly)
     controller.run_cycle()

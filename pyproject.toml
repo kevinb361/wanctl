@@ -11,6 +11,11 @@ dependencies = [
   "pexpect>=4.9.0",
 ]
 
+[project.scripts]
+wanctl = "cake.autorate_continuous:main"
+wanctl-calibrate = "cake.calibrate:main"
+wanctl-steering = "cake.steering.daemon:main"
+
 [tool.uv]
 package = true
 

@@ -1,6 +1,6 @@
 [Unit]
 Description=wanctl Adaptive CAKE Autorate - %i
-Documentation=https://github.com/wanctl/wanctl
+Documentation=https://github.com/kevinb361/wanctl
 After=network-online.target
 Wants=network-online.target
 

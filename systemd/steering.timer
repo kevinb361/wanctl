@@ -1,6 +1,6 @@
 [Unit]
 Description=wanctl Adaptive WAN Steering Timer
-Documentation=https://github.com/wanctl/wanctl
+Documentation=https://github.com/kevinb361/wanctl
 Requires=steering.service
 
 [Timer]
