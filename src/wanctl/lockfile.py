@@ -4,10 +4,12 @@ This module provides a context manager for acquiring and releasing lock files,
 ensuring only one instance of a script runs at a time.
 """
 
+import errno
 import os
 import time
 import logging
 from pathlib import Path
+from typing import Optional
 
 
 class LockAcquisitionError(Exception):
@@ -60,6 +62,62 @@ class LockFile:
         self.timeout = timeout
         self.logger = logger
 
+    @staticmethod
+    def _is_process_alive(pid: int) -> bool:
+        """Check if process with given PID is alive.
+
+        Uses os.kill(pid, 0) to check existence without sending signal.
+        Handles PID reuse by checking process state if /proc is available.
+
+        Args:
+            pid: Process ID to check
+
+        Returns:
+            True if process exists and is likely alive
+            False if process is definitely dead
+        """
+        if pid <= 0:
+            return False
+
+        try:
+            os.kill(pid, 0)
+        except OSError as e:
+            if e.errno == errno.ESRCH:
+                # No such process - definitely dead
+                return False
+            elif e.errno == errno.EPERM:
+                # Permission denied - process exists but not ours (conservative)
+                return True
+            else:
+                # Unexpected error - conservative: treat as alive
+                return True
+
+        # os.kill succeeded - process exists
+        # Additional check: is it a zombie?
+        try:
+            with open(f'/proc/{pid}/stat', 'r') as f:
+                stat = f.read()
+                # Third field is state: Z = zombie
+                if ') Z ' in stat or stat.endswith(' Z'):
+                    return False  # Zombie - treat as dead
+        except (FileNotFoundError, PermissionError, OSError):
+            # /proc not available or not accessible - can't determine
+            pass
+
+        return True
+
+    def _read_lock_pid(self) -> Optional[int]:
+        """Read PID from lock file.
+
+        Returns:
+            PID as integer, or None if file doesn't exist or invalid format
+        """
+        try:
+            content = self.lock_path.read_text().strip()
+            return int(content)
+        except (FileNotFoundError, ValueError, OSError):
+            return None
+
     def __enter__(self):
         # Atomic lock acquisition using O_EXCL to prevent race conditions.
         # O_EXCL fails if file exists, making check-and-create atomic.
@@ -69,33 +127,52 @@ class LockFile:
                 os.O_CREAT | os.O_EXCL | os.O_WRONLY,
                 0o644
             )
+            # Write current PID to lock file
+            pid_bytes = f"{os.getpid()}\n".encode('utf-8')
+            os.write(fd, pid_bytes)
             os.close(fd)
-            self.logger.debug(f"Lock acquired: {self.lock_path}")
+            self.logger.debug(f"Lock acquired: {self.lock_path} (PID {os.getpid()})")
             return self
         except FileExistsError:
-            # Lock file exists - check if stale
+            # Lock file exists - check if holder is still alive
             try:
-                age = time.time() - self.lock_path.stat().st_mtime
-            except FileNotFoundError:
-                # File was removed between our open() and stat() - retry once
-                return self.__enter__()
+                existing_pid = self._read_lock_pid()
 
-            if age < self.timeout:
-                self.logger.warning(
-                    f"Lock file exists and is recent ({age:.1f}s old). "
-                    "Another instance may be running."
-                )
-                raise LockAcquisitionError(self.lock_path, age)
-            else:
-                # Stale lock - attempt to remove and retry
-                self.logger.warning(
-                    f"Stale lock file found ({age:.1f}s old). Removing."
-                )
-                try:
+                if existing_pid is None:
+                    # Legacy lock (no PID) - fall back to time-based check
+                    age = time.time() - self.lock_path.stat().st_mtime
+                    if age < self.timeout:
+                        self.logger.warning(
+                            f"Lock file exists with no PID (age {age:.1f}s). "
+                            "Assuming recent - another instance may be running."
+                        )
+                        raise LockAcquisitionError(self.lock_path, age)
+                    else:
+                        self.logger.warning(
+                            f"Stale lock file with no PID (age {age:.1f}s). Removing."
+                        )
+                        self.lock_path.unlink()
+                        return self.__enter__()  # Retry
+
+                # PID found - check if process is alive
+                if self._is_process_alive(existing_pid):
+                    age = time.time() - self.lock_path.stat().st_mtime
+                    self.logger.warning(
+                        f"Lock file exists and holder (PID {existing_pid}) is alive "
+                        f"(age {age:.1f}s). Another instance is running."
+                    )
+                    raise LockAcquisitionError(self.lock_path, age)
+                else:
+                    # Process is dead - safe to remove lock
+                    age = time.time() - self.lock_path.stat().st_mtime
+                    self.logger.warning(
+                        f"Stale lock file from dead process (PID {existing_pid}, age {age:.1f}s). Removing."
+                    )
                     self.lock_path.unlink()
-                except FileNotFoundError:
-                    pass  # Another process already removed it
-                # Retry acquisition (recursive, but bounded by timeout check)
+                    return self.__enter__()  # Retry
+
+            except FileNotFoundError:
+                # Lock was removed between check and stat - retry
                 return self.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
