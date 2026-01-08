@@ -1,11 +1,11 @@
 [Unit]
-Description=wanctl Adaptive CAKE Autorate - %i
+Description=wanctl Adaptive CAKE Autorate Daemon - %i
 Documentation=https://github.com/kevinb361/wanctl
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=wanctl
 Group=wanctl
 
@@ -13,11 +13,18 @@ Group=wanctl
 WorkingDirectory=/opt/wanctl
 ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml
 
+# Daemon lifecycle
+Restart=on-failure
+RestartSec=5s
+# Watchdog: daemon pings every 2s cycle, 30s timeout gives 15x margin
+WatchdogSec=30s
+
 # Environment
 Environment=PYTHONPATH=/opt
 Environment=WANCTL_STATE_DIR=/var/lib/wanctl
 Environment=WANCTL_LOG_DIR=/var/log/wanctl
 Environment=WANCTL_RUN_DIR=/run/wanctl
+EnvironmentFile=-/etc/wanctl/secrets
 
 # Output
 StandardOutput=journal

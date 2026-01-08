@@ -88,6 +88,25 @@ create_directories() {
     print_success "$CONFIG_DIR (configs)"
     print_success "$CONFIG_DIR/ssh (SSH keys)"
 
+    # Secrets file (root:wanctl, group-readable, restricted)
+    if [[ ! -f "$CONFIG_DIR/secrets" ]]; then
+        cat > "$CONFIG_DIR/secrets" << 'EOF'
+# wanctl secrets file
+# This file contains sensitive credentials - DO NOT commit to version control
+# Format: KEY=value (no spaces around =)
+#
+# Example:
+# ROUTER_PASSWORD=your_router_password_here
+#
+# Reference in configs using: ${ROUTER_PASSWORD}
+EOF
+        chown root:"$SERVICE_GROUP" "$CONFIG_DIR/secrets"
+        chmod 640 "$CONFIG_DIR/secrets"
+        print_success "$CONFIG_DIR/secrets (credentials - EDIT THIS)"
+    else
+        print_warning "$CONFIG_DIR/secrets already exists (not overwriting)"
+    fi
+
     # State directory (wanctl:wanctl)
     mkdir -p "$STATE_DIR"
     chown "$SERVICE_USER":"$SERVICE_GROUP" "$STATE_DIR"
@@ -181,6 +200,7 @@ print_summary() {
     echo "  $CODE_DIR          - Code files"
     echo "  $CONFIG_DIR        - Configuration files"
     echo "  $CONFIG_DIR/ssh    - SSH keys for router access"
+    echo "  $CONFIG_DIR/secrets - Credentials (mode 640)"
     echo "  $STATE_DIR         - State files (JSON)"
     echo "  $LOG_DIR           - Log files"
     echo "  $RUN_DIR           - Runtime/lock files"
@@ -189,14 +209,19 @@ print_summary() {
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
     echo "  1. Copy your WAN config to $CONFIG_DIR/wan1.yaml"
-    echo "  2. Copy router SSH key to $CONFIG_DIR/ssh/router.key"
+    echo ""
+    echo "  2. For SSH transport:"
+    echo "     Copy router SSH key to $CONFIG_DIR/ssh/router.key"
     echo "     chmod 600 $CONFIG_DIR/ssh/router.key"
     echo "     chown $SERVICE_USER:$SERVICE_GROUP $CONFIG_DIR/ssh/router.key"
-    echo "  3. Install systemd units:"
-    echo "     cp /opt/wanctl/systemd/wanctl@.service /etc/systemd/system/"
-    echo "     cp /opt/wanctl/systemd/wanctl@.timer /etc/systemd/system/"
-    echo "     systemctl daemon-reload"
-    echo "     systemctl enable --now wanctl@wan1.timer"
+    echo ""
+    echo "  3. For REST API transport (recommended):"
+    echo "     Edit $CONFIG_DIR/secrets and add:"
+    echo "       ROUTER_PASSWORD=your_router_password"
+    echo "     Set transport: \"rest\" in your config file"
+    echo ""
+    echo "  4. Enable the service:"
+    echo "     systemctl enable --now wanctl@wan1.service"
     echo ""
 }
 
@@ -217,7 +242,19 @@ uninstall() {
 
     print_step "Removing directories..."
     rm -rf "$CODE_DIR"
-    rm -rf "$CONFIG_DIR"
+    # Note: CONFIG_DIR contains secrets - prompt before removal
+    if [[ -f "$CONFIG_DIR/secrets" ]]; then
+        print_warning "$CONFIG_DIR/secrets contains credentials"
+        read -p "Remove $CONFIG_DIR? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -rf "$CONFIG_DIR"
+        else
+            print_warning "Keeping $CONFIG_DIR"
+        fi
+    else
+        rm -rf "$CONFIG_DIR"
+    fi
     rm -rf "$STATE_DIR"
     rm -rf "$LOG_DIR"
     rm -rf "$RUN_DIR"

@@ -38,6 +38,8 @@ CORE_FILES=(
     "src/wanctl/retry_utils.py"
     "src/wanctl/logging_utils.py"
     "src/wanctl/routeros_ssh.py"
+    "src/wanctl/routeros_rest.py"
+    "src/wanctl/router_client.py"
     "src/wanctl/calibrate.py"
 )
 
@@ -65,10 +67,9 @@ STEERING_FILES=(
     "src/wanctl/steering_confidence.py"
 )
 
-# Systemd units
+# Systemd units (daemon mode - no timer needed)
 SYSTEMD_FILES=(
     "systemd/wanctl@.service"
-    "systemd/wanctl@.timer"
 )
 
 STEERING_SYSTEMD=(
@@ -160,7 +161,7 @@ deploy_core_files() {
             local basename=$(basename "$file")
             ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR"
             scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/$basename && sudo chown root:root $TARGET_CODE_DIR/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/$basename && sudo chown root:root $TARGET_CODE_DIR/$basename && sudo chmod 644 $TARGET_CODE_DIR/$basename"
             echo "  -> $basename"
         else
             print_warning "File not found: $file"
@@ -174,7 +175,7 @@ deploy_core_files() {
         if [[ -f "$file" ]]; then
             local basename=$(basename "$file")
             scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/backends/$basename && sudo chown root:root $TARGET_CODE_DIR/backends/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/backends/$basename && sudo chown root:root $TARGET_CODE_DIR/backends/$basename && sudo chmod 644 $TARGET_CODE_DIR/backends/$basename"
             echo "  -> backends/$basename"
         else
             print_warning "File not found: $file"
@@ -338,24 +339,33 @@ print_next_steps() {
 
     echo -e "${BLUE}1. Configure your WAN:${NC}"
     echo "   Edit $TARGET_CONFIG_DIR/${wan_name}.yaml on $TARGET_HOST"
-    echo "   - Set router host, user, SSH key path"
+    echo "   - Set router host, user"
     echo "   - Set queue names to match your RouterOS config"
     echo "   - Adjust bandwidth floors and ceilings"
     echo ""
 
-    echo -e "${BLUE}2. Set up SSH key for router access:${NC}"
-    echo "   Copy your router SSH key to $TARGET_CONFIG_DIR/ssh/router.key"
-    echo "   sudo chown wanctl:wanctl $TARGET_CONFIG_DIR/ssh/router.key"
-    echo "   sudo chmod 600 $TARGET_CONFIG_DIR/ssh/router.key"
+    echo -e "${BLUE}2. Set up router credentials:${NC}"
+    echo ""
+    echo "   Option A - REST API (recommended for faster response):"
+    echo "     ssh $TARGET_HOST 'sudo nano $TARGET_CONFIG_DIR/secrets'"
+    echo "     Add: ROUTER_PASSWORD=your_router_password"
+    echo "     Set transport: \"rest\" in your config file"
+    echo ""
+    echo "   Option B - SSH key authentication:"
+    echo "     Copy your router SSH key to $TARGET_CONFIG_DIR/ssh/router.key"
+    echo "     sudo chown wanctl:wanctl $TARGET_CONFIG_DIR/ssh/router.key"
+    echo "     sudo chmod 600 $TARGET_CONFIG_DIR/ssh/router.key"
+    echo "     Set transport: \"ssh\" in your config file"
     echo ""
 
     echo -e "${BLUE}3. Enable the service:${NC}"
-    echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.timer'"
+    echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
     echo ""
 
     echo -e "${BLUE}4. Monitor:${NC}"
     echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name} -f'"
     echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/wanctl/${wan_name}.log'"
+    echo "   ssh $TARGET_HOST 'sudo systemctl status wanctl@${wan_name}.service'"
     echo ""
 
     if [[ "$WITH_STEERING" == "true" ]]; then

@@ -3,21 +3,34 @@
 Continuous CAKE Auto-Tuning System
 3-zone controller with EWMA smoothing for responsive congestion control
 Expert-tuned for VDSL2, Cable, and Fiber connections
+
+Runs as a persistent daemon with internal 2-second control loop.
 """
 import argparse
+import concurrent.futures
 import datetime
 import json
 import logging
+import signal
 import statistics
 import subprocess
+import time
 import traceback
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+# Optional systemd integration for watchdog support
+try:
+    from systemd.daemon import notify as sd_notify
+    HAVE_SYSTEMD = True
+except ImportError:
+    HAVE_SYSTEMD = False
+    sd_notify = None
+
 from wanctl.config_base import BaseConfig
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
-from wanctl.routeros_ssh import RouterOSSSH
+from wanctl.router_client import get_router_client
 from wanctl.state_utils import atomic_write_json
 
 
@@ -28,6 +41,10 @@ from wanctl.state_utils import atomic_write_json
 # Baseline RTT update threshold - only update baseline when delta is minimal
 # This prevents baseline drift under load (architectural invariant)
 BASELINE_UPDATE_THRESHOLD_MS = 3.0
+
+# Daemon cycle interval - target time between cycle starts (seconds)
+# With 2-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~8 cycles = 16 seconds
+CYCLE_INTERVAL_SECONDS = 2.0
 
 # Default timeout values (seconds)
 DEFAULT_SSH_TIMEOUT = 15
@@ -164,6 +181,14 @@ class Config(BaseConfig):
         self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get('ping', DEFAULT_PING_TIMEOUT)
 
+        # Router transport configuration (ssh or rest)
+        router = self.data.get('router', {})
+        self.router_transport = router.get('transport', 'ssh')  # Default to SSH
+        # REST API specific settings (only used if transport=rest)
+        self.router_password = router.get('password', '')
+        self.router_port = router.get('port', 443)
+        self.router_verify_ssl = router.get('verify_ssl', False)
+
         # Lock file
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
@@ -179,35 +204,44 @@ class Config(BaseConfig):
 
 
 # =============================================================================
-# ROUTEROS SSH INTERFACE
+# ROUTEROS INTERFACE
 # =============================================================================
 
 class RouterOS:
-    """RouterOS SSH interface for setting queue limits"""
+    """RouterOS interface for setting queue limits.
+
+    Supports multiple transports:
+    - ssh: SSH via paramiko (default) - uses SSH keys
+    - rest: REST API via HTTPS - uses password authentication
+
+    Transport is selected via config.router_transport field.
+    """
     def __init__(self, config: Config, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.ssh = RouterOSSSH.from_config(config, logger)
+        # Use factory function to get appropriate client (SSH or REST)
+        self.ssh = get_router_client(config, logger)
 
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
-        """Set CAKE limits for one WAN"""
+        """Set CAKE limits for one WAN using a single batched SSH command"""
         self.logger.debug(f"{wan}: Setting limits DOWN={down_bps} UP={up_bps}")
 
         # WAN name for queue type (e.g., "ATT" -> "att", "Spectrum" -> "spectrum")
         wan_lower = self.config.wan_name.lower()
 
-        # Apply settings to queue tree with both queue type and max-limit
-        for queue, direction, bps in [
-            (self.config.queue_down, 'down', down_bps),
-            (self.config.queue_up, 'up', up_bps)
-        ]:
-            queue_type = f"cake-{direction}-{wan_lower}"
-            rc, _, _ = self.ssh.run_cmd(
-                f'/queue tree set [find name="{queue}"] queue={queue_type} max-limit={bps}'
-            )
-            if rc != 0:
-                self.logger.error(f"Failed to set queue tree {queue}")
-                return False
+        # Batch both queue commands into a single SSH call for lower latency
+        # RouterOS supports semicolon-separated commands
+        cmd = (
+            f'/queue tree set [find name="{self.config.queue_down}"] '
+            f'queue=cake-down-{wan_lower} max-limit={down_bps}; '
+            f'/queue tree set [find name="{self.config.queue_up}"] '
+            f'queue=cake-up-{wan_lower} max-limit={up_bps}'
+        )
+
+        rc, _, _ = self.ssh.run_cmd(cmd)
+        if rc != 0:
+            self.logger.error(f"Failed to set queue limits: {cmd}")
+            return False
 
         return True
 
@@ -329,16 +363,9 @@ class QueueController:
         new_rate = self.current_rate
 
         if self.red_streak >= 1:
-            # RED: Immediate step-down
+            # RED: Gradual decay using factor_down
             new_rate = int(self.current_rate * self.factor_down)
-            # Use state-appropriate floor
-            if zone == "RED":
-                floor_bps = self.floor_red_bps
-            elif zone == "YELLOW":
-                floor_bps = self.floor_yellow_bps
-            else:  # GREEN
-                floor_bps = self.floor_green_bps
-            new_rate = max(new_rate, floor_bps)
+            new_rate = max(new_rate, self.floor_red_bps)
         elif self.green_streak >= self.green_required:
             # GREEN: Only step up after 5 consecutive green cycles
             new_rate = self.current_rate + self.step_up_bps
@@ -411,7 +438,7 @@ class QueueController:
         new_rate = self.current_rate
 
         if self.red_streak >= 1:
-            # RED: Immediate aggressive step-down
+            # RED: Gradual decay using factor_down
             new_rate = int(self.current_rate * self.factor_down)
             new_rate = max(new_rate, self.floor_red_bps)
         elif zone == "SOFT_RED":
@@ -496,14 +523,29 @@ class WANController:
 
         For connections with reflector variation (cable): Use median-of-three reflectors
         For stable connections (DSL, fiber): Single reflector is fine
+
+        Pings are run concurrently for faster cycle times.
         """
         if self.use_median_of_three and len(self.ping_hosts) >= 3:
-            # Ping multiple hosts, take median to handle reflector variation
-            rtts = []
-            for host in self.ping_hosts[:3]:  # Use first 3
-                rtt = self.rtt_measurement.ping_host(host, count=3)  # Faster for multiple hosts
-                if rtt is not None:
-                    rtts.append(rtt)
+            # Ping multiple hosts CONCURRENTLY, take median to handle reflector variation
+            hosts_to_ping = self.ping_hosts[:3]  # Use first 3
+
+            # Run pings in parallel using ThreadPoolExecutor
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                futures = {
+                    executor.submit(self.rtt_measurement.ping_host, host, 1): host
+                    for host in hosts_to_ping
+                }
+
+                rtts = []
+                for future in concurrent.futures.as_completed(futures, timeout=3):
+                    try:
+                        rtt = future.result()
+                        if rtt is not None:
+                            rtts.append(rtt)
+                    except Exception as e:
+                        host = futures[future]
+                        self.logger.debug(f"{self.wan_name}: Ping to {host} failed: {e}")
 
             if len(rtts) >= 2:
                 median_rtt = statistics.median(rtts)
@@ -516,7 +558,7 @@ class WANController:
                 return None
         else:
             # Single host ping
-            return self.rtt_measurement.ping_host(self.ping_hosts[0], count=5)
+            return self.rtt_measurement.ping_host(self.ping_hosts[0], count=1)
 
     def update_ewma(self, measured_rtt: float):
         """Update both EWMAs (fast load, slow baseline)"""
@@ -681,15 +723,24 @@ class ContinuousAutoRate:
                 'logger': logger
             })
 
-    def run_cycle(self):
-        """Run one cycle for all WANs"""
+    def run_cycle(self, use_lock: bool = True):
+        """Run one cycle for all WANs
+
+        Args:
+            use_lock: If True, acquire lock per-cycle (oneshot mode).
+                     If False, assume lock is already held (daemon mode).
+        """
         for wan_info in self.wan_controllers:
             controller = wan_info['controller']
             config = wan_info['config']
             logger = wan_info['logger']
 
             try:
-                with LockFile(config.lock_file, config.lock_timeout, logger):
+                if use_lock:
+                    with LockFile(config.lock_file, config.lock_timeout, logger):
+                        controller.run_cycle()
+                else:
+                    # Lock already held by daemon - just run the cycle
                     controller.run_cycle()
             except LockAcquisitionError:
                 # Another instance is running - this is normal, not an error
@@ -698,6 +749,10 @@ class ContinuousAutoRate:
                 logger.error(f"Cycle error: {e}")
                 logger.debug(traceback.format_exc())
 
+    def get_lock_paths(self) -> List[Path]:
+        """Return lock file paths for all configured WANs"""
+        return [wan_info['config'].lock_file for wan_info in self.wan_controllers]
+
 
 # =============================================================================
 # MAIN ENTRY POINT
@@ -705,7 +760,7 @@ class ContinuousAutoRate:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Continuous CAKE Auto-Tuning with 3-Zone Controller"
+        description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
     )
     parser.add_argument(
         '--config', nargs='+', required=True,
@@ -715,14 +770,100 @@ def main():
         '--debug', action='store_true',
         help='Enable debug logging to console and debug log file'
     )
+    parser.add_argument(
+        '--oneshot', action='store_true',
+        help='Run one cycle and exit (for testing/manual runs)'
+    )
 
     args = parser.parse_args()
 
     # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
 
-    # Run one cycle (systemd timer will invoke repeatedly)
-    controller.run_cycle()
+    # Oneshot mode for testing - use per-cycle locking
+    if args.oneshot:
+        controller.run_cycle(use_lock=True)
+        return
+
+    # Daemon mode: continuous loop with 2-second cycle time
+    # Acquire locks once at startup and hold for entire run
+    lock_files = []
+    for lock_path in controller.get_lock_paths():
+        # Force remove any stale lock file from previous run
+        if lock_path.exists():
+            try:
+                age = time.time() - lock_path.stat().st_mtime
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].info(f"Removing stale lock file ({age:.1f}s old): {lock_path}")
+                lock_path.unlink()
+            except (FileNotFoundError, OSError):
+                pass
+
+        # Create new lock file
+        try:
+            import os
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            os.close(fd)
+            lock_files.append(lock_path)
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].debug(f"Lock acquired: {lock_path}")
+        except FileExistsError:
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].error(f"Failed to acquire lock: {lock_path}")
+            return 1
+
+    running = True
+
+    def handle_signal(signum, frame):
+        nonlocal running
+        # Log shutdown on first signal
+        for wan_info in controller.wan_controllers:
+            wan_info['logger'].info(f"Received signal {signum}, shutting down...")
+        running = False
+
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
+    # Log startup
+    for wan_info in controller.wan_controllers:
+        wan_info['logger'].info(f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval")
+        if HAVE_SYSTEMD:
+            wan_info['logger'].info("Systemd watchdog support enabled")
+
+    try:
+        while running:
+            cycle_start = time.monotonic()
+            controller.run_cycle(use_lock=False)  # Lock already held
+            elapsed = time.monotonic() - cycle_start
+
+            # Notify systemd watchdog that we're alive
+            if HAVE_SYSTEMD:
+                sd_notify("WATCHDOG=1")
+
+            # Sleep for remainder of cycle interval
+            sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
+            if sleep_time > 0 and running:
+                time.sleep(sleep_time)
+    finally:
+        # Clean up SSH connections on exit
+        for wan_info in controller.wan_controllers:
+            try:
+                wan_info['controller'].router.ssh.close()
+            except Exception as e:
+                wan_info['logger'].debug(f"Error closing SSH: {e}")
+
+        # Clean up lock files on exit
+        for lock_path in lock_files:
+            try:
+                lock_path.unlink()
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].debug(f"Lock released: {lock_path}")
+            except (FileNotFoundError, OSError):
+                pass
+
+        # Log clean shutdown
+        for wan_info in controller.wan_controllers:
+            wan_info['logger'].info("Daemon shutdown complete")
 
 
 if __name__ == "__main__":
