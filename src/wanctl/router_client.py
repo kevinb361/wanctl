@@ -35,13 +35,15 @@ Configuration (in YAML):
 """
 
 import logging
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 from wanctl.routeros_ssh import RouterOSSSH
 
+if TYPE_CHECKING:
+    from wanctl.routeros_rest import RouterOSREST
 
 # Type alias for router clients
-RouterClient = Union['RouterOSSSH', 'RouterOSREST']
+RouterClient = Union[RouterOSSSH, 'RouterOSREST']
 
 
 def get_router_client(config, logger: logging.Logger) -> RouterClient:

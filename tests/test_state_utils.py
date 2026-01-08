@@ -1,7 +1,6 @@
 """Tests for state_utils module - atomic file operations."""
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -162,8 +161,7 @@ class TestSafeReadJson:
         """Test that empty file returns default."""
         file_path = temp_dir / "empty.json"
 
-        with open(file_path, "w") as f:
-            pass  # Create empty file
+        file_path.touch()  # Create empty file
 
         result = safe_read_json(file_path)
         assert result == {}

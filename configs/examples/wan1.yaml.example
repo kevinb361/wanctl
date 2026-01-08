@@ -10,9 +10,14 @@ wan_name: "wan1"  # Used in logs and state files
 # RouterOS connection
 # Configure your Mikrotik router access here
 router:
+  transport: "rest"             # "rest" (recommended) or "ssh"
   host: "192.168.1.1"           # Router IP address
   user: "admin"                 # RouterOS user with queue tree access
-  ssh_key: "/etc/wanctl/ssh/router.key"  # Path to SSH private key
+  ssh_key: "/etc/wanctl/ssh/router.key"  # For SSH transport
+  # REST transport settings
+  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
 
 # Queue names in RouterOS
 # These must match your existing queue tree configuration

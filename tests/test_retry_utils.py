@@ -2,7 +2,7 @@
 
 import subprocess
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -161,8 +161,6 @@ class TestRetryWithBackoff:
         def track_timing():
             delays.append(time.time())
             raise ConnectionError("Fail")
-
-        start = time.time()
 
         with pytest.raises(ConnectionError):
             track_timing()
