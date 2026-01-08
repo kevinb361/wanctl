@@ -227,10 +227,12 @@ class RouterOSREST:
         """
         cmd = cmd.strip()
 
-        # Parse /queue tree set command
+        # Parse /queue tree commands
         if cmd.startswith('/queue tree set'):
             return self._handle_queue_tree_set(cmd)
-        elif cmd.startswith('/queue tree print'):
+        elif 'reset-counters' in cmd and '/queue' in cmd:
+            return self._handle_queue_reset_counters(cmd)
+        elif cmd.startswith('/queue tree print') or cmd.startswith('/queue/tree print'):
             return self._handle_queue_tree_print(cmd)
         elif cmd.startswith('/ip firewall mangle'):
             return self._handle_mangle_rule(cmd)
@@ -295,6 +297,56 @@ class RouterOSREST:
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error updating queue: {e}")
+            return None
+
+    def _handle_queue_reset_counters(self, cmd: str) -> Optional[dict]:
+        """Handle /queue tree reset-counters command.
+
+        Example: /queue tree reset-counters [find name="WAN-Download"]
+        RouterOS REST API uses POST to /queue/tree/reset-counters with .id parameter
+
+        Args:
+            cmd: Queue tree reset-counters command
+
+        Returns:
+            API response dict or None on failure
+        """
+        import re
+
+        # Extract queue name from [find name="..."]
+        name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
+        if not name_match:
+            # Try alternative format: where name="..."
+            name_match = re.search(r'name="([^"]+)"', cmd)
+
+        if not name_match:
+            self.logger.error(f"Could not parse queue name from: {cmd}")
+            return None
+
+        queue_name = name_match.group(1)
+
+        # Find the queue ID
+        queue_id = self._find_queue_id(queue_name)
+        if queue_id is None:
+            self.logger.error(f"Queue not found: {queue_name}")
+            return None
+
+        # Reset counters via POST
+        url = f"{self.base_url}/queue/tree/reset-counters"
+
+        try:
+            # RouterOS REST API expects .id parameter for the target
+            resp = self._session.post(url, json={".id": queue_id}, timeout=self.timeout)
+
+            if resp.ok:
+                self.logger.debug(f"Reset counters for queue {queue_name}")
+                return {"status": "ok", "queue": queue_name}
+            else:
+                self.logger.error(f"Failed to reset counters for {queue_name}: {resp.status_code} {resp.text}")
+                return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error resetting counters: {e}")
             return None
 
     def _handle_queue_tree_print(self, cmd: str) -> Optional[dict]:

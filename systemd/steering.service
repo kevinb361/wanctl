@@ -11,12 +11,14 @@ Group=wanctl
 
 # FHS paths
 WorkingDirectory=/opt/wanctl
-ExecStart=/usr/bin/python3 /opt/wanctl/steering/daemon.py --config /etc/wanctl/steering.yaml
+ExecStart=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml
 
 # Environment
+Environment=PYTHONPATH=/opt
 Environment=WANCTL_STATE_DIR=/var/lib/wanctl
 Environment=WANCTL_LOG_DIR=/var/log/wanctl
 Environment=WANCTL_RUN_DIR=/run/wanctl
+EnvironmentFile=-/etc/wanctl/secrets
 
 # Output
 StandardOutput=journal
