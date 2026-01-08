@@ -4,7 +4,7 @@
 
 **Adaptive CAKE bandwidth control for Mikrotik RouterOS.**
 
-Eliminates bufferbloat by continuously monitoring RTT and adjusting queue limits in real-time. Supports multi-WAN with optional intelligent traffic steering.
+Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in real-time. Supports multi-WAN with optional intelligent traffic steering.
 
 ## Features
 

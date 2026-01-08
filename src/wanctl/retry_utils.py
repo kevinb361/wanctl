@@ -16,9 +16,10 @@ def is_retryable_error(exception: Exception) -> bool:
     - subprocess.TimeoutExpired (network/SSH timeout)
     - ConnectionError subclasses (connection refused, reset)
     - OSError with connection-related messages
+    - requests.exceptions.ConnectionError, Timeout, ChunkedEncodingError
 
     Non-retryable conditions:
-    - Authentication failures (permission denied)
+    - Authentication failures (permission denied, 401/403)
     - Command syntax errors
     - Other logic errors
 
@@ -47,6 +48,27 @@ def is_retryable_error(exception: Exception) -> bool:
             'network is unreachable'
         ]
         return any(msg in err_str for msg in retryable_messages)
+
+    # Handle requests library exceptions (if requests is available)
+    try:
+        import requests.exceptions
+        # Retryable requests errors
+        if isinstance(exception, (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+        )):
+            return True
+        # Non-retryable: HTTPError with 4xx client errors (except 408 Request Timeout)
+        if isinstance(exception, requests.exceptions.HTTPError):
+            if hasattr(exception, 'response') and exception.response is not None:
+                status = exception.response.status_code
+                # 408 (Request Timeout) and 5xx are retryable
+                if status == 408 or status >= 500:
+                    return True
+            return False
+    except ImportError:
+        pass
 
     # All other exceptions are not retryable
     return False

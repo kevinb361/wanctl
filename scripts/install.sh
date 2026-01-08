@@ -113,6 +113,18 @@ EOF
     chmod 750 "$STATE_DIR"
     print_success "$STATE_DIR (state files)"
 
+    # SSH known_hosts directory for wanctl user (required for host key validation)
+    mkdir -p "$STATE_DIR/.ssh"
+    chown "$SERVICE_USER":"$SERVICE_GROUP" "$STATE_DIR/.ssh"
+    chmod 700 "$STATE_DIR/.ssh"
+    # Create empty known_hosts if it doesn't exist
+    if [[ ! -f "$STATE_DIR/.ssh/known_hosts" ]]; then
+        touch "$STATE_DIR/.ssh/known_hosts"
+        chown "$SERVICE_USER":"$SERVICE_GROUP" "$STATE_DIR/.ssh/known_hosts"
+        chmod 600 "$STATE_DIR/.ssh/known_hosts"
+    fi
+    print_success "$STATE_DIR/.ssh (SSH known_hosts)"
+
     # Log directory (wanctl:wanctl)
     mkdir -p "$LOG_DIR"
     chown "$SERVICE_USER":"$SERVICE_GROUP" "$LOG_DIR"
@@ -211,9 +223,13 @@ print_summary() {
     echo "  1. Copy your WAN config to $CONFIG_DIR/wan1.yaml"
     echo ""
     echo "  2. For SSH transport:"
-    echo "     Copy router SSH key to $CONFIG_DIR/ssh/router.key"
-    echo "     chmod 600 $CONFIG_DIR/ssh/router.key"
-    echo "     chown $SERVICE_USER:$SERVICE_GROUP $CONFIG_DIR/ssh/router.key"
+    echo "     a) Copy router SSH key:"
+    echo "        sudo cp ~/.ssh/router_key $CONFIG_DIR/ssh/router.key"
+    echo "        sudo chmod 600 $CONFIG_DIR/ssh/router.key"
+    echo "        sudo chown $SERVICE_USER:$SERVICE_GROUP $CONFIG_DIR/ssh/router.key"
+    echo ""
+    echo "     b) Add router host key to known_hosts (REQUIRED for security):"
+    echo "        sudo -u $SERVICE_USER ssh-keyscan -H <router_ip> >> $STATE_DIR/.ssh/known_hosts"
     echo ""
     echo "  3. For REST API transport (recommended):"
     echo "     Edit $CONFIG_DIR/secrets and add:"

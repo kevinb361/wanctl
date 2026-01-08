@@ -38,10 +38,12 @@ Usage:
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
+
+from wanctl.retry_utils import retry_with_backoff
 
 # Disable SSL warnings for self-signed certificates (common on routers)
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -102,6 +104,11 @@ class RouterOSREST:
         self._session.auth = (user, password)
         self._session.verify = verify_ssl
 
+        # Cache for queue/rule IDs to reduce API calls
+        # Key: queue_name or rule_comment, Value: RouterOS ID (e.g., "*1")
+        self._queue_id_cache: Dict[str, str] = {}
+        self._mangle_id_cache: Dict[str, str] = {}
+
         self.logger.debug(f"RouterOS REST client initialized: {self.base_url}")
 
     @classmethod
@@ -141,11 +148,15 @@ class RouterOSREST:
             logger=logger
         )
 
+    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
         """Execute RouterOS command via REST API.
 
         Converts CLI-style commands to REST API calls.
         Note: Only certain commands are supported - primarily queue/tree operations.
+
+        Retries on transient network errors (connection refused, timeout, etc.)
+        with exponential backoff, matching SSH client behavior.
 
         Args:
             cmd: RouterOS command to execute (CLI-style)
@@ -158,7 +169,7 @@ class RouterOSREST:
             - stderr: error message if any
 
         Raises:
-            requests.RequestException: On network errors
+            requests.RequestException: On persistent network errors after retries
         """
         self.logger.debug(f"RouterOS REST command: {cmd}")
 
@@ -370,15 +381,24 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _find_queue_id(self, queue_name: str) -> Optional[str]:
+    def _find_queue_id(self, queue_name: str, use_cache: bool = True) -> Optional[str]:
         """Find queue tree ID by name.
+
+        Uses caching to reduce API calls on repeated lookups.
+        Queue IDs are stable unless queues are deleted/recreated.
 
         Args:
             queue_name: Name of the queue
+            use_cache: Whether to use cached ID (default True)
 
         Returns:
             Queue ID (e.g., "*1") or None if not found
         """
+        # Check cache first
+        if use_cache and queue_name in self._queue_id_cache:
+            self.logger.debug(f"Queue ID cache hit: {queue_name} -> {self._queue_id_cache[queue_name]}")
+            return self._queue_id_cache[queue_name]
+
         url = f"{self.base_url}/queue/tree"
 
         try:
@@ -388,7 +408,12 @@ class RouterOSREST:
                 # RouterOS returns list of matching items
                 items = resp.json()
                 if items:
-                    return items[0].get('.id')
+                    queue_id = items[0].get('.id')
+                    # Cache the result
+                    if queue_id:
+                        self._queue_id_cache[queue_name] = queue_id
+                        self.logger.debug(f"Queue ID cached: {queue_name} -> {queue_id}")
+                    return queue_id
 
             return None
 
@@ -396,15 +421,23 @@ class RouterOSREST:
             self.logger.error(f"REST API error finding queue: {e}")
             return None
 
-    def _find_mangle_rule_id(self, comment: str) -> Optional[str]:
+    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True) -> Optional[str]:
         """Find mangle rule ID by comment.
+
+        Uses caching to reduce API calls on repeated lookups.
 
         Args:
             comment: Comment of the rule
+            use_cache: Whether to use cached ID (default True)
 
         Returns:
             Rule ID or None if not found
         """
+        # Check cache first
+        if use_cache and comment in self._mangle_id_cache:
+            self.logger.debug(f"Mangle ID cache hit: {comment} -> {self._mangle_id_cache[comment]}")
+            return self._mangle_id_cache[comment]
+
         url = f"{self.base_url}/ip/firewall/mangle"
 
         try:
@@ -413,7 +446,12 @@ class RouterOSREST:
             if resp.ok and resp.json():
                 items = resp.json()
                 if items:
-                    return items[0].get('.id')
+                    rule_id = items[0].get('.id')
+                    # Cache the result
+                    if rule_id:
+                        self._mangle_id_cache[comment] = rule_id
+                        self.logger.debug(f"Mangle ID cached: {comment} -> {rule_id}")
+                    return rule_id
 
             return None
 
