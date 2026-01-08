@@ -19,7 +19,6 @@ This tool will:
 
 import argparse
 import json
-import os
 import re
 import signal
 import statistics
@@ -428,7 +427,7 @@ def binary_search_optimal_rate(
 
         # Set CAKE limit
         if not set_cake_limit(router_host, router_user, queue_name, rate_bps, ssh_key):
-            print_warning(f"  Failed to set queue limit, skipping iteration")
+            print_warning("  Failed to set queue limit, skipping iteration")
             continue
 
         time.sleep(1)  # Let queue stabilize
@@ -770,8 +769,8 @@ def run_calibration(
     print_header("Calibration Complete!")
     print_info("Next steps:")
     print_info(f"  1. Review the generated config: {output_path}")
-    print_info(f"  2. Update queue names to match your RouterOS config")
-    print_info(f"  3. Copy SSH key: sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key")
+    print_info("  2. Update queue names to match your RouterOS config")
+    print_info("  3. Copy SSH key: sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key")
     print_info(f"  4. Enable the service: sudo systemctl enable --now wanctl@{wan_name}.timer")
 
     return result

@@ -32,17 +32,12 @@ from .daemon import (
 )
 
 # Phase 2B (optional)
+PHASE2B_AVAILABLE = False
 try:
-    from .steering_confidence import (
-        Phase2BController,
-        ConfidenceSignals,
-        ConfidenceWeights,
-        TimerState,
-        compute_confidence,
-    )
-    PHASE2B_AVAILABLE = True
+    from . import steering_confidence as _sc
+    PHASE2B_AVAILABLE = bool(_sc)  # Reference to satisfy linters
 except ImportError:
-    PHASE2B_AVAILABLE = False
+    pass
 
 __all__ = [
     # Core classes
@@ -67,6 +62,12 @@ __all__ = [
 
 # Add Phase2B exports if available
 if PHASE2B_AVAILABLE:
+    # Re-export Phase2B symbols (referenced via _sc for linter compatibility)
+    Phase2BController = _sc.Phase2BController
+    ConfidenceSignals = _sc.ConfidenceSignals
+    ConfidenceWeights = _sc.ConfidenceWeights
+    TimerState = _sc.TimerState
+    compute_confidence = _sc.compute_confidence
     __all__.extend([
         'Phase2BController',
         'ConfidenceSignals',

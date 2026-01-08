@@ -12,10 +12,16 @@
 
 wan_name: "wan2"
 
+# RouterOS connection
 router:
+  transport: "rest"  # "rest" (recommended) or "ssh"
   host: "192.168.1.1"
   user: "admin"
-  ssh_key: "/etc/wanctl/ssh/router.key"
+  ssh_key: "/etc/wanctl/ssh/router.key"  # For SSH transport
+  # REST transport settings
+  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
 
 queues:
   download: "WAN-Download-2"
