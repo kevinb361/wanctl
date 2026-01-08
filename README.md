@@ -31,16 +31,35 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
 
-# Run installation on target host (requires root)
+# Run installation with interactive setup wizard (recommended)
 sudo ./scripts/install.sh
+```
 
-# Copy example config
-sudo cp configs/examples/wan1.yaml.example /etc/wanctl/wan1.yaml
+The **interactive setup wizard** guides you through:
 
-# Edit config for your setup
-sudo nano /etc/wanctl/wan1.yaml
+- Router connection setup (REST API or SSH)
+- Automated connection testing and validation
+- Queue discovery from your router
+- Connection-type presets (cable/DSL/fiber) with optimized defaults
+- Multi-WAN architecture guidance
+- Optional traffic steering configuration
 
-# Enable the service
+**Alternative installation modes:**
+
+```bash
+# Non-interactive install (for automation)
+sudo ./scripts/install.sh --no-wizard
+
+# Re-run wizard on existing installation
+sudo ./scripts/install.sh --reconfigure
+
+# Uninstall wanctl
+sudo ./scripts/install.sh --uninstall
+```
+
+After wizard completion, enable the service:
+
+```bash
 sudo systemctl enable --now wanctl@wan1.timer
 ```
 
@@ -235,7 +254,7 @@ See `src/wanctl/backends/base.py` for the interface definition.
 
 ## Acknowledgments
 
-### Dave Täht (1962-2023) - In Memoriam
+### Dave Täht (1965-2025) - In Memoriam
 
 This project stands on the shoulders of **Dave Täht**, pioneer of the bufferbloat movement and lead developer of CAKE. Dave personally helped configure CAKE on Mikrotik in the early days:
 

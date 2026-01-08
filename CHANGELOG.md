@@ -28,10 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0-rc4] - 2026-01-07
+## [1.0.0-rc5] - 2026-01-08
 
 ### Added
 
+- **Interactive Setup Wizard**: Guided first-time installation via `install.sh`
+  - Router connection testing (REST API and SSH validation)
+  - Queue discovery from router (auto-detects existing CAKE queues)
+  - Connection-type presets (cable/DSL/fiber) with optimized defaults
+  - Multi-WAN architecture guidance for dual-WAN deployments
+  - Secure credential storage with clear user messaging
+- **Wizard Modes**: `--no-wizard` (automation), `--reconfigure` (modify existing), `--uninstall`
+- **Auto-Dependency Installation**: Installs python3-yaml, python3-pexpect, bc automatically
 - **REST API Transport**: Alternative to SSH for RouterOS communication
 - **Transport Comparison**: `docs/TRANSPORT_COMPARISON.md` with stress test data
 - **Secrets Management**: Password support via `/etc/wanctl/secrets` environment file
@@ -39,6 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - REST API is now the recommended transport (configurable via `transport: "rest"`)
+- Installation now defaults to interactive wizard (use `--no-wizard` to skip)
+
+### Fixed
+
+- Password storage handles special characters correctly (no sed injection vulnerability)
+- SSH key path uses `SUDO_USER` home directory when run with sudo
+- bc auto-installed as dependency for floor calculations
+- Fixed echo color escape codes in install script
 
 ---
 
@@ -159,7 +175,7 @@ wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS that reduc
 
 ### Acknowledgments
 
-- **Dave Täht (1962-2023)**: Pioneer of the bufferbloat movement, lead developer of CAKE
+- **Dave Täht (1965-2025)**: Pioneer of the bufferbloat movement, lead developer of CAKE
 - **CAKE Team**: Jonathan Morton, Toke Høiland-Jørgensen, and contributors
 - **LibreQoS**: Robert McMahon and team for enterprise CAKE orchestration
 - **sqm-autorate**: Lynx and the OpenWrt community
@@ -172,7 +188,8 @@ GPL-2.0 - Compatible with CAKE and LibreQoS ecosystem
 
 ---
 
-[Unreleased]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc4...HEAD
+[Unreleased]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc5...HEAD
+[1.0.0-rc5]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc4...v1.0.0-rc5
 [1.0.0-rc4]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc3...v1.0.0-rc4
 [1.0.0-rc3]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc1...v1.0.0-rc3
 [1.0.0-rc1]: https://github.com/kevinb361/wanctl/releases/tag/v1.0.0-rc1
