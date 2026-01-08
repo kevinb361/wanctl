@@ -11,12 +11,12 @@
 
 A controlled stress test comparing REST API (HTTPS port 443) vs SSH/Paramiko transport for RouterOS queue management revealed significant performance differences:
 
-| Metric | REST API | SSH/Paramiko | Improvement |
-|--------|----------|--------------|-------------|
-| Peak RTT | 194ms | 404ms | **2.1x better** |
-| RED/RED cycles | 0 | 5 | **No hard congestion** |
-| Download stability | 940M (stable) | 940M→417M | **No unnecessary reduction** |
-| Time to floor | ~35s | ~45s | **22% faster** |
+| Metric             | REST API      | SSH/Paramiko | Improvement                  |
+| ------------------ | ------------- | ------------ | ---------------------------- |
+| Peak RTT           | 194ms         | 404ms        | **2.1x better**              |
+| RED/RED cycles     | 0             | 5            | **No hard congestion**       |
+| Download stability | 940M (stable) | 940M→417M    | **No unnecessary reduction** |
+| Time to floor      | ~35s          | ~45s         | **22% faster**               |
 
 **Recommendation:** Use REST API transport for production deployments.
 
@@ -25,20 +25,23 @@ A controlled stress test comparing REST API (HTTPS port 443) vs SSH/Paramiko tra
 ## Test Methodology
 
 ### Environment
-- **Router:** Mikrotik rb5009 at 10.10.99.1
-- **Controller:** cake-spectrum LXC at 10.10.110.246
-- **WAN:** Spectrum Cable ~940/38 Mbps
-- **Test server:** netperf server at 104.200.21.31 (Dallas, TX)
+
+- **Router:** Mikrotik rb5009
+- **Controller:** LXC container running wanctl
+- **WAN:** Cable ~940/38 Mbps
+- **Test server:** Remote netperf server
 
 ### Test Parameters
+
 ```bash
 # 8 parallel upload streams for 180 seconds
 for i in {1..8}; do
-  netperf -H 104.200.21.31 -t TCP_MAERTS -l 180 &
+  netperf -H <netperf-server> -t TCP_MAERTS -l 180 &
 done
 ```
 
 ### Controller Configuration
+
 - Cycle time: ~2 seconds
 - Upload ceiling: 38M, floor: 8M
 - factor_down: 0.85 (15% reduction per RED cycle)
@@ -50,15 +53,16 @@ done
 
 ### REST API Test (01:15:01 - 01:18:07 UTC)
 
-| State | Count | Percentage |
-|-------|-------|------------|
-| YELLOW/YELLOW | 47 | 55% |
-| YELLOW/RED | 19 | 22% |
-| SOFT_RED/RED | 18 | 21% |
-| RED/RED | 0 | 0% |
-| **Total cycles** | 84 | |
+| State            | Count | Percentage |
+| ---------------- | ----- | ---------- |
+| YELLOW/YELLOW    | 47    | 55%        |
+| YELLOW/RED       | 19    | 22%        |
+| SOFT_RED/RED     | 18    | 21%        |
+| RED/RED          | 0     | 0%         |
+| **Total cycles** | 84    |            |
 
 **Key metrics:**
+
 - Peak RTT: **194ms**
 - Peak delta: 65.5ms
 - Download: Stable at 940M (no reduction)
@@ -67,15 +71,16 @@ done
 
 ### SSH/Paramiko Test (01:21:16 - 01:24:23 UTC)
 
-| State | Count | Percentage |
-|-------|-------|------------|
-| YELLOW/YELLOW | 55 | 61% |
-| YELLOW/RED | 12 | 13% |
-| SOFT_RED/RED | 15 | 17% |
-| RED/RED | 5 | **6%** |
-| **Total cycles** | 87 | |
+| State            | Count | Percentage |
+| ---------------- | ----- | ---------- |
+| YELLOW/YELLOW    | 55    | 61%        |
+| YELLOW/RED       | 12    | 13%        |
+| SOFT_RED/RED     | 15    | 17%        |
+| RED/RED          | 5     | **6%**     |
+| **Total cycles** | 87    |            |
 
 **Key metrics:**
+
 - Peak RTT: **404ms** (2.1x worse)
 - Peak delta: 115.8ms (hard RED threshold exceeded)
 - Download: 940M → 417M (55% reduction due to RED/RED)
@@ -332,6 +337,7 @@ The SSH test experienced a catastrophic cascade at 01:21:38:
 ```
 
 This cascade happened because:
+
 1. SSH command took ~200ms to execute
 2. During that time, congestion escalated
 3. By the time the next measurement occurred, RTT had spiked to 404ms
@@ -355,12 +361,12 @@ This means SSH users would experience reduced download capacity for nearly 2 min
 ### Production Config (REST API)
 
 ```yaml
-# /etc/wanctl/spectrum.yaml
+# /etc/wanctl/<wan_name>.yaml
 router:
-  transport: "rest"  # REST API recommended
-  host: "10.10.99.1"
+  transport: "rest" # REST API recommended
+  host: "<router-ip>"
   user: "admin"
-  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
   port: 443
   verify_ssl: false
 ```
@@ -399,5 +405,5 @@ The only tradeoff is password-based authentication vs SSH keys, which is accepta
 
 ---
 
-*Document generated: 2026-01-08*
-*wanctl version: 4.6 (REST API transport)*
+_Document generated: 2026-01-08_
+_wanctl version: 4.6 (REST API transport)_
