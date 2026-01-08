@@ -34,7 +34,7 @@ from typing import Any, Dict, Optional
 from ..config_base import BaseConfig
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
-from ..routeros_ssh import RouterOSSSH
+from ..router_client import get_router_client
 from ..state_utils import atomic_write_json
 
 from .cake_stats import CakeStatsReader, CongestionSignals
@@ -129,6 +129,14 @@ class SteeringConfig(BaseConfig):
 
     def _load_specific_fields(self):
         """Load steering daemon-specific configuration fields"""
+        # Router transport settings (REST or SSH)
+        router = self.data['router']
+        self.router_transport = router.get('transport', 'ssh')  # Default to SSH
+        # REST-specific settings
+        self.router_password = router.get('password', '')
+        self.router_port = router.get('port', 443)
+        self.router_verify_ssl = router.get('verify_ssl', False)
+
         # Topology - which WANs to monitor and steer between
         topology = self.data.get('topology', {})
         self.primary_wan = topology.get('primary_wan', 'wan1')
@@ -223,7 +231,11 @@ class SteeringConfig(BaseConfig):
         self.router = {
             'host': self.router_host,
             'user': self.router_user,
-            'ssh_key': self.ssh_key
+            'ssh_key': self.ssh_key,
+            'transport': self.router_transport,
+            'password': self.router_password,
+            'port': self.router_port,
+            'verify_ssl': self.router_verify_ssl
         }
 
 
@@ -386,19 +398,19 @@ class SteeringState:
 # =============================================================================
 
 class RouterOSController:
-    """RouterOS SSH interface to toggle steering rule"""
+    """RouterOS interface to toggle steering rule (supports SSH and REST)"""
 
     def __init__(self, config: SteeringConfig, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.ssh = RouterOSSSH.from_config(config, logger)
+        self.client = get_router_client(config, logger)
 
     def get_rule_status(self) -> Optional[bool]:
         """
         Check if adaptive steering rule is enabled
         Returns: True if enabled, False if disabled, None on error
         """
-        rc, out, _ = self.ssh.run_cmd(
+        rc, out, _ = self.client.run_cmd(
             f'/ip firewall mangle print where comment~"{self.config.mangle_rule_comment}"',
             capture=True
         )
@@ -431,7 +443,7 @@ class RouterOSController:
         """Enable adaptive steering rule (route LATENCY_SENSITIVE to alternate WAN)"""
         self.logger.info(f"Enabling steering rule: {self.config.mangle_rule_comment}")
 
-        rc, _, _ = self.ssh.run_cmd(
+        rc, _, _ = self.client.run_cmd(
             f'/ip firewall mangle enable [find comment~"{self.config.mangle_rule_comment}"]'
         )
 
@@ -452,7 +464,7 @@ class RouterOSController:
         """Disable adaptive steering rule (all traffic uses default routing)"""
         self.logger.info(f"Disabling steering rule: {self.config.mangle_rule_comment}")
 
-        rc, _, _ = self.ssh.run_cmd(
+        rc, _, _ = self.client.run_cmd(
             f'/ip firewall mangle disable [find comment~"{self.config.mangle_rule_comment}"]'
         )
 
