@@ -5,11 +5,55 @@ All notable changes to wanctl will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-01-07
+## [Unreleased]
+
+### Added
+- **REST API Transport**: 2x faster than SSH (~50ms vs ~150ms latency)
+- **Config Validation**: Threshold and floor ordering enforcement with clear error messages
+- **Upgrade Documentation**: `docs/UPGRADING.md` with procedures and state file compatibility
+- **Non-Goals Section**: Clear project scope in README
+
+### Changed
+- **SSH Host Key Validation**: Now enforced via `paramiko.RejectPolicy()` (security hardening)
+- **REST Retry Parity**: REST client now has same retry behavior as SSH client
+
+### Fixed
+- SSH security: Removed `AutoAddPolicy()` that accepted any host key (MITM vulnerability)
+- README: Changed "eliminates bufferbloat" to "reduces bufferbloat" (accuracy)
+- Standardized example IPs to conventional 192.168.1.x range
+
+---
+
+## [1.0.0-rc4] - 2026-01-07
+
+### Added
+- **REST API Transport**: Alternative to SSH for RouterOS communication
+- **Transport Comparison**: `docs/TRANSPORT_COMPARISON.md` with stress test data
+- **Secrets Management**: Password support via `/etc/wanctl/secrets` environment file
+
+### Changed
+- REST API is now the recommended transport (configurable via `transport: "rest"`)
+
+---
+
+## [1.0.0-rc3] - 2026-01-05
+
+### Changed
+- **Package Rename**: `cake` → `wanctl` to avoid confusion with CAKE qdisc
+- **CLI Entry Points**: `wanctl`, `wanctl-calibrate`, `wanctl-steering`
+- **FHS Compliance**: `/opt/wanctl`, `/etc/wanctl`, `/var/lib/wanctl`
+
+### Security
+- Atomic lock file creation with `O_CREAT | O_EXCL`
+- Restrictive temp file permissions (0o600)
+
+---
+
+## [1.0.0-rc1] - 2026-01-01
 
 ### Initial Open Source Release
 
-wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS that eliminates bufferbloat through continuous RTT monitoring and automatic queue adjustment.
+wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS that reduces bufferbloat through continuous RTT monitoring and automatic queue adjustment.
 
 ### Added
 
@@ -46,7 +90,7 @@ wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS that elimi
 #### Deployment Options
 - **Bare Metal/LXC**: Native systemd integration
 - **Docker**: Multi-container deployment with docker-compose
-- FHS-compliant directory structure (`/opt/wanctl`, `/etc/wanctl`, `/var/lib/wanctl`)
+- FHS-compliant directory structure
 - Dedicated `wanctl` service user with minimal privileges
 
 #### Systemd Integration
@@ -71,15 +115,6 @@ wanctl is an adaptive CAKE bandwidth controller for Mikrotik RouterOS that elimi
 - `docs/STEERING.md`: Multi-WAN steering guide
 - `docs/DOCKER.md`: Container deployment guide
 - `docs/SECURITY.md`: Security setup and considerations
-- `docs/EF_QUEUE_PROTECTION.md`: Priority traffic protection
-- `CONTRIBUTING.md`: Contribution guidelines
-- `CLAUDE.md.example`: Template for AI assistant context
-
-#### Scripts
-- `scripts/install.sh`: System setup (user, directories, permissions)
-- `scripts/deploy.sh`: Unified deployment to target hosts
-- `scripts/calibrate.sh`: Interactive calibration wizard
-- `scripts/install-systemd.sh`: Systemd unit installation
 
 ### Technical Details
 
@@ -117,4 +152,7 @@ GPL-2.0 - Compatible with CAKE and LibreQoS ecosystem
 
 ---
 
-[1.0.0]: https://github.com/kevinb361/wanctl/releases/tag/v1.0.0
+[Unreleased]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc4...HEAD
+[1.0.0-rc4]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc3...v1.0.0-rc4
+[1.0.0-rc3]: https://github.com/kevinb361/wanctl/compare/v1.0.0-rc1...v1.0.0-rc3
+[1.0.0-rc1]: https://github.com/kevinb361/wanctl/releases/tag/v1.0.0-rc1
