@@ -154,6 +154,34 @@ cat /var/lib/wanctl/wan1_state.json
 [GREEN/GREEN] RTT=25.5ms, baseline=24.0ms, delta=1.5ms | DL=940M, UL=38M
 ```
 
+## Real-World Test: Congestion Response
+
+Here's actual output from a stress test on a 940/38 Mbps Spectrum cable connection. Eight parallel netperf streams were used to saturate the link:
+
+### Test Timeline
+
+```
+Time      State         Delta    Upload BW   RTT      Event
+────────────────────────────────────────────────────────────────
+00:00:37  GREEN/GREEN    2.2ms   38M         26ms     Idle baseline
+00:00:44  GREEN/GREEN   10.8ms   38M         70ms     Load increasing
+00:00:52  YELLOW/RED    62.6ms   34M        295ms     Congestion detected!
+00:00:59  YELLOW/RED    60.8ms   31M         79ms     Backing off upload
+00:01:06  SOFT_RED/RED  47.9ms   28M         21ms     Continued reduction
+00:01:18  YELLOW/YELLOW 29.3ms   28M         21ms     Recovering
+00:01:31  YELLOW/YELLOW 17.9ms   28M         22ms     Almost there
+00:01:56  GREEN/GREEN    7.1ms   28M         26ms     Recovered
+```
+
+### What Happened
+
+1. **Congestion spike** - RTT jumped from 26ms to 295ms (bufferbloat)
+2. **Automatic response** - Upload reduced from 38M to 28M (26% reduction)
+3. **Latency controlled** - Delta dropped from 62ms back to 7ms
+4. **Self-healing** - System returned to GREEN, upload will gradually recover
+
+The entire event was handled automatically in under 90 seconds with no user intervention. Upload bandwidth will slowly climb back to 38M while the system stays GREEN (1 Mbps per cycle).
+
 ## Adding Router Backend Support
 
 wanctl is designed to support multiple router platforms. Currently only RouterOS is implemented, but the architecture allows adding others.
