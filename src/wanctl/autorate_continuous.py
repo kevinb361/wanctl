@@ -556,6 +556,16 @@ class WANController:
         self.ping_hosts = config.ping_hosts
         self.use_median_of_three = config.use_median_of_three
 
+        # =====================================================================
+        # FLASH WEAR PROTECTION - Track last applied rates
+        # =====================================================================
+        # RouterOS writes queue changes to NAND flash. To prevent excessive
+        # flash wear, we only send updates when rates actually change.
+        # DO NOT REMOVE THIS - it protects the router's flash memory.
+        # =====================================================================
+        self.last_applied_dl_rate: Optional[int] = None
+        self.last_applied_ul_rate: Optional[int] = None
+
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
@@ -648,16 +658,30 @@ class WANController:
             f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
         )
 
-        # Apply to router
-        success = self.router.set_limits(
-            wan=self.wan_name,
-            down_bps=dl_rate,
-            up_bps=ul_rate
-        )
+        # =====================================================================
+        # FLASH WEAR PROTECTION - Only update router if rates changed
+        # =====================================================================
+        # RouterOS writes queue changes to NAND flash. Sending the same values
+        # repeatedly would cause unnecessary flash wear over time.
+        # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
+        # =====================================================================
+        if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
+            success = self.router.set_limits(
+                wan=self.wan_name,
+                down_bps=dl_rate,
+                up_bps=ul_rate
+            )
 
-        if not success:
-            self.logger.error(f"{self.wan_name}: Failed to apply limits")
-            return False
+            if not success:
+                self.logger.error(f"{self.wan_name}: Failed to apply limits")
+                return False
+
+            # Update tracking after successful write
+            self.last_applied_dl_rate = dl_rate
+            self.last_applied_ul_rate = ul_rate
+            self.logger.debug(f"{self.wan_name}: Applied new limits to router")
+        else:
+            self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
 
         # Save state after successful cycle
         self.save_state()
@@ -693,6 +717,12 @@ class WANController:
                     self.baseline_rtt = ewma.get('baseline_rtt', self.baseline_rtt)
                     self.load_rtt = ewma.get('load_rtt', self.load_rtt)
 
+                # Restore last applied rates (flash wear protection)
+                if 'last_applied' in state:
+                    applied = state['last_applied']
+                    self.last_applied_dl_rate = applied.get('dl_rate')
+                    self.last_applied_ul_rate = applied.get('ul_rate')
+
                 self.logger.debug(f"{self.wan_name}: Loaded state from {self.config.state_file}")
         except Exception as e:
             self.logger.warning(f"{self.wan_name}: Could not load state: {e}")
@@ -716,6 +746,11 @@ class WANController:
                 'ewma': {
                     'baseline_rtt': self.baseline_rtt,
                     'load_rtt': self.load_rtt
+                },
+                # Flash wear protection: track last values sent to router
+                'last_applied': {
+                    'dl_rate': self.last_applied_dl_rate,
+                    'ul_rate': self.last_applied_ul_rate
                 },
                 'timestamp': datetime.datetime.now().isoformat()
             }
