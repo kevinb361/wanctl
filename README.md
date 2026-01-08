@@ -262,6 +262,12 @@ Built by a sysadmin for personal use, now shared with the community. Not competi
 
 **Target audience:** Power users, sysadmins, and homelabbers who can read configs and adapt.
 
+## Non-Goals
+
+- **Not a replacement for understanding CAKE** - You should know how CAKE works before using this
+- **Not intended for automatic ISP tuning** - Designed for user-managed networks
+- **Not enterprise orchestration software** - See [LibreQoS](https://libreqos.io/) for that
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
