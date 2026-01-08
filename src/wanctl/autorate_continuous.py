@@ -27,7 +27,7 @@ except ImportError:
     HAVE_SYSTEMD = False
     sd_notify = None
 
-from wanctl.config_base import BaseConfig
+from wanctl.config_base import BaseConfig, ConfigValidationError
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
 from wanctl.router_client import get_router_client
