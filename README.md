@@ -59,7 +59,7 @@ In your config, reference the environment variable:
 ```yaml
 router:
   transport: "rest"
-  host: "10.10.99.1"
+  host: "192.168.1.1"
   user: "admin"
   password: "${ROUTER_PASSWORD}" # Expanded from /etc/wanctl/secrets
   port: 443
@@ -82,7 +82,7 @@ In your config, set:
 ```yaml
 router:
   transport: "ssh"
-  host: "10.10.99.1"
+  host: "192.168.1.1"
   user: "admin"
   ssh_key: "/etc/wanctl/ssh/router.key"
 ```
@@ -93,7 +93,7 @@ Deploy from your development machine to a target host:
 
 ```bash
 ./scripts/deploy.sh wan1 target-hostname
-./scripts/deploy.sh wan2 10.0.0.10 --with-steering
+./scripts/deploy.sh wan2 192.168.1.100 --with-steering
 ```
 
 ## How It Works
