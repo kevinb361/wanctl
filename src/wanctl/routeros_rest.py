@@ -1,0 +1,514 @@
+"""RouterOS REST API client for executing commands on MikroTik routers.
+
+This module provides an HTTP/HTTPS-based interface for RouterOS command execution.
+The REST API is available on RouterOS 7.x on port 443 (HTTPS) or 80 (HTTP).
+
+Advantages over SSH:
+- Lower latency (~50ms vs ~200ms for subprocess SSH)
+- No connection setup overhead per command
+- Simpler authentication (username/password)
+- Works through firewalls that block SSH
+
+Disadvantages:
+- Requires password authentication (not SSH keys)
+- Requires HTTPS setup on router (for secure connections)
+- Less commonly used (less documentation)
+
+Usage:
+    from wanctl.routeros_rest import RouterOSREST
+
+    rest = RouterOSREST(
+        host="192.168.1.1",
+        user="admin",
+        password="password",
+        port=443,
+        verify_ssl=False,
+        timeout=15,
+        logger=logger
+    )
+
+    # Execute command
+    rc, stdout, stderr = rest.run_cmd("/queue/tree/print")
+
+    # Set queue limit directly
+    success = rest.set_queue_limit("WAN-Download", 500_000_000)
+
+    # Clean up when done
+    rest.close()
+"""
+
+import logging
+from typing import Optional, Tuple
+
+import requests
+from urllib3.exceptions import InsecureRequestWarning
+
+# Disable SSL warnings for self-signed certificates (common on routers)
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+
+class RouterOSREST:
+    """REST API client for executing commands on RouterOS devices.
+
+    Uses HTTP/HTTPS requests to the RouterOS REST API for fast command
+    execution. This provides similar functionality to RouterOSSSH but
+    with lower latency and simpler connection management.
+
+    Attributes:
+        host: RouterOS device IP address or hostname
+        user: API username
+        password: API password
+        port: REST API port (default 443 for HTTPS)
+        verify_ssl: Whether to verify SSL certificates (default False)
+        timeout: Request timeout in seconds
+        logger: Logger instance for debug/error messages
+    """
+
+    def __init__(
+        self,
+        host: str,
+        user: str,
+        password: str,
+        port: int = 443,
+        verify_ssl: bool = False,
+        timeout: int = 15,
+        logger: logging.Logger = None
+    ):
+        """Initialize RouterOS REST API client.
+
+        Args:
+            host: RouterOS device IP address or hostname
+            user: API username for authentication
+            password: API password for authentication
+            port: REST API port (default 443 for HTTPS, use 80 for HTTP)
+            verify_ssl: Whether to verify SSL certificates (default False)
+            timeout: Request timeout in seconds (default: 15)
+            logger: Logger instance (optional, creates null logger if not provided)
+        """
+        self.host = host
+        self.user = user
+        self.password = password
+        self.port = port
+        self.verify_ssl = verify_ssl
+        self.timeout = timeout
+        self.logger = logger or logging.getLogger(__name__)
+
+        # Build base URL
+        protocol = "https" if port == 443 else "http"
+        self.base_url = f"{protocol}://{host}:{port}/rest"
+
+        # Create session with authentication
+        self._session = requests.Session()
+        self._session.auth = (user, password)
+        self._session.verify = verify_ssl
+
+        self.logger.debug(f"RouterOS REST client initialized: {self.base_url}")
+
+    @classmethod
+    def from_config(cls, config, logger: logging.Logger) -> "RouterOSREST":
+        """Create RouterOSREST instance from a config object.
+
+        Expects config to have:
+        - router_host: str
+        - router_user: str
+        - router_password: str (or from environment variable)
+        - router_port: int (optional, defaults to 443)
+        - router_verify_ssl: bool (optional, defaults to False)
+        - timeout_ssh_command: int (optional, defaults to 15)
+
+        Args:
+            config: Configuration object with router connection settings
+            logger: Logger instance
+
+        Returns:
+            Configured RouterOSREST instance
+        """
+        import os
+
+        # Get password - support environment variable
+        password = getattr(config, 'router_password', None)
+        if password and password.startswith('${') and password.endswith('}'):
+            env_var = password[2:-1]
+            password = os.environ.get(env_var, '')
+
+        return cls(
+            host=config.router_host,
+            user=config.router_user,
+            password=password,
+            port=getattr(config, 'router_port', 443),
+            verify_ssl=getattr(config, 'router_verify_ssl', False),
+            timeout=getattr(config, 'timeout_ssh_command', 15),
+            logger=logger
+        )
+
+    def run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
+        """Execute RouterOS command via REST API.
+
+        Converts CLI-style commands to REST API calls.
+        Note: Only certain commands are supported - primarily queue/tree operations.
+
+        Args:
+            cmd: RouterOS command to execute (CLI-style)
+            capture: Whether to capture output (always captured with REST)
+
+        Returns:
+            Tuple of (returncode, stdout, stderr)
+            - returncode: 0 for success, non-zero for failure
+            - stdout: JSON response as string
+            - stderr: error message if any
+
+        Raises:
+            requests.RequestException: On network errors
+        """
+        self.logger.debug(f"RouterOS REST command: {cmd}")
+
+        try:
+            # Parse CLI command and convert to REST API call
+            result = self._execute_command(cmd)
+
+            if result is not None:
+                import json
+                return 0, json.dumps(result), ""
+            else:
+                return 1, "", "Command failed"
+
+        except requests.RequestException as e:
+            self.logger.warning(f"REST API error: {e}")
+            return 1, "", str(e)
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            return 1, "", str(e)
+
+    def _execute_command(self, cmd: str):
+        """Parse CLI command and execute via REST API.
+
+        Supports common queue tree operations:
+        - /queue tree set [find name="..."] queue=... max-limit=...
+        - /queue tree print where name="..."
+        - /ip firewall mangle enable/disable [find comment="..."]
+
+        Args:
+            cmd: CLI-style command
+
+        Returns:
+            JSON response from API, or None on failure
+        """
+        # Handle batched commands (separated by ;)
+        if ';' in cmd:
+            for subcmd in cmd.split(';'):
+                subcmd = subcmd.strip()
+                if subcmd:
+                    result = self._execute_single_command(subcmd)
+                    if result is None:
+                        return None
+            return {"status": "ok"}
+        else:
+            return self._execute_single_command(cmd)
+
+    def _execute_single_command(self, cmd: str):
+        """Execute a single CLI command via REST API.
+
+        Args:
+            cmd: Single CLI command
+
+        Returns:
+            JSON response from API, or None on failure
+        """
+        cmd = cmd.strip()
+
+        # Parse /queue tree set command
+        if cmd.startswith('/queue tree set'):
+            return self._handle_queue_tree_set(cmd)
+        elif cmd.startswith('/queue tree print'):
+            return self._handle_queue_tree_print(cmd)
+        elif cmd.startswith('/ip firewall mangle'):
+            return self._handle_mangle_rule(cmd)
+        else:
+            self.logger.warning(f"Unsupported command for REST API: {cmd}")
+            return None
+
+    def _handle_queue_tree_set(self, cmd: str) -> Optional[dict]:
+        """Handle /queue tree set command.
+
+        Example: /queue tree set [find name="WAN-Download"] queue=cake-down max-limit=500000000
+
+        Args:
+            cmd: Queue tree set command
+
+        Returns:
+            API response dict or None on failure
+        """
+        import re
+
+        # Extract queue name from [find name="..."]
+        name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
+        if not name_match:
+            self.logger.error(f"Could not parse queue name from: {cmd}")
+            return None
+
+        queue_name = name_match.group(1)
+
+        # Extract parameters (queue=, max-limit=)
+        params = {}
+
+        queue_match = re.search(r'queue=(\S+)', cmd)
+        if queue_match:
+            params['queue'] = queue_match.group(1)
+
+        limit_match = re.search(r'max-limit=(\d+)', cmd)
+        if limit_match:
+            params['max-limit'] = limit_match.group(1)
+
+        if not params:
+            self.logger.error(f"No parameters found in: {cmd}")
+            return None
+
+        # First, find the queue ID
+        queue_id = self._find_queue_id(queue_name)
+        if queue_id is None:
+            self.logger.error(f"Queue not found: {queue_name}")
+            return None
+
+        # Update the queue via PATCH
+        url = f"{self.base_url}/queue/tree/{queue_id}"
+
+        try:
+            resp = self._session.patch(url, json=params, timeout=self.timeout)
+
+            if resp.ok:
+                self.logger.debug(f"Queue {queue_name} updated: {params}")
+                return {"status": "ok", "queue": queue_name}
+            else:
+                self.logger.error(f"Failed to update queue {queue_name}: {resp.status_code} {resp.text}")
+                return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error updating queue: {e}")
+            return None
+
+    def _handle_queue_tree_print(self, cmd: str) -> Optional[dict]:
+        """Handle /queue tree print command.
+
+        Args:
+            cmd: Queue tree print command
+
+        Returns:
+            Queue details dict or None on failure
+        """
+        import re
+
+        # Extract queue name if filtering
+        name_match = re.search(r'where name="([^"]+)"', cmd)
+
+        url = f"{self.base_url}/queue/tree"
+        params = {}
+
+        if name_match:
+            params['name'] = name_match.group(1)
+
+        try:
+            resp = self._session.get(url, params=params, timeout=self.timeout)
+
+            if resp.ok:
+                return resp.json()
+            else:
+                self.logger.error(f"Failed to get queue: {resp.status_code}")
+                return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return None
+
+    def _handle_mangle_rule(self, cmd: str) -> Optional[dict]:
+        """Handle /ip firewall mangle enable/disable commands.
+
+        Args:
+            cmd: Mangle rule command
+
+        Returns:
+            API response dict or None on failure
+        """
+        import re
+
+        # Extract comment from [find comment="..."]
+        comment_match = re.search(r'\[find comment="([^"]+)"\]', cmd)
+        if not comment_match:
+            self.logger.error(f"Could not parse rule comment from: {cmd}")
+            return None
+
+        comment = comment_match.group(1)
+
+        # Determine if enable or disable
+        if 'enable' in cmd:
+            disabled = "false"
+        elif 'disable' in cmd:
+            disabled = "true"
+        else:
+            self.logger.error(f"Unknown mangle action in: {cmd}")
+            return None
+
+        # Find the rule ID
+        rule_id = self._find_mangle_rule_id(comment)
+        if rule_id is None:
+            self.logger.error(f"Mangle rule not found: {comment}")
+            return None
+
+        # Update the rule
+        url = f"{self.base_url}/ip/firewall/mangle/{rule_id}"
+
+        try:
+            resp = self._session.patch(url, json={"disabled": disabled}, timeout=self.timeout)
+
+            if resp.ok:
+                self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
+                return {"status": "ok", "comment": comment, "disabled": disabled}
+            else:
+                self.logger.error(f"Failed to update mangle rule: {resp.status_code}")
+                return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return None
+
+    def _find_queue_id(self, queue_name: str) -> Optional[str]:
+        """Find queue tree ID by name.
+
+        Args:
+            queue_name: Name of the queue
+
+        Returns:
+            Queue ID (e.g., "*1") or None if not found
+        """
+        url = f"{self.base_url}/queue/tree"
+
+        try:
+            resp = self._session.get(url, params={"name": queue_name}, timeout=self.timeout)
+
+            if resp.ok and resp.json():
+                # RouterOS returns list of matching items
+                items = resp.json()
+                if items:
+                    return items[0].get('.id')
+
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error finding queue: {e}")
+            return None
+
+    def _find_mangle_rule_id(self, comment: str) -> Optional[str]:
+        """Find mangle rule ID by comment.
+
+        Args:
+            comment: Comment of the rule
+
+        Returns:
+            Rule ID or None if not found
+        """
+        url = f"{self.base_url}/ip/firewall/mangle"
+
+        try:
+            resp = self._session.get(url, params={"comment": comment}, timeout=self.timeout)
+
+            if resp.ok and resp.json():
+                items = resp.json()
+                if items:
+                    return items[0].get('.id')
+
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error finding rule: {e}")
+            return None
+
+    def set_queue_limit(self, queue_name: str, max_limit: int) -> bool:
+        """Set queue tree max-limit directly via REST API.
+
+        Convenience method that bypasses CLI command parsing.
+
+        Args:
+            queue_name: Name of the queue
+            max_limit: Bandwidth limit in bits per second
+
+        Returns:
+            True if successful, False otherwise
+        """
+        queue_id = self._find_queue_id(queue_name)
+        if queue_id is None:
+            self.logger.error(f"Queue not found: {queue_name}")
+            return False
+
+        url = f"{self.base_url}/queue/tree/{queue_id}"
+
+        try:
+            resp = self._session.patch(
+                url,
+                json={"max-limit": str(max_limit)},
+                timeout=self.timeout
+            )
+
+            if resp.ok:
+                self.logger.debug(f"Queue {queue_name} limit set to {max_limit}")
+                return True
+            else:
+                self.logger.error(f"Failed to set queue limit: {resp.status_code}")
+                return False
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return False
+
+    def get_queue_stats(self, queue_name: str) -> Optional[dict]:
+        """Get queue statistics.
+
+        Args:
+            queue_name: Name of the queue
+
+        Returns:
+            Dict with queue stats or None on failure
+        """
+        url = f"{self.base_url}/queue/tree"
+
+        try:
+            resp = self._session.get(url, params={"name": queue_name}, timeout=self.timeout)
+
+            if resp.ok and resp.json():
+                items = resp.json()
+                if items:
+                    return items[0]
+
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return None
+
+    def test_connection(self) -> bool:
+        """Test connectivity to the router REST API.
+
+        Returns:
+            True if API is reachable and authenticated, False otherwise
+        """
+        try:
+            resp = self._session.get(
+                f"{self.base_url}/system/resource",
+                timeout=5
+            )
+            return resp.ok
+        except requests.RequestException:
+            return False
+
+    def close(self) -> None:
+        """Close the REST API session.
+
+        Should be called when the daemon shuts down to clean up resources.
+        Safe to call multiple times.
+        """
+        if self._session is not None:
+            try:
+                self._session.close()
+                self.logger.debug(f"REST API session closed for {self.host}")
+            except Exception as e:
+                self.logger.debug(f"Error closing REST session: {e}")
+            finally:
+                self._session = None
