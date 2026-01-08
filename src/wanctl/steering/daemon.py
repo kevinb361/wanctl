@@ -85,9 +85,6 @@ MIN_SANE_BASELINE_RTT = 5.0
 MAX_SANE_BASELINE_RTT = 100.0
 BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
 
-# Queue depth percentage estimation
-QUEUE_DEPTH_100_PERCENT = 1000.0      # Packets considered "100% queue utilization"
-
 
 # =============================================================================
 # CONFIGURATION

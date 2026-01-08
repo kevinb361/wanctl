@@ -40,7 +40,7 @@ from wanctl.state_utils import atomic_write_json
 
 # Baseline RTT update threshold - only update baseline when delta is minimal
 # This prevents baseline drift under load (architectural invariant)
-BASELINE_UPDATE_THRESHOLD_MS = 3.0
+DEFAULT_BASELINE_UPDATE_THRESHOLD_MS = 3.0
 
 # Daemon cycle interval - target time between cycle starts (seconds)
 # With 2-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~8 cycles = 16 seconds
@@ -147,6 +147,18 @@ class Config(BaseConfig):
         self.download_step_up = dl['step_up_mbps'] * MBPS_TO_BPS
         self.download_factor_down = dl['factor_down']
 
+        # Validate download floor ordering: red <= soft_red <= yellow <= green <= ceiling
+        if not (self.download_floor_red <= self.download_floor_soft_red <= self.download_floor_yellow
+                <= self.download_floor_green <= self.download_ceiling):
+            raise ConfigValidationError(
+                f"Download floor ordering violation: expected "
+                f"floor_red ({self.download_floor_red / MBPS_TO_BPS:.1f}) <= "
+                f"floor_soft_red ({self.download_floor_soft_red / MBPS_TO_BPS:.1f}) <= "
+                f"floor_yellow ({self.download_floor_yellow / MBPS_TO_BPS:.1f}) <= "
+                f"floor_green ({self.download_floor_green / MBPS_TO_BPS:.1f}) <= "
+                f"ceiling ({self.download_ceiling / MBPS_TO_BPS:.1f})"
+            )
+
         # Upload parameters (STATE-BASED FLOORS)
         ul = cm['upload']
         # Support both legacy (single floor) and v2 (state-based floors)
@@ -164,6 +176,17 @@ class Config(BaseConfig):
         self.upload_step_up = ul['step_up_mbps'] * MBPS_TO_BPS
         self.upload_factor_down = ul['factor_down']
 
+        # Validate upload floor ordering: red <= yellow <= green <= ceiling
+        if not (self.upload_floor_red <= self.upload_floor_yellow
+                <= self.upload_floor_green <= self.upload_ceiling):
+            raise ConfigValidationError(
+                f"Upload floor ordering violation: expected "
+                f"floor_red ({self.upload_floor_red / MBPS_TO_BPS:.1f}) <= "
+                f"floor_yellow ({self.upload_floor_yellow / MBPS_TO_BPS:.1f}) <= "
+                f"floor_green ({self.upload_floor_green / MBPS_TO_BPS:.1f}) <= "
+                f"ceiling ({self.upload_ceiling / MBPS_TO_BPS:.1f})"
+            )
+
         # Thresholds
         thresh = cm['thresholds']
         self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
@@ -171,6 +194,24 @@ class Config(BaseConfig):
         self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', DEFAULT_HARD_RED_BLOAT_MS)
         self.alpha_baseline = thresh['alpha_baseline']
         self.alpha_load = thresh['alpha_load']
+        # Baseline update threshold - only update baseline when delta is below this value
+        # Prevents baseline drift under load (architectural invariant)
+        self.baseline_update_threshold_ms = thresh.get(
+            'baseline_update_threshold_ms', DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
+        )
+
+        # Validate threshold ordering: target < warn < hard_red
+        # This ensures state transitions are logically correct
+        if not (self.target_bloat_ms < self.warn_bloat_ms):
+            raise ConfigValidationError(
+                f"Threshold ordering violation: target_bloat_ms ({self.target_bloat_ms}) "
+                f"must be less than warn_bloat_ms ({self.warn_bloat_ms})"
+            )
+        if not (self.warn_bloat_ms < self.hard_red_bloat_ms):
+            raise ConfigValidationError(
+                f"Threshold ordering violation: warn_bloat_ms ({self.warn_bloat_ms}) "
+                f"must be less than hard_red_bloat_ms ({self.hard_red_bloat_ms})"
+            )
 
         # Ping configuration
         self.ping_hosts = cm['ping_hosts']
@@ -509,6 +550,7 @@ class WANController:
         self.warn_delta = config.warn_bloat_ms
         self.alpha_baseline = config.alpha_baseline
         self.alpha_load = config.alpha_load
+        self.baseline_update_threshold = config.baseline_update_threshold_ms
 
         # Ping configuration
         self.ping_hosts = config.ping_hosts
@@ -571,7 +613,7 @@ class WANController:
         # Critical: Only update baseline when delta is very small
         # This prevents baseline drift during load, which would mask true bloat
         delta = self.load_rtt - self.baseline_rtt
-        if delta < BASELINE_UPDATE_THRESHOLD_MS:
+        if delta < self.baseline_update_threshold:
             # Line is idle or nearly idle - safe to update baseline
             self.baseline_rtt = (1 - self.alpha_baseline) * self.baseline_rtt + self.alpha_baseline * measured_rtt
         # else: Under load - freeze baseline to prevent drift

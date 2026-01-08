@@ -25,6 +25,8 @@ Usage:
 """
 
 import logging
+import os
+from pathlib import Path
 from typing import Optional, Tuple
 
 import paramiko
@@ -77,6 +79,24 @@ class RouterOSSSH:
         self.logger = logger or logging.getLogger(__name__)
         self._client: Optional[paramiko.SSHClient] = None
 
+    def _get_known_hosts_path(self) -> Path:
+        """Get path to user's known_hosts file.
+
+        Returns ~/.ssh/known_hosts for the current user, creating the
+        .ssh directory if it doesn't exist.
+
+        For the wanctl service user, this will be /var/lib/wanctl/.ssh/known_hosts
+        """
+        ssh_dir = Path.home() / ".ssh"
+        ssh_dir.mkdir(mode=0o700, exist_ok=True)
+        known_hosts = ssh_dir / "known_hosts"
+
+        # Create empty known_hosts if it doesn't exist
+        if not known_hosts.exists():
+            known_hosts.touch(mode=0o600)
+
+        return known_hosts
+
     @classmethod
     def from_config(cls, config, logger: logging.Logger) -> "RouterOSSSH":
         """Create RouterOSSSH instance from a config object.
@@ -108,13 +128,24 @@ class RouterOSSSH:
         Creates a new SSHClient, loads the private key, and connects
         to the router. Connection timeout is 10 seconds.
 
+        SECURITY: Host key validation is ENABLED. The router's SSH host key
+        must be present in known_hosts before connection will succeed.
+        Run: ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
+
         Raises:
-            paramiko.SSHException: On connection failure
+            paramiko.SSHException: On connection failure or host key mismatch
             FileNotFoundError: If SSH key file doesn't exist
         """
         self._client = paramiko.SSHClient()
-        # Auto-add host keys (RouterOS doesn't typically have known_hosts entry)
-        self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        # Load system and user known_hosts for host key verification
+        # This prevents MITM attacks by validating router identity
+        self._client.load_system_host_keys()
+        self._client.load_host_keys(str(self._get_known_hosts_path()))
+
+        # RejectPolicy is the default - connection fails if host key not in known_hosts
+        # Do NOT use AutoAddPolicy - it accepts any key and enables MITM attacks
+        self._client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
         self.logger.debug(f"Establishing SSH connection to {self.user}@{self.host}")
 

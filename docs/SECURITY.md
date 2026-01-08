@@ -1,73 +1,42 @@
-# SSH Security Setup - Host Key Validation
+# Security
 
-## What Changed
+## SSH Host Key Validation
 
-SSH host key validation has been **enabled** across all wanctl code. The insecure `StrictHostKeyChecking=no` flag has been removed from:
+wanctl validates SSH host keys on every connection. This prevents Man-in-the-Middle (MITM) attacks where an attacker could intercept and modify RouterOS commands.
 
-### Production Code (Critical)
+**Implementation:** The SSH client uses `paramiko.RejectPolicy()` which refuses connections unless the router's host key is present in `known_hosts`.
 
-- `src/wanctl/autorate_continuous.py` - Main bandwidth controller
-- `src/wanctl/steering/daemon.py` - WAN steering daemon
-- `src/wanctl/steering/cake_stats.py` - CAKE statistics collector
-- `src/wanctl/routeros_ssh.py` - RouterOS SSH client
+**Why this matters:**
 
-### Utility Scripts
+- Without validation, an attacker on your network could intercept SSH traffic
+- They could modify CAKE bandwidth limits or mangle rules
+- They could redirect your traffic or read router credentials
 
-- `scripts/deploy.sh` - Deployment script
-
-## Why This Matters
-
-**Before (Insecure):**
-
-- SSH connections accepted ANY host key
-- Vulnerable to Man-in-the-Middle (MITM) attacks
-- Attacker could intercept and modify RouterOS commands
-- Could manipulate CAKE queues, routing rules, firewall settings
-
-**After (Secure):**
-
-- SSH verifies router's identity using known_hosts
-- MITM attacks blocked (connection refused if key doesn't match)
-- Router identity validated on every connection
+**REST API alternative:** If SSH key management is burdensome, consider using the REST API transport instead (password-based, over HTTPS).
 
 ## Required Setup (One-Time)
 
-You must add the router's SSH host key to `~/.ssh/known_hosts` on each controller host:
+You must add the router's SSH host key to the `wanctl` service user's known_hosts file.
 
-### Step 1: On Primary WAN Controller
+### For the wanctl Service User
+
+The `wanctl` service runs as the `wanctl` user with home directory `/var/lib/wanctl`. Add the router's host key:
 
 ```bash
-ssh user@<wan1-controller>
-
-# Add router's SSH host keys (replace with your router IP)
-ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
+# On each controller host (as root)
+sudo -u wanctl ssh-keyscan -H <router_ip> >> /var/lib/wanctl/.ssh/known_hosts
 
 # Verify it was added
-grep <router_ip> ~/.ssh/known_hosts
+sudo -u wanctl cat /var/lib/wanctl/.ssh/known_hosts | grep <router_ip>
 ```
 
-### Step 2: On Secondary WAN Controller (Dual-WAN Setup)
+### Alternative: Use Your User Account for Testing
+
+For manual testing or development:
 
 ```bash
-ssh user@<wan2-controller>
-
-# Add router's SSH host keys
+# Add to your user's known_hosts
 ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
-
-# Verify it was added
-grep <router_ip> ~/.ssh/known_hosts
-```
-
-### Step 3: On Your Build Machine (Optional)
-
-If you run scripts from your build machine:
-
-```bash
-# Add router's SSH host keys
-ssh-keyscan -H <router_ip> >> ~/.ssh/known_hosts
-
-# Verify
-grep <router_ip> ~/.ssh/known_hosts
 ```
 
 ## Testing
