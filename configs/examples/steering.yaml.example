@@ -24,9 +24,15 @@ topology:
 
 # RouterOS connection settings
 router:
+  transport: "rest"               # "rest" (recommended) or "ssh"
   host: "192.168.1.1"
   user: "admin"
+  # For SSH transport
   ssh_key: "/etc/wanctl/ssh/router.key"
+  # For REST transport
+  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
 
 # Mangle rule to toggle (must match your RouterOS configuration)
 # Create a mangle rule with this comment that marks latency-sensitive traffic
@@ -34,8 +40,9 @@ mangle_rule:
   comment: "ADAPTIVE: Steer latency-sensitive to WAN2"
 
 # CAKE state sources (baseline RTT comes from primary WAN)
+# NOTE: State files are in /run/wanctl/ (derived from lock file path)
 cake_state_sources:
-  primary: "/var/lib/wanctl/wan1_state.json"
+  primary: "/run/wanctl/wan1_state.json"
 
 # CAKE queue names to monitor (for drops and queue depth)
 cake_queues:
