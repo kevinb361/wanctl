@@ -11,6 +11,7 @@ Eliminates bufferbloat by continuously monitoring RTT and adjusting queue limits
 - **Continuous RTT monitoring** - 2-second control loops for responsive adaptation
 - **Multi-state congestion control** - GREEN/YELLOW/SOFT_RED/RED state machine
 - **Multi-signal detection** - RTT + CAKE drops + queue depth for accuracy
+- **REST API transport** - 2x faster than SSH (~50ms vs ~150ms latency)
 - **Optional WAN steering** - Route latency-sensitive traffic during congestion
 - **Config-driven** - Same code works for fiber, cable, DSL, or any connection
 - **FHS compliant** - Proper Linux directory layout and service user
@@ -21,7 +22,7 @@ Eliminates bufferbloat by continuously monitoring RTT and adjusting queue limits
 
 - Mikrotik router running RouterOS 7.x with CAKE queues configured
 - Linux host (LXC container, VM, or bare metal) with Python 3.12+
-- SSH key authentication to router
+- REST API enabled on router (recommended) or SSH key authentication
 
 ### Installation
 
@@ -39,13 +40,51 @@ sudo cp configs/examples/wan1.yaml.example /etc/wanctl/wan1.yaml
 # Edit config for your setup
 sudo nano /etc/wanctl/wan1.yaml
 
+# Enable the service
+sudo systemctl enable --now wanctl@wan1.timer
+```
+
+### Transport Setup
+
+**REST API (recommended):**
+
+```bash
+# Add password to secrets file (loaded by systemd as environment variable)
+sudo nano /etc/wanctl/secrets
+# Add line: ROUTER_PASSWORD=your_router_password
+```
+
+In your config, reference the environment variable:
+
+```yaml
+router:
+  transport: "rest"
+  host: "10.10.99.1"
+  user: "admin"
+  password: "${ROUTER_PASSWORD}" # Expanded from /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
+```
+
+The password is never stored in the config file - systemd loads `/etc/wanctl/secrets` via `EnvironmentFile` and the `${VAR}` syntax is expanded at runtime.
+
+**SSH (alternative):**
+
+```bash
 # Copy your router SSH key
 sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key
 sudo chown wanctl:wanctl /etc/wanctl/ssh/router.key
 sudo chmod 600 /etc/wanctl/ssh/router.key
+```
 
-# Enable the service
-sudo systemctl enable --now wanctl@wan1.timer
+In your config, set:
+
+```yaml
+router:
+  transport: "ssh"
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
 ```
 
 ### Remote Deployment
