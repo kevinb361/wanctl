@@ -9,11 +9,14 @@ Runs as a persistent daemon with internal 2-second control loop.
 import argparse
 import concurrent.futures
 import datetime
+import errno
 import json
 import logging
+import os
 import signal
 import statistics
 import subprocess
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -800,13 +803,19 @@ class ContinuousAutoRate:
                 'logger': logger
             })
 
-    def run_cycle(self, use_lock: bool = True):
+    def run_cycle(self, use_lock: bool = True) -> bool:
         """Run one cycle for all WANs
 
         Args:
             use_lock: If True, acquire lock per-cycle (oneshot mode).
                      If False, assume lock is already held (daemon mode).
+
+        Returns:
+            True if ALL WANs successfully completed cycle
+            False if ANY WAN failed
         """
+        all_success = True
+
         for wan_info in self.wan_controllers:
             controller = wan_info['controller']
             config = wan_info['config']
@@ -815,16 +824,22 @@ class ContinuousAutoRate:
             try:
                 if use_lock:
                     with LockFile(config.lock_file, config.lock_timeout, logger):
-                        controller.run_cycle()
+                        success = controller.run_cycle()
+                        all_success = all_success and success
                 else:
                     # Lock already held by daemon - just run the cycle
-                    controller.run_cycle()
+                    success = controller.run_cycle()
+                    all_success = all_success and success
             except LockAcquisitionError:
                 # Another instance is running - this is normal, not an error
                 logger.debug("Skipping cycle - another instance is running")
+                all_success = False
             except Exception as e:
                 logger.error(f"Cycle error: {e}")
                 logger.debug(traceback.format_exc())
+                all_success = False
+
+        return all_success
 
     def get_lock_paths(self) -> List[Path]:
         """Return lock file paths for all configured WANs"""
@@ -866,37 +881,75 @@ def main():
     # Acquire locks once at startup and hold for entire run
     lock_files = []
     for lock_path in controller.get_lock_paths():
-        # Force remove any stale lock file from previous run
+        # Check if existing lock is from a dead process
         if lock_path.exists():
             try:
-                age = time.time() - lock_path.stat().st_mtime
-                for wan_info in controller.wan_controllers:
-                    wan_info['logger'].info(f"Removing stale lock file ({age:.1f}s old): {lock_path}")
-                lock_path.unlink()
-            except (FileNotFoundError, OSError):
-                pass
+                # Read PID from lock file
+                pid_str = lock_path.read_text().strip()
+                existing_pid = int(pid_str)
 
-        # Create new lock file
+                # Check if process is alive
+                try:
+                    os.kill(existing_pid, 0)
+                    # Process exists - refuse to start
+                    for wan_info in controller.wan_controllers:
+                        wan_info['logger'].error(
+                            f"Another instance is running (PID {existing_pid}, lock: {lock_path})"
+                        )
+                    return 1
+                except OSError as e:
+                    if e.errno == errno.ESRCH:
+                        # Process is dead - safe to remove lock
+                        age = time.time() - lock_path.stat().st_mtime
+                        for wan_info in controller.wan_controllers:
+                            wan_info['logger'].info(
+                                f"Removing stale lock from dead process "
+                                f"(PID {existing_pid}, age {age:.1f}s): {lock_path}"
+                            )
+                        lock_path.unlink()
+                    else:
+                        # Permission error or other - refuse to start (conservative)
+                        for wan_info in controller.wan_controllers:
+                            wan_info['logger'].error(
+                                f"Cannot verify lock holder (PID {existing_pid}, lock: {lock_path}): {e}"
+                            )
+                        return 1
+            except (ValueError, FileNotFoundError, OSError) as e:
+                # Invalid PID format or race condition - remove
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].warning(
+                        f"Invalid lock file format, removing: {lock_path} ({e})"
+                    )
+                try:
+                    lock_path.unlink()
+                except FileNotFoundError:
+                    pass
+
+        # Create new lock file with current PID
         try:
-            import os
             fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            pid_bytes = f"{os.getpid()}\n".encode('utf-8')
+            os.write(fd, pid_bytes)
             os.close(fd)
             lock_files.append(lock_path)
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].debug(f"Lock acquired: {lock_path}")
+                wan_info['logger'].debug(f"Lock acquired: {lock_path} (PID {os.getpid()})")
         except FileExistsError:
+            # Race condition - another process created lock between our check and creation
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].error(f"Failed to acquire lock: {lock_path}")
+                wan_info['logger'].error(f"Failed to acquire lock (race condition): {lock_path}")
             return 1
 
-    running = True
+    shutdown_event = threading.Event()
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 3
+    watchdog_enabled = True
 
     def handle_signal(signum, frame):
-        nonlocal running
         # Log shutdown on first signal
         for wan_info in controller.wan_controllers:
             wan_info['logger'].info(f"Received signal {signum}, shutting down...")
-        running = False
+        shutdown_event.set()
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
@@ -908,18 +961,45 @@ def main():
             wan_info['logger'].info("Systemd watchdog support enabled")
 
     try:
-        while running:
+        while not shutdown_event.is_set():
             cycle_start = time.monotonic()
-            controller.run_cycle(use_lock=False)  # Lock already held
+
+            # Run cycle - returns True if successful
+            cycle_success = controller.run_cycle(use_lock=False)  # Lock already held
+
             elapsed = time.monotonic() - cycle_start
 
-            # Notify systemd watchdog that we're alive
-            if HAVE_SYSTEMD:
+            # Track consecutive failures
+            if cycle_success:
+                consecutive_failures = 0
+            else:
+                consecutive_failures += 1
+
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].warning(
+                        f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})"
+                    )
+
+                # Check if we've exceeded failure threshold
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+                    watchdog_enabled = False
+                    for wan_info in controller.wan_controllers:
+                        wan_info['logger'].error(
+                            f"Sustained failure: {consecutive_failures} consecutive "
+                            f"failed cycles. Stopping watchdog - systemd will terminate us."
+                        )
+                    if HAVE_SYSTEMD:
+                        sd_notify("STATUS=Degraded - consecutive failures exceeded threshold")
+
+            # Notify systemd watchdog ONLY if healthy
+            if HAVE_SYSTEMD and watchdog_enabled and cycle_success:
                 sd_notify("WATCHDOG=1")
+            elif HAVE_SYSTEMD and not watchdog_enabled:
+                sd_notify(f"STATUS=Degraded - {consecutive_failures} consecutive failures")
 
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
-            if sleep_time > 0 and running:
+            if sleep_time > 0 and not shutdown_event.is_set():
                 time.sleep(sleep_time)
     finally:
         # Clean up SSH connections on exit
