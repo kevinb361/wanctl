@@ -91,9 +91,15 @@ class CakeStatsReader:
         try:
             # Handle both SSH (text) and REST (JSON) output formats
             if out.strip().startswith('[') or out.strip().startswith('{'):
-                # JSON format (REST API)
+                # JSON format (REST API) - W10 fix: add JSON parsing error handling
                 import json
-                data = json.loads(out)
+                try:
+                    data = json.loads(out)
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Failed to parse CAKE stats JSON for {queue_name}: {e}")
+                    self.logger.debug(f"Invalid JSON response: {out[:200]}")
+                    return None
+
                 # REST API returns a list of matching queues
                 if isinstance(data, list) and len(data) > 0:
                     q = data[0]
@@ -101,6 +107,11 @@ class CakeStatsReader:
                     q = data
                 else:
                     self.logger.warning(f"No queue data in response for {queue_name}")
+                    return None
+
+                # Validate that response contains expected fields
+                if not isinstance(q, dict):
+                    self.logger.error(f"Invalid queue data structure (not dict) for {queue_name}")
                     return None
 
                 # Extract stats from JSON (field names use hyphens)
