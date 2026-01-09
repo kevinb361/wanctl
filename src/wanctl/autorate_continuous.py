@@ -36,6 +36,7 @@ from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
 from wanctl.ping_utils import parse_ping_output
 from wanctl.rate_utils import enforce_rate_bounds
+from wanctl.rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from wanctl.router_client import get_router_client
 from wanctl.state_utils import atomic_write_json, safe_json_load_file
 
@@ -293,51 +294,8 @@ class RouterOS:
         return True
 
 
-# =============================================================================
-# RTT MEASUREMENT
-# =============================================================================
-
-class RTTMeasurement:
-    """Lightweight RTT measurement via ping"""
-    def __init__(self, logger: logging.Logger, timeout_ping: int = DEFAULT_PING_TIMEOUT):
-        self.logger = logger
-        self.timeout_ping = timeout_ping
-
-    def ping_host(self, host: str, count: int = 5) -> Optional[float]:
-        """
-        Ping single host and return average RTT in milliseconds
-        Returns None on failure
-        """
-        try:
-            result = subprocess.run(
-                ["ping", "-c", str(count), "-W", str(self.timeout_ping), host],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=count + 2
-            )
-
-            if result.returncode != 0:
-                self.logger.warning(f"Ping to {host} failed (returncode {result.returncode})")
-                return None
-
-            # Parse RTT values from output using unified parser
-            rtts = parse_ping_output(result.stdout, self.logger)
-
-            if not rtts:
-                self.logger.warning(f"No RTT samples from {host}")
-                return None
-
-            avg_rtt = statistics.mean(rtts)
-            self.logger.debug(f"Ping {host}: {avg_rtt:.2f}ms (min={min(rtts):.2f}, max={max(rtts):.2f})")
-            return avg_rtt
-
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"Ping to {host} timed out")
-            return None
-        except Exception as e:
-            self.logger.error(f"Ping error to {host}: {e}")
-            return None
+# Note: RTTMeasurement class is now unified in rtt_measurement.py
+# This module imports it from there
 
 
 # =============================================================================
@@ -790,7 +748,13 @@ class ContinuousAutoRate:
 
             # Create shared instances
             router = RouterOS(config, logger)
-            rtt_measurement = RTTMeasurement(logger, config.timeout_ping)
+            # Use unified RTTMeasurement with AVERAGE aggregation and sample stats logging
+            rtt_measurement = RTTMeasurement(
+                logger,
+                timeout_ping=config.timeout_ping,
+                aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+                log_sample_stats=True  # Log min/max for debugging
+            )
 
             # Create WAN controller
             wan_controller = WANController(config.wan_name, config, router, rtt_measurement, logger)
