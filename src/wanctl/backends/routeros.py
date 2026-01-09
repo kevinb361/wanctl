@@ -15,11 +15,16 @@ Config schema:
       ssh_key: "/etc/wanctl/ssh/router.key"
 """
 
-import re
 import logging
 from typing import Optional
 
 from wanctl.backends.base import RouterBackend
+from wanctl.router_command_utils import (
+    check_command_success,
+    extract_field_value,
+    extract_queue_stats,
+    validate_rule_status,
+)
 from wanctl.routeros_ssh import RouterOSSSH
 
 
@@ -96,12 +101,10 @@ class RouterOSBackend(RouterBackend):
         cmd = f'/queue/tree/set [find name="{queue}"] max-limit={rate_bps}'
         rc, _, err = self.ssh.run_cmd(cmd)
 
-        if rc != 0:
-            self.logger.error(f"Failed to set bandwidth on {queue}: {err}")
-            return False
-
-        self.logger.debug(f"Set {queue} max-limit to {rate_bps} bps")
-        return True
+        if check_command_success(rc, cmd, err, self.logger, f"set bandwidth on {queue}"):
+            self.logger.debug(f"Set {queue} max-limit to {rate_bps} bps")
+            return True
+        return False
 
     def get_bandwidth(self, queue: str) -> Optional[int]:
         """Get current max-limit from RouterOS queue tree.
@@ -119,18 +122,17 @@ class RouterOSBackend(RouterBackend):
             self.logger.error(f"Failed to get bandwidth for {queue}: {err}")
             return None
 
-        # Parse max-limit from output
-        # Example: max-limit=940000000
-        match = re.search(r'max-limit=(\d+)', out)
-        if match:
-            return int(match.group(1))
+        # Extract max-limit using utility
+        max_limit = extract_field_value(out, "max-limit", int, self.logger)
 
         # Check for unlimited (0 or not set)
-        if 'max-limit=0' in out or 'max-limit=' not in out:
-            return 0
+        if max_limit is None:
+            if 'max-limit=0' in out or 'max-limit=' not in out:
+                return 0
+            self.logger.warning(f"Could not parse max-limit for {queue}")
+            return None
 
-        self.logger.warning(f"Could not parse max-limit for {queue}")
-        return None
+        return max_limit
 
     def get_queue_stats(self, queue: str) -> Optional[dict]:
         """Get statistics from RouterOS queue tree.
@@ -155,27 +157,8 @@ class RouterOSBackend(RouterBackend):
             self.logger.error(f"Failed to get stats for {queue}: {err}")
             return None
 
-        stats = {
-            'packets': 0,
-            'bytes': 0,
-            'dropped': 0,
-            'queued_packets': 0,
-            'queued_bytes': 0
-        }
-
-        # Parse statistics from RouterOS output
-        for key, pattern in [
-            ('packets', r'packets=(\d+)'),
-            ('bytes', r'(?<!queued-)bytes=(\d+)'),
-            ('dropped', r'dropped=(\d+)'),
-            ('queued_packets', r'queued-packets=(\d+)'),
-            ('queued_bytes', r'queued-bytes=(\d+)')
-        ]:
-            match = re.search(pattern, out)
-            if match:
-                stats[key] = int(match.group(1))
-
-        return stats
+        # Extract statistics using utility (handles both SSH text and REST JSON)
+        return extract_queue_stats(out, self.logger)
 
     def enable_rule(self, comment: str) -> bool:
         """Enable a mangle rule by comment.
@@ -189,12 +172,10 @@ class RouterOSBackend(RouterBackend):
         cmd = f'/ip/firewall/mangle/enable [find comment="{comment}"]'
         rc, _, err = self.ssh.run_cmd(cmd)
 
-        if rc != 0:
-            self.logger.error(f"Failed to enable rule '{comment}': {err}")
-            return False
-
-        self.logger.info(f"Enabled mangle rule: {comment}")
-        return True
+        if check_command_success(rc, cmd, err, self.logger, f"enable rule '{comment}'"):
+            self.logger.info(f"Enabled mangle rule: {comment}")
+            return True
+        return False
 
     def disable_rule(self, comment: str) -> bool:
         """Disable a mangle rule by comment.
@@ -208,12 +189,10 @@ class RouterOSBackend(RouterBackend):
         cmd = f'/ip/firewall/mangle/disable [find comment="{comment}"]'
         rc, _, err = self.ssh.run_cmd(cmd)
 
-        if rc != 0:
-            self.logger.error(f"Failed to disable rule '{comment}': {err}")
-            return False
-
-        self.logger.info(f"Disabled mangle rule: {comment}")
-        return True
+        if check_command_success(rc, cmd, err, self.logger, f"disable rule '{comment}'"):
+            self.logger.info(f"Disabled mangle rule: {comment}")
+            return True
+        return False
 
     def is_rule_enabled(self, comment: str) -> Optional[bool]:
         """Check if a mangle rule is enabled.
@@ -235,9 +214,8 @@ class RouterOSBackend(RouterBackend):
             self.logger.warning(f"Rule not found: {comment}")
             return None
 
-        # RouterOS shows 'X' flag for disabled rules
-        # Example output line: "0 X ;;; ADAPTIVE: Steer..."
-        return 'X' not in out.split('\n')[0] if out else None
+        # Use utility to check rule status (X flag = disabled)
+        return validate_rule_status(out, self.logger)
 
     def reset_queue_counters(self, queue: str) -> bool:
         """Reset queue statistics counters.
