@@ -1,7 +1,9 @@
 """Shared logging utilities for CAKE system components."""
 
 import logging
-import os
+from pathlib import Path
+
+from wanctl.path_utils import ensure_file_directory
 
 
 def setup_logging(
@@ -39,9 +41,7 @@ def setup_logging(
     # Ensure log directories exist
     for path in (config.main_log, getattr(config, 'debug_log', None)):
         if path:
-            d = os.path.dirname(path)
-            if d and not os.path.isdir(d):
-                os.makedirs(d, exist_ok=True)
+            ensure_file_directory(path, logger=logger)
 
     # Main log - INFO level
     fh = logging.FileHandler(config.main_log)
