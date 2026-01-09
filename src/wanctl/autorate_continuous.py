@@ -33,6 +33,7 @@ except ImportError:
 from wanctl.config_base import BaseConfig, ConfigValidationError
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
+from wanctl.ping_utils import parse_ping_output
 from wanctl.router_client import get_router_client
 from wanctl.state_utils import atomic_write_json
 
@@ -318,17 +319,8 @@ class RTTMeasurement:
                 self.logger.warning(f"Ping to {host} failed (returncode {result.returncode})")
                 return None
 
-            # Parse RTT values from output
-            rtts = []
-            for line in result.stdout.splitlines():
-                if "time=" in line:
-                    try:
-                        rtt_str = line.split("time=")[1].split()[0]
-                        # Handle both "12.3" and "12.3 ms" formats
-                        rtt = float(rtt_str.replace("ms", ""))
-                        rtts.append(rtt)
-                    except (ValueError, IndexError) as e:
-                        self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
+            # Parse RTT values from output using unified parser
+            rtts = parse_ping_output(result.stdout, self.logger)
 
             if not rtts:
                 self.logger.warning(f"No RTT samples from {host}")
