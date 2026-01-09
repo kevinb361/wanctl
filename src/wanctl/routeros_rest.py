@@ -38,7 +38,7 @@ Usage:
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
@@ -74,7 +74,7 @@ class RouterOSREST:
         port: int = 443,
         verify_ssl: bool = False,
         timeout: int = 15,
-        logger: logging.Logger = None
+        logger: Optional[logging.Logger] = None
     ):
         """Initialize RouterOS REST API client.
 
@@ -192,7 +192,7 @@ class RouterOSREST:
             self.logger.error(f"Unexpected error: {e}")
             return 1, "", str(e)
 
-    def _execute_command(self, cmd: str, timeout: Optional[int] = None):
+    def _execute_command(self, cmd: str, timeout: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Parse CLI command and execute via REST API.
 
         Supports common queue tree operations:
@@ -221,7 +221,7 @@ class RouterOSREST:
         else:
             return self._execute_single_command(cmd, timeout=timeout_val)
 
-    def _execute_single_command(self, cmd: str, timeout: Optional[int] = None):
+    def _execute_single_command(self, cmd: str, timeout: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Execute a single CLI command via REST API.
 
         Args:
