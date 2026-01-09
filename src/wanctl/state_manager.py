@@ -5,7 +5,10 @@ autorate_continuous.py and steering/daemon.py. Provides base class for
 unified state handling with schema validation and atomic persistence.
 """
 
+import fcntl
 import logging
+import shutil
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
 
@@ -216,3 +219,167 @@ class StateManager:
             Dictionary representation of state
         """
         return dict(self.state)
+
+
+class SteeringStateManager(StateManager):
+    """Specialized state manager for steering daemon.
+
+    Extends StateManager with steering-specific functionality:
+    - Deque-based bounded history (automatic eviction)
+    - Legacy state name migration
+    - File-level locking for concurrent access
+    - State file backups (.backup and .corrupt)
+    """
+
+    def __init__(
+        self,
+        state_file: Path,
+        schema: StateSchema,
+        logger: logging.Logger,
+        context: str = "steering state"
+    ):
+        """Initialize steering state manager.
+
+        Args:
+            state_file: Path to state file
+            schema: StateSchema defining valid fields and defaults
+            logger: Logger instance
+            context: Context for error messages
+        """
+        super().__init__(state_file, schema, logger, context)
+
+    def _backup_state_file(self, suffix: str = '.backup') -> bool:
+        """Create backup copy of state file.
+
+        Args:
+            suffix: Suffix to add to backup filename
+
+        Returns:
+            True if backup succeeded, False otherwise
+        """
+        try:
+            if not self.state_file.exists():
+                return False
+
+            backup_path = self.state_file.with_suffix(
+                self.state_file.suffix + suffix
+            )
+            shutil.copy2(self.state_file, backup_path)
+            self.logger.debug(f"Backed up state to {backup_path}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to backup state file: {e}")
+            return False
+
+    def load(self) -> bool:
+        """Load state from file with validation and legacy migration.
+
+        Handles deque conversion from JSON lists and legacy state name migration.
+
+        Returns:
+            True if state loaded successfully
+            False if file doesn't exist or load failed
+        """
+        if not self.state_file.exists():
+            self.logger.debug(f"{self.context}: No state file, using defaults")
+            self.state = self.schema.get_defaults()
+            return False
+
+        # Load JSON from file
+        loaded = safe_json_load_file(
+            self.state_file,
+            logger=self.logger,
+            default=None,
+            error_context=self.context
+        )
+
+        if loaded is None:
+            # JSON parsing failed - backup and use defaults
+            self.logger.warning(f"{self.context}: Failed to parse state file, using defaults")
+            self._backup_state_file(suffix='.corrupt')
+            self.state = self.schema.get_defaults()
+            return False
+
+        try:
+            # Validate and fill defaults
+            self.state = self.schema.validate_state(loaded)
+            # Convert JSON lists back to deques for bounded history
+            self._convert_lists_to_deques()
+            self.logger.debug(f"{self.context}: Loaded state from {self.state_file}")
+            return True
+        except Exception as e:
+            self.logger.error(f"{self.context}: Failed to validate state: {e}")
+            self._backup_state_file(suffix='.corrupt')
+            self.state = self.schema.get_defaults()
+            return False
+
+    def _convert_lists_to_deques(self, maxlen: int = 50) -> None:
+        """Convert list-based history fields to bounded deques.
+
+        Deques with maxlen automatically evict oldest elements when full,
+        preventing unbounded growth on long-running daemons.
+
+        Args:
+            maxlen: Maximum length for history deques
+        """
+        history_keys = ['history_rtt', 'history_delta', 'cake_drops_history', 'queue_depth_history']
+        for key in history_keys:
+            if key in self.state:
+                if isinstance(self.state[key], list):
+                    self.state[key] = deque(self.state[key], maxlen=maxlen)
+                elif not isinstance(self.state[key], deque):
+                    self.state[key] = deque(maxlen=maxlen)
+
+    def save(self, use_lock: bool = True) -> bool:
+        """Save state to file atomically with optional file locking.
+
+        File locking prevents concurrent writes from multiple processes.
+        Converts deques to lists for JSON serialization.
+
+        Args:
+            use_lock: If True, acquire lock before writing (default: True)
+
+        Returns:
+            True if save succeeded, False otherwise
+        """
+        try:
+            # Convert deques to lists for JSON serialization
+            state_to_save = dict(self.state)
+            for key in ['history_rtt', 'history_delta', 'cake_drops_history', 'queue_depth_history']:
+                if isinstance(state_to_save.get(key), type(state_to_save.get(key))) and hasattr(state_to_save[key], '__iter__'):
+                    try:
+                        state_to_save[key] = list(state_to_save[key])
+                    except (TypeError, ValueError):
+                        pass  # Keep as-is if conversion fails
+
+            if not use_lock:
+                # Direct write without locking
+                atomic_write_json(self.state_file, state_to_save)
+                self.logger.debug(f"{self.context}: Saved state to {self.state_file}")
+                self._backup_state_file(suffix='.backup')
+                return True
+
+            # Write with file-level locking for concurrent access protection
+            lock_path = self.state_file.with_suffix(self.state_file.suffix + '.lock')
+
+            try:
+                with open(lock_path, 'a') as lock_file:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    try:
+                        atomic_write_json(self.state_file, state_to_save)
+                        self.logger.debug(f"{self.context}: Saved state to {self.state_file}")
+                        self._backup_state_file(suffix='.backup')
+                    finally:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            except BlockingIOError:
+                self.logger.warning(f"{self.context}: State file locked by another process, skipping save")
+                return False
+            except Exception as e:
+                self.logger.error(f"{self.context}: Failed to acquire state file lock: {e}")
+                return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"{self.context}: Failed to save state: {e}")
+            return False
