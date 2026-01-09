@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ..config_base import BaseConfig
+from ..error_handling import handle_errors
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
 from ..ping_utils import parse_ping_output
@@ -299,6 +300,7 @@ class SteeringState:
         self.logger = logger
         self.state = self._load()
 
+    @handle_errors(default_return=False, error_msg="Failed to backup state file: {exception}")
     def _backup_state_file(self, suffix: str = '.backup') -> bool:
         """
         Create backup copy of state file
@@ -311,19 +313,15 @@ class SteeringState:
         """
         import shutil
 
-        try:
-            if not self.config.state_file.exists():
-                return False
-
-            backup_path = self.config.state_file.with_suffix(
-                self.config.state_file.suffix + suffix
-            )
-            shutil.copy2(self.config.state_file, backup_path)
-            self.logger.debug(f"Backed up state to {backup_path}")
-            return True
-        except Exception as e:
-            self.logger.warning(f"Failed to backup state file: {e}")
+        if not self.config.state_file.exists():
             return False
+
+        backup_path = self.config.state_file.with_suffix(
+            self.config.state_file.suffix + suffix
+        )
+        shutil.copy2(self.config.state_file, backup_path)
+        self.logger.debug(f"Backed up state to {backup_path}")
+        return True
 
     def _load(self) -> Dict[str, Any]:
         """Load state from file"""

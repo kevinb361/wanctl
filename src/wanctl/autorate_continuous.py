@@ -31,6 +31,7 @@ except ImportError:
     sd_notify = None
 
 from wanctl.config_base import BaseConfig, ConfigValidationError
+from wanctl.error_handling import handle_errors
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
 from wanctl.ping_utils import parse_ping_output
@@ -682,77 +683,73 @@ class WANController:
 
         return True
 
+    @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
         """Load persisted hysteresis state from disk"""
-        try:
-            if self.config.state_file.exists():
-                with open(self.config.state_file, 'r') as f:
-                    state = json.load(f)
+        if self.config.state_file.exists():
+            with open(self.config.state_file, 'r') as f:
+                state = json.load(f)
 
-                # Restore download controller state
-                if 'download' in state:
-                    dl = state['download']
-                    self.download.green_streak = dl.get('green_streak', 0)
-                    self.download.soft_red_streak = dl.get('soft_red_streak', 0)  # Phase 2A
-                    self.download.red_streak = dl.get('red_streak', 0)
-                    self.download.current_rate = dl.get('current_rate', self.download.ceiling_bps)
+            # Restore download controller state
+            if 'download' in state:
+                dl = state['download']
+                self.download.green_streak = dl.get('green_streak', 0)
+                self.download.soft_red_streak = dl.get('soft_red_streak', 0)  # Phase 2A
+                self.download.red_streak = dl.get('red_streak', 0)
+                self.download.current_rate = dl.get('current_rate', self.download.ceiling_bps)
 
-                # Restore upload controller state
-                if 'upload' in state:
-                    ul = state['upload']
-                    self.upload.green_streak = ul.get('green_streak', 0)
-                    self.upload.soft_red_streak = ul.get('soft_red_streak', 0)  # Phase 2A
-                    self.upload.red_streak = ul.get('red_streak', 0)
-                    self.upload.current_rate = ul.get('current_rate', self.upload.ceiling_bps)
+            # Restore upload controller state
+            if 'upload' in state:
+                ul = state['upload']
+                self.upload.green_streak = ul.get('green_streak', 0)
+                self.upload.soft_red_streak = ul.get('soft_red_streak', 0)  # Phase 2A
+                self.upload.red_streak = ul.get('red_streak', 0)
+                self.upload.current_rate = ul.get('current_rate', self.upload.ceiling_bps)
 
-                # Restore EWMA state
-                if 'ewma' in state:
-                    ewma = state['ewma']
-                    self.baseline_rtt = ewma.get('baseline_rtt', self.baseline_rtt)
-                    self.load_rtt = ewma.get('load_rtt', self.load_rtt)
+            # Restore EWMA state
+            if 'ewma' in state:
+                ewma = state['ewma']
+                self.baseline_rtt = ewma.get('baseline_rtt', self.baseline_rtt)
+                self.load_rtt = ewma.get('load_rtt', self.load_rtt)
 
-                # Restore last applied rates (flash wear protection)
-                if 'last_applied' in state:
-                    applied = state['last_applied']
-                    self.last_applied_dl_rate = applied.get('dl_rate')
-                    self.last_applied_ul_rate = applied.get('ul_rate')
+            # Restore last applied rates (flash wear protection)
+            if 'last_applied' in state:
+                applied = state['last_applied']
+                self.last_applied_dl_rate = applied.get('dl_rate')
+                self.last_applied_ul_rate = applied.get('ul_rate')
 
-                self.logger.debug(f"{self.wan_name}: Loaded state from {self.config.state_file}")
-        except Exception as e:
-            self.logger.warning(f"{self.wan_name}: Could not load state: {e}")
+            self.logger.debug(f"{self.wan_name}: Loaded state from {self.config.state_file}")
 
+    @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
     def save_state(self) -> None:
         """Save hysteresis state to disk for persistence across timer invocations"""
-        try:
-            state = {
-                'download': {
-                    'green_streak': self.download.green_streak,
-                    'soft_red_streak': self.download.soft_red_streak,  # Phase 2A
-                    'red_streak': self.download.red_streak,
-                    'current_rate': self.download.current_rate
-                },
-                'upload': {
-                    'green_streak': self.upload.green_streak,
-                    'soft_red_streak': self.upload.soft_red_streak,  # Phase 2A
-                    'red_streak': self.upload.red_streak,
-                    'current_rate': self.upload.current_rate
-                },
-                'ewma': {
-                    'baseline_rtt': self.baseline_rtt,
-                    'load_rtt': self.load_rtt
-                },
-                # Flash wear protection: track last values sent to router
-                'last_applied': {
-                    'dl_rate': self.last_applied_dl_rate,
-                    'ul_rate': self.last_applied_ul_rate
-                },
-                'timestamp': datetime.datetime.now().isoformat()
-            }
+        state = {
+            'download': {
+                'green_streak': self.download.green_streak,
+                'soft_red_streak': self.download.soft_red_streak,  # Phase 2A
+                'red_streak': self.download.red_streak,
+                'current_rate': self.download.current_rate
+            },
+            'upload': {
+                'green_streak': self.upload.green_streak,
+                'soft_red_streak': self.upload.soft_red_streak,  # Phase 2A
+                'red_streak': self.upload.red_streak,
+                'current_rate': self.upload.current_rate
+            },
+            'ewma': {
+                'baseline_rtt': self.baseline_rtt,
+                'load_rtt': self.load_rtt
+            },
+            # Flash wear protection: track last values sent to router
+            'last_applied': {
+                'dl_rate': self.last_applied_dl_rate,
+                'ul_rate': self.last_applied_ul_rate
+            },
+            'timestamp': datetime.datetime.now().isoformat()
+        }
 
-            atomic_write_json(self.config.state_file, state)
-            self.logger.debug(f"{self.wan_name}: Saved state to {self.config.state_file}")
-        except Exception as e:
-            self.logger.warning(f"{self.wan_name}: Could not save state: {e}")
+        atomic_write_json(self.config.state_file, state)
+        self.logger.debug(f"{self.wan_name}: Saved state to {self.config.state_file}")
 
 
 # =============================================================================
