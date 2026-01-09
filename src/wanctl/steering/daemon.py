@@ -1091,7 +1091,6 @@ class SteeringDaemon:
         # === CAKE Stats Collection (if enabled) ===
         cake_drops = 0
         queued_packets = 0
-        cake_available = False  # W8 fix: Track if CAKE stats are available
 
         if self.config.cake_aware and self.cake_reader:
             # Read CAKE statistics (using delta math, no resets needed)
@@ -1099,7 +1098,6 @@ class SteeringDaemon:
             if stats:
                 cake_drops = stats.dropped
                 queued_packets = stats.queued_packets
-                cake_available = True
 
                 # Reset failure counter on successful read
                 state["cake_read_failures"] = 0
