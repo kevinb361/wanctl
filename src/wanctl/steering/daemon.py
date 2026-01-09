@@ -38,6 +38,7 @@ from ..error_handling import handle_errors
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
 from ..ping_utils import parse_ping_output
+from ..retry_utils import measure_with_retry, verify_with_retry
 from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
 from ..state_utils import atomic_write_json, safe_json_load_file
@@ -572,41 +573,6 @@ class RouterOSController:
         self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
         return None
 
-    def _verify_rule_state_with_retry(self, expected_disabled: bool, max_retries: int = 3) -> bool:
-        """
-        Verify rule state with retry and exponential backoff (W6 fix)
-
-        Args:
-            expected_disabled: True if rule should be disabled, False if enabled
-            max_retries: Maximum retry attempts
-
-        Returns:
-            True if verification succeeded within retries, False if exhausted
-        """
-        import time
-
-        for attempt in range(max_retries):
-            status = self.get_rule_status()
-
-            if status is None:
-                self.logger.warning(f"Rule status check failed (attempt {attempt + 1}/{max_retries})")
-            elif (not expected_disabled and status is True) or (expected_disabled and status is False):
-                # Verification succeeded
-                if attempt > 0:
-                    self.logger.info(f"Rule state verified after {attempt + 1} attempts")
-                return True
-            else:
-                self.logger.debug(
-                    f"Rule state mismatch (attempt {attempt + 1}/{max_retries}): "
-                    f"expected disabled={expected_disabled}, got disabled={not status}"
-                )
-
-            # Exponential backoff: 100ms, 200ms, 400ms
-            if attempt < max_retries - 1:
-                backoff = 0.1 * (2 ** attempt)
-                time.sleep(backoff)
-
-        return False
 
     def enable_steering(self) -> bool:
         """Enable adaptive steering rule (route LATENCY_SENSITIVE to alternate WAN)"""
@@ -622,7 +588,15 @@ class RouterOSController:
             return False
 
         # Verify with retry (W6 fix: handle RouterOS processing delay)
-        if self._verify_rule_state_with_retry(expected_disabled=False):
+        if verify_with_retry(
+            self.get_rule_status,
+            expected_result=True,
+            max_retries=3,
+            initial_delay=0.1,
+            backoff_factor=2.0,
+            logger=self.logger,
+            operation_name="steering rule enable verification"
+        ):
             self.logger.info("Steering rule enabled and verified")
             return True
         else:
@@ -643,7 +617,15 @@ class RouterOSController:
             return False
 
         # Verify with retry (W6 fix: handle RouterOS processing delay)
-        if self._verify_rule_state_with_retry(expected_disabled=True):
+        if verify_with_retry(
+            self.get_rule_status,
+            expected_result=False,
+            max_retries=3,
+            initial_delay=0.1,
+            backoff_factor=2.0,
+            logger=self.logger,
+            operation_name="steering rule disable verification"
+        ):
             self.logger.info("Steering rule disabled and verified")
             return True
         else:
@@ -768,56 +750,38 @@ class SteeringDaemon:
 
     def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> Optional[float]:
         """
-        Measure current RTT with retry and fallback (W7 fix)
+        Measure current RTT with retry and fallback to history (W7 fix)
+
+        Uses measure_with_retry() utility with fallback to last known RTT from state.
 
         Args:
             max_retries: Maximum ping attempts
 
         Returns:
-            Current RTT or None if all retries fail and no fallback
+            Current RTT or None if all retries fail and no fallback available
         """
-        import time
-
-        for attempt in range(max_retries):
-            rtt = self.measure_current_rtt()
-
-            if rtt is not None:
-                if attempt > 0:
-                    self.logger.info(f"Ping succeeded on attempt {attempt + 1}")
-                return rtt
-
-            self.logger.warning(
-                f"Ping attempt {attempt + 1}/{max_retries} failed to {self.config.ping_host}"
+        def fallback_to_history():
+            state = self.state_mgr.state
+            if state.get("history_rtt") and len(state["history_rtt"]) > 0:
+                last_rtt = state["history_rtt"][-1]
+                self.logger.warning(
+                    f"Using last known RTT from state: {last_rtt:.1f}ms "
+                    f"(ping to {self.config.ping_host} failed after retries)"
+                )
+                return last_rtt
+            self.logger.error(
+                "No ping response and no RTT history available - cannot proceed"
             )
+            return None
 
-            # Small delay before retry (not needed on last attempt)
-            if attempt < max_retries - 1:
-                time.sleep(0.5)
-
-        # All retries failed - try fallback
-        return self._fallback_to_last_rtt()
-
-    def _fallback_to_last_rtt(self) -> Optional[float]:
-        """
-        Fallback to last known RTT from state history (W7 fix)
-
-        Returns:
-            Last RTT from history or None if no history
-        """
-        state = self.state_mgr.state
-
-        if state.get("history_rtt") and len(state["history_rtt"]) > 0:
-            last_rtt = state["history_rtt"][-1]
-            self.logger.warning(
-                f"Using last known RTT from state: {last_rtt:.1f}ms "
-                f"(ping to {self.config.ping_host} failed after retries)"
-            )
-            return last_rtt
-
-        self.logger.error(
-            "No ping response and no RTT history available - cannot proceed"
+        return measure_with_retry(
+            self.measure_current_rtt,
+            max_retries=max_retries,
+            retry_delay=0.5,
+            fallback_func=fallback_to_history,
+            logger=self.logger,
+            operation_name="ping"
         )
-        return None
 
     def update_baseline_rtt(self) -> bool:
         """
