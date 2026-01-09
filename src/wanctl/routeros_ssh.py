@@ -186,7 +186,7 @@ class RouterOSSSH:
             self._connect()
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
+    def run_cmd(self, cmd: str, capture: bool = False, timeout: Optional[int] = None) -> Tuple[int, str, str]:
         """Execute RouterOS command via persistent SSH connection.
 
         Uses paramiko's exec_command() on a persistent connection for
@@ -204,6 +204,7 @@ class RouterOSSSH:
             cmd: RouterOS command to execute
             capture: Whether to capture stdout/stderr (default: False)
                     Note: With paramiko, we always capture for return code detection
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             Tuple of (returncode, stdout, stderr)
@@ -215,13 +216,14 @@ class RouterOSSSH:
         """
         self._ensure_connected()
 
-        self.logger.debug(f"RouterOS command: {cmd}")
+        timeout_val = timeout if timeout is not None else self.timeout
+        self.logger.debug(f"RouterOS command: {cmd} (timeout={timeout_val}s)")
 
         try:
             # Execute command with timeout
             stdin, stdout, stderr = self._client.exec_command(
                 cmd,
-                timeout=self.timeout
+                timeout=timeout_val
             )
 
             # Wait for command to complete and get exit status

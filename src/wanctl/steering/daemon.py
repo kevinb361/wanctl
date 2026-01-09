@@ -188,7 +188,6 @@ class SteeringConfig(BaseConfig):
         # Operational mode
         mode = self.data.get('mode', {})
         self.cake_aware = mode.get('cake_aware', True)
-        self.reset_counters = mode.get('reset_counters', True)
         self.enable_yellow_state = mode.get('enable_yellow_state', True)
 
         # State machine thresholds
@@ -297,6 +296,32 @@ class SteeringState:
         self.logger = logger
         self.state = self._load()
 
+    def _backup_state_file(self, suffix: str = '.backup') -> bool:
+        """
+        Create backup copy of state file
+
+        Args:
+            suffix: Suffix to add to backup filename
+
+        Returns:
+            True if backup succeeded, False otherwise
+        """
+        import shutil
+
+        try:
+            if not self.config.state_file.exists():
+                return False
+
+            backup_path = self.config.state_file.with_suffix(
+                self.config.state_file.suffix + suffix
+            )
+            shutil.copy2(self.config.state_file, backup_path)
+            self.logger.debug(f"Backed up state to {backup_path}")
+            return True
+        except Exception as e:
+            self.logger.warning(f"Failed to backup state file: {e}")
+            return False
+
     def _load(self) -> Dict[str, Any]:
         """Load state from file"""
         if self.config.state_file.exists():
@@ -308,6 +333,12 @@ class SteeringState:
             except Exception as e:
                 self.logger.error(f"Failed to load state: {e}")
                 self.logger.debug(traceback.format_exc())
+
+                # W2 fix: Backup corrupt state before discarding
+                self._backup_state_file(suffix='.corrupt')
+                self.logger.warning(
+                    f"Corrupt state backed up to {self.config.state_file}.corrupt"
+                )
 
         # Initial state (using config-driven state names)
         return {
@@ -391,6 +422,10 @@ class SteeringState:
         try:
             atomic_write_json(self.config.state_file, self.state)
             self.logger.debug(f"Saved state: {self.state}")
+
+            # W2 fix: Backup after successful save
+            self._backup_state_file(suffix='.backup')
+
         except Exception as e:
             self.logger.error(f"Failed to save state: {e}")
             self.logger.debug(traceback.format_exc())
@@ -458,7 +493,8 @@ class RouterOSController:
         """
         rc, out, _ = self.client.run_cmd(
             f'/ip firewall mangle print where comment~"{self.config.mangle_rule_comment}"',
-            capture=True
+            capture=True,
+            timeout=5  # Fast query operation
         )
 
         if rc != 0:
@@ -485,25 +521,61 @@ class RouterOSController:
         self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
         return None
 
+    def _verify_rule_state_with_retry(self, expected_disabled: bool, max_retries: int = 3) -> bool:
+        """
+        Verify rule state with retry and exponential backoff (W6 fix)
+
+        Args:
+            expected_disabled: True if rule should be disabled, False if enabled
+            max_retries: Maximum retry attempts
+
+        Returns:
+            True if verification succeeded within retries, False if exhausted
+        """
+        import time
+
+        for attempt in range(max_retries):
+            status = self.get_rule_status()
+
+            if status is None:
+                self.logger.warning(f"Rule status check failed (attempt {attempt + 1}/{max_retries})")
+            elif (not expected_disabled and status is True) or (expected_disabled and status is False):
+                # Verification succeeded
+                if attempt > 0:
+                    self.logger.info(f"Rule state verified after {attempt + 1} attempts")
+                return True
+            else:
+                self.logger.debug(
+                    f"Rule state mismatch (attempt {attempt + 1}/{max_retries}): "
+                    f"expected disabled={expected_disabled}, got disabled={not status}"
+                )
+
+            # Exponential backoff: 100ms, 200ms, 400ms
+            if attempt < max_retries - 1:
+                backoff = 0.1 * (2 ** attempt)
+                time.sleep(backoff)
+
+        return False
+
     def enable_steering(self) -> bool:
         """Enable adaptive steering rule (route LATENCY_SENSITIVE to alternate WAN)"""
         self.logger.info(f"Enabling steering rule: {self.config.mangle_rule_comment}")
 
         rc, _, _ = self.client.run_cmd(
-            f'/ip firewall mangle enable [find comment~"{self.config.mangle_rule_comment}"]'
+            f'/ip firewall mangle enable [find comment~"{self.config.mangle_rule_comment}"]',
+            timeout=10  # State change operation
         )
 
         if rc != 0:
             self.logger.error("Failed to enable steering rule")
             return False
 
-        # Verify
-        status = self.get_rule_status()
-        if status is True:
+        # Verify with retry (W6 fix: handle RouterOS processing delay)
+        if self._verify_rule_state_with_retry(expected_disabled=False):
             self.logger.info("Steering rule enabled and verified")
             return True
         else:
-            self.logger.error("Steering rule enable verification failed")
+            self.logger.error("Steering rule enable verification failed after retries")
             return False
 
     def disable_steering(self) -> bool:
@@ -511,20 +583,20 @@ class RouterOSController:
         self.logger.info(f"Disabling steering rule: {self.config.mangle_rule_comment}")
 
         rc, _, _ = self.client.run_cmd(
-            f'/ip firewall mangle disable [find comment~"{self.config.mangle_rule_comment}"]'
+            f'/ip firewall mangle disable [find comment~"{self.config.mangle_rule_comment}"]',
+            timeout=10  # State change operation
         )
 
         if rc != 0:
             self.logger.error("Failed to disable steering rule")
             return False
 
-        # Verify
-        status = self.get_rule_status()
-        if status is False:
+        # Verify with retry (W6 fix: handle RouterOS processing delay)
+        if self._verify_rule_state_with_retry(expected_disabled=True):
             self.logger.info("Steering rule disabled and verified")
             return True
         else:
-            self.logger.error("Steering rule disable verification failed")
+            self.logger.error("Steering rule disable verification failed after retries")
             return False
 
 
@@ -688,6 +760,59 @@ class SteeringDaemon:
             self.config.ping_host,
             self.config.ping_count
         )
+
+    def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> Optional[float]:
+        """
+        Measure current RTT with retry and fallback (W7 fix)
+
+        Args:
+            max_retries: Maximum ping attempts
+
+        Returns:
+            Current RTT or None if all retries fail and no fallback
+        """
+        import time
+
+        for attempt in range(max_retries):
+            rtt = self.measure_current_rtt()
+
+            if rtt is not None:
+                if attempt > 0:
+                    self.logger.info(f"Ping succeeded on attempt {attempt + 1}")
+                return rtt
+
+            self.logger.warning(
+                f"Ping attempt {attempt + 1}/{max_retries} failed to {self.config.ping_host}"
+            )
+
+            # Small delay before retry (not needed on last attempt)
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+
+        # All retries failed - try fallback
+        return self._fallback_to_last_rtt()
+
+    def _fallback_to_last_rtt(self) -> Optional[float]:
+        """
+        Fallback to last known RTT from state history (W7 fix)
+
+        Returns:
+            Last RTT from history or None if no history
+        """
+        state = self.state_mgr.state
+
+        if state.get("history_rtt") and len(state["history_rtt"]) > 0:
+            last_rtt = state["history_rtt"][-1]
+            self.logger.warning(
+                f"Using last known RTT from state: {last_rtt:.1f}ms "
+                f"(ping to {self.config.ping_host} failed after retries)"
+            )
+            return last_rtt
+
+        self.logger.error(
+            "No ping response and no RTT history available - cannot proceed"
+        )
+        return None
 
     def update_baseline_rtt(self) -> bool:
         """
@@ -929,11 +1054,7 @@ class SteeringDaemon:
         queued_packets = 0
 
         if self.config.cake_aware and self.cake_reader:
-            # Reset counters for accurate delta measurement
-            if self.config.reset_counters:
-                self.cake_reader.reset_counters(self.config.primary_download_queue)
-
-            # Read CAKE statistics
+            # Read CAKE statistics (using delta math, no resets needed)
             stats = self.cake_reader.read_stats(self.config.primary_download_queue)
             if stats:
                 cake_drops = stats.dropped
@@ -950,9 +1071,10 @@ class SteeringDaemon:
                     state["queue_depth_history"] = state["queue_depth_history"][-self.config.history_size:]
 
         # === RTT Measurement ===
-        current_rtt = self.measure_current_rtt()
+        # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
+        current_rtt = self._measure_current_rtt_with_retry()
         if current_rtt is None:
-            self.logger.warning("Ping failed, skipping cycle")
+            self.logger.warning("Ping failed after retries and no fallback available, skipping cycle")
             return False
 
         # Calculate delta

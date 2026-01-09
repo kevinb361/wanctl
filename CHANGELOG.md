@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 2: Operational Reliability Hardening (2026-01-09)
+
+#### Added
+
+- **Operation-Appropriate Timeouts (W1+W9)**: RouterOS client methods now accept optional timeout parameter
+  - Fast queries (read_stats, find rules): 5 second timeout
+  - Control operations (enable/disable steering): 10 second timeout
+  - Prevents timeout exceptions from blocking 2-second steering cycles
+- **State File Backup (W2)**: Automatic backups on corruption detection and successful saves
+  - Backs up to `.corrupt` when load corruption detected
+  - Backs up to `.backup` after successful state saves
+  - Enables manual recovery without code changes
+- **Verification Retry with Exponential Backoff (W6)**: Steering rule verification now retries on failure
+  - 3 maximum attempts with exponential backoff: 100ms → 200ms → 400ms
+  - Handles RouterOS processing delay for rule state changes
+  - Prevents false "verification failed" errors
+- **Ping Retry & Fallback to Historical RTT (W7)**: RTT measurement resilience
+  - 3 ping attempts with 0.5s delay between retries
+  - Fallback to last known RTT from state history on failure
+  - Prevents single transient ping failure from skipping steering cycle
+- **Delta Math Documentation (W11)**: Comprehensive explanation of counter accumulation approach
+  - RouterOS counters are monotonic and cumulative
+  - Delta method: subtract previous read from current read
+  - Eliminates measurement gap race condition of reset→read approach
+
+#### Changed
+
+- **Counter Reset Removal (W11)**: Removed `reset_counters()` and `reset_all_counters()` methods
+  - Switched to delta math for more accurate event counting
+  - Reduces RouterOS command overhead (50-150ms saved per cycle)
+  - `reset_counters` config field no longer loaded
+- **State Management**: Added `_backup_state_file()` to SteeringState class
+- **RouterOS Communication**: All client methods now support per-operation timeout
+
+#### Fixed
+
+- Transient ping failures no longer skip steering cycles (W7)
+- False "rule verification failed" errors eliminated via retry (W6)
+- State corruption no longer causes permanent data loss (W2)
+- RouterOS timeout exceptions no longer block steering loops (W1+W9)
+- CAKE statistics now collected without race condition (W11)
+
+#### Deployed & Verified
+
+- Both containers (cake-spectrum, cake-att) deployed successfully
+- Python syntax validation passed
+- Services restarted cleanly with no errors
+- Spectrum container showing healthy operational metrics (GREEN/YELLOW states, no RED)
+- Steering daemon running on schedule with no failures
+
+---
+
+### Previous Changes
+
+#### REST API & Security Hardening (2026-01-08)
+
 ### Added
 
 - **REST API Transport**: 2x faster than SSH (~50ms vs ~150ms latency)
