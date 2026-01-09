@@ -33,7 +33,13 @@ from collections import deque  # W4 fix: Bounded history with automatic eviction
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ..config_base import BaseConfig
+from ..config_base import BaseConfig, ConfigValidationError
+from ..config_validation_utils import (
+    validate_alpha,
+    validate_baseline_rtt,
+    validate_rtt_thresholds,
+    validate_sample_counts,
+)
 from ..error_handling import handle_errors
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
@@ -213,13 +219,15 @@ class SteeringConfig(BaseConfig):
         self.min_queue_yellow = thresholds.get('min_queue_yellow', DEFAULT_MIN_QUEUE_YELLOW)
         self.min_queue_red = thresholds.get('min_queue_red', DEFAULT_MIN_QUEUE_RED)
         # C5 fix: Validate EWMA alpha bounds during config load
-        self.rtt_ewma_alpha = self._validate_alpha(
+        self.rtt_ewma_alpha = validate_alpha(
             thresholds.get('rtt_ewma_alpha', DEFAULT_RTT_EWMA_ALPHA),
-            'thresholds.rtt_ewma_alpha'
+            'thresholds.rtt_ewma_alpha',
+            logger=logging.getLogger(__name__)
         )
-        self.queue_ewma_alpha = self._validate_alpha(
+        self.queue_ewma_alpha = validate_alpha(
             thresholds.get('queue_ewma_alpha', DEFAULT_QUEUE_EWMA_ALPHA),
-            'thresholds.queue_ewma_alpha'
+            'thresholds.queue_ewma_alpha',
+            logger=logging.getLogger(__name__)
         )
         self.red_samples_required = thresholds.get('red_samples_required', 2)
         self.green_samples_required = thresholds.get('green_samples_required', DEFAULT_GREEN_SAMPLES_REQUIRED)
@@ -258,37 +266,6 @@ class SteeringConfig(BaseConfig):
             'port': self.router_port,
             'verify_ssl': self.router_verify_ssl
         }
-
-    @staticmethod
-    def _validate_alpha(value: float, field_name: str) -> float:
-        """Validate EWMA alpha is in valid range [0, 1] (C5 fix).
-
-        Args:
-            value: Alpha value to validate
-            field_name: Name of field for error messages
-
-        Returns:
-            The validated value (unchanged if valid)
-
-        Raises:
-            ConfigValidationError: If alpha not in [0, 1]
-        """
-        from ..config_base import ConfigValidationError
-
-        try:
-            alpha = float(value)
-        except (ValueError, TypeError):
-            raise ConfigValidationError(
-                f"{field_name}: expected numeric value, got {type(value).__name__}"
-            )
-
-        if not (0.0 <= alpha <= 1.0):
-            raise ConfigValidationError(
-                f"{field_name}: alpha must be in [0, 1], got {alpha}"
-            )
-
-        return alpha
-
 
 # =============================================================================
 # STATE MANAGEMENT

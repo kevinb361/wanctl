@@ -30,6 +30,11 @@ except ImportError:
     sd_notify = None
 
 from wanctl.config_base import BaseConfig, ConfigValidationError
+from wanctl.config_validation_utils import (
+    validate_bandwidth_order,
+    validate_threshold_order,
+    validate_alpha,
+)
 from wanctl.error_handling import handle_errors
 from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockFile, LockAcquisitionError
@@ -155,16 +160,16 @@ class Config(BaseConfig):
         self.download_factor_down = dl['factor_down']
 
         # Validate download floor ordering: red <= soft_red <= yellow <= green <= ceiling
-        if not (self.download_floor_red <= self.download_floor_soft_red <= self.download_floor_yellow
-                <= self.download_floor_green <= self.download_ceiling):
-            raise ConfigValidationError(
-                f"Download floor ordering violation: expected "
-                f"floor_red ({self.download_floor_red / MBPS_TO_BPS:.1f}) <= "
-                f"floor_soft_red ({self.download_floor_soft_red / MBPS_TO_BPS:.1f}) <= "
-                f"floor_yellow ({self.download_floor_yellow / MBPS_TO_BPS:.1f}) <= "
-                f"floor_green ({self.download_floor_green / MBPS_TO_BPS:.1f}) <= "
-                f"ceiling ({self.download_ceiling / MBPS_TO_BPS:.1f})"
-            )
+        validate_bandwidth_order(
+            name="download",
+            floor_red=self.download_floor_red,
+            floor_soft_red=self.download_floor_soft_red,
+            floor_yellow=self.download_floor_yellow,
+            floor_green=self.download_floor_green,
+            ceiling=self.download_ceiling,
+            convert_to_mbps=True,
+            logger=logging.getLogger(__name__),
+        )
 
         # Upload parameters (STATE-BASED FLOORS)
         ul = cm['upload']
@@ -184,15 +189,15 @@ class Config(BaseConfig):
         self.upload_factor_down = ul['factor_down']
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
-        if not (self.upload_floor_red <= self.upload_floor_yellow
-                <= self.upload_floor_green <= self.upload_ceiling):
-            raise ConfigValidationError(
-                f"Upload floor ordering violation: expected "
-                f"floor_red ({self.upload_floor_red / MBPS_TO_BPS:.1f}) <= "
-                f"floor_yellow ({self.upload_floor_yellow / MBPS_TO_BPS:.1f}) <= "
-                f"floor_green ({self.upload_floor_green / MBPS_TO_BPS:.1f}) <= "
-                f"ceiling ({self.upload_ceiling / MBPS_TO_BPS:.1f})"
-            )
+        validate_bandwidth_order(
+            name="upload",
+            floor_red=self.upload_floor_red,
+            floor_yellow=self.upload_floor_yellow,
+            floor_green=self.upload_floor_green,
+            ceiling=self.upload_ceiling,
+            convert_to_mbps=True,
+            logger=logging.getLogger(__name__),
+        )
 
         # Thresholds
         thresh = cm['thresholds']
@@ -209,16 +214,12 @@ class Config(BaseConfig):
 
         # Validate threshold ordering: target < warn < hard_red
         # This ensures state transitions are logically correct
-        if not (self.target_bloat_ms < self.warn_bloat_ms):
-            raise ConfigValidationError(
-                f"Threshold ordering violation: target_bloat_ms ({self.target_bloat_ms}) "
-                f"must be less than warn_bloat_ms ({self.warn_bloat_ms})"
-            )
-        if not (self.warn_bloat_ms < self.hard_red_bloat_ms):
-            raise ConfigValidationError(
-                f"Threshold ordering violation: warn_bloat_ms ({self.warn_bloat_ms}) "
-                f"must be less than hard_red_bloat_ms ({self.hard_red_bloat_ms})"
-            )
+        validate_threshold_order(
+            target_bloat_ms=self.target_bloat_ms,
+            warn_bloat_ms=self.warn_bloat_ms,
+            hard_red_bloat_ms=self.hard_red_bloat_ms,
+            logger=logging.getLogger(__name__),
+        )
 
         # Ping configuration
         self.ping_hosts = cm['ping_hosts']
