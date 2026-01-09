@@ -116,7 +116,7 @@ class Config(BaseConfig):
         {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
     ]
 
-    def _load_specific_fields(self):
+    def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields"""
         # Queues (validated to prevent command injection)
         self.queue_down = self.validate_identifier(
@@ -615,7 +615,7 @@ class WANController:
             # Single host ping
             return self.rtt_measurement.ping_host(self.ping_hosts[0], count=1)
 
-    def update_ewma(self, measured_rtt: float):
+    def update_ewma(self, measured_rtt: float) -> None:
         """Update both EWMAs (fast load, slow baseline)"""
         # Fast EWMA for load_rtt (responsive to current conditions)
         self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * measured_rtt
@@ -691,7 +691,7 @@ class WANController:
 
         return True
 
-    def load_state(self):
+    def load_state(self) -> None:
         """Load persisted hysteresis state from disk"""
         try:
             if self.config.state_file.exists():
@@ -730,7 +730,7 @@ class WANController:
         except Exception as e:
             self.logger.warning(f"{self.wan_name}: Could not load state: {e}")
 
-    def save_state(self):
+    def save_state(self) -> None:
         """Save hysteresis state to disk for persistence across timer invocations"""
         try:
             state = {
@@ -850,7 +850,7 @@ class ContinuousAutoRate:
 # MAIN ENTRY POINT
 # =============================================================================
 
-def main():
+def main() -> Optional[int]:
     parser = argparse.ArgumentParser(
         description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
     )

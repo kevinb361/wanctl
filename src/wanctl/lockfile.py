@@ -118,7 +118,7 @@ class LockFile:
         except (FileNotFoundError, ValueError, OSError):
             return None
 
-    def __enter__(self):
+    def __enter__(self) -> "LockFile":
         # Atomic lock acquisition using O_EXCL to prevent race conditions.
         # O_EXCL fails if file exists, making check-and-create atomic.
         try:
@@ -175,7 +175,7 @@ class LockFile:
                 # Lock was removed between check and stat - retry
                 return self.__enter__()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.lock_path.exists():
             self.lock_path.unlink()
             self.logger.debug(f"Lock released: {self.lock_path}")
