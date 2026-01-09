@@ -149,7 +149,7 @@ class RouterOSREST:
         )
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False) -> Tuple[int, str, str]:
+    def run_cmd(self, cmd: str, capture: bool = False, timeout: Optional[int] = None) -> Tuple[int, str, str]:
         """Execute RouterOS command via REST API.
 
         Converts CLI-style commands to REST API calls.
@@ -161,6 +161,7 @@ class RouterOSREST:
         Args:
             cmd: RouterOS command to execute (CLI-style)
             capture: Whether to capture output (always captured with REST)
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             Tuple of (returncode, stdout, stderr)
@@ -171,11 +172,12 @@ class RouterOSREST:
         Raises:
             requests.RequestException: On persistent network errors after retries
         """
-        self.logger.debug(f"RouterOS REST command: {cmd}")
+        timeout_val = timeout if timeout is not None else self.timeout
+        self.logger.debug(f"RouterOS REST command: {cmd} (timeout={timeout_val}s)")
 
         try:
             # Parse CLI command and convert to REST API call
-            result = self._execute_command(cmd)
+            result = self._execute_command(cmd, timeout=timeout_val)
 
             if result is not None:
                 import json
@@ -190,7 +192,7 @@ class RouterOSREST:
             self.logger.error(f"Unexpected error: {e}")
             return 1, "", str(e)
 
-    def _execute_command(self, cmd: str):
+    def _execute_command(self, cmd: str, timeout: Optional[int] = None):
         """Parse CLI command and execute via REST API.
 
         Supports common queue tree operations:
@@ -200,58 +202,66 @@ class RouterOSREST:
 
         Args:
             cmd: CLI-style command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             JSON response from API, or None on failure
         """
+        timeout_val = timeout if timeout is not None else self.timeout
+
         # Handle batched commands (separated by ;)
         if ';' in cmd:
             for subcmd in cmd.split(';'):
                 subcmd = subcmd.strip()
                 if subcmd:
-                    result = self._execute_single_command(subcmd)
+                    result = self._execute_single_command(subcmd, timeout=timeout_val)
                     if result is None:
                         return None
             return {"status": "ok"}
         else:
-            return self._execute_single_command(cmd)
+            return self._execute_single_command(cmd, timeout=timeout_val)
 
-    def _execute_single_command(self, cmd: str):
+    def _execute_single_command(self, cmd: str, timeout: Optional[int] = None):
         """Execute a single CLI command via REST API.
 
         Args:
             cmd: Single CLI command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             JSON response from API, or None on failure
         """
+        timeout_val = timeout if timeout is not None else self.timeout
         cmd = cmd.strip()
 
         # Parse /queue tree commands
         if cmd.startswith('/queue tree set'):
-            return self._handle_queue_tree_set(cmd)
+            return self._handle_queue_tree_set(cmd, timeout=timeout_val)
         elif 'reset-counters' in cmd and '/queue' in cmd:
-            return self._handle_queue_reset_counters(cmd)
+            return self._handle_queue_reset_counters(cmd, timeout=timeout_val)
         elif cmd.startswith('/queue tree print') or cmd.startswith('/queue/tree print'):
-            return self._handle_queue_tree_print(cmd)
+            return self._handle_queue_tree_print(cmd, timeout=timeout_val)
         elif cmd.startswith('/ip firewall mangle'):
-            return self._handle_mangle_rule(cmd)
+            return self._handle_mangle_rule(cmd, timeout=timeout_val)
         else:
             self.logger.warning(f"Unsupported command for REST API: {cmd}")
             return None
 
-    def _handle_queue_tree_set(self, cmd: str) -> Optional[dict]:
+    def _handle_queue_tree_set(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
         """Handle /queue tree set command.
 
         Example: /queue tree set [find name="WAN-Download"] queue=cake-down max-limit=500000000
 
         Args:
             cmd: Queue tree set command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             API response dict or None on failure
         """
         import re
+
+        timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract queue name from [find name="..."]
         name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
@@ -277,7 +287,7 @@ class RouterOSREST:
             return None
 
         # First, find the queue ID
-        queue_id = self._find_queue_id(queue_name)
+        queue_id = self._find_queue_id(queue_name, timeout=timeout_val)
         if queue_id is None:
             self.logger.error(f"Queue not found: {queue_name}")
             return None
@@ -286,7 +296,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree/{queue_id}"
 
         try:
-            resp = self._session.patch(url, json=params, timeout=self.timeout)
+            resp = self._session.patch(url, json=params, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Queue {queue_name} updated: {params}")
@@ -299,7 +309,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error updating queue: {e}")
             return None
 
-    def _handle_queue_reset_counters(self, cmd: str) -> Optional[dict]:
+    def _handle_queue_reset_counters(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
         """Handle /queue tree reset-counters command.
 
         Example: /queue tree reset-counters [find name="WAN-Download"]
@@ -307,11 +317,14 @@ class RouterOSREST:
 
         Args:
             cmd: Queue tree reset-counters command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             API response dict or None on failure
         """
         import re
+
+        timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract queue name from [find name="..."]
         name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
@@ -326,7 +339,7 @@ class RouterOSREST:
         queue_name = name_match.group(1)
 
         # Find the queue ID
-        queue_id = self._find_queue_id(queue_name)
+        queue_id = self._find_queue_id(queue_name, timeout=timeout_val)
         if queue_id is None:
             self.logger.error(f"Queue not found: {queue_name}")
             return None
@@ -336,7 +349,7 @@ class RouterOSREST:
 
         try:
             # RouterOS REST API expects .id parameter for the target
-            resp = self._session.post(url, json={".id": queue_id}, timeout=self.timeout)
+            resp = self._session.post(url, json={".id": queue_id}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
@@ -349,16 +362,19 @@ class RouterOSREST:
             self.logger.error(f"REST API error resetting counters: {e}")
             return None
 
-    def _handle_queue_tree_print(self, cmd: str) -> Optional[dict]:
+    def _handle_queue_tree_print(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
         """Handle /queue tree print command.
 
         Args:
             cmd: Queue tree print command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             Queue details dict or None on failure
         """
         import re
+
+        timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract queue name if filtering
         name_match = re.search(r'where name="([^"]+)"', cmd)
@@ -370,7 +386,7 @@ class RouterOSREST:
             params['name'] = name_match.group(1)
 
         try:
-            resp = self._session.get(url, params=params, timeout=self.timeout)
+            resp = self._session.get(url, params=params, timeout=timeout_val)
 
             if resp.ok:
                 return resp.json()
@@ -382,16 +398,19 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _handle_mangle_rule(self, cmd: str) -> Optional[dict]:
+    def _handle_mangle_rule(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
         """Handle /ip firewall mangle enable/disable commands.
 
         Args:
             cmd: Mangle rule command
+            timeout: Command timeout in seconds (uses self.timeout if None)
 
         Returns:
             API response dict or None on failure
         """
         import re
+
+        timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract comment from [find comment="..."]
         comment_match = re.search(r'\[find comment="([^"]+)"\]', cmd)
@@ -411,7 +430,7 @@ class RouterOSREST:
             return None
 
         # Find the rule ID
-        rule_id = self._find_mangle_rule_id(comment)
+        rule_id = self._find_mangle_rule_id(comment, timeout=timeout_val)
         if rule_id is None:
             self.logger.error(f"Mangle rule not found: {comment}")
             return None
@@ -420,7 +439,7 @@ class RouterOSREST:
         url = f"{self.base_url}/ip/firewall/mangle/{rule_id}"
 
         try:
-            resp = self._session.patch(url, json={"disabled": disabled}, timeout=self.timeout)
+            resp = self._session.patch(url, json={"disabled": disabled}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
@@ -433,7 +452,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _find_queue_id(self, queue_name: str, use_cache: bool = True) -> Optional[str]:
+    def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: Optional[int] = None) -> Optional[str]:
         """Find queue tree ID by name.
 
         Uses caching to reduce API calls on repeated lookups.
@@ -442,10 +461,13 @@ class RouterOSREST:
         Args:
             queue_name: Name of the queue
             use_cache: Whether to use cached ID (default True)
+            timeout: Request timeout in seconds (uses self.timeout if None)
 
         Returns:
             Queue ID (e.g., "*1") or None if not found
         """
+        timeout_val = timeout if timeout is not None else self.timeout
+
         # Check cache first
         if use_cache and queue_name in self._queue_id_cache:
             self.logger.debug(f"Queue ID cache hit: {queue_name} -> {self._queue_id_cache[queue_name]}")
@@ -454,7 +476,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree"
 
         try:
-            resp = self._session.get(url, params={"name": queue_name}, timeout=self.timeout)
+            resp = self._session.get(url, params={"name": queue_name}, timeout=timeout_val)
 
             if resp.ok and resp.json():
                 # RouterOS returns list of matching items
@@ -473,7 +495,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error finding queue: {e}")
             return None
 
-    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True) -> Optional[str]:
+    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True, timeout: Optional[int] = None) -> Optional[str]:
         """Find mangle rule ID by comment.
 
         Uses caching to reduce API calls on repeated lookups.
@@ -481,10 +503,13 @@ class RouterOSREST:
         Args:
             comment: Comment of the rule
             use_cache: Whether to use cached ID (default True)
+            timeout: Request timeout in seconds (uses self.timeout if None)
 
         Returns:
             Rule ID or None if not found
         """
+        timeout_val = timeout if timeout is not None else self.timeout
+
         # Check cache first
         if use_cache and comment in self._mangle_id_cache:
             self.logger.debug(f"Mangle ID cache hit: {comment} -> {self._mangle_id_cache[comment]}")
@@ -493,7 +518,7 @@ class RouterOSREST:
         url = f"{self.base_url}/ip/firewall/mangle"
 
         try:
-            resp = self._session.get(url, params={"comment": comment}, timeout=self.timeout)
+            resp = self._session.get(url, params={"comment": comment}, timeout=timeout_val)
 
             if resp.ok and resp.json():
                 items = resp.json()
