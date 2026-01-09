@@ -174,3 +174,146 @@ def retry_with_backoff(
 
         return wrapper
     return decorator
+
+
+def verify_with_retry(
+    check_func: Callable,
+    expected_result,
+    max_retries: int = 3,
+    initial_delay: float = 0.1,
+    backoff_factor: float = 2.0,
+    logger: logging.Logger = None,
+    operation_name: str = "verification"
+) -> bool:
+    """
+    Retry a check function until expected result is reached or retries exhausted.
+
+    Used for verifying state changes (e.g., rule enable/disable) where the
+    control operation succeeds but the state change takes time to propagate.
+
+    Args:
+        check_func: Function that returns the current state/value
+        expected_result: The value we're waiting for
+        max_retries: Maximum number of check attempts
+        initial_delay: Initial delay in seconds before first retry
+        backoff_factor: Multiplier for delay on each retry (2.0 = double each time)
+        logger: Logger instance (optional)
+        operation_name: Name of the operation for logging
+
+    Returns:
+        True if expected result achieved within retries, False if exhausted
+
+    Example:
+        def check_rule_enabled():
+            status = get_rule_status()
+            return status is True
+
+        success = verify_with_retry(
+            check_rule_enabled,
+            True,
+            max_retries=3,
+            initial_delay=0.1,
+            logger=self.logger,
+            operation_name="rule enable verification"
+        )
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    delay = initial_delay
+
+    for attempt in range(max_retries):
+        result = check_func()
+
+        if result == expected_result:
+            # Verification succeeded
+            if attempt > 0:
+                logger.info(f"{operation_name} verified after {attempt + 1} attempts")
+            return True
+
+        if attempt < max_retries - 1:
+            logger.debug(
+                f"{operation_name} check failed (attempt {attempt + 1}/{max_retries}), "
+                f"expected={expected_result}, got={result}"
+            )
+            time.sleep(delay)
+            delay *= backoff_factor
+
+    logger.warning(
+        f"{operation_name} failed - expected result not achieved after {max_retries} attempts"
+    )
+    return False
+
+
+def measure_with_retry(
+    measure_func: Callable,
+    max_retries: int = 3,
+    retry_delay: float = 0.5,
+    fallback_func: Callable = None,
+    logger: logging.Logger = None,
+    operation_name: str = "measurement"
+) -> any:
+    """
+    Retry a measurement function with fixed delay, falling back on exhaustion.
+
+    Used for measurements that may transiently fail (e.g., ping, RTT measurement)
+    where a fallback value can be used if all retries are exhausted.
+
+    Args:
+        measure_func: Function that performs the measurement and returns a value or None
+        max_retries: Maximum number of measurement attempts
+        retry_delay: Fixed delay in seconds between attempts
+        fallback_func: Optional function to call if all retries fail (should return fallback value or None)
+        logger: Logger instance (optional)
+        operation_name: Name of the operation for logging
+
+    Returns:
+        Measurement value on success, fallback value on failure, or None if no fallback
+
+    Example:
+        def measure_rtt():
+            return rtt_measurement.ping_host(host, count=1)
+
+        def fallback_rtt():
+            last_rtt = state.get("history_rtt", [])[-1] if state.get("history_rtt") else None
+            if last_rtt:
+                logger.warning(f"Using fallback RTT: {last_rtt}")
+            return last_rtt
+
+        rtt = measure_with_retry(
+            measure_rtt,
+            max_retries=3,
+            retry_delay=0.5,
+            fallback_func=fallback_rtt,
+            logger=self.logger,
+            operation_name="ping"
+        )
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    for attempt in range(max_retries):
+        result = measure_func()
+
+        if result is not None:
+            # Measurement succeeded
+            if attempt > 0:
+                logger.info(f"{operation_name} succeeded on attempt {attempt + 1}")
+            return result
+
+        # Measurement failed
+        logger.warning(
+            f"{operation_name} failed on attempt {attempt + 1}/{max_retries}"
+        )
+
+        # Delay before next attempt (but not after last failed attempt)
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+
+    # All retries exhausted - try fallback
+    if fallback_func is not None:
+        logger.warning(f"{operation_name} exhausted - attempting fallback")
+        return fallback_func()
+
+    logger.error(f"{operation_name} failed after {max_retries} attempts and no fallback available")
+    return None
