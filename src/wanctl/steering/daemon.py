@@ -38,6 +38,7 @@ from ..error_handling import handle_errors
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
 from ..ping_utils import parse_ping_output
+from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
 from ..state_utils import atomic_write_json, safe_json_load_file
 
@@ -650,58 +651,8 @@ class RouterOSController:
             return False
 
 
-# =============================================================================
-# RTT MEASUREMENT
-# =============================================================================
-
-class RTTMeasurement:
-    """Measure current RTT via ping"""
-
-    def __init__(self, config: SteeringConfig, logger: logging.Logger):
-        self.config = config
-        self.logger = logger
-
-    def _parse_ping(self, text: str) -> list:
-        """Extract RTT values from ping output"""
-        # Use unified ping parser (consolidates duplication with autorate_continuous.py and calibrate.py)
-        return parse_ping_output(text, self.logger)
-
-    def ping_host(self, host: str, count: int) -> Optional[float]:
-        """
-        Ping host and return median RTT in milliseconds
-        Returns None on failure
-        """
-        cmd = ["ping", "-c", str(count), "-W", str(self.config.timeout_ping), host]
-
-        try:
-            result = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=self.config.timeout_ping_total
-            )
-
-            if result.returncode != 0:
-                self.logger.warning(f"Ping to {host} failed: {result.stderr}")
-                return None
-
-            rtts = self._parse_ping(result.stdout)
-            if not rtts:
-                self.logger.warning(f"No RTT samples from {host}")
-                return None
-
-            median_rtt = statistics.median(rtts)
-            self.logger.debug(f"Ping {host}: {median_rtt:.2f}ms (median of {len(rtts)} samples)")
-            return median_rtt
-
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"Ping to {host} timed out")
-            return None
-        except Exception as e:
-            self.logger.error(f"Ping error: {e}")
-            self.logger.debug(traceback.format_exc())
-            return None
+# Note: RTTMeasurement class is now unified in rtt_measurement.py
+# This module imports it from there
 
 
 # =============================================================================
@@ -1237,7 +1188,14 @@ def main():
     # Initialize components
     state_mgr = SteeringState(config, logger)
     router = RouterOSController(config, logger)
-    rtt_measurement = RTTMeasurement(config, logger)
+    # Use unified RTTMeasurement with MEDIAN aggregation and total timeout
+    rtt_measurement = RTTMeasurement(
+        logger,
+        timeout_ping=config.timeout_ping,
+        timeout_total=config.timeout_ping_total,
+        aggregation_strategy=RTTAggregationStrategy.MEDIAN,
+        log_sample_stats=False  # Steering only uses single sample (count=1)
+    )
     baseline_loader = BaselineLoader(config, logger)
 
     # Handle reset
