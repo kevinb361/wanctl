@@ -2,13 +2,17 @@
 
 This module provides atomic file operations to prevent race conditions
 when multiple processes might read/write state files simultaneously.
+
+Also includes safe JSON parsing helpers that consolidate error handling
+patterns used throughout the codebase.
 """
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) -> None:
@@ -82,4 +86,148 @@ def safe_read_json(file_path: Path, default: Dict[str, Any] = None) -> Dict[str,
         with open(file_path, 'r') as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
+        return default
+
+
+def safe_json_loads(
+    text: str,
+    logger: Optional[logging.Logger] = None,
+    default: Optional[Any] = None,
+    error_context: str = "JSON parsing",
+) -> Optional[Any]:
+    """Safely parse JSON from a string with error logging.
+
+    Consolidates repetitive try/except/log pattern for json.loads() calls
+    used in steering/cake_stats.py and similar locations.
+
+    Args:
+        text: JSON string to parse
+        logger: Optional logger instance for error messages
+        default: Value to return if parsing fails (default: None)
+        error_context: Description for error message (e.g., "CAKE stats JSON")
+
+    Returns:
+        Parsed JSON data or default value if parsing fails
+
+    Examples:
+        >>> data = safe_json_loads('{"key": "value"}')
+        >>> data
+        {'key': 'value'}
+
+        >>> data = safe_json_loads('invalid', default={})
+        >>> data
+        {}
+
+        >>> data = safe_json_loads('not json', logger=logger, error_context="API response")
+        # Logs: ERROR: Failed to parse API response JSON: ...
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        if logger:
+            logger.error(f"Failed to parse {error_context} JSON: {e}")
+        return default
+    except Exception as e:
+        if logger:
+            logger.error(f"Unexpected error parsing {error_context} JSON: {e}")
+        return default
+
+
+def safe_json_loads_with_logging(
+    text: str,
+    logger: Optional[logging.Logger] = None,
+    default: Optional[Any] = None,
+    error_context: str = "JSON parsing",
+    log_invalid_content: bool = False,
+    content_preview_length: int = 200,
+) -> Optional[Any]:
+    """Safely parse JSON from a string with comprehensive error logging.
+
+    Extended version of safe_json_loads() that includes debug logging
+    of invalid content for troubleshooting.
+
+    Args:
+        text: JSON string to parse
+        logger: Optional logger instance for error messages
+        default: Value to return if parsing fails (default: None)
+        error_context: Description for error message
+        log_invalid_content: If True, logs first N chars of invalid JSON at DEBUG level
+        content_preview_length: Number of characters to log from invalid JSON
+
+    Returns:
+        Parsed JSON data or default value if parsing fails
+
+    Examples:
+        >>> safe_json_loads_with_logging(
+        ...     'invalid json',
+        ...     logger=logger,
+        ...     error_context="CAKE stats",
+        ...     log_invalid_content=True
+        ... )
+        # Logs: ERROR: Failed to parse CAKE stats JSON: ...
+        # Logs: DEBUG: Invalid JSON content: invalid j...
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        if logger:
+            logger.error(f"Failed to parse {error_context} JSON: {e}")
+            if log_invalid_content and text:
+                preview = text[:content_preview_length]
+                if len(text) > content_preview_length:
+                    preview += "..."
+                logger.debug(f"Invalid JSON content: {preview}")
+        return default
+    except Exception as e:
+        if logger:
+            logger.error(f"Unexpected error parsing {error_context} JSON: {e}")
+        return default
+
+
+def safe_json_load_file(
+    file_path: Path,
+    logger: Optional[logging.Logger] = None,
+    default: Optional[Any] = None,
+    error_context: str = "JSON file",
+) -> Optional[Any]:
+    """Safely read and parse JSON from a file with error logging.
+
+    Consolidates repetitive try/except/log pattern for json.load() calls
+    used in steering/daemon.py and autorate_continuous.py.
+
+    Args:
+        file_path: Path to the JSON file
+        logger: Optional logger instance for error messages
+        default: Value to return if file doesn't exist or parsing fails
+        error_context: Description for error message (e.g., "state file")
+
+    Returns:
+        Parsed JSON data or default value if operation fails
+
+    Examples:
+        >>> data = safe_json_load_file(Path('state.json'))
+        >>> data = safe_json_load_file(
+        ...     Path('state.json'),
+        ...     logger=logger,
+        ...     default={},
+        ...     error_context="steering state"
+        ... )
+    """
+    if not file_path.exists():
+        return default
+
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        if logger:
+            logger.error(f"Failed to parse {error_context} JSON from {file_path}: {e}")
+        return default
+    except OSError as e:
+        if logger:
+            logger.error(f"Failed to read {error_context} file {file_path}: {e}")
+        return default
+    except Exception as e:
+        if logger:
+            logger.error(f"Unexpected error reading {error_context} from {file_path}: {e}")
         return default

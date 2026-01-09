@@ -37,7 +37,7 @@ from wanctl.logging_utils import setup_logging
 from wanctl.ping_utils import parse_ping_output
 from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.router_client import get_router_client
-from wanctl.state_utils import atomic_write_json
+from wanctl.state_utils import atomic_write_json, safe_json_load_file
 
 
 # =============================================================================
@@ -691,10 +691,15 @@ class WANController:
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
         """Load persisted hysteresis state from disk"""
-        if self.config.state_file.exists():
-            with open(self.config.state_file, 'r') as f:
-                state = json.load(f)
+        # Use unified JSON parsing utility
+        state = safe_json_load_file(
+            self.config.state_file,
+            logger=self.logger,
+            default=None,
+            error_context=f"{self.wan_name} state"
+        )
 
+        if state is not None:
             # Restore download controller state
             if 'download' in state:
                 dl = state['download']
