@@ -329,7 +329,6 @@ class RTTMeasurement:
                         rtts.append(rtt)
                     except (ValueError, IndexError) as e:
                         self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
-                        pass
 
             if not rtts:
                 self.logger.warning(f"No RTT samples from {host}")
