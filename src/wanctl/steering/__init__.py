@@ -24,7 +24,6 @@ from .congestion_assessment import (
 )
 from .daemon import (
     SteeringDaemon,
-    SteeringState,
     SteeringConfig,
     RouterOSController,
     RTTMeasurement,
@@ -42,7 +41,6 @@ except ImportError:
 __all__ = [
     # Core classes
     'SteeringDaemon',
-    'SteeringState',
     'SteeringConfig',
     'RouterOSController',
     'RTTMeasurement',

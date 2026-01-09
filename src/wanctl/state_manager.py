@@ -5,6 +5,7 @@ autorate_continuous.py and steering/daemon.py. Provides base class for
 unified state handling with schema validation and atomic persistence.
 """
 
+import datetime
 import fcntl
 import logging
 import shutil
@@ -236,7 +237,8 @@ class SteeringStateManager(StateManager):
         state_file: Path,
         schema: StateSchema,
         logger: logging.Logger,
-        context: str = "steering state"
+        context: str = "steering state",
+        history_maxlen: int = 50
     ):
         """Initialize steering state manager.
 
@@ -245,8 +247,10 @@ class SteeringStateManager(StateManager):
             schema: StateSchema defining valid fields and defaults
             logger: Logger instance
             context: Context for error messages
+            history_maxlen: Maximum length for history deques (default: 50)
         """
         super().__init__(state_file, schema, logger, context)
+        self.history_maxlen = history_maxlen
 
     def _backup_state_file(self, suffix: str = '.backup') -> bool:
         """Create backup copy of state file.
@@ -313,22 +317,20 @@ class SteeringStateManager(StateManager):
             self.state = self.schema.get_defaults()
             return False
 
-    def _convert_lists_to_deques(self, maxlen: int = 50) -> None:
+    def _convert_lists_to_deques(self) -> None:
         """Convert list-based history fields to bounded deques.
 
         Deques with maxlen automatically evict oldest elements when full,
         preventing unbounded growth on long-running daemons.
-
-        Args:
-            maxlen: Maximum length for history deques
+        Uses self.history_maxlen for the deque maximum length.
         """
         history_keys = ['history_rtt', 'history_delta', 'cake_drops_history', 'queue_depth_history']
         for key in history_keys:
             if key in self.state:
                 if isinstance(self.state[key], list):
-                    self.state[key] = deque(self.state[key], maxlen=maxlen)
+                    self.state[key] = deque(self.state[key], maxlen=self.history_maxlen)
                 elif not isinstance(self.state[key], deque):
-                    self.state[key] = deque(maxlen=maxlen)
+                    self.state[key] = deque(maxlen=self.history_maxlen)
 
     def save(self, use_lock: bool = True) -> bool:
         """Save state to file atomically with optional file locking.
@@ -383,3 +385,46 @@ class SteeringStateManager(StateManager):
         except Exception as e:
             self.logger.error(f"{self.context}: Failed to save state: {e}")
             return False
+
+    def add_measurement(self, current_rtt: float, delta: float) -> None:
+        """Add RTT measurement and delta to history.
+
+        Uses deques for automatic bounded history eviction.
+        No manual trim needed - deques with maxlen automatically evict oldest elements.
+
+        Args:
+            current_rtt: Current RTT measurement in milliseconds
+            delta: RTT delta (current_rtt - baseline_rtt) in milliseconds
+        """
+        if "history_rtt" in self.state and isinstance(self.state["history_rtt"], deque):
+            self.state["history_rtt"].append(current_rtt)
+        if "history_delta" in self.state and isinstance(self.state["history_delta"], deque):
+            self.state["history_delta"].append(delta)
+
+    def log_transition(self, old_state: str, new_state: str) -> None:
+        """Log a state transition with timestamp and counters.
+
+        Args:
+            old_state: Previous state
+            new_state: New state
+        """
+        transition = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "from": old_state,
+            "to": new_state,
+            "bad_count": self.state.get("bad_count", 0),
+            "good_count": self.state.get("good_count", 0)
+        }
+
+        if "transitions" in self.state:
+            self.state["transitions"].append(transition)
+            self.state["last_transition_time"] = transition["timestamp"]
+
+            # Keep only last 50 transitions
+            if len(self.state["transitions"]) > 50:
+                self.state["transitions"] = self.state["transitions"][-50:]
+
+    def reset(self) -> None:
+        """Reset state to default values."""
+        self.logger.info(f"Resetting {self.context}")
+        self.state = self.schema.get_defaults()
