@@ -4,10 +4,8 @@ This module provides a context manager for acquiring and releasing lock files,
 ensuring only one instance of a script runs at a time.
 """
 
-import os
 import logging
 from pathlib import Path
-from typing import Optional
 
 from .lock_utils import validate_and_acquire_lock
 

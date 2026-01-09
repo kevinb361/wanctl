@@ -9,12 +9,9 @@ Runs as a persistent daemon with internal 2-second control loop.
 import argparse
 import concurrent.futures
 import datetime
-import json
 import logging
-import os
 import signal
 import statistics
-import subprocess
 import threading
 import time
 import traceback
@@ -29,17 +26,15 @@ except ImportError:
     HAVE_SYSTEMD = False
     sd_notify = None
 
-from wanctl.config_base import BaseConfig, ConfigValidationError
+from wanctl.config_base import BaseConfig
 from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
-    validate_alpha,
 )
 from wanctl.error_handling import handle_errors
 from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
-from wanctl.ping_utils import parse_ping_output
 from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from wanctl.router_client import get_router_client
@@ -844,12 +839,13 @@ def main() -> Optional[int]:
         # Use unified lock validation and acquisition from lock_utils
         # This handles PID validation, stale lock cleanup, and atomic lock creation
         logger = controller.wan_controllers[0]['logger']  # Use first logger for multi-WAN
+        lock_timeout = controller.wan_controllers[0]['config'].lock_timeout
         try:
-            if not validate_and_acquire_lock(lock_path, config.lock_timeout, logger):
+            if not validate_and_acquire_lock(lock_path, lock_timeout, logger):
                 # Another instance is running
                 for wan_info in controller.wan_controllers:
                     wan_info['logger'].error(
-                        f"Another instance is running, refusing to start"
+                        "Another instance is running, refusing to start"
                     )
                 return 1
             lock_files.append(lock_path)

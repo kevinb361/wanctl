@@ -11,7 +11,7 @@ import logging
 import shutil
 from collections import deque
 from pathlib import Path
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict
 
 from .state_utils import atomic_write_json, safe_json_load_file
 
