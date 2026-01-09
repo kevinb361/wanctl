@@ -36,6 +36,7 @@ from typing import Any, Dict, Optional
 from ..config_base import BaseConfig
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
+from ..ping_utils import parse_ping_output
 from ..router_client import get_router_client
 from ..state_utils import atomic_write_json
 
@@ -652,16 +653,8 @@ class RTTMeasurement:
 
     def _parse_ping(self, text: str) -> list:
         """Extract RTT values from ping output"""
-        rtts = []
-        for line in text.splitlines():
-            if "time=" in line:
-                try:
-                    rtt = float(line.split("time=")[1].split()[0])
-                    rtts.append(rtt)
-                except (ValueError, IndexError) as e:
-                    self.logger.debug(f"Failed to parse RTT from line '{line}': {e}")
-                    pass
-        return rtts
+        # Use unified ping parser (consolidates duplication with autorate_continuous.py and calibrate.py)
+        return parse_ping_output(text, self.logger)
 
     def ping_host(self, host: str, count: int) -> Optional[float]:
         """

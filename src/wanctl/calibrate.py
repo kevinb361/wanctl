@@ -32,6 +32,8 @@ from typing import Optional, Tuple, Dict, Any
 
 import yaml
 
+from wanctl.ping_utils import parse_ping_output
+
 
 # =============================================================================
 # CONSTANTS
@@ -222,12 +224,8 @@ def measure_baseline_rtt(ping_host: str) -> Optional[float]:
             return None
 
         # Parse RTT values
-        rtts = []
-        for line in result.stdout.splitlines():
-            if "time=" in line:
-                match = re.search(r"time=([0-9.]+)", line)
-                if match:
-                    rtts.append(float(match.group(1)))
+        # Parse RTT values using unified parser
+        rtts = parse_ping_output(result.stdout)
 
         if not rtts:
             print_error("No RTT samples collected")
@@ -290,13 +288,8 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
                     throughput = float(match.group(1))
                     break
 
-        # Parse loaded RTT
-        rtts = []
-        for line in ping_result.stdout.splitlines():
-            if "time=" in line:
-                match = re.search(r"time=([0-9.]+)", line)
-                if match:
-                    rtts.append(float(match.group(1)))
+        # Parse loaded RTT using unified parser
+        rtts = parse_ping_output(ping_result.stdout)
 
         if rtts:
             loaded_rtt = statistics.median(rtts)
@@ -353,13 +346,8 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
                     throughput = float(match.group(1))
                     break
 
-        # Parse loaded RTT
-        rtts = []
-        for line in ping_result.stdout.splitlines():
-            if "time=" in line:
-                match = re.search(r"time=([0-9.]+)", line)
-                if match:
-                    rtts.append(float(match.group(1)))
+        # Parse loaded RTT using unified parser
+        rtts = parse_ping_output(ping_result.stdout)
 
         if rtts:
             loaded_rtt = statistics.median(rtts)
