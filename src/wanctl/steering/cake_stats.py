@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+from ..config_base import ConfigValidationError
 from ..router_client import get_router_client
 
 
@@ -59,6 +60,14 @@ class CakeStatsReader:
 
         Returns CakeStats or None on error
         """
+        # C2 fix: Validate queue_name to prevent command injection in RouterOS queries
+        try:
+            from ..config_base import BaseConfig
+            queue_name = BaseConfig.validate_identifier(queue_name, 'queue_name')
+        except ConfigValidationError as e:
+            self.logger.error(f"Invalid queue name: {e}")
+            return None
+
         cmd = f'/queue/tree print stats detail where name="{queue_name}"'
         rc, out, err = self.client.run_cmd(cmd, capture=True)
 

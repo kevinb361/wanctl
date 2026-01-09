@@ -1,6 +1,7 @@
 """Base configuration shared across all CAKE components."""
 
 import re
+import socket
 import yaml
 from typing import Any, Dict, List, Optional, Union
 
@@ -325,3 +326,58 @@ class BaseConfig:
                 f"Only alphanumeric, dash, underscore, space, colon, and dot allowed."
             )
         return value
+
+    @classmethod
+    def validate_ping_host(cls, value: str, field_name: str) -> str:
+        """Validate a ping host is a valid IPv4, IPv6 address, or hostname.
+
+        Prevents command injection attacks via ping_host parameter.
+
+        Args:
+            value: The value to validate (IP address or hostname)
+            field_name: Name of the config field (for error messages)
+
+        Returns:
+            The validated value (unchanged if valid)
+
+        Raises:
+            ConfigValidationError: If value is not a valid IP address or hostname
+        """
+        if not isinstance(value, str):
+            raise ConfigValidationError(
+                f"{field_name}: expected string, got {type(value).__name__}"
+            )
+        if not value:
+            raise ConfigValidationError(f"{field_name}: cannot be empty")
+        if len(value) > 256:
+            raise ConfigValidationError(
+                f"{field_name}: too long ({len(value)} chars, max 256)"
+            )
+
+        # Try IPv4
+        try:
+            socket.inet_pton(socket.AF_INET, value)
+            return value
+        except socket.error:
+            pass
+
+        # Try IPv6
+        try:
+            socket.inet_pton(socket.AF_INET6, value)
+            return value
+        except socket.error:
+            pass
+
+        # Try hostname (RFC 1123: lowercase letters, digits, hyphens, and dots)
+        # Pattern: (label.)*label where label = alphanumeric + hyphens, no leading/trailing hyphens
+        hostname_pattern = re.compile(
+            r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$',
+            re.IGNORECASE
+        )
+        if hostname_pattern.match(value):
+            return value
+
+        # If we get here, validation failed
+        raise ConfigValidationError(
+            f"{field_name}: must be valid IPv4, IPv6 address, or hostname, got: '{value}'"
+        )

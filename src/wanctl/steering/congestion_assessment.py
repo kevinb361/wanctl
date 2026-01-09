@@ -106,7 +106,16 @@ def ewma_update(current: float, new_value: float, alpha: float) -> float:
 
     Returns:
         Updated EWMA value
+
+    Raises:
+        ValueError: If alpha is not in [0, 1] (C5 fix: prevents erratic behavior)
     """
+    # C5 fix: Validate alpha bounds to prevent erratic smoothing behavior
+    if not (0.0 <= alpha <= 1.0):
+        raise ValueError(
+            f"EWMA alpha must be in [0, 1], got {alpha}"
+        )
+
     if current == 0.0:
         # First measurement - initialize with new value
         return new_value
