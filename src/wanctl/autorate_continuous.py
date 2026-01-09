@@ -9,7 +9,6 @@ Runs as a persistent daemon with internal 2-second control loop.
 import argparse
 import concurrent.futures
 import datetime
-import errno
 import json
 import logging
 import os
@@ -32,6 +31,7 @@ except ImportError:
 
 from wanctl.config_base import BaseConfig, ConfigValidationError
 from wanctl.error_handling import handle_errors
+from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
 from wanctl.ping_utils import parse_ping_output
@@ -843,63 +843,22 @@ def main() -> Optional[int]:
     # Acquire locks once at startup and hold for entire run
     lock_files = []
     for lock_path in controller.get_lock_paths():
-        # Check if existing lock is from a dead process
-        if lock_path.exists():
-            try:
-                # Read PID from lock file
-                pid_str = lock_path.read_text().strip()
-                existing_pid = int(pid_str)
-
-                # Check if process is alive
-                try:
-                    os.kill(existing_pid, 0)
-                    # Process exists - refuse to start
-                    for wan_info in controller.wan_controllers:
-                        wan_info['logger'].error(
-                            f"Another instance is running (PID {existing_pid}, lock: {lock_path})"
-                        )
-                    return 1
-                except OSError as e:
-                    if e.errno == errno.ESRCH:
-                        # Process is dead - safe to remove lock
-                        age = time.time() - lock_path.stat().st_mtime
-                        for wan_info in controller.wan_controllers:
-                            wan_info['logger'].info(
-                                f"Removing stale lock from dead process "
-                                f"(PID {existing_pid}, age {age:.1f}s): {lock_path}"
-                            )
-                        lock_path.unlink()
-                    else:
-                        # Permission error or other - refuse to start (conservative)
-                        for wan_info in controller.wan_controllers:
-                            wan_info['logger'].error(
-                                f"Cannot verify lock holder (PID {existing_pid}, lock: {lock_path}): {e}"
-                            )
-                        return 1
-            except (ValueError, FileNotFoundError, OSError) as e:
-                # Invalid PID format or race condition - remove
-                for wan_info in controller.wan_controllers:
-                    wan_info['logger'].warning(
-                        f"Invalid lock file format, removing: {lock_path} ({e})"
-                    )
-                try:
-                    lock_path.unlink()
-                except FileNotFoundError:
-                    pass
-
-        # Create new lock file with current PID
+        # Use unified lock validation and acquisition from lock_utils
+        # This handles PID validation, stale lock cleanup, and atomic lock creation
+        logger = controller.wan_controllers[0]['logger']  # Use first logger for multi-WAN
         try:
-            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-            pid_bytes = f"{os.getpid()}\n".encode('utf-8')
-            os.write(fd, pid_bytes)
-            os.close(fd)
+            if not validate_and_acquire_lock(lock_path, config.lock_timeout, logger):
+                # Another instance is running
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].error(
+                        f"Another instance is running, refusing to start"
+                    )
+                return 1
             lock_files.append(lock_path)
+        except RuntimeError as e:
+            # Unexpected error during lock validation
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].debug(f"Lock acquired: {lock_path} (PID {os.getpid()})")
-        except FileExistsError:
-            # Race condition - another process created lock between our check and creation
-            for wan_info in controller.wan_controllers:
-                wan_info['logger'].error(f"Failed to acquire lock (race condition): {lock_path}")
+                wan_info['logger'].error(f"Failed to validate lock: {e}")
             return 1
 
     shutdown_event = threading.Event()
