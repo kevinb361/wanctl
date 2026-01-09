@@ -15,8 +15,9 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 - **Optional WAN steering** - Route latency-sensitive traffic during congestion
 - **Config-driven** - Same code works for fiber, cable, DSL, or any connection
 - **FHS compliant** - Proper Linux directory layout and service user
-- **Hardened security** - Input validation prevents command injection, EWMA bounds checking, configurable RTT thresholds
+- **Hardened security** - Input validation prevents command injection, EWMA bounds checking, configurable RTT thresholds, centralized validation utilities
 - **Production reliability** - Bounded memory with deques, file locking for concurrent safety, graceful CAKE stats degradation
+- **Production-ready utilities** - Phase 4 consolidation provides 14 utility modules for single sources of truth, reduced technical debt, improved maintainability
 
 ## Quick Start
 

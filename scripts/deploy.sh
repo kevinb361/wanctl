@@ -31,16 +31,29 @@ TARGET_SYSTEMD_DIR="/etc/systemd/system"
 
 # Core files to deploy (always needed)
 CORE_FILES=(
+    "src/wanctl/__init__.py"
     "src/wanctl/autorate_continuous.py"
+    "src/wanctl/calibrate.py"
     "src/wanctl/config_base.py"
-    "src/wanctl/state_utils.py"
+    "src/wanctl/config_validation_utils.py"
+    "src/wanctl/error_handling.py"
     "src/wanctl/lockfile.py"
-    "src/wanctl/retry_utils.py"
+    "src/wanctl/lock_utils.py"
     "src/wanctl/logging_utils.py"
+    "src/wanctl/path_utils.py"
+    "src/wanctl/ping_utils.py"
+    "src/wanctl/rate_utils.py"
+    "src/wanctl/retry_utils.py"
+    "src/wanctl/router_client.py"
+    "src/wanctl/router_command_utils.py"
     "src/wanctl/routeros_ssh.py"
     "src/wanctl/routeros_rest.py"
-    "src/wanctl/router_client.py"
-    "src/wanctl/calibrate.py"
+    "src/wanctl/rtt_measurement.py"
+    "src/wanctl/state_manager.py"
+    "src/wanctl/state_utils.py"
+    "src/wanctl/steering_logger.py"
+    "src/wanctl/timeouts.py"
+    "src/wanctl/baseline_rtt_manager.py"
 )
 
 # Backend files (router abstraction)
