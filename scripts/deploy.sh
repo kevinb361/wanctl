@@ -41,6 +41,7 @@ CORE_FILES=(
     "src/wanctl/lock_utils.py"
     "src/wanctl/logging_utils.py"
     "src/wanctl/path_utils.py"
+    "src/wanctl/perf_profiler.py"
     "src/wanctl/ping_utils.py"
     "src/wanctl/rate_utils.py"
     "src/wanctl/retry_utils.py"
@@ -78,6 +79,17 @@ STEERING_FILES=(
     "src/wanctl/cake_stats.py"
     "src/wanctl/congestion_assessment.py"
     "src/wanctl/steering_confidence.py"
+)
+
+# Profiling and analysis scripts (optional, for data collection and analysis)
+PROFILING_SCRIPTS=(
+    "scripts/profiling_collector.py"
+    "scripts/analyze_profiling.py"
+)
+
+# Documentation files (optional, for reference)
+DOCS_FILES=(
+    "docs/PROFILING.md"
 )
 
 # Systemd units (daemon mode - no timer needed)
@@ -258,6 +270,50 @@ deploy_config() {
     fi
 }
 
+deploy_profiling_scripts() {
+    print_step "Deploying profiling scripts..."
+
+    cd "$PROJECT_ROOT"
+
+    # Create scripts directory if needed
+    ssh "$TARGET_HOST" "sudo mkdir -p /opt/scripts"
+
+    for file in "${PROFILING_SCRIPTS[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename /opt/scripts/$basename && sudo chown root:root /opt/scripts/$basename && sudo chmod 755 /opt/scripts/$basename"
+            echo "  -> scripts/$basename"
+        else
+            print_warning "File not found: $file"
+        fi
+    done
+
+    print_success "Profiling scripts deployed"
+}
+
+deploy_docs() {
+    print_step "Deploying documentation..."
+
+    cd "$PROJECT_ROOT"
+
+    # Create docs directory if needed
+    ssh "$TARGET_HOST" "sudo mkdir -p /opt/docs"
+
+    for file in "${DOCS_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename /opt/docs/$basename && sudo chown root:root /opt/docs/$basename && sudo chmod 644 /opt/docs/$basename"
+            echo "  -> docs/$basename"
+        else
+            print_warning "File not found: $file"
+        fi
+    done
+
+    print_success "Documentation deployed"
+}
+
 deploy_systemd() {
     print_step "Deploying systemd units..."
 
@@ -387,6 +443,17 @@ print_next_steps() {
         echo "   ssh $TARGET_HOST 'sudo systemctl enable --now steering.timer'"
         echo ""
     fi
+
+    echo -e "${BLUE}6. Collect profiling data (Phase 1):${NC}"
+    echo "   After deployment, let the daemon run for 7-14 days"
+    echo "   Then extract profiling statistics:"
+    echo "   ssh $TARGET_HOST 'python3 /opt/scripts/profiling_collector.py /var/log/wanctl/${wan_name}.log --all'"
+    echo ""
+    echo "   Generate analysis report:"
+    echo "   ssh $TARGET_HOST 'python3 /opt/scripts/analyze_profiling.py --log-file /var/log/wanctl/${wan_name}.log'"
+    echo ""
+    echo "   See /opt/docs/PROFILING.md for detailed procedure"
+    echo ""
 }
 
 # Parse arguments
@@ -485,6 +552,8 @@ fi
 
 deploy_core_files
 deploy_config "$WAN_NAME"
+deploy_profiling_scripts
+deploy_docs
 deploy_systemd
 
 if [[ "$WITH_STEERING" == "true" ]]; then
