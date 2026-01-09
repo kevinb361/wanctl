@@ -47,6 +47,7 @@ from ..ping_utils import parse_ping_output
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
+from ..state_manager import StateSchema, SteeringStateManager
 from ..state_utils import atomic_write_json, safe_json_load_file
 
 from .cake_stats import CakeStatsReader, CongestionSignals
@@ -271,236 +272,34 @@ class SteeringConfig(BaseConfig):
 # STATE MANAGEMENT
 # =============================================================================
 
-class SteeringState:
-    """Manages state persistence with measurement history and streak counters"""
+def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
+    """Create a StateSchema for steering daemon state.
 
-    def __init__(self, config: SteeringConfig, logger: logging.Logger):
-        self.config = config
-        self.logger = logger
-        self.state = self._load()
+    Defines all steering state fields with defaults based on config.
 
-    @handle_errors(default_return=False, error_msg="Failed to backup state file: {exception}")
-    def _backup_state_file(self, suffix: str = '.backup') -> bool:
-        """
-        Create backup copy of state file
+    Args:
+        config: SteeringConfig instance
 
-        Args:
-            suffix: Suffix to add to backup filename
-
-        Returns:
-            True if backup succeeded, False otherwise
-        """
-        import shutil
-
-        if not self.config.state_file.exists():
-            return False
-
-        backup_path = self.config.state_file.with_suffix(
-            self.config.state_file.suffix + suffix
-        )
-        shutil.copy2(self.config.state_file, backup_path)
-        self.logger.debug(f"Backed up state to {backup_path}")
-        return True
-
-    def _load(self) -> Dict[str, Any]:
-        """Load state from file"""
-        if self.config.state_file.exists():
-            # Use unified JSON parsing utility for cleaner error handling
-            state = safe_json_load_file(
-                self.config.state_file,
-                logger=self.logger,
-                default=None,
-                error_context="steering state"
-            )
-
-            if state is not None:
-                try:
-                    self.logger.debug(f"Loaded state: {state}")
-                    return self._validate(state)
-                except Exception as e:
-                    self.logger.error(f"Failed to validate state: {e}")
-                    self.logger.debug(traceback.format_exc())
-                    # W2 fix: Backup corrupt state before discarding
-                    self._backup_state_file(suffix='.corrupt')
-                    self.logger.warning(
-                        f"Corrupt state backed up to {self.config.state_file}.corrupt"
-                    )
-            else:
-                # JSON parsing failed - backup and start fresh
-                self._backup_state_file(suffix='.corrupt')
-                self.logger.warning(
-                    f"Corrupt state backed up to {self.config.state_file}.corrupt"
-                )
-
-        # Initial state (using config-driven state names)
-        # W4 fix: Use deques for bounded history (automatic eviction)
-        return {
-            "current_state": self.config.state_good,
-            "bad_count": 0,
-            "good_count": 0,
-            "baseline_rtt": None,  # Will be loaded from autorate state
-            "history_rtt": deque(maxlen=self.config.history_size),
-            "history_delta": deque(maxlen=self.config.history_size),
-            "transitions": [],  # Log of state changes
-            "last_transition_time": None,
-            # CAKE-aware fields
-            "rtt_delta_ewma": 0.0,      # Smoothed RTT delta
-            "queue_ewma": 0.0,          # Smoothed queue depth
-            "cake_drops_history": deque(maxlen=self.config.history_size),   # Recent drop counts
-            "queue_depth_history": deque(maxlen=self.config.history_size),  # Recent queue depths
-            "red_count": 0,             # Consecutive RED samples
-            "congestion_state": "GREEN", # GREEN/YELLOW/RED
-            # W8 fix: Track CAKE stats read failures for degraded mode
-            "cake_read_failures": 0     # Consecutive failed CAKE reads
-        }
-
-    def _validate(self, state: Dict) -> Dict:
-        """Validate and clean state data"""
-        # Ensure required fields
-        defaults = {
-            "current_state": self.config.state_good,
-            "bad_count": 0,
-            "good_count": 0,
-            "baseline_rtt": None,
-            "history_rtt": [],
-            "history_delta": [],
-            "transitions": [],
-            "last_transition_time": None,
-            # CAKE-aware fields
-            "rtt_delta_ewma": 0.0,
-            "queue_ewma": 0.0,
-            "cake_drops_history": [],
-            "queue_depth_history": [],
-            "red_count": 0,
-            "congestion_state": "GREEN",
-            "cake_read_failures": 0  # W8 fix: Track CAKE stats read failures
-        }
-
-        for key, default_value in defaults.items():
-            if key not in state:
-                state[key] = default_value
-
-        # Validate state value - handle legacy state names and new generic names
-        valid_states = {
-            self.config.state_good, self.config.state_degraded,
-            # Legacy support for existing state files
-            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED",
-            "WAN1_GOOD", "WAN1_DEGRADED",
-            "WAN2_GOOD", "WAN2_DEGRADED",
-        }
-
-        if state["current_state"] not in valid_states:
-            self.logger.warning(f"Invalid state '{state['current_state']}', resetting to {self.config.state_good}")
-            state["current_state"] = self.config.state_good
-        elif state["current_state"] in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD") and \
-             state["current_state"] != self.config.state_good:
-            # Migrate legacy state name to new config-driven name
-            if "_GOOD" in state["current_state"]:
-                state["current_state"] = self.config.state_good
-        elif state["current_state"] in ("SPECTRUM_DEGRADED", "WAN1_DEGRADED", "WAN2_DEGRADED") and \
-             state["current_state"] != self.config.state_degraded:
-            if "_DEGRADED" in state["current_state"]:
-                state["current_state"] = self.config.state_degraded
-
-        # Validate congestion state
-        if state.get("congestion_state") not in ("GREEN", "YELLOW", "RED"):
-            state["congestion_state"] = "GREEN"
-
-        # Ensure counts are non-negative integers
-        state["bad_count"] = max(0, int(state.get("bad_count", 0)))
-        state["good_count"] = max(0, int(state.get("good_count", 0)))
-        state["red_count"] = max(0, int(state.get("red_count", 0)))
-
-        # W4 fix: Convert history lists to bounded deques (automatic eviction)
-        # This prevents unbounded growth on long-running daemons
-        for history_key in ["history_rtt", "history_delta", "cake_drops_history", "queue_depth_history"]:
-            if isinstance(state.get(history_key), list):
-                state[history_key] = deque(state[history_key], maxlen=self.config.history_size)
-            elif not isinstance(state.get(history_key), deque):
-                state[history_key] = deque(maxlen=self.config.history_size)
-
-        return state
-
-    def save(self):
-        """Save state to file atomically with file locking (W3 fix)"""
-        try:
-            # W4 fix: Convert deques to lists for JSON serialization
-            state_to_save = dict(self.state)
-            for history_key in ["history_rtt", "history_delta", "cake_drops_history", "queue_depth_history"]:
-                if isinstance(state_to_save.get(history_key), deque):
-                    state_to_save[history_key] = list(state_to_save[history_key])
-
-            # W3 fix: Use file-level locking to prevent concurrent writes
-            # Create a lock file for the state file
-            lock_path = self.config.state_file.with_suffix(self.config.state_file.suffix + '.lock')
-
-            try:
-                # Open lock file (create if not exists)
-                with open(lock_path, 'a') as lock_file:
-                    # Acquire exclusive lock (blocks if another process holds it)
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    try:
-                        # Write state atomically (under lock)
-                        atomic_write_json(self.config.state_file, state_to_save)
-                        self.logger.debug(f"Saved state: {state_to_save}")
-
-                        # W2 fix: Backup after successful save
-                        self._backup_state_file(suffix='.backup')
-                    finally:
-                        # Always release lock
-                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-            except BlockingIOError:
-                # Could not acquire lock - another process is writing
-                self.logger.warning("State file locked by another process, skipping save (will retry next cycle)")
-                return False
-            except Exception as e:
-                self.logger.error(f"Failed to acquire state file lock: {e}")
-                return False
-
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Failed to save state: {e}")
-            self.logger.debug(traceback.format_exc())
-            return False
-
-    def add_measurement(self, current_rtt: float, delta: float):
-        """Add RTT measurement and delta to history (W4 fix: deques handle automatic eviction)"""
-        self.state["history_rtt"].append(current_rtt)
-        self.state["history_delta"].append(delta)
-        # No manual trim needed - deques with maxlen automatically evict oldest elements
-
-    def log_transition(self, old_state: str, new_state: str):
-        """Log a state transition"""
-        transition = {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "from": old_state,
-            "to": new_state,
-            "bad_count": self.state["bad_count"],
-            "good_count": self.state["good_count"]
-        }
-
-        self.state["transitions"].append(transition)
-        self.state["last_transition_time"] = transition["timestamp"]
-
-        # Keep only last 50 transitions
-        if len(self.state["transitions"]) > MAX_TRANSITIONS_HISTORY:
-            self.state["transitions"] = self.state["transitions"][-MAX_TRANSITIONS_HISTORY:]
-
-    def reset(self):
-        """Reset state to initial values"""
-        self.logger.info("Resetting state")
-        self.state = {
-            "current_state": self.config.state_good,
-            "bad_count": 0,
-            "good_count": 0,
-            "baseline_rtt": None,
-            "history_rtt": [],
-            "history_delta": [],
-            "transitions": [],
-            "last_transition_time": None
-        }
-        self.save()
+    Returns:
+        StateSchema configured for steering state
+    """
+    return StateSchema({
+        "current_state": config.state_good,
+        "bad_count": 0,
+        "good_count": 0,
+        "baseline_rtt": None,
+        "history_rtt": [],
+        "history_delta": [],
+        "transitions": [],
+        "last_transition_time": None,
+        "rtt_delta_ewma": 0.0,
+        "queue_ewma": 0.0,
+        "cake_drops_history": [],
+        "queue_depth_history": [],
+        "red_count": 0,
+        "congestion_state": "GREEN",
+        "cake_read_failures": 0
+    })
 
 
 # =============================================================================
@@ -674,7 +473,7 @@ class SteeringDaemon:
     def __init__(
         self,
         config: SteeringConfig,
-        state: SteeringState,
+        state: SteeringStateManager,
         router: RouterOSController,
         rtt_measurement: RTTMeasurement,
         baseline_loader: BaselineLoader,
@@ -1127,7 +926,12 @@ def main():
     logger.info("=" * 60)
 
     # Initialize components
-    state_mgr = SteeringState(config, logger)
+    schema = create_steering_state_schema(config)
+    state_mgr = SteeringStateManager(
+        config.state_file, schema, logger,
+        history_maxlen=config.history_size
+    )
+    state_mgr.load()
     router = RouterOSController(config, logger)
     # Use unified RTTMeasurement with MEDIAN aggregation and total timeout
     rtt_measurement = RTTMeasurement(
