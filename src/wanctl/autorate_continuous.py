@@ -35,6 +35,7 @@ from wanctl.error_handling import handle_errors
 from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
+from wanctl.perf_profiler import PerfTimer
 from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from wanctl.router_client import get_router_client
@@ -581,63 +582,73 @@ class WANController:
 
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
-        measured_rtt = self.measure_rtt()
-        if measured_rtt is None:
-            self.logger.warning(f"{self.wan_name}: Ping failed, skipping cycle")
-            return False
+        timer_cycle = PerfTimer("autorate_cycle_total", self.logger)
+        timer_cycle.__enter__()
 
-        self.update_ewma(measured_rtt)
-
-        # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
-        dl_zone, dl_rate = self.download.adjust_4state(
-            self.baseline_rtt, self.load_rtt,
-            self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
-        )
-
-        # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
-        ul_zone, ul_rate = self.upload.adjust(
-            self.baseline_rtt, self.load_rtt,
-            self.target_delta, self.warn_delta
-        )
-
-        # Log decision
-        delta = self.load_rtt - self.baseline_rtt
-        self.logger.info(
-            f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
-            f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
-            f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-            f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
-        )
-
-        # =====================================================================
-        # FLASH WEAR PROTECTION - Only update router if rates changed
-        # =====================================================================
-        # RouterOS writes queue changes to NAND flash. Sending the same values
-        # repeatedly would cause unnecessary flash wear over time.
-        # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
-        # =====================================================================
-        if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
-            success = self.router.set_limits(
-                wan=self.wan_name,
-                down_bps=dl_rate,
-                up_bps=ul_rate
-            )
-
-            if not success:
-                self.logger.error(f"{self.wan_name}: Failed to apply limits")
+        try:
+            with PerfTimer("autorate_rtt_measurement", self.logger):
+                measured_rtt = self.measure_rtt()
+            if measured_rtt is None:
+                self.logger.warning(f"{self.wan_name}: Ping failed, skipping cycle")
                 return False
 
-            # Update tracking after successful write
-            self.last_applied_dl_rate = dl_rate
-            self.last_applied_ul_rate = ul_rate
-            self.logger.debug(f"{self.wan_name}: Applied new limits to router")
-        else:
-            self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
+            with PerfTimer("autorate_ewma_update", self.logger):
+                self.update_ewma(measured_rtt)
 
-        # Save state after successful cycle
-        self.save_state()
+            # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
+            with PerfTimer("autorate_rate_adjust", self.logger):
+                dl_zone, dl_rate = self.download.adjust_4state(
+                    self.baseline_rtt, self.load_rtt,
+                    self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
+                )
 
-        return True
+                # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
+                ul_zone, ul_rate = self.upload.adjust(
+                    self.baseline_rtt, self.load_rtt,
+                    self.target_delta, self.warn_delta
+                )
+
+            # Log decision
+            delta = self.load_rtt - self.baseline_rtt
+            self.logger.info(
+                f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
+                f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
+                f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
+                f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
+            )
+
+            # =====================================================================
+            # FLASH WEAR PROTECTION - Only update router if rates changed
+            # =====================================================================
+            # RouterOS writes queue changes to NAND flash. Sending the same values
+            # repeatedly would cause unnecessary flash wear over time.
+            # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
+            # =====================================================================
+            if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
+                with PerfTimer("autorate_router_update", self.logger):
+                    success = self.router.set_limits(
+                        wan=self.wan_name,
+                        down_bps=dl_rate,
+                        up_bps=ul_rate
+                    )
+
+                if not success:
+                    self.logger.error(f"{self.wan_name}: Failed to apply limits")
+                    return False
+
+                # Update tracking after successful write
+                self.last_applied_dl_rate = dl_rate
+                self.last_applied_ul_rate = ul_rate
+                self.logger.debug(f"{self.wan_name}: Applied new limits to router")
+            else:
+                self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
+
+            # Save state after successful cycle
+            self.save_state()
+
+            return True
+        finally:
+            timer_cycle.__exit__(None, None, None)
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:

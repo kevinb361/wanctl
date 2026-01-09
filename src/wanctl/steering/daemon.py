@@ -32,6 +32,7 @@ from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
+from ..perf_profiler import PerfTimer
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
@@ -767,119 +768,128 @@ class SteeringDaemon:
         Execute one steering cycle
         Returns True on success, False on failure
         """
-        state = self.state_mgr.state
+        timer_cycle = PerfTimer("steering_cycle_total", self.logger)
+        timer_cycle.__enter__()
 
-        # Update baseline RTT from autorate state
-        if not self.update_baseline_rtt():
-            self.logger.error("Cannot proceed without baseline RTT")
-            return False
+        try:
+            state = self.state_mgr.state
 
-        baseline_rtt = state["baseline_rtt"]
+            # Update baseline RTT from autorate state
+            with PerfTimer("steering_baseline_check", self.logger):
+                if not self.update_baseline_rtt():
+                    self.logger.error("Cannot proceed without baseline RTT")
+                    return False
 
-        # === CAKE Stats Collection (if enabled) ===
-        cake_drops = 0
-        queued_packets = 0
+            baseline_rtt = state["baseline_rtt"]
 
-        if self.config.cake_aware and self.cake_reader:
-            # Read CAKE statistics (using delta math, no resets needed)
-            stats = self.cake_reader.read_stats(self.config.primary_download_queue)
-            if stats:
-                cake_drops = stats.dropped
-                queued_packets = stats.queued_packets
+            # === CAKE Stats Collection (if enabled) ===
+            cake_drops = 0
+            queued_packets = 0
 
-                # Reset failure counter on successful read
-                state["cake_read_failures"] = 0
+            if self.config.cake_aware and self.cake_reader:
+                # Read CAKE statistics (using delta math, no resets needed)
+                with PerfTimer("steering_cake_stats_read", self.logger):
+                    stats = self.cake_reader.read_stats(self.config.primary_download_queue)
+                if stats:
+                    cake_drops = stats.dropped
+                    queued_packets = stats.queued_packets
 
-                # Update history (W4 fix: deques handle automatic eviction)
-                state["cake_drops_history"].append(cake_drops)
-                state["queue_depth_history"].append(queued_packets)
-                # No manual trim needed - deques with maxlen automatically evict oldest elements
-            else:
-                # W8 fix: Track consecutive CAKE read failures
-                state["cake_read_failures"] += 1
-                if state["cake_read_failures"] == 1:
-                    # First failure - log warning
-                    self.logger.warning(
-                        f"CAKE stats read failed for {self.config.primary_download_queue}, "
-                        f"using RTT-only decisions (failure {state['cake_read_failures']})"
-                    )
-                elif state["cake_read_failures"] >= 3:
-                    # Multiple failures - enter degraded mode
-                    if state["cake_read_failures"] == 3:
-                        self.logger.error(
-                            f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
-                            f"entering degraded mode (RTT-only decisions)"
+                    # Reset failure counter on successful read
+                    state["cake_read_failures"] = 0
+
+                    # Update history (W4 fix: deques handle automatic eviction)
+                    state["cake_drops_history"].append(cake_drops)
+                    state["queue_depth_history"].append(queued_packets)
+                    # No manual trim needed - deques with maxlen automatically evict oldest elements
+                else:
+                    # W8 fix: Track consecutive CAKE read failures
+                    state["cake_read_failures"] += 1
+                    if state["cake_read_failures"] == 1:
+                        # First failure - log warning
+                        self.logger.warning(
+                            f"CAKE stats read failed for {self.config.primary_download_queue}, "
+                            f"using RTT-only decisions (failure {state['cake_read_failures']})"
                         )
-                    # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
+                    elif state["cake_read_failures"] >= 3:
+                        # Multiple failures - enter degraded mode
+                        if state["cake_read_failures"] == 3:
+                            self.logger.error(
+                                f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
+                                f"entering degraded mode (RTT-only decisions)"
+                            )
+                        # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
 
-        # === RTT Measurement ===
-        # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
-        current_rtt = self._measure_current_rtt_with_retry()
-        if current_rtt is None:
-            self.logger.warning("Ping failed after retries and no fallback available, skipping cycle")
-            return False
+            # === RTT Measurement ===
+            # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
+            with PerfTimer("steering_rtt_measurement", self.logger):
+                current_rtt = self._measure_current_rtt_with_retry()
+            if current_rtt is None:
+                self.logger.warning("Ping failed after retries and no fallback available, skipping cycle")
+                return False
 
-        # Calculate delta
-        delta = self.calculate_delta(current_rtt)
+            # Calculate delta
+            delta = self.calculate_delta(current_rtt)
 
-        # === EWMA Smoothing (if CAKE-aware) ===
-        if self.config.cake_aware:
-            rtt_delta_ewma = ewma_update(
-                state["rtt_delta_ewma"],
-                delta,
-                self.config.rtt_ewma_alpha
-            )
-            state["rtt_delta_ewma"] = rtt_delta_ewma
+            # === EWMA Smoothing (if CAKE-aware) ===
+            if self.config.cake_aware:
+                rtt_delta_ewma = ewma_update(
+                    state["rtt_delta_ewma"],
+                    delta,
+                    self.config.rtt_ewma_alpha
+                )
+                state["rtt_delta_ewma"] = rtt_delta_ewma
 
-            queue_ewma = ewma_update(
-                state["queue_ewma"],
-                float(queued_packets),
-                self.config.queue_ewma_alpha
-            )
-            state["queue_ewma"] = queue_ewma
-        else:
-            rtt_delta_ewma = delta
+                queue_ewma = ewma_update(
+                    state["queue_ewma"],
+                    float(queued_packets),
+                    self.config.queue_ewma_alpha
+                )
+                state["queue_ewma"] = queue_ewma
+            else:
+                rtt_delta_ewma = delta
 
-        # Add to history
-        self.state_mgr.add_measurement(current_rtt, delta)
+            # Add to history
+            self.state_mgr.add_measurement(current_rtt, delta)
 
-        # === Build Congestion Signals ===
-        signals = CongestionSignals(
-            rtt_delta=delta,
-            rtt_delta_ewma=rtt_delta_ewma,
-            cake_drops=cake_drops,
-            queued_packets=queued_packets,
-            baseline_rtt=baseline_rtt
-        )
-
-        # === Log Measurement ===
-        wan_name = self.config.primary_wan.upper()
-        if self.config.cake_aware:
-            self.logger.info(
-                f"[{wan_name}_{state['current_state'].split('_')[-1]}] {signals} | "
-                f"congestion={state.get('congestion_state', 'N/A')}"
-            )
-        else:
-            self.logger.info(
-                f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
-                f"RTT={current_rtt:.1f}ms, baseline={baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-                f"bad_count={state['bad_count']}/{self.config.bad_samples}, "
-                f"good_count={state['good_count']}/{self.config.good_samples}"
+            # === Build Congestion Signals ===
+            signals = CongestionSignals(
+                rtt_delta=delta,
+                rtt_delta_ewma=rtt_delta_ewma,
+                cake_drops=cake_drops,
+                queued_packets=queued_packets,
+                baseline_rtt=baseline_rtt
             )
 
-        # === Update State Machine ===
-        state_changed = self.update_state_machine(signals)
+            # === Log Measurement ===
+            wan_name = self.config.primary_wan.upper()
+            if self.config.cake_aware:
+                self.logger.info(
+                    f"[{wan_name}_{state['current_state'].split('_')[-1]}] {signals} | "
+                    f"congestion={state.get('congestion_state', 'N/A')}"
+                )
+            else:
+                self.logger.info(
+                    f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
+                    f"RTT={current_rtt:.1f}ms, baseline={baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
+                    f"bad_count={state['bad_count']}/{self.config.bad_samples}, "
+                    f"good_count={state['good_count']}/{self.config.good_samples}"
+                )
 
-        if state_changed:
-            self.logger.info(
-                f"State transition: {state['current_state']} "
-                f"(last transition: {state.get('last_transition_time', 'never')})"
-            )
+            # === Update State Machine ===
+            state_changed = self.update_state_machine(signals)
 
-        # Save state
-        self.state_mgr.save()
+            if state_changed:
+                self.logger.info(
+                    f"State transition: {state['current_state']} "
+                    f"(last transition: {state.get('last_transition_time', 'never')})"
+                )
 
-        return True
+            # Save state
+            self.state_mgr.save()
+
+            return True
+        finally:
+            timer_cycle.__exit__(None, None, None)
 
 
 # =============================================================================
