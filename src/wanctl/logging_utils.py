@@ -1,7 +1,6 @@
 """Shared logging utilities for CAKE system components."""
 
 import logging
-from pathlib import Path
 
 from wanctl.path_utils import ensure_file_directory
 

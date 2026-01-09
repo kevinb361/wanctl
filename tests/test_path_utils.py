@@ -1,7 +1,6 @@
 """Unit tests for path utilities."""
 
 import logging
-import os
 import tempfile
 from pathlib import Path
 
@@ -130,6 +129,7 @@ class TestEnsureFileDirectory:
         """Test with string path input."""
         file_path = str(temp_dir / "subdir" / "file.txt")
         result = ensure_file_directory(file_path, logger=logger)
+        assert result.exists()
         assert Path(file_path).parent.exists()
 
     def test_idempotent_on_existing_parent(self, temp_dir, logger):

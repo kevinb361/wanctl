@@ -29,7 +29,7 @@ import functools
 import logging
 import traceback
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar
 
 F = TypeVar('F', bound=Callable[..., Any])
 

@@ -7,7 +7,6 @@ Consolidates common path handling patterns:
 """
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional, Union
 

@@ -21,34 +21,21 @@ Colocated with autorate_continuous on primary WAN controller.
 """
 
 import argparse
-import datetime
-import fcntl  # W3 fix: File locking to prevent concurrent writes
 import json
 import logging
-import statistics
-import subprocess
 import sys
 import traceback
-from collections import deque  # W4 fix: Bounded history with automatic eviction
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
-from ..config_base import BaseConfig, ConfigValidationError
-from ..config_validation_utils import (
-    validate_alpha,
-    validate_baseline_rtt,
-    validate_rtt_thresholds,
-    validate_sample_counts,
-)
-from ..error_handling import handle_errors
+from ..config_base import BaseConfig
+from ..config_validation_utils import validate_alpha
 from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
-from ..ping_utils import parse_ping_output
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
 from ..state_manager import StateSchema, SteeringStateManager
-from ..state_utils import atomic_write_json, safe_json_load_file
 from ..timeouts import DEFAULT_STEERING_SSH_TIMEOUT, DEFAULT_STEERING_PING_TOTAL_TIMEOUT
 
 from .cake_stats import CakeStatsReader, CongestionSignals

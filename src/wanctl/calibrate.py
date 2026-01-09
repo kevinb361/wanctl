@@ -34,7 +34,6 @@ import yaml
 
 from wanctl.ping_utils import parse_ping_output
 from wanctl.timeouts import (
-    TIMEOUT_QUICK,
     TIMEOUT_STANDARD,
     TIMEOUT_LONG,
     DEFAULT_CALIBRATE_SSH_TIMEOUT,

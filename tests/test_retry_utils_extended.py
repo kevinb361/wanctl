@@ -390,7 +390,6 @@ class TestMeasureWithRetry:
         )
 
         assert result == 44.2  # Last value from history
-        assert call_count[0] == 3 if 'call_count' in dir() else True
 
     def test_zero_or_negative_measurements_valid(self, logger):
         """Test that 0 and negative values are treated as valid measurements."""
