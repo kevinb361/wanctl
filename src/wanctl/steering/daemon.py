@@ -22,12 +22,14 @@ Colocated with autorate_continuous on primary WAN controller.
 
 import argparse
 import datetime
+import fcntl  # W3 fix: File locking to prevent concurrent writes
 import json
 import logging
 import statistics
 import subprocess
 import sys
 import traceback
+from collections import deque  # W4 fix: Bounded history with automatic eviction
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -341,22 +343,25 @@ class SteeringState:
                 )
 
         # Initial state (using config-driven state names)
+        # W4 fix: Use deques for bounded history (automatic eviction)
         return {
             "current_state": self.config.state_good,
             "bad_count": 0,
             "good_count": 0,
             "baseline_rtt": None,  # Will be loaded from autorate state
-            "history_rtt": [],
-            "history_delta": [],
+            "history_rtt": deque(maxlen=self.config.history_size),
+            "history_delta": deque(maxlen=self.config.history_size),
             "transitions": [],  # Log of state changes
             "last_transition_time": None,
             # CAKE-aware fields
             "rtt_delta_ewma": 0.0,      # Smoothed RTT delta
             "queue_ewma": 0.0,          # Smoothed queue depth
-            "cake_drops_history": [],   # Recent drop counts
-            "queue_depth_history": [],  # Recent queue depths
+            "cake_drops_history": deque(maxlen=self.config.history_size),   # Recent drop counts
+            "queue_depth_history": deque(maxlen=self.config.history_size),  # Recent queue depths
             "red_count": 0,             # Consecutive RED samples
-            "congestion_state": "GREEN" # GREEN/YELLOW/RED
+            "congestion_state": "GREEN", # GREEN/YELLOW/RED
+            # W8 fix: Track CAKE stats read failures for degraded mode
+            "cake_read_failures": 0     # Consecutive failed CAKE reads
         }
 
     def _validate(self, state: Dict) -> Dict:
@@ -377,7 +382,8 @@ class SteeringState:
             "cake_drops_history": [],
             "queue_depth_history": [],
             "red_count": 0,
-            "congestion_state": "GREEN"
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0  # W8 fix: Track CAKE stats read failures
         }
 
         for key, default_value in defaults.items():
@@ -415,31 +421,64 @@ class SteeringState:
         state["good_count"] = max(0, int(state.get("good_count", 0)))
         state["red_count"] = max(0, int(state.get("red_count", 0)))
 
+        # W4 fix: Convert history lists to bounded deques (automatic eviction)
+        # This prevents unbounded growth on long-running daemons
+        for history_key in ["history_rtt", "history_delta", "cake_drops_history", "queue_depth_history"]:
+            if isinstance(state.get(history_key), list):
+                state[history_key] = deque(state[history_key], maxlen=self.config.history_size)
+            elif not isinstance(state.get(history_key), deque):
+                state[history_key] = deque(maxlen=self.config.history_size)
+
         return state
 
     def save(self):
-        """Save state to file atomically"""
+        """Save state to file atomically with file locking (W3 fix)"""
         try:
-            atomic_write_json(self.config.state_file, self.state)
-            self.logger.debug(f"Saved state: {self.state}")
+            # W4 fix: Convert deques to lists for JSON serialization
+            state_to_save = dict(self.state)
+            for history_key in ["history_rtt", "history_delta", "cake_drops_history", "queue_depth_history"]:
+                if isinstance(state_to_save.get(history_key), deque):
+                    state_to_save[history_key] = list(state_to_save[history_key])
 
-            # W2 fix: Backup after successful save
-            self._backup_state_file(suffix='.backup')
+            # W3 fix: Use file-level locking to prevent concurrent writes
+            # Create a lock file for the state file
+            lock_path = self.config.state_file.with_suffix(self.config.state_file.suffix + '.lock')
+
+            try:
+                # Open lock file (create if not exists)
+                with open(lock_path, 'a') as lock_file:
+                    # Acquire exclusive lock (blocks if another process holds it)
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    try:
+                        # Write state atomically (under lock)
+                        atomic_write_json(self.config.state_file, state_to_save)
+                        self.logger.debug(f"Saved state: {state_to_save}")
+
+                        # W2 fix: Backup after successful save
+                        self._backup_state_file(suffix='.backup')
+                    finally:
+                        # Always release lock
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            except BlockingIOError:
+                # Could not acquire lock - another process is writing
+                self.logger.warning("State file locked by another process, skipping save (will retry next cycle)")
+                return False
+            except Exception as e:
+                self.logger.error(f"Failed to acquire state file lock: {e}")
+                return False
+
+            return True
 
         except Exception as e:
             self.logger.error(f"Failed to save state: {e}")
             self.logger.debug(traceback.format_exc())
+            return False
 
     def add_measurement(self, current_rtt: float, delta: float):
-        """Add RTT measurement and delta to history"""
+        """Add RTT measurement and delta to history (W4 fix: deques handle automatic eviction)"""
         self.state["history_rtt"].append(current_rtt)
         self.state["history_delta"].append(delta)
-
-        # Trim to max size
-        if len(self.state["history_rtt"]) > self.config.history_size:
-            self.state["history_rtt"] = self.state["history_rtt"][-self.config.history_size:]
-        if len(self.state["history_delta"]) > self.config.history_size:
-            self.state["history_delta"] = self.state["history_delta"][-self.config.history_size:]
+        # No manual trim needed - deques with maxlen automatically evict oldest elements
 
     def log_transition(self, old_state: str, new_state: str):
         """Log a state transition"""
@@ -1052,6 +1091,7 @@ class SteeringDaemon:
         # === CAKE Stats Collection (if enabled) ===
         cake_drops = 0
         queued_packets = 0
+        cake_available = False  # W8 fix: Track if CAKE stats are available
 
         if self.config.cake_aware and self.cake_reader:
             # Read CAKE statistics (using delta math, no resets needed)
@@ -1059,16 +1099,32 @@ class SteeringDaemon:
             if stats:
                 cake_drops = stats.dropped
                 queued_packets = stats.queued_packets
+                cake_available = True
 
-                # Update history
+                # Reset failure counter on successful read
+                state["cake_read_failures"] = 0
+
+                # Update history (W4 fix: deques handle automatic eviction)
                 state["cake_drops_history"].append(cake_drops)
                 state["queue_depth_history"].append(queued_packets)
-
-                # Trim history
-                if len(state["cake_drops_history"]) > self.config.history_size:
-                    state["cake_drops_history"] = state["cake_drops_history"][-self.config.history_size:]
-                if len(state["queue_depth_history"]) > self.config.history_size:
-                    state["queue_depth_history"] = state["queue_depth_history"][-self.config.history_size:]
+                # No manual trim needed - deques with maxlen automatically evict oldest elements
+            else:
+                # W8 fix: Track consecutive CAKE read failures
+                state["cake_read_failures"] += 1
+                if state["cake_read_failures"] == 1:
+                    # First failure - log warning
+                    self.logger.warning(
+                        f"CAKE stats read failed for {self.config.primary_download_queue}, "
+                        f"using RTT-only decisions (failure {state['cake_read_failures']})"
+                    )
+                elif state["cake_read_failures"] >= 3:
+                    # Multiple failures - enter degraded mode
+                    if state["cake_read_failures"] == 3:
+                        self.logger.error(
+                            f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
+                            f"entering degraded mode (RTT-only decisions)"
+                        )
+                    # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
 
         # === RTT Measurement ===
         # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
