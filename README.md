@@ -15,6 +15,7 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 - **Optional WAN steering** - Route latency-sensitive traffic during congestion
 - **Config-driven** - Same code works for fiber, cable, DSL, or any connection
 - **FHS compliant** - Proper Linux directory layout and service user
+- **Hardened security** - Input validation prevents command injection, EWMA bounds checking, configurable RTT thresholds
 
 ## Quick Start
 

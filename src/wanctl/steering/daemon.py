@@ -80,9 +80,11 @@ MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
 MAX_HISTORY_SAMPLES = 60              # Maximum samples in history (2 minutes at 2s intervals)
 ASSESSMENT_INTERVAL_SECONDS = 2.0     # Time between assessments
 
-# Baseline RTT sanity bounds (milliseconds)
-MIN_SANE_BASELINE_RTT = 5.0
-MAX_SANE_BASELINE_RTT = 100.0
+# Baseline RTT sanity bounds (milliseconds) - C4 fix: tightened from 5-100 to 10-60
+# Typical home ISP latencies are 20-50ms. Anything below 10ms indicates local LAN,
+# anything above 60ms suggests routing issues or compromised autorate state.
+MIN_SANE_BASELINE_RTT = 10.0
+MAX_SANE_BASELINE_RTT = 60.0
 BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
 
 
@@ -163,9 +165,11 @@ class SteeringConfig(BaseConfig):
             self.data['mangle_rule']['comment'], 'mangle_rule.comment'
         )
 
-        # RTT measurement
+        # RTT measurement (ping_host validated to prevent command injection - C3 fix)
         self.measurement_interval = self.data['measurement']['interval_seconds']
-        self.ping_host = self.data['measurement']['ping_host']
+        self.ping_host = self.validate_ping_host(
+            self.data['measurement']['ping_host'], 'measurement.ping_host'
+        )
         self.ping_count = self.data['measurement']['ping_count']
 
         # CAKE queue names (for statistics polling, validated to prevent command injection)
@@ -203,10 +207,22 @@ class SteeringConfig(BaseConfig):
         self.min_drops_red = thresholds.get('min_drops_red', 1)
         self.min_queue_yellow = thresholds.get('min_queue_yellow', DEFAULT_MIN_QUEUE_YELLOW)
         self.min_queue_red = thresholds.get('min_queue_red', DEFAULT_MIN_QUEUE_RED)
-        self.rtt_ewma_alpha = thresholds.get('rtt_ewma_alpha', DEFAULT_RTT_EWMA_ALPHA)
-        self.queue_ewma_alpha = thresholds.get('queue_ewma_alpha', DEFAULT_QUEUE_EWMA_ALPHA)
+        # C5 fix: Validate EWMA alpha bounds during config load
+        self.rtt_ewma_alpha = self._validate_alpha(
+            thresholds.get('rtt_ewma_alpha', DEFAULT_RTT_EWMA_ALPHA),
+            'thresholds.rtt_ewma_alpha'
+        )
+        self.queue_ewma_alpha = self._validate_alpha(
+            thresholds.get('queue_ewma_alpha', DEFAULT_QUEUE_EWMA_ALPHA),
+            'thresholds.queue_ewma_alpha'
+        )
         self.red_samples_required = thresholds.get('red_samples_required', 2)
         self.green_samples_required = thresholds.get('green_samples_required', DEFAULT_GREEN_SAMPLES_REQUIRED)
+
+        # Baseline RTT bounds (C4 fix: configurable, with security defaults)
+        baseline_bounds = thresholds.get('baseline_rtt_bounds', {})
+        self.baseline_rtt_min = baseline_bounds.get('min', MIN_SANE_BASELINE_RTT)
+        self.baseline_rtt_max = baseline_bounds.get('max', MAX_SANE_BASELINE_RTT)
 
         # State persistence
         self.state_file = Path(self.data['state']['file'])
@@ -237,6 +253,36 @@ class SteeringConfig(BaseConfig):
             'port': self.router_port,
             'verify_ssl': self.router_verify_ssl
         }
+
+    @staticmethod
+    def _validate_alpha(value: float, field_name: str) -> float:
+        """Validate EWMA alpha is in valid range [0, 1] (C5 fix).
+
+        Args:
+            value: Alpha value to validate
+            field_name: Name of field for error messages
+
+        Returns:
+            The validated value (unchanged if valid)
+
+        Raises:
+            ConfigValidationError: If alpha not in [0, 1]
+        """
+        from ..config_base import ConfigValidationError
+
+        try:
+            alpha = float(value)
+        except (ValueError, TypeError):
+            raise ConfigValidationError(
+                f"{field_name}: expected numeric value, got {type(value).__name__}"
+            )
+
+        if not (0.0 <= alpha <= 1.0):
+            raise ConfigValidationError(
+                f"{field_name}: alpha must be in [0, 1], got {alpha}"
+            )
+
+        return alpha
 
 
 # =============================================================================
@@ -573,12 +619,16 @@ class BaselineLoader:
             if 'ewma' in state and 'baseline_rtt' in state['ewma']:
                 baseline_rtt = float(state['ewma']['baseline_rtt'])
 
-                # Sanity check (typical range: 5-100ms)
-                if MIN_SANE_BASELINE_RTT <= baseline_rtt <= MAX_SANE_BASELINE_RTT:
+                # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
+                # Default range: 10-60ms (typical home ISP latencies)
+                if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
                     self.logger.debug(f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms")
                     return baseline_rtt
                 else:
-                    self.logger.warning(f"Baseline RTT out of range: {baseline_rtt:.2f}ms, ignoring")
+                    self.logger.warning(
+                        f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
+                        f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
+                    )
                     return None
             else:
                 self.logger.warning("Baseline RTT not found in autorate state file")
