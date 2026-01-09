@@ -793,6 +793,18 @@ class SteeringDaemon:
             self.thresholds = None
             self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
 
+    def _is_current_state_good(self, current_state: str) -> bool:
+        """Check if current state represents 'good' (supports both legacy and config-driven names).
+
+        Args:
+            current_state: The current state string to check
+
+        Returns:
+            True if state is "good", False otherwise
+        """
+        return current_state == self.config.state_good or \
+               current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
+
     def measure_current_rtt(self) -> Optional[float]:
         """Measure current RTT to ping host"""
         return self.rtt_measurement.ping_host(
@@ -916,8 +928,7 @@ class SteeringDaemon:
         good_count = state["good_count"]
 
         # Check if we're in "good" state (handles both legacy and generic names)
-        is_good_state = current_state == self.config.state_good or \
-                       current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
+        is_good_state = self._is_current_state_good(current_state)
 
         if is_good_state:
             # Normalize to config-driven state name
@@ -1008,8 +1019,7 @@ class SteeringDaemon:
         state_changed = False
 
         # Check if we're in "good" state
-        is_good_state = current_state == self.config.state_good or \
-                       current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
+        is_good_state = self._is_current_state_good(current_state)
 
         if is_good_state:
             # Normalize state name
