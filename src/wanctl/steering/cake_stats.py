@@ -11,6 +11,7 @@ from typing import Optional
 
 from ..config_base import ConfigValidationError
 from ..router_client import get_router_client
+from ..state_utils import safe_json_loads_with_logging
 
 
 @dataclass
@@ -91,13 +92,16 @@ class CakeStatsReader:
         try:
             # Handle both SSH (text) and REST (JSON) output formats
             if out.strip().startswith('[') or out.strip().startswith('{'):
-                # JSON format (REST API) - W10 fix: add JSON parsing error handling
-                import json
-                try:
-                    data = json.loads(out)
-                except json.JSONDecodeError as e:
-                    self.logger.error(f"Failed to parse CAKE stats JSON for {queue_name}: {e}")
-                    self.logger.debug(f"Invalid JSON response: {out[:200]}")
+                # JSON format (REST API) - uses unified JSON parsing utility
+                data = safe_json_loads_with_logging(
+                    out,
+                    logger=self.logger,
+                    error_context=f"CAKE stats for {queue_name}",
+                    log_invalid_content=True,
+                    content_preview_length=200
+                )
+
+                if data is None:
                     return None
 
                 # REST API returns a list of matching queues

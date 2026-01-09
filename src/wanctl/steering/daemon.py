@@ -39,7 +39,7 @@ from ..lockfile import LockFile, LockAcquisitionError
 from ..logging_utils import setup_logging
 from ..ping_utils import parse_ping_output
 from ..router_client import get_router_client
-from ..state_utils import atomic_write_json
+from ..state_utils import atomic_write_json, safe_json_load_file
 
 from .cake_stats import CakeStatsReader, CongestionSignals
 from .congestion_assessment import (
@@ -326,16 +326,28 @@ class SteeringState:
     def _load(self) -> Dict[str, Any]:
         """Load state from file"""
         if self.config.state_file.exists():
-            try:
-                with open(self.config.state_file, 'r') as f:
-                    state = json.load(f)
-                self.logger.debug(f"Loaded state: {state}")
-                return self._validate(state)
-            except Exception as e:
-                self.logger.error(f"Failed to load state: {e}")
-                self.logger.debug(traceback.format_exc())
+            # Use unified JSON parsing utility for cleaner error handling
+            state = safe_json_load_file(
+                self.config.state_file,
+                logger=self.logger,
+                default=None,
+                error_context="steering state"
+            )
 
-                # W2 fix: Backup corrupt state before discarding
+            if state is not None:
+                try:
+                    self.logger.debug(f"Loaded state: {state}")
+                    return self._validate(state)
+                except Exception as e:
+                    self.logger.error(f"Failed to validate state: {e}")
+                    self.logger.debug(traceback.format_exc())
+                    # W2 fix: Backup corrupt state before discarding
+                    self._backup_state_file(suffix='.corrupt')
+                    self.logger.warning(
+                        f"Corrupt state backed up to {self.config.state_file}.corrupt"
+                    )
+            else:
+                # JSON parsing failed - backup and start fresh
                 self._backup_state_file(suffix='.corrupt')
                 self.logger.warning(
                     f"Corrupt state backed up to {self.config.state_file}.corrupt"
