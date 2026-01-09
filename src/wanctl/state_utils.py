@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from wanctl.path_utils import ensure_file_directory
+
 
 def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) -> None:
     """Atomically write JSON data to a file.
@@ -32,7 +34,7 @@ def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) ->
         TypeError: If data is not JSON-serializable
     """
     # Ensure parent directory exists
-    file_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_file_directory(file_path)
 
     # Write to temporary file in the same directory (ensures same filesystem)
     # Using delete=False so we can rename it
