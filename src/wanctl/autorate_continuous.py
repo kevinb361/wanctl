@@ -35,6 +35,7 @@ from wanctl.error_handling import handle_errors
 from wanctl.lockfile import LockFile, LockAcquisitionError
 from wanctl.logging_utils import setup_logging
 from wanctl.ping_utils import parse_ping_output
+from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.router_client import get_router_client
 from wanctl.state_utils import atomic_write_json
 
@@ -401,12 +402,13 @@ class QueueController:
         if self.red_streak >= 1:
             # RED: Gradual decay using factor_down
             new_rate = int(self.current_rate * self.factor_down)
-            new_rate = max(new_rate, self.floor_red_bps)
         elif self.green_streak >= self.green_required:
             # GREEN: Only step up after 5 consecutive green cycles
             new_rate = self.current_rate + self.step_up_bps
-            new_rate = min(new_rate, self.ceiling_bps)
         # else: YELLOW or not enough green streak -> hold steady
+
+        # Enforce floor and ceiling constraints
+        new_rate = enforce_rate_bounds(new_rate, floor=self.floor_red_bps, ceiling=self.ceiling_bps)
 
         self.current_rate = new_rate
         return zone, new_rate
@@ -473,24 +475,27 @@ class QueueController:
         # Apply rate adjustments with state-appropriate floors
         new_rate = self.current_rate
 
+        # Determine appropriate floor based on state
+        state_floor = self.floor_green_bps  # Default
+
         if self.red_streak >= 1:
             # RED: Gradual decay using factor_down
             new_rate = int(self.current_rate * self.factor_down)
-            new_rate = max(new_rate, self.floor_red_bps)
+            state_floor = self.floor_red_bps
         elif zone == "SOFT_RED":
             # SOFT_RED: Clamp to soft_red floor and HOLD (no repeated decay)
-            new_rate = max(self.current_rate, self.floor_soft_red_bps)
+            # Keep current rate but enforce soft_red floor
+            state_floor = self.floor_soft_red_bps
         elif self.green_streak >= self.green_required:
             # GREEN: Only step up after 5 consecutive green cycles
             new_rate = self.current_rate + self.step_up_bps
-            new_rate = min(new_rate, self.ceiling_bps)
-        else:
-            # YELLOW or not enough green streak -> hold steady
-            # Apply state-appropriate floor
-            if zone == "YELLOW":
-                new_rate = max(new_rate, self.floor_yellow_bps)
-            else:  # GREEN but not sustained
-                new_rate = max(new_rate, self.floor_green_bps)
+        elif zone == "YELLOW":
+            # YELLOW or not enough green streak -> hold steady with yellow floor
+            state_floor = self.floor_yellow_bps
+        # else: GREEN but not sustained -> use default floor_green_bps
+
+        # Enforce floor and ceiling constraints based on current state
+        new_rate = enforce_rate_bounds(new_rate, floor=state_floor, ceiling=self.ceiling_bps)
 
         self.current_rate = new_rate
         return zone, new_rate
