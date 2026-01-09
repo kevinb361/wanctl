@@ -49,6 +49,7 @@ from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
 from ..state_manager import StateSchema, SteeringStateManager
 from ..state_utils import atomic_write_json, safe_json_load_file
+from ..timeouts import DEFAULT_STEERING_SSH_TIMEOUT, DEFAULT_STEERING_PING_TOTAL_TIMEOUT
 
 from .cake_stats import CakeStatsReader, CongestionSignals
 from .congestion_assessment import (
@@ -62,10 +63,6 @@ from .congestion_assessment import (
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-
-# Default timeout values (seconds)
-DEFAULT_SSH_TIMEOUT = 30
-DEFAULT_PING_TOTAL_TIMEOUT = 10
 
 # Default congestion thresholds (milliseconds)
 DEFAULT_BAD_THRESHOLD_MS = 25.0       # RTT delta threshold for bad state
@@ -253,9 +250,9 @@ class SteeringConfig(BaseConfig):
 
         # Timeouts (with sensible defaults)
         timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_SSH_TIMEOUT)
+        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_STEERING_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get('ping', 2)  # seconds (-W parameter)
-        self.timeout_ping_total = timeouts.get('ping_total', DEFAULT_PING_TOTAL_TIMEOUT)
+        self.timeout_ping_total = timeouts.get('ping_total', DEFAULT_STEERING_PING_TOTAL_TIMEOUT)
 
         # Router dict for CakeStatsReader
         self.router = {

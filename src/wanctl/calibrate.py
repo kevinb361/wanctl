@@ -33,6 +33,13 @@ from typing import Optional, Tuple, Dict, Any
 import yaml
 
 from wanctl.ping_utils import parse_ping_output
+from wanctl.timeouts import (
+    TIMEOUT_QUICK,
+    TIMEOUT_STANDARD,
+    TIMEOUT_LONG,
+    DEFAULT_CALIBRATE_SSH_TIMEOUT,
+    DEFAULT_CALIBRATE_PING_TIMEOUT,
+)
 
 
 # =============================================================================
@@ -166,7 +173,7 @@ def test_ssh_connectivity(host: str, user: str, ssh_key: Optional[str] = None) -
     cmd.extend([f"{user}@{host}", "echo ok"])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT)
         if result.returncode == 0 and "ok" in result.stdout:
             print_success("SSH connection successful")
             return True
@@ -188,7 +195,7 @@ def test_netperf_server(host: str) -> bool:
     cmd = ["netperf", "-H", host, "-t", "TCP_STREAM", "-l", "2"]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_STANDARD)
         if result.returncode == 0:
             print_success("Netperf server reachable")
             return True
@@ -217,7 +224,7 @@ def measure_baseline_rtt(ping_host: str) -> Optional[float]:
     cmd = ["ping", "-c", str(PING_COUNT), "-i", str(PING_INTERVAL), ping_host]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_LONG)
 
         if result.returncode != 0:
             print_error(f"Ping failed: {result.stderr}")
@@ -270,10 +277,10 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=15)
+        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT)
 
         # Get netperf result
-        stdout, stderr = netperf_proc.communicate(timeout=30)
+        stdout, stderr = netperf_proc.communicate(timeout=TIMEOUT_LONG)
 
         # Parse throughput
         throughput = 0.0
@@ -329,10 +336,10 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=15)
+        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT)
 
         # Get netperf result
-        stdout, stderr = netperf_proc.communicate(timeout=30)
+        stdout, stderr = netperf_proc.communicate(timeout=TIMEOUT_LONG)
 
         # Parse throughput
         throughput = 0.0
@@ -377,7 +384,7 @@ def set_cake_limit(host: str, user: str, queue_name: str, rate_bps: int,
                 f'/queue/tree set [find name="{queue_name}"] max-limit={rate_bps}'])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT)
         return result.returncode == 0
     except Exception:
         return False
