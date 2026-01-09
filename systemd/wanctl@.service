@@ -11,7 +11,7 @@ Group=wanctl
 
 # FHS paths - %i is the WAN instance name (wan1, wan2, etc.)
 WorkingDirectory=/opt/wanctl
-ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml
+ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml --debug
 
 # Daemon lifecycle
 Restart=on-failure
