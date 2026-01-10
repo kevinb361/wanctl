@@ -9,6 +9,9 @@
 # - Very stable, minimal jitter
 # - Less aggressive tuning needed
 
+# Schema version for config format compatibility
+schema_version: "1.0"
+
 wan_name: "fiber"
 
 # RouterOS connection

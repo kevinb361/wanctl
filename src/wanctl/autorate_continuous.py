@@ -7,6 +7,7 @@ Expert-tuned for VDSL2, Cable, and Fiber connections
 Runs as a persistent daemon with internal 2-second control loop.
 """
 import argparse
+import atexit
 import concurrent.futures
 import datetime
 import logging
@@ -978,6 +979,20 @@ def main() -> int | None:
                 wan_info['logger'].error(f"Failed to validate lock: {e}")
             return 1
 
+    # Register emergency cleanup handler for abnormal termination (e.g., SIGKILL)
+    # atexit handlers run on normal exit, sys.exit(), and unhandled exceptions
+    # but NOT on SIGKILL - that's unavoidable. However, this covers more cases
+    # than relying solely on the finally block.
+    def emergency_lock_cleanup():
+        """Emergency cleanup - runs via atexit if finally block doesn't complete."""
+        for lock_path in lock_files:
+            try:
+                lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass  # Best effort - nothing we can do
+
+    atexit.register(emergency_lock_cleanup)
+
     shutdown_event = threading.Event()
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 3
@@ -1075,7 +1090,37 @@ def main() -> int | None:
             if sleep_time > 0 and not shutdown_event.is_set():
                 time.sleep(sleep_time)
     finally:
-        # Shut down metrics server
+        # CLEANUP PRIORITY: locks > connections > servers
+        # Lock cleanup is most critical - enables restart if we crash mid-cleanup
+
+        # 1. Clean up lock files FIRST (highest priority for restart capability)
+        for lock_path in lock_files:
+            try:
+                lock_path.unlink(missing_ok=True)
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].debug(f"Lock released: {lock_path}")
+            except OSError:
+                pass  # Best effort - may already be gone
+
+        # Unregister atexit handler since we've cleaned up successfully
+        try:
+            atexit.unregister(emergency_lock_cleanup)
+        except Exception:
+            pass  # Not critical if this fails
+
+        # 2. Clean up SSH/REST connections
+        for wan_info in controller.wan_controllers:
+            try:
+                router = wan_info['controller'].router
+                # Handle both SSH and REST transports
+                if hasattr(router, 'ssh') and router.ssh:
+                    router.ssh.close()
+                if hasattr(router, 'close'):
+                    router.close()
+            except Exception as e:
+                wan_info['logger'].debug(f"Error closing router connection: {e}")
+
+        # 3. Shut down metrics server
         if metrics_server:
             try:
                 metrics_server.stop()
@@ -1083,29 +1128,13 @@ def main() -> int | None:
                 for wan_info in controller.wan_controllers:
                     wan_info['logger'].debug(f"Error shutting down metrics server: {e}")
 
-        # Shut down health check server
+        # 4. Shut down health check server
         if health_server:
             try:
                 health_server.shutdown()
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info['logger'].debug(f"Error shutting down health server: {e}")
-
-        # Clean up SSH connections on exit
-        for wan_info in controller.wan_controllers:
-            try:
-                wan_info['controller'].router.ssh.close()
-            except Exception as e:
-                wan_info['logger'].debug(f"Error closing SSH: {e}")
-
-        # Clean up lock files on exit
-        for lock_path in lock_files:
-            try:
-                lock_path.unlink()
-                for wan_info in controller.wan_controllers:
-                    wan_info['logger'].debug(f"Lock released: {lock_path}")
-            except (FileNotFoundError, OSError):
-                pass
 
         # Log clean shutdown
         for wan_info in controller.wan_controllers:

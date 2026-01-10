@@ -10,6 +10,9 @@
 #
 # Usage: systemctl enable --now steering.timer
 
+# Schema version for config format compatibility
+schema_version: "1.0"
+
 # WAN name for this config (used in logs)
 wan_name: "steering"
 
