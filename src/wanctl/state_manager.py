@@ -67,9 +67,7 @@ def non_negative_float(value: Any) -> float:
 
 
 def optional_positive_float(
-    value: Any,
-    min_val: float | None = None,
-    max_val: float | None = None
+    value: Any, min_val: float | None = None, max_val: float | None = None
 ) -> float | None:
     """Validate optional float with optional bounds.
 
@@ -97,11 +95,7 @@ def optional_positive_float(
     return result
 
 
-def bounded_float(
-    min_val: float,
-    max_val: float,
-    clamp: bool = True
-) -> ValidatorFunc[float]:
+def bounded_float(min_val: float, max_val: float, clamp: bool = True) -> ValidatorFunc[float]:
     """Create a validator for floats within bounds.
 
     Args:
@@ -119,6 +113,7 @@ def bounded_float(
         >>> alpha_validator(1.5)  # clamped
         1.0
     """
+
     def validator(value: Any) -> float:
         result = float(value)
         if clamp:
@@ -126,6 +121,7 @@ def bounded_float(
         if result < min_val or result > max_val:
             raise ValueError(f"Value {result} not in range [{min_val}, {max_val}]")
         return result
+
     return validator
 
 
@@ -153,6 +149,7 @@ def string_enum(*allowed: str) -> ValidatorFunc[str]:
         if str_val not in allowed_set:
             raise ValueError(f"Value '{str_val}' not in allowed set: {allowed_set}")
         return str_val
+
     return validator
 
 
@@ -217,9 +214,7 @@ class StateSchema:
         return value
 
     def validate_state(
-        self,
-        state: dict[str, Any],
-        logger: logging.Logger | None = None
+        self, state: dict[str, Any], logger: logging.Logger | None = None
     ) -> dict[str, Any]:
         """Validate and fill in defaults for entire state.
 
@@ -269,11 +264,7 @@ class StateManager:
     """
 
     def __init__(
-        self,
-        state_file: Path,
-        schema: StateSchema,
-        logger: logging.Logger,
-        context: str = "state"
+        self, state_file: Path, schema: StateSchema, logger: logging.Logger, context: str = "state"
     ):
         """Initialize state manager.
 
@@ -290,11 +281,43 @@ class StateManager:
         # Initialize state with schema defaults
         self.state = self.schema.get_defaults()
 
-    def load(self) -> bool:
-        """Load state from file with validation.
+    def _get_backup_path(self) -> Path:
+        """Get path to backup state file.
 
         Returns:
-            True if state loaded successfully
+            Path to backup file (e.g., state.json.backup)
+        """
+        return self.state_file.with_suffix(self.state_file.suffix + ".backup")
+
+    def _backup_state_file(self, suffix: str = ".backup") -> bool:
+        """Create backup copy of state file.
+
+        Args:
+            suffix: Suffix to add to backup filename
+
+        Returns:
+            True if backup succeeded, False otherwise
+        """
+        try:
+            if not self.state_file.exists():
+                return False
+
+            backup_path = self.state_file.with_suffix(self.state_file.suffix + suffix)
+            shutil.copy2(self.state_file, backup_path)
+            self.logger.debug(f"Backed up state to {backup_path}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to backup state file: {e}")
+            return False
+
+    def load(self) -> bool:
+        """Load state from file with validation and automatic backup recovery.
+
+        If the primary state file is corrupt, attempts to load from the backup
+        file before falling back to defaults.
+
+        Returns:
+            True if state loaded successfully (from primary or backup)
             False if file doesn't exist or load failed
         """
         if not self.state_file.exists():
@@ -304,15 +327,36 @@ class StateManager:
 
         # Load JSON from file
         loaded = safe_json_load_file(
-            self.state_file,
-            logger=self.logger,
-            default=None,
-            error_context=self.context
+            self.state_file, logger=self.logger, default=None, error_context=self.context
         )
 
         if loaded is None:
-            # JSON parsing failed - use defaults
+            # JSON parsing failed - try backup before giving up
+            backup_file = self._get_backup_path()
+            if backup_file.exists():
+                self.logger.warning(
+                    f"{self.context}: Primary state corrupted, attempting backup recovery"
+                )
+                loaded = safe_json_load_file(
+                    backup_file,
+                    logger=self.logger,
+                    default=None,
+                    error_context=f"{self.context} backup",
+                )
+                if loaded is not None:
+                    self.logger.info(f"{self.context}: Recovered state from backup")
+                    # Save corrupt file for analysis before overwriting
+                    self._backup_state_file(suffix=".corrupt")
+                    try:
+                        self.state = self.schema.validate_state(loaded, logger=self.logger)
+                        return True
+                    except Exception as e:
+                        self.logger.error(f"{self.context}: Backup validation failed: {e}")
+                        # Fall through to defaults
+
+            # No backup or backup also corrupt - use defaults
             self.logger.warning(f"{self.context}: Failed to parse state file, using defaults")
+            self._backup_state_file(suffix=".corrupt")
             self.state = self.schema.get_defaults()
             return False
 
@@ -323,6 +367,7 @@ class StateManager:
             return True
         except Exception as e:
             self.logger.error(f"{self.context}: Failed to validate state: {e}")
+            self._backup_state_file(suffix=".corrupt")
             self.state = self.schema.get_defaults()
             return False
 
@@ -405,7 +450,7 @@ class SteeringStateManager(StateManager):
         schema: StateSchema,
         logger: logging.Logger,
         context: str = "steering state",
-        history_maxlen: int | None = None
+        history_maxlen: int | None = None,
     ):
         """Initialize steering state manager.
 
@@ -417,38 +462,21 @@ class SteeringStateManager(StateManager):
             history_maxlen: Maximum length for history deques (default: DEFAULT_HISTORY_MAXLEN)
         """
         super().__init__(state_file, schema, logger, context)
-        self.history_maxlen = history_maxlen if history_maxlen is not None else self.DEFAULT_HISTORY_MAXLEN
+        self.history_maxlen = (
+            history_maxlen if history_maxlen is not None else self.DEFAULT_HISTORY_MAXLEN
+        )
 
-    def _backup_state_file(self, suffix: str = '.backup') -> bool:
-        """Create backup copy of state file.
-
-        Args:
-            suffix: Suffix to add to backup filename
-
-        Returns:
-            True if backup succeeded, False otherwise
-        """
-        try:
-            if not self.state_file.exists():
-                return False
-
-            backup_path = self.state_file.with_suffix(
-                self.state_file.suffix + suffix
-            )
-            shutil.copy2(self.state_file, backup_path)
-            self.logger.debug(f"Backed up state to {backup_path}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to backup state file: {e}")
-            return False
+    # Note: _backup_state_file and _get_backup_path are inherited from StateManager
 
     def load(self) -> bool:
-        """Load state from file with validation and legacy migration.
+        """Load state from file with validation, backup recovery, and legacy migration.
 
-        Handles deque conversion from JSON lists and legacy state name migration.
+        If the primary state file is corrupt, attempts to load from the backup
+        file before falling back to defaults. Handles deque conversion from
+        JSON lists.
 
         Returns:
-            True if state loaded successfully
+            True if state loaded successfully (from primary or backup)
             False if file doesn't exist or load failed
         """
         if not self.state_file.exists():
@@ -458,16 +486,37 @@ class SteeringStateManager(StateManager):
 
         # Load JSON from file
         loaded = safe_json_load_file(
-            self.state_file,
-            logger=self.logger,
-            default=None,
-            error_context=self.context
+            self.state_file, logger=self.logger, default=None, error_context=self.context
         )
 
         if loaded is None:
-            # JSON parsing failed - backup and use defaults
+            # JSON parsing failed - try backup before giving up
+            backup_file = self._get_backup_path()
+            if backup_file.exists():
+                self.logger.warning(
+                    f"{self.context}: Primary state corrupted, attempting backup recovery"
+                )
+                loaded = safe_json_load_file(
+                    backup_file,
+                    logger=self.logger,
+                    default=None,
+                    error_context=f"{self.context} backup",
+                )
+                if loaded is not None:
+                    self.logger.info(f"{self.context}: Recovered state from backup")
+                    # Save corrupt file for analysis before overwriting
+                    self._backup_state_file(suffix=".corrupt")
+                    try:
+                        self.state = self.schema.validate_state(loaded, logger=self.logger)
+                        self._convert_lists_to_deques()
+                        return True
+                    except Exception as e:
+                        self.logger.error(f"{self.context}: Backup validation failed: {e}")
+                        # Fall through to defaults
+
+            # No backup or backup also corrupt - use defaults
             self.logger.warning(f"{self.context}: Failed to parse state file, using defaults")
-            self._backup_state_file(suffix='.corrupt')
+            self._backup_state_file(suffix=".corrupt")
             self.state = self.schema.get_defaults()
             return False
 
@@ -480,7 +529,7 @@ class SteeringStateManager(StateManager):
             return True
         except Exception as e:
             self.logger.error(f"{self.context}: Failed to validate state: {e}")
-            self._backup_state_file(suffix='.corrupt')
+            self._backup_state_file(suffix=".corrupt")
             self.state = self.schema.get_defaults()
             return False
 
@@ -491,7 +540,7 @@ class SteeringStateManager(StateManager):
         preventing unbounded growth on long-running daemons.
         Uses self.history_maxlen for the deque maximum length.
         """
-        history_keys = ['history_rtt', 'history_delta', 'cake_drops_history', 'queue_depth_history']
+        history_keys = ["history_rtt", "history_delta", "cake_drops_history", "queue_depth_history"]
         for key in history_keys:
             if key in self.state:
                 if isinstance(self.state[key], list):
@@ -514,8 +563,15 @@ class SteeringStateManager(StateManager):
         try:
             # Convert deques to lists for JSON serialization
             state_to_save = dict(self.state)
-            for key in ['history_rtt', 'history_delta', 'cake_drops_history', 'queue_depth_history']:
-                if isinstance(state_to_save.get(key), type(state_to_save.get(key))) and hasattr(state_to_save[key], '__iter__'):
+            for key in [
+                "history_rtt",
+                "history_delta",
+                "cake_drops_history",
+                "queue_depth_history",
+            ]:
+                if isinstance(state_to_save.get(key), type(state_to_save.get(key))) and hasattr(
+                    state_to_save[key], "__iter__"
+                ):
                     try:
                         state_to_save[key] = list(state_to_save[key])
                     except (TypeError, ValueError):
@@ -525,23 +581,25 @@ class SteeringStateManager(StateManager):
                 # Direct write without locking
                 atomic_write_json(self.state_file, state_to_save)
                 self.logger.debug(f"{self.context}: Saved state to {self.state_file}")
-                self._backup_state_file(suffix='.backup')
+                self._backup_state_file(suffix=".backup")
                 return True
 
             # Write with file-level locking for concurrent access protection
-            lock_path = self.state_file.with_suffix(self.state_file.suffix + '.lock')
+            lock_path = self.state_file.with_suffix(self.state_file.suffix + ".lock")
 
             try:
-                with open(lock_path, 'a') as lock_file:
+                with open(lock_path, "a") as lock_file:
                     fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                     try:
                         atomic_write_json(self.state_file, state_to_save)
                         self.logger.debug(f"{self.context}: Saved state to {self.state_file}")
-                        self._backup_state_file(suffix='.backup')
+                        self._backup_state_file(suffix=".backup")
                     finally:
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
             except BlockingIOError:
-                self.logger.warning(f"{self.context}: State file locked by another process, skipping save")
+                self.logger.warning(
+                    f"{self.context}: State file locked by another process, skipping save"
+                )
                 return False
             except Exception as e:
                 self.logger.error(f"{self.context}: Failed to acquire state file lock: {e}")
@@ -580,7 +638,7 @@ class SteeringStateManager(StateManager):
             "from": old_state,
             "to": new_state,
             "bad_count": self.state.get("bad_count", 0),
-            "good_count": self.state.get("good_count", 0)
+            "good_count": self.state.get("good_count", 0),
         }
 
         if "transitions" in self.state:
@@ -589,7 +647,7 @@ class SteeringStateManager(StateManager):
 
             # Keep only last N transitions (matches history_maxlen for consistency)
             if len(self.state["transitions"]) > self.history_maxlen:
-                self.state["transitions"] = self.state["transitions"][-self.history_maxlen:]
+                self.state["transitions"] = self.state["transitions"][-self.history_maxlen :]
 
     def reset(self) -> None:
         """Reset state to default values."""

@@ -4,36 +4,39 @@ Congestion State Assessment for Adaptive WAN Steering
 Three-state model: GREEN -> YELLOW -> RED
 """
 
-from enum import Enum
-from dataclasses import dataclass
 import logging
+import math
+from dataclasses import dataclass
+from enum import Enum
 
 from .cake_stats import CongestionSignals
 
 
 class CongestionState(Enum):
     """Three-state congestion model"""
-    GREEN = "GREEN"     # Healthy - no congestion
-    YELLOW = "YELLOW"   # Warning - early congestion signals
-    RED = "RED"         # Critical - confirmed congestion, routing active
+
+    GREEN = "GREEN"  # Healthy - no congestion
+    YELLOW = "YELLOW"  # Warning - early congestion signals
+    RED = "RED"  # Critical - confirmed congestion, routing active
 
 
 @dataclass
 class StateThresholds:
     """Thresholds for congestion state assessment"""
+
     # RTT thresholds (ms)
-    green_rtt: float = 5.0      # Below this = GREEN
-    yellow_rtt: float = 15.0    # Above this = YELLOW (warning)
-    red_rtt: float = 15.0       # Above this (with CAKE drops) = RED
+    green_rtt: float = 5.0  # Below this = GREEN
+    yellow_rtt: float = 15.0  # Above this = YELLOW (warning)
+    red_rtt: float = 15.0  # Above this (with CAKE drops) = RED
 
     # CAKE thresholds
-    min_drops_red: int = 1      # Minimum drops required for RED
+    min_drops_red: int = 1  # Minimum drops required for RED
     min_queue_yellow: int = 10  # Queue depth for YELLOW warning
-    min_queue_red: int = 50     # Queue depth for RED (deeper congestion)
+    min_queue_red: int = 50  # Queue depth for RED (deeper congestion)
 
     # Hysteresis
-    red_samples_required: int = 2      # Consecutive RED samples before routing
-    green_samples_required: int = 15   # Consecutive GREEN samples before recovery
+    red_samples_required: int = 2  # Consecutive RED samples before routing
+    green_samples_required: int = 15  # Consecutive GREEN samples before recovery
 
     def __post_init__(self):
         """Validate thresholds"""
@@ -45,9 +48,7 @@ class StateThresholds:
 
 
 def assess_congestion_state(
-    signals: CongestionSignals,
-    thresholds: StateThresholds,
-    logger: logging.Logger
+    signals: CongestionSignals, thresholds: StateThresholds, logger: logging.Logger
 ) -> CongestionState:
     """
     Assess current congestion state based on multiple signals
@@ -70,10 +71,11 @@ def assess_congestion_state(
     queue = signals.queued_packets
 
     # RED: Multiple signals confirm serious congestion
-    if (rtt > thresholds.red_rtt and
-        drops >= thresholds.min_drops_red and
-        queue >= thresholds.min_queue_red):
-
+    if (
+        rtt > thresholds.red_rtt
+        and drops >= thresholds.min_drops_red
+        and queue >= thresholds.min_queue_red
+    ):
         logger.debug(
             f"Assessment: RED - rtt={rtt:.1f}ms (>{thresholds.red_rtt}), "
             f"drops={drops} (>={thresholds.min_drops_red}), "
@@ -82,7 +84,7 @@ def assess_congestion_state(
         return CongestionState.RED
 
     # YELLOW: Early warning (elevated RTT OR rising queue, but no drops yet)
-    elif (rtt > thresholds.yellow_rtt or queue >= thresholds.min_queue_yellow):
+    elif rtt > thresholds.yellow_rtt or queue >= thresholds.min_queue_yellow:
         logger.debug(
             f"Assessment: YELLOW - rtt={rtt:.1f}ms (threshold={thresholds.yellow_rtt}), "
             f"queue={queue} (threshold={thresholds.min_queue_yellow}), drops={drops}"
@@ -95,29 +97,44 @@ def assess_congestion_state(
         return CongestionState.GREEN
 
 
-def ewma_update(current: float, new_value: float, alpha: float) -> float:
+def ewma_update(current: float, new_value: float, alpha: float, max_value: float = 1000.0) -> float:
     """
-    Exponentially Weighted Moving Average update
+    Exponentially Weighted Moving Average update with bounds checking.
 
     Args:
         current: Current EWMA value
         new_value: New measurement
         alpha: Smoothing factor (0-1, higher = less smoothing)
+        max_value: Maximum allowed absolute value (default: 1000.0 for RTT in ms)
 
     Returns:
         Updated EWMA value
 
     Raises:
         ValueError: If alpha is not in [0, 1] (C5 fix: prevents erratic behavior)
+        ValueError: If new_value exceeds bounds or is not finite
+        ValueError: If result is not finite (indicates numeric instability)
     """
     # C5 fix: Validate alpha bounds to prevent erratic smoothing behavior
     if not (0.0 <= alpha <= 1.0):
-        raise ValueError(
-            f"EWMA alpha must be in [0, 1], got {alpha}"
-        )
+        raise ValueError(f"EWMA alpha must be in [0, 1], got {alpha}")
+
+    # Numeric overflow protection: check for NaN/Inf in input
+    if math.isnan(new_value) or math.isinf(new_value):
+        raise ValueError(f"EWMA input is not finite: {new_value}")
+
+    # Bounds checking to prevent extreme values from poisoning state
+    if not (-max_value <= new_value <= max_value):
+        raise ValueError(f"EWMA input {new_value} exceeds bounds ±{max_value}")
 
     if current == 0.0:
         # First measurement - initialize with new value
         return new_value
 
-    return (1.0 - alpha) * current + alpha * new_value
+    result = (1.0 - alpha) * current + alpha * new_value
+
+    # Verify result is sane (guard against numeric instability)
+    if math.isnan(result) or math.isinf(result):
+        raise ValueError(f"EWMA result not finite: {result}")
+
+    return result
