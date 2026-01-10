@@ -1,9 +1,11 @@
 """Base configuration shared across all CAKE components."""
 
+import logging
 import re
 import socket
+from typing import Any
+
 import yaml
-from typing import Any, Dict, List, Optional, Union
 
 
 class ConfigValidationError(ValueError):
@@ -15,7 +17,7 @@ class ConfigValidationError(ValueError):
 # SCHEMA VALIDATION HELPERS
 # =============================================================================
 
-def _get_nested(data: Dict, path: str, default: Any = None) -> Any:
+def _get_nested(data: dict, path: str, default: Any = None) -> Any:
     """Get a nested value from a dictionary using dot notation.
 
     Args:
@@ -43,13 +45,13 @@ def _type_name(value: Any) -> str:
 
 
 def validate_field(
-    data: Dict,
+    data: dict,
     path: str,
-    expected_type: Union[type, tuple],
+    expected_type: type | tuple,
     required: bool = True,
-    min_val: Optional[Union[int, float]] = None,
-    max_val: Optional[Union[int, float]] = None,
-    choices: Optional[List] = None,
+    min_val: int | float | None = None,
+    max_val: int | float | None = None,
+    choices: list | None = None,
     default: Any = None
 ) -> Any:
     """Validate a single config field.
@@ -107,7 +109,7 @@ def validate_field(
     return value
 
 
-def validate_schema(data: Dict, schema: List[Dict]) -> Dict[str, Any]:
+def validate_schema(data: dict, schema: list[dict]) -> dict[str, Any]:
     """Validate config data against a schema definition.
 
     Args:
@@ -182,6 +184,10 @@ class BaseConfig:
         ssh_key: Path to SSH private key for RouterOS authentication
     """
 
+    # Current schema version for configuration files
+    # Increment when making breaking changes to config format
+    CURRENT_SCHEMA_VERSION = "1.0"
+
     # Base schema for fields present in all configs
     # Subclasses can define their own SCHEMA class attribute for additional fields
     BASE_SCHEMA = [
@@ -192,7 +198,7 @@ class BaseConfig:
     ]
 
     # Subclasses override this to add component-specific schema
-    SCHEMA: List[Dict] = []
+    SCHEMA: list[dict] = []
 
     def __init__(self, config_path: str):
         """Load configuration from YAML file.
@@ -205,8 +211,11 @@ class BaseConfig:
             yaml.YAMLError: If config file has invalid YAML syntax
             ConfigValidationError: If required config keys are missing or invalid
         """
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             self.data = yaml.safe_load(f)
+
+        # Validate schema version (defaults to 1.0 for legacy configs)
+        self._validate_schema_version()
 
         # Validate base schema first
         self._validate_base_schema()
@@ -230,6 +239,31 @@ class BaseConfig:
     def _validate_base_schema(self):
         """Validate base schema fields present in all configs."""
         validate_schema(self.data, self.BASE_SCHEMA)
+
+    def _validate_schema_version(self):
+        """Validate and log schema version from config file.
+
+        Checks the schema_version field in the config and logs if it differs
+        from the current expected version. This enables future migration logic
+        when breaking config changes are needed.
+
+        Legacy configs without schema_version are assumed to be version 1.0.
+        """
+        schema_version = self.data.get('schema_version', '1.0')
+
+        # Store version for potential use by subclasses or diagnostics
+        self.schema_version = schema_version
+
+        if schema_version != self.CURRENT_SCHEMA_VERSION:
+            # Log version mismatch - future: add migration logic here
+            # For now, we accept older versions with a warning
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"Config schema version {schema_version} "
+                f"(current: {self.CURRENT_SCHEMA_VERSION})"
+            )
+            # Future migration hooks:
+            # self._migrate_schema(schema_version, self.CURRENT_SCHEMA_VERSION)
 
     def _load_specific_fields(self):
         """Override in subclasses to load component-specific config.
@@ -358,14 +392,14 @@ class BaseConfig:
         try:
             socket.inet_pton(socket.AF_INET, value)
             return value
-        except socket.error:
+        except OSError:
             pass
 
         # Try IPv6
         try:
             socket.inet_pton(socket.AF_INET6, value)
             return value
-        except socket.error:
+        except OSError:
             pass
 
         # Try hostname (RFC 1123: lowercase letters, digits, hyphens, and dots)

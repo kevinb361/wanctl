@@ -9,6 +9,9 @@
 # - Sensitive to line noise and interference
 # - Requires conservative tuning, especially upload
 
+# Schema version for config format compatibility
+schema_version: "1.0"
+
 wan_name: "dsl"
 
 # RouterOS connection

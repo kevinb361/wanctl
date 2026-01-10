@@ -622,3 +622,78 @@ class TestValidateCommentSecurityEdgeCases:
         comment = "Rule-Name_123: Description here"
         result = BaseConfig.validate_comment(comment, "mangle_comment")
         assert result == comment
+
+
+class TestSchemaVersioning:
+    """Tests for configuration schema versioning."""
+
+    def test_current_schema_version_constant(self):
+        """Test that CURRENT_SCHEMA_VERSION is defined."""
+        assert hasattr(BaseConfig, 'CURRENT_SCHEMA_VERSION')
+        assert BaseConfig.CURRENT_SCHEMA_VERSION == "1.0"
+
+    def test_schema_version_stored_on_instance(self, tmp_path):
+        """Test that schema_version is stored on config instance."""
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text("""
+schema_version: "1.0"
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+""")
+        config = BaseConfig(str(config_file))
+        assert hasattr(config, 'schema_version')
+        assert config.schema_version == "1.0"
+
+    def test_missing_schema_version_defaults_to_1_0(self, tmp_path):
+        """Test that missing schema_version defaults to 1.0."""
+        config_file = tmp_path / "test.yaml"
+        # Legacy config without schema_version
+        config_file.write_text("""
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+""")
+        config = BaseConfig(str(config_file))
+        assert config.schema_version == "1.0"
+
+    def test_different_schema_version_logs_info(self, tmp_path, caplog):
+        """Test that different schema version logs info message."""
+        import logging
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text("""
+schema_version: "0.9"
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+""")
+        with caplog.at_level(logging.INFO):
+            config = BaseConfig(str(config_file))
+
+        assert config.schema_version == "0.9"
+        assert "Config schema version 0.9" in caplog.text
+        assert "current: 1.0" in caplog.text
+
+    def test_current_schema_version_no_log(self, tmp_path, caplog):
+        """Test that current schema version does not log."""
+        import logging
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text("""
+schema_version: "1.0"
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+""")
+        with caplog.at_level(logging.INFO):
+            config = BaseConfig(str(config_file))
+
+        assert config.schema_version == "1.0"
+        assert "Config schema version" not in caplog.text

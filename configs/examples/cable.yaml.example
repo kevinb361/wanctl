@@ -9,6 +9,9 @@
 # - Asymmetric speeds (fast download, slower upload)
 # - May require median-of-three pings for accuracy
 
+# Schema version for config format compatibility
+schema_version: "1.0"
+
 wan_name: "cable"
 
 # RouterOS connection

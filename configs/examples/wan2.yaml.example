@@ -10,6 +10,9 @@
 #
 # Usage: systemctl enable --now wanctl@wan2.timer
 
+# Schema version for config format compatibility
+schema_version: "1.0"
+
 wan_name: "wan2"
 
 # RouterOS connection
