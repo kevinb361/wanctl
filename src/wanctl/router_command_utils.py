@@ -4,6 +4,7 @@ Consolidates common error handling patterns for router command execution,
 eliminating duplication across backends and command handlers.
 
 Provides:
+- CommandResult - Result type for command execution (success/failure with value/error)
 - check_command_success() - Execute command and validate success/failure
 - safe_parse_output() - Parse router output with error context
 - validate_rule_status() - Check if rule is enabled/disabled
@@ -16,16 +17,153 @@ Common patterns consolidated:
 - Rule status checking (enabled vs disabled)
 """
 
+from __future__ import annotations
+
 import logging
 import re
-from typing import Any, Callable, Optional, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar
+
+# Type variable for result value types
+T = TypeVar("T")
+
+
+@dataclass(frozen=True, slots=True)
+class CommandResult(Generic[T]):
+    """Result type for router command execution.
+
+    Provides a type-safe alternative to Tuple[bool, Any] returns.
+    Encapsulates success/failure state with associated value or error.
+
+    Attributes:
+        success: True if command succeeded, False otherwise
+        value: Result value on success (None on failure)
+        error: Error message on failure (None on success)
+
+    Example:
+        >>> result = CommandResult.ok(42)
+        >>> result.success
+        True
+        >>> result.unwrap()
+        42
+
+        >>> result = CommandResult.err("Connection failed")
+        >>> result.success
+        False
+        >>> result.unwrap_or(0)
+        0
+    """
+
+    success: bool
+    value: T | None = None
+    error: str | None = None
+
+    @classmethod
+    def ok(cls, value: T) -> CommandResult[T]:
+        """Create a successful result with a value.
+
+        Args:
+            value: The success value
+
+        Returns:
+            CommandResult with success=True and the value
+        """
+        return cls(success=True, value=value, error=None)
+
+    @classmethod
+    def err(cls, error: str, value: T | None = None) -> CommandResult[T]:
+        """Create a failed result with an error message.
+
+        Args:
+            error: Error message describing the failure
+            value: Optional value to include (e.g., partial result)
+
+        Returns:
+            CommandResult with success=False and the error
+        """
+        return cls(success=False, value=value, error=error)
+
+    def is_ok(self) -> bool:
+        """Check if result is successful."""
+        return self.success
+
+    def is_err(self) -> bool:
+        """Check if result is a failure."""
+        return not self.success
+
+    def unwrap(self) -> T:
+        """Get the value, raising if result is an error.
+
+        Returns:
+            The success value
+
+        Raises:
+            ValueError: If result is an error
+        """
+        if not self.success:
+            raise ValueError(f"Called unwrap() on error result: {self.error}")
+        return self.value  # type: ignore[return-value]
+
+    def unwrap_or(self, default: T) -> T:
+        """Get the value or a default if result is an error.
+
+        Args:
+            default: Value to return if result is an error
+
+        Returns:
+            The success value or the default
+        """
+        if self.success:
+            return self.value  # type: ignore[return-value]
+        return default
+
+    def unwrap_or_else(self, func: Callable[[], T]) -> T:
+        """Get the value or compute a default if result is an error.
+
+        Args:
+            func: Function to call to get default value
+
+        Returns:
+            The success value or the computed default
+        """
+        if self.success:
+            return self.value  # type: ignore[return-value]
+        return func()
+
+    def map(self, func: Callable[[T], Any]) -> CommandResult[Any]:
+        """Transform the success value with a function.
+
+        Args:
+            func: Function to apply to the value
+
+        Returns:
+            New CommandResult with transformed value (or same error)
+        """
+        if self.success:
+            return CommandResult.ok(func(self.value))  # type: ignore[arg-type]
+        return CommandResult.err(self.error or "Unknown error")
+
+    def __bool__(self) -> bool:
+        """Allow using result in boolean context (if result: ...)."""
+        return self.success
+
+    def __iter__(self):
+        """Support tuple unpacking for backward compatibility.
+
+        Allows: success, value = result
+
+        On success: yields (True, value)
+        On failure: yields (False, value) - note: value, not error message
+        """
+        return iter((self.success, self.value))
 
 
 def check_command_success(
     rc: int,
     cmd: str,
     err: str = "",
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
     operation: str = "command execution"
 ) -> bool:
     """Validate router command execution result.
@@ -56,8 +194,8 @@ def check_command_success(
 
 def safe_parse_output(
     output: str,
-    parse_func: Callable[[str], Optional[Any]],
-    logger: logging.Logger = None,
+    parse_func: Callable[[str], Any | None],
+    logger: logging.Logger | None = None,
     operation: str = "output parsing",
     default: Any = None
 ) -> Any:
@@ -96,8 +234,8 @@ def safe_parse_output(
 
 def validate_rule_status(
     output: str,
-    logger: logging.Logger = None
-) -> Optional[bool]:
+    logger: logging.Logger | None = None
+) -> bool | None:
     """Check if a RouterOS mangle rule is enabled or disabled.
 
     Parses RouterOS output to determine rule status:
@@ -139,8 +277,8 @@ def extract_field_value(
     output: str,
     field_name: str,
     field_type: type = int,
-    logger: logging.Logger = None
-) -> Optional[Any]:
+    logger: logging.Logger | None = None
+) -> Any | None:
     """Extract a field value from router output using regex.
 
     Consolidates pattern: regex search for field_name=value, convert to type.
@@ -178,11 +316,11 @@ def extract_field_value(
         value_str = match.group(1)
 
         # Convert to requested type
-        if field_type == int:
+        if field_type is int:
             return int(value_str)
-        elif field_type == float:
+        elif field_type is float:
             return float(value_str)
-        elif field_type == str:
+        elif field_type is str:
             return value_str
         else:
             return field_type(value_str)
@@ -197,8 +335,8 @@ def extract_field_value(
 
 def extract_queue_stats(
     output: str,
-    logger: logging.Logger = None
-) -> Optional[dict]:
+    logger: logging.Logger | None = None
+) -> dict | None:
     """Extract queue statistics from RouterOS output.
 
     Consolidates pattern: extract packets, bytes, dropped, queued-packets, queued-bytes.
@@ -256,28 +394,54 @@ def handle_command_error(
     rc: int,
     err: str,
     cmd: str,
-    logger: logging.Logger = None,
-    return_value: Any = None
-) -> Tuple[bool, Any]:
-    """Handle command execution error and return appropriate values.
+    logger: logging.Logger | None = None,
+    return_value: T | None = None
+) -> CommandResult[T]:
+    """Handle command execution error and return a CommandResult.
 
-    Consolidated error handling: logs error and returns (success, value) tuple.
+    Consolidated error handling: logs error and returns typed result.
 
     Args:
         rc: Return code (0 = success)
-        err: Error message
+        err: Error message from command
         cmd: Command executed (for logging)
         logger: Logger instance (optional)
-        return_value: Value to return on failure
+        return_value: Value to return on failure (ignored on success)
 
     Returns:
-        Tuple of (success: bool, value: return_value on failure or None on success)
+        CommandResult with:
+        - On success (rc=0): success=True, value=None, error=None
+        - On failure (rc!=0): success=False, value=return_value, error=message
+
+    Example:
+        >>> result = handle_command_error(0, "", "get queue")
+        >>> result.is_ok()
+        True
+        >>> result.value is None
+        True
+
+        >>> result = handle_command_error(1, "timeout", "set limit", return_value=-1)
+        >>> result.is_err()
+        True
+        >>> result.value
+        -1
+        >>> result.error
+        'Command failed: set limit -> timeout'
+
+        # Backward compatible tuple unpacking still works:
+        >>> success, value = handle_command_error(0, "", "cmd")
+        >>> success, value
+        (True, None)
+        >>> success, value = handle_command_error(1, "err", "cmd", return_value=-1)
+        >>> success, value
+        (False, -1)
     """
     if logger is None:
         logger = logging.getLogger(__name__)
 
     if rc == 0:
-        return (True, None)
-    else:
-        logger.error(f"Command failed: {cmd} -> {err}")
-        return (False, return_value)
+        return CommandResult.ok(None)  # type: ignore[arg-type]
+
+    error_msg = f"Command failed: {cmd} -> {err}"
+    logger.error(error_msg)
+    return CommandResult.err(error_msg, return_value)

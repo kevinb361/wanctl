@@ -10,16 +10,156 @@ import fcntl
 import logging
 import shutil
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, TypeVar
 
 from .state_utils import atomic_write_json, safe_json_load_file
+
+# Type variable for validator return types
+T = TypeVar("T")
+
+# Type alias for validator functions: takes value, returns cleaned value or raises ValueError
+ValidatorFunc = Callable[[Any], T]
+
+
+# =============================================================================
+# COMMON STATE FIELD VALIDATORS
+# =============================================================================
+
+
+def non_negative_int(value: Any) -> int:
+    """Validate and coerce value to non-negative integer.
+
+    Args:
+        value: Value to validate
+
+    Returns:
+        Non-negative integer (min 0)
+
+    Example:
+        >>> non_negative_int(5)
+        5
+        >>> non_negative_int(-3)
+        0
+        >>> non_negative_int("10")
+        10
+    """
+    return max(0, int(value))
+
+
+def non_negative_float(value: Any) -> float:
+    """Validate and coerce value to non-negative float.
+
+    Args:
+        value: Value to validate
+
+    Returns:
+        Non-negative float (min 0.0)
+
+    Example:
+        >>> non_negative_float(3.14)
+        3.14
+        >>> non_negative_float(-1.5)
+        0.0
+    """
+    return max(0.0, float(value))
+
+
+def optional_positive_float(
+    value: Any,
+    min_val: float | None = None,
+    max_val: float | None = None
+) -> float | None:
+    """Validate optional float with optional bounds.
+
+    Args:
+        value: Value to validate (can be None)
+        min_val: Minimum allowed value (optional)
+        max_val: Maximum allowed value (optional)
+
+    Returns:
+        Validated float or None if value is None
+
+    Raises:
+        ValueError: If value is out of bounds
+    """
+    if value is None:
+        return None
+
+    result = float(value)
+
+    if min_val is not None and result < min_val:
+        raise ValueError(f"Value {result} below minimum {min_val}")
+    if max_val is not None and result > max_val:
+        raise ValueError(f"Value {result} above maximum {max_val}")
+
+    return result
+
+
+def bounded_float(
+    min_val: float,
+    max_val: float,
+    clamp: bool = True
+) -> ValidatorFunc[float]:
+    """Create a validator for floats within bounds.
+
+    Args:
+        min_val: Minimum allowed value
+        max_val: Maximum allowed value
+        clamp: If True, clamp to bounds; if False, raise ValueError
+
+    Returns:
+        Validator function
+
+    Example:
+        >>> alpha_validator = bounded_float(0.0, 1.0)
+        >>> alpha_validator(0.5)
+        0.5
+        >>> alpha_validator(1.5)  # clamped
+        1.0
+    """
+    def validator(value: Any) -> float:
+        result = float(value)
+        if clamp:
+            return max(min_val, min(max_val, result))
+        if result < min_val or result > max_val:
+            raise ValueError(f"Value {result} not in range [{min_val}, {max_val}]")
+        return result
+    return validator
+
+
+def string_enum(*allowed: str) -> ValidatorFunc[str]:
+    """Create a validator for string enum values.
+
+    Args:
+        *allowed: Allowed string values
+
+    Returns:
+        Validator function that returns the value if valid
+
+    Raises:
+        ValueError: If value not in allowed set
+
+    Example:
+        >>> state_validator = string_enum("GREEN", "YELLOW", "RED")
+        >>> state_validator("GREEN")
+        'GREEN'
+    """
+    allowed_set = set(allowed)
+
+    def validator(value: Any) -> str:
+        str_val = str(value)
+        if str_val not in allowed_set:
+            raise ValueError(f"Value '{str_val}' not in allowed set: {allowed_set}")
+        return str_val
+    return validator
 
 
 class StateSchema:
     """Defines state structure, field names, types, and defaults."""
 
-    def __init__(self, fields: Dict[str, Any]):
+    def __init__(self, fields: dict[str, Any]):
         """Initialize schema with field definitions.
 
         Args:
@@ -29,7 +169,7 @@ class StateSchema:
         """
         self.fields = fields
 
-    def get_defaults(self) -> Dict[str, Any]:
+    def get_defaults(self) -> dict[str, Any]:
         """Get all field defaults.
 
         Returns:
@@ -76,23 +216,46 @@ class StateSchema:
 
         return value
 
-    def validate_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_state(
+        self,
+        state: dict[str, Any],
+        logger: logging.Logger | None = None
+    ) -> dict[str, Any]:
         """Validate and fill in defaults for entire state.
+
+        Validates each field value against its schema definition:
+        - Missing fields get default values
+        - Existing fields are validated/cleaned via validate_field()
+        - Invalid values are logged and replaced with defaults
 
         Args:
             state: Loaded state dictionary
+            logger: Optional logger for validation warnings
 
         Returns:
-            Validated state with all defaults applied
+            Validated state with all defaults applied and values cleaned
         """
         defaults = self.get_defaults()
+        validated = {}
 
-        # Ensure all required fields exist
         for name, default_value in defaults.items():
             if name not in state:
-                state[name] = default_value
+                # Field missing - use default
+                validated[name] = default_value
+            else:
+                # Field present - validate it
+                try:
+                    validated[name] = self.validate_field(name, state[name])
+                except (ValueError, TypeError, KeyError) as e:
+                    # Validation failed - log warning and use default
+                    if logger:
+                        logger.warning(
+                            f"State field '{name}' validation failed: {e}. "
+                            f"Using default: {default_value}"
+                        )
+                    validated[name] = default_value
 
-        return state
+        return validated
 
 
 class StateManager:
@@ -155,7 +318,7 @@ class StateManager:
 
         # Validate and fill defaults
         try:
-            self.state = self.schema.validate_state(loaded)
+            self.state = self.schema.validate_state(loaded, logger=self.logger)
             self.logger.debug(f"{self.context}: Loaded state from {self.state_file}")
             return True
         except Exception as e:
@@ -201,7 +364,7 @@ class StateManager:
         """
         self.state[name] = value
 
-    def update(self, updates: Dict[str, Any]) -> None:
+    def update(self, updates: dict[str, Any]) -> None:
         """Update multiple state fields at once.
 
         Args:
@@ -213,7 +376,7 @@ class StateManager:
         """Reset state to defaults."""
         self.state = self.schema.get_defaults()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Get current state as dictionary.
 
         Returns:
@@ -306,7 +469,7 @@ class SteeringStateManager(StateManager):
 
         try:
             # Validate and fill defaults
-            self.state = self.schema.validate_state(loaded)
+            self.state = self.schema.validate_state(loaded, logger=self.logger)
             # Convert JSON lists back to deques for bounded history
             self._convert_lists_to_deques()
             self.logger.debug(f"{self.context}: Loaded state from {self.state_file}")

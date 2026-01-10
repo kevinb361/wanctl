@@ -6,6 +6,11 @@ to ensure consistent behavior and prevent timeout value drift.
 All timeout values in seconds.
 """
 
+from typing import Literal
+
+# Type alias for valid component names - typos caught at type-check time
+ComponentName = Literal["autorate", "steering", "calibrate"]
+
 # =============================================================================
 # SSH/REST Command Execution Timeouts
 # =============================================================================
@@ -56,7 +61,7 @@ TIMEOUT_THROUGHPUT_MEASUREMENT = 30
 DEFAULT_LOCK_TIMEOUT = 300  # 5 minutes
 
 
-def get_ssh_timeout(component: str) -> int:
+def get_ssh_timeout(component: ComponentName) -> int:
     """Get SSH timeout for a component.
 
     Args:
@@ -83,7 +88,7 @@ def get_ssh_timeout(component: str) -> int:
     return timeouts[component]
 
 
-def get_ping_timeout(component: str, total: bool = False) -> int:
+def get_ping_timeout(component: ComponentName, total: bool = False) -> int:
     """Get ping timeout for a component.
 
     Args:
