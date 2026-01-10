@@ -1,18 +1,19 @@
 """Unit tests for configuration validation utilities."""
 
 import logging
+
 import pytest
 
 from wanctl.config_base import ConfigValidationError
 from wanctl.config_validation_utils import (
-    validate_bandwidth_order,
-    validate_threshold_order,
+    MAX_SANE_BASELINE_RTT,
+    MIN_SANE_BASELINE_RTT,
     validate_alpha,
+    validate_bandwidth_order,
     validate_baseline_rtt,
     validate_rtt_thresholds,
     validate_sample_counts,
-    MIN_SANE_BASELINE_RTT,
-    MAX_SANE_BASELINE_RTT,
+    validate_threshold_order,
 )
 
 
@@ -299,6 +300,31 @@ class TestValidateAlpha:
         """Test alpha outside custom bounds is invalid."""
         with pytest.raises(ConfigValidationError):
             validate_alpha(0.95, "alpha", min_val=0.1, max_val=0.9, logger=logger)
+
+    def test_alpha_nan_invalid(self, logger):
+        """Test that NaN alpha value is invalid."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_alpha(float('nan'), "alpha", logger=logger)
+        # NaN comparisons always return False, so it will fail the range check
+        assert "not in valid range" in str(exc_info.value)
+
+    def test_alpha_positive_infinity_invalid(self, logger):
+        """Test that positive infinity alpha is invalid."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_alpha(float('inf'), "alpha", logger=logger)
+        assert "not in valid range" in str(exc_info.value)
+
+    def test_alpha_negative_infinity_invalid(self, logger):
+        """Test that negative infinity alpha is invalid."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_alpha(float('-inf'), "alpha", logger=logger)
+        assert "not in valid range" in str(exc_info.value)
+
+    def test_alpha_none_invalid(self, logger):
+        """Test that None alpha value raises error."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_alpha(None, "alpha", logger=logger)
+        assert "could not convert to float" in str(exc_info.value)
 
 
 # =============================================================================
