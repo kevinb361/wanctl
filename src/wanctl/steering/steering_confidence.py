@@ -16,9 +16,8 @@ Design Document: docs/PHASE_2B_DESIGN.md
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
-
 
 # =============================================================================
 # CONFIDENCE SCORING
@@ -75,15 +74,15 @@ class ConfidenceSignals:
     queue_depth_pct: float
 
     # Historical context (for sustained detection)
-    cake_state_history: List[str] = field(default_factory=list)
-    drops_history: List[float] = field(default_factory=list)
-    queue_history: List[float] = field(default_factory=list)
+    cake_state_history: list[str] = field(default_factory=list)
+    drops_history: list[float] = field(default_factory=list)
+    queue_history: list[float] = field(default_factory=list)
 
 
 def compute_confidence(
     signals: ConfidenceSignals,
     logger: logging.Logger
-) -> Tuple[int, List[str]]:
+) -> tuple[int, list[str]]:
     """
     Compute confidence score (0-100) from current signals.
 
@@ -160,21 +159,22 @@ class TimerState:
     """
     # Confidence tracking
     confidence_score: int = 0
-    confidence_contributors: List[str] = field(default_factory=list)
+    confidence_contributors: list[str] = field(default_factory=list)
 
     # Sustain timers (seconds remaining)
-    degrade_timer: Optional[int] = None  # Countdown to enable steering
-    hold_down_timer: Optional[int] = None  # Post-steer cooldown
-    recovery_timer: Optional[int] = None  # Countdown to disable steering
+    degrade_timer: int | None = None  # Countdown to enable steering
+    hold_down_timer: int | None = None  # Post-steer cooldown
+    recovery_timer: int | None = None  # Countdown to disable steering
 
-    # Flap detection
-    flap_window: List[Tuple[str, float]] = field(default_factory=list)  # (event, timestamp)
+    # Flap detection - deque with maxlen for automatic size-bounding
+    # maxlen=20 prevents unbounded growth; time-based pruning still applies
+    flap_window: deque = field(default_factory=lambda: deque(maxlen=20))  # (event, timestamp)
     flap_penalty_active: bool = False
-    flap_penalty_expiry: Optional[float] = None
+    flap_penalty_expiry: float | None = None
 
     # Decision tracking (for logging)
-    last_decision: Optional[str] = None
-    last_decision_time: Optional[float] = None
+    last_decision: str | None = None
+    last_decision_time: float | None = None
 
 
 class TimerManager:
@@ -215,7 +215,7 @@ class TimerManager:
         timer_state: TimerState,
         confidence: int,
         current_state: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Update degrade timer and check for steer decision.
 
@@ -296,7 +296,7 @@ class TimerManager:
         rtt_delta: float,
         drops: float,
         current_state: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Update recovery timer and check for recovery decision.
 
@@ -393,14 +393,13 @@ class FlapDetector:
         if not self.enabled:
             return
 
-        now = time.time()
+        now = time.monotonic()
         timer_state.flap_window.append((event, now))
 
-        # Prune old events outside window
+        # Prune old events outside window (deque handles size-bounding via maxlen)
         cutoff = now - self.window_seconds
-        timer_state.flap_window = [
-            (e, t) for e, t in timer_state.flap_window if t > cutoff
-        ]
+        while timer_state.flap_window and timer_state.flap_window[0][1] <= cutoff:
+            timer_state.flap_window.popleft()
 
     def check_flapping(
         self,
@@ -417,7 +416,7 @@ class FlapDetector:
 
         # Check if penalty already active
         if timer_state.flap_penalty_active:
-            if time.time() < timer_state.flap_penalty_expiry:
+            if time.monotonic() < timer_state.flap_penalty_expiry:
                 # Penalty still active
                 return base_threshold + self.penalty_threshold_add
             else:
@@ -441,7 +440,7 @@ class FlapDetector:
                 f"duration={self.penalty_duration}s"
             )
             timer_state.flap_penalty_active = True
-            timer_state.flap_penalty_expiry = time.time() + self.penalty_duration
+            timer_state.flap_penalty_expiry = time.monotonic() + self.penalty_duration
             return base_threshold + self.penalty_threshold_add
 
         return base_threshold
@@ -462,7 +461,7 @@ class DryRunLogger:
         self,
         decision: str,
         confidence: int,
-        contributors: List[str],
+        contributors: list[str],
         sustained: int
     ):
         """Log a hypothetical steering decision"""
@@ -557,7 +556,7 @@ class Phase2BController:
         self,
         signals: ConfidenceSignals,
         current_state: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Evaluate steering decision based on confidence and timers.
 

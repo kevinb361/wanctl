@@ -23,30 +23,29 @@ Colocated with autorate_continuous on primary WAN controller.
 import argparse
 import json
 import logging
+import signal
 import sys
+import threading
 import traceback
 from pathlib import Path
-from typing import Optional
 
 from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
-from ..lockfile import LockFile, LockAcquisitionError
+from ..lockfile import LockAcquisitionError, LockFile
 from ..logging_utils import setup_logging
 from ..perf_profiler import PerfTimer
 from ..retry_utils import measure_with_retry, verify_with_retry
-from ..rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from ..router_client import get_router_client
+from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..state_manager import StateSchema, SteeringStateManager
-from ..timeouts import DEFAULT_STEERING_SSH_TIMEOUT, DEFAULT_STEERING_PING_TOTAL_TIMEOUT
-
+from ..timeouts import DEFAULT_STEERING_PING_TOTAL_TIMEOUT, DEFAULT_STEERING_SSH_TIMEOUT
 from .cake_stats import CakeStatsReader, CongestionSignals
 from .congestion_assessment import (
     CongestionState,
     StateThresholds,
     assess_congestion_state,
-    ewma_update
+    ewma_update,
 )
-
 
 # =============================================================================
 # CONSTANTS
@@ -84,6 +83,56 @@ ASSESSMENT_INTERVAL_SECONDS = 2.0     # Time between assessments
 MIN_SANE_BASELINE_RTT = 10.0
 MAX_SANE_BASELINE_RTT = 60.0
 BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
+
+
+# =============================================================================
+# SIGNAL HANDLING (W5: Graceful Shutdown)
+# =============================================================================
+
+# Thread-safe shutdown event for graceful termination
+# Using threading.Event() eliminates race conditions between signal handler and main loop
+_shutdown_event = threading.Event()
+
+
+def _signal_handler(signum: int, frame) -> None:
+    """
+    Signal handler for SIGTERM and SIGINT.
+
+    Sets the shutdown event to allow the main loop to exit gracefully.
+    Thread-safe: uses threading.Event() instead of boolean flag.
+
+    Args:
+        signum: Signal number received
+        frame: Current stack frame (unused)
+    """
+    # Note: logging in signal handlers can be unsafe, so we just set the event.
+    # The main loop will log the shutdown with the appropriate context.
+    # Signal number can be retrieved later if needed via inspection of the event.
+    _shutdown_event.set()
+
+
+def register_signal_handlers() -> None:
+    """
+    Register signal handlers for graceful shutdown.
+
+    Registers handlers for:
+      - SIGTERM: Sent by systemd on service stop
+      - SIGINT: Sent on Ctrl+C (keyboard interrupt)
+
+    Should be called early in main() before any long-running operations.
+    """
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
+
+def is_shutdown_requested() -> bool:
+    """
+    Check if shutdown has been requested via signal.
+
+    Returns:
+        True if SIGTERM or SIGINT has been received, False otherwise.
+    """
+    return _shutdown_event.is_set()
 
 
 # =============================================================================
@@ -299,7 +348,7 @@ class RouterOSController:
         self.logger = logger
         self.client = get_router_client(config, logger)
 
-    def get_rule_status(self) -> Optional[bool]:
+    def get_rule_status(self) -> bool | None:
         """
         Check if adaptive steering rule is enabled
         Returns: True if enabled, False if disabled, None on error
@@ -409,7 +458,7 @@ class BaselineLoader:
         self.config = config
         self.logger = logger
 
-    def load_baseline_rtt(self) -> Optional[float]:
+    def load_baseline_rtt(self) -> float | None:
         """
         Load baseline RTT from primary WAN autorate state file
         Reads ewma.baseline_rtt from autorate_continuous state
@@ -420,7 +469,7 @@ class BaselineLoader:
             return None
 
         try:
-            with open(self.config.primary_state_file, 'r') as f:
+            with open(self.config.primary_state_file) as f:
                 state = json.load(f)
 
             # autorate_continuous format: state['ewma']['baseline_rtt']
@@ -502,14 +551,14 @@ class SteeringDaemon:
         return current_state == self.config.state_good or \
                current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
 
-    def measure_current_rtt(self) -> Optional[float]:
+    def measure_current_rtt(self) -> float | None:
         """Measure current RTT to ping host"""
         return self.rtt_measurement.ping_host(
             self.config.ping_host,
             self.config.ping_count
         )
 
-    def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> Optional[float]:
+    def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> float | None:
         """
         Measure current RTT with retry and fallback to history (W7 fix)
 
@@ -905,6 +954,10 @@ def main():
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
+    # Register signal handlers early (W5: Graceful Shutdown)
+    # This must be done before any long-running operations
+    register_signal_handlers()
+
     # Load config
     try:
         config = SteeringConfig(args.config)
@@ -918,6 +971,11 @@ def main():
     logger.info("=" * 60)
     logger.info(f"Steering Daemon - Primary: {config.primary_wan}, Alternate: {config.alternate_wan}")
     logger.info("=" * 60)
+
+    # Check for early shutdown (signal received during startup)
+    if is_shutdown_requested():
+        logger.info("Shutdown requested during startup, exiting gracefully")
+        return 0
 
     # Initialize components
     schema = create_steering_state_schema(config)
@@ -948,6 +1006,11 @@ def main():
     # Acquire lock
     try:
         with LockFile(config.lock_file, config.lock_timeout, logger):
+            # Check for shutdown before starting cycle
+            if is_shutdown_requested():
+                logger.info("Shutdown requested before cycle, exiting gracefully")
+                return 0
+
             # Create daemon
             daemon = SteeringDaemon(
                 config, state_mgr, router,
@@ -956,8 +1019,16 @@ def main():
 
             # Run one cycle
             if not daemon.run_cycle():
+                # Check if failure was due to shutdown
+                if is_shutdown_requested():
+                    logger.info("Cycle interrupted by shutdown signal")
+                    return 0
                 logger.error("Cycle failed")
                 return 1
+
+            # Check for shutdown after cycle (for clean logging)
+            if is_shutdown_requested():
+                logger.info("Shutdown signal received, cycle completed successfully")
 
             logger.debug("Cycle complete")
             return 0
@@ -967,9 +1038,14 @@ def main():
         logger.debug("Exiting - another instance is running")
         return 0
     except KeyboardInterrupt:
-        logger.info("Interrupted by user")
+        # KeyboardInterrupt may bypass signal handler in some cases
+        logger.info("Interrupted by user (KeyboardInterrupt)")
         return 130
     except Exception as e:
+        # Check if exception was due to shutdown
+        if is_shutdown_requested():
+            logger.info("Exception during shutdown, exiting gracefully")
+            return 0
         logger.error(f"Unhandled exception: {e}")
         logger.error(traceback.format_exc())
         return 1
