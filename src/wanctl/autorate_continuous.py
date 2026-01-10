@@ -13,6 +13,7 @@ import datetime
 import logging
 import signal
 import statistics
+import sys
 import threading
 import time
 import traceback
@@ -1142,4 +1143,4 @@ def main() -> int | None:
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
