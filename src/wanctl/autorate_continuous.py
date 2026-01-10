@@ -867,8 +867,41 @@ def main() -> int | None:
         '--oneshot', action='store_true',
         help='Run one cycle and exit (for testing/manual runs)'
     )
+    parser.add_argument(
+        '--validate-config', action='store_true',
+        help='Validate configuration and exit (dry-run mode for CI/CD)'
+    )
 
     args = parser.parse_args()
+
+    # Validate-config mode: check configuration and exit
+    if args.validate_config:
+        all_valid = True
+        for config_file in args.config:
+            try:
+                config = Config(config_file)
+                print(f"Configuration valid: {config_file}")
+                print(f"  WAN: {config.wan_name}")
+                print(f"  Transport: {config.router_transport}")
+                print(f"  Router: {config.router_host}:{config.router_user}")
+                print(f"  Download: {config.download_floor_red/1e6:.0f}M - {config.download_ceiling/1e6:.0f}M")
+                print(f"    Floors: GREEN={config.download_floor_green/1e6:.0f}M, "
+                      f"YELLOW={config.download_floor_yellow/1e6:.0f}M, "
+                      f"SOFT_RED={config.download_floor_soft_red/1e6:.0f}M, "
+                      f"RED={config.download_floor_red/1e6:.0f}M")
+                print(f"  Upload: {config.upload_floor_red/1e6:.0f}M - {config.upload_ceiling/1e6:.0f}M")
+                print(f"    Floors: GREEN={config.upload_floor_green/1e6:.0f}M, "
+                      f"YELLOW={config.upload_floor_yellow/1e6:.0f}M, "
+                      f"RED={config.upload_floor_red/1e6:.0f}M")
+                print(f"  Thresholds: GREEN<={config.target_bloat_ms}ms, "
+                      f"SOFT_RED<={config.warn_bloat_ms}ms, RED>{config.hard_red_bloat_ms}ms")
+                print(f"  Ping hosts: {config.ping_hosts}")
+                print(f"  Queue names: {config.queue_down}, {config.queue_up}")
+            except Exception as e:
+                print(f"Configuration INVALID: {config_file}")
+                print(f"  Error: {e}")
+                all_valid = False
+        return 0 if all_valid else 1
 
     # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
