@@ -395,13 +395,17 @@ class SteeringStateManager(StateManager):
     - State file backups (.backup and .corrupt)
     """
 
+    # Default maximum length for history deques and transitions list.
+    # Controls memory usage for long-running daemons by limiting stored history.
+    DEFAULT_HISTORY_MAXLEN = 50
+
     def __init__(
         self,
         state_file: Path,
         schema: StateSchema,
         logger: logging.Logger,
         context: str = "steering state",
-        history_maxlen: int = 50
+        history_maxlen: int | None = None
     ):
         """Initialize steering state manager.
 
@@ -410,10 +414,10 @@ class SteeringStateManager(StateManager):
             schema: StateSchema defining valid fields and defaults
             logger: Logger instance
             context: Context for error messages
-            history_maxlen: Maximum length for history deques (default: 50)
+            history_maxlen: Maximum length for history deques (default: DEFAULT_HISTORY_MAXLEN)
         """
         super().__init__(state_file, schema, logger, context)
-        self.history_maxlen = history_maxlen
+        self.history_maxlen = history_maxlen if history_maxlen is not None else self.DEFAULT_HISTORY_MAXLEN
 
     def _backup_state_file(self, suffix: str = '.backup') -> bool:
         """Create backup copy of state file.
@@ -583,9 +587,9 @@ class SteeringStateManager(StateManager):
             self.state["transitions"].append(transition)
             self.state["last_transition_time"] = transition["timestamp"]
 
-            # Keep only last 50 transitions
-            if len(self.state["transitions"]) > 50:
-                self.state["transitions"] = self.state["transitions"][-50:]
+            # Keep only last N transitions (matches history_maxlen for consistency)
+            if len(self.state["transitions"]) > self.history_maxlen:
+                self.state["transitions"] = self.state["transitions"][-self.history_maxlen:]
 
     def reset(self) -> None:
         """Reset state to default values."""
