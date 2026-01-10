@@ -16,7 +16,6 @@ import threading
 import time
 import traceback
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 # Optional systemd integration for watchdog support
 try:
@@ -33,15 +32,15 @@ from wanctl.config_validation_utils import (
 )
 from wanctl.error_handling import handle_errors
 from wanctl.lock_utils import validate_and_acquire_lock
-from wanctl.lockfile import LockFile, LockAcquisitionError
+from wanctl.lockfile import LockAcquisitionError, LockFile
 from wanctl.logging_utils import setup_logging
 from wanctl.perf_profiler import PerfTimer
+from wanctl.rate_limiter import RateLimiter
 from wanctl.rate_utils import enforce_rate_bounds
-from wanctl.rtt_measurement import RTTMeasurement, RTTAggregationStrategy
 from wanctl.router_client import get_router_client
+from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.state_utils import atomic_write_json, safe_json_load_file
-from wanctl.timeouts import DEFAULT_AUTORATE_SSH_TIMEOUT, DEFAULT_AUTORATE_PING_TIMEOUT
-
+from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
 
 # =============================================================================
 # CONSTANTS
@@ -57,6 +56,10 @@ CYCLE_INTERVAL_SECONDS = 2.0
 
 # Default bloat thresholds (milliseconds)
 DEFAULT_HARD_RED_BLOAT_MS = 80  # SOFT_RED -> RED transition threshold
+
+# Rate limiter defaults (protects router API during instability)
+DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
+DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
 
 # Conversion factors
 MBPS_TO_BPS = 1_000_000
@@ -316,7 +319,7 @@ class QueueController:
         self.green_required = 5        # Require 5 consecutive green cycles before stepping up
         self.soft_red_required = 3     # Phase 2A: Require 3 cycles (~6s) to confirm SOFT_RED
 
-    def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> Tuple[str, int]:
+    def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> tuple[str, int]:
         """
         Apply 3-zone logic with hysteresis and return (zone, new_rate)
 
@@ -365,7 +368,7 @@ class QueueController:
         self.current_rate = new_rate
         return zone, new_rate
 
-    def adjust_4state(self, baseline_rtt: float, load_rtt: float, green_threshold: float, soft_red_threshold: float, hard_red_threshold: float) -> Tuple[str, int]:
+    def adjust_4state(self, baseline_rtt: float, load_rtt: float, green_threshold: float, soft_red_threshold: float, hard_red_threshold: float) -> tuple[str, int]:
         """
         Apply 4-state logic with hysteresis and return (state, new_rate)
 
@@ -515,13 +518,24 @@ class WANController:
         # flash wear, we only send updates when rates actually change.
         # DO NOT REMOVE THIS - it protects the router's flash memory.
         # =====================================================================
-        self.last_applied_dl_rate: Optional[int] = None
-        self.last_applied_ul_rate: Optional[int] = None
+        self.last_applied_dl_rate: int | None = None
+        self.last_applied_ul_rate: int | None = None
+
+        # =====================================================================
+        # RATE LIMITER - Protect router API during instability
+        # =====================================================================
+        # Limits configuration changes to prevent API overload during rapid
+        # state oscillations. Default: 10 changes per 60 seconds.
+        # =====================================================================
+        self.rate_limiter = RateLimiter(
+            max_changes=DEFAULT_RATE_LIMIT_MAX_CHANGES,
+            window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS
+        )
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
-    def measure_rtt(self) -> Optional[float]:
+    def measure_rtt(self) -> float | None:
         """
         Measure RTT and return average in milliseconds
 
@@ -625,6 +639,24 @@ class WANController:
             # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
             # =====================================================================
             if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
+                # =====================================================================
+                # RATE LIMITING - Protect router API during instability
+                # =====================================================================
+                # During rapid state oscillations, limit how often we send updates
+                # to prevent router API overload. Skip update if rate limited.
+                # =====================================================================
+                if not self.rate_limiter.can_change():
+                    wait_time = self.rate_limiter.time_until_available()
+                    self.logger.warning(
+                        f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
+                        f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
+                        f"possible instability (next slot in {wait_time:.1f}s)"
+                    )
+                    # Still return True - cycle completed, just throttled the update
+                    # Save state to preserve EWMA and streak counters
+                    self.save_state()
+                    return True
+
                 with PerfTimer("autorate_router_update", self.logger):
                     success = self.router.set_limits(
                         wan=self.wan_name,
@@ -635,6 +667,9 @@ class WANController:
                 if not success:
                     self.logger.error(f"{self.wan_name}: Failed to apply limits")
                     return False
+
+                # Record successful change for rate limiting
+                self.rate_limiter.record_change()
 
                 # Update tracking after successful write
                 self.last_applied_dl_rate = dl_rate
@@ -730,7 +765,7 @@ class WANController:
 
 class ContinuousAutoRate:
     """Main controller managing one or more WANs"""
-    def __init__(self, config_files: List[str], debug: bool = False):
+    def __init__(self, config_files: list[str], debug: bool = False):
         self.wan_controllers = []
         self.debug = debug
 
@@ -807,7 +842,7 @@ class ContinuousAutoRate:
 
         return all_success
 
-    def get_lock_paths(self) -> List[Path]:
+    def get_lock_paths(self) -> list[Path]:
         """Return lock file paths for all configured WANs"""
         return [wan_info['config'].lock_file for wan_info in self.wan_controllers]
 
@@ -816,7 +851,7 @@ class ContinuousAutoRate:
 # MAIN ENTRY POINT
 # =============================================================================
 
-def main() -> Optional[int]:
+def main() -> int | None:
     parser = argparse.ArgumentParser(
         description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
     )
