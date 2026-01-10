@@ -100,15 +100,19 @@ check_container() {
 # Check for recent errors in journal
 check_errors() {
     local container=$1
-    ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
-        "journalctl -u wanctl@wan1 --since '1 hour ago' -p err --no-pager 2>/dev/null | wc -l" 2>/dev/null || echo "?"
+    local count
+    count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
+        "journalctl -u wanctl@wan1 --since '1 hour ago' -p err --no-pager 2>/dev/null | wc -l" 2>/dev/null)
+    echo "${count:-0}" | tr -d '\n'
 }
 
 # Check rate limiter activity
 check_rate_limits() {
     local container=$1
-    ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
-        "journalctl -u wanctl@wan1 --since '1 hour ago' --no-pager 2>/dev/null | grep -ci 'rate.limit' || echo 0" 2>/dev/null || echo "?"
+    local count
+    count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
+        "journalctl -u wanctl@wan1 --since '1 hour ago' --no-pager 2>/dev/null | grep -ci 'rate.limit' 2>/dev/null || true" 2>/dev/null)
+    echo "${count:-0}" | tr -d '\n'
 }
 
 # Colorize value based on condition
