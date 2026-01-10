@@ -33,6 +33,7 @@ from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
 from ..lockfile import LockAcquisitionError, LockFile
 from ..logging_utils import setup_logging
+from ..metrics import record_steering_state, record_steering_transition
 from ..perf_profiler import PerfTimer
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import get_router_client
@@ -301,6 +302,10 @@ class SteeringConfig(BaseConfig):
             'port': self.router_port,
             'verify_ssl': self.router_verify_ssl
         }
+
+        # Metrics configuration (optional, disabled by default)
+        metrics_config = self.data.get('metrics', {})
+        self.metrics_enabled = metrics_config.get('enabled', False)
 
 # =============================================================================
 # STATE MANAGEMENT
@@ -684,6 +689,11 @@ class SteeringDaemon:
                         state["current_state"] = self.config.state_degraded
                         red_count = 0
                         state_changed = True
+                        # Record transition in metrics
+                        if self.config.metrics_enabled:
+                            record_steering_transition(
+                                self.config.primary_wan, current_state, self.config.state_degraded
+                            )
                     else:
                         self.logger.error(f"Failed to enable steering, staying in {self.config.state_good}")
 
@@ -722,6 +732,11 @@ class SteeringDaemon:
                         state["current_state"] = self.config.state_good
                         good_count = 0
                         state_changed = True
+                        # Record transition in metrics
+                        if self.config.metrics_enabled:
+                            record_steering_transition(
+                                self.config.primary_wan, current_state, self.config.state_good
+                            )
                     else:
                         self.logger.error(f"Failed to disable steering, staying in {self.config.state_degraded}")
 
@@ -935,6 +950,16 @@ class SteeringDaemon:
 
             # Save state
             self.state_mgr.save()
+
+            # Record steering metrics if enabled
+            if self.config.metrics_enabled:
+                steering_enabled = state["current_state"] == self.config.state_degraded
+                congestion_state = state.get("congestion_state", "GREEN")
+                record_steering_state(
+                    primary_wan=self.config.primary_wan,
+                    steering_enabled=steering_enabled,
+                    congestion_state=congestion_state,
+                )
 
             return True
         finally:

@@ -31,9 +31,17 @@ from wanctl.config_validation_utils import (
     validate_threshold_order,
 )
 from wanctl.error_handling import handle_errors
+from wanctl.health_check import start_health_server, update_health_status
 from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockAcquisitionError, LockFile
 from wanctl.logging_utils import setup_logging
+from wanctl.metrics import (
+    record_autorate_cycle,
+    record_ping_failure,
+    record_rate_limit_event,
+    record_router_update,
+    start_metrics_server,
+)
 from wanctl.perf_profiler import PerfTimer
 from wanctl.rate_limiter import RateLimiter
 from wanctl.rate_utils import enforce_rate_bounds
@@ -246,6 +254,19 @@ class Config(BaseConfig):
         # Logging
         self.main_log = self.data['logging']['main_log']
         self.debug_log = self.data['logging']['debug_log']
+
+        # Health check configuration (optional, with defaults)
+        health = self.data.get('health_check', {})
+        self.health_check_enabled = health.get('enabled', True)
+        self.health_check_host = health.get('host', '127.0.0.1')
+        self.health_check_port = health.get('port', 9101)
+
+        # Metrics configuration (optional, disabled by default)
+        # When enabled, exposes Prometheus-compatible metrics at /metrics endpoint
+        metrics_config = self.data.get('metrics', {})
+        self.metrics_enabled = metrics_config.get('enabled', False)
+        self.metrics_host = metrics_config.get('host', '127.0.0.1')
+        self.metrics_port = metrics_config.get('port', 9100)
 
 
 # =============================================================================
@@ -596,6 +617,7 @@ class WANController:
 
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
+        cycle_start = time.monotonic()
         timer_cycle = PerfTimer("autorate_cycle_total", self.logger)
         timer_cycle.__enter__()
 
@@ -604,6 +626,8 @@ class WANController:
                 measured_rtt = self.measure_rtt()
             if measured_rtt is None:
                 self.logger.warning(f"{self.wan_name}: Ping failed, skipping cycle")
+                if self.config.metrics_enabled:
+                    record_ping_failure(self.wan_name)
                 return False
 
             with PerfTimer("autorate_ewma_update", self.logger):
@@ -652,6 +676,8 @@ class WANController:
                         f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
                         f"possible instability (next slot in {wait_time:.1f}s)"
                     )
+                    if self.config.metrics_enabled:
+                        record_rate_limit_event(self.wan_name)
                     # Still return True - cycle completed, just throttled the update
                     # Save state to preserve EWMA and streak counters
                     self.save_state()
@@ -671,6 +697,10 @@ class WANController:
                 # Record successful change for rate limiting
                 self.rate_limiter.record_change()
 
+                # Record metrics for router update
+                if self.config.metrics_enabled:
+                    record_router_update(self.wan_name)
+
                 # Update tracking after successful write
                 self.last_applied_dl_rate = dl_rate
                 self.last_applied_ul_rate = ul_rate
@@ -680,6 +710,20 @@ class WANController:
 
             # Save state after successful cycle
             self.save_state()
+
+            # Record metrics if enabled
+            if self.config.metrics_enabled:
+                cycle_duration = time.monotonic() - cycle_start
+                record_autorate_cycle(
+                    wan_name=self.wan_name,
+                    dl_rate_mbps=dl_rate / 1e6,
+                    ul_rate_mbps=ul_rate / 1e6,
+                    baseline_rtt=self.baseline_rtt,
+                    load_rtt=self.load_rtt,
+                    dl_state=dl_zone,
+                    ul_state=ul_zone,
+                    cycle_duration=cycle_duration,
+                )
 
             return True
         finally:
@@ -938,6 +982,8 @@ def main() -> int | None:
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 3
     watchdog_enabled = True
+    health_server = None
+    metrics_server = None
 
     def handle_signal(signum, frame):
         # Log shutdown on first signal
@@ -947,6 +993,36 @@ def main() -> int | None:
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
+
+    # Start metrics server if enabled (use first WAN's config for settings)
+    first_config = controller.wan_controllers[0]['config']
+    if first_config.metrics_enabled:
+        try:
+            metrics_server = start_metrics_server(
+                host=first_config.metrics_host,
+                port=first_config.metrics_port,
+            )
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].info(
+                    f"Prometheus metrics available at http://{first_config.metrics_host}:{first_config.metrics_port}/metrics"
+                )
+        except OSError as e:
+            # Non-fatal: log warning but continue without metrics
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].warning(f"Failed to start metrics server: {e}")
+
+    # Start health check server
+    if first_config.health_check_enabled:
+        try:
+            health_server = start_health_server(
+                host=first_config.health_check_host,
+                port=first_config.health_check_port,
+                controller=controller,
+            )
+        except OSError as e:
+            # Non-fatal: log warning but continue without health check
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].warning(f"Failed to start health check server: {e}")
 
     # Log startup
     for wan_info in controller.wan_controllers:
@@ -985,6 +1061,9 @@ def main() -> int | None:
                     if HAVE_SYSTEMD:
                         sd_notify("STATUS=Degraded - consecutive failures exceeded threshold")
 
+            # Update health check endpoint with current failure count
+            update_health_status(consecutive_failures)
+
             # Notify systemd watchdog ONLY if healthy
             if HAVE_SYSTEMD and watchdog_enabled and cycle_success:
                 sd_notify("WATCHDOG=1")
@@ -996,6 +1075,22 @@ def main() -> int | None:
             if sleep_time > 0 and not shutdown_event.is_set():
                 time.sleep(sleep_time)
     finally:
+        # Shut down metrics server
+        if metrics_server:
+            try:
+                metrics_server.stop()
+            except Exception as e:
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].debug(f"Error shutting down metrics server: {e}")
+
+        # Shut down health check server
+        if health_server:
+            try:
+                health_server.shutdown()
+            except Exception as e:
+                for wan_info in controller.wan_controllers:
+                    wan_info['logger'].debug(f"Error shutting down health server: {e}")
+
         # Clean up SSH connections on exit
         for wan_info in controller.wan_controllers:
             try:
