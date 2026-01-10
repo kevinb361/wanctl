@@ -102,7 +102,7 @@ check_errors() {
     local container=$1
     local count
     count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
-        "journalctl -u wanctl@wan1 --since '1 hour ago' -p err --no-pager 2>/dev/null | wc -l" 2>/dev/null)
+        "journalctl -u wanctl@wan1 --since '1 hour ago' -p err --no-pager 2>/dev/null | grep -v '^-- No entries --$' | grep -c '.' || true" 2>/dev/null)
     echo "${count:-0}" | tr -d '\n'
 }
 
