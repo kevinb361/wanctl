@@ -15,9 +15,9 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 - **Optional WAN steering** - Route latency-sensitive traffic during congestion
 - **Config-driven** - Same code works for fiber, cable, DSL, or any connection
 - **FHS compliant** - Proper Linux directory layout and service user
-- **Hardened security** - Input validation prevents command injection, EWMA bounds checking, configurable RTT thresholds, centralized validation utilities
-- **Production reliability** - Bounded memory with deques, file locking for concurrent safety, graceful CAKE stats degradation
-- **Production-ready utilities** - Phase 4 consolidation provides 14 utility modules for single sources of truth, reduced technical debt, improved maintainability
+- **Hardened security** - Input validation, EWMA bounds checking, rate limiting, centralized validation
+- **Production reliability** - Bounded memory, file locking, automatic state backup recovery
+- **Observability** - Health check endpoint, Prometheus metrics, JSON structured logging
 
 ## Quick Start
 
@@ -213,6 +213,75 @@ cat /var/lib/wanctl/wan1_state.json
 
 ```
 [GREEN/GREEN] RTT=25.5ms, baseline=24.0ms, delta=1.5ms | DL=940M, UL=38M
+```
+
+## Observability
+
+### Health Check Endpoint
+
+HTTP endpoint for Kubernetes probes and monitoring systems (enabled by default):
+
+```bash
+curl http://127.0.0.1:9101/health
+```
+
+```json
+{
+  "status": "healthy",
+  "uptime_seconds": 3600.5,
+  "version": "1.0.0-rc7",
+  "consecutive_failures": 0,
+  "wans": [
+    {
+      "name": "wan1",
+      "download": { "state": "GREEN" },
+      "upload": { "state": "GREEN" }
+    }
+  ]
+}
+```
+
+Configure in your WAN config:
+
+```yaml
+health_check:
+  enabled: true # default
+  port: 9101 # default
+```
+
+### Prometheus Metrics
+
+Prometheus-compatible metrics endpoint (disabled by default):
+
+```bash
+curl http://127.0.0.1:9100/metrics
+```
+
+**Metrics:** `wanctl_bandwidth_mbps`, `wanctl_rtt_delta_ms`, `wanctl_state`, `wanctl_cycles_total`
+
+Enable in config:
+
+```yaml
+metrics:
+  enabled: true
+  port: 9100
+```
+
+### JSON Structured Logging
+
+For log aggregation tools (Loki, ELK):
+
+```bash
+export WANCTL_LOG_FORMAT=json
+```
+
+### Config Validation
+
+Validate configuration without starting the daemon:
+
+```bash
+wanctl --config /etc/wanctl/wan1.yaml --validate-config
+# Exit code: 0 = valid, 1 = invalid
 ```
 
 ## Real-World Test: Congestion Response
