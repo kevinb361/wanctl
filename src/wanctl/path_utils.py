@@ -54,7 +54,8 @@ def ensure_directory_exists(
 def ensure_file_directory(
     file_path: Union[str, Path],
     logger: Optional[logging.Logger] = None,
-    mode: int = 0o755
+    mode: int = 0o755,
+    resolve: bool = False
 ) -> Path:
     """Ensure the directory containing a file exists.
 
@@ -64,6 +65,8 @@ def ensure_file_directory(
         file_path: Path to file
         logger: Optional logger for debug/error messages
         mode: Directory permissions (default: 0o755)
+        resolve: If True, resolve symlinks before creating directories
+                 (default: False)
 
     Returns:
         Path object for the directory
@@ -75,6 +78,8 @@ def ensure_file_directory(
         logger = logging.getLogger(__name__)
 
     path_obj = Path(file_path)
+    if resolve:
+        path_obj = path_obj.resolve()
     return ensure_directory_exists(path_obj.parent, logger=logger, mode=mode)
 
 

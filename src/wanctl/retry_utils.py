@@ -5,7 +5,7 @@ import logging
 import random
 import subprocess
 import time
-from typing import Callable
+from collections.abc import Callable
 
 
 def is_retryable_error(exception: Exception) -> bool:
@@ -79,7 +79,8 @@ def retry_with_backoff(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     max_delay: float = 10.0,
-    jitter: bool = True
+    jitter: bool = True,
+    on_retry: Callable[[int, Exception, float], None] | None = None,
 ):
     """
     Decorator that retries a function on transient failures with exponential backoff.
@@ -93,6 +94,10 @@ def retry_with_backoff(
         backoff_factor: Multiplier for delay on each retry (2.0 = double each time)
         max_delay: Maximum delay between retries in seconds
         jitter: Add random jitter (0-50%) to delay to avoid thundering herd
+        on_retry: Optional callback invoked before each retry sleep. Receives:
+            - attempt: Current attempt number (1-indexed, before the retry)
+            - exception: The exception that triggered the retry
+            - delay: The delay in seconds before the next attempt
 
     Returns:
         Decorated function that retries on transient failures
@@ -101,6 +106,15 @@ def retry_with_backoff(
         @retry_with_backoff(max_attempts=3, initial_delay=1.0)
         def _run_cmd(self, cmd: str) -> Tuple[int, str, str]:
             # SSH command execution
+            ...
+
+        # With retry metrics callback:
+        def track_retry(attempt: int, exc: Exception, delay: float) -> None:
+            metrics.increment("retries", tags={"attempt": attempt, "error": type(exc).__name__})
+
+        @retry_with_backoff(max_attempts=3, on_retry=track_retry)
+        def _run_cmd(self, cmd: str) -> Tuple[int, str, str]:
+            # SSH command execution with retry tracking
             ...
 
     Retry schedule (with backoff_factor=2.0, initial_delay=1.0):
@@ -163,6 +177,10 @@ def retry_with_backoff(
                         f"retrying in {actual_delay:.1f}s"
                     )
 
+                    # Invoke retry callback if provided
+                    if on_retry is not None:
+                        on_retry(attempt, e, actual_delay)
+
                     time.sleep(actual_delay)
 
                     # Exponential backoff for next attempt
@@ -203,19 +221,25 @@ def verify_with_retry(
     Returns:
         True if expected result achieved within retries, False if exhausted
 
-    Example:
-        def check_rule_enabled():
-            status = get_rule_status()
-            return status is True
+    Examples:
+        Basic usage - check function returns expected result immediately:
 
-        success = verify_with_retry(
-            check_rule_enabled,
-            True,
-            max_retries=3,
-            initial_delay=0.1,
-            logger=self.logger,
-            operation_name="rule enable verification"
-        )
+        >>> verify_with_retry(lambda: True, True, max_retries=3)
+        True
+
+        Check function returns unexpected result (exhausts retries):
+
+        >>> verify_with_retry(lambda: False, True, max_retries=2, initial_delay=0.01)
+        False
+
+        Simulating state change - counter increments until match:
+
+        >>> counter = {'value': 0}
+        >>> def check_counter():
+        ...     counter['value'] += 1
+        ...     return counter['value'] >= 3
+        >>> verify_with_retry(check_counter, True, max_retries=5, initial_delay=0.01)
+        True
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -270,24 +294,30 @@ def measure_with_retry(
     Returns:
         Measurement value on success, fallback value on failure, or None if no fallback
 
-    Example:
-        def measure_rtt():
-            return rtt_measurement.ping_host(host, count=1)
+    Examples:
+        Basic usage - measurement succeeds immediately:
 
-        def fallback_rtt():
-            last_rtt = state.get("history_rtt", [])[-1] if state.get("history_rtt") else None
-            if last_rtt:
-                logger.warning(f"Using fallback RTT: {last_rtt}")
-            return last_rtt
+        >>> measure_with_retry(lambda: 42.5, max_retries=3)
+        42.5
 
-        rtt = measure_with_retry(
-            measure_rtt,
-            max_retries=3,
-            retry_delay=0.5,
-            fallback_func=fallback_rtt,
-            logger=self.logger,
-            operation_name="ping"
-        )
+        Measurement fails, uses fallback:
+
+        >>> measure_with_retry(lambda: None, max_retries=2, retry_delay=0.01,
+        ...                    fallback_func=lambda: 99.9)
+        99.9
+
+        Measurement fails with no fallback returns None:
+
+        >>> measure_with_retry(lambda: None, max_retries=2, retry_delay=0.01)
+
+        Simulating transient failure - succeeds on second attempt:
+
+        >>> attempts = {'count': 0}
+        >>> def flaky_measure():
+        ...     attempts['count'] += 1
+        ...     return 25.0 if attempts['count'] >= 2 else None
+        >>> measure_with_retry(flaky_measure, max_retries=3, retry_delay=0.01)
+        25.0
     """
     if logger is None:
         logger = logging.getLogger(__name__)

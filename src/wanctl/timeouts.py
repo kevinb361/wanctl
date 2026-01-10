@@ -4,6 +4,48 @@ Consolidates timeout constants used across autorate, steering, and calibration
 to ensure consistent behavior and prevent timeout value drift.
 
 All timeout values in seconds.
+
+Design Rationale
+----------------
+
+SSH Timeout Values (per component):
+
+- Autorate (15s): Runs every ~2 seconds in continuous monitoring mode. Needs
+  responsiveness to detect congestion quickly, but 15s allows for occasional
+  RouterOS slowdowns under load. Too short risks false failures during router
+  CPU spikes; too long delays congestion response.
+
+- Steering (30s): Operates on a 2-second assessment cycle but makes routing
+  changes infrequently. Longer timeout prioritizes reliability over speed since
+  a missed steering decision is less critical than a false positive. The daemon
+  can tolerate occasional slow responses without degrading user experience.
+
+- Calibrate (10s): Performs quick baseline RTT measurements. Short timeout
+  ensures fast feedback during manual calibration runs. If the router doesn't
+  respond within 10s, the measurement is likely invalid anyway due to extreme
+  congestion or connectivity issues.
+
+Ping Timeout Values:
+
+- Autorate (1s per ping): Single-ping timeout for frequent RTT sampling. Short
+  timeout ensures the control loop stays responsive. Lost pings are handled via
+  EWMA smoothing rather than long waits.
+
+- Steering (10s total): Allows multiple ping attempts within the assessment
+  window. Longer total timeout improves reliability of congestion detection
+  without blocking the daemon's main loop.
+
+- Calibrate (15s): Generous timeout for baseline establishment. Calibration
+  runs infrequently and accuracy matters more than speed. Allows for path
+  variations and ensures the baseline reflects actual network conditions.
+
+Tradeoffs:
+
+Shorter timeouts improve responsiveness and faster failure detection but risk
+false negatives (missing valid but slow responses). Longer timeouts improve
+reliability but can cause control loop stalls. The values here represent
+production-tuned defaults based on observed RouterOS behavior and network
+characteristics across DOCSIS and VDSL links.
 """
 
 from typing import Literal
