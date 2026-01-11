@@ -15,8 +15,7 @@ __pycache__/
 # Analysis output
 /analysis/
 
-# Private config (use CLAUDE.md.example as template)
-CLAUDE.md
+# CLAUDE.md is now public-safe and committed to git
 .claude/
 !.claude/reviews/
 
