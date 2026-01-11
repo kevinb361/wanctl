@@ -12,6 +12,7 @@ import concurrent.futures
 import datetime
 import logging
 import signal
+import socket
 import statistics
 import sys
 import threading
@@ -230,6 +231,19 @@ class Config(BaseConfig):
         # Ping configuration
         self.ping_hosts = cm['ping_hosts']
         self.use_median_of_three = cm.get('use_median_of_three', False)
+
+        # Fallback connectivity checks (optional, with sensible defaults)
+        fallback = cm.get('fallback_checks', {})
+        self.fallback_enabled = fallback.get('enabled', True)  # Enabled by default
+        self.fallback_check_gateway = fallback.get('check_gateway', True)
+        self.fallback_check_tcp = fallback.get('check_tcp', True)
+        self.fallback_gateway_ip = fallback.get('gateway_ip', '10.10.110.1')  # Default gateway
+        self.fallback_tcp_targets = fallback.get('tcp_targets', [
+            ['1.1.1.1', 443],
+            ['8.8.8.8', 443],
+        ])
+        self.fallback_mode = fallback.get('fallback_mode', 'graceful_degradation')
+        self.fallback_max_cycles = fallback.get('max_fallback_cycles', 3)
 
         # Timeouts (with sensible defaults)
         timeouts = self.data.get('timeouts', {})
@@ -555,6 +569,14 @@ class WANController:
             window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS
         )
 
+        # =====================================================================
+        # FALLBACK CONNECTIVITY TRACKING
+        # =====================================================================
+        # Track consecutive cycles where ICMP failed but other connectivity exists.
+        # Used for graceful degradation when ICMP is filtered but WAN works.
+        # =====================================================================
+        self.icmp_unavailable_cycles = 0
+
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
@@ -617,6 +639,87 @@ class WANController:
             self.baseline_rtt = (1 - self.alpha_baseline) * self.baseline_rtt + self.alpha_baseline * measured_rtt
         # else: Under load - freeze baseline to prevent drift
 
+    def verify_local_connectivity(self) -> bool:
+        """
+        Check if we can reach local gateway via ICMP.
+
+        Returns:
+            True if gateway is reachable (WAN issue, not container networking)
+            False if gateway unreachable (container networking problem)
+        """
+        if not self.config.fallback_check_gateway:
+            return False
+
+        gateway_ip = self.config.fallback_gateway_ip
+        result = self.rtt_measurement.ping_host(gateway_ip, count=1)
+        if result is not None:
+            self.logger.warning(
+                f"{self.wan_name}: External pings failed but gateway {gateway_ip} reachable - "
+                f"likely WAN issue, not container networking"
+            )
+            return True
+        return False
+
+    def verify_tcp_connectivity(self) -> bool:
+        """
+        Check if we can establish TCP connections (HTTPS).
+
+        Tests multiple targets using TCP handshake to verify Internet connectivity
+        when ICMP is blocked/filtered.
+
+        Returns:
+            True if ANY TCP connection succeeds (ICMP-specific issue)
+            False if all TCP attempts fail (total connectivity loss)
+        """
+        if not self.config.fallback_check_tcp:
+            return False
+
+        for host, port in self.config.fallback_tcp_targets:
+            try:
+                sock = socket.create_connection((host, port), timeout=2)
+                sock.close()
+                self.logger.warning(
+                    f"{self.wan_name}: ICMP failed but TCP to {host}:{port} succeeded - "
+                    f"ICMP-specific issue, continuing with degraded monitoring"
+                )
+                return True
+            except (socket.timeout, OSError, socket.gaierror) as e:
+                self.logger.debug(f"TCP to {host}:{port} failed: {e}")
+                continue
+
+        return False  # All TCP attempts failed
+
+    def verify_connectivity_fallback(self) -> bool:
+        """
+        Multi-protocol connectivity verification.
+
+        When all ICMP pings fail, verify if we have ANY connectivity
+        using alternative protocols before declaring total failure.
+
+        Returns:
+            True if ANY connectivity detected (ICMP-specific issue)
+            False if total connectivity loss confirmed
+        """
+        if not self.config.fallback_enabled:
+            return False
+
+        self.logger.warning(f"{self.wan_name}: All ICMP pings failed - running fallback checks")
+
+        # Check 1: Local gateway (fastest, ~50ms)
+        if self.verify_local_connectivity():
+            return True
+
+        # Check 2: TCP HTTPS (most reliable, ~100-200ms)
+        if self.verify_tcp_connectivity():
+            return True
+
+        # If both fail, it's likely a real WAN outage
+        self.logger.error(
+            f"{self.wan_name}: Both ICMP and TCP connectivity failed - "
+            f"confirmed total connectivity loss"
+        )
+        return False
+
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
         cycle_start = time.monotonic()
@@ -626,12 +729,84 @@ class WANController:
         try:
             with PerfTimer("autorate_rtt_measurement", self.logger):
                 measured_rtt = self.measure_rtt()
+
+            # =====================================================================
+            # ICMP FAILURE HANDLING WITH FALLBACK CHECKS (Mode C)
+            # =====================================================================
+            # When ICMP pings fail, verify connectivity using alternative protocols
+            # (gateway ping, TCP connections) before declaring total failure.
+            # Implements graceful degradation to handle ISP ICMP filtering.
+            # =====================================================================
             if measured_rtt is None:
-                self.logger.warning(f"{self.wan_name}: Ping failed, skipping cycle")
                 if self.config.metrics_enabled:
                     record_ping_failure(self.wan_name)
-                return False
 
+                # Run fallback connectivity checks
+                has_connectivity = self.verify_connectivity_fallback()
+
+                if has_connectivity:
+                    # We have connectivity, just can't measure RTT via ICMP
+                    self.icmp_unavailable_cycles += 1
+
+                    if self.config.fallback_mode == 'graceful_degradation':
+                        # Mode C: Graceful degradation with cycle-based strategy
+                        if self.icmp_unavailable_cycles == 1:
+                            # Cycle 1: Use last known RTT and continue normally
+                            measured_rtt = self.load_rtt
+                            self.logger.warning(
+                                f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
+                                f"using last RTT={measured_rtt:.1f}ms"
+                            )
+                            # Continue with normal processing below
+                        elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
+                            # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
+                            self.logger.warning(
+                                f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
+                                f"{self.config.fallback_max_cycles}) - freezing rates"
+                            )
+                            self.save_state()
+                            return True  # Success (no watchdog trigger), but skip adjustments
+                        else:
+                            # Cycle 4+: Give up (ICMP down for too long)
+                            self.logger.error(
+                                f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
+                                f"(>{self.config.fallback_max_cycles}) - giving up"
+                            )
+                            return False  # Trigger watchdog restart
+
+                    elif self.config.fallback_mode == 'freeze':
+                        # Mode A: Always freeze rates when ICMP unavailable
+                        self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
+                        self.save_state()
+                        return True
+
+                    elif self.config.fallback_mode == 'use_last_rtt':
+                        # Mode B: Always use last known RTT
+                        measured_rtt = self.load_rtt
+                        self.logger.warning(
+                            f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
+                            f"(mode: use_last_rtt)"
+                        )
+                        # Continue with normal processing below
+                    else:
+                        # Unknown mode, default to original behavior
+                        self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
+                        return False
+
+                else:
+                    # Total connectivity loss confirmed (both ICMP and TCP failed)
+                    self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+                    return False
+
+            else:
+                # ICMP succeeded - reset fallback counter if it was set
+                if self.icmp_unavailable_cycles > 0:
+                    self.logger.info(
+                        f"{self.wan_name}: ICMP recovered after {self.icmp_unavailable_cycles} cycles"
+                    )
+                    self.icmp_unavailable_cycles = 0
+
+            # At this point, measured_rtt is valid (either from ICMP or last known value)
             with PerfTimer("autorate_ewma_update", self.logger):
                 self.update_ewma(measured_rtt)
 

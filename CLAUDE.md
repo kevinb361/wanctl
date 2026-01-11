@@ -7,17 +7,19 @@
 Dual-WAN system for MikroTik router: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.0.0-rc7
+**Version:** 1.0.0-rc8 (pending - Fallback Connectivity Checks)
 
 ## Change Policy
 
 **Default approach:**
+
 - Explain before changing
 - Prefer analysis and suggestions
 - Propose changes as a plan, not implementation
 - Make minimal, surgical changes only when approved
 
 **Never (unless explicitly instructed):**
+
 - Refactor core logic
 - Change algorithms, thresholds, or timing
 - Rename files/modules
@@ -38,10 +40,12 @@ See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
 ## Key Components
 
 ### 1. Main Controller: `src/wanctl/autorate_continuous.py`
+
 - Single script, config-driven (~800 lines)
 - Runs on both containers with different configs
 
 ### 2. Adaptive Steering: `src/wanctl/steering/daemon.py`
+
 - Routes latency-sensitive traffic to secondary WAN when primary congests
 - 3-state model: GREEN/YELLOW/RED
 - Multi-signal decision: RTT delta (EWMA), CAKE drops, queue depth
@@ -49,6 +53,7 @@ See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
 - Requires 15 consecutive GREEN samples (30s) to disable
 
 ### 3. Configuration: `configs/*.yaml`
+
 - All tuning parameters externalized
 - Floors, thresholds, alphas, etc.
 
@@ -63,21 +68,22 @@ See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
 
 ## Container Details
 
-| Container       | Purpose                  |
-| --------------- | ------------------------ |
-| wan1-container  | Primary WAN tuning       |
-| wan2-container  | Secondary WAN tuning + steering |
+| Container      | Purpose                         |
+| -------------- | ------------------------------- |
+| wan1-container | Primary WAN tuning              |
+| wan2-container | Secondary WAN tuning + steering |
 
 **Access:** Use hostnames configured in your environment
 
 ## RouterOS Integration
 
 **Recommended:** REST API (2x faster than SSH)
+
 ```yaml
 router:
-  transport: "rest"  # or "ssh"
+  transport: "rest" # or "ssh"
   host: "router-ip"
-  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
 ```
 
 **Secrets:** `/etc/wanctl/secrets` (mode 640, root:wanctl)
@@ -118,30 +124,36 @@ ssh <container> 'python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1
 **Do not modify these behaviors without explicit instruction:**
 
 ### Control Model
+
 - All decisions based on RTT _delta_ relative to baseline
 - Absolute RTT values are NOT a control signal
 
 ### Baseline RTT
+
 - Baseline must remain frozen during load
 - May only update when delta < ~3ms
 - **Baseline drift under load is forbidden**
 
 ### Asymmetric Response
+
 - Rate decreases: immediate
 - Rate increases: require sustained GREEN state
 - Recovery must be slower than backoff
 
 ### State Logic
+
 - Download: 4-state (GREEN/YELLOW/SOFT_RED/RED)
 - Upload: 3-state (GREEN/YELLOW/RED)
 - SOFT_RED clamps to floor and holds (no repeated decay)
 
 ### Flash Wear Protection
+
 - Queue limits ONLY sent to router when values change
 - `last_applied_dl_rate`/`last_applied_ul_rate` tracking MANDATORY
 - Prevents premature NAND flash wear
 
 ### Steering Spine
+
 - Only secondary WAN controller makes routing decisions
 - Steering is binary: enabled or disabled
 - Only new latency-sensitive connections rerouted
@@ -157,7 +169,19 @@ Stored in `.claude/reviews/` (version-controlled).
 
 ## Known Issues
 
-### 1. Steering Config Filename Mismatch (Temporary Fix Applied)
+### 1. Spectrum WAN Watchdog Restarts (Solution Implemented - rc8)
+
+**Status:** Implementation complete, awaiting deployment testing
+
+**Issue:** Spectrum WAN experiences 3-5 watchdog restarts per day due to ISP ICMP filtering/rate-limiting during network events. ATT WAN unaffected.
+
+**Solution:** Fallback connectivity checks (Mode C: Graceful Degradation) - Verifies connectivity via TCP when ICMP fails, continues operation for up to 3 cycles (6 seconds) before restart.
+
+**Impact:** Expected to reduce Spectrum restarts by 50-90% without architectural changes.
+
+**Related documentation:** `docs/SPECTRUM_WATCHDOG_RESTARTS.md`, `docs/FALLBACK_CHECKS_IMPLEMENTATION.md`, `docs/FALLBACK_CONNECTIVITY_CHECKS.md`
+
+### 2. Steering Config Filename Mismatch (Temporary Fix Applied)
 
 **Status:** RESOLVED with temporary fix, permanent fix pending
 
@@ -168,6 +192,7 @@ Stored in `.claude/reviews/` (version-controlled).
 **Current fix:** Manual deployment of correct values to production.
 
 **Permanent fix options:**
+
 1. **Rename file:** `git mv configs/steering_config.yaml configs/steering.yaml` (simplest, recommended)
 2. **Update deploy script:** Modify `scripts/deploy.sh` to look for `steering_config.yaml` first
 3. **Add validation:** Deploy script should validate config before deployment (prevent future occurrences)
@@ -177,6 +202,7 @@ Stored in `.claude/reviews/` (version-controlled).
 ## Version
 
 **Current:** v1.0.0-rc7 (Observability & Reliability)
+
 - Health check endpoint (/health)
 - Prometheus metrics (/metrics)
 - JSON structured logging
