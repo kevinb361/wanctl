@@ -28,12 +28,12 @@ test coverage (474 tests), and enterprise-grade observability.
 
 #### State Machine Behavior
 
-| State | RTT Delta | Action | Floor Example |
-|-------|-----------|--------|---------------|
-| GREEN | ≤15ms | Slowly increase rate (+1 Mbps/cycle after 5 GREEN) | 550 Mbps |
-| YELLOW | 15-45ms | Hold steady, monitor | 350 Mbps |
-| SOFT_RED | 45-80ms | Clamp to floor, no steering | 275 Mbps |
-| RED | >80ms | Aggressive backoff, steering eligible | 200 Mbps |
+| State    | RTT Delta | Action                                             | Floor Example |
+| -------- | --------- | -------------------------------------------------- | ------------- |
+| GREEN    | ≤15ms     | Slowly increase rate (+1 Mbps/cycle after 5 GREEN) | 550 Mbps      |
+| YELLOW   | 15-45ms   | Hold steady, monitor                               | 350 Mbps      |
+| SOFT_RED | 45-80ms   | Clamp to floor, no steering                        | 275 Mbps      |
+| RED      | >80ms     | Aggressive backoff, steering eligible              | 200 Mbps      |
 
 #### Binary Search Calibration
 
@@ -54,6 +54,7 @@ test coverage (474 tests), and enterprise-grade observability.
 - **CAKE Statistics** - Reads drops and queue depth directly from RouterOS
 
 **What Gets Steered:**
+
 - VoIP/voice calls (DSCP EF)
 - DNS queries
 - Gaming traffic
@@ -62,6 +63,7 @@ test coverage (474 tests), and enterprise-grade observability.
 - Push notifications
 
 **What Stays on Primary WAN:**
+
 - Bulk downloads/uploads
 - Video streaming
 - Background sync
@@ -97,7 +99,13 @@ test coverage (474 tests), and enterprise-grade observability.
   "uptime_seconds": 3600.5,
   "version": "1.0.0",
   "consecutive_failures": 0,
-  "wans": [{"name": "wan1", "download": {"state": "GREEN"}, "upload": {"state": "GREEN"}}]
+  "wans": [
+    {
+      "name": "wan1",
+      "download": { "state": "GREEN" },
+      "upload": { "state": "GREEN" }
+    }
+  ]
 }
 ```
 
@@ -342,6 +350,50 @@ See `configs/examples/` for complete examples (cable, DSL, fiber, steering).
 
 ---
 
+## [1.0.0-rc8] - 2026-01-12
+
+**Fallback Connectivity Checks** - Graceful degradation reduces watchdog restarts.
+
+### Added
+
+- **Fallback Connectivity Checks (Mode C)** - Graceful degradation when ICMP fails
+  - TCP connectivity verification (port 443 to 1.1.1.1) as fallback
+  - Gateway ping test (10.10.110.1) before TCP check
+  - Tolerates up to 3 consecutive failures (6 seconds) before restart
+  - Significantly reduces Spectrum WAN watchdog restarts (observed 1 restart in 25 hours vs previous 3-5/day)
+  - Configurable via `fallback_checks` in YAML config
+- **Production Validation** - 38+ hours of profiling data collected
+  - Spectrum WAN: 69,539 autorate cycles, 43.7ms avg (1,956ms headroom)
+  - ATT WAN: 45,822 autorate cycles, 31.5ms avg (1,968ms headroom)
+  - REST API performing excellently (20-23ms router updates)
+  - Flash wear protection working perfectly (only 224 updates despite 69k+ cycles)
+
+### Fixed
+
+- **Steering Configuration Mismatch** - Resolved deployment issue
+  - Renamed `configs/steering_config.yaml` → `configs/steering.yaml`
+  - Deploy script now finds correct config instead of falling back to example template
+  - Fixed state file path: `/run/wanctl/spectrum_state.json` (was: `wan1_state.json`)
+  - Fixed WAN references: `spectrum`/`att` (was: `wan1`/`wan2`)
+  - Steering daemon now operational in production
+
+### Documentation
+
+- **Fallback Implementation Docs** - Comprehensive design documentation
+  - `docs/FALLBACK_CONNECTIVITY_CHECKS.md` - Architecture and design rationale
+  - `docs/FALLBACK_CHECKS_IMPLEMENTATION.md` - Implementation details
+  - `docs/SPECTRUM_WATCHDOG_RESTARTS.md` - Root cause analysis
+- **Steering Configuration Issue** - Documented in `docs/STEERING_CONFIG_MISMATCH_ISSUE.md`
+
+### Deployment
+
+- Deployed to production: 2026-01-12 19:20 UTC
+- Both containers (cake-spectrum, cake-att) running rc8
+- All systems healthy: GREEN/GREEN state, 0 consecutive failures
+- Steering daemon operational with correct configuration
+
+---
+
 ## [1.0.0-rc7] - 2026-01-10
 
 **Observability & Reliability** - Comprehensive improvements from code review.
@@ -436,11 +488,11 @@ See `configs/examples/` for complete examples (cable, DSL, fiber, steering).
 
 ### Performance
 
-| Metric | REST API | SSH | Improvement |
-|--------|----------|-----|-------------|
-| Peak RTT | 194ms | 404ms | 2.1x better |
-| Command latency | ~50ms | ~150-200ms | 3-4x faster |
-| RED/RED cycles | 0 | 5 | No hard congestion |
+| Metric          | REST API | SSH        | Improvement        |
+| --------------- | -------- | ---------- | ------------------ |
+| Peak RTT        | 194ms    | 404ms      | 2.1x better        |
+| Command latency | ~50ms    | ~150-200ms | 3-4x faster        |
+| RED/RED cycles  | 0        | 5          | No hard congestion |
 
 ### Documentation
 

@@ -169,47 +169,20 @@ Stored in `.claude/reviews/` (version-controlled).
 
 ## Known Issues
 
-### 1. Spectrum WAN Watchdog Restarts (Solution Implemented - rc8)
+None currently. Previous issues resolved in rc8:
 
-**Status:** Implementation complete, awaiting deployment testing
-
-**Issue:** Spectrum WAN experiences 3-5 watchdog restarts per day due to ISP ICMP filtering/rate-limiting during network events. ATT WAN unaffected.
-
-**Solution:** Fallback connectivity checks (Mode C: Graceful Degradation) - Verifies connectivity via TCP when ICMP fails, continues operation for up to 3 cycles (6 seconds) before restart.
-
-**Impact:** Expected to reduce Spectrum restarts by 50-90% without architectural changes.
-
-**Related documentation:** `docs/SPECTRUM_WATCHDOG_RESTARTS.md`, `docs/FALLBACK_CHECKS_IMPLEMENTATION.md`, `docs/FALLBACK_CONNECTIVITY_CHECKS.md`
-
-### 2. Steering Config Filename Mismatch (Temporary Fix Applied)
-
-**Status:** RESOLVED with temporary fix, permanent fix pending
-
-**What happened:** Deployment script expects `configs/steering.yaml` but actual config is named `configs/steering_config.yaml`. Deploy script falls back to generic example template, causing steering to fail with wrong config values.
-
-**Impact:** Steering was non-functional for several days, but autorate continued working perfectly. No network performance impact.
-
-**Current fix:** Manual deployment of correct values to production.
-
-**Permanent fix options:**
-
-1. **Rename file:** `git mv configs/steering_config.yaml configs/steering.yaml` (simplest, recommended)
-2. **Update deploy script:** Modify `scripts/deploy.sh` to look for `steering_config.yaml` first
-3. **Add validation:** Deploy script should validate config before deployment (prevent future occurrences)
-
-**Related documentation:** `docs/STEERING_CONFIG_MISMATCH_ISSUE.md`
+- Spectrum WAN watchdog restarts: Fixed via fallback connectivity checks
+- Steering configuration mismatch: Fixed via config file rename
 
 ## Version
 
-**Current:** v1.0.0-rc7 (Observability & Reliability)
+**Current:** v1.0.0-rc8 (Fallback Connectivity Checks)
 
-- Health check endpoint (/health)
-- Prometheus metrics (/metrics)
-- JSON structured logging
-- Rate limiting for router changes
-- EWMA overflow protection
-- State backup recovery
-- 474 unit tests
+- Fallback connectivity checks (Mode C graceful degradation)
+- TCP connectivity verification when ICMP fails
+- Dramatically reduced watchdog restarts (1 restart in 25+ hours)
+- Steering daemon operational
+- 474 unit tests passing
 
 ## Documentation
 
