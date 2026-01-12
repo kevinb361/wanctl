@@ -59,3 +59,4 @@ scripts/DEPLOYMENT.md
 # Site-specific logrotate configs
 configs/logrotate*.conf
 configs/logrotate-cake
+configs/steering.yaml
