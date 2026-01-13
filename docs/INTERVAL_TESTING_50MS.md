@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-50ms cycle interval deployed successfully with **zero issues detected**. This represents a **20x speed increase** over the original 1s interval. Initial monitoring shows exceptional timing accuracy (ATT: ±1ms, Spectrum: ±10ms), stable baselines, and **zero router CPU impact** despite 20Hz polling rate on both WANs plus steering.
+50ms cycle interval deployed successfully with **zero issues detected**. This represents a **40x speed increase** over the original 2s interval. Initial monitoring shows exceptional timing accuracy (ATT: ±1ms, Spectrum: ±10ms), stable baselines, and **zero router CPU impact** despite 20Hz polling rate on both WANs plus steering.
 
 **Finding:** 50ms represents the practical performance limit. ATT shows perfect consistency, Spectrum shows acceptable variance typical of cable networks.
 
@@ -99,7 +99,7 @@
 - Headroom: 100%
 
 **Impact Analysis:**
-- 20x polling increase (1Hz → 20Hz): **zero measurable CPU impact**
+- 40x polling increase (0.5Hz → 20Hz): **zero measurable CPU impact**
 - RB5009 handles 50ms interval effortlessly
 - REST API + connection pooling = highly efficient
 - Status: ✅ EXCELLENT
@@ -239,7 +239,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ## Production Considerations
 
 ### Advantages of 50ms
-- ✅ Maximum polling rate achieved (20x original)
+- ✅ Maximum polling rate achieved (40x original)
 - ✅ Zero router CPU impact
 - ✅ Stable baselines with extreme EWMA smoothing
 - ✅ ATT shows exceptional consistency
