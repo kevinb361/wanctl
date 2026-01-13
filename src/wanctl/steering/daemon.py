@@ -78,8 +78,8 @@ DEFAULT_QUEUE_EWMA_ALPHA = 0.4
 
 # History and state limits
 MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
-MAX_HISTORY_SAMPLES = 60              # Maximum samples in history (2 minutes at 2s intervals)
-ASSESSMENT_INTERVAL_SECONDS = 2.0     # Time between assessments
+MAX_HISTORY_SAMPLES = 240             # Maximum samples in history (2 minutes at 0.5s intervals)
+ASSESSMENT_INTERVAL_SECONDS = 0.5     # Time between assessments (daemon cycle interval)
 
 # Baseline RTT sanity bounds (milliseconds) - C4 fix: tightened from 5-100 to 10-60
 # Typical home ISP latencies are 20-50ms. Anything below 10ms indicates local LAN,
