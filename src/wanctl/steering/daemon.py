@@ -181,21 +181,16 @@ class SteeringConfig(BaseConfig):
             self.data['mangle_rule']['comment'], 'mangle_rule.comment'
         )
 
-    def _load_specific_fields(self):
-        """Load steering daemon-specific configuration fields."""
-        self._load_router_transport()
-        self._load_topology()
-        self._load_state_sources()
-        self._load_mangle_config()
-
-        # RTT measurement (ping_host validated to prevent command injection - C3 fix)
+    def _load_rtt_measurement(self) -> None:
+        """Load RTT measurement settings with validation (C3 fix)."""
         self.measurement_interval = self.data['measurement']['interval_seconds']
         self.ping_host = self.validate_ping_host(
             self.data['measurement']['ping_host'], 'measurement.ping_host'
         )
         self.ping_count = self.data['measurement']['ping_count']
 
-        # CAKE queue names (for statistics polling, validated to prevent command injection)
+    def _load_cake_queues(self) -> None:
+        """Load CAKE queue names with legacy support and validation."""
         cake_queues = self.data.get('cake_queues', {})
         default_dl_queue = f'WAN-Download-{self.primary_wan.capitalize()}'
         default_ul_queue = f'WAN-Upload-{self.primary_wan.capitalize()}'
@@ -208,10 +203,21 @@ class SteeringConfig(BaseConfig):
             'cake_queues.primary_upload'
         )
 
-        # Operational mode
+    def _load_operational_mode(self) -> None:
+        """Load operational mode settings."""
         mode = self.data.get('mode', {})
         self.cake_aware = mode.get('cake_aware', True)
         self.enable_yellow_state = mode.get('enable_yellow_state', True)
+
+    def _load_specific_fields(self):
+        """Load steering daemon-specific configuration fields."""
+        self._load_router_transport()
+        self._load_topology()
+        self._load_state_sources()
+        self._load_mangle_config()
+        self._load_rtt_measurement()
+        self._load_cake_queues()
+        self._load_operational_mode()
 
         # State machine thresholds
         thresholds = self.data['thresholds']
