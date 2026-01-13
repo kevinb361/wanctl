@@ -20,7 +20,6 @@ This tool will:
 import argparse
 import json
 import re
-import signal
 import statistics
 import subprocess
 import sys
@@ -28,18 +27,18 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
 from wanctl.ping_utils import parse_ping_output
+from wanctl.signal_utils import is_shutdown_requested, register_signal_handlers
 from wanctl.timeouts import (
-    TIMEOUT_STANDARD,
-    TIMEOUT_LONG,
-    DEFAULT_CALIBRATE_SSH_TIMEOUT,
     DEFAULT_CALIBRATE_PING_TIMEOUT,
+    DEFAULT_CALIBRATE_SSH_TIMEOUT,
+    TIMEOUT_LONG,
+    TIMEOUT_STANDARD,
 )
-
 
 # =============================================================================
 # CONSTANTS
@@ -53,37 +52,6 @@ PING_COUNT = 10
 PING_INTERVAL = 0.2
 NETPERF_DURATION = 15
 BINARY_SEARCH_ITERATIONS = 5
-
-
-# =============================================================================
-# SIGNAL HANDLING
-# =============================================================================
-
-def _signal_handler(signum: int, frame) -> None:
-    """
-    Signal handler for SIGINT (Ctrl+C).
-
-    Prints interruption message and exits with code 130 (standard for SIGINT).
-    Used during calibration runs to allow graceful cancellation.
-
-    Args:
-        signum: Signal number received (should be SIGINT)
-        frame: Current stack frame (unused)
-    """
-    print("\n\nCalibration interrupted.")
-    sys.exit(130)
-
-
-def register_signal_handlers() -> None:
-    """
-    Register signal handler for graceful interruption.
-
-    Registers SIGINT (Ctrl+C) handler to allow user to cancel calibration.
-    Does not handle SIGTERM as calibrate is interactive utility, not daemon.
-
-    Should be called early in main() before long-running operations.
-    """
-    signal.signal(signal.SIGINT, _signal_handler)
 
 
 # Console colors
@@ -658,6 +626,11 @@ def run_calibration(
         print_info("  - SSH is enabled on router")
         return None
 
+    # Check for user interrupt after connectivity test
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        return None
+
     if not test_netperf_server(netperf_host):
         print_warning("Netperf server not reachable - will measure RTT only")
         skip_throughput = True
@@ -670,6 +643,11 @@ def run_calibration(
     baseline_rtt = measure_baseline_rtt(ping_host)
     if baseline_rtt is None:
         print_error("Failed to measure baseline RTT")
+        return None
+
+    # Check for user interrupt after baseline measurement
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
         return None
 
     print_result("Baseline RTT", f"{baseline_rtt:.1f}", "ms")
@@ -698,6 +676,11 @@ def run_calibration(
             netperf_host, ping_host, baseline_rtt
         )
 
+        # Check for user interrupt after download test
+        if is_shutdown_requested():
+            print("\n\nCalibration interrupted.")
+            return None
+
         time.sleep(3)  # Pause between tests
 
         raw_upload, upload_bloat_raw = measure_throughput_upload(
@@ -708,6 +691,11 @@ def run_calibration(
         print_result("Download bloat", f"{download_bloat_raw:.1f}", "ms")
         print_result("Raw upload", f"{raw_upload:.1f}", "Mbps")
         print_result("Upload bloat", f"{upload_bloat_raw:.1f}", "ms")
+
+        # Check for user interrupt after upload test
+        if is_shutdown_requested():
+            print("\n\nCalibration interrupted.")
+            return None
 
     # Step 4: Binary search for optimal rates
     if skip_binary_search or skip_throughput:
@@ -736,6 +724,15 @@ def run_calibration(
             target_bloat=target_bloat,
             ssh_key=ssh_key,
         )
+
+        # Check for user interrupt after download binary search
+        if is_shutdown_requested():
+            print("\n\nCalibration interrupted.")
+            # Reset queues before exit
+            print_step("Resetting queue limits...")
+            set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
+            set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
+            return None
 
         time.sleep(3)
 
@@ -883,8 +880,8 @@ Examples:
 
     args = parser.parse_args()
 
-    # Register signal handlers
-    register_signal_handlers()
+    # Register signal handlers (SIGINT only for interactive utility)
+    register_signal_handlers(include_sigterm=False)
 
     # Run calibration
     result = run_calibration(
@@ -903,6 +900,8 @@ Examples:
 
     if result:
         return 0
+    elif is_shutdown_requested():
+        return 130  # Standard SIGINT exit code
     else:
         return 1
 
