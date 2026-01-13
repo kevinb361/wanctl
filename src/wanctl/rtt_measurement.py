@@ -9,7 +9,6 @@ strategies (average vs median) and timeout behaviors.
 import logging
 import statistics
 import subprocess
-from typing import Optional
 from enum import Enum
 
 from .ping_utils import parse_ping_output
@@ -41,7 +40,7 @@ class RTTMeasurement:
         self,
         logger: logging.Logger,
         timeout_ping: int = 1,
-        timeout_total: Optional[int] = None,
+        timeout_total: int | None = None,
         aggregation_strategy: RTTAggregationStrategy = RTTAggregationStrategy.AVERAGE,
         log_sample_stats: bool = False,
     ):
@@ -69,7 +68,7 @@ class RTTMeasurement:
         self.aggregation_strategy = aggregation_strategy
         self.log_sample_stats = log_sample_stats
 
-    def ping_host(self, host: str, count: int = 1) -> Optional[float]:
+    def ping_host(self, host: str, count: int = 1) -> float | None:
         """
         Ping host and return aggregated RTT in milliseconds.
 
@@ -103,8 +102,7 @@ class RTTMeasurement:
 
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=subprocess_timeout,
             )
@@ -162,13 +160,14 @@ class RTTMeasurement:
         if not rtts:
             raise ValueError("Cannot aggregate empty RTT list")
 
-        if self.aggregation_strategy == RTTAggregationStrategy.AVERAGE:
-            return float(statistics.mean(rtts))
-        elif self.aggregation_strategy == RTTAggregationStrategy.MEDIAN:
-            return float(statistics.median(rtts))
-        elif self.aggregation_strategy == RTTAggregationStrategy.MIN:
-            return float(min(rtts))
-        elif self.aggregation_strategy == RTTAggregationStrategy.MAX:
-            return float(max(rtts))
-        else:
-            raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")
+        match self.aggregation_strategy:
+            case RTTAggregationStrategy.AVERAGE:
+                return float(statistics.mean(rtts))
+            case RTTAggregationStrategy.MEDIAN:
+                return float(statistics.median(rtts))
+            case RTTAggregationStrategy.MIN:
+                return float(min(rtts))
+            case RTTAggregationStrategy.MAX:
+                return float(max(rtts))
+            case _:
+                raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")

@@ -12,12 +12,12 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from wanctl.path_utils import ensure_file_directory
 
 
-def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) -> None:
+def atomic_write_json(file_path: Path, data: dict[str, Any], indent: int = 2) -> None:
     """Atomically write JSON data to a file.
 
     Uses write-to-temp-then-rename pattern to ensure the file is never
@@ -66,7 +66,7 @@ def atomic_write_json(file_path: Path, data: Dict[str, Any], indent: int = 2) ->
         raise
 
 
-def safe_read_json(file_path: Path, default: Dict[str, Any] = None) -> Dict[str, Any]:
+def safe_read_json(file_path: Path, default: dict[str, Any] = None) -> dict[str, Any]:
     """Safely read JSON data from a file.
 
     Handles missing files and JSON decode errors gracefully.
@@ -85,7 +85,7 @@ def safe_read_json(file_path: Path, default: Dict[str, Any] = None) -> Dict[str,
         return default
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return default
@@ -93,10 +93,10 @@ def safe_read_json(file_path: Path, default: Dict[str, Any] = None) -> Dict[str,
 
 def safe_json_loads(
     text: str,
-    logger: Optional[logging.Logger] = None,
-    default: Optional[Any] = None,
+    logger: logging.Logger | None = None,
+    default: Any | None = None,
     error_context: str = "JSON parsing",
-) -> Optional[Any]:
+) -> Any | None:
     """Safely parse JSON from a string with error logging.
 
     Consolidates repetitive try/except/log pattern for json.loads() calls
@@ -137,12 +137,12 @@ def safe_json_loads(
 
 def safe_json_loads_with_logging(
     text: str,
-    logger: Optional[logging.Logger] = None,
-    default: Optional[Any] = None,
+    logger: logging.Logger | None = None,
+    default: Any | None = None,
     error_context: str = "JSON parsing",
     log_invalid_content: bool = False,
     content_preview_length: int = 200,
-) -> Optional[Any]:
+) -> Any | None:
     """Safely parse JSON from a string with comprehensive error logging.
 
     Extended version of safe_json_loads() that includes debug logging
@@ -188,10 +188,10 @@ def safe_json_loads_with_logging(
 
 def safe_json_load_file(
     file_path: Path,
-    logger: Optional[logging.Logger] = None,
-    default: Optional[Any] = None,
+    logger: logging.Logger | None = None,
+    default: Any | None = None,
     error_context: str = "JSON file",
-) -> Optional[Any]:
+) -> Any | None:
     """Safely read and parse JSON from a file with error logging.
 
     Consolidates repetitive try/except/log pattern for json.load() calls
@@ -219,7 +219,7 @@ def safe_json_load_file(
         return default
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         if logger:

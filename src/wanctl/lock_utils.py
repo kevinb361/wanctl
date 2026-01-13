@@ -6,11 +6,10 @@ reading lock file PIDs, and validating/acquiring locks with stale lock cleanup.
 """
 
 import errno
+import logging
 import os
 import time
-import logging
 from pathlib import Path
-from typing import Optional
 
 
 def is_process_alive(pid: int) -> bool:
@@ -45,7 +44,7 @@ def is_process_alive(pid: int) -> bool:
     # os.kill succeeded - process exists
     # Additional check: is it a zombie?
     try:
-        with open(f'/proc/{pid}/stat', 'r') as f:
+        with open(f'/proc/{pid}/stat') as f:
             stat = f.read()
             # Third field is state: Z = zombie
             if ') Z ' in stat or stat.endswith(' Z'):
@@ -57,7 +56,7 @@ def is_process_alive(pid: int) -> bool:
     return True
 
 
-def read_lock_pid(lock_path: Path) -> Optional[int]:
+def read_lock_pid(lock_path: Path) -> int | None:
     """Read PID from lock file.
 
     Args:
@@ -134,7 +133,7 @@ def validate_lock(lock_path: Path, timeout: int, logger: logging.Logger) -> bool
         return True
     except Exception as e:
         logger.warning(f"Unexpected error validating lock {lock_path}: {e}")
-        raise RuntimeError(f"Failed to validate lock {lock_path}: {e}")
+        raise RuntimeError(f"Failed to validate lock {lock_path}: {e}") from e
 
 
 def acquire_lock(lock_path: Path, logger: logging.Logger) -> bool:
@@ -156,7 +155,7 @@ def acquire_lock(lock_path: Path, logger: logging.Logger) -> bool:
     """
     try:
         fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        pid_bytes = f"{os.getpid()}\n".encode('utf-8')
+        pid_bytes = f"{os.getpid()}\n".encode()
         os.write(fd, pid_bytes)
         os.close(fd)
         logger.debug(f"Lock acquired: {lock_path} (PID {os.getpid()})")

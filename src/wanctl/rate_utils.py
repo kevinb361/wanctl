@@ -8,13 +8,11 @@ Handles enforcement of floor (minimum) and ceiling (maximum) constraints
 on bandwidth rates.
 """
 
-from typing import Optional
-
 
 def enforce_rate_bounds(
     rate: float,
-    floor: Optional[float] = None,
-    ceiling: Optional[float] = None,
+    floor: float | None = None,
+    ceiling: float | None = None,
 ) -> int:
     """
     Enforce floor and ceiling constraints on a bandwidth rate.
@@ -71,7 +69,7 @@ def enforce_rate_bounds(
     return int(result)
 
 
-def enforce_floor(rate: float, floor: Optional[float] = None) -> int:
+def enforce_floor(rate: float, floor: float | None = None) -> int:
     """
     Enforce minimum floor constraint on a bandwidth rate.
 
@@ -98,7 +96,7 @@ def enforce_floor(rate: float, floor: Optional[float] = None) -> int:
     return enforce_rate_bounds(rate, floor=floor, ceiling=None)
 
 
-def enforce_ceiling(rate: float, ceiling: Optional[float] = None) -> int:
+def enforce_ceiling(rate: float, ceiling: float | None = None) -> int:
     """
     Enforce maximum ceiling constraint on a bandwidth rate.
 
