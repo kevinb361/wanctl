@@ -8,6 +8,7 @@ Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + int
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
 **Version:** 1.0.0-rc8
+**Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
 
@@ -32,10 +33,10 @@ See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
 
 ## Container Details
 
-| Container      | Purpose                         |
-| -------------- | ------------------------------- |
-| cake-spectrum  | Primary WAN (Spectrum) + steering |
-| cake-att       | Secondary WAN (ATT)             |
+| Container     | Purpose                           |
+| ------------- | --------------------------------- |
+| cake-spectrum | Primary WAN (Spectrum) + steering |
+| cake-att      | Secondary WAN (ATT)               |
 
 ## RouterOS Integration
 
@@ -43,9 +44,9 @@ See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
 
 ```yaml
 router:
-  transport: "rest"  # or "ssh"
+  transport: "rest" # or "ssh"
   host: "10.10.99.1"
-  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
 ```
 
 ## Quick Commands
@@ -66,20 +67,24 @@ ssh cake-spectrum 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
 **Do not modify without explicit instruction:**
 
 ### Control Model
+
 - All decisions based on RTT **delta** (not absolute RTT)
 - Baseline must remain frozen during load (only updates when delta < 3ms)
 - Rate decreases: immediate | Rate increases: require sustained GREEN (5 cycles)
 
 ### State Logic
+
 - Download: 4-state (GREEN/YELLOW/SOFT_RED/RED)
 - Upload: 3-state (GREEN/YELLOW/RED)
 - SOFT_RED clamps to floor and holds (no repeated decay)
 
 ### Flash Wear Protection
+
 - Queue limits ONLY sent to router when values change
 - `last_applied_dl_rate`/`last_applied_ul_rate` tracking MANDATORY
 
 ### Steering Spine
+
 - Only secondary WAN (cake-spectrum) makes routing decisions
 - Steering is binary: enabled or disabled
 - Only new latency-sensitive connections rerouted
@@ -92,13 +97,24 @@ None currently. See `CHANGELOG.md` for resolved issues.
 ## Version
 
 **Current:** v1.0.0-rc8 (Fallback Connectivity Checks)
+
 - Fallback connectivity checks reduce watchdog restarts
 - Steering daemon operational
 - 474 unit tests passing
 
+## Performance Characteristics
+
+**Cycle Interval:** 50ms (production standard, deployed 2026-01-13)
+**Congestion Response:** 50-100ms detection time (sub-second)
+**Router Impact:** 0% CPU at idle, 45% peak under load (MikroTik RB5009)
+**Utilization:** 60-80% (30-40ms execution per 50ms cycle)
+
+See `docs/PRODUCTION_INTERVAL.md` for complete performance analysis, validation results, and rollback procedures.
+
 ## Documentation
 
 - `CHANGELOG.md` - Version history and changes
+- `docs/PRODUCTION_INTERVAL.md` - **50ms interval decision and performance validation**
 - `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` - Design principles
 - `docs/CONFIG_SCHEMA.md` - Configuration reference
 - `docs/TRANSPORT_COMPARISON.md` - REST vs SSH performance
