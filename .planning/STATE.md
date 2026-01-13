@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-09)
 ## Current Position
 
 Phase: 7 of 15 (Core Algorithm Analysis)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-01-13 — Completed 07-01-PLAN.md
+Last activity: 2026-01-13 — Completed 07-02-PLAN.md
 
-Progress: ███████░░░ 33% (1/3 plans in phase)
+Progress: ███████████████░░░░░░░░░ 67% (2/3 plans in phase)
 
 ## Performance Metrics
 
@@ -35,8 +35,8 @@ Progress: ███████░░░ 33% (1/3 plans in phase)
 
 **Recent Trend:**
 
-- Last 5 plans: [06-02 ✓, 06-03 ✓, 06-04 ✓, 06-05 ✓, 06-06 ✓]
-- Trend: Excellent - Phase 6 complete, all quick wins delivered
+- Last 5 plans: [06-04 ✓, 06-05 ✓, 06-06 ✓, 07-01 ✓, 07-02 ✓]
+- Trend: Excellent - Phase 6 complete, Phase 7 core algorithm analysis progressing
 
 **Current Performance:**
 
@@ -70,9 +70,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 **Phase 7 Decisions (Core Algorithm Analysis):**
 
-- **Risk assessment framework**: LOW (pure extraction), MEDIUM (minor logic reorganization), HIGH (none identified)
-- **Protected zone identification**: Baseline update threshold (prevents drift), flash wear protection (hardware protection), rate limiting (API protection), QueueController state transitions (core algorithm)
-- **Prioritization rationale**: Priority 1 (low-risk extractions for 60% reduction in run_cycle()), Priority 2 (medium-risk requiring approval), Priority 3 (future, high effort/lower ROI)
+- **Risk assessment framework**: LOW (pure extraction), MEDIUM (minor logic reorganization), HIGH (touches state machine/confidence scoring)
+- **Protected zone identification (WANController)**: Baseline update threshold (prevents drift), flash wear protection (hardware protection), rate limiting (API protection), QueueController state transitions (core algorithm)
+- **Protected zone identification (SteeringDaemon)**: State transition logic (asymmetric hysteresis), baseline RTT validation (security C4), EWMA smoothing (numeric stability C5), RouterOS mangle control (security C2 + retry W6), signal handling (concurrency W5)
+- **Prioritization rationale**: Priority 1 (low-risk extractions for 20-60% reduction), Priority 2 (medium-risk requiring approval), Priority 3 (high-risk architectural changes)
+- **Confidence scoring integration**: Phase 2B controller exists (steering_confidence.py) but unused - HIGH RISK integration via hybrid approach (config flag) recommended for gradual rollout
 
 ### Deferred Issues
 
@@ -89,8 +91,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-13T22:40:11Z
-Stopped at: Completed 07-01-PLAN.md (Phase 7 in progress)
+Last session: 2026-01-13T23:15:00Z
+Stopped at: Completed 07-02-PLAN.md (Phase 7 in progress - 2/3 plans done)
 Resume file: None
 
 ## Milestone Achievements
@@ -238,3 +240,12 @@ Resume file: None
   - Defined 4 protected zones for core algorithm
   - Prioritized implementation for Phase 14: 60% size reduction possible in run_cycle() via low-risk extractions
   - Documentation: .planning/phases/07-core-algorithm-analysis/07-01-wancontroller-findings.md
+
+- ✓ 07-02: SteeringDaemon structural analysis (7 min execution)
+  - Analyzed 24 functions/methods, 1,179 total lines
+  - Identified 5 complexity hotspots: run_cycle() (129 lines, 8+ responsibilities), state machines (178 lines combined), main() (197 lines, 12+ responsibilities)
+  - Documented 7 refactoring opportunities (3 LOW, 2 MEDIUM, 2 HIGH risk)
+  - Validated CONCERNS.md flagged state machine fragility (lines 669-847, interdependent counters)
+  - Evaluated confidence scoring integration (Phase 2B controller exists but unused - HIGH RISK)
+  - Defined 5 protected zones: state transitions, baseline validation (security C4), EWMA (stability C5), RouterOS control (security C2 + retry W6), signal handling (concurrency W5)
+  - Documentation: .planning/phases/07-core-algorithm-analysis/07-02-steeringdaemon-findings.md
