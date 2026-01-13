@@ -54,6 +54,38 @@ PING_INTERVAL = 0.2
 NETPERF_DURATION = 15
 BINARY_SEARCH_ITERATIONS = 5
 
+
+# =============================================================================
+# SIGNAL HANDLING
+# =============================================================================
+
+def _signal_handler(signum: int, frame) -> None:
+    """
+    Signal handler for SIGINT (Ctrl+C).
+
+    Prints interruption message and exits with code 130 (standard for SIGINT).
+    Used during calibration runs to allow graceful cancellation.
+
+    Args:
+        signum: Signal number received (should be SIGINT)
+        frame: Current stack frame (unused)
+    """
+    print("\n\nCalibration interrupted.")
+    sys.exit(130)
+
+
+def register_signal_handlers() -> None:
+    """
+    Register signal handler for graceful interruption.
+
+    Registers SIGINT (Ctrl+C) handler to allow user to cancel calibration.
+    Does not handle SIGTERM as calibrate is interactive utility, not daemon.
+
+    Should be called early in main() before long-running operations.
+    """
+    signal.signal(signal.SIGINT, _signal_handler)
+
+
 # Console colors
 class Colors:
     """ANSI color codes for terminal output formatting.
