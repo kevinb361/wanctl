@@ -31,7 +31,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
-from wanctl.ping_utils import parse_ping_output
+from wanctl.rtt_measurement import parse_ping_output
 from wanctl.signal_utils import is_shutdown_requested, register_signal_handlers
 from wanctl.timeouts import (
     DEFAULT_CALIBRATE_PING_TIMEOUT,
