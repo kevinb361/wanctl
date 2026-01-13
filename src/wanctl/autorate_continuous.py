@@ -1076,6 +1076,44 @@ class ContinuousAutoRate:
 # =============================================================================
 
 def main() -> int | None:
+    """Main entry point for continuous CAKE auto-tuning daemon.
+
+    Runs persistent bandwidth control with adaptive rate adjustment based on real-time
+    latency measurements. Supports both single-WAN and multi-WAN configurations with
+    concurrent control loops for each interface.
+
+    The daemon operates in several modes:
+    - **Daemon mode** (default): Runs continuous control loop at 50ms intervals,
+      monitoring latency and adjusting CAKE queue limits to prevent bufferbloat while
+      maximizing throughput. Handles SIGTERM/SIGINT gracefully and integrates with
+      systemd watchdog for automatic recovery.
+    - **Oneshot mode** (--oneshot): Executes single measurement and adjustment cycle,
+      useful for testing and manual verification.
+    - **Validation mode** (--validate-config): Validates configuration files and exits,
+      ideal for CI/CD pipelines and pre-deployment checks.
+
+    Startup sequence:
+    1. Parse command-line arguments and load YAML configurations
+    2. Initialize ContinuousAutoRate controller with per-WAN state machines
+    3. Acquire exclusive locks to prevent concurrent instances
+    4. Register signal handlers for graceful shutdown
+    5. Start optional metrics (Prometheus) and health check servers
+    6. Enter control loop with automatic watchdog notification
+
+    Shutdown sequence (on SIGTERM/SIGINT):
+    1. Stop accepting new cycles (shutdown_event set)
+    2. Release all lock files
+    3. Close router connections (SSH/REST)
+    4. Shut down metrics and health servers
+    5. Log clean shutdown and exit
+
+    Returns:
+        int | None: Exit code indicating daemon termination reason:
+            - 0: Configuration validation passed (--validate-config mode)
+            - 1: Configuration validation failed or lock acquisition failed
+            - 130: Interrupted by signal (SIGINT/Ctrl+C)
+            - None: Clean shutdown in daemon mode (SIGTERM or oneshot completion)
+    """
     parser = argparse.ArgumentParser(
         description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
     )
