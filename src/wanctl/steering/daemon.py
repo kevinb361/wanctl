@@ -209,17 +209,8 @@ class SteeringConfig(BaseConfig):
         self.cake_aware = mode.get('cake_aware', True)
         self.enable_yellow_state = mode.get('enable_yellow_state', True)
 
-    def _load_specific_fields(self):
-        """Load steering daemon-specific configuration fields."""
-        self._load_router_transport()
-        self._load_topology()
-        self._load_state_sources()
-        self._load_mangle_config()
-        self._load_rtt_measurement()
-        self._load_cake_queues()
-        self._load_operational_mode()
-
-        # State machine thresholds
+    def _load_thresholds(self) -> None:
+        """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
         thresholds = self.data['thresholds']
 
         # Legacy RTT-only thresholds (backward compatibility)
@@ -249,31 +240,37 @@ class SteeringConfig(BaseConfig):
         self.red_samples_required = thresholds.get('red_samples_required', 2)
         self.green_samples_required = thresholds.get('green_samples_required', DEFAULT_GREEN_SAMPLES_REQUIRED)
 
-        # Baseline RTT bounds (C4 fix: configurable, with security defaults)
-        baseline_bounds = thresholds.get('baseline_rtt_bounds', {})
+    def _load_baseline_bounds(self) -> None:
+        """Load baseline RTT bounds (C4 fix: configurable with security defaults)."""
+        baseline_bounds = self.data['thresholds'].get('baseline_rtt_bounds', {})
         self.baseline_rtt_min = baseline_bounds.get('min', MIN_SANE_BASELINE_RTT)
         self.baseline_rtt_max = baseline_bounds.get('max', MAX_SANE_BASELINE_RTT)
 
-        # State persistence
+    def _load_state_persistence(self) -> None:
+        """Load state persistence settings."""
         self.state_file = Path(self.data['state']['file'])
         self.history_size = self.data['state']['history_size']
 
-        # Logging
+    def _load_logging_config(self) -> None:
+        """Load logging configuration."""
         self.main_log = self.data['logging']['main_log']
         self.debug_log = self.data['logging']['debug_log']
         self.log_cake_stats = self.data['logging'].get('log_cake_stats', True)
 
-        # Lock file
+    def _load_lock_config(self) -> None:
+        """Load lock file configuration."""
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
 
-        # Timeouts (with sensible defaults)
+    def _load_timeouts(self) -> None:
+        """Load timeout settings with sensible defaults."""
         timeouts = self.data.get('timeouts', {})
         self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_STEERING_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get('ping', 2)  # seconds (-W parameter)
         self.timeout_ping_total = timeouts.get('ping_total', DEFAULT_STEERING_PING_TOTAL_TIMEOUT)
 
-        # Router dict for CakeStatsReader
+    def _build_router_dict(self) -> None:
+        """Build router dict for CakeStatsReader."""
         self.router = {
             'host': self.router_host,
             'user': self.router_user,
@@ -284,9 +281,41 @@ class SteeringConfig(BaseConfig):
             'verify_ssl': self.router_verify_ssl
         }
 
-        # Metrics configuration (optional, disabled by default)
+    def _load_metrics_config(self) -> None:
+        """Load metrics configuration (optional, disabled by default)."""
         metrics_config = self.data.get('metrics', {})
         self.metrics_enabled = metrics_config.get('enabled', False)
+
+    def _load_specific_fields(self):
+        """Load steering daemon-specific configuration fields.
+
+        Orchestrates loading of all steering-specific config by calling
+        focused helper methods in dependency order.
+        """
+        # Connection and topology
+        self._load_router_transport()
+        self._load_topology()
+        self._load_state_sources()
+        self._load_mangle_config()
+
+        # Measurement and CAKE
+        self._load_rtt_measurement()
+        self._load_cake_queues()  # Depends on _load_topology for primary_wan
+        self._load_operational_mode()
+
+        # Thresholds and bounds
+        self._load_thresholds()
+        self._load_baseline_bounds()
+
+        # Persistence and operational
+        self._load_state_persistence()
+        self._load_logging_config()
+        self._load_lock_config()
+        self._load_timeouts()
+
+        # Router dict and metrics
+        self._build_router_dict()  # Depends on router fields from _load_router_transport
+        self._load_metrics_config()
 
 # =============================================================================
 # STATE MANAGEMENT
