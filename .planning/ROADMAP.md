@@ -194,10 +194,11 @@ Plans:
 **Depends on**: Phase 8
 **Research**: Unlikely (internal reorganization)
 **Plans**: 2 plans
+**Status**: In progress
 
 Plans:
 
-- [ ] 09-01: Merge paths.py into path_utils.py
+- [x] 09-01: Merge paths.py into path_utils.py
 - [ ] 09-02: Merge lockfile.py into lock_utils.py
 
 #### Phase 10: Utility Consolidation - Part 2
@@ -286,7 +287,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 6. Quick Wins                           | v1.1      | 6/6            | ✓ Complete                    | 2026-01-13  |
 | 7. Core Algorithm Analysis              | v1.1      | 3/3            | ✓ Complete                    | 2026-01-13  |
 | 8. Extract Common Helpers               | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
-| 9. Utility Consolidation - Part 1       | v1.1      | 0/2            | Not started                   | -           |
+| 9. Utility Consolidation - Part 1       | v1.1      | 1/2            | In progress                   | -           |
 | 10. Utility Consolidation - Part 2      | v1.1      | 0/?            | Not started                   | -           |
 | 11. Refactor Long Functions             | v1.1      | 0/?            | Not started                   | -           |
 | 12. RouterOSREST Refactoring            | v1.1      | 0/?            | Not started                   | -           |
