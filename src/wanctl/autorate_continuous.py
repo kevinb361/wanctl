@@ -115,9 +115,9 @@ class Config(BaseConfig):
         {"path": "continuous_monitoring.thresholds.warn_bloat_ms", "type": (int, float),
          "required": True, "min": 1, "max": 200},
         {"path": "continuous_monitoring.thresholds.alpha_baseline", "type": float,
-         "required": True, "min": 0.001, "max": 1.0},
+         "required": True, "min": 0.0001, "max": 1.0},
         {"path": "continuous_monitoring.thresholds.alpha_load", "type": float,
-         "required": True, "min": 0.01, "max": 1.0},
+         "required": True, "min": 0.001, "max": 1.0},
 
         # Ping hosts
         {"path": "continuous_monitoring.ping_hosts", "type": list, "required": True},

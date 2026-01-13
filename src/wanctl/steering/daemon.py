@@ -156,7 +156,7 @@ class SteeringConfig(BaseConfig):
 
         # Measurement
         {"path": "measurement.interval_seconds", "type": (int, float),
-         "required": True, "min": 0.5, "max": 60},
+         "required": True, "min": 0.01, "max": 60},
         {"path": "measurement.ping_host", "type": str, "required": True},
         {"path": "measurement.ping_count", "type": int,
          "required": True, "min": 1, "max": 20},
@@ -164,7 +164,7 @@ class SteeringConfig(BaseConfig):
         # State persistence
         {"path": "state.file", "type": str, "required": True},
         {"path": "state.history_size", "type": int,
-         "required": True, "min": 1, "max": 1000},
+         "required": True, "min": 1, "max": 3000},
 
         # Logging
         {"path": "logging.main_log", "type": str, "required": True},
