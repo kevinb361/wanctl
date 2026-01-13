@@ -1,10 +1,41 @@
 # Codebase Concerns
 
 **Analysis Date:** 2026-01-09
+**Updated:** 2026-01-13 (Phase 7 analysis)
+
+## Phase 7 Analysis Findings (2026-01-13)
+
+**WANController Analysis:**
+
+- 5 refactoring opportunities identified (3 LOW, 2 MEDIUM risk)
+- Primary complexity: `run_cycle()` at 176 lines (60% reduction possible)
+- 4 protected zones defined (baseline threshold, flash wear, rate limiting, state transitions)
+
+**SteeringDaemon Analysis:**
+
+- 7 refactoring opportunities identified (3 LOW, 2 MEDIUM, 2 HIGH risk)
+- Primary complexity: state machines at 178 lines combined (CAKE-aware + legacy)
+- 5 protected zones defined (state transitions, baseline validation C4, EWMA C5, RouterOS control C2, signal handling W5)
+- Confidence scoring integration evaluated (Phase 2B controller exists but unused - HIGH RISK)
+
+**Cross-Cutting Patterns:**
+
+- Both controllers share complexity patterns (long `run_cycle()`, state machines, EWMA)
+- Shared opportunities: concurrent RTT utility, state manager pattern
+- Interface contract: autorate state file schema (baseline_rtt field) consumed by steering
+
+**Recommendation:**
+
+- Phases 14-15 implementation must follow risk-assessed guidance in `docs/CORE-ALGORITHM-ANALYSIS.md`
+- LOW-risk opportunities first (Phases 8-13)
+- HIGH-risk changes require explicit approval (Phases 14-15)
+
+---
 
 ## Tech Debt
 
 **Netperf Integration Disabled:**
+
 - Issue: Netperf server integration (`src/wanctl/config_base.py` references) disabled in favor of CAKE-aware bandwidth estimation
 - Files: `src/wanctl/config_base.py`, `docs/SYNTHETIC_TRAFFIC_DISABLED.md`
 - Why: Phase 2A validation (2025-12-28) showed CAKE metrics sufficient for bandwidth discovery
@@ -12,6 +43,7 @@
 - Fix approach: Can be re-enabled for on-demand testing if needed; mark as optional feature
 
 **Phase 2B Steering Partially Implemented:**
+
 - Issue: Confidence-based steering logic exists but not fully integrated into main steering daemon
 - Files: `src/wanctl/steering/steering_confidence.py` (confidence scoring), `src/wanctl/steering/daemon.py` (daemon uses hysteresis instead)
 - Why: Phased implementation - Phase 2B improves on basic phase 2A logic
@@ -19,6 +51,7 @@
 - Fix approach: Integrate ConfidenceSignals into SteeringDaemon state machine (medium effort)
 
 **EWMA Smoothing Parameters Hardcoded:**
+
 - Issue: EWMA smoothing factors scattered as constants instead of config
 - Files: `src/wanctl/steering/daemon.py` (lines 72-74), `src/wanctl/autorate_continuous.py`
 - Example: DEFAULT_RTT_EWMA_ALPHA = 0.3, DEFAULT_QUEUE_EWMA_ALPHA = 0.4
@@ -31,6 +64,7 @@
 **No Currently Identified Critical Bugs**
 
 The codebase is actively maintained with recent fixes:
+
 - W4 fix: Deques handle automatic eviction (steering/daemon.py line 840)
 - W7 fix: Ping retry with fallback to last known RTT (steering/daemon.py line ~820)
 - W8 fix: Track consecutive CAKE read failures for graceful degradation (steering/daemon.py line ~850)
@@ -40,21 +74,25 @@ The codebase is actively maintained with recent fixes:
 ## Security Considerations
 
 **Input Validation (Well-Implemented):**
+
 - Risk: Command injection in RouterOS queries
 - Current mitigation: Queue names validated via BaseConfig.validate_identifier (`steering/cake_stats.py` line 45)
 - Recommendations: Maintain strict validation; audit new config parameters
 
 **Configuration File Permissions:**
+
 - Risk: Credentials in plaintext in `/etc/wanctl/wan.yaml` (username, password, SSH keys)
 - Current mitigation: File permissions (600, root-owned assumed by deployer)
 - Recommendations: Document secure setup in deployment guide; consider secrets management integration
 
 **RouterOS API Authentication:**
+
 - Risk: REST API password transmitted (over HTTPS, but still plaintext in memory)
 - Current mitigation: REST API uses HTTPS (configured in router), SSH uses key-based auth (fallback)
 - Recommendations: Prefer SSH; use SSH keys over password authentication
 
 **EWMA Bounds Checking:**
+
 - Risk: Invalid EWMA factors (outside 0-1) cause incorrect smoothing
 - Current mitigation: Validation in config_validation_utils.py (validate_alpha function)
 - Recommendations: Add unit tests for edge cases (0.0, 1.0)
@@ -62,6 +100,7 @@ The codebase is actively maintained with recent fixes:
 ## Performance Bottlenecks
 
 **RouterOS SSH Latency:**
+
 - Problem: SSH operations are slower than REST
 - Measurement: ~150ms per SSH command vs ~50ms for REST
 - Files: `src/wanctl/router_client.py` (factory pattern), `src/wanctl/routeros_ssh.py`
@@ -69,6 +108,7 @@ The codebase is actively maintained with recent fixes:
 - Improvement path: Ensure REST API is preferred (`router_client.py` factory); keep SSH as fallback only
 
 **Ping Measurement Overhead:**
+
 - Problem: 3 pings per measurement cycle (default) add latency
 - Measurement: ~100-150ms for 3 ICMP round-trips to remote reflectors
 - Files: `src/wanctl/rtt_measurement.py` (ping execution)
@@ -76,6 +116,7 @@ The codebase is actively maintained with recent fixes:
 - Improvement path: Consider reducing to 1-2 pings, use faster aggregation strategy (median vs mean)
 
 **CAKE Stats Read Frequency:**
+
 - Problem: Reading CAKE stats from RouterOS every 2 seconds (steering cycle) adds overhead
 - Measurement: ~50-100ms per read (via REST API)
 - Files: `src/wanctl/steering/cake_stats.py` (CakeStatsReader.read_stats)
@@ -85,6 +126,7 @@ The codebase is actively maintained with recent fixes:
 ## Fragile Areas
 
 **Router Client Factory:**
+
 - Why fragile: REST vs SSH selection happens once at startup; can't switch transports mid-run
 - Files: `src/wanctl/router_client.py` (factory function)
 - Common failures: Network change (LAN to WAN), REST API becomes unavailable
@@ -92,6 +134,7 @@ The codebase is actively maintained with recent fixes:
 - Test coverage: Basic unit tests; no integration tests for transport switching
 
 **State Machine State Transitions:**
+
 - Why fragile: Multiple state transitions (good_count, bad_count, state changes) interdependent
 - Files: `src/wanctl/steering/daemon.py` (update_state_machine, lines ~630-680)
 - Common failures: Hysteresis logic missed, state inconsistency after crash/restart
@@ -99,6 +142,7 @@ The codebase is actively maintained with recent fixes:
 - Test coverage: Limited - manual testing used
 
 **Baseline RTT Bounds:**
+
 - Why fragile: Baseline validation bounds (10-60ms) hardcoded
 - Files: `src/wanctl/steering/daemon.py` (lines 80-84)
 - Common failures: ISP changes (moves to lower-latency ISP), bounds too tight/loose
@@ -108,18 +152,21 @@ The codebase is actively maintained with recent fixes:
 ## Missing Critical Features
 
 **Dashboard/Monitoring UI:**
+
 - Problem: No real-time monitoring interface (command-line only)
 - Current workaround: Manual log file inspection, JSON state file parsing
 - Blocks: Cannot easily observe steering decisions, bandwidth trends
 - Implementation complexity: High (requires web UI framework, data visualization)
 
 **Steering Dry-Run Mode:**
+
 - Problem: No way to test steering rules without actually enabling them
 - Current workaround: Manual RouterOS mangle rule testing
 - Blocks: Cannot safely validate steering configuration before deployment
 - Implementation complexity: Low (log steering decisions without applying them)
 
 **Automatic Remediation:**
+
 - Problem: No automated recovery if daemon crashes during steering
 - Current workaround: systemd restart, manual mangle rule cleanup
 - Blocks: Long-lasting steering states if daemon exits unexpectedly
@@ -128,18 +175,21 @@ The codebase is actively maintained with recent fixes:
 ## Test Coverage Gaps
 
 **RouterOS Integration:**
+
 - What's not tested: REST API client with actual RouterOS (only mocked)
 - Risk: Authentication failures, API format changes, network timeouts not caught
 - Priority: Medium
 - Difficulty: High (requires RouterOS test device or mock server)
 
 **State Machine Edge Cases:**
+
 - What's not tested: Rapid state transitions, concurrent state access
 - Risk: Race conditions if steering and autorate run simultaneously
 - Priority: Medium
 - Difficulty: Medium (requires concurrency testing framework)
 
 **Configuration Edge Cases:**
+
 - What's not tested: Very large queue names, special characters in WAN names
 - Risk: Command injection or state file corruption
 - Priority: Low (input validation in place, but not exhaustively tested)
@@ -147,5 +197,5 @@ The codebase is actively maintained with recent fixes:
 
 ---
 
-*Concerns audit: 2026-01-09*
-*Update as issues are fixed or new ones discovered*
+_Concerns audit: 2026-01-09_
+_Update as issues are fixed or new ones discovered_
