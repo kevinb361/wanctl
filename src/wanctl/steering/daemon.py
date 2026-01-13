@@ -34,7 +34,6 @@ from pathlib import Path
 from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
 from ..lock_utils import validate_and_acquire_lock
-from ..lockfile import LockAcquisitionError, LockFile
 from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
 from ..perf_profiler import PerfTimer
