@@ -32,7 +32,7 @@ key-files:
     - /etc/wanctl/steering.yaml (not in git)
 
 key-decisions:
-  - "Deployed 50ms as extreme limit test (20x faster than 1s original)"
+  - "Deployed 50ms as extreme limit test (40x faster than 2s original)"
   - "Relaxed schema validation to support extreme alpha values (0.0001-0.001)"
   - "Used staged rollout: ATT first (DSL stable), then Spectrum"
   - "Confirmed 50ms is sustainable: 0% router CPU, stable baselines, zero errors"
@@ -52,7 +52,7 @@ completed: 2026-01-13
 
 # Phase 2 Plan 3: 50ms Extreme Interval Testing Summary
 
-**50ms extreme interval deployed successfully - system limits proven at 20x original speed**
+**50ms extreme interval deployed successfully - system limits proven at 40x original speed**
 
 ## Performance
 
@@ -190,7 +190,7 @@ Each task was committed atomically:
 - CPU load: **0%** (20Hz polling on 2 WANs + steering)
 - Previous (250ms): 1-3%
 - Change: Improved (measurement noise)
-- Conclusion: Zero measurable impact from 20x polling increase
+- Conclusion: Zero measurable impact from 40x polling increase
 
 ### Error Count
 
@@ -230,7 +230,7 @@ All time constants verified to preserve wall-clock behavior:
 **Comparison:**
 | Interval | Polling | Utilization | Router CPU | ATT Timing | Spectrum Timing |
 |----------|---------|-------------|------------|------------|-----------------|
-| 1s (original) | 1 Hz | 3-4% | N/A | N/A | N/A |
+| 2s (original) | 0.5 Hz | 3-4% | N/A | N/A | N/A |
 | 500ms | 2 Hz | 6-8% | 1-3% | ±2ms | ±5ms |
 | 250ms | 4 Hz | 12-16% | 1-3% | ±2ms | ±3ms |
 | **50ms** | **20 Hz** | **60-80%** | **0%** | **±1ms** | **±10ms** |
@@ -243,12 +243,12 @@ All time constants verified to preserve wall-clock behavior:
 4. **Approaching limits:** 60-80% utilization leaves minimal headroom
 5. **Schema updates required:** Extreme values need validation limit adjustments
 6. **No faster response:** Time constants unchanged (still 16s/30s steering)
-7. **Router efficiency proven:** 20x polling increase = zero CPU impact
+7. **Router efficiency proven:** 40x polling increase = zero CPU impact
 
 ## Production Recommendations
 
 **50ms Extreme:**
-- ✅ Maximum speed achieved (20x original)
+- ✅ Maximum speed achieved (40x original)
 - ✅ Proven stable in production
 - ⚠️ Approaching utilization limits (60-80%)
 - ⚠️ Minimal headroom for variance
