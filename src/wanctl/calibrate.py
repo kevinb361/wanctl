@@ -790,6 +790,31 @@ def run_calibration(
 # =============================================================================
 
 def main():
+    """Main entry point for baseline RTT calibration utility.
+
+    Parses command-line arguments and runs calibration workflow to discover
+    optimal CAKE queue limits for the target bloat threshold. Performs baseline
+    RTT measurement, raw throughput testing, and optional binary search to find
+    queue limits that achieve the desired latency under load.
+
+    This is a one-shot utility designed for initial WAN configuration setup,
+    not a daemon. It generates a configuration file with recommended CAKE settings
+    based on actual network performance measurements.
+
+    Calibration workflow:
+    1. Measures baseline RTT without load
+    2. Tests raw throughput (upload/download) with CAKE disabled
+    3. Optionally runs binary search to find optimal queue limits
+    4. Outputs recommended configuration to YAML file
+
+    Returns:
+        int: Exit code (0=success, 1=error, 130=interrupted by SIGINT)
+
+    Note:
+        This utility is not a daemon - it runs once and exits. Use the
+        generated configuration file with the wanctl daemon for production
+        operation.
+    """
     parser = argparse.ArgumentParser(
         description="wanctl Calibration Tool - Discover optimal CAKE settings",
         formatter_class=argparse.RawDescriptionHelpFormatter,
