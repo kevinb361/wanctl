@@ -9,10 +9,8 @@ Consolidates common validation patterns used across the system:
 """
 
 import logging
-from typing import Optional, Tuple
 
 from wanctl.config_base import ConfigValidationError
-
 
 # Default constants for baseline RTT validation
 MIN_SANE_BASELINE_RTT = 10  # milliseconds - minimum sane baseline
@@ -22,10 +20,10 @@ MAX_SANE_BASELINE_RTT = 60  # milliseconds - maximum sane baseline
 def validate_bandwidth_order(
     name: str,
     floor_red: int,
-    floor_yellow: Optional[int] = None,
-    floor_soft_red: Optional[int] = None,
-    floor_green: Optional[int] = None,
-    ceiling: Optional[int] = None,
+    floor_yellow: int | None = None,
+    floor_soft_red: int | None = None,
+    floor_green: int | None = None,
+    ceiling: int | None = None,
     convert_to_mbps: bool = False,
     logger: logging.Logger = None
 ) -> bool:
@@ -183,7 +181,7 @@ def validate_alpha(
     except (ValueError, TypeError) as e:
         msg = f"{field_name}: could not convert to float: {value} ({e})"
         logger.error(msg)
-        raise ConfigValidationError(msg)
+        raise ConfigValidationError(msg) from e
 
     if not (min_val <= alpha <= max_val):
         msg = (
@@ -253,10 +251,10 @@ def validate_baseline_rtt(
 
 def validate_rtt_thresholds(
     green_rtt_ms: float,
-    yellow_rtt_ms: Optional[float] = None,
-    red_rtt_ms: Optional[float] = None,
+    yellow_rtt_ms: float | None = None,
+    red_rtt_ms: float | None = None,
     logger: logging.Logger = None
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Validate RTT thresholds are properly ordered.
 
     Ensures RTT state transition thresholds are ordered:
@@ -312,7 +310,7 @@ def validate_sample_counts(
     red_samples_required: int = 2,
     green_samples_required: int = 15,
     logger: logging.Logger = None
-) -> Tuple[int, int, int, int]:
+) -> tuple[int, int, int, int]:
     """Validate state confirmation sample requirements are reasonable.
 
     Sample counts determine how many consecutive measurements with the same
