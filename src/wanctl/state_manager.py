@@ -115,6 +115,17 @@ def bounded_float(min_val: float, max_val: float, clamp: bool = True) -> Validat
     """
 
     def validator(value: Any) -> float:
+        """Validate and optionally clamp float value to bounds.
+
+        Args:
+            value: Value to validate (will be converted to float)
+
+        Returns:
+            Validated value, clamped if clamp=True
+
+        Raises:
+            ValueError: If value outside bounds and clamp=False
+        """
         result = float(value)
         if clamp:
             return max(min_val, min(max_val, result))
