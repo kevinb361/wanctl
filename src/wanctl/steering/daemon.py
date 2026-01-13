@@ -143,9 +143,8 @@ class SteeringConfig(BaseConfig):
         {"path": "thresholds", "type": dict, "required": True},
     ]
 
-    def _load_specific_fields(self):
-        """Load steering daemon-specific configuration fields"""
-        # Router transport settings (REST or SSH)
+    def _load_router_transport(self) -> None:
+        """Load router transport settings (REST or SSH)."""
         router = self.data['router']
         self.router_transport = router.get('transport', 'ssh')  # Default to SSH
         # REST-specific settings
@@ -153,7 +152,8 @@ class SteeringConfig(BaseConfig):
         self.router_port = router.get('port', 443)
         self.router_verify_ssl = router.get('verify_ssl', False)
 
-        # Topology - which WANs to monitor and steer between
+    def _load_topology(self) -> None:
+        """Load topology - which WANs to monitor and steer between."""
         topology = self.data.get('topology', {})
         self.primary_wan = topology.get('primary_wan', 'wan1')
         self.primary_wan_config = Path(topology.get('primary_wan_config', f'/etc/wanctl/{self.primary_wan}.yaml'))
@@ -163,7 +163,8 @@ class SteeringConfig(BaseConfig):
         self.state_good = f"{self.primary_wan.upper()}_GOOD"
         self.state_degraded = f"{self.primary_wan.upper()}_DEGRADED"
 
-        # Primary WAN state file (for baseline RTT)
+    def _load_state_sources(self) -> None:
+        """Load primary WAN state file path with legacy support."""
         self.primary_state_file = Path(self.data.get('cake_state_sources', {}).get(
             'primary', f'/var/lib/wanctl/{self.primary_wan}_state.json'
         ))
@@ -174,10 +175,18 @@ class SteeringConfig(BaseConfig):
             if 'spectrum' in sources and 'primary' not in sources:
                 self.primary_state_file = Path(sources['spectrum'])
 
-        # Mangle rule to toggle (validated to prevent command injection)
+    def _load_mangle_config(self) -> None:
+        """Load mangle rule configuration with validation."""
         self.mangle_rule_comment = self.validate_comment(
             self.data['mangle_rule']['comment'], 'mangle_rule.comment'
         )
+
+    def _load_specific_fields(self):
+        """Load steering daemon-specific configuration fields."""
+        self._load_router_transport()
+        self._load_topology()
+        self._load_state_sources()
+        self._load_mangle_config()
 
         # RTT measurement (ping_host validated to prevent command injection - C3 fix)
         self.measurement_interval = self.data['measurement']['interval_seconds']
