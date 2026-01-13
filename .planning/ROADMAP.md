@@ -1,12 +1,17 @@
-# Roadmap: wanctl Performance Optimization
+# Roadmap: wanctl
 
 ## Overview
 
-wanctl is a production CAKE bandwidth controller running on MikroTik RouterOS with dual-WAN steering. Current implementation has documented latency bottlenecks (~200ms per measurement cycle across three subsystems: RouterOS communication, ICMP measurement, and CAKE stats collection). This roadmap optimizes each subsystem holistically to achieve the core value of <2-second control cycle latency while maintaining production reliability and backward compatibility.
+wanctl is a production CAKE bandwidth controller running on MikroTik RouterOS with dual-WAN steering. The project has achieved 40x performance improvement (2s → 50ms cycle time) and now focuses on code quality and maintainability while preserving production stability.
 
 ## Domain Expertise
 
 None
+
+## Milestones
+
+- ✅ **v1.0 Performance Optimization** - [Phases 1-5](#v10-performance-optimization-shipped-2026-01-13) (shipped 2026-01-13)
+- 🚧 **v1.1 Code Quality** - [Phases 6-15](#-v11-code-quality-in-progress) (in progress)
 
 ## Phases
 
@@ -17,11 +22,16 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+<details>
+<summary>✅ v1.0 Performance Optimization (Phases 1-5) - SHIPPED 2026-01-13</summary>
+
+**Milestone Goal:** Reduce measurement and control latency to under 2 seconds per cycle. **Achieved:** 50ms cycle interval (40x faster than original 2s baseline).
+
 - [x] **Phase 1: Measurement Infrastructure Profiling** - Establish baseline performance metrics and identify bottleneck sources
-- [ ] **Phase 2: Interval Optimization** - Progressive cycle interval reduction for faster congestion response (250ms → 100ms → 50ms)
-- [ ] **Phase 3: Production Finalization** - Finalize optimal interval configuration and remove profiling artifacts
-- [ ] **Phase 4: RouterOS Communication Optimization** - (DEFERRED) Reduce router interaction latency via REST API and connection pooling
-- [ ] **Phase 5: Measurement Layer Optimization** - (DEFERRED) Implement caching and parallel measurement collection
+- [x] **Phase 2: Interval Optimization** - Progressive cycle interval reduction for faster congestion response (250ms → 100ms → 50ms)
+- [x] **Phase 3: Production Finalization** - Finalize optimal interval configuration and remove profiling artifacts
+- [x] **Phase 4: RouterOS Communication Optimization** - (ALREADY IMPLEMENTED) REST API and connection pooling already in production code
+- [x] **Phase 5: Measurement Layer Optimization** - (PARTIALLY IMPLEMENTED) Parallel pings optimal, CAKE caching not needed
 
 ## Phase Details
 
@@ -120,24 +130,148 @@ Plans:
 
 **Performance achieved**: Parallel pings optimal, CAKE stats acceptable. No further optimization needed for measurement layer.
 
+</details>
+
+### 🚧 v1.1 Code Quality (In Progress)
+
+**Milestone Goal:** Improve code maintainability through systematic refactoring while preserving production stability of core algorithms.
+
+#### Phase 6: Quick Wins
+
+**Goal**: Add docstrings and extract signal handlers for immediate code clarity improvements
+**Depends on**: v1.0 milestone complete
+**Research**: Unlikely (internal documentation and refactoring)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 06-01: TBD (run /gsd:plan-phase 6 to break down)
+
+#### Phase 7: Core Algorithm Analysis
+
+**Goal**: Analyze WANController and SteeringDaemon, document refactoring recommendations WITHOUT implementing
+**Depends on**: Phase 6
+**Research**: Unlikely (internal code analysis)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 07-01: TBD
+
+**Note**: This phase produces analysis only. Implementation requires explicit approval in Phases 14-15.
+
+#### Phase 8: Extract Common Helpers
+
+**Goal**: Factor out duplicated main() entry point patterns and \_load_specific_fields helper
+**Depends on**: Phase 7
+**Research**: Unlikely (internal refactoring)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 08-01: TBD
+
+#### Phase 9: Utility Consolidation - Part 1
+
+**Goal**: Consolidate routing and state utilities to reduce fragmentation
+**Depends on**: Phase 8
+**Research**: Unlikely (internal reorganization)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 09-01: TBD
+
+#### Phase 10: Utility Consolidation - Part 2
+
+**Goal**: Consolidate config, retry, and logging utilities to complete utility reorganization
+**Depends on**: Phase 9
+**Research**: Unlikely (internal reorganization)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 10-01: TBD
+
+#### Phase 11: Refactor Long Functions
+
+**Goal**: Break down non-critical long functions (>100 lines) for improved readability
+**Depends on**: Phase 10
+**Research**: Unlikely (internal refactoring)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 11-01: TBD
+
+#### Phase 12: RouterOSREST Refactoring
+
+**Goal**: Refactor 577-line RouterOSREST class to improve maintainability
+**Depends on**: Phase 11
+**Research**: Unlikely (internal refactoring)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 12-01: TBD
+
+#### Phase 13: Documentation Improvements
+
+**Goal**: Update inline documentation, code comments, and docstrings across codebase
+**Depends on**: Phase 12
+**Research**: Unlikely (internal documentation)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 13-01: TBD
+
+#### Phase 14: WANController Refactoring
+
+**Goal**: Implement approved recommendations from Phase 7 analysis for WANController
+**Depends on**: Phase 13 and explicit approval of Phase 7 recommendations
+**Research**: Unlikely (implementing pre-approved changes)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 14-01: TBD
+
+**Note**: HIGH RISK phase. Only proceeds with explicit approval of specific recommendations from Phase 7.
+
+#### Phase 15: SteeringDaemon Refactoring
+
+**Goal**: Implement approved recommendations from Phase 7 analysis for SteeringDaemon
+**Depends on**: Phase 14 and explicit approval of Phase 7 recommendations
+**Research**: Unlikely (implementing pre-approved changes)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 15-01: TBD
+
+**Note**: HIGH RISK phase. Only proceeds with explicit approval of specific recommendations from Phase 7.
+
 ## Progress
 
 **Execution Order:**
-Active phases: 1 → 2 → 3 (Phases 4-5 already implemented in codebase)
+v1.0: 1 → 2 → 3 (complete)
+v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress)
 
-| Phase                                   | Plans Complete | Status                        | Completed   |
-| --------------------------------------- | -------------- | ----------------------------- | ----------- |
-| 1. Measurement Infrastructure Profiling | 3/3            | ✓ Complete                    | 2026-01-13  |
-| 2. Interval Optimization                | 2/3            | ✓ Complete (02-02 skipped)    | 2026-01-13  |
-| 3. Production Finalization              | 2/2            | ✓ Complete                    | 2026-01-13  |
-| 4. RouterOS Communication Optimization  | N/A            | ✅ Already in production code | Pre-Phase 1 |
-| 5. Measurement Layer Optimization       | N/A            | ⚠️ Partially implemented      | Pre-Phase 1 |
-
-**Discovery:** Code review revealed Phases 4-5 optimizations already exist in production:
-
-- REST API with connection pooling (2x faster than SSH, documented in TRANSPORT_COMPARISON.md)
-- Persistent SSH connections via paramiko (~30-50ms vs ~200ms subprocess)
-- Parallel ICMP measurement with ThreadPoolExecutor (median-of-three mode)
-- Queue/rule ID caching in REST client
-
-**Focus:** ✅ **OPTIMIZATION MILESTONE COMPLETE** - All 3 phases finished. Delivered 40x speed increase (2s → 50ms) with zero router CPU impact. 50ms finalized as production standard with comprehensive documentation. Phases 4-5 already implemented in production code.
+| Phase                                   | Milestone | Plans Complete | Status                        | Completed   |
+| --------------------------------------- | --------- | -------------- | ----------------------------- | ----------- |
+| 1. Measurement Infrastructure Profiling | v1.0      | 3/3            | ✓ Complete                    | 2026-01-13  |
+| 2. Interval Optimization                | v1.0      | 2/3            | ✓ Complete (02-02 skipped)    | 2026-01-13  |
+| 3. Production Finalization              | v1.0      | 2/2            | ✓ Complete                    | 2026-01-13  |
+| 4. RouterOS Communication Optimization  | v1.0      | N/A            | ✅ Already in production code | Pre-Phase 1 |
+| 5. Measurement Layer Optimization       | v1.0      | N/A            | ⚠️ Partially implemented      | Pre-Phase 1 |
+| 6. Quick Wins                           | v1.1      | 0/?            | Not started                   | -           |
+| 7. Core Algorithm Analysis              | v1.1      | 0/?            | Not started                   | -           |
+| 8. Extract Common Helpers               | v1.1      | 0/?            | Not started                   | -           |
+| 9. Utility Consolidation - Part 1       | v1.1      | 0/?            | Not started                   | -           |
+| 10. Utility Consolidation - Part 2      | v1.1      | 0/?            | Not started                   | -           |
+| 11. Refactor Long Functions             | v1.1      | 0/?            | Not started                   | -           |
+| 12. RouterOSREST Refactoring            | v1.1      | 0/?            | Not started                   | -           |
+| 13. Documentation Improvements          | v1.1      | 0/?            | Not started                   | -           |
+| 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
+| 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
