@@ -61,8 +61,8 @@ from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_
 DEFAULT_BASELINE_UPDATE_THRESHOLD_MS = 3.0
 
 # Daemon cycle interval - target time between cycle starts (seconds)
-# With 0.5-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~8 cycles = 4 seconds
-CYCLE_INTERVAL_SECONDS = 0.5
+# With 0.25-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~16 cycles = 4 seconds
+CYCLE_INTERVAL_SECONDS = 0.25
 
 # Default bloat thresholds (milliseconds)
 DEFAULT_HARD_RED_BLOAT_MS = 80  # SOFT_RED -> RED transition threshold
