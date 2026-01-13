@@ -1,8 +1,9 @@
 """Unified lock file validation and acquisition utilities.
 
-Consolidates PID-based lock validation logic used in both lockfile.py and
-autorate_continuous.py. Provides reusable functions for checking process liveness,
-reading lock file PIDs, and validating/acquiring locks with stale lock cleanup.
+Consolidates PID-based lock validation logic and context manager for preventing
+concurrent execution. Provides reusable functions for checking process liveness,
+reading lock file PIDs, validating/acquiring locks, and a context manager for
+automatic lock lifecycle management.
 """
 
 import errno
@@ -10,6 +11,26 @@ import logging
 import os
 import time
 from pathlib import Path
+
+
+class LockAcquisitionError(Exception):
+    """Raised when a lock file cannot be acquired due to an existing lock.
+
+    This exception indicates another instance is likely running and the caller
+    should exit gracefully rather than proceeding with duplicate execution.
+
+    Attributes:
+        lock_path: Path to the lock file that couldn't be acquired
+        age: Age of the existing lock file in seconds
+    """
+
+    def __init__(self, lock_path: Path, age: float):
+        self.lock_path = lock_path
+        self.age = age
+        super().__init__(
+            f"Lock file {lock_path} exists and is recent ({age:.1f}s old). "
+            "Another instance may be running."
+        )
 
 
 def is_process_alive(pid: int) -> bool:
@@ -197,3 +218,58 @@ def validate_and_acquire_lock(lock_path: Path, timeout: int, logger: logging.Log
         raise RuntimeError(f"Failed to acquire lock after validation: {lock_path}")
 
     return True
+
+
+class LockFile:
+    """Context manager for lock file to prevent concurrent execution.
+
+    Acquires a lock file on entry and releases it on exit. If a recent lock
+    file exists (age < timeout), raises LockAcquisitionError.
+    Stale lock files (age >= timeout) are automatically cleaned up.
+
+    Args:
+        lock_path: Path to the lock file
+        timeout: Maximum age (seconds) before lock is considered stale
+        logger: Logger instance for debug/warning messages
+
+    Raises:
+        LockAcquisitionError: If a recent lock file exists (another instance running)
+
+    Example:
+        try:
+            with LockFile(Path("/tmp/myapp.lock"), timeout=300, logger=logger):
+                # Critical section - only one instance runs
+                do_work()
+        except LockAcquisitionError:
+            # Another instance is running, exit gracefully
+            return 0
+    """
+
+    def __init__(self, lock_path: Path, timeout: int, logger: logging.Logger):
+        self.lock_path = lock_path
+        self.timeout = timeout
+        self.logger = logger
+
+    def __enter__(self) -> "LockFile":
+        """Acquire lock using unified lock validation and acquisition logic.
+
+        Uses validate_and_acquire_lock() for PID-based validation,
+        stale lock cleanup, and atomic lock file creation.
+
+        Raises:
+            LockAcquisitionError: If lock is held by another process
+            RuntimeError: If lock validation fails unexpectedly
+        """
+        if not validate_and_acquire_lock(self.lock_path, self.timeout, self.logger):
+            # Lock is held by another process - get age for error message
+            try:
+                age = time.time() - self.lock_path.stat().st_mtime
+            except (OSError, FileNotFoundError):
+                age = 0.0
+            raise LockAcquisitionError(self.lock_path, age)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self.lock_path.exists():
+            self.lock_path.unlink()
+            self.logger.debug(f"Lock released: {self.lock_path}")
