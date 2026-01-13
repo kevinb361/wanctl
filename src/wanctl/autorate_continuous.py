@@ -1218,6 +1218,18 @@ def main() -> int | None:
     metrics_server = None
 
     def handle_signal(signum, frame):
+        """Signal handler for SIGTERM and SIGINT.
+
+        Sets shutdown event to allow control loop to exit gracefully. Logs shutdown
+        message for each WAN controller with signal number for diagnostics.
+
+        This is a nested function within main() that will be extracted to module scope
+        in Phase 6 Plan 5 for improved testability and reusability.
+
+        Args:
+            signum (int): Signal number received (e.g., 15 for SIGTERM, 2 for SIGINT)
+            frame: Current stack frame (unused)
+        """
         # Log shutdown on first signal
         for wan_info in controller.wan_controllers:
             wan_info['logger'].info(f"Received signal {signum}, shutting down...")
