@@ -24,9 +24,7 @@ import argparse
 import atexit
 import json
 import logging
-import signal
 import sys
-import threading
 import time
 import traceback
 from pathlib import Path
@@ -35,6 +33,11 @@ from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
+from ..signal_utils import (
+    get_shutdown_event,
+    is_shutdown_requested,
+    register_signal_handlers,
+)
 from ..metrics import record_steering_state, record_steering_transition
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import get_router_client
@@ -92,56 +95,6 @@ ASSESSMENT_INTERVAL_SECONDS = 0.05    # Time between assessments (daemon cycle i
 MIN_SANE_BASELINE_RTT = 10.0
 MAX_SANE_BASELINE_RTT = 60.0
 BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
-
-
-# =============================================================================
-# SIGNAL HANDLING (W5: Graceful Shutdown)
-# =============================================================================
-
-# Thread-safe shutdown event for graceful termination
-# Using threading.Event() eliminates race conditions between signal handler and main loop
-_shutdown_event = threading.Event()
-
-
-def _signal_handler(signum: int, frame) -> None:
-    """
-    Signal handler for SIGTERM and SIGINT.
-
-    Sets the shutdown event to allow the main loop to exit gracefully.
-    Thread-safe: uses threading.Event() instead of boolean flag.
-
-    Args:
-        signum: Signal number received
-        frame: Current stack frame (unused)
-    """
-    # Note: logging in signal handlers can be unsafe, so we just set the event.
-    # The main loop will log the shutdown with the appropriate context.
-    # Signal number can be retrieved later if needed via inspection of the event.
-    _shutdown_event.set()
-
-
-def register_signal_handlers() -> None:
-    """
-    Register signal handlers for graceful shutdown.
-
-    Registers handlers for:
-      - SIGTERM: Sent by systemd on service stop
-      - SIGINT: Sent on Ctrl+C (keyboard interrupt)
-
-    Should be called early in main() before any long-running operations.
-    """
-    signal.signal(signal.SIGTERM, _signal_handler)
-    signal.signal(signal.SIGINT, _signal_handler)
-
-
-def is_shutdown_requested() -> bool:
-    """
-    Check if shutdown has been requested via signal.
-
-    Returns:
-        True if SIGTERM or SIGINT has been received, False otherwise.
-    """
-    return _shutdown_event.is_set()
 
 
 # =============================================================================
@@ -1113,9 +1066,12 @@ def main():
     if HAVE_SYSTEMD:
         logger.info("Systemd watchdog support enabled")
 
+    # Get shutdown event for direct access in timed waits
+    shutdown_event = get_shutdown_event()
+
     try:
         # Main event loop - runs continuously until shutdown signal
-        while not _shutdown_event.is_set():
+        while not shutdown_event.is_set():
             cycle_start = time.monotonic()
 
             # Run one cycle
@@ -1148,8 +1104,8 @@ def main():
 
             # Sleep for remainder of cycle interval (interruptible)
             sleep_time = max(0, config.measurement_interval - elapsed)
-            if sleep_time > 0 and not _shutdown_event.is_set():
-                _shutdown_event.wait(timeout=sleep_time)
+            if sleep_time > 0 and not shutdown_event.is_set():
+                shutdown_event.wait(timeout=sleep_time)
 
         logger.info("Shutdown signal received, exiting gracefully")
         return 0
