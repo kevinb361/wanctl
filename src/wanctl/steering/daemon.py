@@ -970,6 +970,37 @@ class SteeringDaemon:
 # =============================================================================
 
 def main():
+    """Main entry point for adaptive multi-WAN steering daemon.
+
+    Runs continuous steering control loop that monitors congestion state from
+    autorate daemons and makes routing decisions to steer latency-sensitive
+    traffic between WANs. Uses hysteresis-based state machine to prevent
+    flapping while ensuring responsive failover.
+
+    The daemon performs these operations in each cycle:
+    - Checks congestion state from autorate state files
+    - Measures current RTT to detect network issues
+    - Updates baseline RTT from autorate measurements
+    - Applies hysteresis logic to determine steering state
+    - Enables/disables routing rule when state transitions occur
+    - Persists steering history and state to survive restarts
+
+    Operational modes:
+    - Normal: Continuous daemon mode with cycle-based control loop
+    - Reset: Clears state file and disables steering (--reset flag)
+
+    Signal handling:
+    - SIGTERM/SIGINT: Graceful shutdown with state save and lock cleanup
+    - Uses event-based sleep for immediate shutdown response
+
+    Optional systemd watchdog support:
+    - Notifies systemd on each successful cycle
+    - Stops watchdog after 3 consecutive failures (triggers restart)
+    - Reports degraded status when unhealthy
+
+    Returns:
+        int: Exit code - 0 for success, 1 for error, 130 for interrupt
+    """
     parser = argparse.ArgumentParser(
         description="Adaptive Multi-WAN Steering Daemon"
     )
