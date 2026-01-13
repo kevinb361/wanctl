@@ -56,6 +56,21 @@ BINARY_SEARCH_ITERATIONS = 5
 
 # Console colors
 class Colors:
+    """ANSI color codes for terminal output formatting.
+
+    Provides color constants for styled console output during calibration.
+    Uses standard ANSI escape sequences for terminal color rendering.
+
+    Attributes:
+        HEADER: Magenta color for headers
+        BLUE: Blue color for section dividers
+        CYAN: Cyan color for informational text
+        GREEN: Green color for success messages
+        YELLOW: Yellow color for warnings
+        RED: Red color for errors
+        BOLD: Bold text formatting
+        END: Reset to default terminal colors
+    """
     HEADER = '\033[95m'
     BLUE = '\033[94m'
     CYAN = '\033[96m'
