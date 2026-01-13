@@ -1,14 +1,30 @@
 """Path and file system utilities for wanctl.
 
 Consolidates common path handling patterns:
+- Project root detection via CAKE_ROOT env or file-based discovery
 - Safe directory creation with error handling
 - Path normalization and validation
 - File existence checks with proper error messages
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Optional, Union
+
+
+def get_cake_root() -> Path:
+    """Get the project root directory.
+
+    Uses CAKE_ROOT environment variable if set, otherwise uses file-based
+    detection (two levels up from this module file).
+
+    Returns:
+        Path to the project root directory.
+    """
+    if "CAKE_ROOT" in os.environ:
+        return Path(os.environ["CAKE_ROOT"]).resolve()
+    return Path(__file__).resolve().parents[2]
 
 
 def ensure_directory_exists(
