@@ -584,6 +584,17 @@ class SteeringDaemon:
             Current RTT or None if all retries fail and no fallback available
         """
         def fallback_to_history():
+            """Fallback to historical RTT data when current measurement fails.
+
+            Uses moving average of last N RTT values as fallback when ping fails.
+            Prevents steering disruption during transient measurement failures.
+
+            This is a private implementation detail for measurement resilience (W7 fix).
+            Returns the most recent RTT from state history if available.
+
+            Returns:
+                float | None: Historical RTT average in ms, or None if no history available
+            """
             state = self.state_mgr.state
             if state.get("history_rtt") and len(state["history_rtt"]) > 0:
                 last_rtt = state["history_rtt"][-1]
