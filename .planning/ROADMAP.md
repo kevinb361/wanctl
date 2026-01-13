@@ -141,14 +141,14 @@ Plans:
 **Goal**: Add docstrings and extract signal handlers for immediate code clarity improvements
 **Depends on**: v1.0 milestone complete
 **Research**: Unlikely (internal documentation and refactoring)
-**Plans**: 6 plans (3/6 complete)
+**Plans**: 6 plans (4/6 complete)
 
 Plans:
 
 - [x] 06-01: Docstrings for autorate_continuous.py (main, handle_signal)
 - [x] 06-02: Docstrings for steering/daemon.py (main, fallback_to_history)
 - [x] 06-03: Docstrings for calibrate.py (Colors, main, signal_handler)
-- [ ] 06-04: Docstrings for state_manager.py
+- [x] 06-04: Docstrings for state_manager.py (validator closures)
 - [ ] 06-05: Extract signal handler to signal_utils.py
 - [ ] 06-06: Extract signal handler in steering/daemon.py
 
