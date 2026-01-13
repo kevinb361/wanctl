@@ -61,6 +61,19 @@ from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_
 DEFAULT_BASELINE_UPDATE_THRESHOLD_MS = 3.0
 
 # Daemon cycle interval - target time between cycle starts (seconds)
+# Production standard: 0.05s (50ms, 20Hz polling) - validated Phase 2 (2026-01-13)
+# - 40x faster than original 2s baseline, sub-second congestion detection
+# - Proven stable: 0% router CPU idle, 45% peak under RRUL stress
+# - Utilization: 60-80% (30-40ms execution vs 50ms interval)
+#
+# Time-constant preservation when changing intervals:
+# - New EWMA alpha = Old alpha × (New interval / Old interval)
+# - New sample counts = Old samples × (Old interval / New interval)
+# - Preserves wall-clock smoothing behavior
+#
+# Conservative alternatives: 100ms (20x speed, 2x headroom) or 250ms (8x speed, 4x headroom)
+# See docs/PRODUCTION_INTERVAL.md for validation results and configuration guidance
+#
 # With 0.05-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~80 cycles = 4 seconds
 CYCLE_INTERVAL_SECONDS = 0.05
 

@@ -76,6 +76,13 @@ DEFAULT_QUEUE_EWMA_ALPHA = 0.4
 
 # History and state limits
 MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
+
+# Production standard: 0.05s interval, 2400-sample history (validated Phase 2, 2026-01-13)
+# - Synchronizes with autorate_continuous.py CYCLE_INTERVAL_SECONDS
+# - 40x faster than original 2s baseline
+# - History: 2400 samples × 0.05s = 120 seconds (2-minute window)
+# - Sample counts scaled proportionally: bad=320 (16s), good=600 (30s)
+# See docs/PRODUCTION_INTERVAL.md for time-constant preservation methodology
 MAX_HISTORY_SAMPLES = 2400            # Maximum samples in history (2 minutes at 0.05s intervals)
 ASSESSMENT_INTERVAL_SECONDS = 0.05    # Time between assessments (daemon cycle interval)
 
