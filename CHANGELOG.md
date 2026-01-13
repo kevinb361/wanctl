@@ -13,11 +13,78 @@ This release represents 18+ days of production validation with 231,000+ autorate
 and 604,000+ steering assessments. All critical security issues resolved, comprehensive
 test coverage (474 tests), and enterprise-grade observability.
 
+### Performance Optimizations (2026-01-13)
+
+**50ms cycle interval** - Optimization milestone complete, delivering **40x speed improvement** over original 2s baseline.
+
+#### Optimization Results
+
+- **Cycle Interval:** 2s → 50ms (0.5Hz → 20Hz polling)
+- **Congestion Detection:** 1-2s → 50-100ms (sub-second response)
+- **Router CPU Impact:** 0% at idle (20Hz REST API polling)
+- **CPU Under Load:** 45% peak during RRUL stress (comfortable headroom)
+- **Validation:** 3-minute RRUL bidirectional stress test passed
+- **Baseline Stability:** Zero drift with extreme EWMA alpha values (0.0005-0.000375)
+- **Timing Consistency:** ±1ms on DSL, ±10ms on cable (acceptable variance)
+
+#### Phase 2: Interval Optimization Testing
+
+**250ms Interval Test (Plan 02-01):**
+
+- 8x faster than original 2s baseline
+- Proven stable over 28-minute test
+- Router CPU: 1-3% under load
+- Utilization: 12-16% (excellent headroom)
+- Documentation: `docs/INTERVAL_TESTING_250MS.md`
+
+**50ms Extreme Interval Test (Plan 02-03):**
+
+- 40x faster than original 2s baseline
+- Proven stable: 11-minute test + 3-minute RRUL stress
+- Router CPU: 0% idle, 45% peak under stress
+- Utilization: 60-80% (practical performance limit)
+- Timing: ATT ±1ms (exceptional), Spectrum ±10ms (acceptable)
+- RRUL Results: Sub-second detection, perfect baseline stability, zero errors
+- Documentation: `docs/INTERVAL_TESTING_50MS.md`, `/tmp/rrul-test-50ms/STRESS_TEST_SUMMARY.md`
+
+#### Phase 3: Production Finalization
+
+**50ms Selected as Production Standard (Plan 03-01):**
+
+- Maximum speed with proven stability
+- Configuration verified across all services
+- Time-constant preservation methodology documented
+- Conservative alternatives documented (100ms, 250ms)
+- Documentation: `docs/PRODUCTION_INTERVAL.md`
+
+#### Technical Details
+
+**Time-Constant Preservation:**
+
+- EWMA alpha values scaled proportionally with interval changes
+- Steering sample counts scaled to maintain wall-clock timing
+- Formula: New Alpha = Old Alpha × (New Interval / Old Interval)
+- Result: Identical congestion response behavior regardless of polling rate
+
+**Configuration Changes:**
+
+- `CYCLE_INTERVAL_SECONDS`: 2.0 → 0.05 (autorate daemon)
+- `ASSESSMENT_INTERVAL_SECONDS`: 2.0 → 0.05 (steering daemon)
+- EWMA alphas: Reduced 40x (e.g., 0.02 → 0.0005 for Spectrum baseline)
+- Steering samples: Increased 40x (e.g., 8 → 320 bad samples for 16s activation)
+- Schema validation: Extended to support extreme alpha values (min 0.0001)
+
+**Performance Boundary:**
+
+- 50ms represents practical limit (60-80% cycle utilization)
+- Execution time: 30-40ms per cycle (from Phase 1 profiling)
+- Conservative alternatives available: 100ms (20x speed, 2x headroom), 250ms (8x speed, 4x headroom)
+
 ### Complete Feature Reference
 
 #### Adaptive Bandwidth Control
 
-- **Continuous RTT Monitoring** - 2-second control loop measures latency and adjusts bandwidth in real-time
+- **Continuous RTT Monitoring** - 50ms control loop (configurable) measures latency and adjusts bandwidth in real-time
 - **4-State Download Model** - GREEN/YELLOW/SOFT_RED/RED state machine with per-state floor enforcement
 - **3-State Upload Model** - GREEN/YELLOW/RED (upload is less latency-sensitive)
 - **EWMA Smoothing** - Exponential weighted moving average for stable RTT and rate tracking
