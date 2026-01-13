@@ -5,13 +5,19 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=wanctl
 Group=wanctl
 
 # FHS paths
 WorkingDirectory=/opt/wanctl
 ExecStart=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml
+
+# Daemon lifecycle
+Restart=on-failure
+RestartSec=5s
+# Watchdog: daemon pings every 2s cycle, 30s timeout gives 15x margin
+WatchdogSec=30s
 
 # Environment
 Environment=PYTHONPATH=/opt

@@ -89,13 +89,22 @@ if [[ "$ENABLE_STEERING" == "true" ]]; then
         print_warning "Create steering config before enabling"
     else
         echo "Enabling steering..."
-        systemctl enable steering.timer
-        systemctl start steering.timer
-        print_success "steering.timer enabled and started"
+
+        # Disable old timer-based deployment if exists (upgrade path)
+        if systemctl is-enabled steering.timer &>/dev/null; then
+            echo "Disabling old steering.timer (migrating to daemon mode)..."
+            systemctl stop steering.timer 2>/dev/null || true
+            systemctl disable steering.timer 2>/dev/null || true
+        fi
+
+        # Enable daemon service
+        systemctl enable steering.service
+        systemctl start steering.service
+        print_success "steering.service enabled and started (daemon mode)"
     fi
 fi
 
 # Show status
 echo ""
-echo "Active timers:"
-systemctl list-timers 'wanctl@*' 'steering*' --no-pager 2>/dev/null || true
+echo "Active services:"
+systemctl list-units 'wanctl@*' 'steering.service' --no-pager 2>/dev/null || true
