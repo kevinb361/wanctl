@@ -53,6 +53,56 @@ from wanctl.state_utils import atomic_write_json, safe_json_load_file
 from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
 
 # =============================================================================
+# SIGNAL HANDLING
+# =============================================================================
+
+# Thread-safe shutdown event for graceful termination
+# Using threading.Event() eliminates race conditions between signal handler and main loop
+_shutdown_event = threading.Event()
+
+
+def _signal_handler(signum: int, frame) -> None:
+    """
+    Signal handler for SIGTERM and SIGINT.
+
+    Sets the shutdown event to allow the main loop to exit gracefully.
+    Thread-safe: uses threading.Event() instead of boolean flag.
+
+    Args:
+        signum: Signal number received
+        frame: Current stack frame (unused)
+    """
+    # Note: logging in signal handlers can be unsafe, so we just set the event.
+    # The main loop will log the shutdown with the appropriate context.
+    # Signal number can be retrieved later if needed via inspection of the event.
+    _shutdown_event.set()
+
+
+def register_signal_handlers() -> None:
+    """
+    Register signal handlers for graceful shutdown.
+
+    Registers handlers for:
+      - SIGTERM: Sent by systemd on service stop
+      - SIGINT: Sent on Ctrl+C (keyboard interrupt)
+
+    Should be called early in main() before any long-running operations.
+    """
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
+
+def is_shutdown_requested() -> bool:
+    """
+    Check if shutdown has been requested via signal.
+
+    Returns:
+        True if SIGTERM or SIGINT has been received, False otherwise.
+    """
+    return _shutdown_event.is_set()
+
+
+# =============================================================================
 # CONSTANTS
 # =============================================================================
 
