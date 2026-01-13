@@ -25,8 +25,7 @@ from wanctl.config_validation_utils import (
 )
 from wanctl.error_handling import handle_errors
 from wanctl.health_check import start_health_server, update_health_status
-from wanctl.lock_utils import validate_and_acquire_lock
-from wanctl.lockfile import LockAcquisitionError, LockFile
+from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
 from wanctl.metrics import (
     record_autorate_cycle,
