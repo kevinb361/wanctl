@@ -883,26 +883,8 @@ Examples:
 
     args = parser.parse_args()
 
-    # Handle Ctrl+C gracefully
-    def signal_handler(sig, frame):
-        """Signal handler for SIGINT (Ctrl+C).
-
-        Prints interruption message and exits with code 130 (128 + SIGINT).
-        Allows graceful cancellation during calibration runs without leaving
-        router in inconsistent state.
-
-        Args:
-            sig: Signal number received (SIGINT=2)
-            frame: Current stack frame (unused)
-
-        Note:
-            This is a nested function inside main() - will be extracted to
-            module level in Phase 6 Plan 6 for consistency with other daemons.
-        """
-        print("\n\nCalibration interrupted.")
-        sys.exit(130)
-
-    signal.signal(signal.SIGINT, signal_handler)
+    # Register signal handlers
+    register_signal_handlers()
 
     # Run calibration
     result = run_calibration(
