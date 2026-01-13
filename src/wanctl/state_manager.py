@@ -156,6 +156,17 @@ def string_enum(*allowed: str) -> ValidatorFunc[str]:
     allowed_set = set(allowed)
 
     def validator(value: Any) -> str:
+        """Validate string value is in allowed set.
+
+        Args:
+            value: Value to validate (will be converted to string)
+
+        Returns:
+            Validated string value
+
+        Raises:
+            ValueError: If value not in allowed set
+        """
         str_val = str(value)
         if str_val not in allowed_set:
             raise ValueError(f"Value '{str_val}' not in allowed set: {allowed_set}")
