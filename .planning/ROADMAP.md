@@ -184,7 +184,7 @@ Plans:
 Plans:
 
 - [x] 08-01: Signal handling extraction (signal_utils.py)
-- [ ] 08-02: Systemd utilities extraction (systemd_utils.py)
+- [x] 08-02: Systemd utilities extraction (systemd_utils.py)
 - [ ] 08-03: Split Steering Config loading (15 helper methods)
 
 #### Phase 9: Utility Consolidation - Part 1
@@ -283,7 +283,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 5. Measurement Layer Optimization       | v1.0      | N/A            | ⚠️ Partially implemented      | Pre-Phase 1 |
 | 6. Quick Wins                           | v1.1      | 6/6            | ✓ Complete                    | 2026-01-13  |
 | 7. Core Algorithm Analysis              | v1.1      | 3/3            | ✓ Complete                    | 2026-01-13  |
-| 8. Extract Common Helpers               | v1.1      | 1/3            | In progress                   | -           |
+| 8. Extract Common Helpers               | v1.1      | 2/3            | In progress                   | -           |
 | 9. Utility Consolidation - Part 1       | v1.1      | 0/?            | Not started                   | -           |
 | 10. Utility Consolidation - Part 2      | v1.1      | 0/?            | Not started                   | -           |
 | 11. Refactor Long Functions             | v1.1      | 0/?            | Not started                   | -           |
