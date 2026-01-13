@@ -21,16 +21,19 @@ Colocated with autorate_continuous on primary WAN controller.
 """
 
 import argparse
+import atexit
 import json
 import logging
 import signal
 import sys
 import threading
+import time
 import traceback
 from pathlib import Path
 
 from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
+from ..lock_utils import validate_and_acquire_lock
 from ..lockfile import LockAcquisitionError, LockFile
 from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
@@ -1028,40 +1031,91 @@ def main():
         logger.info("Reset complete")
         return 0
 
-    # Acquire lock
-    try:
-        with LockFile(config.lock_file, config.lock_timeout, logger):
-            # Check for shutdown before starting cycle
-            if is_shutdown_requested():
-                logger.info("Shutdown requested before cycle, exiting gracefully")
-                return 0
+    # Acquire lock at startup (held for daemon lifetime)
+    if not validate_and_acquire_lock(config.lock_file, config.lock_timeout, logger):
+        logger.error("Another instance is running, refusing to start")
+        return 1
 
-            # Create daemon
-            daemon = SteeringDaemon(
-                config, state_mgr, router,
-                rtt_measurement, baseline_loader, logger
-            )
+    # Register emergency cleanup handler for lock file
+    def emergency_lock_cleanup():
+        """Emergency cleanup - runs via atexit if finally block doesn't complete."""
+        try:
+            config.lock_file.unlink(missing_ok=True)
+        except OSError:
+            pass  # Best effort - nothing we can do
+
+    atexit.register(emergency_lock_cleanup)
+
+    # Check for shutdown before starting daemon
+    if is_shutdown_requested():
+        logger.info("Shutdown requested before startup, exiting gracefully")
+        config.lock_file.unlink(missing_ok=True)
+        return 0
+
+    # Create daemon
+    daemon = SteeringDaemon(
+        config, state_mgr, router,
+        rtt_measurement, baseline_loader, logger
+    )
+
+    # Optional systemd watchdog support
+    try:
+        from systemd.daemon import notify as sd_notify
+        HAVE_SYSTEMD = True
+    except ImportError:
+        HAVE_SYSTEMD = False
+        sd_notify = None
+
+    # Daemon mode variables
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 3
+    watchdog_enabled = True
+
+    logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
+    if HAVE_SYSTEMD:
+        logger.info("Systemd watchdog support enabled")
+
+    try:
+        # Main event loop - runs continuously until shutdown signal
+        while not _shutdown_event.is_set():
+            cycle_start = time.monotonic()
 
             # Run one cycle
-            if not daemon.run_cycle():
-                # Check if failure was due to shutdown
-                if is_shutdown_requested():
-                    logger.info("Cycle interrupted by shutdown signal")
-                    return 0
-                logger.error("Cycle failed")
-                return 1
+            cycle_success = daemon.run_cycle()
 
-            # Check for shutdown after cycle (for clean logging)
-            if is_shutdown_requested():
-                logger.info("Shutdown signal received, cycle completed successfully")
+            elapsed = time.monotonic() - cycle_start
 
-            logger.debug("Cycle complete")
-            return 0
+            # Track consecutive failures for watchdog
+            if cycle_success:
+                consecutive_failures = 0
+            else:
+                consecutive_failures += 1
+                logger.warning(f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")
 
-    except LockAcquisitionError:
-        # Another instance is running - this is normal, not an error
-        logger.debug("Exiting - another instance is running")
+                # Stop watchdog notifications if sustained failures
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+                    watchdog_enabled = False
+                    logger.error(
+                        f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
+                        f"Stopping watchdog - systemd will terminate us."
+                    )
+                    if HAVE_SYSTEMD:
+                        sd_notify("STATUS=Degraded - consecutive failures exceeded threshold")
+
+            # Notify systemd watchdog ONLY if healthy
+            if HAVE_SYSTEMD and watchdog_enabled and cycle_success:
+                sd_notify("WATCHDOG=1")
+            elif HAVE_SYSTEMD and not watchdog_enabled:
+                sd_notify(f"STATUS=Degraded - {consecutive_failures} consecutive failures")
+
+            # Sleep for remainder of cycle interval (interruptible)
+            sleep_time = max(0, config.measurement_interval - elapsed)
+            if sleep_time > 0 and not _shutdown_event.is_set():
+                _shutdown_event.wait(timeout=sleep_time)
+
+        logger.info("Shutdown signal received, exiting gracefully")
         return 0
+
     except KeyboardInterrupt:
         # KeyboardInterrupt may bypass signal handler in some cases
         logger.info("Interrupted by user (KeyboardInterrupt)")
@@ -1074,6 +1128,13 @@ def main():
         logger.error(f"Unhandled exception: {e}")
         logger.error(traceback.format_exc())
         return 1
+    finally:
+        # Cleanup: release lock file
+        logger.info("Shutting down daemon...")
+        if config.lock_file.exists():
+            config.lock_file.unlink()
+            logger.debug(f"Lock released: {config.lock_file}")
+        logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":

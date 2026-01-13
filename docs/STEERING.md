@@ -10,7 +10,7 @@ The steering daemon monitors your primary WAN for congestion and automatically r
 
 ## How It Works
 
-Every 2 seconds:
+The steering daemon runs continuously with a 2-second cycle:
 
 1. **Collect signals** from primary WAN:
    - RTT delta (from autorate state file)
@@ -26,13 +26,16 @@ Every 2 seconds:
    - RED requires 2 consecutive samples (4 seconds) to enable steering
    - GREEN requires 15 consecutive samples (30 seconds) to disable
 
-4. **Control mangle rule** via SSH:
+4. **Control mangle rule** via REST API (or SSH):
    - RED: Enable steering rule
    - GREEN: Disable steering rule
+
+The daemon includes systemd watchdog integration for automatic recovery from hangs.
 
 ## Traffic Classification
 
 **Steered to alternate WAN (latency-sensitive):**
+
 - VoIP/SIP traffic
 - Gaming (common ports)
 - DNS queries
@@ -41,12 +44,14 @@ Every 2 seconds:
 - Small HTTP requests
 
 **Stays on primary WAN (bulk):**
+
 - Large downloads
 - Video streaming
 - Background updates
 - Bulk uploads
 
 Classification is done via RouterOS mangle rules using:
+
 - DSCP marking (EF, AF31)
 - Port-based matching
 - Packet size heuristics
@@ -110,16 +115,19 @@ sudo cp configs/examples/steering.yaml.example /etc/wanctl/steering.yaml
 sudo nano /etc/wanctl/steering.yaml
 
 # Enable service
-sudo systemctl enable --now steering.timer
+sudo systemctl enable --now steering.service
 ```
 
 ## Monitoring
 
 ```bash
 # Service status
-systemctl status steering.timer
+systemctl status steering.service
 
-# Live logs
+# Live logs (journalctl)
+journalctl -u steering.service -f
+
+# Or via log files
 tail -f /var/log/wanctl/steering.log
 
 # Current state
@@ -127,11 +135,13 @@ cat /var/lib/wanctl/steering_state.json
 ```
 
 **Healthy output:**
+
 ```
 [WAN1_GOOD] rtt=0.0ms ewma=0.1ms drops=0 q=0 | congestion=GREEN
 ```
 
 **During congestion:**
+
 ```
 [WAN1_DEGRADED] rtt=45.2ms ewma=38.5ms drops=12 q=85 | congestion=RED
 Enabling steering rule: ADAPTIVE: Steer latency-sensitive to WAN2
@@ -142,6 +152,7 @@ Enabling steering rule: ADAPTIVE: Steer latency-sensitive to WAN2
 ### Never Reroute Mid-Flow
 
 Steering only affects NEW connections. Existing flows continue on their original path. This prevents:
+
 - TCP sequence number issues
 - VoIP call drops
 - Game disconnections
