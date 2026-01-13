@@ -45,7 +45,6 @@ from wanctl.metrics import (
     record_router_update,
     start_metrics_server,
 )
-from wanctl.perf_profiler import PerfTimer
 from wanctl.rate_limiter import RateLimiter
 from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.router_client import get_router_client
@@ -723,188 +722,179 @@ class WANController:
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
         cycle_start = time.monotonic()
-        timer_cycle = PerfTimer("autorate_cycle_total", self.logger)
-        timer_cycle.__enter__()
 
-        try:
-            with PerfTimer("autorate_rtt_measurement", self.logger):
-                measured_rtt = self.measure_rtt()
+        measured_rtt = self.measure_rtt()
 
-            # =====================================================================
-            # ICMP FAILURE HANDLING WITH FALLBACK CHECKS (Mode C)
-            # =====================================================================
-            # When ICMP pings fail, verify connectivity using alternative protocols
-            # (gateway ping, TCP connections) before declaring total failure.
-            # Implements graceful degradation to handle ISP ICMP filtering.
-            # =====================================================================
-            if measured_rtt is None:
-                if self.config.metrics_enabled:
-                    record_ping_failure(self.wan_name)
+        # =====================================================================
+        # ICMP FAILURE HANDLING WITH FALLBACK CHECKS (Mode C)
+        # =====================================================================
+        # When ICMP pings fail, verify connectivity using alternative protocols
+        # (gateway ping, TCP connections) before declaring total failure.
+        # Implements graceful degradation to handle ISP ICMP filtering.
+        # =====================================================================
+        if measured_rtt is None:
+            if self.config.metrics_enabled:
+                record_ping_failure(self.wan_name)
 
-                # Run fallback connectivity checks
-                has_connectivity = self.verify_connectivity_fallback()
+            # Run fallback connectivity checks
+            has_connectivity = self.verify_connectivity_fallback()
 
-                if has_connectivity:
-                    # We have connectivity, just can't measure RTT via ICMP
-                    self.icmp_unavailable_cycles += 1
+            if has_connectivity:
+                # We have connectivity, just can't measure RTT via ICMP
+                self.icmp_unavailable_cycles += 1
 
-                    if self.config.fallback_mode == 'graceful_degradation':
-                        # Mode C: Graceful degradation with cycle-based strategy
-                        if self.icmp_unavailable_cycles == 1:
-                            # Cycle 1: Use last known RTT and continue normally
-                            measured_rtt = self.load_rtt
-                            self.logger.warning(
-                                f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
-                                f"using last RTT={measured_rtt:.1f}ms"
-                            )
-                            # Continue with normal processing below
-                        elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
-                            # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
-                            self.logger.warning(
-                                f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
-                                f"{self.config.fallback_max_cycles}) - freezing rates"
-                            )
-                            self.save_state()
-                            return True  # Success (no watchdog trigger), but skip adjustments
-                        else:
-                            # Cycle 4+: Give up (ICMP down for too long)
-                            self.logger.error(
-                                f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
-                                f"(>{self.config.fallback_max_cycles}) - giving up"
-                            )
-                            return False  # Trigger watchdog restart
-
-                    elif self.config.fallback_mode == 'freeze':
-                        # Mode A: Always freeze rates when ICMP unavailable
-                        self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
-                        self.save_state()
-                        return True
-
-                    elif self.config.fallback_mode == 'use_last_rtt':
-                        # Mode B: Always use last known RTT
+                if self.config.fallback_mode == 'graceful_degradation':
+                    # Mode C: Graceful degradation with cycle-based strategy
+                    if self.icmp_unavailable_cycles == 1:
+                        # Cycle 1: Use last known RTT and continue normally
                         measured_rtt = self.load_rtt
                         self.logger.warning(
-                            f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
-                            f"(mode: use_last_rtt)"
+                            f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
+                            f"using last RTT={measured_rtt:.1f}ms"
                         )
                         # Continue with normal processing below
+                    elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
+                        # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
+                        self.logger.warning(
+                            f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
+                            f"{self.config.fallback_max_cycles}) - freezing rates"
+                        )
+                        self.save_state()
+                        return True  # Success (no watchdog trigger), but skip adjustments
                     else:
-                        # Unknown mode, default to original behavior
-                        self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
-                        return False
+                        # Cycle 4+: Give up (ICMP down for too long)
+                        self.logger.error(
+                            f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
+                            f"(>{self.config.fallback_max_cycles}) - giving up"
+                        )
+                        return False  # Trigger watchdog restart
 
-                else:
-                    # Total connectivity loss confirmed (both ICMP and TCP failed)
-                    self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
-                    return False
-
-            else:
-                # ICMP succeeded - reset fallback counter if it was set
-                if self.icmp_unavailable_cycles > 0:
-                    self.logger.info(
-                        f"{self.wan_name}: ICMP recovered after {self.icmp_unavailable_cycles} cycles"
-                    )
-                    self.icmp_unavailable_cycles = 0
-
-            # At this point, measured_rtt is valid (either from ICMP or last known value)
-            with PerfTimer("autorate_ewma_update", self.logger):
-                self.update_ewma(measured_rtt)
-
-            # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
-            with PerfTimer("autorate_rate_adjust", self.logger):
-                dl_zone, dl_rate = self.download.adjust_4state(
-                    self.baseline_rtt, self.load_rtt,
-                    self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
-                )
-
-                # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
-                ul_zone, ul_rate = self.upload.adjust(
-                    self.baseline_rtt, self.load_rtt,
-                    self.target_delta, self.warn_delta
-                )
-
-            # Log decision
-            delta = self.load_rtt - self.baseline_rtt
-            self.logger.info(
-                f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
-                f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
-                f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-                f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
-            )
-
-            # =====================================================================
-            # FLASH WEAR PROTECTION - Only update router if rates changed
-            # =====================================================================
-            # RouterOS writes queue changes to NAND flash. Sending the same values
-            # repeatedly would cause unnecessary flash wear over time.
-            # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
-            # =====================================================================
-            if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
-                # =====================================================================
-                # RATE LIMITING - Protect router API during instability
-                # =====================================================================
-                # During rapid state oscillations, limit how often we send updates
-                # to prevent router API overload. Skip update if rate limited.
-                # =====================================================================
-                if not self.rate_limiter.can_change():
-                    wait_time = self.rate_limiter.time_until_available()
-                    self.logger.warning(
-                        f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
-                        f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
-                        f"possible instability (next slot in {wait_time:.1f}s)"
-                    )
-                    if self.config.metrics_enabled:
-                        record_rate_limit_event(self.wan_name)
-                    # Still return True - cycle completed, just throttled the update
-                    # Save state to preserve EWMA and streak counters
+                elif self.config.fallback_mode == 'freeze':
+                    # Mode A: Always freeze rates when ICMP unavailable
+                    self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
                     self.save_state()
                     return True
 
-                with PerfTimer("autorate_router_update", self.logger):
-                    success = self.router.set_limits(
-                        wan=self.wan_name,
-                        down_bps=dl_rate,
-                        up_bps=ul_rate
+                elif self.config.fallback_mode == 'use_last_rtt':
+                    # Mode B: Always use last known RTT
+                    measured_rtt = self.load_rtt
+                    self.logger.warning(
+                        f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
+                        f"(mode: use_last_rtt)"
                     )
-
-                if not success:
-                    self.logger.error(f"{self.wan_name}: Failed to apply limits")
+                    # Continue with normal processing below
+                else:
+                    # Unknown mode, default to original behavior
+                    self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
                     return False
 
-                # Record successful change for rate limiting
-                self.rate_limiter.record_change()
-
-                # Record metrics for router update
-                if self.config.metrics_enabled:
-                    record_router_update(self.wan_name)
-
-                # Update tracking after successful write
-                self.last_applied_dl_rate = dl_rate
-                self.last_applied_ul_rate = ul_rate
-                self.logger.debug(f"{self.wan_name}: Applied new limits to router")
             else:
-                self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
+                # Total connectivity loss confirmed (both ICMP and TCP failed)
+                self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+                return False
 
-            # Save state after successful cycle
-            self.save_state()
-
-            # Record metrics if enabled
-            if self.config.metrics_enabled:
-                cycle_duration = time.monotonic() - cycle_start
-                record_autorate_cycle(
-                    wan_name=self.wan_name,
-                    dl_rate_mbps=dl_rate / 1e6,
-                    ul_rate_mbps=ul_rate / 1e6,
-                    baseline_rtt=self.baseline_rtt,
-                    load_rtt=self.load_rtt,
-                    dl_state=dl_zone,
-                    ul_state=ul_zone,
-                    cycle_duration=cycle_duration,
+        else:
+            # ICMP succeeded - reset fallback counter if it was set
+            if self.icmp_unavailable_cycles > 0:
+                self.logger.info(
+                    f"{self.wan_name}: ICMP recovered after {self.icmp_unavailable_cycles} cycles"
                 )
+                self.icmp_unavailable_cycles = 0
 
-            return True
-        finally:
-            timer_cycle.__exit__(None, None, None)
+        # At this point, measured_rtt is valid (either from ICMP or last known value)
+        self.update_ewma(measured_rtt)
+
+        # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
+        dl_zone, dl_rate = self.download.adjust_4state(
+            self.baseline_rtt, self.load_rtt,
+            self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
+        )
+
+        # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
+        ul_zone, ul_rate = self.upload.adjust(
+            self.baseline_rtt, self.load_rtt,
+            self.target_delta, self.warn_delta
+        )
+
+        # Log decision
+        delta = self.load_rtt - self.baseline_rtt
+        self.logger.info(
+            f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
+            f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
+            f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
+            f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
+        )
+
+        # =====================================================================
+        # FLASH WEAR PROTECTION - Only update router if rates changed
+        # =====================================================================
+        # RouterOS writes queue changes to NAND flash. Sending the same values
+        # repeatedly would cause unnecessary flash wear over time.
+        # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
+        # =====================================================================
+        if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
+            # =====================================================================
+            # RATE LIMITING - Protect router API during instability
+            # =====================================================================
+            # During rapid state oscillations, limit how often we send updates
+            # to prevent router API overload. Skip update if rate limited.
+            # =====================================================================
+            if not self.rate_limiter.can_change():
+                wait_time = self.rate_limiter.time_until_available()
+                self.logger.warning(
+                    f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
+                    f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
+                    f"possible instability (next slot in {wait_time:.1f}s)"
+                )
+                if self.config.metrics_enabled:
+                    record_rate_limit_event(self.wan_name)
+                # Still return True - cycle completed, just throttled the update
+                # Save state to preserve EWMA and streak counters
+                self.save_state()
+                return True
+
+            success = self.router.set_limits(
+                wan=self.wan_name,
+                down_bps=dl_rate,
+                up_bps=ul_rate
+            )
+
+            if not success:
+                self.logger.error(f"{self.wan_name}: Failed to apply limits")
+                return False
+
+            # Record successful change for rate limiting
+            self.rate_limiter.record_change()
+
+            # Record metrics for router update
+            if self.config.metrics_enabled:
+                record_router_update(self.wan_name)
+
+            # Update tracking after successful write
+            self.last_applied_dl_rate = dl_rate
+            self.last_applied_ul_rate = ul_rate
+            self.logger.debug(f"{self.wan_name}: Applied new limits to router")
+        else:
+            self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
+
+        # Save state after successful cycle
+        self.save_state()
+
+        # Record metrics if enabled
+        if self.config.metrics_enabled:
+            cycle_duration = time.monotonic() - cycle_start
+            record_autorate_cycle(
+                wan_name=self.wan_name,
+                dl_rate_mbps=dl_rate / 1e6,
+                ul_rate_mbps=ul_rate / 1e6,
+                baseline_rtt=self.baseline_rtt,
+                load_rtt=self.load_rtt,
+                dl_state=dl_zone,
+                ul_state=ul_zone,
+                cycle_duration=cycle_duration,
+            )
+
+        return True
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
