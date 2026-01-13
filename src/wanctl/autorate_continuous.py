@@ -18,25 +18,12 @@ import time
 import traceback
 from pathlib import Path
 
-# Optional systemd integration for watchdog support
-try:
-    from systemd.daemon import notify as sd_notify
-    HAVE_SYSTEMD = True
-except ImportError:
-    HAVE_SYSTEMD = False
-    sd_notify = None
-
 from wanctl.config_base import BaseConfig
 from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
 )
 from wanctl.error_handling import handle_errors
-from wanctl.signal_utils import (
-    get_shutdown_event,
-    is_shutdown_requested,
-    register_signal_handlers,
-)
 from wanctl.health_check import start_health_server, update_health_status
 from wanctl.lock_utils import validate_and_acquire_lock
 from wanctl.lockfile import LockAcquisitionError, LockFile
@@ -52,7 +39,17 @@ from wanctl.rate_limiter import RateLimiter
 from wanctl.rate_utils import enforce_rate_bounds
 from wanctl.router_client import get_router_client
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from wanctl.signal_utils import (
+    get_shutdown_event,
+    is_shutdown_requested,
+    register_signal_handlers,
+)
 from wanctl.state_utils import atomic_write_json, safe_json_load_file
+from wanctl.systemd_utils import (
+    is_systemd_available,
+    notify_degraded,
+    notify_watchdog,
+)
 from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
 
 # =============================================================================
@@ -1255,7 +1252,7 @@ def main() -> int | None:
     # Log startup
     for wan_info in controller.wan_controllers:
         wan_info['logger'].info(f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval")
-        if HAVE_SYSTEMD:
+        if is_systemd_available():
             wan_info['logger'].info("Systemd watchdog support enabled")
 
     try:
@@ -1286,17 +1283,16 @@ def main() -> int | None:
                             f"Sustained failure: {consecutive_failures} consecutive "
                             f"failed cycles. Stopping watchdog - systemd will terminate us."
                         )
-                    if HAVE_SYSTEMD:
-                        sd_notify("STATUS=Degraded - consecutive failures exceeded threshold")
+                    notify_degraded("consecutive failures exceeded threshold")
 
             # Update health check endpoint with current failure count
             update_health_status(consecutive_failures)
 
             # Notify systemd watchdog ONLY if healthy
-            if HAVE_SYSTEMD and watchdog_enabled and cycle_success:
-                sd_notify("WATCHDOG=1")
-            elif HAVE_SYSTEMD and not watchdog_enabled:
-                sd_notify(f"STATUS=Degraded - {consecutive_failures} consecutive failures")
+            if watchdog_enabled and cycle_success:
+                notify_watchdog()
+            elif not watchdog_enabled:
+                notify_degraded(f"{consecutive_failures} consecutive failures")
 
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
