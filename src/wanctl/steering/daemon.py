@@ -157,7 +157,7 @@ class SteeringConfig(BaseConfig):
 
         # Measurement
         {"path": "measurement.interval_seconds", "type": (int, float),
-         "required": True, "min": 1, "max": 60},
+         "required": True, "min": 0.5, "max": 60},
         {"path": "measurement.ping_host", "type": str, "required": True},
         {"path": "measurement.ping_count", "type": int,
          "required": True, "min": 1, "max": 20},
