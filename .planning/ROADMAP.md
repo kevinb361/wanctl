@@ -141,14 +141,14 @@ Plans:
 **Goal**: Add docstrings and extract signal handlers for immediate code clarity improvements
 **Depends on**: v1.0 milestone complete
 **Research**: Unlikely (internal documentation and refactoring)
-**Plans**: 6 plans (2/6 complete)
+**Plans**: 6 plans (3/6 complete)
 
 Plans:
 
 - [x] 06-01: Docstrings for autorate_continuous.py (main, handle_signal)
 - [x] 06-02: Docstrings for steering/daemon.py (main, fallback_to_history)
-- [ ] 06-03: Docstrings for rate_limiter.py
-- [ ] 06-04: Docstrings for baseline_rtt_manager.py
+- [x] 06-03: Docstrings for calibrate.py (Colors, main, signal_handler)
+- [ ] 06-04: Docstrings for state_manager.py
 - [ ] 06-05: Extract signal handler to signal_utils.py
 - [ ] 06-06: Extract signal handler in steering/daemon.py
 
@@ -270,7 +270,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 3. Production Finalization              | v1.0      | 2/2            | ✓ Complete                    | 2026-01-13  |
 | 4. RouterOS Communication Optimization  | v1.0      | N/A            | ✅ Already in production code | Pre-Phase 1 |
 | 5. Measurement Layer Optimization       | v1.0      | N/A            | ⚠️ Partially implemented      | Pre-Phase 1 |
-| 6. Quick Wins                           | v1.1      | 0/?            | Not started                   | -           |
+| 6. Quick Wins                           | v1.1      | 3/6            | In progress                   | -           |
 | 7. Core Algorithm Analysis              | v1.1      | 0/?            | Not started                   | -           |
 | 8. Extract Common Helpers               | v1.1      | 0/?            | Not started                   | -           |
 | 9. Utility Consolidation - Part 1       | v1.1      | 0/?            | Not started                   | -           |
