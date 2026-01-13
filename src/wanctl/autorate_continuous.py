@@ -1260,33 +1260,14 @@ def main() -> int | None:
 
     atexit.register(emergency_lock_cleanup)
 
-    shutdown_event = threading.Event()
+    # Register signal handlers for graceful shutdown
+    register_signal_handlers()
+
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 3
     watchdog_enabled = True
     health_server = None
     metrics_server = None
-
-    def handle_signal(signum, frame):
-        """Signal handler for SIGTERM and SIGINT.
-
-        Sets shutdown event to allow control loop to exit gracefully. Logs shutdown
-        message for each WAN controller with signal number for diagnostics.
-
-        This is a nested function within main() that will be extracted to module scope
-        in Phase 6 Plan 5 for improved testability and reusability.
-
-        Args:
-            signum (int): Signal number received (e.g., 15 for SIGTERM, 2 for SIGINT)
-            frame: Current stack frame (unused)
-        """
-        # Log shutdown on first signal
-        for wan_info in controller.wan_controllers:
-            wan_info['logger'].info(f"Received signal {signum}, shutting down...")
-        shutdown_event.set()
-
-    signal.signal(signal.SIGTERM, handle_signal)
-    signal.signal(signal.SIGINT, handle_signal)
 
     # Start metrics server if enabled (use first WAN's config for settings)
     first_config = controller.wan_controllers[0]['config']
@@ -1325,7 +1306,7 @@ def main() -> int | None:
             wan_info['logger'].info("Systemd watchdog support enabled")
 
     try:
-        while not shutdown_event.is_set():
+        while not is_shutdown_requested():
             cycle_start = time.monotonic()
 
             # Run cycle - returns True if successful
@@ -1366,8 +1347,14 @@ def main() -> int | None:
 
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
-            if sleep_time > 0 and not shutdown_event.is_set():
+            if sleep_time > 0 and not is_shutdown_requested():
                 time.sleep(sleep_time)
+
+        # Log shutdown when detected (safe - in main loop, not signal handler)
+        if is_shutdown_requested():
+            for wan_info in controller.wan_controllers:
+                wan_info['logger'].info("Shutdown requested, exiting gracefully...")
+
     finally:
         # CLEANUP PRIORITY: locks > connections > servers
         # Lock cleanup is most critical - enables restart if we crash mid-cleanup
