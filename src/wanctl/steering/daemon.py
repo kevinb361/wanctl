@@ -33,16 +33,21 @@ from ..config_base import BaseConfig
 from ..config_validation_utils import validate_alpha
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
+from ..metrics import record_steering_state, record_steering_transition
+from ..retry_utils import measure_with_retry, verify_with_retry
+from ..router_client import get_router_client
+from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..signal_utils import (
     get_shutdown_event,
     is_shutdown_requested,
     register_signal_handlers,
 )
-from ..metrics import record_steering_state, record_steering_transition
-from ..retry_utils import measure_with_retry, verify_with_retry
-from ..router_client import get_router_client
-from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..state_manager import StateSchema, SteeringStateManager
+from ..systemd_utils import (
+    is_systemd_available,
+    notify_degraded,
+    notify_watchdog,
+)
 from ..timeouts import DEFAULT_STEERING_PING_TOTAL_TIMEOUT, DEFAULT_STEERING_SSH_TIMEOUT
 from .cake_stats import CakeStatsReader, CongestionSignals
 from .congestion_assessment import (
@@ -1049,21 +1054,13 @@ def main():
         rtt_measurement, baseline_loader, logger
     )
 
-    # Optional systemd watchdog support
-    try:
-        from systemd.daemon import notify as sd_notify
-        HAVE_SYSTEMD = True
-    except ImportError:
-        HAVE_SYSTEMD = False
-        sd_notify = None
-
     # Daemon mode variables
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 3
     watchdog_enabled = True
 
     logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
-    if HAVE_SYSTEMD:
+    if is_systemd_available():
         logger.info("Systemd watchdog support enabled")
 
     # Get shutdown event for direct access in timed waits
@@ -1093,14 +1090,13 @@ def main():
                         f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
                         f"Stopping watchdog - systemd will terminate us."
                     )
-                    if HAVE_SYSTEMD:
-                        sd_notify("STATUS=Degraded - consecutive failures exceeded threshold")
+                    notify_degraded("consecutive failures exceeded threshold")
 
             # Notify systemd watchdog ONLY if healthy
-            if HAVE_SYSTEMD and watchdog_enabled and cycle_success:
-                sd_notify("WATCHDOG=1")
-            elif HAVE_SYSTEMD and not watchdog_enabled:
-                sd_notify(f"STATUS=Degraded - {consecutive_failures} consecutive failures")
+            if watchdog_enabled and cycle_success:
+                notify_watchdog()
+            elif not watchdog_enabled:
+                notify_degraded(f"{consecutive_failures} consecutive failures")
 
             # Sleep for remainder of cycle interval (interruptible)
             sleep_time = max(0, config.measurement_interval - elapsed)
