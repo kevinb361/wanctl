@@ -38,7 +38,7 @@ class SteeringLogger:
         good_count: int = 0,
         bad_samples_threshold: int = 1,
         good_samples_threshold: int = 1,
-        cake_aware: bool = False
+        cake_aware: bool = False,
     ) -> None:
         """Log measurement cycle with RTT, delta, and state context.
 
@@ -57,14 +57,13 @@ class SteeringLogger:
             good_samples_threshold: Threshold for good samples
             cake_aware: If True, use CAKE-aware format with signals
         """
-        state_suffix = current_state.split('_')[-1] if '_' in current_state else current_state
+        state_suffix = current_state.split("_")[-1] if "_" in current_state else current_state
         header = f"[{self.wan_name}_{state_suffix}]"
 
         if cake_aware and signals is not None:
             # CAKE-aware format: show all signals
             self.logger.info(
-                f"{header} {signals} | "
-                f"congestion={getattr(signals, '_congestion_state', 'N/A')}"
+                f"{header} {signals} | congestion={getattr(signals, '_congestion_state', 'N/A')}"
             )
         else:
             # RTT-only format: detailed RTT and counter info
@@ -81,7 +80,7 @@ class SteeringLogger:
         new_state: str,
         bad_count: int = 0,
         good_count: int = 0,
-        reason: str | None = None
+        reason: str | None = None,
     ) -> None:
         """Log state machine transition with context.
 
@@ -99,11 +98,7 @@ class SteeringLogger:
         )
 
     def log_failure_with_counter(
-        self,
-        failure_type: str,
-        failure_count: int,
-        max_failures: int,
-        context: str | None = None
+        self, failure_type: str, failure_count: int, max_failures: int, context: str | None = None
     ) -> None:
         """Log repeated failures with degradation tracking.
 
@@ -133,16 +128,11 @@ class SteeringLogger:
         elif failure_count > max_failures:
             # Sustained degraded mode - debug level to reduce log noise
             self.logger.debug(
-                f"{failure_type} still unavailable{context_str} "
-                f"(failure {failure_count})"
+                f"{failure_type} still unavailable{context_str} (failure {failure_count})"
             )
 
     def log_rule_state(
-        self,
-        rule_comment: str,
-        state: str,
-        verified: bool = False,
-        attempts: int = 1
+        self, rule_comment: str, state: str, verified: bool = False, attempts: int = 1
     ) -> None:
         """Log rule enable/disable with verification status.
 
@@ -157,13 +147,11 @@ class SteeringLogger:
                 self.logger.info(f"Steering rule {state}: {rule_comment}")
             else:
                 self.logger.info(
-                    f"Steering rule {state} and verified: {rule_comment} "
-                    f"(took {attempts} attempts)"
+                    f"Steering rule {state} and verified: {rule_comment} (took {attempts} attempts)"
                 )
         else:
             self.logger.error(
-                f"Steering rule {state} FAILED verification: {rule_comment} "
-                f"(attempt {attempts})"
+                f"Steering rule {state} FAILED verification: {rule_comment} (attempt {attempts})"
             )
 
     def log_retry_attempt(
@@ -172,7 +160,7 @@ class SteeringLogger:
         attempt: int,
         max_attempts: int,
         success: bool = False,
-        context: str | None = None
+        context: str | None = None,
     ) -> None:
         """Log retry attempt with progress tracking.
 
@@ -186,19 +174,14 @@ class SteeringLogger:
         context_str = f" ({context})" if context else ""
 
         if success:
-            self.logger.info(
-                f"{operation} succeeded on attempt {attempt}{context_str}"
-            )
+            self.logger.info(f"{operation} succeeded on attempt {attempt}{context_str}")
         else:
             self.logger.warning(
                 f"{operation} failed on attempt {attempt}/{max_attempts}{context_str}"
             )
 
     def log_baseline_update(
-        self,
-        old_baseline: float | None,
-        new_baseline: float,
-        change_threshold: float = 5.0
+        self, old_baseline: float | None, new_baseline: float, change_threshold: float = 5.0
     ) -> None:
         """Log baseline RTT changes with significant change detection.
 
@@ -208,9 +191,7 @@ class SteeringLogger:
             change_threshold: Log at INFO if change > this (ms)
         """
         if old_baseline is None:
-            self.logger.info(
-                f"Baseline RTT initialized: {new_baseline:.2f}ms"
-            )
+            self.logger.info(f"Baseline RTT initialized: {new_baseline:.2f}ms")
         else:
             change = abs(new_baseline - old_baseline)
             if change > change_threshold:
@@ -231,9 +212,7 @@ class SteeringLogger:
             reason: Why degraded mode entered (e.g., "CAKE stats unavailable")
             fallback: What we're falling back to (e.g., "RTT-only decisions")
         """
-        self.logger.warning(
-            f"Entering degraded mode: {reason}, using {fallback}"
-        )
+        self.logger.warning(f"Entering degraded mode: {reason}, using {fallback}")
 
     def log_degraded_mode_recovery(self, recovered_service: str) -> None:
         """Log recovery from degraded mode.
@@ -241,16 +220,14 @@ class SteeringLogger:
         Args:
             recovered_service: What service recovered (e.g., "CAKE stats")
         """
-        self.logger.info(
-            f"Recovered from degraded mode: {recovered_service} available again"
-        )
+        self.logger.info(f"Recovered from degraded mode: {recovered_service} available again")
 
     def log_debug_cycle_state(
         self,
         current_state: str,
         signals: CongestionSignals,
         assessment: str,
-        details: str | None = None
+        details: str | None = None,
     ) -> None:
         """Log debug information for troubleshooting.
 
@@ -260,17 +237,12 @@ class SteeringLogger:
             assessment: Assessment result (GREEN, YELLOW, RED, etc)
             details: Optional additional details
         """
-        state_suffix = current_state.split('_')[-1] if '_' in current_state else current_state
+        state_suffix = current_state.split("_")[-1] if "_" in current_state else current_state
         details_str = f" - {details}" if details else ""
-        self.logger.debug(
-            f"[{self.wan_name}_{state_suffix}] [{assessment}] {signals}{details_str}"
-        )
+        self.logger.debug(f"[{self.wan_name}_{state_suffix}] [{assessment}] {signals}{details_str}")
 
     def log_error_with_context(
-        self,
-        operation: str,
-        error: Exception,
-        context: str | None = None
+        self, operation: str, error: Exception, context: str | None = None
     ) -> None:
         """Log error with context and full traceback at debug level.
 
@@ -280,9 +252,7 @@ class SteeringLogger:
             context: Optional context info
         """
         context_str = f" ({context})" if context else ""
-        self.logger.error(
-            f"{operation} failed{context_str}: {error}"
-        )
+        self.logger.error(f"{operation} failed{context_str}: {error}")
 
     def log_cache_hit(self, cached_value: str, context: str | None = None) -> None:
         """Log use of cached/fallback value.
@@ -293,3 +263,71 @@ class SteeringLogger:
         """
         context_str = f" for {context}" if context else ""
         self.logger.debug(f"Using cached {cached_value}{context_str}")
+
+    def log_state_progress(
+        self,
+        state: str,
+        assessment: str | None,
+        signals: CongestionSignals,
+        counter: int,
+        threshold: int,
+        counter_name: str,
+        detail: str | None = None,
+    ) -> None:
+        """Log state machine progress with counter info."""
+        state_suffix = state.split("_")[-1] if "_" in state else state
+        header = f"[{self.wan_name}_{state_suffix}]"
+        detail_str = f" | {detail}" if detail else ""
+        if assessment:
+            self.logger.info(
+                f"{header} [{assessment}] {signals} | "
+                f"{counter_name}={counter}/{threshold}{detail_str}"
+            )
+        else:
+            self.logger.debug(
+                f"{header} {signals} | {counter_name}={counter}/{threshold}{detail_str}"
+            )
+
+    def log_state_progress_legacy(
+        self,
+        delta: float,
+        threshold: float,
+        counter: int,
+        counter_threshold: int,
+        counter_name: str,
+        comparison: str = ">",
+    ) -> None:
+        """Log legacy mode state progress."""
+        self.logger.debug(
+            f"Delta={delta:.1f}ms {comparison} threshold={threshold}ms, "
+            f"{counter_name}={counter}/{counter_threshold}"
+        )
+
+    def log_transition_detected(
+        self,
+        transition_type: str,
+        signals: CongestionSignals,
+        count: int,
+        cake_aware: bool = True,
+    ) -> None:
+        """Log state transition (degradation or recovery) detected."""
+        if transition_type == "degraded":
+            if cake_aware:
+                self.logger.warning(
+                    f"{self.wan_name} DEGRADED detected - {signals} (sustained {count} samples)"
+                )
+            else:
+                self.logger.warning(
+                    f"{self.wan_name} DEGRADED detected (delta={signals.rtt_delta:.1f}ms "
+                    f"sustained for {count} samples)"
+                )
+        else:  # recovered
+            if cake_aware:
+                self.logger.info(
+                    f"{self.wan_name} RECOVERED - {signals} (sustained {count} samples)"
+                )
+            else:
+                self.logger.info(
+                    f"{self.wan_name} RECOVERED (delta={signals.rtt_delta:.1f}ms "
+                    f"sustained for {count} samples)"
+                )
