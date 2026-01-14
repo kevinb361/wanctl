@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-09)
 ## Current Position
 
 Phase: 15 of 15 (SteeringDaemon Refactoring)
-Plan: 5 of 6 in current phase
-Status: Phase in progress
-Last activity: 2026-01-14 — Completed 15-05-PLAN.md
+Plan: 6 of 6 in current phase
+Status: Phase complete
+Last activity: 2026-01-14 — Completed 15-06-PLAN.md
 
-Progress: █████████████████░░░ 83% (5/6 plans in phase)
+Progress: ████████████████████ 100% (6/6 plans in phase)
 
 ## Performance Metrics
 
@@ -36,12 +36,12 @@ Progress: █████████████████░░░ 83% (5/6 
 | 10. Utility Consolidation - Part 2      | 2/2   | Complete | 4 min    |
 | 11. Refactor Long Functions             | 3/3   | Complete | 5 min    |
 | 14. WANController Refactoring           | 5/5   | Complete | 6 min    |
-| 15. SteeringDaemon Refactoring          | 4/5   | Progress | 18 min   |
+| 15. SteeringDaemon Refactoring          | 6/6   | Complete | 14 min   |
 
 **Recent Trend:**
 
-- Last 5 plans: [15-02 ✓, 15-03 ✓, 15-04 ✓, 15-05 ✓, 15-06 ○]
-- Trend: Excellent - Phase 15 in progress (5/6 plans)
+- Last 5 plans: [15-02 ✓, 15-03 ✓, 15-04 ✓, 15-05 ✓, 15-06 ✓]
+- Trend: Excellent - Phase 15 complete (6/6 plans)
 
 **Current Performance:**
 
@@ -97,7 +97,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Completed 15-05-PLAN.md and created summary
+Stopped at: Completed 15-06-PLAN.md - Phase 15 complete, v1.1 milestone complete
 Resume file: None
 
 ## Milestone Achievements
@@ -473,15 +473,21 @@ Resume file: None
   - Added 15 unit tests for unified state machine
   - Test count increased from 579 to 594
 
-**Remaining:**
+- ✓ 15-06: Integrate Phase2BController confidence scoring (6 min execution)
+  - Added use_confidence_scoring config flag and confidence_config structure
+  - Initialized Phase2BController in SteeringDaemon with dry-run mode default
+  - Added parallel evaluation in update_state_machine()
+  - Added cake_state_history to state schema for sustained detection
+  - Safe deployment: dry_run=True logs decisions without routing changes
 
-- ○ 15-06: TBD (final extraction)
+**Phase 15 Complete:** All 6 plans finished (83 min total execution time)
 
-**Phase 15 Accomplishments So Far:**
+**Phase 15 Accomplishments:**
 
 - Methods extracted from run_cycle(): update_ewma_smoothing(), collect_cake_stats()
 - Methods extracted from state machines: execute_steering_transition()
 - State machine unified: \_update_state_machine_unified() replaces CAKE-aware + legacy
 - Functions extracted from main(): run_daemon_loop()
+- Phase2BController integrated: confidence scoring with dry-run validation mode
 - Total new tests: 66 tests (528 → 594)
 - All protected zones preserved (C5 numeric stability, W8 failure tracking, asymmetric hysteresis)
