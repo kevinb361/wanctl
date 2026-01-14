@@ -8,7 +8,6 @@ Runs as a persistent daemon with internal 2-second control loop.
 """
 import argparse
 import atexit
-import concurrent.futures
 import datetime
 import logging
 import socket
@@ -639,33 +638,21 @@ class WANController:
 
     def measure_rtt(self) -> float | None:
         """
-        Measure RTT and return average in milliseconds
+        Measure RTT and return value in milliseconds.
 
-        For connections with reflector variation (cable): Use median-of-three reflectors
-        For stable connections (DSL, fiber): Single reflector is fine
+        For connections with reflector variation (cable): Uses median-of-three reflectors
+        For stable connections (DSL, fiber): Single reflector is sufficient
 
-        Pings are run concurrently for faster cycle times.
+        Uses concurrent pings for faster cycle times when median-of-three is enabled.
         """
         if self.use_median_of_three and len(self.ping_hosts) >= 3:
-            # Ping multiple hosts CONCURRENTLY, take median to handle reflector variation
-            hosts_to_ping = self.ping_hosts[:3]  # Use first 3
-
-            # Run pings in parallel using ThreadPoolExecutor
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                futures = {
-                    executor.submit(self.rtt_measurement.ping_host, host, 1): host
-                    for host in hosts_to_ping
-                }
-
-                rtts = []
-                for future in concurrent.futures.as_completed(futures, timeout=3):
-                    try:
-                        rtt = future.result()
-                        if rtt is not None:
-                            rtts.append(rtt)
-                    except Exception as e:
-                        host = futures[future]
-                        self.logger.debug(f"{self.wan_name}: Ping to {host} failed: {e}")
+            # Ping multiple hosts concurrently, take median to handle reflector variation
+            hosts_to_ping = self.ping_hosts[:3]
+            rtts = self.rtt_measurement.ping_hosts_concurrent(
+                hosts=hosts_to_ping,
+                count=1,
+                timeout=3.0
+            )
 
             if len(rtts) >= 2:
                 median_rtt = statistics.median(rtts)
