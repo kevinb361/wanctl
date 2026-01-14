@@ -1320,7 +1320,8 @@ class SteeringDaemon:
         queue_ewma = ewma_update(
             state["queue_ewma"],
             float(queued_packets),
-            self.config.queue_ewma_alpha
+            self.config.queue_ewma_alpha,
+            max_value=10000.0  # Queue depth can exceed 1000 packets under heavy load
         )
         state["queue_ewma"] = queue_ewma
 
