@@ -28,8 +28,9 @@ Usage:
 import functools
 import logging
 import traceback
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 F = TypeVar('F', bound=Callable[..., Any])
 
@@ -45,10 +46,10 @@ def handle_errors(
     default_return: Any = None,
     log_level: int = logging.WARNING,
     log_traceback: bool = False,
-    error_msg: Optional[str] = None,
+    error_msg: str | None = None,
     exception_types: tuple = (Exception,),
     reraise: bool = False,
-    on_error: Optional[Callable[[Exception], None]] = None,
+    on_error: Callable[[Exception], None] | None = None,
 ) -> Callable[[F], F]:
     """
     Decorator to wrap methods with try/except and automatic logging.
@@ -243,7 +244,7 @@ def safe_operation(
 def safe_call(
     func: Callable[..., Any],
     *args,
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger | None = None,
     default: Any = None,
     log_level: int = logging.WARNING,
     log_traceback: bool = False,

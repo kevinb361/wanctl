@@ -10,7 +10,6 @@ Consolidates common path handling patterns:
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Union
 
 
 def get_cake_root() -> Path:
@@ -28,8 +27,8 @@ def get_cake_root() -> Path:
 
 
 def ensure_directory_exists(
-    path: Union[str, Path],
-    logger: Optional[logging.Logger] = None,
+    path: str | Path,
+    logger: logging.Logger | None = None,
     mode: int = 0o755
 ) -> Path:
     """Ensure a directory exists, creating it if necessary.
@@ -68,8 +67,8 @@ def ensure_directory_exists(
 
 
 def ensure_file_directory(
-    file_path: Union[str, Path],
-    logger: Optional[logging.Logger] = None,
+    file_path: str | Path,
+    logger: logging.Logger | None = None,
     mode: int = 0o755,
     resolve: bool = False
 ) -> Path:
@@ -100,9 +99,9 @@ def ensure_file_directory(
 
 
 def safe_file_path(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     create_parent: bool = False,
-    logger: Optional[logging.Logger] = None
+    logger: logging.Logger | None = None
 ) -> Path:
     """Validate and optionally prepare a file path for use.
 

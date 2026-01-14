@@ -4,10 +4,9 @@ CAKE Statistics Reader for RouterOS
 Reads CAKE queue statistics (drops, queue depth) via SSH
 """
 
-import re
 import logging
+import re
 from dataclasses import dataclass
-from typing import Optional
 
 from ..config_base import ConfigValidationError
 from ..router_client import get_router_client
@@ -61,7 +60,7 @@ class CakeStatsReader:
         #   - Less accurate (captures cumulative state instead of exact interval)
         self.previous_stats = {}  # queue_name -> CakeStats
 
-    def _parse_json_response(self, out: str, queue_name: str) -> Optional[CakeStats]:
+    def _parse_json_response(self, out: str, queue_name: str) -> CakeStats | None:
         """
         Parse CAKE stats from REST API JSON response.
 
@@ -186,7 +185,7 @@ class CakeStatsReader:
         self.logger.debug(f"CAKE stats [{queue_name}] delta: {delta}")
         return delta
 
-    def read_stats(self, queue_name: str) -> Optional[CakeStats]:
+    def read_stats(self, queue_name: str) -> CakeStats | None:
         """
         Read CAKE statistics for a specific queue.
 

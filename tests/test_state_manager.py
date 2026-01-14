@@ -3,9 +3,10 @@
 import logging
 import tempfile
 from pathlib import Path
+
 import pytest
 
-from wanctl.state_manager import StateSchema, StateManager
+from wanctl.state_manager import StateManager, StateSchema
 
 
 @pytest.fixture

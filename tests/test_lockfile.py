@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from wanctl.lock_utils import LockFile, LockAcquisitionError
+from wanctl.lock_utils import LockAcquisitionError, LockFile
 
 
 @pytest.fixture

@@ -1615,9 +1615,9 @@ class TestUnifiedStateMachine:
         self, mock_config_cake, mock_state_mgr, mock_router, mock_logger
     ):
         """Test asymmetric hysteresis: quick to degrade (2), slow to recover (3)."""
-        from wanctl.steering.daemon import SteeringDaemon
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
+        from wanctl.steering.daemon import SteeringDaemon
 
         # Configure asymmetric thresholds
         mock_config_cake.red_samples_required = 2

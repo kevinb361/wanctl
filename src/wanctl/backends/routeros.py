@@ -16,7 +16,6 @@ Config schema:
 """
 
 import logging
-from typing import Optional
 
 from wanctl.backends.base import RouterBackend
 from wanctl.router_command_utils import (
@@ -43,7 +42,7 @@ class RouterOSBackend(RouterBackend):
         user: str,
         ssh_key: str,
         timeout: int = 15,
-        logger: Optional[logging.Logger] = None
+        logger: logging.Logger | None = None
     ):
         """Initialize RouterOS backend.
 
@@ -106,7 +105,7 @@ class RouterOSBackend(RouterBackend):
             return True
         return False
 
-    def get_bandwidth(self, queue: str) -> Optional[int]:
+    def get_bandwidth(self, queue: str) -> int | None:
         """Get current max-limit from RouterOS queue tree.
 
         Args:
@@ -134,7 +133,7 @@ class RouterOSBackend(RouterBackend):
 
         return max_limit
 
-    def get_queue_stats(self, queue: str) -> Optional[dict]:
+    def get_queue_stats(self, queue: str) -> dict | None:
         """Get statistics from RouterOS queue tree.
 
         Parses:
@@ -194,7 +193,7 @@ class RouterOSBackend(RouterBackend):
             return True
         return False
 
-    def is_rule_enabled(self, comment: str) -> Optional[bool]:
+    def is_rule_enabled(self, comment: str) -> bool | None:
         """Check if a mangle rule is enabled.
 
         Args:

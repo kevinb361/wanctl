@@ -6,7 +6,6 @@ Provides structured logging with context for observability and debugging.
 """
 
 import logging
-from typing import Optional
 
 from .steering.cake_stats import CongestionSignals
 
@@ -32,9 +31,9 @@ class SteeringLogger:
         self,
         current_state: str,
         current_rtt: float,
-        baseline_rtt: Optional[float],
+        baseline_rtt: float | None,
         delta: float,
-        signals: Optional[CongestionSignals] = None,
+        signals: CongestionSignals | None = None,
         bad_count: int = 0,
         good_count: int = 0,
         bad_samples_threshold: int = 1,
@@ -82,7 +81,7 @@ class SteeringLogger:
         new_state: str,
         bad_count: int = 0,
         good_count: int = 0,
-        reason: Optional[str] = None
+        reason: str | None = None
     ) -> None:
         """Log state machine transition with context.
 
@@ -104,7 +103,7 @@ class SteeringLogger:
         failure_type: str,
         failure_count: int,
         max_failures: int,
-        context: Optional[str] = None
+        context: str | None = None
     ) -> None:
         """Log repeated failures with degradation tracking.
 
@@ -173,7 +172,7 @@ class SteeringLogger:
         attempt: int,
         max_attempts: int,
         success: bool = False,
-        context: Optional[str] = None
+        context: str | None = None
     ) -> None:
         """Log retry attempt with progress tracking.
 
@@ -197,7 +196,7 @@ class SteeringLogger:
 
     def log_baseline_update(
         self,
-        old_baseline: Optional[float],
+        old_baseline: float | None,
         new_baseline: float,
         change_threshold: float = 5.0
     ) -> None:
@@ -251,7 +250,7 @@ class SteeringLogger:
         current_state: str,
         signals: CongestionSignals,
         assessment: str,
-        details: Optional[str] = None
+        details: str | None = None
     ) -> None:
         """Log debug information for troubleshooting.
 
@@ -271,7 +270,7 @@ class SteeringLogger:
         self,
         operation: str,
         error: Exception,
-        context: Optional[str] = None
+        context: str | None = None
     ) -> None:
         """Log error with context and full traceback at debug level.
 
@@ -285,7 +284,7 @@ class SteeringLogger:
             f"{operation} failed{context_str}: {error}"
         )
 
-    def log_cache_hit(self, cached_value: str, context: Optional[str] = None) -> None:
+    def log_cache_hit(self, cached_value: str, context: str | None = None) -> None:
         """Log use of cached/fallback value.
 
         Args:

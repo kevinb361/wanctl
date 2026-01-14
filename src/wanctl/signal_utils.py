@@ -31,7 +31,6 @@ Deadlock-safe: Signal handler does not log (logging in signal handlers is unsafe
 
 import signal
 import threading
-from typing import Optional
 
 # Module-level shutdown event (thread-safe)
 _shutdown_event = threading.Event()
@@ -100,7 +99,7 @@ def get_shutdown_event() -> threading.Event:
     return _shutdown_event
 
 
-def wait_for_shutdown(timeout: Optional[float] = None) -> bool:
+def wait_for_shutdown(timeout: float | None = None) -> bool:
     """Wait for shutdown signal with optional timeout.
 
     Blocks until shutdown is requested or timeout expires.

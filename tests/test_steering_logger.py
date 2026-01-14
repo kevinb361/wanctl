@@ -1,10 +1,11 @@
 """Unit tests for steering_logger module."""
 
 import logging
+
 import pytest
 
-from wanctl.steering_logger import SteeringLogger
 from wanctl.steering.cake_stats import CongestionSignals
+from wanctl.steering_logger import SteeringLogger
 
 
 @pytest.fixture

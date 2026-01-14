@@ -12,10 +12,9 @@ import re
 import statistics
 import subprocess
 from enum import Enum
-from typing import List, Optional
 
 
-def parse_ping_output(text: str, logger_instance: Optional[logging.Logger] = None) -> List[float]:
+def parse_ping_output(text: str, logger_instance: logging.Logger | None = None) -> list[float]:
     """
     Parse RTT values from ping command output.
 
@@ -38,7 +37,7 @@ def parse_ping_output(text: str, logger_instance: Optional[logging.Logger] = Non
         >>> parse_ping_output(output)
         [12.3, 12.4, 12.5]
     """
-    rtts: List[float] = []
+    rtts: list[float] = []
 
     if not text:
         return rtts

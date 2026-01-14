@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -153,7 +153,7 @@ class CalibrationResult:
     timestamp: str
     target_bloat_ms: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "wan_name": self.wan_name,
@@ -177,7 +177,7 @@ class CalibrationResult:
 # CONNECTIVITY TESTS
 # =============================================================================
 
-def test_ssh_connectivity(host: str, user: str, ssh_key: Optional[str] = None) -> bool:
+def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> bool:
     """Test SSH connectivity to router"""
     print_step(f"Testing SSH connectivity to {user}@{host}...")
 
@@ -231,7 +231,7 @@ def test_netperf_server(host: str) -> bool:
 # MEASUREMENTS
 # =============================================================================
 
-def measure_baseline_rtt(ping_host: str) -> Optional[float]:
+def measure_baseline_rtt(ping_host: str) -> float | None:
     """Measure baseline RTT (idle latency)"""
     print_step(f"Measuring baseline RTT to {ping_host}...")
 
@@ -267,7 +267,7 @@ def measure_baseline_rtt(ping_host: str) -> Optional[float]:
         return None
 
 
-def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt: float) -> Tuple[float, float]:
+def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt: float) -> tuple[float, float]:
     """
     Measure download throughput with latency under load.
     Returns: (throughput_mbps, bloat_ms)
@@ -326,7 +326,7 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
         return 0.0, 0.0
 
 
-def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: float) -> Tuple[float, float]:
+def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: float) -> tuple[float, float]:
     """
     Measure upload throughput with latency under load.
     Returns: (throughput_mbps, bloat_ms)
@@ -389,7 +389,7 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
 # =============================================================================
 
 def set_cake_limit(host: str, user: str, queue_name: str, rate_bps: int,
-                   ssh_key: Optional[str] = None) -> bool:
+                   ssh_key: str | None = None) -> bool:
     """Set CAKE queue limit via SSH"""
     cmd = ["ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes"]
     if ssh_key:
@@ -415,9 +415,9 @@ def binary_search_optimal_rate(
     max_rate: float,
     baseline_rtt: float,
     target_bloat: float,
-    ssh_key: Optional[str] = None,
+    ssh_key: str | None = None,
     iterations: int = BINARY_SEARCH_ITERATIONS
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     Binary search for optimal rate that maintains target bloat.
     Returns: (optimal_rate_mbps, final_bloat_ms)
@@ -580,9 +580,9 @@ def generate_config(result: CalibrationResult, output_path: Path) -> bool:
 def _step_connectivity_tests(
     router_host: str,
     router_user: str,
-    ssh_key: Optional[str],
+    ssh_key: str | None,
     netperf_host: str,
-) -> Tuple[bool, bool]:
+) -> tuple[bool, bool]:
     """
     Step 1: Test connectivity to router and netperf server.
 
@@ -618,7 +618,7 @@ def _step_connectivity_tests(
         return True, False
 
 
-def _step_baseline_rtt(ping_host: str) -> Optional[float]:
+def _step_baseline_rtt(ping_host: str) -> float | None:
     """
     Step 2: Measure baseline RTT (idle latency).
 
@@ -658,7 +658,7 @@ def _step_raw_throughput(
     ping_host: str,
     baseline_rtt: float,
     skip_throughput: bool,
-) -> Optional[Tuple[float, float, float, float]]:
+) -> tuple[float, float, float, float] | None:
     """
     Step 3: Measure raw throughput (unshaped).
 
@@ -719,12 +719,12 @@ def _step_binary_search(
     raw_upload: float,
     baseline_rtt: float,
     target_bloat: float,
-    ssh_key: Optional[str],
+    ssh_key: str | None,
     skip_binary_search: bool,
     skip_throughput: bool,
     download_bloat_raw: float,
     upload_bloat_raw: float,
-) -> Optional[Tuple[float, float, float, float]]:
+) -> tuple[float, float, float, float] | None:
     """
     Step 4: Binary search for optimal rates.
 
@@ -878,15 +878,15 @@ def run_calibration(
     wan_name: str,
     router_host: str,
     router_user: str = "admin",
-    ssh_key: Optional[str] = None,
+    ssh_key: str | None = None,
     netperf_host: str = "netperf.bufferbloat.net",
     ping_host: str = "1.1.1.1",
-    download_queue: Optional[str] = None,
-    upload_queue: Optional[str] = None,
+    download_queue: str | None = None,
+    upload_queue: str | None = None,
     target_bloat: float = DEFAULT_TARGET_BLOAT_MS,
     output_dir: str = "/etc/wanctl",
     skip_binary_search: bool = False,
-) -> Optional[CalibrationResult]:
+) -> CalibrationResult | None:
     """
     Run the full calibration wizard.
 

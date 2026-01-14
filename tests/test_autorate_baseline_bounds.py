@@ -18,7 +18,7 @@ class TestBaselineBoundsConstants:
 
     def test_default_bounds_constants(self):
         """Verify default bounds constants are correct."""
-        from wanctl.autorate_continuous import MIN_SANE_BASELINE_RTT, MAX_SANE_BASELINE_RTT
+        from wanctl.autorate_continuous import MAX_SANE_BASELINE_RTT, MIN_SANE_BASELINE_RTT
 
         assert MIN_SANE_BASELINE_RTT == 10.0
         assert MAX_SANE_BASELINE_RTT == 60.0

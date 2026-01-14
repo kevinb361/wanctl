@@ -1,18 +1,19 @@
 """Unit tests for lock_utils module."""
 
+import logging
 import os
 import tempfile
-import logging
 import time
 from pathlib import Path
+
 import pytest
 
 from wanctl.lock_utils import (
+    acquire_lock,
     is_process_alive,
     read_lock_pid,
-    validate_lock,
-    acquire_lock,
     validate_and_acquire_lock,
+    validate_lock,
 )
 
 
