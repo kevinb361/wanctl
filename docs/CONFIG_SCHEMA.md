@@ -280,6 +280,17 @@ Congestion detection thresholds.
 | `rtt_ewma_alpha`         | number | 0-1     | RTT smoothing factor (default: 0.3)   |
 | `queue_ewma_alpha`       | number | 0-1     | Queue depth smoothing (default: 0.4)  |
 
+#### Deprecated Parameters
+
+The following parameters are deprecated and will be removed in a future version:
+
+| Deprecated     | Use Instead              | Notes                             |
+| -------------- | ------------------------ | --------------------------------- |
+| `bad_samples`  | `red_samples_required`   | Samples to confirm degraded state |
+| `good_samples` | `green_samples_required` | Samples to confirm recovery       |
+
+Using deprecated parameters will log a warning at startup.
+
 #### `thresholds.baseline_rtt_bounds` (optional)
 
 Security bounds for baseline RTT validation. Values outside these bounds are rejected as corrupted or invalid.
