@@ -30,6 +30,8 @@ TARGET_CONFIG_DIR="/etc/wanctl"
 TARGET_SYSTEMD_DIR="/etc/systemd/system"
 
 # Core files to deploy (always needed)
+# Updated for v1.1: removed consolidated modules (lockfile, ping_utils, rate_limiter)
+# Added new v1.1 modules (signal_utils, systemd_utils, wan_controller_state)
 CORE_FILES=(
     "src/wanctl/__init__.py"
     "src/wanctl/autorate_continuous.py"
@@ -38,14 +40,11 @@ CORE_FILES=(
     "src/wanctl/config_validation_utils.py"
     "src/wanctl/error_handling.py"
     "src/wanctl/health_check.py"
-    "src/wanctl/lockfile.py"
     "src/wanctl/lock_utils.py"
     "src/wanctl/logging_utils.py"
     "src/wanctl/metrics.py"
     "src/wanctl/path_utils.py"
     "src/wanctl/perf_profiler.py"
-    "src/wanctl/ping_utils.py"
-    "src/wanctl/rate_limiter.py"
     "src/wanctl/rate_utils.py"
     "src/wanctl/retry_utils.py"
     "src/wanctl/router_client.py"
@@ -53,11 +52,14 @@ CORE_FILES=(
     "src/wanctl/routeros_ssh.py"
     "src/wanctl/routeros_rest.py"
     "src/wanctl/rtt_measurement.py"
+    "src/wanctl/signal_utils.py"
     "src/wanctl/state_manager.py"
     "src/wanctl/state_utils.py"
     "src/wanctl/steering_logger.py"
+    "src/wanctl/systemd_utils.py"
     "src/wanctl/timeouts.py"
     "src/wanctl/baseline_rtt_manager.py"
+    "src/wanctl/wan_controller_state.py"
 )
 
 # Backend files (router abstraction)
@@ -76,13 +78,8 @@ STEERING_MODULE_FILES=(
     "src/wanctl/steering/steering_confidence.py"
 )
 
-# Legacy steering files (kept for backward compatibility)
-STEERING_FILES=(
-    "src/wanctl/wan_steering_daemon.py"
-    "src/wanctl/cake_stats.py"
-    "src/wanctl/congestion_assessment.py"
-    "src/wanctl/steering_confidence.py"
-)
+# Legacy steering files removed in v1.1 (consolidated into steering/ module)
+STEERING_FILES=()
 
 # Profiling and analysis scripts (optional, for data collection and analysis)
 PROFILING_SCRIPTS=(
