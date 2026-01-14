@@ -61,6 +61,93 @@ class CakeStatsReader:
         #   - Less accurate (captures cumulative state instead of exact interval)
         self.previous_stats = {}  # queue_name -> CakeStats
 
+    def _parse_json_response(self, out: str, queue_name: str) -> Optional[CakeStats]:
+        """
+        Parse CAKE stats from REST API JSON response.
+
+        Args:
+            out: Raw JSON string from RouterOS REST API
+            queue_name: Queue name for logging context
+
+        Returns:
+            CakeStats with cumulative values parsed from JSON, or None on error.
+            Fields use hyphenated names (e.g., 'queued-packets').
+        """
+        data = safe_json_loads_with_logging(
+            out,
+            logger=self.logger,
+            error_context=f"CAKE stats for {queue_name}",
+            log_invalid_content=True,
+            content_preview_length=200
+        )
+
+        if data is None:
+            return None
+
+        # REST API returns a list of matching queues
+        if isinstance(data, list) and len(data) > 0:
+            q = data[0]
+        elif isinstance(data, dict):
+            q = data
+        else:
+            self.logger.warning(f"No queue data in response for {queue_name}")
+            return None
+
+        # Validate that response contains expected fields
+        if not isinstance(q, dict):
+            self.logger.error(f"Invalid queue data structure (not dict) for {queue_name}")
+            return None
+
+        # Extract stats from JSON (field names use hyphens)
+        return CakeStats(
+            packets=int(q.get('packets', 0)),
+            bytes=int(q.get('bytes', 0)),
+            dropped=int(q.get('dropped', 0)),
+            queued_packets=int(q.get('queued-packets', 0)),
+            queued_bytes=int(q.get('queued-bytes', 0))
+        )
+
+    def _parse_text_response(self, out: str) -> CakeStats:
+        """
+        Parse CAKE stats from SSH CLI text response.
+
+        Args:
+            out: Raw text output from RouterOS SSH command
+
+        Returns:
+            CakeStats with values parsed via regex. Missing fields default to 0.
+
+        Example input format:
+            name="WAN-Download-1" parent=bridge1 ...
+            rate=0 packet-rate=0 queued-bytes=0 queued-packets=0
+            bytes=272603902153 packets=184614358 dropped=0
+        """
+        stats = CakeStats()
+
+        # Extract cumulative counters (monotonically increasing)
+        match = re.search(r'packets=(\d+)', out)
+        if match:
+            stats.packets = int(match.group(1))
+
+        match = re.search(r'bytes=(\d+)', out)
+        if match:
+            stats.bytes = int(match.group(1))
+
+        match = re.search(r'dropped=(\d+)', out)
+        if match:
+            stats.dropped = int(match.group(1))
+
+        # Extract instantaneous values (current queue depth)
+        match = re.search(r'queued-packets=(\d+)', out)
+        if match:
+            stats.queued_packets = int(match.group(1))
+
+        match = re.search(r'queued-bytes=(\d+)', out)
+        if match:
+            stats.queued_bytes = int(match.group(1))
+
+        return stats
+
     def read_stats(self, queue_name: str) -> Optional[CakeStats]:
         """
         Read CAKE statistics for a specific queue
