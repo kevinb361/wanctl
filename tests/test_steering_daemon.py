@@ -1662,7 +1662,7 @@ class TestUnifiedStateMachine:
             "wanctl.steering.daemon.assess_congestion_state",
             return_value=CongestionState.GREEN
         ):
-            for i in range(4):  # First 4 cycles - not enough
+            for _ in range(4):  # First 4 cycles - not enough
                 daemon._update_state_machine_unified(green_signals)
 
         # Still degraded after 4 GREEN

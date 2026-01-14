@@ -23,14 +23,11 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
-
-# Type variable for result value types
-T = TypeVar("T")
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
-class CommandResult(Generic[T]):
+class CommandResult[T]:
     """Result type for router command execution.
 
     Provides a type-safe alternative to Tuple[bool, Any] returns.
@@ -390,7 +387,7 @@ def extract_queue_stats(
         return stats
 
 
-def handle_command_error(
+def handle_command_error[T](
     rc: int,
     err: str,
     cmd: str,

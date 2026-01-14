@@ -82,7 +82,7 @@ def validate_field(
 
     # Check type
     # Allow int where float is expected (YAML often parses "10" as int)
-    if expected_type == float and isinstance(value, int):
+    if expected_type is float and isinstance(value, int):
         value = float(value)
     elif not isinstance(value, expected_type):
         raise ConfigValidationError(
