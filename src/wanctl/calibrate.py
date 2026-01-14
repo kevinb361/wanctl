@@ -573,6 +573,243 @@ def generate_config(result: CalibrationResult, output_path: Path) -> bool:
 
 
 # =============================================================================
+# CALIBRATION STEP HELPERS
+# =============================================================================
+
+
+def _step_connectivity_tests(
+    router_host: str,
+    router_user: str,
+    ssh_key: Optional[str],
+    netperf_host: str,
+) -> Tuple[bool, bool]:
+    """
+    Step 1: Test connectivity to router and netperf server.
+
+    Args:
+        router_host: Router IP or hostname
+        router_user: SSH username for router
+        ssh_key: Path to SSH private key (optional)
+        netperf_host: Netperf server hostname
+
+    Returns:
+        Tuple of (success, skip_throughput):
+        - success: False if SSH connectivity failed or user interrupted
+        - skip_throughput: True if netperf server not reachable
+    """
+    print_header("Step 1: Connectivity Tests")
+
+    if not test_ssh_connectivity(router_host, router_user, ssh_key):
+        print_error("Router SSH connectivity failed. Please check:")
+        print_info("  - Router IP/hostname is correct")
+        print_info("  - SSH key is configured (if using key auth)")
+        print_info("  - SSH is enabled on router")
+        return False, False
+
+    # Check for user interrupt after connectivity test
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        return False, False
+
+    if not test_netperf_server(netperf_host):
+        print_warning("Netperf server not reachable - will measure RTT only")
+        return True, True
+    else:
+        return True, False
+
+
+def _step_baseline_rtt(ping_host: str) -> Optional[float]:
+    """
+    Step 2: Measure baseline RTT (idle latency).
+
+    Args:
+        ping_host: Host to ping for RTT measurements
+
+    Returns:
+        Baseline RTT in ms, or None on failure/interrupt
+    """
+    print_header("Step 2: Baseline RTT Measurement")
+
+    baseline_rtt = measure_baseline_rtt(ping_host)
+    if baseline_rtt is None:
+        print_error("Failed to measure baseline RTT")
+        return None
+
+    # Check for user interrupt after baseline measurement
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        return None
+
+    print_result("Baseline RTT", f"{baseline_rtt:.1f}", "ms")
+
+    # Suggest connection type
+    if baseline_rtt < 15:
+        print_info("Detected: Low-latency connection (fiber)")
+    elif baseline_rtt < 35:
+        print_info("Detected: Medium-latency connection (cable)")
+    else:
+        print_info("Detected: Higher-latency connection (DSL)")
+
+    return baseline_rtt
+
+
+def _step_raw_throughput(
+    netperf_host: str,
+    ping_host: str,
+    baseline_rtt: float,
+    skip_throughput: bool,
+) -> Optional[Tuple[float, float, float, float]]:
+    """
+    Step 3: Measure raw throughput (unshaped).
+
+    Args:
+        netperf_host: Netperf server hostname
+        ping_host: Host to ping for RTT measurements
+        baseline_rtt: Baseline RTT in ms
+        skip_throughput: If True, skip measurement and use defaults
+
+    Returns:
+        Tuple of (raw_download, raw_upload, download_bloat, upload_bloat),
+        or None on interrupt
+    """
+    if skip_throughput:
+        print_header("Step 3: Throughput Measurement (Skipped)")
+        print_warning("Netperf not available - using default values")
+        return 100.0, 20.0, 0.0, 0.0
+
+    print_header("Step 3: Raw Throughput Measurement")
+    print_info("Measuring unshaped throughput (this may cause latency spikes)...")
+
+    raw_download, download_bloat_raw = measure_throughput_download(
+        netperf_host, ping_host, baseline_rtt
+    )
+
+    # Check for user interrupt after download test
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        return None
+
+    time.sleep(3)  # Pause between tests
+
+    raw_upload, upload_bloat_raw = measure_throughput_upload(
+        netperf_host, ping_host, baseline_rtt
+    )
+
+    print_result("Raw download", f"{raw_download:.1f}", "Mbps")
+    print_result("Download bloat", f"{download_bloat_raw:.1f}", "ms")
+    print_result("Raw upload", f"{raw_upload:.1f}", "Mbps")
+    print_result("Upload bloat", f"{upload_bloat_raw:.1f}", "ms")
+
+    # Check for user interrupt after upload test
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        return None
+
+    return raw_download, raw_upload, download_bloat_raw, upload_bloat_raw
+
+
+def _step_binary_search(
+    netperf_host: str,
+    ping_host: str,
+    router_host: str,
+    router_user: str,
+    download_queue: str,
+    upload_queue: str,
+    raw_download: float,
+    raw_upload: float,
+    baseline_rtt: float,
+    target_bloat: float,
+    ssh_key: Optional[str],
+    skip_binary_search: bool,
+    skip_throughput: bool,
+    download_bloat_raw: float,
+    upload_bloat_raw: float,
+) -> Optional[Tuple[float, float, float, float]]:
+    """
+    Step 4: Binary search for optimal rates.
+
+    Args:
+        netperf_host: Netperf server hostname
+        ping_host: Host to ping for RTT measurements
+        router_host: Router IP or hostname
+        router_user: SSH username for router
+        download_queue: RouterOS download queue name
+        upload_queue: RouterOS upload queue name
+        raw_download: Raw download throughput in Mbps
+        raw_upload: Raw upload throughput in Mbps
+        baseline_rtt: Baseline RTT in ms
+        target_bloat: Target bloat for binary search (ms)
+        ssh_key: Path to SSH private key (optional)
+        skip_binary_search: If True, skip binary search
+        skip_throughput: If True, skip binary search (no netperf)
+        download_bloat_raw: Raw download bloat in ms (fallback)
+        upload_bloat_raw: Raw upload bloat in ms (fallback)
+
+    Returns:
+        Tuple of (optimal_download, optimal_upload, download_bloat, upload_bloat),
+        or None on interrupt
+    """
+    if skip_binary_search or skip_throughput:
+        print_header("Step 4: Optimal Rate Discovery (Skipped)")
+        print_warning("Using 90% of raw throughput as optimal")
+        optimal_download = raw_download * 0.90
+        optimal_upload = raw_upload * 0.90
+        return optimal_download, optimal_upload, download_bloat_raw, upload_bloat_raw
+
+    print_header("Step 4: Binary Search for Optimal Rates")
+    print_info(f"Finding maximum rates with <{target_bloat}ms bloat...")
+    print_info("This will temporarily modify your CAKE queue limits.")
+
+    # Binary search download
+    optimal_download, download_bloat = binary_search_optimal_rate(
+        direction="download",
+        netperf_host=netperf_host,
+        ping_host=ping_host,
+        router_host=router_host,
+        router_user=router_user,
+        queue_name=download_queue,
+        min_rate=raw_download * 0.3,
+        max_rate=raw_download,
+        baseline_rtt=baseline_rtt,
+        target_bloat=target_bloat,
+        ssh_key=ssh_key,
+    )
+
+    # Check for user interrupt after download binary search
+    if is_shutdown_requested():
+        print("\n\nCalibration interrupted.")
+        # Reset queues before exit
+        print_step("Resetting queue limits...")
+        set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
+        set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
+        return None
+
+    time.sleep(3)
+
+    # Binary search upload
+    optimal_upload, upload_bloat = binary_search_optimal_rate(
+        direction="upload",
+        netperf_host=netperf_host,
+        ping_host=ping_host,
+        router_host=router_host,
+        router_user=router_user,
+        queue_name=upload_queue,
+        min_rate=raw_upload * 0.3,
+        max_rate=raw_upload,
+        baseline_rtt=baseline_rtt,
+        target_bloat=target_bloat,
+        ssh_key=ssh_key,
+    )
+
+    # Reset queues to unshaped
+    print_step("Resetting queue limits...")
+    set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
+    set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
+
+    return optimal_download, optimal_upload, download_bloat, upload_bloat
+
+
+# =============================================================================
 # MAIN CALIBRATION WIZARD
 # =============================================================================
 
@@ -616,145 +853,47 @@ def run_calibration(
     if not upload_queue:
         upload_queue = f"WAN-Upload-{wan_name.capitalize()}"
 
-    # Step 1: Test connectivity
-    print_header("Step 1: Connectivity Tests")
-
-    if not test_ssh_connectivity(router_host, router_user, ssh_key):
-        print_error("Router SSH connectivity failed. Please check:")
-        print_info("  - Router IP/hostname is correct")
-        print_info("  - SSH key is configured (if using key auth)")
-        print_info("  - SSH is enabled on router")
+    # Step 1: Connectivity tests
+    success, skip_throughput = _step_connectivity_tests(
+        router_host, router_user, ssh_key, netperf_host
+    )
+    if not success:
         return None
-
-    # Check for user interrupt after connectivity test
-    if is_shutdown_requested():
-        print("\n\nCalibration interrupted.")
-        return None
-
-    if not test_netperf_server(netperf_host):
-        print_warning("Netperf server not reachable - will measure RTT only")
-        skip_throughput = True
-    else:
-        skip_throughput = False
 
     # Step 2: Baseline RTT
-    print_header("Step 2: Baseline RTT Measurement")
-
-    baseline_rtt = measure_baseline_rtt(ping_host)
+    baseline_rtt = _step_baseline_rtt(ping_host)
     if baseline_rtt is None:
-        print_error("Failed to measure baseline RTT")
         return None
 
-    # Check for user interrupt after baseline measurement
-    if is_shutdown_requested():
-        print("\n\nCalibration interrupted.")
+    # Step 3: Raw throughput
+    throughput_result = _step_raw_throughput(
+        netperf_host, ping_host, baseline_rtt, skip_throughput
+    )
+    if throughput_result is None:
         return None
-
-    print_result("Baseline RTT", f"{baseline_rtt:.1f}", "ms")
-
-    # Suggest connection type
-    if baseline_rtt < 15:
-        print_info("Detected: Low-latency connection (fiber)")
-    elif baseline_rtt < 35:
-        print_info("Detected: Medium-latency connection (cable)")
-    else:
-        print_info("Detected: Higher-latency connection (DSL)")
-
-    # Step 3: Raw throughput (unshaped)
-    if skip_throughput:
-        print_header("Step 3: Throughput Measurement (Skipped)")
-        print_warning("Netperf not available - using default values")
-        raw_download = 100.0
-        raw_upload = 20.0
-        download_bloat_raw = 0.0
-        upload_bloat_raw = 0.0
-    else:
-        print_header("Step 3: Raw Throughput Measurement")
-        print_info("Measuring unshaped throughput (this may cause latency spikes)...")
-
-        raw_download, download_bloat_raw = measure_throughput_download(
-            netperf_host, ping_host, baseline_rtt
-        )
-
-        # Check for user interrupt after download test
-        if is_shutdown_requested():
-            print("\n\nCalibration interrupted.")
-            return None
-
-        time.sleep(3)  # Pause between tests
-
-        raw_upload, upload_bloat_raw = measure_throughput_upload(
-            netperf_host, ping_host, baseline_rtt
-        )
-
-        print_result("Raw download", f"{raw_download:.1f}", "Mbps")
-        print_result("Download bloat", f"{download_bloat_raw:.1f}", "ms")
-        print_result("Raw upload", f"{raw_upload:.1f}", "Mbps")
-        print_result("Upload bloat", f"{upload_bloat_raw:.1f}", "ms")
-
-        # Check for user interrupt after upload test
-        if is_shutdown_requested():
-            print("\n\nCalibration interrupted.")
-            return None
+    raw_download, raw_upload, download_bloat_raw, upload_bloat_raw = throughput_result
 
     # Step 4: Binary search for optimal rates
-    if skip_binary_search or skip_throughput:
-        print_header("Step 4: Optimal Rate Discovery (Skipped)")
-        print_warning("Using 90% of raw throughput as optimal")
-        optimal_download = raw_download * 0.90
-        optimal_upload = raw_upload * 0.90
-        download_bloat = download_bloat_raw
-        upload_bloat = upload_bloat_raw
-    else:
-        print_header("Step 4: Binary Search for Optimal Rates")
-        print_info(f"Finding maximum rates with <{target_bloat}ms bloat...")
-        print_info("This will temporarily modify your CAKE queue limits.")
-
-        # Binary search download
-        optimal_download, download_bloat = binary_search_optimal_rate(
-            direction="download",
-            netperf_host=netperf_host,
-            ping_host=ping_host,
-            router_host=router_host,
-            router_user=router_user,
-            queue_name=download_queue,
-            min_rate=raw_download * 0.3,
-            max_rate=raw_download,
-            baseline_rtt=baseline_rtt,
-            target_bloat=target_bloat,
-            ssh_key=ssh_key,
-        )
-
-        # Check for user interrupt after download binary search
-        if is_shutdown_requested():
-            print("\n\nCalibration interrupted.")
-            # Reset queues before exit
-            print_step("Resetting queue limits...")
-            set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
-            set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
-            return None
-
-        time.sleep(3)
-
-        # Binary search upload
-        optimal_upload, upload_bloat = binary_search_optimal_rate(
-            direction="upload",
-            netperf_host=netperf_host,
-            ping_host=ping_host,
-            router_host=router_host,
-            router_user=router_user,
-            queue_name=upload_queue,
-            min_rate=raw_upload * 0.3,
-            max_rate=raw_upload,
-            baseline_rtt=baseline_rtt,
-            target_bloat=target_bloat,
-            ssh_key=ssh_key,
-        )
-
-        # Reset queues to unshaped
-        print_step("Resetting queue limits...")
-        set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
-        set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
+    binary_result = _step_binary_search(
+        netperf_host=netperf_host,
+        ping_host=ping_host,
+        router_host=router_host,
+        router_user=router_user,
+        download_queue=download_queue,
+        upload_queue=upload_queue,
+        raw_download=raw_download,
+        raw_upload=raw_upload,
+        baseline_rtt=baseline_rtt,
+        target_bloat=target_bloat,
+        ssh_key=ssh_key,
+        skip_binary_search=skip_binary_search,
+        skip_throughput=skip_throughput,
+        download_bloat_raw=download_bloat_raw,
+        upload_bloat_raw=upload_bloat_raw,
+    )
+    if binary_result is None:
+        return None
+    optimal_download, optimal_upload, download_bloat, upload_bloat = binary_result
 
     # Calculate suggested floors (20% of optimal for emergency)
     floor_download = max(10, optimal_download * 0.20)
