@@ -908,9 +908,6 @@ class TestExecuteSteeringTransition:
 
         assert result is False
         # Caller should NOT reset counters
-
-
-class TestUpdateEwmaSmoothing:
     """Tests for SteeringDaemon.update_ewma_smoothing() method.
 
     Tests the EWMA smoothing logic extracted from run_cycle():
