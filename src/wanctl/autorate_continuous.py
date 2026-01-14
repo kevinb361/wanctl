@@ -8,7 +8,6 @@ Runs as a persistent daemon with internal 2-second control loop.
 """
 import argparse
 import atexit
-import datetime
 import logging
 import socket
 import statistics
@@ -41,7 +40,7 @@ from wanctl.signal_utils import (
     is_shutdown_requested,
     register_signal_handlers,
 )
-from wanctl.state_utils import atomic_write_json, safe_json_load_file
+from wanctl.wan_controller_state import WANControllerState
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
@@ -633,6 +632,17 @@ class WANController:
         # =====================================================================
         self.icmp_unavailable_cycles = 0
 
+        # =====================================================================
+        # STATE PERSISTENCE MANAGER
+        # =====================================================================
+        # Separates persistence concerns from business logic
+        # =====================================================================
+        self.state_manager = WANControllerState(
+            state_file=config.state_file,
+            logger=logger,
+            wan_name=wan_name
+        )
+
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
@@ -1023,21 +1033,15 @@ class WANController:
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
-        """Load persisted hysteresis state from disk"""
-        # Use unified JSON parsing utility
-        state = safe_json_load_file(
-            self.config.state_file,
-            logger=self.logger,
-            default=None,
-            error_context=f"{self.wan_name} state"
-        )
+        """Load persisted hysteresis state from disk."""
+        state = self.state_manager.load()
 
         if state is not None:
             # Restore download controller state
             if 'download' in state:
                 dl = state['download']
                 self.download.green_streak = dl.get('green_streak', 0)
-                self.download.soft_red_streak = dl.get('soft_red_streak', 0)  # Phase 2A
+                self.download.soft_red_streak = dl.get('soft_red_streak', 0)
                 self.download.red_streak = dl.get('red_streak', 0)
                 self.download.current_rate = dl.get('current_rate', self.download.ceiling_bps)
 
@@ -1045,7 +1049,7 @@ class WANController:
             if 'upload' in state:
                 ul = state['upload']
                 self.upload.green_streak = ul.get('green_streak', 0)
-                self.upload.soft_red_streak = ul.get('soft_red_streak', 0)  # Phase 2A
+                self.upload.soft_red_streak = ul.get('soft_red_streak', 0)
                 self.upload.red_streak = ul.get('red_streak', 0)
                 self.upload.current_rate = ul.get('current_rate', self.upload.ceiling_bps)
 
@@ -1061,38 +1065,31 @@ class WANController:
                 self.last_applied_dl_rate = applied.get('dl_rate')
                 self.last_applied_ul_rate = applied.get('ul_rate')
 
-            self.logger.debug(f"{self.wan_name}: Loaded state from {self.config.state_file}")
-
     @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
     def save_state(self) -> None:
-        """Save hysteresis state to disk for persistence across timer invocations"""
-        state = {
-            'download': {
-                'green_streak': self.download.green_streak,
-                'soft_red_streak': self.download.soft_red_streak,  # Phase 2A
-                'red_streak': self.download.red_streak,
-                'current_rate': self.download.current_rate
-            },
-            'upload': {
-                'green_streak': self.upload.green_streak,
-                'soft_red_streak': self.upload.soft_red_streak,  # Phase 2A
-                'red_streak': self.upload.red_streak,
-                'current_rate': self.upload.current_rate
-            },
-            'ewma': {
+        """Save hysteresis state to disk for persistence across restarts."""
+        self.state_manager.save(
+            download=self.state_manager.build_download_state(
+                self.download.green_streak,
+                self.download.soft_red_streak,
+                self.download.red_streak,
+                self.download.current_rate
+            ),
+            upload=self.state_manager.build_upload_state(
+                self.upload.green_streak,
+                self.upload.soft_red_streak,
+                self.upload.red_streak,
+                self.upload.current_rate
+            ),
+            ewma={
                 'baseline_rtt': self.baseline_rtt,
                 'load_rtt': self.load_rtt
             },
-            # Flash wear protection: track last values sent to router
-            'last_applied': {
+            last_applied={
                 'dl_rate': self.last_applied_dl_rate,
                 'ul_rate': self.last_applied_ul_rate
-            },
-            'timestamp': datetime.datetime.now().isoformat()
-        }
-
-        atomic_write_json(self.config.state_file, state)
-        self.logger.debug(f"{self.wan_name}: Saved state to {self.config.state_file}")
+            }
+        )
 
 
 # =============================================================================
