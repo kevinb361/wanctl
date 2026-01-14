@@ -225,11 +225,14 @@ Plans:
 **Goal**: Break down non-critical long functions (>100 lines) for improved readability
 **Depends on**: Phase 10
 **Research**: Unlikely (internal refactoring)
-**Plans**: TBD
+**Plans**: 3 plans
+**Status**: In progress
 
 Plans:
 
-- [ ] 11-01: TBD
+- [x] 11-01: Split Config.\_load_specific_fields() into 12 helper methods
+- [ ] 11-02: TBD
+- [ ] 11-03: TBD
 
 #### Phase 12: RouterOSREST Refactoring
 
@@ -297,7 +300,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 8. Extract Common Helpers               | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 9. Utility Consolidation - Part 1       | v1.1      | 2/2            | ✓ Complete                    | 2026-01-13  |
 | 10. Utility Consolidation - Part 2      | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 11. Refactor Long Functions             | v1.1      | 0/?            | Not started                   | -           |
+| 11. Refactor Long Functions             | v1.1      | 1/3            | In progress                   | -           |
 | 12. RouterOSREST Refactoring            | v1.1      | 0/?            | Not started                   | -           |
 | 13. Documentation Improvements          | v1.1      | 0/?            | Not started                   | -           |
 | 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
