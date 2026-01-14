@@ -44,6 +44,8 @@ class TestHandleIcmpFailure:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -342,6 +344,8 @@ class TestIcmpRecovery:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -471,6 +475,8 @@ class TestApplyRateChangesIfNeeded:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -755,6 +761,8 @@ class TestUpdateBaselineIfIdle:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True

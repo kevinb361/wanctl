@@ -116,6 +116,8 @@ class Config(BaseConfig):
          "required": True, "min": 0.1, "max": 1.0},
         {"path": "continuous_monitoring.download.factor_down_yellow", "type": float,
          "required": False, "min": 0.8, "max": 1.0},
+        {"path": "continuous_monitoring.download.green_required", "type": int,
+         "required": False, "min": 1, "max": 10},
 
         # Upload parameters
         {"path": "continuous_monitoring.upload.ceiling_mbps", "type": (int, float),
@@ -126,6 +128,8 @@ class Config(BaseConfig):
          "required": True, "min": 0.1, "max": 1.0},
         {"path": "continuous_monitoring.upload.factor_down_yellow", "type": float,
          "required": False, "min": 0.9, "max": 1.0},
+        {"path": "continuous_monitoring.upload.green_required", "type": int,
+         "required": False, "min": 1, "max": 10},
 
         # Thresholds
         {"path": "continuous_monitoring.thresholds.target_bloat_ms", "type": (int, float),
@@ -193,6 +197,8 @@ class Config(BaseConfig):
         self.download_factor_down = dl['factor_down']
         # YELLOW decay factor: gentle 4% per cycle (vs RED's aggressive 15%)
         self.download_factor_down_yellow = dl.get('factor_down_yellow', 0.96)
+        # Consecutive GREEN cycles required before stepping up (default 5)
+        self.download_green_required = dl.get('green_required', 5)
 
         # Validate download floor ordering: red <= soft_red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -225,6 +231,8 @@ class Config(BaseConfig):
         self.upload_factor_down = ul['factor_down']
         # Upload YELLOW decay (gentler than download, default 0.94 = 6% per cycle)
         self.upload_factor_down_yellow = ul.get('factor_down_yellow', 0.94)
+        # Consecutive GREEN cycles required before stepping up (default 5)
+        self.upload_green_required = ul.get('green_required', 5)
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -459,7 +467,7 @@ class RouterOS:
 
 class QueueController:
     """Controls one queue (download or upload) with 3-zone or 4-zone logic"""
-    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float, factor_down_yellow: float = 1.0):
+    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float, factor_down_yellow: float = 1.0, green_required: int = 5):
         self.name = name
         self.floor_green_bps = floor_green
         self.floor_yellow_bps = floor_yellow
@@ -475,7 +483,7 @@ class QueueController:
         self.green_streak = 0
         self.soft_red_streak = 0      # Phase 2A: Track SOFT_RED sustain
         self.red_streak = 0
-        self.green_required = 5        # Require 5 consecutive green cycles before stepping up
+        self.green_required = green_required  # Consecutive GREEN cycles before stepping up
         self.soft_red_required = 1     # Reduced from 3 for faster response (50ms vs 150ms)
 
     def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> tuple[str, int]:
@@ -652,6 +660,7 @@ class WANController:
             step_up=config.download_step_up,
             factor_down=config.download_factor_down,
             factor_down_yellow=config.download_factor_down_yellow,  # YELLOW decay
+            green_required=config.download_green_required,  # Faster recovery
         )
 
         self.upload = QueueController(
@@ -664,6 +673,7 @@ class WANController:
             step_up=config.upload_step_up,
             factor_down=config.upload_factor_down,
             factor_down_yellow=config.upload_factor_down_yellow,  # Upload YELLOW decay
+            green_required=config.upload_green_required,  # Faster recovery
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
