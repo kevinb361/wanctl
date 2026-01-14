@@ -809,6 +809,67 @@ def _step_binary_search(
     return optimal_download, optimal_upload, download_bloat, upload_bloat
 
 
+def _step_display_summary(result: CalibrationResult) -> None:
+    """
+    Step 5: Display results summary.
+
+    Args:
+        result: CalibrationResult with all measured values
+    """
+    print_header("Step 5: Results Summary")
+
+    print_result("Baseline RTT", f"{result.baseline_rtt_ms:.1f}", "ms")
+    print_result("Raw download", f"{result.raw_download_mbps:.1f}", "Mbps")
+    print_result("Raw upload", f"{result.raw_upload_mbps:.1f}", "Mbps")
+    print_result(
+        "Optimal download",
+        f"{result.optimal_download_mbps:.1f}",
+        f"Mbps (bloat: {result.download_bloat_ms:.1f}ms)",
+    )
+    print_result(
+        "Optimal upload",
+        f"{result.optimal_upload_mbps:.1f}",
+        f"Mbps (bloat: {result.upload_bloat_ms:.1f}ms)",
+    )
+    print_result("Suggested floor (download)", f"{result.floor_download_mbps:.1f}", "Mbps")
+    print_result("Suggested floor (upload)", f"{result.floor_upload_mbps:.1f}", "Mbps")
+
+
+def _step_save_results(result: CalibrationResult, output_dir: str) -> bool:
+    """
+    Step 6: Generate configuration and save results.
+
+    Args:
+        result: CalibrationResult with all measured values
+        output_dir: Directory for generated config
+
+    Returns:
+        True on success
+    """
+    output_path = Path(output_dir) / f"{result.wan_name}.yaml"
+
+    print_header("Step 6: Generate Configuration")
+    generate_config(result, output_path)
+
+    # Also save raw results as JSON
+    results_path = Path(output_dir) / f"{result.wan_name}_calibration.json"
+    try:
+        with open(results_path, 'w') as f:
+            json.dump(result.to_dict(), f, indent=2)
+        print_info(f"Raw results saved to: {results_path}")
+    except Exception as e:
+        print_warning(f"Could not save raw results: {e}")
+
+    print_header("Calibration Complete!")
+    print_info("Next steps:")
+    print_info(f"  1. Review the generated config: {output_path}")
+    print_info("  2. Update queue names to match your RouterOS config")
+    print_info("  3. Copy SSH key: sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key")
+    print_info(f"  4. Enable the service: sudo systemctl enable --now wanctl@{result.wan_name}.timer")
+
+    return True
+
+
 # =============================================================================
 # MAIN CALIBRATION WIZARD
 # =============================================================================
@@ -917,38 +978,11 @@ def run_calibration(
         target_bloat_ms=target_bloat,
     )
 
-    # Step 5: Summary and config generation
-    print_header("Step 5: Results Summary")
+    # Step 5: Display summary
+    _step_display_summary(result)
 
-    print_result("Baseline RTT", f"{baseline_rtt:.1f}", "ms")
-    print_result("Raw download", f"{raw_download:.1f}", "Mbps")
-    print_result("Raw upload", f"{raw_upload:.1f}", "Mbps")
-    print_result("Optimal download", f"{optimal_download:.1f}", f"Mbps (bloat: {download_bloat:.1f}ms)")
-    print_result("Optimal upload", f"{optimal_upload:.1f}", f"Mbps (bloat: {upload_bloat:.1f}ms)")
-    print_result("Suggested floor (download)", f"{floor_download:.1f}", "Mbps")
-    print_result("Suggested floor (upload)", f"{floor_upload:.1f}", "Mbps")
-
-    # Generate config
-    output_path = Path(output_dir) / f"{wan_name}.yaml"
-
-    print_header("Step 6: Generate Configuration")
-    generate_config(result, output_path)
-
-    # Also save raw results as JSON
-    results_path = Path(output_dir) / f"{wan_name}_calibration.json"
-    try:
-        with open(results_path, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2)
-        print_info(f"Raw results saved to: {results_path}")
-    except Exception as e:
-        print_warning(f"Could not save raw results: {e}")
-
-    print_header("Calibration Complete!")
-    print_info("Next steps:")
-    print_info(f"  1. Review the generated config: {output_path}")
-    print_info("  2. Update queue names to match your RouterOS config")
-    print_info("  3. Copy SSH key: sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key")
-    print_info(f"  4. Enable the service: sudo systemctl enable --now wanctl@{wan_name}.timer")
+    # Step 6: Save results
+    _step_save_results(result, output_dir)
 
     return result
 
