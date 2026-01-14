@@ -70,7 +70,7 @@ ssh cake-spectrum 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
 
 - All decisions based on RTT **delta** (not absolute RTT)
 - Baseline must remain frozen during load (only updates when delta < 3ms)
-- Rate decreases: immediate | Rate increases: require sustained GREEN (5 cycles)
+- Rate decreases: immediate | Rate increases: require sustained GREEN cycles (configurable, default 5)
 
 ### State Logic
 
