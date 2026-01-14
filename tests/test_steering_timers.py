@@ -40,7 +40,7 @@ class TestTimerManagerCycleInterval:
             state_good="WAN1_GOOD",
             state_degraded="WAN1_DEGRADED",
             logger=logger,
-            cycle_interval=0.05
+            cycle_interval=0.05,
         )
 
     @pytest.fixture
@@ -63,7 +63,7 @@ class TestTimerManagerCycleInterval:
             state_good="WAN1_GOOD",
             state_degraded="WAN1_DEGRADED",
             logger=logger,
-            cycle_interval=0.5
+            cycle_interval=0.5,
         )
         assert mgr.cycle_interval == 0.5
 
@@ -140,7 +140,7 @@ class TestTimerManagerCycleInterval:
             cake_state="GREEN",
             rtt_delta=5.0,
             drops=0.0,
-            current_state="WAN1_DEGRADED"
+            current_state="WAN1_DEGRADED",
         )
 
         # Should decrement by 0.05, not 2
@@ -162,7 +162,7 @@ class TestTimerManagerCycleInterval:
                 cake_state="GREEN",
                 rtt_delta=5.0,
                 drops=0.0,
-                current_state="WAN1_DEGRADED"
+                current_state="WAN1_DEGRADED",
             )
             cycles += 1
             if result == "DISABLE_STEERING":
@@ -187,52 +187,41 @@ class TestPhase2BControllerCycleInterval:
     def config_v3(self):
         """Create Phase2B config."""
         return {
-            'confidence': {
-                'steer_threshold': 55,
-                'recovery_threshold': 20,
-                'sustain_duration_sec': 2,
-                'recovery_sustain_sec': 10,
+            "confidence": {
+                "steer_threshold": 55,
+                "recovery_threshold": 20,
+                "sustain_duration_sec": 2,
+                "recovery_sustain_sec": 10,
             },
-            'timers': {
-                'hold_down_duration_sec': 30,
+            "timers": {
+                "hold_down_duration_sec": 30,
             },
-            'flap_detection': {
-                'enabled': True,
-                'window_minutes': 5,
-                'max_toggles': 3,
-                'penalty_duration_sec': 300,
-                'penalty_threshold_add': 15,
+            "flap_detection": {
+                "enabled": True,
+                "window_minutes": 5,
+                "max_toggles": 3,
+                "penalty_duration_sec": 300,
+                "penalty_threshold_add": 15,
             },
-            'dry_run': {
-                'enabled': True,
-            }
+            "dry_run": {
+                "enabled": True,
+            },
         }
 
     def test_default_cycle_interval(self, config_v3, logger):
         """Phase2BController defaults to 0.05s cycle_interval."""
-        controller = Phase2BController(
-            config_v3=config_v3,
-            logger=logger
-        )
+        controller = Phase2BController(config_v3=config_v3, logger=logger)
         assert controller.cycle_interval == 0.05
         assert controller.timer_mgr.cycle_interval == 0.05
 
     def test_custom_cycle_interval(self, config_v3, logger):
         """Phase2BController accepts custom cycle_interval."""
-        controller = Phase2BController(
-            config_v3=config_v3,
-            logger=logger,
-            cycle_interval=0.5
-        )
+        controller = Phase2BController(config_v3=config_v3, logger=logger, cycle_interval=0.5)
         assert controller.cycle_interval == 0.5
         assert controller.timer_mgr.cycle_interval == 0.5
 
     def test_cycle_interval_passed_to_timer_manager(self, config_v3, logger):
         """Phase2BController passes cycle_interval to TimerManager."""
-        controller = Phase2BController(
-            config_v3=config_v3,
-            logger=logger,
-            cycle_interval=0.1
-        )
+        controller = Phase2BController(config_v3=config_v3, logger=logger, cycle_interval=0.1)
         # Verify TimerManager received the correct interval
         assert controller.timer_mgr.cycle_interval == 0.1

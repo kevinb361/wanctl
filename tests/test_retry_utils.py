@@ -152,12 +152,7 @@ class TestRetryWithBackoff:
         """Test that delay increases exponentially."""
         delays = []
 
-        @retry_with_backoff(
-            max_attempts=4,
-            initial_delay=0.1,
-            backoff_factor=2.0,
-            jitter=False
-        )
+        @retry_with_backoff(max_attempts=4, initial_delay=0.1, backoff_factor=2.0, jitter=False)
         def track_timing():
             delays.append(time.time())
             raise ConnectionError("Fail")
@@ -166,7 +161,7 @@ class TestRetryWithBackoff:
             track_timing()
 
         # Calculate actual delays between attempts
-        actual_delays = [delays[i+1] - delays[i] for i in range(len(delays)-1)]
+        actual_delays = [delays[i + 1] - delays[i] for i in range(len(delays) - 1)]
 
         # Expected: 0.1, 0.2, 0.4 (initial * backoff_factor^n)
         # Allow some tolerance for timing
@@ -184,7 +179,7 @@ class TestRetryWithBackoff:
             initial_delay=0.1,
             backoff_factor=10.0,  # Would be 0.1, 1.0, 10.0, 100.0 without cap
             max_delay=0.2,
-            jitter=False
+            jitter=False,
         )
         def track_timing():
             delays.append(time.time())
@@ -194,7 +189,7 @@ class TestRetryWithBackoff:
             track_timing()
 
         # Calculate actual delays
-        actual_delays = [delays[i+1] - delays[i] for i in range(len(delays)-1)]
+        actual_delays = [delays[i + 1] - delays[i] for i in range(len(delays) - 1)]
 
         # All delays should be capped at max_delay
         for delay in actual_delays:
@@ -206,13 +201,10 @@ class TestRetryWithBackoff:
         delays_run2 = []
 
         def create_decorated():
-            @retry_with_backoff(
-                max_attempts=3,
-                initial_delay=0.1,
-                jitter=True
-            )
+            @retry_with_backoff(max_attempts=3, initial_delay=0.1, jitter=True)
             def fail():
                 raise ConnectionError("Fail")
+
             return fail
 
         # Run twice and compare timing
@@ -241,6 +233,7 @@ class TestRetryWithBackoff:
 
     def test_preserves_function_metadata(self):
         """Test that decorator preserves function name and docstring."""
+
         @retry_with_backoff()
         def my_function():
             """My docstring."""
@@ -251,6 +244,7 @@ class TestRetryWithBackoff:
 
     def test_uses_logger_from_self(self):
         """Test that decorator uses logger from self when called on method."""
+
         class MyClass:
             def __init__(self):
                 self.logger = MagicMock()
@@ -272,6 +266,7 @@ class TestRetryWithBackoff:
 
     def test_returns_correct_value(self):
         """Test that return values are passed through correctly."""
+
         @retry_with_backoff()
         def return_complex():
             return {"key": "value", "list": [1, 2, 3]}
@@ -281,6 +276,7 @@ class TestRetryWithBackoff:
 
     def test_passes_arguments_correctly(self):
         """Test that args and kwargs are passed to function."""
+
         @retry_with_backoff()
         def with_args(a, b, c=None):
             return (a, b, c)

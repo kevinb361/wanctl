@@ -92,6 +92,7 @@ class TestLockFile:
         lock_path.touch()
         old_time = time.time() - 400  # 400 seconds ago
         import os
+
         os.utime(lock_path, (old_time, old_time))
 
         # Should succeed - stale lock removed
@@ -109,6 +110,7 @@ class TestLockFile:
         lock_path.touch()
         recent_time = time.time() - (timeout - 1)  # 1 second under timeout
         import os
+
         os.utime(lock_path, (recent_time, recent_time))
 
         with pytest.raises(LockAcquisitionError):
@@ -124,6 +126,7 @@ class TestLockFile:
         lock_path.touch()
         stale_time = time.time() - (timeout + 1)  # 1 second over timeout
         import os
+
         os.utime(lock_path, (stale_time, stale_time))
 
         # Should succeed - lock is stale

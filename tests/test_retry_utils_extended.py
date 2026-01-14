@@ -26,11 +26,7 @@ class TestVerifyWithRetry:
             return True
 
         result = verify_with_retry(
-            check_func,
-            True,
-            max_retries=3,
-            logger=logger,
-            operation_name="test_verify"
+            check_func, True, max_retries=3, logger=logger, operation_name="test_verify"
         )
 
         assert result is True
@@ -51,7 +47,7 @@ class TestVerifyWithRetry:
             max_retries=5,
             initial_delay=0.01,
             logger=logger,
-            operation_name="test_verify"
+            operation_name="test_verify",
         )
 
         assert result is True
@@ -71,7 +67,7 @@ class TestVerifyWithRetry:
             max_retries=3,
             initial_delay=0.01,
             logger=logger,
-            operation_name="test_verify"
+            operation_name="test_verify",
         )
 
         assert result is False
@@ -92,7 +88,7 @@ class TestVerifyWithRetry:
             initial_delay=0.01,
             backoff_factor=2.0,
             logger=logger,
-            operation_name="test_verify"
+            operation_name="test_verify",
         )
 
         # Check delays increase exponentially
@@ -105,15 +101,12 @@ class TestVerifyWithRetry:
 
     def test_different_expected_values(self, logger):
         """Test verification with different expected values (strings, numbers, etc)."""
+
         def check_func_string():
             return "enabled"
 
         result = verify_with_retry(
-            check_func_string,
-            "enabled",
-            max_retries=1,
-            logger=logger,
-            operation_name="test_verify"
+            check_func_string, "enabled", max_retries=1, logger=logger, operation_name="test_verify"
         )
         assert result is True
 
@@ -121,25 +114,18 @@ class TestVerifyWithRetry:
             return 42
 
         result = verify_with_retry(
-            check_func_number,
-            42,
-            max_retries=1,
-            logger=logger,
-            operation_name="test_verify"
+            check_func_number, 42, max_retries=1, logger=logger, operation_name="test_verify"
         )
         assert result is True
 
     def test_verify_with_none_logger(self):
         """Test verify works with None logger (creates default logger)."""
+
         def check_func():
             return True
 
         result = verify_with_retry(
-            check_func,
-            True,
-            max_retries=1,
-            logger=None,
-            operation_name="test_verify"
+            check_func, True, max_retries=1, logger=None, operation_name="test_verify"
         )
         assert result is True
 
@@ -164,7 +150,7 @@ class TestVerifyWithRetry:
             max_retries=5,
             initial_delay=0.01,
             logger=logger,
-            operation_name="rule_enable_verify"
+            operation_name="rule_enable_verify",
         )
 
         assert result is True
@@ -181,12 +167,7 @@ class TestVerifyWithRetry:
             return state[0]
 
         state[0] = True
-        result = verify_with_retry(
-            check_func,
-            True,
-            max_retries=3,
-            logger=logger
-        )
+        result = verify_with_retry(check_func, True, max_retries=3, logger=logger)
         assert result is True
 
 
@@ -206,7 +187,7 @@ class TestMeasureWithRetry:
             max_retries=3,
             retry_delay=0.01,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         assert result == 42.5
@@ -228,7 +209,7 @@ class TestMeasureWithRetry:
             max_retries=5,
             retry_delay=0.01,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         assert result == 50.0
@@ -247,7 +228,7 @@ class TestMeasureWithRetry:
             max_retries=3,
             retry_delay=0.01,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         assert result is None
@@ -270,7 +251,7 @@ class TestMeasureWithRetry:
             retry_delay=0.01,
             fallback_func=fallback_func,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         assert result == 99.9
@@ -292,7 +273,7 @@ class TestMeasureWithRetry:
             max_retries=3,
             fallback_func=fallback_func,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         assert result == 42.0
@@ -311,7 +292,7 @@ class TestMeasureWithRetry:
             max_retries=4,
             retry_delay=0.02,
             logger=logger,
-            operation_name="test_measure"
+            operation_name="test_measure",
         )
 
         # Should have 4 timestamps with ~0.02s delays between attempts
@@ -325,14 +306,12 @@ class TestMeasureWithRetry:
 
     def test_none_logger(self):
         """Test measure works with None logger (creates default logger)."""
+
         def measure_func():
             return 42.0
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=1,
-            logger=None,
-            operation_name="test_measure"
+            measure_func, max_retries=1, logger=None, operation_name="test_measure"
         )
         assert result == 42.0
 
@@ -362,7 +341,7 @@ class TestMeasureWithRetry:
             retry_delay=0.01,
             fallback_func=fallback_to_history,
             logger=logger,
-            operation_name="ping"
+            operation_name="ping",
         )
 
         assert result == 48.0  # Measurement succeeded
@@ -387,47 +366,41 @@ class TestMeasureWithRetry:
             retry_delay=0.01,
             fallback_func=fallback_to_history,
             logger=logger,
-            operation_name="ping"
+            operation_name="ping",
         )
 
         assert result == 44.2  # Last value from history
 
     def test_zero_or_negative_measurements_valid(self, logger):
         """Test that 0 and negative values are treated as valid measurements."""
+
         def measure_func():
             return 0.0  # Zero is a valid measurement
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=1,
-            logger=logger,
-            operation_name="test_measure"
+            measure_func, max_retries=1, logger=logger, operation_name="test_measure"
         )
         assert result == 0.0  # Should NOT treat as failure
 
     def test_empty_string_valid(self, logger):
         """Test that empty string is treated as valid measurement."""
+
         def measure_func():
             return ""  # Empty string is valid (not None)
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=1,
-            logger=logger,
-            operation_name="test_measure"
+            measure_func, max_retries=1, logger=logger, operation_name="test_measure"
         )
         assert result == ""  # Should NOT retry
 
     def test_false_value_valid(self, logger):
         """Test that False is treated as valid measurement."""
+
         def measure_func():
             return False  # False is valid (not None)
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=1,
-            logger=logger,
-            operation_name="test_measure"
+            measure_func, max_retries=1, logger=logger, operation_name="test_measure"
         )
         assert result is False  # Should NOT retry
 
@@ -447,11 +420,7 @@ class TestMeasureWithRetryIntegration:
             return 65.3
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=10,
-            retry_delay=0.01,
-            logger=logger,
-            operation_name="ping"
+            measure_func, max_retries=10, retry_delay=0.01, logger=logger, operation_name="ping"
         )
 
         assert result == 65.3
@@ -473,7 +442,7 @@ class TestMeasureWithRetryIntegration:
             retry_delay=0.01,
             fallback_func=fallback_func,
             logger=logger,
-            operation_name="ping"
+            operation_name="ping",
         )
 
         assert result == 50.0
@@ -489,11 +458,7 @@ class TestMeasureWithRetryIntegration:
             return result
 
         result = measure_with_retry(
-            measure_func,
-            max_retries=5,
-            retry_delay=0.01,
-            logger=logger,
-            operation_name="ping"
+            measure_func, max_retries=5, retry_delay=0.01, logger=logger, operation_name="ping"
         )
 
         # Should return first successful measurement (45.2), not average
@@ -505,6 +470,7 @@ class TestRetryPatternCombinations:
 
     def test_verify_then_measure_pattern(self, logger):
         """Test verifying a precondition before measuring."""
+
         # First verify rule is enabled
         def check_rule():
             return True
@@ -515,7 +481,7 @@ class TestRetryPatternCombinations:
             max_retries=3,
             initial_delay=0.01,
             logger=logger,
-            operation_name="rule_enabled_verify"
+            operation_name="rule_enabled_verify",
         )
         assert verify_result is True
 
@@ -524,11 +490,7 @@ class TestRetryPatternCombinations:
             return 48.5
 
         measure_result = measure_with_retry(
-            measure_rtt,
-            max_retries=3,
-            retry_delay=0.01,
-            logger=logger,
-            operation_name="ping"
+            measure_rtt, max_retries=3, retry_delay=0.01, logger=logger, operation_name="ping"
         )
         assert measure_result == 48.5
 
@@ -548,7 +510,7 @@ class TestRetryPatternCombinations:
             max_retries=5,
             initial_delay=0.01,
             logger=logger,
-            operation_name="state_verify"
+            operation_name="state_verify",
         )
 
         assert result is True

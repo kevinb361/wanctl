@@ -227,11 +227,7 @@ class TestPathUtilsIntegration:
 
     def test_safe_file_path_workflow(self, temp_dir, logger):
         """Test typical workflow using safe_file_path."""
-        log_file = safe_file_path(
-            temp_dir / "logs" / "app.log",
-            create_parent=True,
-            logger=logger
-        )
+        log_file = safe_file_path(temp_dir / "logs" / "app.log", create_parent=True, logger=logger)
 
         log_file.write_text("application started")
         assert log_file.exists()

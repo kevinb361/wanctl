@@ -160,9 +160,7 @@ class ControllerMonitor:
         ts_str = ts_match.group(1)
         try:
             # journalctl uses "Jan 14 12:34:56" format
-            timestamp = datetime.strptime(
-                f"{datetime.now().year} {ts_str}", "%Y %b %d %H:%M:%S"
-            )
+            timestamp = datetime.strptime(f"{datetime.now().year} {ts_str}", "%Y %b %d %H:%M:%S")
         except ValueError:
             return None
 

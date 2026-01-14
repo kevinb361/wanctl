@@ -302,7 +302,7 @@ class TestUnicodeEdgeCases:
 
     def test_comment_zero_width_rejected(self):
         """Test zero-width characters in comments are rejected."""
-        comment = "ADAPTIVE:\u200B Steer to WAN2"  # Zero-width space after colon
+        comment = "ADAPTIVE:\u200b Steer to WAN2"  # Zero-width space after colon
         with pytest.raises(ConfigValidationError) as exc_info:
             BaseConfig.validate_comment(comment, "test")
         assert "invalid characters" in str(exc_info.value)
@@ -352,6 +352,7 @@ class TestNumericBoundaries:
     def test_alpha_smallest_positive(self):
         """Test smallest positive float is valid."""
         import sys
+
         smallest = sys.float_info.min
         result = validate_alpha(smallest, "alpha")
         assert result == smallest
@@ -359,6 +360,7 @@ class TestNumericBoundaries:
     def test_alpha_largest_under_one(self):
         """Test largest float under 1.0 is valid."""
         import math
+
         # nextafter gives the next representable float
         largest_under_one = math.nextafter(1.0, 0.0)
         result = validate_alpha(largest_under_one, "alpha")
@@ -415,6 +417,7 @@ class TestNumericBoundaries:
     def test_field_subnormal_float(self):
         """Test subnormal (denormalized) float is handled correctly."""
         import sys
+
         # Smallest positive subnormal
         subnormal = sys.float_info.min * sys.float_info.epsilon
         data = {"value": subnormal}
@@ -424,6 +427,7 @@ class TestNumericBoundaries:
     def test_field_very_large_float(self):
         """Test very large float near max is handled correctly."""
         import sys
+
         large = sys.float_info.max / 2
         data = {"value": large}
         result = validate_field(data, "value", float, min_val=0.0)

@@ -35,10 +35,7 @@ class TestBaselineRTTManager:
     def test_initialization(self, logger):
         """Test initializing baseline RTT manager."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         assert manager.baseline_rtt == 50.0
         assert manager.alpha_baseline == 0.2
@@ -47,10 +44,7 @@ class TestBaselineRTTManager:
     def test_get_delta_with_valid_baseline(self, logger):
         """Test calculating delta with valid baseline."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         delta = manager.get_delta(60.0)
         assert delta == 10.0
@@ -58,10 +52,7 @@ class TestBaselineRTTManager:
     def test_get_delta_with_none_baseline(self, logger):
         """Test calculating delta when baseline is None."""
         manager = BaselineRTTManager(
-            initial_baseline=None,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=None, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         delta = manager.get_delta(60.0)
         assert delta == 0.0
@@ -69,10 +60,7 @@ class TestBaselineRTTManager:
     def test_update_baseline_when_idle(self, logger):
         """Test updating baseline when line is idle (delta < threshold)."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
 
         # delta = 60 - 50 = 10, but load_rtt = 52 < threshold, so update
@@ -87,10 +75,7 @@ class TestBaselineRTTManager:
     def test_baseline_frozen_when_under_load(self, logger):
         """Test baseline is frozen when line is under load (delta >= threshold)."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
 
         # delta = 70 - 50 = 20, way above threshold, baseline should freeze
@@ -105,10 +90,7 @@ class TestBaselineRTTManager:
     def test_set_baseline(self, logger):
         """Test setting baseline to new value."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         manager.set_baseline(55.0)
         assert manager.baseline_rtt == 55.0
@@ -116,10 +98,7 @@ class TestBaselineRTTManager:
     def test_to_dict(self, logger):
         """Test exporting baseline to dict."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         result = manager.to_dict()
         assert result["baseline_rtt"] == 50.0
@@ -127,10 +106,7 @@ class TestBaselineRTTManager:
     def test_from_dict(self, logger):
         """Test importing baseline from dict."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         manager.from_dict({"baseline_rtt": 55.0})
         assert manager.baseline_rtt == 55.0
@@ -138,10 +114,7 @@ class TestBaselineRTTManager:
     def test_from_dict_with_none(self, logger):
         """Test importing baseline from dict with None value."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.2,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.2, baseline_update_threshold=3.0, logger=logger
         )
         manager.from_dict({"baseline_rtt": None})
         # Should not change
@@ -153,70 +126,42 @@ class TestBaselineValidator:
 
     def test_validator_initialization(self, logger):
         """Test initializing validator."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         assert validator.min_baseline == 10.0
         assert validator.max_baseline == 60.0
 
     def test_validate_within_bounds(self, logger):
         """Test validation passes for value within bounds."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         assert validator.validate(30.0) is True
         assert validator.validate(10.0) is True
         assert validator.validate(60.0) is True
 
     def test_validate_below_minimum(self, logger):
         """Test validation fails for value below minimum."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         assert validator.validate(5.0) is False
 
     def test_validate_above_maximum(self, logger):
         """Test validation fails for value above maximum."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         assert validator.validate(100.0) is False
 
     def test_get_validated_with_valid(self, logger):
         """Test get_validated returns value for valid baseline."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         result = validator.get_validated(30.0)
         assert result == 30.0
 
     def test_get_validated_with_invalid(self, logger):
         """Test get_validated returns None for invalid baseline."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         result = validator.get_validated(100.0)
         assert result is None
 
     def test_get_validated_with_none(self, logger):
         """Test get_validated returns None for None input."""
-        validator = BaselineValidator(
-            min_baseline=10.0,
-            max_baseline=60.0,
-            logger=logger
-        )
+        validator = BaselineValidator(min_baseline=10.0, max_baseline=60.0, logger=logger)
         result = validator.get_validated(None)
         assert result is None
 
@@ -241,11 +186,7 @@ class TestBaselineRTTLoader:
     def test_load_valid_baseline(self, temp_state_file, logger):
         """Test loading valid baseline from state file."""
         # Create valid state file
-        state = {
-            "ewma": {
-                "baseline_rtt": 30.0
-            }
-        }
+        state = {"ewma": {"baseline_rtt": 30.0}}
         temp_state_file.write_text(json.dumps(state))
 
         validator = BaselineValidator(10.0, 60.0, logger)
@@ -292,11 +233,7 @@ class TestBaselineRTTLoader:
 
     def test_load_logs_significant_changes(self, temp_state_file, logger, caplog):
         """Test that significant baseline changes are logged."""
-        state = {
-            "ewma": {
-                "baseline_rtt": 30.0
-            }
-        }
+        state = {"ewma": {"baseline_rtt": 30.0}}
         temp_state_file.write_text(json.dumps(state))
 
         validator = BaselineValidator(10.0, 60.0, logger)
@@ -343,7 +280,7 @@ class TestBaselineRTTManagerEWMAAccuracy:
             initial_baseline=50.0,
             alpha_baseline=0.5,  # Higher alpha for faster convergence
             baseline_update_threshold=10.0,
-            logger=logger
+            logger=logger,
         )
 
         # Simulate idle conditions (load_rtt stays near baseline)
@@ -363,10 +300,7 @@ class TestBaselineRTTManagerEWMAAccuracy:
     def test_ewma_freezes_under_load(self, logger):
         """Test EWMA freezes when under load."""
         manager = BaselineRTTManager(
-            initial_baseline=50.0,
-            alpha_baseline=0.5,
-            baseline_update_threshold=3.0,
-            logger=logger
+            initial_baseline=50.0, alpha_baseline=0.5, baseline_update_threshold=3.0, logger=logger
         )
 
         # Simulate load (load_rtt >> threshold above baseline)

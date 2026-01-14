@@ -28,20 +28,12 @@ class TestStateSchema:
 
     def test_simple_schema_creation(self):
         """Test creating a simple schema."""
-        schema = StateSchema({
-            "count": 0,
-            "name": "default",
-            "value": 1.5
-        })
+        schema = StateSchema({"count": 0, "name": "default", "value": 1.5})
         assert schema is not None
 
     def test_get_defaults(self):
         """Test getting all defaults."""
-        schema = StateSchema({
-            "count": 0,
-            "name": "default",
-            "enabled": True
-        })
+        schema = StateSchema({"count": 0, "name": "default", "enabled": True})
         defaults = schema.get_defaults()
         assert defaults["count"] == 0
         assert defaults["name"] == "default"
@@ -63,11 +55,7 @@ class TestStateSchema:
 
     def test_validate_state_fills_defaults(self):
         """Test that validate_state fills in missing fields."""
-        schema = StateSchema({
-            "count": 0,
-            "name": "default",
-            "enabled": True
-        })
+        schema = StateSchema({"count": 0, "name": "default", "enabled": True})
         partial_state = {"count": 5}
         validated = schema.validate_state(partial_state)
         assert validated["count"] == 5
@@ -76,10 +64,7 @@ class TestStateSchema:
 
     def test_validate_state_preserves_provided_values(self):
         """Test that validate_state doesn't overwrite provided values."""
-        schema = StateSchema({
-            "count": 0,
-            "name": "default"
-        })
+        schema = StateSchema({"count": 0, "name": "default"})
         state = {"count": 10, "name": "custom"}
         validated = schema.validate_state(state)
         assert validated["count"] == 10
@@ -210,16 +195,10 @@ class TestStateManagerWithNestedData:
 
     def test_nested_dict_state(self, temp_state_file, logger):
         """Test state with nested dictionaries."""
-        schema = StateSchema({
-            "config": {"host": "localhost", "port": 8080},
-            "count": 0
-        })
+        schema = StateSchema({"config": {"host": "localhost", "port": 8080}, "count": 0})
 
         manager = StateManager(temp_state_file, schema, logger)
-        manager.state = {
-            "config": {"host": "example.com", "port": 443},
-            "count": 5
-        }
+        manager.state = {"config": {"host": "example.com", "port": 443}, "count": 5}
 
         # Save and load
         assert manager.save() is True
@@ -232,16 +211,10 @@ class TestStateManagerWithNestedData:
 
     def test_list_state(self, temp_state_file, logger):
         """Test state with lists."""
-        schema = StateSchema({
-            "items": [],
-            "count": 0
-        })
+        schema = StateSchema({"items": [], "count": 0})
 
         manager = StateManager(temp_state_file, schema, logger)
-        manager.state = {
-            "items": [1, 2, 3],
-            "count": 3
-        }
+        manager.state = {"items": [1, 2, 3], "count": 3}
 
         assert manager.save() is True
 

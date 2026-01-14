@@ -27,11 +27,7 @@ def steering_logger(logger):
 def congestion_signals():
     """Provide sample CongestionSignals."""
     return CongestionSignals(
-        rtt_delta=10.0,
-        rtt_delta_ewma=9.5,
-        cake_drops=5,
-        queued_packets=100,
-        baseline_rtt=30.0
+        rtt_delta=10.0, rtt_delta_ewma=9.5, cake_drops=5, queued_packets=100, baseline_rtt=30.0
     )
 
 
@@ -65,7 +61,7 @@ class TestLogMeasurement:
                 good_count=5,
                 bad_samples_threshold=3,
                 good_samples_threshold=15,
-                cake_aware=False
+                cake_aware=False,
             )
 
         assert "[SPECTRUM_GOOD]" in caplog.text
@@ -82,7 +78,7 @@ class TestLogMeasurement:
                 baseline_rtt=30.0,
                 delta=2.5,
                 signals=congestion_signals,
-                cake_aware=True
+                cake_aware=True,
             )
 
         assert "[SPECTRUM_GOOD]" in caplog.text
@@ -96,7 +92,7 @@ class TestLogMeasurement:
                 current_rtt=32.5,
                 baseline_rtt=None,
                 delta=0.0,
-                cake_aware=False
+                cake_aware=False,
             )
 
         assert "baseline=N/A" in caplog.text
@@ -109,10 +105,7 @@ class TestLogStateTransition:
         """Test logging basic state transition."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_state_transition(
-                old_state="SPECTRUM_GOOD",
-                new_state="SPECTRUM_DEGRADED",
-                bad_count=3,
-                good_count=0
+                old_state="SPECTRUM_GOOD", new_state="SPECTRUM_DEGRADED", bad_count=3, good_count=0
             )
 
         assert "State transition" in caplog.text
@@ -126,7 +119,7 @@ class TestLogStateTransition:
             steering_logger.log_state_transition(
                 old_state="SPECTRUM_GOOD",
                 new_state="SPECTRUM_DEGRADED",
-                reason="RTT delta exceeded"
+                reason="RTT delta exceeded",
             )
 
         assert "(RTT delta exceeded)" in caplog.text
@@ -142,7 +135,7 @@ class TestLogFailureWithCounter:
                 failure_type="CAKE stats read",
                 failure_count=1,
                 max_failures=3,
-                context="WAN-Download-Spectrum"
+                context="WAN-Download-Spectrum",
             )
 
         assert "CAKE stats read failed" in caplog.text
@@ -153,9 +146,7 @@ class TestLogFailureWithCounter:
         """Test failure at threshold logs at ERROR level."""
         with caplog.at_level(logging.ERROR):
             steering_logger.log_failure_with_counter(
-                failure_type="CAKE stats read",
-                failure_count=3,
-                max_failures=3
+                failure_type="CAKE stats read", failure_count=3, max_failures=3
             )
 
         assert "CAKE stats read unavailable after 3 attempts" in caplog.text
@@ -166,9 +157,7 @@ class TestLogFailureWithCounter:
         """Test sustained failure logs at DEBUG level."""
         with caplog.at_level(logging.DEBUG):
             steering_logger.log_failure_with_counter(
-                failure_type="ping",
-                failure_count=5,
-                max_failures=3
+                failure_type="ping", failure_count=5, max_failures=3
             )
 
         assert "still unavailable" in caplog.text
@@ -185,7 +174,7 @@ class TestLogRuleState:
                 rule_comment="ADAPTIVE: Steer latency-sensitive to ATT",
                 state="enabled",
                 verified=True,
-                attempts=1
+                attempts=1,
             )
 
         assert "Steering rule enabled" in caplog.text
@@ -194,11 +183,7 @@ class TestLogRuleState:
     def test_rule_disabled_verified(self, steering_logger, caplog):
         """Test logging rule disable with verification."""
         with caplog.at_level(logging.INFO):
-            steering_logger.log_rule_state(
-                rule_comment="ADAPTIVE",
-                state="disabled",
-                verified=True
-            )
+            steering_logger.log_rule_state(rule_comment="ADAPTIVE", state="disabled", verified=True)
 
         assert "Steering rule disabled" in caplog.text
 
@@ -206,10 +191,7 @@ class TestLogRuleState:
         """Test logging rule verification failure."""
         with caplog.at_level(logging.ERROR):
             steering_logger.log_rule_state(
-                rule_comment="ADAPTIVE",
-                state="enabled",
-                verified=False,
-                attempts=2
+                rule_comment="ADAPTIVE", state="enabled", verified=False, attempts=2
             )
 
         assert "FAILED verification" in caplog.text
@@ -219,10 +201,7 @@ class TestLogRuleState:
         """Test logging rule verified after multiple attempts."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_rule_state(
-                rule_comment="ADAPTIVE",
-                state="enabled",
-                verified=True,
-                attempts=3
+                rule_comment="ADAPTIVE", state="enabled", verified=True, attempts=3
             )
 
         assert "took 3 attempts" in caplog.text
@@ -235,11 +214,7 @@ class TestLogRetryAttempt:
         """Test logging retry attempt failure."""
         with caplog.at_level(logging.WARNING):
             steering_logger.log_retry_attempt(
-                operation="ping",
-                attempt=1,
-                max_attempts=3,
-                success=False,
-                context="8.8.8.8"
+                operation="ping", attempt=1, max_attempts=3, success=False, context="8.8.8.8"
             )
 
         assert "failed on attempt 1/3" in caplog.text
@@ -249,10 +224,7 @@ class TestLogRetryAttempt:
         """Test logging retry attempt success."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_retry_attempt(
-                operation="rule verification",
-                attempt=2,
-                max_attempts=3,
-                success=True
+                operation="rule verification", attempt=2, max_attempts=3, success=True
             )
 
         assert "succeeded on attempt 2" in caplog.text
@@ -265,10 +237,7 @@ class TestLogBaselineUpdate:
     def test_baseline_initialization(self, steering_logger, caplog):
         """Test logging baseline initialization."""
         with caplog.at_level(logging.INFO):
-            steering_logger.log_baseline_update(
-                old_baseline=None,
-                new_baseline=30.0
-            )
+            steering_logger.log_baseline_update(old_baseline=None, new_baseline=30.0)
 
         assert "Baseline RTT initialized" in caplog.text
         assert "30.00ms" in caplog.text
@@ -277,9 +246,7 @@ class TestLogBaselineUpdate:
         """Test logging significant baseline change."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_baseline_update(
-                old_baseline=30.0,
-                new_baseline=38.0,
-                change_threshold=5.0
+                old_baseline=30.0, new_baseline=38.0, change_threshold=5.0
             )
 
         assert "Baseline RTT changed" in caplog.text
@@ -290,9 +257,7 @@ class TestLogBaselineUpdate:
         """Test logging minor baseline change (debug level)."""
         with caplog.at_level(logging.DEBUG):
             steering_logger.log_baseline_update(
-                old_baseline=30.0,
-                new_baseline=31.0,
-                change_threshold=5.0
+                old_baseline=30.0, new_baseline=31.0, change_threshold=5.0
             )
 
         assert "updated" in caplog.text
@@ -306,8 +271,7 @@ class TestLogDegradedMode:
         """Test logging entry into degraded mode."""
         with caplog.at_level(logging.WARNING):
             steering_logger.log_degraded_mode_entry(
-                reason="CAKE stats unavailable",
-                fallback="RTT-only decisions"
+                reason="CAKE stats unavailable", fallback="RTT-only decisions"
             )
 
         assert "Entering degraded mode" in caplog.text
@@ -317,9 +281,7 @@ class TestLogDegradedMode:
     def test_log_degraded_mode_recovery(self, steering_logger, caplog):
         """Test logging recovery from degraded mode."""
         with caplog.at_level(logging.INFO):
-            steering_logger.log_degraded_mode_recovery(
-                recovered_service="CAKE stats"
-            )
+            steering_logger.log_degraded_mode_recovery(recovered_service="CAKE stats")
 
         assert "Recovered from degraded mode" in caplog.text
         assert "CAKE stats available again" in caplog.text
@@ -332,9 +294,7 @@ class TestLogDebugCycleState:
         """Test logging debug cycle state."""
         with caplog.at_level(logging.DEBUG):
             steering_logger.log_debug_cycle_state(
-                current_state="SPECTRUM_GOOD",
-                signals=congestion_signals,
-                assessment="GREEN"
+                current_state="SPECTRUM_GOOD", signals=congestion_signals, assessment="GREEN"
             )
 
         assert "[SPECTRUM_GOOD]" in caplog.text
@@ -347,7 +307,7 @@ class TestLogDebugCycleState:
                 current_state="SPECTRUM_DEGRADED",
                 signals=congestion_signals,
                 assessment="RED",
-                details="RTT threshold exceeded"
+                details="RTT threshold exceeded",
             )
 
         assert "RTT threshold exceeded" in caplog.text
@@ -363,9 +323,7 @@ class TestLogErrorWithContext:
         except ValueError as e:
             with caplog.at_level(logging.ERROR):
                 steering_logger.log_error_with_context(
-                    operation="Read CAKE stats",
-                    error=e,
-                    context="WAN-Download"
+                    operation="Read CAKE stats", error=e, context="WAN-Download"
                 )
 
         assert "Read CAKE stats failed" in caplog.text
@@ -378,10 +336,7 @@ class TestLogCacheHit:
     def test_log_cache_hit(self, steering_logger, caplog):
         """Test logging cache hit."""
         with caplog.at_level(logging.DEBUG):
-            steering_logger.log_cache_hit(
-                cached_value="baseline RTT",
-                context="measurement"
-            )
+            steering_logger.log_cache_hit(cached_value="baseline RTT", context="measurement")
 
         assert "Using cached baseline RTT" in caplog.text
         assert "for measurement" in caplog.text
@@ -389,9 +344,7 @@ class TestLogCacheHit:
     def test_log_cache_hit_no_context(self, steering_logger, caplog):
         """Test logging cache hit without context."""
         with caplog.at_level(logging.DEBUG):
-            steering_logger.log_cache_hit(
-                cached_value="previous state"
-            )
+            steering_logger.log_cache_hit(cached_value="previous state")
 
         assert "Using cached previous state" in caplog.text
 
@@ -409,8 +362,7 @@ class TestSteeringLoggerWANNames:
         """Test state name suffix extraction in logs."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_state_transition(
-                old_state="SPECTRUM_GOOD",
-                new_state="SPECTRUM_DEGRADED"
+                old_state="SPECTRUM_GOOD", new_state="SPECTRUM_DEGRADED"
             )
 
         # Should show SPECTRUM_GOOD and SPECTRUM_DEGRADED
