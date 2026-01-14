@@ -39,9 +39,7 @@ def atomic_write_json(file_path: Path, data: dict[str, Any], indent: int = 2) ->
     # Write to temporary file in the same directory (ensures same filesystem)
     # Using delete=False so we can rename it
     fd, tmp_path = tempfile.mkstemp(
-        suffix='.tmp',
-        prefix=file_path.name + '.',
-        dir=file_path.parent
+        suffix=".tmp", prefix=file_path.name + ".", dir=file_path.parent
     )
 
     # Set restrictive permissions immediately (before writing sensitive data)
@@ -49,7 +47,7 @@ def atomic_write_json(file_path: Path, data: dict[str, Any], indent: int = 2) ->
     os.chmod(tmp_path, 0o600)
 
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, "w") as f:
             json.dump(data, f, indent=indent)
             f.flush()
             os.fsync(f.fileno())  # Ensure data is written to disk
@@ -96,87 +94,30 @@ def safe_json_loads(
     logger: logging.Logger | None = None,
     default: Any | None = None,
     error_context: str = "JSON parsing",
+    log_content_preview: bool = False,
+    preview_length: int = 200,
 ) -> Any | None:
     """Safely parse JSON from a string with error logging.
-
-    Consolidates repetitive try/except/log pattern for json.loads() calls
-    used in steering/cake_stats.py and similar locations.
 
     Args:
         text: JSON string to parse
         logger: Optional logger instance for error messages
         default: Value to return if parsing fails (default: None)
         error_context: Description for error message (e.g., "CAKE stats JSON")
+        log_content_preview: If True, logs first N chars of invalid JSON at DEBUG
+        preview_length: Number of characters to log from invalid JSON
 
     Returns:
         Parsed JSON data or default value if parsing fails
-
-    Examples:
-        >>> data = safe_json_loads('{"key": "value"}')
-        >>> data
-        {'key': 'value'}
-
-        >>> data = safe_json_loads('invalid', default={})
-        >>> data
-        {}
-
-        >>> data = safe_json_loads('not json', logger=logger, error_context="API response")
-        # Logs: ERROR: Failed to parse API response JSON: ...
     """
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
         if logger:
             logger.error(f"Failed to parse {error_context} JSON: {e}")
-        return default
-    except Exception as e:
-        if logger:
-            logger.error(f"Unexpected error parsing {error_context} JSON: {e}")
-        return default
-
-
-def safe_json_loads_with_logging(
-    text: str,
-    logger: logging.Logger | None = None,
-    default: Any | None = None,
-    error_context: str = "JSON parsing",
-    log_invalid_content: bool = False,
-    content_preview_length: int = 200,
-) -> Any | None:
-    """Safely parse JSON from a string with comprehensive error logging.
-
-    Extended version of safe_json_loads() that includes debug logging
-    of invalid content for troubleshooting.
-
-    Args:
-        text: JSON string to parse
-        logger: Optional logger instance for error messages
-        default: Value to return if parsing fails (default: None)
-        error_context: Description for error message
-        log_invalid_content: If True, logs first N chars of invalid JSON at DEBUG level
-        content_preview_length: Number of characters to log from invalid JSON
-
-    Returns:
-        Parsed JSON data or default value if parsing fails
-
-    Examples:
-        >>> safe_json_loads_with_logging(
-        ...     'invalid json',
-        ...     logger=logger,
-        ...     error_context="CAKE stats",
-        ...     log_invalid_content=True
-        ... )
-        # Logs: ERROR: Failed to parse CAKE stats JSON: ...
-        # Logs: DEBUG: Invalid JSON content: invalid j...
-    """
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        if logger:
-            logger.error(f"Failed to parse {error_context} JSON: {e}")
-            if log_invalid_content and text:
-                preview = text[:content_preview_length]
-                if len(text) > content_preview_length:
+            if log_content_preview and text:
+                preview = text[:preview_length]
+                if len(text) > preview_length:
                     preview += "..."
                 logger.debug(f"Invalid JSON content: {preview}")
         return default
