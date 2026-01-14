@@ -1,4 +1,4 @@
-"""Tests for rate_limiter module - rate limiting for configuration changes."""
+"""Tests for RateLimiter class in rate_utils module - rate limiting for configuration changes."""
 
 import time
 from unittest.mock import patch

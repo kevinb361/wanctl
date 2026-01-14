@@ -1,4 +1,4 @@
-"""Tests for lockfile module - lock file management."""
+"""Tests for LockFile class in lock_utils module - lock file management."""
 
 import logging
 import time
