@@ -1,5 +1,33 @@
 # Project Milestones: wanctl
 
+## v1.2 Configuration & Polish (Shipped: 2026-01-14)
+
+**Delivered:** Phase2B confidence-based steering enabled in dry-run mode, configuration documentation and validation improvements.
+
+**Phases completed:** 16-20 (5 plans total)
+
+**Key accomplishments:**
+
+- Fixed Phase2B timer interval to use cycle_interval instead of hardcoded 2s
+- Documented baseline_rtt_bounds in CONFIG_SCHEMA.md with validation
+- Added deprecation warnings for legacy steering params (bad_samples, good_samples)
+- Added 77 edge case tests for config validation (boundary lengths, Unicode attacks, numeric boundaries)
+- Enabled Phase2B confidence scoring in production with dry_run=true for safe validation
+
+**Stats:**
+
+- 9 commits
+- ~22,065 lines of Python
+- 5 phases, 5 plans
+- 77 new tests (594 → 671)
+- 1 day (2026-01-14)
+
+**Git range:** `fix(phase2b)` → `docs(20-01)`
+
+**What's next:** Monitor Phase2B dry-run validation (1 week), then set dry_run=false for live confidence-based steering.
+
+---
+
 ## v1.1 Code Quality (Shipped: 2026-01-14)
 
 **Delivered:** Systematic code quality improvements through refactoring, consolidation, and documentation while preserving production stability.

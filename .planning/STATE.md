@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-01-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.2 Configuration & Polish - Phase2B completion, config improvements
+**Current focus:** All milestones complete (v1.2 shipped), Phase2B validation in progress
 
 ## Current Position
 
@@ -98,4 +98,4 @@ Resume file: None
 
 1. Monitor Phase2B dry-run validation (1 week recommended)
 2. After validation: Set `dry_run: false` for live routing
-3. Complete v1.2 milestone with `/gsd:complete-milestone`
+3. Plan next milestone if new features needed (`/gsd:new-milestone`)

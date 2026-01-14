@@ -8,12 +8,12 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current State (v1.1)
+## Current State (v1.2)
 
-- **Version:** v1.1 Code Quality (shipped 2026-01-14)
+- **Version:** v1.2 Configuration & Polish (shipped 2026-01-14)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 594 passing
-- **LOC:** ~20,960 Python
+- **Tests:** 671 passing
+- **LOC:** ~22,065 Python
 - **Status:** Production stable, Phase2BController in dry-run validation
 
 ## Requirements
@@ -47,10 +47,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Unified state machine (CAKE-aware + legacy combined) — v1.1
 - ✓ Phase2BController integrated with dry-run mode — v1.1
 
+**v1.2 Configuration & Polish:**
+
+- ✓ Phase2B timer interval fix (cycle_interval param) — v1.2
+- ✓ baseline_rtt_bounds documentation and validation — v1.2
+- ✓ Deprecation warnings for legacy steering params — v1.2
+- ✓ Config edge case tests (+77 tests) — v1.2
+- ✓ Phase2B confidence scoring enabled (dry-run mode) — v1.2
+
 ### Active
 
-- [ ] Phase2BController production validation (currently dry-run)
-- [ ] Enable confidence-based steering after validation period
+- [ ] Phase2B production validation (currently dry-run, 1 week validation)
+- [ ] Enable confidence-based steering (set dry_run: false after validation)
 
 ### Deferred
 
@@ -88,10 +96,19 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Integrated Phase2BController with dry-run mode
 - Added 120 new tests (474 → 594)
 
+**v1.2 Configuration & Polish (2026-01-14):**
+
+- 5 phases of configuration improvements (Phases 16-20)
+- Fixed Phase2B timer interval bug
+- Added baseline_rtt_bounds validation
+- Deprecated legacy steering params with warnings
+- Added 77 edge case tests (594 → 671)
+- Enabled Phase2B confidence scoring in dry-run mode
+
 **Next Steps:**
 
-- Validate Phase2BController in production (dry-run for 1 week)
-- Enable confidence-based steering after successful validation
+- Validate Phase2B in production (dry-run for 1 week)
+- Enable confidence-based steering (set dry_run: false) after validation
 
 ## Constraints
 
@@ -118,4 +135,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-14 after v1.1 milestone_
+_Last updated: 2026-01-14 after v1.2 milestone_
