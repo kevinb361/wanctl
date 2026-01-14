@@ -36,7 +36,6 @@ from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import get_router_client
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
-    get_shutdown_event,
     is_shutdown_requested,
     register_signal_handlers,
 )
