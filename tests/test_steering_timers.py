@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from wanctl.steering.steering_confidence import (
-    ConfidenceSignals,
     Phase2BController,
     TimerManager,
     TimerState,
@@ -135,7 +134,7 @@ class TestTimerManagerCycleInterval:
         timer_state.recovery_timer = 10.0  # 10 seconds
         timer_state.confidence_contributors = []
 
-        result = timer_manager.update_recovery_timer(
+        timer_manager.update_recovery_timer(
             timer_state,
             confidence=10,
             cake_state="GREEN",
