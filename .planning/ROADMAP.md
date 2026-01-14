@@ -226,13 +226,16 @@ Plans:
 **Depends on**: Phase 10
 **Research**: Unlikely (internal refactoring)
 **Plans**: 3 plans
-**Status**: In progress
+**Status**: ✓ Complete
+**Completed**: 2026-01-14
 
 Plans:
 
 - [x] 11-01: Split Config.\_load_specific_fields() into 12 helper methods
 - [x] 11-02: Split run_calibration() into 6 step helper functions
-- [ ] 11-03: TBD
+- [x] 11-03: Split CakeStatsReader.read_stats() into 3 parser methods
+
+**Accomplishments**: Refactored 3 long functions. Config.\_load_specific_fields() reduced to 15 lines (12 helpers), run_calibration() to 79 lines (6 step helpers), read_stats() to 33 lines (3 parser helpers). All 474 tests pass.
 
 #### Phase 12: RouterOSREST Refactoring
 
@@ -300,7 +303,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 8. Extract Common Helpers               | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 9. Utility Consolidation - Part 1       | v1.1      | 2/2            | ✓ Complete                    | 2026-01-13  |
 | 10. Utility Consolidation - Part 2      | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 11. Refactor Long Functions             | v1.1      | 2/3            | In progress                   | -           |
+| 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 12. RouterOSREST Refactoring            | v1.1      | 0/?            | Not started                   | -           |
 | 13. Documentation Improvements          | v1.1      | 0/?            | Not started                   | -           |
 | 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
