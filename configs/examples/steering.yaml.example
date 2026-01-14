@@ -87,6 +87,25 @@ mode:
   cake_aware: true              # Use multi-signal detection (recommended)
   reset_counters: true          # Reset CAKE counters before reading
   enable_yellow_state: true     # Enable YELLOW early warning state
+  use_confidence_scoring: false # Phase 2B: Enable confidence-based steering (optional)
+
+# Phase 2B: Confidence-based steering (optional)
+# Only used when mode.use_confidence_scoring: true
+# Provides multi-signal confidence scoring for more nuanced steering decisions.
+# IMPORTANT: Start with dry_run: true to validate before enabling live routing.
+#
+# confidence:
+#   steer_threshold: 55           # Confidence score (0-100) to trigger steering
+#   recovery_threshold: 20        # Confidence score to recover from steering
+#   sustain_duration_sec: 2.0     # Seconds above threshold before steering
+#   recovery_sustain_sec: 3.0     # Seconds below threshold before recovery
+#   hold_down_duration_sec: 30.0  # Post-steer cooldown period
+#   flap_detection_enabled: true  # Enable flap detection
+#   flap_window_minutes: 5        # Flap detection window
+#   max_toggles: 4                # Max toggles before penalty
+#   penalty_duration_sec: 60.0    # Flap penalty duration
+#   penalty_threshold_add: 15     # Threshold increase during penalty
+#   dry_run: true                 # VALIDATION MODE - logs only, no routing changes
 
 # State persistence
 state:
