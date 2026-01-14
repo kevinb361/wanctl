@@ -69,28 +69,28 @@ from .steering_confidence import (
 # =============================================================================
 
 # Default congestion thresholds (milliseconds)
-DEFAULT_BAD_THRESHOLD_MS = 25.0       # RTT delta threshold for bad state
+DEFAULT_BAD_THRESHOLD_MS = 25.0  # RTT delta threshold for bad state
 DEFAULT_RECOVERY_THRESHOLD_MS = 12.0  # RTT delta threshold for recovery
 
 # Default sample counts for state transitions
-DEFAULT_GOOD_SAMPLES = 15             # Consecutive good samples before recovery
-DEFAULT_GREEN_SAMPLES_REQUIRED = 15   # Consecutive GREEN samples before steering off
+DEFAULT_GOOD_SAMPLES = 15  # Consecutive good samples before recovery
+DEFAULT_GREEN_SAMPLES_REQUIRED = 15  # Consecutive GREEN samples before steering off
 
 # Default RTT thresholds for congestion states (milliseconds)
-DEFAULT_GREEN_RTT_MS = 5.0            # Below this = GREEN
-DEFAULT_YELLOW_RTT_MS = 15.0          # Above this = YELLOW
-DEFAULT_RED_RTT_MS = 15.0             # Above this (with drops) = RED
+DEFAULT_GREEN_RTT_MS = 5.0  # Below this = GREEN
+DEFAULT_YELLOW_RTT_MS = 15.0  # Above this = YELLOW
+DEFAULT_RED_RTT_MS = 15.0  # Above this (with drops) = RED
 
 # Default queue thresholds (packets)
-DEFAULT_MIN_QUEUE_YELLOW = 10         # Queue depth for YELLOW warning
-DEFAULT_MIN_QUEUE_RED = 50            # Queue depth for RED (deeper congestion)
+DEFAULT_MIN_QUEUE_YELLOW = 10  # Queue depth for YELLOW warning
+DEFAULT_MIN_QUEUE_RED = 50  # Queue depth for RED (deeper congestion)
 
 # Default EWMA smoothing factors
 DEFAULT_RTT_EWMA_ALPHA = 0.3
 DEFAULT_QUEUE_EWMA_ALPHA = 0.4
 
 # History and state limits
-MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
+MAX_TRANSITIONS_HISTORY = 50  # Maximum transition records to keep
 
 # Production standard: 0.05s interval, 2400-sample history (validated Phase 2, 2026-01-13)
 # - Synchronizes with autorate_continuous.py CYCLE_INTERVAL_SECONDS
@@ -98,26 +98,24 @@ MAX_TRANSITIONS_HISTORY = 50          # Maximum transition records to keep
 # - History: 2400 samples × 0.05s = 120 seconds (2-minute window)
 # - Sample counts scaled proportionally: bad=320 (16s), good=600 (30s)
 # See docs/PRODUCTION_INTERVAL.md for time-constant preservation methodology
-MAX_HISTORY_SAMPLES = 2400            # Maximum samples in history (2 minutes at 0.05s intervals)
-ASSESSMENT_INTERVAL_SECONDS = 0.05    # Time between assessments (daemon cycle interval)
+MAX_HISTORY_SAMPLES = 2400  # Maximum samples in history (2 minutes at 0.05s intervals)
+ASSESSMENT_INTERVAL_SECONDS = 0.05  # Time between assessments (daemon cycle interval)
 
 # Baseline RTT sanity bounds (milliseconds) - C4 fix: tightened from 5-100 to 10-60
 # Typical home ISP latencies are 20-50ms. Anything below 10ms indicates local LAN,
 # anything above 60ms suggests routing issues or compromised autorate state.
 MIN_SANE_BASELINE_RTT = 10.0
 MAX_SANE_BASELINE_RTT = 60.0
-BASELINE_CHANGE_THRESHOLD = 5.0       # Log warning if baseline changes more than this
+BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than this
 
 
 # =============================================================================
 # DEPRECATION HELPERS
 # =============================================================================
 
+
 def _warn_deprecated_param(
-    config_dict: dict,
-    old_name: str,
-    new_name: str,
-    logger: logging.Logger
+    config_dict: dict, old_name: str, new_name: str, logger: logging.Logger
 ) -> None:
     """Log deprecation warning if old parameter name is used.
 
@@ -138,6 +136,7 @@ def _warn_deprecated_param(
 # CONFIGURATION
 # =============================================================================
 
+
 class SteeringConfig(BaseConfig):
     """Configuration loaded from YAML for steering daemon"""
 
@@ -147,49 +146,48 @@ class SteeringConfig(BaseConfig):
         {"path": "topology.primary_wan", "type": str, "required": True},
         {"path": "topology.primary_wan_config", "type": str, "required": True},
         {"path": "topology.alternate_wan", "type": str, "required": True},
-
         # Mangle rule
         {"path": "mangle_rule.comment", "type": str, "required": True},
-
         # Measurement
-        {"path": "measurement.interval_seconds", "type": (int, float),
-         "required": True, "min": 0.01, "max": 60},
+        {
+            "path": "measurement.interval_seconds",
+            "type": (int, float),
+            "required": True,
+            "min": 0.01,
+            "max": 60,
+        },
         {"path": "measurement.ping_host", "type": str, "required": True},
-        {"path": "measurement.ping_count", "type": int,
-         "required": True, "min": 1, "max": 20},
-
+        {"path": "measurement.ping_count", "type": int, "required": True, "min": 1, "max": 20},
         # State persistence
         {"path": "state.file", "type": str, "required": True},
-        {"path": "state.history_size", "type": int,
-         "required": True, "min": 1, "max": 3000},
-
+        {"path": "state.history_size", "type": int, "required": True, "min": 1, "max": 3000},
         # Logging
         {"path": "logging.main_log", "type": str, "required": True},
         {"path": "logging.debug_log", "type": str, "required": True},
-
         # Lock file
         {"path": "lock_file", "type": str, "required": True},
         {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
-
         # Thresholds (required section, individual fields have defaults)
         {"path": "thresholds", "type": dict, "required": True},
     ]
 
     def _load_router_transport(self) -> None:
         """Load router transport settings (REST or SSH)."""
-        router = self.data['router']
-        self.router_transport = router.get('transport', 'ssh')  # Default to SSH
+        router = self.data["router"]
+        self.router_transport = router.get("transport", "ssh")  # Default to SSH
         # REST-specific settings
-        self.router_password = router.get('password', '')
-        self.router_port = router.get('port', 443)
-        self.router_verify_ssl = router.get('verify_ssl', False)
+        self.router_password = router.get("password", "")
+        self.router_port = router.get("port", 443)
+        self.router_verify_ssl = router.get("verify_ssl", False)
 
     def _load_topology(self) -> None:
         """Load topology - which WANs to monitor and steer between."""
-        topology = self.data.get('topology', {})
-        self.primary_wan = topology.get('primary_wan', 'wan1')
-        self.primary_wan_config = Path(topology.get('primary_wan_config', f'/etc/wanctl/{self.primary_wan}.yaml'))
-        self.alternate_wan = topology.get('alternate_wan', 'wan2')
+        topology = self.data.get("topology", {})
+        self.primary_wan = topology.get("primary_wan", "wan1")
+        self.primary_wan_config = Path(
+            topology.get("primary_wan_config", f"/etc/wanctl/{self.primary_wan}.yaml")
+        )
+        self.alternate_wan = topology.get("alternate_wan", "wan2")
 
         # Derive state names from topology (e.g., "WAN1_GOOD", "WAN1_DEGRADED")
         self.state_good = f"{self.primary_wan.upper()}_GOOD"
@@ -197,50 +195,54 @@ class SteeringConfig(BaseConfig):
 
     def _load_state_sources(self) -> None:
         """Load primary WAN state file path with legacy support."""
-        self.primary_state_file = Path(self.data.get('cake_state_sources', {}).get(
-            'primary', f'/var/lib/wanctl/{self.primary_wan}_state.json'
-        ))
+        self.primary_state_file = Path(
+            self.data.get("cake_state_sources", {}).get(
+                "primary", f"/var/lib/wanctl/{self.primary_wan}_state.json"
+            )
+        )
 
         # Legacy support: cake_state_sources.spectrum -> primary
-        if 'cake_state_sources' in self.data:
-            sources = self.data['cake_state_sources']
-            if 'spectrum' in sources and 'primary' not in sources:
-                self.primary_state_file = Path(sources['spectrum'])
+        if "cake_state_sources" in self.data:
+            sources = self.data["cake_state_sources"]
+            if "spectrum" in sources and "primary" not in sources:
+                self.primary_state_file = Path(sources["spectrum"])
 
     def _load_mangle_config(self) -> None:
         """Load mangle rule configuration with validation."""
         self.mangle_rule_comment = self.validate_comment(
-            self.data['mangle_rule']['comment'], 'mangle_rule.comment'
+            self.data["mangle_rule"]["comment"], "mangle_rule.comment"
         )
 
     def _load_rtt_measurement(self) -> None:
         """Load RTT measurement settings with validation (C3 fix)."""
-        self.measurement_interval = self.data['measurement']['interval_seconds']
+        self.measurement_interval = self.data["measurement"]["interval_seconds"]
         self.ping_host = self.validate_ping_host(
-            self.data['measurement']['ping_host'], 'measurement.ping_host'
+            self.data["measurement"]["ping_host"], "measurement.ping_host"
         )
-        self.ping_count = self.data['measurement']['ping_count']
+        self.ping_count = self.data["measurement"]["ping_count"]
 
     def _load_cake_queues(self) -> None:
         """Load CAKE queue names with legacy support and validation."""
-        cake_queues = self.data.get('cake_queues', {})
-        default_dl_queue = f'WAN-Download-{self.primary_wan.capitalize()}'
-        default_ul_queue = f'WAN-Upload-{self.primary_wan.capitalize()}'
+        cake_queues = self.data.get("cake_queues", {})
+        default_dl_queue = f"WAN-Download-{self.primary_wan.capitalize()}"
+        default_ul_queue = f"WAN-Upload-{self.primary_wan.capitalize()}"
         self.primary_download_queue = self.validate_identifier(
-            cake_queues.get('primary_download', cake_queues.get('spectrum_download', default_dl_queue)),
-            'cake_queues.primary_download'
+            cake_queues.get(
+                "primary_download", cake_queues.get("spectrum_download", default_dl_queue)
+            ),
+            "cake_queues.primary_download",
         )
         self.primary_upload_queue = self.validate_identifier(
-            cake_queues.get('primary_upload', cake_queues.get('spectrum_upload', default_ul_queue)),
-            'cake_queues.primary_upload'
+            cake_queues.get("primary_upload", cake_queues.get("spectrum_upload", default_ul_queue)),
+            "cake_queues.primary_upload",
         )
 
     def _load_operational_mode(self) -> None:
         """Load operational mode settings."""
-        mode = self.data.get('mode', {})
-        self.cake_aware = mode.get('cake_aware', True)
-        self.enable_yellow_state = mode.get('enable_yellow_state', True)
-        self.use_confidence_scoring = mode.get('use_confidence_scoring', False)
+        mode = self.data.get("mode", {})
+        self.cake_aware = mode.get("cake_aware", True)
+        self.enable_yellow_state = mode.get("enable_yellow_state", True)
+        self.use_confidence_scoring = mode.get("use_confidence_scoring", False)
 
     def _load_confidence_config(self) -> None:
         """Load Phase 2B confidence scoring configuration.
@@ -254,11 +256,11 @@ class SteeringConfig(BaseConfig):
             self.confidence_config = None
             return
 
-        confidence = self.data.get('confidence', {})
+        confidence = self.data.get("confidence", {})
 
         # Validate confidence thresholds are in 0-100 range
-        steer_threshold = confidence.get('steer_threshold', 55)
-        recovery_threshold = confidence.get('recovery_threshold', 20)
+        steer_threshold = confidence.get("steer_threshold", 55)
+        recovery_threshold = confidence.get("recovery_threshold", 20)
         if not (0 <= steer_threshold <= 100):
             raise ValueError(
                 f"confidence.steer_threshold ({steer_threshold}) must be in range 0-100"
@@ -274,109 +276,115 @@ class SteeringConfig(BaseConfig):
             )
 
         self.confidence_config = {
-            'confidence': {
-                'steer_threshold': steer_threshold,
-                'recovery_threshold': recovery_threshold,
-                'sustain_duration_sec': confidence.get('sustain_duration_sec', 2.0),
-                'recovery_sustain_sec': confidence.get('recovery_sustain_sec', 3.0),
+            "confidence": {
+                "steer_threshold": steer_threshold,
+                "recovery_threshold": recovery_threshold,
+                "sustain_duration_sec": confidence.get("sustain_duration_sec", 2.0),
+                "recovery_sustain_sec": confidence.get("recovery_sustain_sec", 3.0),
             },
-            'timers': {
-                'hold_down_duration_sec': confidence.get('hold_down_duration_sec', 30.0),
+            "timers": {
+                "hold_down_duration_sec": confidence.get("hold_down_duration_sec", 30.0),
             },
-            'flap_detection': {
-                'enabled': confidence.get('flap_detection_enabled', True),
-                'window_minutes': confidence.get('flap_window_minutes', 5),
-                'max_toggles': confidence.get('max_toggles', 4),
-                'penalty_duration_sec': confidence.get('penalty_duration_sec', 60.0),
-                'penalty_threshold_add': confidence.get('penalty_threshold_add', 15),
+            "flap_detection": {
+                "enabled": confidence.get("flap_detection_enabled", True),
+                "window_minutes": confidence.get("flap_window_minutes", 5),
+                "max_toggles": confidence.get("max_toggles", 4),
+                "penalty_duration_sec": confidence.get("penalty_duration_sec", 60.0),
+                "penalty_threshold_add": confidence.get("penalty_threshold_add", 15),
             },
-            'dry_run': {
-                'enabled': confidence.get('dry_run', True),  # DEFAULT TRUE for safe deployment
+            "dry_run": {
+                "enabled": confidence.get("dry_run", True),  # DEFAULT TRUE for safe deployment
             },
         }
 
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
-        thresholds = self.data['thresholds']
+        thresholds = self.data["thresholds"]
 
         # Deprecation warnings for legacy parameters
-        _warn_deprecated_param(thresholds, 'bad_samples', 'red_samples_required',
-                               logging.getLogger(__name__))
-        _warn_deprecated_param(thresholds, 'good_samples', 'green_samples_required',
-                               logging.getLogger(__name__))
+        _warn_deprecated_param(
+            thresholds, "bad_samples", "red_samples_required", logging.getLogger(__name__)
+        )
+        _warn_deprecated_param(
+            thresholds, "good_samples", "green_samples_required", logging.getLogger(__name__)
+        )
 
         # Legacy RTT-only thresholds (backward compatibility)
-        self.bad_threshold_ms = thresholds.get('bad_threshold_ms', DEFAULT_BAD_THRESHOLD_MS)
-        self.recovery_threshold_ms = thresholds.get('recovery_threshold_ms', DEFAULT_RECOVERY_THRESHOLD_MS)
-        self.bad_samples = thresholds.get('bad_samples', 8)
-        self.good_samples = thresholds.get('good_samples', DEFAULT_GOOD_SAMPLES)
+        self.bad_threshold_ms = thresholds.get("bad_threshold_ms", DEFAULT_BAD_THRESHOLD_MS)
+        self.recovery_threshold_ms = thresholds.get(
+            "recovery_threshold_ms", DEFAULT_RECOVERY_THRESHOLD_MS
+        )
+        self.bad_samples = thresholds.get("bad_samples", 8)
+        self.good_samples = thresholds.get("good_samples", DEFAULT_GOOD_SAMPLES)
 
         # CAKE-aware thresholds (three-state model)
-        self.green_rtt_ms = thresholds.get('green_rtt_ms', DEFAULT_GREEN_RTT_MS)
-        self.yellow_rtt_ms = thresholds.get('yellow_rtt_ms', DEFAULT_YELLOW_RTT_MS)
-        self.red_rtt_ms = thresholds.get('red_rtt_ms', DEFAULT_RED_RTT_MS)
-        self.min_drops_red = thresholds.get('min_drops_red', 1)
-        self.min_queue_yellow = thresholds.get('min_queue_yellow', DEFAULT_MIN_QUEUE_YELLOW)
-        self.min_queue_red = thresholds.get('min_queue_red', DEFAULT_MIN_QUEUE_RED)
+        self.green_rtt_ms = thresholds.get("green_rtt_ms", DEFAULT_GREEN_RTT_MS)
+        self.yellow_rtt_ms = thresholds.get("yellow_rtt_ms", DEFAULT_YELLOW_RTT_MS)
+        self.red_rtt_ms = thresholds.get("red_rtt_ms", DEFAULT_RED_RTT_MS)
+        self.min_drops_red = thresholds.get("min_drops_red", 1)
+        self.min_queue_yellow = thresholds.get("min_queue_yellow", DEFAULT_MIN_QUEUE_YELLOW)
+        self.min_queue_red = thresholds.get("min_queue_red", DEFAULT_MIN_QUEUE_RED)
         # C5 fix: Validate EWMA alpha bounds during config load
         self.rtt_ewma_alpha = validate_alpha(
-            thresholds.get('rtt_ewma_alpha', DEFAULT_RTT_EWMA_ALPHA),
-            'thresholds.rtt_ewma_alpha',
-            logger=logging.getLogger(__name__)
+            thresholds.get("rtt_ewma_alpha", DEFAULT_RTT_EWMA_ALPHA),
+            "thresholds.rtt_ewma_alpha",
+            logger=logging.getLogger(__name__),
         )
         self.queue_ewma_alpha = validate_alpha(
-            thresholds.get('queue_ewma_alpha', DEFAULT_QUEUE_EWMA_ALPHA),
-            'thresholds.queue_ewma_alpha',
-            logger=logging.getLogger(__name__)
+            thresholds.get("queue_ewma_alpha", DEFAULT_QUEUE_EWMA_ALPHA),
+            "thresholds.queue_ewma_alpha",
+            logger=logging.getLogger(__name__),
         )
-        self.red_samples_required = thresholds.get('red_samples_required', 2)
-        self.green_samples_required = thresholds.get('green_samples_required', DEFAULT_GREEN_SAMPLES_REQUIRED)
+        self.red_samples_required = thresholds.get("red_samples_required", 2)
+        self.green_samples_required = thresholds.get(
+            "green_samples_required", DEFAULT_GREEN_SAMPLES_REQUIRED
+        )
 
     def _load_baseline_bounds(self) -> None:
         """Load baseline RTT bounds (C4 fix: configurable with security defaults)."""
-        baseline_bounds = self.data['thresholds'].get('baseline_rtt_bounds', {})
-        self.baseline_rtt_min = baseline_bounds.get('min', MIN_SANE_BASELINE_RTT)
-        self.baseline_rtt_max = baseline_bounds.get('max', MAX_SANE_BASELINE_RTT)
+        baseline_bounds = self.data["thresholds"].get("baseline_rtt_bounds", {})
+        self.baseline_rtt_min = baseline_bounds.get("min", MIN_SANE_BASELINE_RTT)
+        self.baseline_rtt_max = baseline_bounds.get("max", MAX_SANE_BASELINE_RTT)
 
     def _load_state_persistence(self) -> None:
         """Load state persistence settings."""
-        self.state_file = Path(self.data['state']['file'])
-        self.history_size = self.data['state']['history_size']
+        self.state_file = Path(self.data["state"]["file"])
+        self.history_size = self.data["state"]["history_size"]
 
     def _load_logging_config(self) -> None:
         """Load logging configuration."""
-        self.main_log = self.data['logging']['main_log']
-        self.debug_log = self.data['logging']['debug_log']
-        self.log_cake_stats = self.data['logging'].get('log_cake_stats', True)
+        self.main_log = self.data["logging"]["main_log"]
+        self.debug_log = self.data["logging"]["debug_log"]
+        self.log_cake_stats = self.data["logging"].get("log_cake_stats", True)
 
     def _load_lock_config(self) -> None:
         """Load lock file configuration."""
-        self.lock_file = Path(self.data['lock_file'])
-        self.lock_timeout = self.data['lock_timeout']
+        self.lock_file = Path(self.data["lock_file"])
+        self.lock_timeout = self.data["lock_timeout"]
 
     def _load_timeouts(self) -> None:
         """Load timeout settings with sensible defaults."""
-        timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_STEERING_SSH_TIMEOUT)
-        self.timeout_ping = timeouts.get('ping', 2)  # seconds (-W parameter)
-        self.timeout_ping_total = timeouts.get('ping_total', DEFAULT_STEERING_PING_TOTAL_TIMEOUT)
+        timeouts = self.data.get("timeouts", {})
+        self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_STEERING_SSH_TIMEOUT)
+        self.timeout_ping = timeouts.get("ping", 2)  # seconds (-W parameter)
+        self.timeout_ping_total = timeouts.get("ping_total", DEFAULT_STEERING_PING_TOTAL_TIMEOUT)
 
     def _build_router_dict(self) -> None:
         """Build router dict for CakeStatsReader."""
         self.router = {
-            'host': self.router_host,
-            'user': self.router_user,
-            'ssh_key': self.ssh_key,
-            'transport': self.router_transport,
-            'password': self.router_password,
-            'port': self.router_port,
-            'verify_ssl': self.router_verify_ssl
+            "host": self.router_host,
+            "user": self.router_user,
+            "ssh_key": self.ssh_key,
+            "transport": self.router_transport,
+            "password": self.router_password,
+            "port": self.router_port,
+            "verify_ssl": self.router_verify_ssl,
         }
 
     def _load_metrics_config(self) -> None:
         """Load metrics configuration (optional, disabled by default)."""
-        metrics_config = self.data.get('metrics', {})
-        self.metrics_enabled = metrics_config.get('enabled', False)
+        metrics_config = self.data.get("metrics", {})
+        self.metrics_enabled = metrics_config.get("enabled", False)
 
     def _load_specific_fields(self):
         """Load steering daemon-specific configuration fields.
@@ -410,9 +418,11 @@ class SteeringConfig(BaseConfig):
         self._build_router_dict()  # Depends on router fields from _load_router_transport
         self._load_metrics_config()
 
+
 # =============================================================================
 # STATE MANAGEMENT
 # =============================================================================
+
 
 def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
     """Create a StateSchema for steering daemon state.
@@ -425,29 +435,32 @@ def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
     Returns:
         StateSchema configured for steering state
     """
-    return StateSchema({
-        "current_state": config.state_good,
-        "bad_count": 0,
-        "good_count": 0,
-        "baseline_rtt": None,
-        "history_rtt": [],
-        "history_delta": [],
-        "transitions": [],
-        "last_transition_time": None,
-        "rtt_delta_ewma": 0.0,
-        "queue_ewma": 0.0,
-        "cake_drops_history": [],
-        "queue_depth_history": [],
-        "cake_state_history": [],  # For Phase 2B confidence scoring
-        "red_count": 0,
-        "congestion_state": "GREEN",
-        "cake_read_failures": 0
-    })
+    return StateSchema(
+        {
+            "current_state": config.state_good,
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": None,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "cake_state_history": [],  # For Phase 2B confidence scoring
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+    )
 
 
 # =============================================================================
 # ROUTEROS INTERFACE
 # =============================================================================
+
 
 class RouterOSController:
     """RouterOS interface to toggle steering rule (supports SSH and REST)
@@ -469,7 +482,7 @@ class RouterOSController:
         rc, out, _ = self.client.run_cmd(
             f'/ip firewall mangle print where comment~"{self.config.mangle_rule_comment}"',
             capture=True,
-            timeout=5  # Fast query operation
+            timeout=5,  # Fast query operation
         )
 
         if rc != 0:
@@ -479,14 +492,14 @@ class RouterOSController:
         # Parse output - look for X flag in rule line (not in Flags legend)
         # Disabled rule: " 4 X  ;;; comment"
         # Enabled rule:  " 4    ;;; comment"
-        lines = out.split('\n')
+        lines = out.split("\n")
         for line in lines:
-            if 'ADAPTIVE' in line and ';;;' in line:
+            if "ADAPTIVE" in line and ";;;" in line:
                 # Found the rule line - check for X flag between number and comment
                 # Split on ;;; to get the prefix part with flags
-                prefix = line.split(';;;')[0] if ';;;' in line else line
+                prefix = line.split(";;;")[0] if ";;;" in line else line
                 # Check if X appears in the prefix (after rule number)
-                if ' X ' in prefix or '\tX\t' in prefix or '\tX ' in prefix or ' X\t' in prefix:
+                if " X " in prefix or "\tX\t" in prefix or "\tX " in prefix or " X\t" in prefix:
                     self.logger.debug(f"Rule is DISABLED: {line[:60]}")
                     return False
                 else:
@@ -496,14 +509,13 @@ class RouterOSController:
         self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
         return None
 
-
     def enable_steering(self) -> bool:
         """Enable adaptive steering rule (route LATENCY_SENSITIVE to alternate WAN)"""
         self.logger.info(f"Enabling steering rule: {self.config.mangle_rule_comment}")
 
         rc, _, _ = self.client.run_cmd(
             f'/ip firewall mangle enable [find comment~"{self.config.mangle_rule_comment}"]',
-            timeout=10  # State change operation
+            timeout=10,  # State change operation
         )
 
         if rc != 0:
@@ -518,7 +530,7 @@ class RouterOSController:
             initial_delay=0.1,
             backoff_factor=2.0,
             logger=self.logger,
-            operation_name="steering rule enable verification"
+            operation_name="steering rule enable verification",
         ):
             self.logger.info("Steering rule enabled and verified")
             return True
@@ -532,7 +544,7 @@ class RouterOSController:
 
         rc, _, _ = self.client.run_cmd(
             f'/ip firewall mangle disable [find comment~"{self.config.mangle_rule_comment}"]',
-            timeout=10  # State change operation
+            timeout=10,  # State change operation
         )
 
         if rc != 0:
@@ -547,7 +559,7 @@ class RouterOSController:
             initial_delay=0.1,
             backoff_factor=2.0,
             logger=self.logger,
-            operation_name="steering rule disable verification"
+            operation_name="steering rule disable verification",
         ):
             self.logger.info("Steering rule disabled and verified")
             return True
@@ -564,6 +576,7 @@ class RouterOSController:
 # BASELINE RTT LOADER
 # =============================================================================
 
+
 class BaselineLoader:
     """Load baseline RTT from autorate state file"""
 
@@ -578,7 +591,9 @@ class BaselineLoader:
         Returns None if unavailable (daemon will use config fallback)
         """
         if not self.config.primary_state_file.exists():
-            self.logger.warning(f"Primary WAN state file not found: {self.config.primary_state_file}")
+            self.logger.warning(
+                f"Primary WAN state file not found: {self.config.primary_state_file}"
+            )
             return None
 
         try:
@@ -586,14 +601,16 @@ class BaselineLoader:
                 state = json.load(f)
 
             # autorate_continuous format: state['ewma']['baseline_rtt']
-            if 'ewma' in state and 'baseline_rtt' in state['ewma']:
-                baseline_rtt = float(state['ewma']['baseline_rtt'])
+            if "ewma" in state and "baseline_rtt" in state["ewma"]:
+                baseline_rtt = float(state["ewma"]["baseline_rtt"])
 
                 # PROTECTED: Security fix C4 - bounds baseline to 10-60ms to prevent malicious state file attacks.
                 # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
                 # Default range: 10-60ms (typical home ISP latencies)
                 if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
-                    self.logger.debug(f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms")
+                    self.logger.debug(
+                        f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms"
+                    )
                     return baseline_rtt
                 else:
                     self.logger.warning(
@@ -615,6 +632,7 @@ class BaselineLoader:
 # STEERING DAEMON
 # =============================================================================
 
+
 class SteeringDaemon:
     """Main steering daemon logic with state machine"""
 
@@ -625,7 +643,7 @@ class SteeringDaemon:
         router: RouterOSController,
         rtt_measurement: RTTMeasurement,
         baseline_loader: BaselineLoader,
-        logger: logging.Logger
+        logger: logging.Logger,
     ):
         self.config = config
         self.state_mgr = state
@@ -645,7 +663,7 @@ class SteeringDaemon:
                 min_queue_yellow=config.min_queue_yellow,
                 min_queue_red=config.min_queue_red,
                 red_samples_required=config.red_samples_required,
-                green_samples_required=config.green_samples_required
+                green_samples_required=config.green_samples_required,
             )
             self.logger.info("CAKE-aware mode ENABLED - using three-state congestion model")
         else:
@@ -661,12 +679,10 @@ class SteeringDaemon:
                 logger=self.logger,
                 state_good=self.config.state_good,
                 state_degraded=self.config.state_degraded,
-                cycle_interval=ASSESSMENT_INTERVAL_SECONDS
+                cycle_interval=ASSESSMENT_INTERVAL_SECONDS,
             )
-            dry_run_status = self.config.confidence_config['dry_run']['enabled']
-            self.logger.info(
-                f"[PHASE2B] Confidence scoring enabled (dry_run={dry_run_status})"
-            )
+            dry_run_status = self.config.confidence_config["dry_run"]["enabled"]
+            self.logger.info(f"[PHASE2B] Confidence scoring enabled (dry_run={dry_run_status})")
 
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
@@ -677,12 +693,14 @@ class SteeringDaemon:
         Returns:
             True if state is "good", False otherwise
         """
-        return current_state == self.config.state_good or \
-               current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
+        return current_state == self.config.state_good or current_state in (
+            "SPECTRUM_GOOD",
+            "WAN1_GOOD",
+            "WAN2_GOOD",
+        )
 
     def _evaluate_degradation_condition(
-        self,
-        signals: CongestionSignals
+        self, signals: CongestionSignals
     ) -> tuple[bool, bool, bool, str | None]:
         """
         Evaluate degradation/recovery conditions based on mode.
@@ -707,7 +725,7 @@ class SteeringDaemon:
                 assessment == CongestionState.RED,
                 assessment == CongestionState.GREEN,
                 assessment == CongestionState.YELLOW,
-                assessment.value
+                assessment.value,
             )
         else:
             # Legacy mode: simple threshold comparison
@@ -716,10 +734,7 @@ class SteeringDaemon:
             return (is_degraded, is_recovered, False, None)
 
     def execute_steering_transition(
-        self,
-        from_state: str,
-        to_state: str,
-        enable_steering: bool
+        self, from_state: str, to_state: str, enable_steering: bool
     ) -> bool:
         """Execute steering state transition with routing control.
 
@@ -750,11 +765,116 @@ class SteeringDaemon:
 
         # Record metrics if enabled
         if self.config.metrics_enabled:
-            record_steering_transition(
-                self.config.primary_wan, from_state, to_state
-            )
+            record_steering_transition(self.config.primary_wan, from_state, to_state)
 
         return True
+
+    def _handle_good_state(
+        self,
+        signals: CongestionSignals,
+        is_degraded: bool,
+        is_warning: bool,
+        assessment: str | None,
+        degrade_count: int,
+        degrade_threshold: int,
+    ) -> tuple[int, bool]:
+        """Handle state machine logic when in GOOD state.
+
+        Returns:
+            (new_degrade_count, state_changed)
+        """
+        wan = self.config.primary_wan.upper()
+        state_changed = False
+
+        if is_degraded:
+            degrade_count += 1
+            if self.config.cake_aware:
+                self.logger.info(
+                    f"[{wan}_GOOD] [{assessment}] {signals} | "
+                    f"red_count={degrade_count}/{degrade_threshold}"
+                )
+            else:
+                self.logger.debug(
+                    f"Delta={signals.rtt_delta:.1f}ms > threshold={self.config.bad_threshold_ms}ms, "
+                    f"bad_count={degrade_count}/{degrade_threshold}"
+                )
+
+            if degrade_count >= degrade_threshold:
+                if self.config.cake_aware:
+                    self.logger.warning(
+                        f"{wan} DEGRADED detected - {signals} (sustained {degrade_count} samples)"
+                    )
+                else:
+                    self.logger.warning(
+                        f"{wan} DEGRADED detected (delta={signals.rtt_delta:.1f}ms "
+                        f"sustained for {degrade_count} samples)"
+                    )
+                if self.execute_steering_transition(
+                    self.config.state_good, self.config.state_degraded, enable_steering=True
+                ):
+                    degrade_count = 0
+                    state_changed = True
+
+        elif is_warning:
+            degrade_count = 0
+            self.logger.info(f"[{wan}_GOOD] [{assessment}] {signals} | early warning, no action")
+        else:
+            degrade_count = 0
+            if self.config.cake_aware:
+                self.logger.debug(f"[{wan}_GOOD] [{assessment}] {signals}")
+
+        return degrade_count, state_changed
+
+    def _handle_degraded_state(
+        self,
+        signals: CongestionSignals,
+        is_recovered: bool,
+        assessment: str | None,
+        recover_count: int,
+        recover_threshold: int,
+    ) -> tuple[int, bool]:
+        """Handle state machine logic when in DEGRADED state.
+
+        Returns:
+            (new_recover_count, state_changed)
+        """
+        wan = self.config.primary_wan.upper()
+        state_changed = False
+
+        if is_recovered:
+            recover_count += 1
+            if self.config.cake_aware:
+                self.logger.info(
+                    f"[{wan}_DEGRADED] [{assessment}] {signals} | "
+                    f"good_count={recover_count}/{recover_threshold}"
+                )
+            else:
+                self.logger.debug(
+                    f"Delta={signals.rtt_delta:.1f}ms < threshold={self.config.recovery_threshold_ms}ms, "
+                    f"good_count={recover_count}/{recover_threshold}"
+                )
+
+            if recover_count >= recover_threshold:
+                if self.config.cake_aware:
+                    self.logger.info(
+                        f"{wan} RECOVERED - {signals} (sustained {recover_count} samples)"
+                    )
+                else:
+                    self.logger.info(
+                        f"{wan} RECOVERED (delta={signals.rtt_delta:.1f}ms "
+                        f"sustained for {recover_count} samples)"
+                    )
+                if self.execute_steering_transition(
+                    self.config.state_degraded, self.config.state_good, enable_steering=False
+                ):
+                    recover_count = 0
+                    state_changed = True
+        else:
+            recover_count = 0
+            if self.config.cake_aware:
+                self.logger.info(f"[{wan}_DEGRADED] [{assessment}] {signals} | still degraded")
+
+        return recover_count, state_changed
 
     def _update_state_machine_unified(self, signals: CongestionSignals) -> bool:
         """
@@ -763,37 +883,20 @@ class SteeringDaemon:
         PROTECTED: Asymmetric hysteresis - quick to enable, slow to disable.
         Do not change thresholds without production validation.
         See docs/CORE-ALGORITHM-ANALYSIS.md.
-
-        This method handles:
-        - Mode-specific condition evaluation via _evaluate_degradation_condition()
-        - State transitions via execute_steering_transition()
-        - Counter management with unified naming (degrade_count, recover_count)
-        - YELLOW state handling for CAKE-aware mode
-        - Logging for all state changes
-
-        Args:
-            signals: CongestionSignals containing rtt_delta, drops, queue depth, etc.
-
-        Returns:
-            True if routing state changed, False otherwise
         """
         state = self.state_mgr.state
         current_state = state["current_state"]
-        wan_name = self.config.primary_wan.upper()
 
         # Evaluate conditions based on mode
-        is_degraded, is_recovered, is_warning, assessment_value = (
-            self._evaluate_degradation_condition(signals)
+        is_degraded, is_recovered, is_warning, assessment = self._evaluate_degradation_condition(
+            signals
         )
 
         # Store assessment for observability (CAKE mode only)
-        if assessment_value is not None:
-            state["congestion_state"] = assessment_value
+        if assessment is not None:
+            state["congestion_state"] = assessment
 
-        state_changed = False
-
-        # Get counters - use mode-appropriate names but treat uniformly
-        # CAKE mode: red_count/good_count, Legacy mode: bad_count/good_count
+        # Get counters - CAKE: red_count, Legacy: bad_count
         if self.config.cake_aware:
             degrade_count = state["red_count"]
             degrade_threshold = self.thresholds.red_samples_required
@@ -802,113 +905,26 @@ class SteeringDaemon:
             degrade_count = state["bad_count"]
             degrade_threshold = self.config.bad_samples
             recover_threshold = self.config.good_samples
-
         recover_count = state["good_count"]
 
-        # Check if we're in "good" state (handles both legacy and generic names)
-        is_good_state = self._is_current_state_good(current_state)
-
-        if is_good_state:
-            # Normalize to config-driven state name
+        # Dispatch to state handler
+        is_good = self._is_current_state_good(current_state)
+        if is_good:
             if current_state != self.config.state_good:
                 state["current_state"] = self.config.state_good
-                current_state = self.config.state_good
-
-            # Check for degradation
-            if is_degraded:
-                degrade_count += 1
-                recover_count = 0
-
-                if self.config.cake_aware:
-                    self.logger.info(
-                        f"[{wan_name}_GOOD] [{assessment_value}] {signals} | "
-                        f"red_count={degrade_count}/{degrade_threshold}"
-                    )
-                else:
-                    self.logger.debug(
-                        f"Delta={signals.rtt_delta:.1f}ms > threshold={self.config.bad_threshold_ms}ms, "
-                        f"bad_count={degrade_count}/{degrade_threshold}"
-                    )
-
-                if degrade_count >= degrade_threshold:
-                    if self.config.cake_aware:
-                        self.logger.warning(
-                            f"{wan_name} DEGRADED detected - {signals} (sustained {degrade_count} samples)"
-                        )
-                    else:
-                        self.logger.warning(
-                            f"{wan_name} DEGRADED detected (delta={signals.rtt_delta:.1f}ms "
-                            f"sustained for {degrade_count} samples)"
-                        )
-
-                    # Enable steering
-                    if self.execute_steering_transition(
-                        current_state, self.config.state_degraded, enable_steering=True
-                    ):
-                        degrade_count = 0
-                        state_changed = True
-
-            elif is_warning:
-                # CAKE-aware YELLOW state: reset degrade counter, no action
-                degrade_count = 0
-                self.logger.info(
-                    f"[{wan_name}_GOOD] [{assessment_value}] {signals} | early warning, no action"
-                )
-            else:
-                # GREEN or below threshold: reset degrade counter
-                degrade_count = 0
-                if self.config.cake_aware:
-                    self.logger.debug(f"[{wan_name}_GOOD] [{assessment_value}] {signals}")
-
-        else:  # Degraded state
-            # Normalize to config-driven state name
+            degrade_count, state_changed = self._handle_good_state(
+                signals, is_degraded, is_warning, assessment, degrade_count, degrade_threshold
+            )
+            recover_count = 0
+        else:
             if current_state != self.config.state_degraded:
                 state["current_state"] = self.config.state_degraded
-                current_state = self.config.state_degraded
+            recover_count, state_changed = self._handle_degraded_state(
+                signals, is_recovered, assessment, recover_count, recover_threshold
+            )
+            degrade_count = 0
 
-            # Check for recovery
-            if is_recovered:
-                recover_count += 1
-                degrade_count = 0
-
-                if self.config.cake_aware:
-                    self.logger.info(
-                        f"[{wan_name}_DEGRADED] [{assessment_value}] {signals} | "
-                        f"good_count={recover_count}/{recover_threshold}"
-                    )
-                else:
-                    self.logger.debug(
-                        f"Delta={signals.rtt_delta:.1f}ms < threshold={self.config.recovery_threshold_ms}ms, "
-                        f"good_count={recover_count}/{recover_threshold}"
-                    )
-
-                if recover_count >= recover_threshold:
-                    if self.config.cake_aware:
-                        self.logger.info(
-                            f"{wan_name} RECOVERED - {signals} (sustained {recover_count} samples)"
-                        )
-                    else:
-                        self.logger.info(
-                            f"{wan_name} RECOVERED (delta={signals.rtt_delta:.1f}ms "
-                            f"sustained for {recover_count} samples)"
-                        )
-
-                    # Disable steering
-                    if self.execute_steering_transition(
-                        current_state, self.config.state_good, enable_steering=False
-                    ):
-                        recover_count = 0
-                        state_changed = True
-
-            else:
-                # Not recovered yet: reset recovery counter
-                recover_count = 0
-                if self.config.cake_aware:
-                    self.logger.info(
-                        f"[{wan_name}_DEGRADED] [{assessment_value}] {signals} | still degraded"
-                    )
-
-        # Update counters in state (use mode-appropriate names)
+        # Persist counters
         if self.config.cake_aware:
             state["red_count"] = degrade_count
         else:
@@ -919,10 +935,7 @@ class SteeringDaemon:
 
     def measure_current_rtt(self) -> float | None:
         """Measure current RTT to ping host"""
-        return self.rtt_measurement.ping_host(
-            self.config.ping_host,
-            self.config.ping_count
-        )
+        return self.rtt_measurement.ping_host(self.config.ping_host, self.config.ping_count)
 
     def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> float | None:
         """
@@ -936,6 +949,7 @@ class SteeringDaemon:
         Returns:
             Current RTT or None if all retries fail and no fallback available
         """
+
         def fallback_to_history():
             """Fallback to historical RTT data when current measurement fails.
 
@@ -956,9 +970,7 @@ class SteeringDaemon:
                     f"(ping to {self.config.ping_host} failed after retries)"
                 )
                 return last_rtt
-            self.logger.error(
-                "No ping response and no RTT history available - cannot proceed"
-            )
+            self.logger.error("No ping response and no RTT history available - cannot proceed")
             return None
 
         return measure_with_retry(
@@ -967,7 +979,7 @@ class SteeringDaemon:
             retry_delay=0.5,
             fallback_func=fallback_to_history,
             logger=self.logger,
-            operation_name="ping"
+            operation_name="ping",
         )
 
     def update_baseline_rtt(self) -> bool:
@@ -984,7 +996,9 @@ class SteeringDaemon:
             if old_baseline is None:
                 self.logger.info(f"Initialized baseline RTT: {baseline_rtt:.2f}ms")
             elif abs(baseline_rtt - old_baseline) > BASELINE_CHANGE_THRESHOLD:
-                self.logger.info(f"Baseline RTT updated: {old_baseline:.2f}ms -> {baseline_rtt:.2f}ms")
+                self.logger.info(
+                    f"Baseline RTT updated: {old_baseline:.2f}ms -> {baseline_rtt:.2f}ms"
+                )
 
             return True
         else:
@@ -1050,23 +1064,22 @@ class SteeringDaemon:
 
             # Convert CongestionSignals to Phase2BSignals format
             phase2b_signals = Phase2BSignals(
-                cake_state=state.get('congestion_state', 'GREEN'),
+                cake_state=state.get("congestion_state", "GREEN"),
                 rtt_delta_ms=signals.rtt_delta,
                 drops_per_sec=float(signals.cake_drops),
                 queue_depth_pct=float(signals.queued_packets),  # Simplified (packets not %)
-                cake_state_history=list(state.get('cake_state_history', [])),
-                drops_history=list(state.get('cake_drops_history', [])),
-                queue_history=list(state.get('queue_depth_history', [])),
+                cake_state_history=list(state.get("cake_state_history", [])),
+                drops_history=list(state.get("cake_drops_history", [])),
+                queue_history=list(state.get("queue_depth_history", [])),
             )
 
             # Evaluate confidence (returns decision or None if dry-run)
             confidence_decision = self.confidence_controller.evaluate(
-                phase2b_signals,
-                state['current_state']
+                phase2b_signals, state["current_state"]
             )
 
             # In live mode (dry_run=False), use confidence decision for routing
-            if confidence_decision and not self.config.confidence_config['dry_run']['enabled']:
+            if confidence_decision and not self.config.confidence_config["dry_run"]["enabled"]:
                 return self._apply_confidence_decision(confidence_decision)
             # In dry-run mode, confidence logs decisions but falls through to hysteresis
 
@@ -1129,7 +1142,9 @@ class SteeringDaemon:
                 )
             else:  # GREEN
                 red_count = 0
-                self.logger.debug(f"[{self.config.primary_wan.upper()}_GOOD] [{assessment.value}] {signals}")
+                self.logger.debug(
+                    f"[{self.config.primary_wan.upper()}_GOOD] [{assessment.value}] {signals}"
+                )
 
         else:  # Degraded state
             # Normalize to config-driven state name
@@ -1312,18 +1327,14 @@ class SteeringDaemon:
         """
         state = self.state_mgr.state
 
-        rtt_delta_ewma = ewma_update(
-            state["rtt_delta_ewma"],
-            delta,
-            self.config.rtt_ewma_alpha
-        )
+        rtt_delta_ewma = ewma_update(state["rtt_delta_ewma"], delta, self.config.rtt_ewma_alpha)
         state["rtt_delta_ewma"] = rtt_delta_ewma
 
         queue_ewma = ewma_update(
             state["queue_ewma"],
             float(queued_packets),
             self.config.queue_ewma_alpha,
-            max_value=10000.0  # Queue depth can exceed 1000 packets under heavy load
+            max_value=10000.0,  # Queue depth can exceed 1000 packets under heavy load
         )
         state["queue_ewma"] = queue_ewma
 
@@ -1350,7 +1361,9 @@ class SteeringDaemon:
         # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
         current_rtt = self._measure_current_rtt_with_retry()
         if current_rtt is None:
-            self.logger.warning("Ping failed after retries and no fallback available, skipping cycle")
+            self.logger.warning(
+                "Ping failed after retries and no fallback available, skipping cycle"
+            )
             return False
 
         # Calculate delta
@@ -1372,7 +1385,7 @@ class SteeringDaemon:
             rtt_delta_ewma=rtt_delta_ewma,
             cake_drops=cake_drops,
             queued_packets=queued_packets,
-            baseline_rtt=baseline_rtt
+            baseline_rtt=baseline_rtt,
         )
 
         # === Log Measurement ===
@@ -1534,9 +1547,7 @@ def main():
     Returns:
         int: Exit code - 0 for success, 1 for error, 130 for interrupt
     """
-    parser = argparse.ArgumentParser(
-        description="Adaptive Multi-WAN Steering Daemon"
-    )
+    parser = argparse.ArgumentParser(description="Adaptive Multi-WAN Steering Daemon")
     parser.add_argument("--config", required=True, help="Path to config YAML file")
     parser.add_argument("--reset", action="store_true", help="Reset state and disable steering")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
@@ -1557,7 +1568,9 @@ def main():
     # Setup logging
     logger = setup_logging(config, "steering", args.debug)
     logger.info("=" * 60)
-    logger.info(f"Steering Daemon - Primary: {config.primary_wan}, Alternate: {config.alternate_wan}")
+    logger.info(
+        f"Steering Daemon - Primary: {config.primary_wan}, Alternate: {config.alternate_wan}"
+    )
     logger.info("=" * 60)
 
     # Check for early shutdown (signal received during startup)
@@ -1568,8 +1581,7 @@ def main():
     # Initialize components
     schema = create_steering_state_schema(config)
     state_mgr = SteeringStateManager(
-        config.state_file, schema, logger,
-        history_maxlen=config.history_size
+        config.state_file, schema, logger, history_maxlen=config.history_size
     )
     state_mgr.load()
     router = RouterOSController(config, logger)
@@ -1579,7 +1591,7 @@ def main():
         timeout_ping=config.timeout_ping,
         timeout_total=config.timeout_ping_total,
         aggregation_strategy=RTTAggregationStrategy.MEDIAN,
-        log_sample_stats=False  # Steering only uses single sample (count=1)
+        log_sample_stats=False,  # Steering only uses single sample (count=1)
     )
     baseline_loader = BaselineLoader(config, logger)
 
@@ -1613,10 +1625,7 @@ def main():
         return 0
 
     # Create daemon
-    daemon = SteeringDaemon(
-        config, state_mgr, router,
-        rtt_measurement, baseline_loader, logger
-    )
+    daemon = SteeringDaemon(config, state_mgr, router, rtt_measurement, baseline_loader, logger)
 
     # Get shutdown event for direct access in timed waits
     shutdown_event = get_shutdown_event()
