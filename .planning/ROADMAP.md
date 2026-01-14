@@ -293,13 +293,21 @@ Plans:
 **Goal**: Implement approved recommendations from Phase 7 analysis for SteeringDaemon
 **Depends on**: Phase 14 and explicit approval of Phase 7 recommendations
 **Research**: Unlikely (implementing pre-approved changes)
-**Plans**: TBD
+**Plans**: 6 plans
+**Status**: In progress (5/6 plans complete)
 
 Plans:
 
-- [ ] 15-01: TBD
+- [x] 15-01: Extract update_ewma_smoothing() from run_cycle()
+- [x] 15-02: Extract collect_cake_stats() from run_cycle()
+- [x] 15-03: Extract execute_steering_transition() routing control
+- [x] 15-04: Extract run_daemon_loop() from main()
+- [x] 15-05: Unify state machine methods (S6 recommendation)
+- [ ] 15-06: TBD (final extraction)
 
-**Note**: HIGH RISK phase. Only proceeds with explicit approval of specific recommendations from Phase 7.
+**Accomplishments so far**: Extracted 4 methods from run_cycle(), created execute_steering_transition() consolidating 4 callsites, unified state machine (CAKE-aware + legacy), added 66 new tests (528 → 594). All protected zones preserved.
+
+**Note**: HIGH RISK phase. Explicit approval obtained for each recommendation from Phase 7.
 
 ## Progress
 
@@ -323,4 +331,4 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 14. WANController Refactoring           | v1.1      | 5/5            | ✓ Complete                    | 2026-01-14  |
-| 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
+| 15. SteeringDaemon Refactoring          | v1.1      | 5/6            | In progress                   | -           |

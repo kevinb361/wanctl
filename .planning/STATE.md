@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-09)
 ## Current Position
 
 Phase: 15 of 15 (SteeringDaemon Refactoring)
-Plan: 4 of 5 in current phase
+Plan: 5 of 6 in current phase
 Status: Phase in progress
-Last activity: 2026-01-13 — Completed 15-03-PLAN.md
+Last activity: 2026-01-14 — Completed 15-05-PLAN.md
 
-Progress: ████████████████░░░░ 80% (4/5 plans in phase)
+Progress: █████████████████░░░ 83% (5/6 plans in phase)
 
 ## Performance Metrics
 
@@ -40,8 +40,8 @@ Progress: ████████████████░░░░ 80% (4/5 
 
 **Recent Trend:**
 
-- Last 5 plans: [15-01 ✓, 15-02 ✓, 15-03 ✓, 15-04 ✓, 15-05 ○]
-- Trend: Excellent - Phase 15 in progress (4/5 plans)
+- Last 5 plans: [15-02 ✓, 15-03 ✓, 15-04 ✓, 15-05 ✓, 15-06 ○]
+- Trend: Excellent - Phase 15 in progress (5/6 plans)
 
 **Current Performance:**
 
@@ -96,8 +96,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-13
-Stopped at: Completed 15-03-PLAN.md and created summary
+Last session: 2026-01-14
+Stopped at: Completed 15-05-PLAN.md and created summary
 Resume file: None
 
 ## Milestone Achievements
@@ -466,14 +466,22 @@ Resume file: None
   - Added 13 unit tests for daemon loop
   - Test count increased from 566 to 579
 
+- ✓ 15-05: Unify state machine methods (7 min execution)
+  - Created \_evaluate_degradation_condition() helper for mode-specific logic
+  - Created \_update_state_machine_unified() handling both CAKE-aware and legacy
+  - Deprecated old methods (kept for reference/rollback)
+  - Added 15 unit tests for unified state machine
+  - Test count increased from 579 to 594
+
 **Remaining:**
 
-- ○ 15-05: Unify state machine methods (S6 recommendation from Phase 7)
+- ○ 15-06: TBD (final extraction)
 
 **Phase 15 Accomplishments So Far:**
 
 - Methods extracted from run_cycle(): update_ewma_smoothing(), collect_cake_stats()
 - Methods extracted from state machines: execute_steering_transition()
+- State machine unified: \_update_state_machine_unified() replaces CAKE-aware + legacy
 - Functions extracted from main(): run_daemon_loop()
-- Total new tests: 51 tests (528 → 579)
-- All protected zones preserved (C5 numeric stability, W8 failure tracking)
+- Total new tests: 66 tests (528 → 594)
+- All protected zones preserved (C5 numeric stability, W8 failure tracking, asymmetric hysteresis)
