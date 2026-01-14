@@ -140,6 +140,8 @@ class Config(BaseConfig):
          "required": False, "min": 1, "max": 600},
         {"path": "continuous_monitoring.thresholds.load_time_constant_sec", "type": (int, float),
          "required": False, "min": 0.05, "max": 10},
+        {"path": "continuous_monitoring.thresholds.accel_threshold_ms", "type": (int, float),
+         "required": False, "min": 5, "max": 50},
 
         # Baseline RTT bounds (optional - security validation)
         {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -274,6 +276,10 @@ class Config(BaseConfig):
         self.baseline_update_threshold_ms = thresh.get(
             'baseline_update_threshold_ms', DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
         )
+
+        # Acceleration threshold for rate-of-change detection (Phase 3)
+        # Detects sudden RTT spikes and triggers immediate RED state
+        self.accel_threshold_ms = thresh.get('accel_threshold_ms', 15.0)
 
         # Baseline RTT security bounds - reject values outside this range
         bounds = thresh.get('baseline_rtt_bounds', {})
@@ -623,6 +629,10 @@ class WANController:
         # Initialize baseline from config (will be measured and updated)
         self.baseline_rtt = config.baseline_rtt_initial
         self.load_rtt = self.baseline_rtt
+
+        # Rate-of-change (acceleration) detection for sudden RTT spikes
+        self.previous_load_rtt = self.load_rtt
+        self.accel_threshold = config.accel_threshold_ms
 
         # Create queue controllers
         self.download = QueueController(
@@ -1058,6 +1068,20 @@ class WANController:
 
         # At this point, measured_rtt is valid (either from ICMP or last known value)
         self.update_ewma(measured_rtt)
+
+        # Rate-of-change (acceleration) detection for sudden RTT spikes
+        # Catches spikes that EWMA smooths over, triggers immediate RED
+        delta_accel = self.load_rtt - self.previous_load_rtt
+        if delta_accel > self.accel_threshold:
+            self.logger.warning(
+                f"{self.wan_name}: RTT spike detected! delta_accel={delta_accel:.1f}ms "
+                f"(threshold={self.accel_threshold}ms) - forcing RED"
+            )
+            # Force RED by setting streak counter (bypasses hysteresis)
+            self.download.red_streak = 1
+            self.download.green_streak = 0
+            self.download.soft_red_streak = 0
+        self.previous_load_rtt = self.load_rtt
 
         # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
         dl_zone, dl_rate = self.download.adjust_4state(
