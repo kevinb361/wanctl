@@ -356,7 +356,11 @@ def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
 # =============================================================================
 
 class RouterOSController:
-    """RouterOS interface to toggle steering rule (supports SSH and REST)"""
+    """RouterOS interface to toggle steering rule (supports SSH and REST)
+
+    PROTECTED: Security C2 (command injection prevention) + Reliability W6 (retry with verification).
+    See docs/CORE-ALGORITHM-ANALYSIS.md.
+    """
 
     def __init__(self, config: SteeringConfig, logger: logging.Logger):
         self.config = config
@@ -491,6 +495,7 @@ class BaselineLoader:
             if 'ewma' in state and 'baseline_rtt' in state['ewma']:
                 baseline_rtt = float(state['ewma']['baseline_rtt'])
 
+                # PROTECTED: Security fix C4 - bounds baseline to 10-60ms to prevent malicious state file attacks.
                 # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
                 # Default range: 10-60ms (typical home ISP latencies)
                 if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
@@ -670,6 +675,8 @@ class SteeringDaemon:
 
     def _update_state_machine_cake_aware(self, signals: CongestionSignals) -> bool:
         """CAKE-aware three-state logic (GREEN/YELLOW/RED)"""
+        # PROTECTED: Asymmetric hysteresis - quick to enable (8 samples), slow to disable (60 samples).
+        # Do not change thresholds without production validation. See docs/CORE-ALGORITHM-ANALYSIS.md.
         state = self.state_mgr.state
         current_state = state["current_state"]
 
@@ -909,6 +916,7 @@ class SteeringDaemon:
         delta = self.calculate_delta(current_rtt)
 
         # === EWMA Smoothing (if CAKE-aware) ===
+        # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load. Formula: (1-alpha)*current + alpha*new
         if self.config.cake_aware:
             rtt_delta_ewma = ewma_update(
                 state["rtt_delta_ewma"],
