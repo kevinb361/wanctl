@@ -281,7 +281,7 @@ Plans:
 
 - [x] 14-01: Extract handle_icmp_failure() from run_cycle()
 - [x] 14-02: Extract flash wear protection logic
-- [ ] 14-03: Extract rate calculation logic
+- [x] 14-03: Extract concurrent RTT measurement to utility
 - [ ] 14-04: Extract baseline update logic
 - [ ] 14-05: Final run_cycle() cleanup
 
