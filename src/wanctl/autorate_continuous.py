@@ -75,6 +75,12 @@ CYCLE_INTERVAL_SECONDS = 0.05
 # Default bloat thresholds (milliseconds)
 DEFAULT_HARD_RED_BLOAT_MS = 80  # SOFT_RED -> RED transition threshold
 
+# Baseline RTT sanity bounds (milliseconds)
+# Typical home ISP latencies are 20-50ms. Anything below 10ms indicates local LAN,
+# anything above 60ms suggests routing issues or corrupted state.
+MIN_SANE_BASELINE_RTT = 10.0
+MAX_SANE_BASELINE_RTT = 60.0
+
 # Rate limiter defaults (protects router API during instability)
 DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
@@ -126,6 +132,12 @@ class Config(BaseConfig):
          "required": True, "min": 0.0001, "max": 1.0},
         {"path": "continuous_monitoring.thresholds.alpha_load", "type": float,
          "required": True, "min": 0.001, "max": 1.0},
+
+        # Baseline RTT bounds (optional - security validation)
+        {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
+         "type": (int, float), "required": False, "min": 1, "max": 100},
+        {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.max",
+         "type": (int, float), "required": False, "min": 10, "max": 500},
 
         # Ping hosts
         {"path": "continuous_monitoring.ping_hosts", "type": list, "required": True},
@@ -222,6 +234,11 @@ class Config(BaseConfig):
         self.baseline_update_threshold_ms = thresh.get(
             'baseline_update_threshold_ms', DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
         )
+
+        # Baseline RTT security bounds - reject values outside this range
+        bounds = thresh.get('baseline_rtt_bounds', {})
+        self.baseline_rtt_min = bounds.get('min', MIN_SANE_BASELINE_RTT)
+        self.baseline_rtt_max = bounds.get('max', MAX_SANE_BASELINE_RTT)
 
         # Validate threshold ordering: target < warn < hard_red
         # This ensures state transitions are logically correct
@@ -597,6 +614,8 @@ class WANController:
         self.alpha_baseline = config.alpha_baseline
         self.alpha_load = config.alpha_load
         self.baseline_update_threshold = config.baseline_update_threshold_ms
+        self.baseline_rtt_min = config.baseline_rtt_min
+        self.baseline_rtt_max = config.baseline_rtt_max
 
         # Ping configuration
         self.ping_hosts = config.ping_hosts
@@ -714,10 +733,20 @@ class WANController:
         if delta < self.baseline_update_threshold:
             # Line is idle or nearly idle - safe to update baseline
             old_baseline = self.baseline_rtt
-            self.baseline_rtt = (
+            new_baseline = (
                 (1 - self.alpha_baseline) * self.baseline_rtt
                 + self.alpha_baseline * measured_rtt
             )
+
+            # Security bounds check - reject corrupted/invalid baseline values
+            if not (self.baseline_rtt_min <= new_baseline <= self.baseline_rtt_max):
+                self.logger.warning(
+                    f"{self.wan_name}: Baseline RTT {new_baseline:.1f}ms outside bounds "
+                    f"[{self.baseline_rtt_min}-{self.baseline_rtt_max}ms], ignoring"
+                )
+                return
+
+            self.baseline_rtt = new_baseline
             self.logger.debug(
                 f"{self.wan_name}: Baseline updated {old_baseline:.2f}ms -> "
                 f"{self.baseline_rtt:.2f}ms "
