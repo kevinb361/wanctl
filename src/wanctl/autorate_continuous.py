@@ -685,6 +685,7 @@ class WANController:
         # Fast EWMA for load_rtt (responsive to current conditions)
         self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * measured_rtt
 
+        # PROTECTED: Baseline only updates when delta < threshold (idle). Prevents drift under load.
         # Slow EWMA for baseline_rtt (ONLY update when line is genuinely idle)
         # This tracks the "normal" RTT without congestion
         #
@@ -884,7 +885,8 @@ class WANController:
         )
 
         # =====================================================================
-        # FLASH WEAR PROTECTION - Only update router if rates changed
+        # PROTECTED: Flash wear protection - only send queue limits when values change.
+        # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
         # =====================================================================
         # RouterOS writes queue changes to NAND flash. Sending the same values
         # repeatedly would cause unnecessary flash wear over time.
@@ -892,7 +894,8 @@ class WANController:
         # =====================================================================
         if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
             # =====================================================================
-            # RATE LIMITING - Protect router API during instability
+            # PROTECTED: Rate limiting prevents RouterOS API overload (RB5009 limit ~50 req/sec).
+            # See docs/CORE-ALGORITHM-ANALYSIS.md.
             # =====================================================================
             # During rapid state oscillations, limit how often we send updates
             # to prevent router API overload. Skip update if rate limited.
