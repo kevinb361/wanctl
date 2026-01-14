@@ -46,6 +46,8 @@ class TestCollectCakeStats:
         config.red_samples_required = 2
         config.green_samples_required = 15
         config.metrics_enabled = False
+        config.use_confidence_scoring = False  # Phase 2B disabled by default in tests
+        config.confidence_config = None
         return config
 
     @pytest.fixture
