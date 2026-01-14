@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-09)
 
 **Core value:** Reduce measurement and control latency to under 2 seconds per cycle while maintaining production reliability in home network deployments.
-**Current focus:** Phase 13 In Progress — Documentation Improvements
+**Current focus:** Phase 14 In Progress — WANController Refactoring
 
 ## Current Position
 
-Phase: 13 of 15 (Documentation Improvements)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-01-14 — Completed 13-02-PLAN.md
+Phase: 14 of 15 (WANController Refactoring)
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-01-14 — Completed 14-01-PLAN.md
 
-Progress: ████████████████████████ 100% (2/2 plans in phase)
+Progress: ████░░░░░░░░░░░░░░░░ 20% (1/5 plans in phase)
 
 ## Performance Metrics
 
@@ -38,8 +38,8 @@ Progress: ███████████████████████�
 
 **Recent Trend:**
 
-- Last 5 plans: [12-01 ✓, 12-02 ✓, 13-01 ✓, 13-02 ✓]
-- Trend: Excellent - Phase 13 complete (2/2 plans complete)
+- Last 5 plans: [12-02 ✓, 13-01 ✓, 13-02 ✓, 14-01 ✓]
+- Trend: Excellent - Phase 14 started (1/5 plans complete)
 
 **Current Performance:**
 
@@ -95,7 +95,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Completed 13-02-PLAN.md (Phase 13 complete)
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None
 
 ## Milestone Achievements
@@ -385,3 +385,14 @@ Resume file: None
   - All 474 tests pass
 
 **Phase 13 Complete:** All 2 plans finished (5 min total execution time)
+
+### Phase 14 Summary (In Progress)
+
+**Completed:**
+
+- ✓ 14-01: Extract handle_icmp_failure() (5 min execution)
+  - Extracted 68 lines of fallback connectivity logic from run_cycle()
+  - Created handle_icmp_failure() -> tuple[bool, float | None] method
+  - Added 17 unit tests covering all 3 fallback modes
+  - Test count increased from 474 to 491
+  - No changes to protected zones

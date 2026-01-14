@@ -274,13 +274,18 @@ Plans:
 **Goal**: Implement approved recommendations from Phase 7 analysis for WANController
 **Depends on**: Phase 13 and explicit approval of Phase 7 recommendations
 **Research**: Unlikely (implementing pre-approved changes)
-**Plans**: TBD
+**Plans**: 5 plans
+**Status**: In progress
 
 Plans:
 
-- [ ] 14-01: TBD
+- [x] 14-01: Extract handle_icmp_failure() from run_cycle()
+- [ ] 14-02: Extract flash wear protection logic
+- [ ] 14-03: Extract rate calculation logic
+- [ ] 14-04: Extract baseline update logic
+- [ ] 14-05: Final run_cycle() cleanup
 
-**Note**: HIGH RISK phase. Only proceeds with explicit approval of specific recommendations from Phase 7.
+**Note**: LOW RISK extractions only. Protected zones preserved.
 
 #### Phase 15: SteeringDaemon Refactoring
 
@@ -316,5 +321,5 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
+| 14. WANController Refactoring           | v1.1      | 1/5            | In progress                   | -           |
 | 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
