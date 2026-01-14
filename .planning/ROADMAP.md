@@ -191,11 +191,11 @@ Plans:
 **Goal**: Add warnings for legacy steering params (bad_samples → red_samples_required, good_samples → green_samples_required)
 **Depends on**: Phase 17
 **Research**: Unlikely (internal patterns)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
-- [ ] 18-01: TBD
+- [x] 18-01: Add deprecation warnings for bad_samples/good_samples, update docs
 
 #### Phase 19: Config Edge Case Tests
 
@@ -227,7 +227,7 @@ Plans:
 | -------------------------- | --------- | ----- | ----------- | ---------- |
 | 16. Timer Interval Fix     | v1.2      | 1/1   | Complete    | 2026-01-14 |
 | 17. Config Documentation   | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 18. Deprecation Warnings   | v1.2      | 0/?   | Not started | -          |
+| 18. Deprecation Warnings   | v1.2      | 1/1   | Complete    | 2026-01-14 |
 | 19. Config Edge Case Tests | v1.2      | 0/?   | Not started | -          |
 | 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -          |
 
