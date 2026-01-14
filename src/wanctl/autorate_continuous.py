@@ -778,80 +778,99 @@ class WANController:
         )
         return False
 
+    def handle_icmp_failure(self) -> tuple[bool, float | None]:
+        """
+        Handle ICMP ping failure with fallback connectivity checks.
+
+        Called when measure_rtt() returns None. Runs fallback connectivity checks
+        (gateway ping, TCP handshake) and applies mode-specific behavior:
+        - graceful_degradation: Use last RTT (cycle 1), freeze (cycles 2-3), fail (cycle 4+)
+        - freeze: Always freeze rates, return success
+        - use_last_rtt: Always use last known RTT
+
+        Returns:
+            (should_continue, measured_rtt):
+            - should_continue: True if cycle should proceed (or end successfully), False to trigger restart
+            - measured_rtt: RTT value to use (from last known), or None if should_continue is False
+              or if rates should be frozen (freeze mode, graceful_degradation cycles 2-3)
+
+        Note:
+            Also records ping failure metrics if metrics are enabled.
+        """
+        if self.config.metrics_enabled:
+            record_ping_failure(self.wan_name)
+
+        # Run fallback connectivity checks
+        has_connectivity = self.verify_connectivity_fallback()
+
+        if has_connectivity:
+            # We have connectivity, just can't measure RTT via ICMP
+            self.icmp_unavailable_cycles += 1
+
+            if self.config.fallback_mode == 'graceful_degradation':
+                # Mode C: Graceful degradation with cycle-based strategy
+                if self.icmp_unavailable_cycles == 1:
+                    # Cycle 1: Use last known RTT and continue normally
+                    measured_rtt = self.load_rtt
+                    self.logger.warning(
+                        f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
+                        f"using last RTT={measured_rtt:.1f}ms"
+                    )
+                    return (True, measured_rtt)
+                elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
+                    # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
+                    self.logger.warning(
+                        f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
+                        f"{self.config.fallback_max_cycles}) - freezing rates"
+                    )
+                    return (True, None)  # Caller will save state and return True
+                else:
+                    # Cycle 4+: Give up (ICMP down for too long)
+                    self.logger.error(
+                        f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
+                        f"(>{self.config.fallback_max_cycles}) - giving up"
+                    )
+                    return (False, None)  # Trigger watchdog restart
+
+            elif self.config.fallback_mode == 'freeze':
+                # Mode A: Always freeze rates when ICMP unavailable
+                self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
+                return (True, None)  # Caller will save state and return True
+
+            elif self.config.fallback_mode == 'use_last_rtt':
+                # Mode B: Always use last known RTT
+                measured_rtt = self.load_rtt
+                self.logger.warning(
+                    f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
+                    f"(mode: use_last_rtt)"
+                )
+                return (True, measured_rtt)
+
+            else:
+                # Unknown mode, default to original behavior
+                self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
+                return (False, None)
+
+        else:
+            # Total connectivity loss confirmed (both ICMP and TCP failed)
+            self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+            return (False, None)
+
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
         cycle_start = time.monotonic()
 
         measured_rtt = self.measure_rtt()
 
-        # =====================================================================
-        # ICMP FAILURE HANDLING WITH FALLBACK CHECKS (Mode C)
-        # =====================================================================
-        # When ICMP pings fail, verify connectivity using alternative protocols
-        # (gateway ping, TCP connections) before declaring total failure.
-        # Implements graceful degradation to handle ISP ICMP filtering.
-        # =====================================================================
+        # Handle ICMP failure with fallback connectivity checks
         if measured_rtt is None:
-            if self.config.metrics_enabled:
-                record_ping_failure(self.wan_name)
-
-            # Run fallback connectivity checks
-            has_connectivity = self.verify_connectivity_fallback()
-
-            if has_connectivity:
-                # We have connectivity, just can't measure RTT via ICMP
-                self.icmp_unavailable_cycles += 1
-
-                if self.config.fallback_mode == 'graceful_degradation':
-                    # Mode C: Graceful degradation with cycle-based strategy
-                    if self.icmp_unavailable_cycles == 1:
-                        # Cycle 1: Use last known RTT and continue normally
-                        measured_rtt = self.load_rtt
-                        self.logger.warning(
-                            f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
-                            f"using last RTT={measured_rtt:.1f}ms"
-                        )
-                        # Continue with normal processing below
-                    elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
-                        # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
-                        self.logger.warning(
-                            f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
-                            f"{self.config.fallback_max_cycles}) - freezing rates"
-                        )
-                        self.save_state()
-                        return True  # Success (no watchdog trigger), but skip adjustments
-                    else:
-                        # Cycle 4+: Give up (ICMP down for too long)
-                        self.logger.error(
-                            f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
-                            f"(>{self.config.fallback_max_cycles}) - giving up"
-                        )
-                        return False  # Trigger watchdog restart
-
-                elif self.config.fallback_mode == 'freeze':
-                    # Mode A: Always freeze rates when ICMP unavailable
-                    self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
-                    self.save_state()
-                    return True
-
-                elif self.config.fallback_mode == 'use_last_rtt':
-                    # Mode B: Always use last known RTT
-                    measured_rtt = self.load_rtt
-                    self.logger.warning(
-                        f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
-                        f"(mode: use_last_rtt)"
-                    )
-                    # Continue with normal processing below
-                else:
-                    # Unknown mode, default to original behavior
-                    self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
-                    return False
-
-            else:
-                # Total connectivity loss confirmed (both ICMP and TCP failed)
-                self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+            should_continue, measured_rtt = self.handle_icmp_failure()
+            if not should_continue:
                 return False
-
+            if measured_rtt is None:
+                # Freeze mode - save state and return success
+                self.save_state()
+                return True
         else:
             # ICMP succeeded - reset fallback counter if it was set
             if self.icmp_unavailable_cycles > 0:
