@@ -6,6 +6,7 @@ and steering/daemon.py. Provides flexible configuration for different measuremen
 strategies (average vs median) and timeout behaviors.
 """
 
+import concurrent.futures
 import logging
 import re
 import statistics
@@ -224,3 +225,59 @@ class RTTMeasurement:
                 return float(max(rtts))
             case _:
                 raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")
+
+    def ping_hosts_concurrent(
+        self,
+        hosts: list[str],
+        count: int = 1,
+        timeout: float = 3.0
+    ) -> list[float]:
+        """
+        Ping multiple hosts concurrently and return successful RTTs.
+
+        Uses ThreadPoolExecutor to ping all hosts in parallel, reducing total
+        measurement time for median-of-three scenarios from 3x to 1x.
+
+        Args:
+            hosts: List of hostnames/IPs to ping
+            count: Number of ping packets per host (passed to ping_host)
+            timeout: Total timeout for all concurrent pings in seconds
+
+        Returns:
+            List of successful RTT measurements in milliseconds.
+            Empty list if all pings failed.
+
+        Example:
+            >>> rtt = RTTMeasurement(logger)
+            >>> rtts = rtt.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
+            >>> rtts
+            [12.3, 10.5, 14.2]
+            >>> statistics.median(rtts)
+            12.3
+        """
+        if not hosts:
+            return []
+
+        rtts: list[float] = []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
+            # Submit all pings in parallel
+            future_to_host = {
+                executor.submit(self.ping_host, host, count): host
+                for host in hosts
+            }
+
+            # Collect results with timeout
+            try:
+                for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+                    host = future_to_host[future]
+                    try:
+                        rtt = future.result()
+                        if rtt is not None:
+                            rtts.append(rtt)
+                    except Exception as e:
+                        self.logger.debug(f"Concurrent ping to {host} failed: {e}")
+            except concurrent.futures.TimeoutError:
+                self.logger.debug(f"Concurrent ping timeout after {timeout}s")
+
+        return rtts
