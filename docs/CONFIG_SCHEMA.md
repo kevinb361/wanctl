@@ -313,11 +313,48 @@ thresholds:
 
 Operational mode settings.
 
-| Field                 | Type    | Default | Description                        |
-| --------------------- | ------- | ------- | ---------------------------------- |
-| `cake_aware`          | boolean | `true`  | Use multi-signal detection         |
-| `reset_counters`      | boolean | `true`  | Reset CAKE counters before reading |
-| `enable_yellow_state` | boolean | `true`  | Enable YELLOW early warning        |
+| Field                    | Type    | Default | Description                               |
+| ------------------------ | ------- | ------- | ----------------------------------------- |
+| `cake_aware`             | boolean | `true`  | Use multi-signal detection                |
+| `reset_counters`         | boolean | `true`  | Reset CAKE counters before reading        |
+| `enable_yellow_state`    | boolean | `true`  | Enable YELLOW early warning               |
+| `use_confidence_scoring` | boolean | `false` | Enable Phase 2B confidence-based steering |
+
+### `confidence` (optional)
+
+Phase 2B confidence-based steering configuration. Only used when `mode.use_confidence_scoring: true`.
+
+| Field                    | Type    | Default | Description                                  |
+| ------------------------ | ------- | ------- | -------------------------------------------- |
+| `steer_threshold`        | number  | 55      | Confidence score (0-100) to trigger steering |
+| `recovery_threshold`     | number  | 20      | Confidence score to recover from steering    |
+| `sustain_duration_sec`   | number  | 2.0     | Seconds above threshold before steering      |
+| `recovery_sustain_sec`   | number  | 3.0     | Seconds below threshold before recovery      |
+| `hold_down_duration_sec` | number  | 30.0    | Post-steer cooldown period                   |
+| `flap_detection_enabled` | boolean | true    | Enable flap detection                        |
+| `flap_window_minutes`    | number  | 5       | Flap detection window                        |
+| `max_toggles`            | number  | 4       | Max toggles before penalty                   |
+| `penalty_duration_sec`   | number  | 60.0    | Flap penalty duration                        |
+| `penalty_threshold_add`  | number  | 15      | Threshold increase during penalty            |
+| `dry_run`                | boolean | true    | Log-only mode (no routing changes)           |
+
+**Validation mode:** Set `dry_run: true` (default) to log Phase 2B decisions without affecting routing. Compare logged decisions against hysteresis behavior for validation.
+
+**Production mode:** After validation, set `dry_run: false` to enable confidence-based routing decisions.
+
+```yaml
+# Example confidence configuration
+mode:
+  use_confidence_scoring: true
+
+confidence:
+  steer_threshold: 55
+  recovery_threshold: 20
+  sustain_duration_sec: 2.0
+  recovery_sustain_sec: 3.0
+  hold_down_duration_sec: 30.0
+  dry_run: true # Start with dry-run for validation
+```
 
 ### `state`
 
