@@ -10,12 +10,13 @@ from dataclasses import dataclass
 
 from ..config_base import ConfigValidationError
 from ..router_client import get_router_client
-from ..state_utils import safe_json_loads_with_logging
+from ..state_utils import safe_json_loads
 
 
 @dataclass
 class CakeStats:
     """CAKE queue statistics snapshot"""
+
     packets: int = 0
     bytes: int = 0
     dropped: int = 0
@@ -26,15 +27,18 @@ class CakeStats:
 @dataclass
 class CongestionSignals:
     """Multi-signal congestion assessment"""
-    rtt_delta: float = 0.0           # Current RTT - baseline (ms)
-    rtt_delta_ewma: float = 0.0      # Smoothed RTT delta (ms)
-    cake_drops: int = 0              # Drops in measurement window
-    queued_packets: int = 0          # Current queue depth
-    baseline_rtt: float = 0.0        # Baseline RTT for reference
+
+    rtt_delta: float = 0.0  # Current RTT - baseline (ms)
+    rtt_delta_ewma: float = 0.0  # Smoothed RTT delta (ms)
+    cake_drops: int = 0  # Drops in measurement window
+    queued_packets: int = 0  # Current queue depth
+    baseline_rtt: float = 0.0  # Baseline RTT for reference
 
     def __str__(self) -> str:
-        return (f"rtt={self.rtt_delta:.1f}ms ewma={self.rtt_delta_ewma:.1f}ms "
-                f"drops={self.cake_drops} q={self.queued_packets}")
+        return (
+            f"rtt={self.rtt_delta:.1f}ms ewma={self.rtt_delta_ewma:.1f}ms "
+            f"drops={self.cake_drops} q={self.queued_packets}"
+        )
 
 
 class CakeStatsReader:
@@ -72,12 +76,12 @@ class CakeStatsReader:
             CakeStats with cumulative values parsed from JSON, or None on error.
             Fields use hyphenated names (e.g., 'queued-packets').
         """
-        data = safe_json_loads_with_logging(
+        data = safe_json_loads(
             out,
             logger=self.logger,
             error_context=f"CAKE stats for {queue_name}",
-            log_invalid_content=True,
-            content_preview_length=200
+            log_content_preview=True,
+            preview_length=200,
         )
 
         if data is None:
@@ -99,11 +103,11 @@ class CakeStatsReader:
 
         # Extract stats from JSON (field names use hyphens)
         return CakeStats(
-            packets=int(q.get('packets', 0)),
-            bytes=int(q.get('bytes', 0)),
-            dropped=int(q.get('dropped', 0)),
-            queued_packets=int(q.get('queued-packets', 0)),
-            queued_bytes=int(q.get('queued-bytes', 0))
+            packets=int(q.get("packets", 0)),
+            bytes=int(q.get("bytes", 0)),
+            dropped=int(q.get("dropped", 0)),
+            queued_packets=int(q.get("queued-packets", 0)),
+            queued_bytes=int(q.get("queued-bytes", 0)),
         )
 
     def _parse_text_response(self, out: str) -> CakeStats:
@@ -124,24 +128,24 @@ class CakeStatsReader:
         stats = CakeStats()
 
         # Extract cumulative counters (monotonically increasing)
-        match = re.search(r'packets=(\d+)', out)
+        match = re.search(r"packets=(\d+)", out)
         if match:
             stats.packets = int(match.group(1))
 
-        match = re.search(r'bytes=(\d+)', out)
+        match = re.search(r"bytes=(\d+)", out)
         if match:
             stats.bytes = int(match.group(1))
 
-        match = re.search(r'dropped=(\d+)', out)
+        match = re.search(r"dropped=(\d+)", out)
         if match:
             stats.dropped = int(match.group(1))
 
         # Extract instantaneous values (current queue depth)
-        match = re.search(r'queued-packets=(\d+)', out)
+        match = re.search(r"queued-packets=(\d+)", out)
         if match:
             stats.queued_packets = int(match.group(1))
 
-        match = re.search(r'queued-bytes=(\d+)', out)
+        match = re.search(r"queued-bytes=(\d+)", out)
         if match:
             stats.queued_bytes = int(match.group(1))
 
@@ -176,7 +180,7 @@ class CakeStatsReader:
             bytes=current.bytes - previous.bytes,
             dropped=current.dropped - previous.dropped,
             queued_packets=current.queued_packets,  # instantaneous
-            queued_bytes=current.queued_bytes       # instantaneous
+            queued_bytes=current.queued_bytes,  # instantaneous
         )
 
         # Store current for next delta calculation
@@ -198,7 +202,8 @@ class CakeStatsReader:
         # C2 fix: Validate queue_name to prevent command injection in RouterOS queries
         try:
             from ..config_base import BaseConfig
-            queue_name = BaseConfig.validate_identifier(queue_name, 'queue_name')
+
+            queue_name = BaseConfig.validate_identifier(queue_name, "queue_name")
         except ConfigValidationError as e:
             self.logger.error(f"Invalid queue name: {e}")
             return None
@@ -213,7 +218,7 @@ class CakeStatsReader:
 
         # Parse response based on format
         try:
-            if out.strip().startswith('[') or out.strip().startswith('{'):
+            if out.strip().startswith("[") or out.strip().startswith("{"):
                 current = self._parse_json_response(out, queue_name)
             else:
                 current = self._parse_text_response(out)
@@ -228,4 +233,3 @@ class CakeStatsReader:
             self.logger.error(f"Failed to parse CAKE stats: {e}")
             self.logger.debug(f"Raw output: {out[:200]}")
             return None
-
