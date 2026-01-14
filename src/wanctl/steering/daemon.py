@@ -57,6 +57,10 @@ from .congestion_assessment import (
     assess_congestion_state,
     ewma_update,
 )
+from .steering_confidence import (
+    ConfidenceSignals as Phase2BSignals,
+    Phase2BController,
+)
 
 # =============================================================================
 # CONSTANTS
@@ -401,6 +405,7 @@ def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
         "queue_ewma": 0.0,
         "cake_drops_history": [],
         "queue_depth_history": [],
+        "cake_state_history": [],  # For Phase 2B confidence scoring
         "red_count": 0,
         "congestion_state": "GREEN",
         "cake_read_failures": 0
@@ -614,6 +619,20 @@ class SteeringDaemon:
             self.cake_reader = None
             self.thresholds = None
             self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
+
+        # Phase 2B confidence scoring controller (if enabled)
+        self.confidence_controller: Phase2BController | None = None
+        if self.config.use_confidence_scoring and self.config.confidence_config:
+            self.confidence_controller = Phase2BController(
+                config_v3=self.config.confidence_config,
+                logger=self.logger,
+                state_good=self.config.state_good,
+                state_degraded=self.config.state_degraded
+            )
+            dry_run_status = self.config.confidence_config['dry_run']['enabled']
+            self.logger.info(
+                f"[PHASE2B] Confidence scoring enabled (dry_run={dry_run_status})"
+            )
 
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
@@ -951,12 +970,39 @@ class SteeringDaemon:
         delta = current_rtt - baseline_rtt
         return max(0.0, delta)  # Never negative
 
+    def _apply_confidence_decision(self, decision: str) -> bool:
+        """Apply a confidence controller steering decision.
+
+        Args:
+            decision: "ENABLE_STEERING" or "DISABLE_STEERING"
+
+        Returns:
+            True if routing state changed, False if routing failed
+        """
+        state = self.state_mgr.state
+        current_state = state["current_state"]
+
+        if decision == "ENABLE_STEERING":
+            return self.execute_steering_transition(
+                current_state, self.config.state_degraded, enable_steering=True
+            )
+        elif decision == "DISABLE_STEERING":
+            return self.execute_steering_transition(
+                current_state, self.config.state_good, enable_steering=False
+            )
+        return False
+
     def update_state_machine(self, signals: CongestionSignals) -> bool:
         """
         Update state machine based on congestion signals.
 
+        If confidence scoring is enabled:
+        - Evaluates Phase2BController in parallel with hysteresis
+        - In dry-run mode: logs confidence decisions but uses hysteresis for routing
+        - In live mode: uses confidence decision for routing
+
         Routes to unified state machine implementation that handles both
-        CAKE-aware and legacy modes.
+        CAKE-aware and legacy modes when confidence scoring is disabled or in dry-run.
 
         Args:
             signals: CongestionSignals containing rtt_delta, drops, queue depth, etc.
@@ -964,6 +1010,33 @@ class SteeringDaemon:
         Returns:
             True if routing state changed, False otherwise
         """
+        # If confidence controller enabled, evaluate in parallel
+        if self.confidence_controller:
+            state = self.state_mgr.state
+
+            # Convert CongestionSignals to Phase2BSignals format
+            phase2b_signals = Phase2BSignals(
+                cake_state=state.get('congestion_state', 'GREEN'),
+                rtt_delta_ms=signals.rtt_delta,
+                drops_per_sec=float(signals.cake_drops),
+                queue_depth_pct=float(signals.queued_packets),  # Simplified (packets not %)
+                cake_state_history=list(state.get('cake_state_history', [])),
+                drops_history=list(state.get('cake_drops_history', [])),
+                queue_history=list(state.get('queue_depth_history', [])),
+            )
+
+            # Evaluate confidence (returns decision or None if dry-run)
+            confidence_decision = self.confidence_controller.evaluate(
+                phase2b_signals,
+                state['current_state']
+            )
+
+            # In live mode (dry_run=False), use confidence decision for routing
+            if confidence_decision and not self.config.confidence_config['dry_run']['enabled']:
+                return self._apply_confidence_decision(confidence_decision)
+            # In dry-run mode, confidence logs decisions but falls through to hysteresis
+
+        # Fall through to existing hysteresis logic
         return self._update_state_machine_unified(signals)
 
     def _update_state_machine_cake_aware(self, signals: CongestionSignals) -> bool:
@@ -1284,6 +1357,13 @@ class SteeringDaemon:
 
         # === Update State Machine ===
         state_changed = self.update_state_machine(signals)
+
+        # Track cake_state_history for Phase 2B confidence scoring
+        if self.config.cake_aware and "congestion_state" in state:
+            cake_state_history = state.get("cake_state_history", [])
+            cake_state_history.append(state["congestion_state"])
+            # Keep last 10 samples (sufficient for sustained detection)
+            state["cake_state_history"] = cake_state_history[-10:]
 
         if state_changed:
             self.logger.info(
