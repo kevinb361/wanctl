@@ -54,12 +54,7 @@ class RouterOSSSH:
     """
 
     def __init__(
-        self,
-        host: str,
-        user: str,
-        ssh_key: str,
-        timeout: int = 15,
-        logger: logging.Logger = None
+        self, host: str, user: str, ssh_key: str, timeout: int = 15, logger: logging.Logger = None
     ):
         """Initialize RouterOS SSH client.
 
@@ -116,8 +111,8 @@ class RouterOSSSH:
             host=config.router_host,
             user=config.router_user,
             ssh_key=config.ssh_key,
-            timeout=getattr(config, 'timeout_ssh_command', 15),
-            logger=logger
+            timeout=getattr(config, "timeout_ssh_command", 15),
+            logger=logger,
         )
 
     def _connect(self) -> None:
@@ -153,7 +148,7 @@ class RouterOSSSH:
             key_filename=self.ssh_key,
             timeout=10,  # Connection timeout
             allow_agent=False,
-            look_for_keys=False
+            look_for_keys=False,
         )
 
         self.logger.debug(f"SSH connection established to {self.host}")
@@ -185,7 +180,9 @@ class RouterOSSSH:
             self._connect()
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False, timeout: int | None = None) -> tuple[int, str, str]:
+    def run_cmd(
+        self, cmd: str, capture: bool = False, timeout: int | None = None
+    ) -> tuple[int, str, str]:
         """Execute RouterOS command via persistent SSH connection.
 
         Uses paramiko's exec_command() on a persistent connection for
@@ -220,17 +217,14 @@ class RouterOSSSH:
 
         try:
             # Execute command with timeout
-            stdin, stdout, stderr = self._client.exec_command(
-                cmd,
-                timeout=timeout_val
-            )
+            stdin, stdout, stderr = self._client.exec_command(cmd, timeout=timeout_val)
 
             # Wait for command to complete and get exit status
             exit_status = stdout.channel.recv_exit_status()
 
             if capture:
-                stdout_text = stdout.read().decode('utf-8', errors='replace')
-                stderr_text = stderr.read().decode('utf-8', errors='replace')
+                stdout_text = stdout.read().decode("utf-8", errors="replace")
+                stderr_text = stderr.read().decode("utf-8", errors="replace")
                 self.logger.debug(f"RouterOS stdout: {stdout_text}")
                 return exit_status, stdout_text, stderr_text
             else:

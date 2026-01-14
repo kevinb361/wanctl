@@ -10,6 +10,7 @@ Usage:
     # ... run daemon ...
     server.shutdown()  # in finally block
 """
+
 import json
 import logging
 import threading
@@ -86,15 +87,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "baseline_rtt_ms": round(wan_controller.baseline_rtt, 2),
                     "load_rtt_ms": round(wan_controller.load_rtt, 2),
                     "download": {
-                        "current_rate_mbps": round(
-                            wan_controller.download.current_rate / 1e6, 1
-                        ),
+                        "current_rate_mbps": round(wan_controller.download.current_rate / 1e6, 1),
                         "state": _get_current_state(wan_controller.download),
                     },
                     "upload": {
-                        "current_rate_mbps": round(
-                            wan_controller.upload.current_rate / 1e6, 1
-                        ),
+                        "current_rate_mbps": round(wan_controller.upload.current_rate / 1e6, 1),
                         "state": _get_current_state(wan_controller.upload),
                     },
                 }

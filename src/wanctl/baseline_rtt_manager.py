@@ -33,7 +33,7 @@ class BaselineRTTManager:
         initial_baseline: float,
         alpha_baseline: float,
         baseline_update_threshold: float,
-        logger: logging.Logger
+        logger: logging.Logger,
     ):
         """Initialize baseline RTT manager.
 
@@ -65,9 +65,8 @@ class BaselineRTTManager:
             # Line is idle or nearly idle - safe to update baseline
             old_baseline = self.baseline_rtt
             self.baseline_rtt = (
-                (1 - self.alpha_baseline) * self.baseline_rtt +
-                self.alpha_baseline * measured_rtt
-            )
+                1 - self.alpha_baseline
+            ) * self.baseline_rtt + self.alpha_baseline * measured_rtt
             self.logger.debug(
                 f"Baseline RTT updated (idle): {old_baseline:.2f}ms -> {self.baseline_rtt:.2f}ms "
                 f"(delta={delta:.2f}ms, below threshold={self.baseline_update_threshold}ms)"
@@ -106,9 +105,7 @@ class BaselineRTTManager:
         Returns:
             Dictionary with baseline_rtt value
         """
-        return {
-            "baseline_rtt": self.baseline_rtt
-        }
+        return {"baseline_rtt": self.baseline_rtt}
 
     def from_dict(self, data: dict) -> None:
         """Restore baseline RTT state from persistence.
@@ -127,12 +124,7 @@ class BaselineValidator:
     baseline values from affecting control decisions (C4 security fix).
     """
 
-    def __init__(
-        self,
-        min_baseline: float,
-        max_baseline: float,
-        logger: logging.Logger
-    ):
+    def __init__(self, min_baseline: float, max_baseline: float, logger: logging.Logger):
         """Initialize baseline validator.
 
         Args:
@@ -187,7 +179,7 @@ class BaselineRTTLoader:
         state_file: Path,
         validator: BaselineValidator,
         logger: logging.Logger,
-        change_threshold: float = 5.0
+        change_threshold: float = 5.0,
     ):
         """Initialize baseline RTT loader.
 
@@ -220,7 +212,7 @@ class BaselineRTTLoader:
             self.state_file,
             logger=self.logger,
             default=None,
-            error_context="autorate state for baseline RTT"
+            error_context="autorate state for baseline RTT",
         )
 
         if state is None:
@@ -229,8 +221,8 @@ class BaselineRTTLoader:
 
         # Extract baseline from autorate_continuous format: state['ewma']['baseline_rtt']
         try:
-            if 'ewma' in state and 'baseline_rtt' in state['ewma']:
-                baseline_rtt = float(state['ewma']['baseline_rtt'])
+            if "ewma" in state and "baseline_rtt" in state["ewma"]:
+                baseline_rtt = float(state["ewma"]["baseline_rtt"])
 
                 # Validate bounds
                 if not self.validator.validate(baseline_rtt):

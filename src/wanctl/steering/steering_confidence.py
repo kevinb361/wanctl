@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 # CONFIDENCE SCORING
 # =============================================================================
 
+
 class ConfidenceWeights:
     """
     Heuristic weights for confidence scoring (0-100 scale).
@@ -49,17 +50,18 @@ class ConfidenceWeights:
     activate when multiple signals agree or when RED state persists. Single
     transient spikes should not trigger steering.
     """
+
     # CAKE state base scores
-    RED_STATE = 50                # Hard congestion: delta > 80ms, drops > 0
-    SOFT_RED_SUSTAINED = 25       # RTT-only congestion, requires >= 3 cycles
-    YELLOW_STATE = 10             # Early warning: delta 15-45ms
-    GREEN_STATE = 0               # Healthy: delta < 15ms
+    RED_STATE = 50  # Hard congestion: delta > 80ms, drops > 0
+    SOFT_RED_SUSTAINED = 25  # RTT-only congestion, requires >= 3 cycles
+    YELLOW_STATE = 10  # Early warning: delta 15-45ms
+    GREEN_STATE = 0  # Healthy: delta < 15ms
 
     # Additional signal contributions
-    RTT_DELTA_HIGH = 15           # Moderate latency spike: > 80ms
-    RTT_DELTA_SEVERE = 25         # Severe latency spike: > 120ms
-    DROPS_INCREASING = 10         # Rising drop rate over last 3 cycles
-    QUEUE_HIGH_SUSTAINED = 10     # Queue utilization > 50% for >= 2 cycles
+    RTT_DELTA_HIGH = 15  # Moderate latency spike: > 80ms
+    RTT_DELTA_SEVERE = 25  # Severe latency spike: > 120ms
+    DROPS_INCREASING = 10  # Rising drop rate over last 3 cycles
+    QUEUE_HIGH_SUSTAINED = 10  # Queue utilization > 50% for >= 2 cycles
 
 
 @dataclass
@@ -68,6 +70,7 @@ class ConfidenceSignals:
     Input signals for confidence computation.
     All signals derived from existing measurements - no new probes.
     """
+
     cake_state: str  # "GREEN", "YELLOW", "SOFT_RED", "RED"
     rtt_delta_ms: float
     drops_per_sec: float
@@ -79,10 +82,7 @@ class ConfidenceSignals:
     queue_history: list[float] = field(default_factory=list)
 
 
-def compute_confidence(
-    signals: ConfidenceSignals,
-    logger: logging.Logger
-) -> tuple[int, list[str]]:
+def compute_confidence(signals: ConfidenceSignals, logger: logging.Logger) -> tuple[int, list[str]]:
     """
     Compute confidence score (0-100) from current signals.
 
@@ -150,6 +150,7 @@ def compute_confidence(
 # TIMER STATE TRACKING
 # =============================================================================
 
+
 @dataclass
 class TimerState:
     """
@@ -157,6 +158,7 @@ class TimerState:
 
     This tracks decision confidence, not measurements.
     """
+
     # Confidence tracking
     confidence_score: int = 0
     confidence_contributors: list[str] = field(default_factory=list)
@@ -190,7 +192,7 @@ class TimerManager:
         state_good: str,
         state_degraded: str,
         logger: logging.Logger,
-        cycle_interval: float = 0.05
+        cycle_interval: float = 0.05,
     ):
         self.steer_threshold = steer_threshold
         self.recovery_threshold = recovery_threshold
@@ -204,19 +206,14 @@ class TimerManager:
 
     def _is_good_state(self, current_state: str) -> bool:
         """Check if current state is a 'good' state (handles legacy names)"""
-        return current_state == self.state_good or \
-               current_state.endswith("_GOOD")
+        return current_state == self.state_good or current_state.endswith("_GOOD")
 
     def _is_degraded_state(self, current_state: str) -> bool:
         """Check if current state is a 'degraded' state (handles legacy names)"""
-        return current_state == self.state_degraded or \
-               current_state.endswith("_DEGRADED")
+        return current_state == self.state_degraded or current_state.endswith("_DEGRADED")
 
     def update_degrade_timer(
-        self,
-        timer_state: TimerState,
-        confidence: int,
-        current_state: str
+        self, timer_state: TimerState, confidence: int, current_state: str
     ) -> str | None:
         """
         Update degrade timer and check for steer decision.
@@ -297,7 +294,7 @@ class TimerManager:
         cake_state: str,
         rtt_delta: float,
         drops: float,
-        current_state: str
+        current_state: str,
     ) -> str | None:
         """
         Update recovery timer and check for recovery decision.
@@ -313,10 +310,10 @@ class TimerManager:
 
         # Check recovery conditions
         recovery_eligible = (
-            confidence <= self.recovery_threshold and
-            cake_state == "GREEN" and
-            rtt_delta < 10.0 and
-            drops < 0.001
+            confidence <= self.recovery_threshold
+            and cake_state == "GREEN"
+            and rtt_delta < 10.0
+            and drops < 0.001
         )
 
         if recovery_eligible:
@@ -355,9 +352,7 @@ class TimerManager:
                 if drops >= 0.001:
                     reason.append(f"drops={drops:.3f}")
 
-                self.logger.info(
-                    f"[PHASE2B] recovery_timer_reset reason=[{', '.join(reason)}]"
-                )
+                self.logger.info(f"[PHASE2B] recovery_timer_reset reason=[{', '.join(reason)}]")
                 timer_state.recovery_timer = None
 
         return None
@@ -366,6 +361,7 @@ class TimerManager:
 # =============================================================================
 # FLAP DETECTION
 # =============================================================================
+
 
 class FlapDetector:
     """
@@ -381,7 +377,7 @@ class FlapDetector:
         max_toggles: int,
         penalty_duration: int,
         penalty_threshold_add: int,
-        logger: logging.Logger
+        logger: logging.Logger,
     ):
         self.enabled = enabled
         self.window_seconds = window_minutes * 60
@@ -403,11 +399,7 @@ class FlapDetector:
         while timer_state.flap_window and timer_state.flap_window[0][1] <= cutoff:
             timer_state.flap_window.popleft()
 
-    def check_flapping(
-        self,
-        timer_state: TimerState,
-        base_threshold: int
-    ) -> int:
+    def check_flapping(self, timer_state: TimerState, base_threshold: int) -> int:
         """
         Check for flapping and apply penalty if needed.
 
@@ -452,6 +444,7 @@ class FlapDetector:
 # DRY-RUN MODE
 # =============================================================================
 
+
 class DryRunLogger:
     """Logs hypothetical decisions without executing routing changes"""
 
@@ -459,18 +452,12 @@ class DryRunLogger:
         self.enabled = enabled
         self.logger = logger
 
-    def log_decision(
-        self,
-        decision: str,
-        confidence: int,
-        contributors: list[str],
-        sustained: int
-    ):
+    def log_decision(self, decision: str, confidence: int, contributors: list[str], sustained: int):
         """Log a hypothetical steering decision"""
         if not self.enabled:
             return
 
-        signals_str = ', '.join(contributors)
+        signals_str = ", ".join(contributors)
 
         if decision == "ENABLE_STEERING":
             self.logger.warning(
@@ -492,6 +479,7 @@ class DryRunLogger:
 # PHASE 2B CONTROLLER
 # =============================================================================
 
+
 class Phase2BController:
     """
     Confidence-based steering controller with sustained degradation filtering.
@@ -505,7 +493,7 @@ class Phase2BController:
         logger: logging.Logger,
         state_good: str = "WAN1_GOOD",
         state_degraded: str = "WAN1_DEGRADED",
-        cycle_interval: float = 0.05
+        cycle_interval: float = 0.05,
     ):
         self.logger = logger
         self.config = config_v3
@@ -514,54 +502,47 @@ class Phase2BController:
         self.cycle_interval = cycle_interval
 
         # Confidence thresholds
-        confidence_cfg = config_v3['confidence']
-        self.base_steer_threshold = confidence_cfg['steer_threshold']
-        self.recovery_threshold = confidence_cfg['recovery_threshold']
+        confidence_cfg = config_v3["confidence"]
+        self.base_steer_threshold = confidence_cfg["steer_threshold"]
+        self.recovery_threshold = confidence_cfg["recovery_threshold"]
 
         # Timer manager
-        timers_cfg = config_v3['timers']
+        timers_cfg = config_v3["timers"]
         self.timer_mgr = TimerManager(
             steer_threshold=self.base_steer_threshold,
             recovery_threshold=self.recovery_threshold,
-            sustain_duration=confidence_cfg['sustain_duration_sec'],
-            recovery_duration=confidence_cfg['recovery_sustain_sec'],
-            hold_down_duration=timers_cfg['hold_down_duration_sec'],
+            sustain_duration=confidence_cfg["sustain_duration_sec"],
+            recovery_duration=confidence_cfg["recovery_sustain_sec"],
+            hold_down_duration=timers_cfg["hold_down_duration_sec"],
             state_good=state_good,
             state_degraded=state_degraded,
             logger=logger,
-            cycle_interval=cycle_interval
+            cycle_interval=cycle_interval,
         )
 
         # Flap detector
-        flap_cfg = config_v3['flap_detection']
+        flap_cfg = config_v3["flap_detection"]
         self.flap_detector = FlapDetector(
-            enabled=flap_cfg['enabled'],
-            window_minutes=flap_cfg['window_minutes'],
-            max_toggles=flap_cfg['max_toggles'],
-            penalty_duration=flap_cfg['penalty_duration_sec'],
-            penalty_threshold_add=flap_cfg['penalty_threshold_add'],
-            logger=logger
+            enabled=flap_cfg["enabled"],
+            window_minutes=flap_cfg["window_minutes"],
+            max_toggles=flap_cfg["max_toggles"],
+            penalty_duration=flap_cfg["penalty_duration_sec"],
+            penalty_threshold_add=flap_cfg["penalty_threshold_add"],
+            logger=logger,
         )
 
         # Dry-run mode
-        dry_run_cfg = config_v3['dry_run']
-        self.dry_run = DryRunLogger(
-            enabled=dry_run_cfg['enabled'],
-            logger=logger
-        )
+        dry_run_cfg = config_v3["dry_run"]
+        self.dry_run = DryRunLogger(enabled=dry_run_cfg["enabled"], logger=logger)
 
         # State
         self.timer_state = TimerState()
 
         self.logger.info("[PHASE2B] Controller initialized (confidence-based steering)")
-        if dry_run_cfg['enabled']:
+        if dry_run_cfg["enabled"]:
             self.logger.warning("[PHASE2B][DRY-RUN] LOG-ONLY mode - no routing changes")
 
-    def evaluate(
-        self,
-        signals: ConfidenceSignals,
-        current_state: str
-    ) -> str | None:
+    def evaluate(self, signals: ConfidenceSignals, current_state: str) -> str | None:
         """
         Evaluate steering decision based on confidence and timers.
 
@@ -578,10 +559,7 @@ class Phase2BController:
         self.timer_state.confidence_contributors = contributors
 
         # Check flap penalty (result unused but call updates internal state)
-        _ = self.flap_detector.check_flapping(
-            self.timer_state,
-            self.base_steer_threshold
-        )
+        _ = self.flap_detector.check_flapping(self.timer_state, self.base_steer_threshold)
 
         # Determine if in good or degraded state (handles legacy names)
         is_good = current_state == self.state_good or current_state.endswith("_GOOD")
@@ -591,9 +569,7 @@ class Phase2BController:
         if is_good:
             # Check for degradation
             decision = self.timer_mgr.update_degrade_timer(
-                self.timer_state,
-                confidence,
-                current_state
+                self.timer_state, confidence, current_state
             )
 
             if decision == "ENABLE_STEERING":
@@ -602,11 +578,11 @@ class Phase2BController:
                     decision,
                     confidence,
                     contributors,
-                    self.config['confidence']['sustain_duration_sec']
+                    self.config["confidence"]["sustain_duration_sec"],
                 )
 
                 # Start hold-down timer
-                self.timer_state.hold_down_timer = self.config['timers']['hold_down_duration_sec']
+                self.timer_state.hold_down_timer = self.config["timers"]["hold_down_duration_sec"]
                 self.logger.info(
                     f"[PHASE2B] hold_down_timer_start={self.timer_state.hold_down_timer}s"
                 )
@@ -628,7 +604,7 @@ class Phase2BController:
                     signals.cake_state,
                     signals.rtt_delta_ms,
                     signals.drops_per_sec,
-                    current_state
+                    current_state,
                 )
 
                 if decision == "DISABLE_STEERING":
@@ -637,7 +613,7 @@ class Phase2BController:
                         decision,
                         confidence,
                         contributors,
-                        self.config['confidence']['recovery_sustain_sec']
+                        self.config["confidence"]["recovery_sustain_sec"],
                     )
 
                     # Record toggle for flap detection

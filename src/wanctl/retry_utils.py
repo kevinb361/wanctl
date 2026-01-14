@@ -41,27 +41,31 @@ def is_retryable_error(exception: Exception) -> bool:
     if isinstance(exception, OSError):
         err_str = str(exception).lower()
         retryable_messages = [
-            'connection refused',
-            'connection timed out',
-            'connection reset',
-            'broken pipe',
-            'network is unreachable'
+            "connection refused",
+            "connection timed out",
+            "connection reset",
+            "broken pipe",
+            "network is unreachable",
         ]
         return any(msg in err_str for msg in retryable_messages)
 
     # Handle requests library exceptions (if requests is available)
     try:
         import requests.exceptions
+
         # Retryable requests errors
-        if isinstance(exception, (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.Timeout,
-            requests.exceptions.ChunkedEncodingError,
-        )):
+        if isinstance(
+            exception,
+            (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                requests.exceptions.ChunkedEncodingError,
+            ),
+        ):
             return True
         # Non-retryable: HTTPError with 4xx client errors (except 408 Request Timeout)
         if isinstance(exception, requests.exceptions.HTTPError):
-            if hasattr(exception, 'response') and exception.response is not None:
+            if hasattr(exception, "response") and exception.response is not None:
                 status = exception.response.status_code
                 # 408 (Request Timeout) and 5xx are retryable
                 if status == 408 or status >= 500:
@@ -123,11 +127,12 @@ def retry_with_backoff(
     - Attempt 3: after 2.0s (+ jitter)
     - Give up after 3 attempts
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Get logger from self if method, otherwise create basic logger
-            if args and hasattr(args[0], 'logger'):
+            if args and hasattr(args[0], "logger"):
                 logger = args[0].logger
             else:
                 logger = logging.getLogger(__name__)
@@ -156,8 +161,7 @@ def retry_with_backoff(
                     # If this was the last attempt, raise
                     if attempt >= max_attempts:
                         logger.error(
-                            f"Command failed after {max_attempts} attempts: "
-                            f"{type(e).__name__}: {e}"
+                            f"Command failed after {max_attempts} attempts: {type(e).__name__}: {e}"
                         )
                         raise
 
@@ -191,6 +195,7 @@ def retry_with_backoff(
                 raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -201,7 +206,7 @@ def verify_with_retry(
     initial_delay: float = 0.1,
     backoff_factor: float = 2.0,
     logger: logging.Logger = None,
-    operation_name: str = "verification"
+    operation_name: str = "verification",
 ) -> bool:
     """
     Retry a check function until expected result is reached or retries exhausted.
@@ -275,7 +280,7 @@ def measure_with_retry(
     retry_delay: float = 0.5,
     fallback_func: Callable = None,
     logger: logging.Logger = None,
-    operation_name: str = "measurement"
+    operation_name: str = "measurement",
 ) -> any:
     """
     Retry a measurement function with fixed delay, falling back on exhaustion.
@@ -332,9 +337,7 @@ def measure_with_retry(
             return result
 
         # Measurement failed
-        logger.warning(
-            f"{operation_name} failed on attempt {attempt + 1}/{max_retries}"
-        )
+        logger.warning(f"{operation_name} failed on attempt {attempt + 1}/{max_retries}")
 
         # Delay before next attempt (but not after last failed attempt)
         if attempt < max_retries - 1:

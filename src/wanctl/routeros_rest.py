@@ -75,7 +75,7 @@ class RouterOSREST:
         port: int = 443,
         verify_ssl: bool = False,
         timeout: int = 15,
-        logger: logging.Logger | None = None
+        logger: logging.Logger | None = None,
     ):
         """Initialize RouterOS REST API client.
 
@@ -134,23 +134,25 @@ class RouterOSREST:
         import os
 
         # Get password - support environment variable
-        password = getattr(config, 'router_password', None)
-        if password and password.startswith('${') and password.endswith('}'):
+        password = getattr(config, "router_password", None)
+        if password and password.startswith("${") and password.endswith("}"):
             env_var = password[2:-1]
-            password = os.environ.get(env_var, '')
+            password = os.environ.get(env_var, "")
 
         return cls(
             host=config.router_host,
             user=config.router_user,
             password=password,
-            port=getattr(config, 'router_port', 443),
-            verify_ssl=getattr(config, 'router_verify_ssl', False),
-            timeout=getattr(config, 'timeout_ssh_command', 15),
-            logger=logger
+            port=getattr(config, "router_port", 443),
+            verify_ssl=getattr(config, "router_verify_ssl", False),
+            timeout=getattr(config, "timeout_ssh_command", 15),
+            logger=logger,
         )
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False, timeout: int | None = None) -> tuple[int, str, str]:
+    def run_cmd(
+        self, cmd: str, capture: bool = False, timeout: int | None = None
+    ) -> tuple[int, str, str]:
         """Execute RouterOS command via REST API.
 
         Converts CLI-style commands to REST API calls.
@@ -182,6 +184,7 @@ class RouterOSREST:
 
             if result is not None:
                 import json
+
                 return 0, json.dumps(result), ""
             else:
                 return 1, "", "Command failed"
@@ -211,8 +214,8 @@ class RouterOSREST:
         timeout_val = timeout if timeout is not None else self.timeout
 
         # Handle batched commands (separated by ;)
-        if ';' in cmd:
-            for subcmd in cmd.split(';'):
+        if ";" in cmd:
+            for subcmd in cmd.split(";"):
                 subcmd = subcmd.strip()
                 if subcmd:
                     result = self._execute_single_command(subcmd, timeout=timeout_val)
@@ -222,7 +225,9 @@ class RouterOSREST:
         else:
             return self._execute_single_command(cmd, timeout=timeout_val)
 
-    def _execute_single_command(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
+    def _execute_single_command(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict[str, Any] | None:
         """Execute a single CLI command via REST API.
 
         Args:
@@ -236,13 +241,13 @@ class RouterOSREST:
         cmd = cmd.strip()
 
         # Parse /queue tree commands
-        if cmd.startswith('/queue tree set'):
+        if cmd.startswith("/queue tree set"):
             return self._handle_queue_tree_set(cmd, timeout=timeout_val)
-        elif 'reset-counters' in cmd and '/queue' in cmd:
+        elif "reset-counters" in cmd and "/queue" in cmd:
             return self._handle_queue_reset_counters(cmd, timeout=timeout_val)
-        elif cmd.startswith('/queue tree print') or cmd.startswith('/queue/tree print'):
+        elif cmd.startswith("/queue tree print") or cmd.startswith("/queue/tree print"):
             return self._handle_queue_tree_print(cmd, timeout=timeout_val)
-        elif cmd.startswith('/ip firewall mangle'):
+        elif cmd.startswith("/ip firewall mangle"):
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
         else:
             self.logger.warning(f"Unsupported command for REST API: {cmd}")
@@ -285,13 +290,13 @@ class RouterOSREST:
         """
         params: dict[str, str] = {}
 
-        queue_match = re.search(r'queue=(\S+)', cmd)
+        queue_match = re.search(r"queue=(\S+)", cmd)
         if queue_match:
-            params['queue'] = queue_match.group(1)
+            params["queue"] = queue_match.group(1)
 
-        limit_match = re.search(r'max-limit=(\d+)', cmd)
+        limit_match = re.search(r"max-limit=(\d+)", cmd)
         if limit_match:
-            params['max-limit'] = limit_match.group(1)
+            params["max-limit"] = limit_match.group(1)
 
         return params
 
@@ -338,7 +343,9 @@ class RouterOSREST:
                 self.logger.debug(f"Queue {queue_name} updated: {params}")
                 return {"status": "ok", "queue": queue_name}
             else:
-                self.logger.error(f"Failed to update queue {queue_name}: {resp.status_code} {resp.text}")
+                self.logger.error(
+                    f"Failed to update queue {queue_name}: {resp.status_code} {resp.text}"
+                )
                 return None
 
         except requests.RequestException as e:
@@ -389,7 +396,9 @@ class RouterOSREST:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
                 return {"status": "ok", "queue": queue_name}
             else:
-                self.logger.error(f"Failed to reset counters for {queue_name}: {resp.status_code} {resp.text}")
+                self.logger.error(
+                    f"Failed to reset counters for {queue_name}: {resp.status_code} {resp.text}"
+                )
                 return None
 
         except requests.RequestException as e:
@@ -415,7 +424,7 @@ class RouterOSREST:
         params = {}
 
         if name_match:
-            params['name'] = name_match.group(1)
+            params["name"] = name_match.group(1)
 
         try:
             resp = self._session.get(url, params=params, timeout=timeout_val)
@@ -449,9 +458,9 @@ class RouterOSREST:
             return None
 
         # Determine if enable or disable
-        if 'enable' in cmd:
+        if "enable" in cmd:
             disabled = "false"
-        elif 'disable' in cmd:
+        elif "disable" in cmd:
             disabled = "true"
         else:
             self.logger.error(f"Unknown mangle action in: {cmd}")
@@ -487,7 +496,7 @@ class RouterOSREST:
         filter_value: str,
         cache: dict[str, str],
         use_cache: bool = True,
-        timeout: int | None = None
+        timeout: int | None = None,
     ) -> str | None:
         """Find RouterOS resource ID by filter key/value.
 
@@ -520,7 +529,7 @@ class RouterOSREST:
             if resp.ok and resp.json():
                 items = resp.json()
                 if items:
-                    resource_id = items[0].get('.id')
+                    resource_id = items[0].get(".id")
                     # Cache the result
                     if resource_id and use_cache:
                         cache[filter_value] = resource_id
@@ -533,7 +542,9 @@ class RouterOSREST:
             self.logger.error(f"REST API error finding resource: {e}")
             return None
 
-    def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
+    def _find_queue_id(
+        self, queue_name: str, use_cache: bool = True, timeout: int | None = None
+    ) -> str | None:
         """Find queue tree ID by name.
 
         Args:
@@ -550,10 +561,12 @@ class RouterOSREST:
             filter_value=queue_name,
             cache=self._queue_id_cache,
             use_cache=use_cache,
-            timeout=timeout
+            timeout=timeout,
         )
 
-    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
+    def _find_mangle_rule_id(
+        self, comment: str, use_cache: bool = True, timeout: int | None = None
+    ) -> str | None:
         """Find mangle rule ID by comment.
 
         Args:
@@ -570,7 +583,7 @@ class RouterOSREST:
             filter_value=comment,
             cache=self._mangle_id_cache,
             use_cache=use_cache,
-            timeout=timeout
+            timeout=timeout,
         )
 
     def set_queue_limit(self, queue_name: str, max_limit: int) -> bool:
@@ -594,9 +607,7 @@ class RouterOSREST:
 
         try:
             resp = self._session.patch(
-                url,
-                json={"max-limit": str(max_limit)},
-                timeout=self.timeout
+                url, json={"max-limit": str(max_limit)}, timeout=self.timeout
             )
 
             if resp.ok:
@@ -642,10 +653,7 @@ class RouterOSREST:
             True if API is reachable and authenticated, False otherwise
         """
         try:
-            resp = self._session.get(
-                f"{self.base_url}/system/resource",
-                timeout=5
-            )
+            resp = self._session.get(f"{self.base_url}/system/resource", timeout=5)
             return resp.ok
         except requests.RequestException:
             return False

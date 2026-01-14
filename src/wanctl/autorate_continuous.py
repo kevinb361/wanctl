@@ -6,6 +6,7 @@ Expert-tuned for VDSL2, Cable, and Fiber connections
 
 Runs as a persistent daemon with internal 2-second control loop.
 """
+
 import argparse
 import atexit
 import logging
@@ -93,6 +94,7 @@ MBPS_TO_BPS = 1_000_000
 # CONFIGURATION
 # =============================================================================
 
+
 class Config(BaseConfig):
     """Configuration container loaded from YAML"""
 
@@ -101,67 +103,159 @@ class Config(BaseConfig):
         # Queue names
         {"path": "queues.download", "type": str, "required": True},
         {"path": "queues.upload", "type": str, "required": True},
-
         # Continuous monitoring - required structure
         {"path": "continuous_monitoring.enabled", "type": bool, "required": True},
-        {"path": "continuous_monitoring.baseline_rtt_initial", "type": (int, float),
-         "required": True, "min": 1, "max": 500},
-
+        {
+            "path": "continuous_monitoring.baseline_rtt_initial",
+            "type": (int, float),
+            "required": True,
+            "min": 1,
+            "max": 500,
+        },
         # Download parameters - ceiling is required, floors validated in _load_specific_fields
-        {"path": "continuous_monitoring.download.ceiling_mbps", "type": (int, float),
-         "required": True, "min": 1, "max": 10000},
-        {"path": "continuous_monitoring.download.step_up_mbps", "type": (int, float),
-         "required": True, "min": 0.1, "max": 100},
-        {"path": "continuous_monitoring.download.factor_down", "type": float,
-         "required": True, "min": 0.1, "max": 1.0},
-        {"path": "continuous_monitoring.download.factor_down_yellow", "type": float,
-         "required": False, "min": 0.8, "max": 1.0},
-        {"path": "continuous_monitoring.download.green_required", "type": int,
-         "required": False, "min": 1, "max": 10},
-
+        {
+            "path": "continuous_monitoring.download.ceiling_mbps",
+            "type": (int, float),
+            "required": True,
+            "min": 1,
+            "max": 10000,
+        },
+        {
+            "path": "continuous_monitoring.download.step_up_mbps",
+            "type": (int, float),
+            "required": True,
+            "min": 0.1,
+            "max": 100,
+        },
+        {
+            "path": "continuous_monitoring.download.factor_down",
+            "type": float,
+            "required": True,
+            "min": 0.1,
+            "max": 1.0,
+        },
+        {
+            "path": "continuous_monitoring.download.factor_down_yellow",
+            "type": float,
+            "required": False,
+            "min": 0.8,
+            "max": 1.0,
+        },
+        {
+            "path": "continuous_monitoring.download.green_required",
+            "type": int,
+            "required": False,
+            "min": 1,
+            "max": 10,
+        },
         # Upload parameters
-        {"path": "continuous_monitoring.upload.ceiling_mbps", "type": (int, float),
-         "required": True, "min": 1, "max": 1000},
-        {"path": "continuous_monitoring.upload.step_up_mbps", "type": (int, float),
-         "required": True, "min": 0.1, "max": 100},
-        {"path": "continuous_monitoring.upload.factor_down", "type": float,
-         "required": True, "min": 0.1, "max": 1.0},
-        {"path": "continuous_monitoring.upload.factor_down_yellow", "type": float,
-         "required": False, "min": 0.9, "max": 1.0},
-        {"path": "continuous_monitoring.upload.green_required", "type": int,
-         "required": False, "min": 1, "max": 10},
-
+        {
+            "path": "continuous_monitoring.upload.ceiling_mbps",
+            "type": (int, float),
+            "required": True,
+            "min": 1,
+            "max": 1000,
+        },
+        {
+            "path": "continuous_monitoring.upload.step_up_mbps",
+            "type": (int, float),
+            "required": True,
+            "min": 0.1,
+            "max": 100,
+        },
+        {
+            "path": "continuous_monitoring.upload.factor_down",
+            "type": float,
+            "required": True,
+            "min": 0.1,
+            "max": 1.0,
+        },
+        {
+            "path": "continuous_monitoring.upload.factor_down_yellow",
+            "type": float,
+            "required": False,
+            "min": 0.9,
+            "max": 1.0,
+        },
+        {
+            "path": "continuous_monitoring.upload.green_required",
+            "type": int,
+            "required": False,
+            "min": 1,
+            "max": 10,
+        },
         # Thresholds
-        {"path": "continuous_monitoring.thresholds.target_bloat_ms", "type": (int, float),
-         "required": True, "min": 1, "max": 100},
-        {"path": "continuous_monitoring.thresholds.warn_bloat_ms", "type": (int, float),
-         "required": True, "min": 1, "max": 200},
+        {
+            "path": "continuous_monitoring.thresholds.target_bloat_ms",
+            "type": (int, float),
+            "required": True,
+            "min": 1,
+            "max": 100,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.warn_bloat_ms",
+            "type": (int, float),
+            "required": True,
+            "min": 1,
+            "max": 200,
+        },
         # Alpha values - optional if time_constant_sec is provided
-        {"path": "continuous_monitoring.thresholds.alpha_baseline", "type": float,
-         "required": False, "min": 0.0001, "max": 1.0},
-        {"path": "continuous_monitoring.thresholds.alpha_load", "type": float,
-         "required": False, "min": 0.001, "max": 1.0},
+        {
+            "path": "continuous_monitoring.thresholds.alpha_baseline",
+            "type": float,
+            "required": False,
+            "min": 0.0001,
+            "max": 1.0,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.alpha_load",
+            "type": float,
+            "required": False,
+            "min": 0.001,
+            "max": 1.0,
+        },
         # Time constants - preferred over raw alpha (auto-calculates alpha from interval)
-        {"path": "continuous_monitoring.thresholds.baseline_time_constant_sec", "type": (int, float),
-         "required": False, "min": 1, "max": 600},
-        {"path": "continuous_monitoring.thresholds.load_time_constant_sec", "type": (int, float),
-         "required": False, "min": 0.05, "max": 10},
-        {"path": "continuous_monitoring.thresholds.accel_threshold_ms", "type": (int, float),
-         "required": False, "min": 5, "max": 50},
-
+        {
+            "path": "continuous_monitoring.thresholds.baseline_time_constant_sec",
+            "type": (int, float),
+            "required": False,
+            "min": 1,
+            "max": 600,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.load_time_constant_sec",
+            "type": (int, float),
+            "required": False,
+            "min": 0.05,
+            "max": 10,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.accel_threshold_ms",
+            "type": (int, float),
+            "required": False,
+            "min": 5,
+            "max": 50,
+        },
         # Baseline RTT bounds (optional - security validation)
-        {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
-         "type": (int, float), "required": False, "min": 1, "max": 100},
-        {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.max",
-         "type": (int, float), "required": False, "min": 10, "max": 500},
-
+        {
+            "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
+            "type": (int, float),
+            "required": False,
+            "min": 1,
+            "max": 100,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.max",
+            "type": (int, float),
+            "required": False,
+            "min": 10,
+            "max": 500,
+        },
         # Ping hosts
         {"path": "continuous_monitoring.ping_hosts", "type": list, "required": True},
-
         # Logging
         {"path": "logging.main_log", "type": str, "required": True},
         {"path": "logging.debug_log", "type": str, "required": True},
-
         # Lock file
         {"path": "lock_file", "type": str, "required": True},
         {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
@@ -170,35 +264,35 @@ class Config(BaseConfig):
     def _load_queue_config(self) -> None:
         """Load queue names with command injection validation."""
         self.queue_down = self.validate_identifier(
-            self.data['queues']['download'], 'queues.download'
+            self.data["queues"]["download"], "queues.download"
         )
-        self.queue_up = self.validate_identifier(
-            self.data['queues']['upload'], 'queues.upload'
-        )
+        self.queue_up = self.validate_identifier(self.data["queues"]["upload"], "queues.upload")
 
     def _load_download_config(self, cm: dict) -> None:
         """Load download parameters with state-based floors and validation."""
-        dl = cm['download']
+        dl = cm["download"]
         # Support both legacy (single floor) and v2/v3 (state-based floors)
-        if 'floor_green_mbps' in dl:
-            self.download_floor_green = dl['floor_green_mbps'] * MBPS_TO_BPS
-            self.download_floor_yellow = dl['floor_yellow_mbps'] * MBPS_TO_BPS
-            self.download_floor_soft_red = dl.get('floor_soft_red_mbps', dl['floor_yellow_mbps']) * MBPS_TO_BPS  # Phase 2A
-            self.download_floor_red = dl['floor_red_mbps'] * MBPS_TO_BPS
+        if "floor_green_mbps" in dl:
+            self.download_floor_green = dl["floor_green_mbps"] * MBPS_TO_BPS
+            self.download_floor_yellow = dl["floor_yellow_mbps"] * MBPS_TO_BPS
+            self.download_floor_soft_red = (
+                dl.get("floor_soft_red_mbps", dl["floor_yellow_mbps"]) * MBPS_TO_BPS
+            )  # Phase 2A
+            self.download_floor_red = dl["floor_red_mbps"] * MBPS_TO_BPS
         else:
             # Legacy: use single floor for all states
-            floor = dl['floor_mbps'] * MBPS_TO_BPS
+            floor = dl["floor_mbps"] * MBPS_TO_BPS
             self.download_floor_green = floor
             self.download_floor_yellow = floor
             self.download_floor_soft_red = floor  # Phase 2A
             self.download_floor_red = floor
-        self.download_ceiling = dl['ceiling_mbps'] * MBPS_TO_BPS
-        self.download_step_up = dl['step_up_mbps'] * MBPS_TO_BPS
-        self.download_factor_down = dl['factor_down']
+        self.download_ceiling = dl["ceiling_mbps"] * MBPS_TO_BPS
+        self.download_step_up = dl["step_up_mbps"] * MBPS_TO_BPS
+        self.download_factor_down = dl["factor_down"]
         # YELLOW decay factor: gentle 4% per cycle (vs RED's aggressive 15%)
-        self.download_factor_down_yellow = dl.get('factor_down_yellow', 0.96)
+        self.download_factor_down_yellow = dl.get("factor_down_yellow", 0.96)
         # Consecutive GREEN cycles required before stepping up (default 5)
-        self.download_green_required = dl.get('green_required', 5)
+        self.download_green_required = dl.get("green_required", 5)
 
         # Validate download floor ordering: red <= soft_red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -214,25 +308,25 @@ class Config(BaseConfig):
 
     def _load_upload_config(self, cm: dict) -> None:
         """Load upload parameters with state-based floors and validation."""
-        ul = cm['upload']
+        ul = cm["upload"]
         # Support both legacy (single floor) and v2 (state-based floors)
-        if 'floor_green_mbps' in ul:
-            self.upload_floor_green = ul['floor_green_mbps'] * MBPS_TO_BPS
-            self.upload_floor_yellow = ul['floor_yellow_mbps'] * MBPS_TO_BPS
-            self.upload_floor_red = ul['floor_red_mbps'] * MBPS_TO_BPS
+        if "floor_green_mbps" in ul:
+            self.upload_floor_green = ul["floor_green_mbps"] * MBPS_TO_BPS
+            self.upload_floor_yellow = ul["floor_yellow_mbps"] * MBPS_TO_BPS
+            self.upload_floor_red = ul["floor_red_mbps"] * MBPS_TO_BPS
         else:
             # Legacy: use single floor for all states
-            floor = ul['floor_mbps'] * MBPS_TO_BPS
+            floor = ul["floor_mbps"] * MBPS_TO_BPS
             self.upload_floor_green = floor
             self.upload_floor_yellow = floor
             self.upload_floor_red = floor
-        self.upload_ceiling = ul['ceiling_mbps'] * MBPS_TO_BPS
-        self.upload_step_up = ul['step_up_mbps'] * MBPS_TO_BPS
-        self.upload_factor_down = ul['factor_down']
+        self.upload_ceiling = ul["ceiling_mbps"] * MBPS_TO_BPS
+        self.upload_step_up = ul["step_up_mbps"] * MBPS_TO_BPS
+        self.upload_factor_down = ul["factor_down"]
         # Upload YELLOW decay (gentler than download, default 0.94 = 6% per cycle)
-        self.upload_factor_down_yellow = ul.get('factor_down_yellow', 0.94)
+        self.upload_factor_down_yellow = ul.get("factor_down_yellow", 0.94)
         # Consecutive GREEN cycles required before stepping up (default 5)
-        self.upload_green_required = ul.get('green_required', 5)
+        self.upload_green_required = ul.get("green_required", 5)
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -247,10 +341,10 @@ class Config(BaseConfig):
 
     def _load_threshold_config(self, cm: dict) -> None:
         """Load threshold settings with ordering validation."""
-        thresh = cm['thresholds']
-        self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
-        self.warn_bloat_ms = thresh['warn_bloat_ms']              # YELLOW → SOFT_RED (45ms)
-        self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', DEFAULT_HARD_RED_BLOAT_MS)
+        thresh = cm["thresholds"]
+        self.target_bloat_ms = thresh["target_bloat_ms"]  # GREEN → YELLOW (15ms)
+        self.warn_bloat_ms = thresh["warn_bloat_ms"]  # YELLOW → SOFT_RED (45ms)
+        self.hard_red_bloat_ms = thresh.get("hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS)
 
         # EWMA alpha calculation - prefer time constants (human-readable, interval-independent)
         # Formula: alpha = cycle_interval / time_constant
@@ -258,22 +352,26 @@ class Config(BaseConfig):
         cycle_interval = CYCLE_INTERVAL_SECONDS
 
         # Baseline alpha: require either time_constant or raw alpha
-        if 'baseline_time_constant_sec' in thresh:
-            tc = thresh['baseline_time_constant_sec']
+        if "baseline_time_constant_sec" in thresh:
+            tc = thresh["baseline_time_constant_sec"]
             self.alpha_baseline = cycle_interval / tc
-            logger.info(f"Calculated alpha_baseline={self.alpha_baseline:.6f} from time_constant={tc}s")
-        elif 'alpha_baseline' in thresh:
-            self.alpha_baseline = thresh['alpha_baseline']
+            logger.info(
+                f"Calculated alpha_baseline={self.alpha_baseline:.6f} from time_constant={tc}s"
+            )
+        elif "alpha_baseline" in thresh:
+            self.alpha_baseline = thresh["alpha_baseline"]
         else:
-            raise ValueError("Config must specify either baseline_time_constant_sec or alpha_baseline")
+            raise ValueError(
+                "Config must specify either baseline_time_constant_sec or alpha_baseline"
+            )
 
         # Load alpha: require either time_constant or raw alpha
-        if 'load_time_constant_sec' in thresh:
-            tc = thresh['load_time_constant_sec']
+        if "load_time_constant_sec" in thresh:
+            tc = thresh["load_time_constant_sec"]
             self.alpha_load = cycle_interval / tc
             logger.info(f"Calculated alpha_load={self.alpha_load:.4f} from time_constant={tc}s")
-        elif 'alpha_load' in thresh:
-            self.alpha_load = thresh['alpha_load']
+        elif "alpha_load" in thresh:
+            self.alpha_load = thresh["alpha_load"]
             # Warn if raw alpha seems miscalculated for current interval
             expected_tc = cycle_interval / self.alpha_load
             if expected_tc > 5.0:  # Time constant > 5 seconds is suspiciously slow
@@ -286,17 +384,17 @@ class Config(BaseConfig):
         # Baseline update threshold - only update baseline when delta is below this value
         # Prevents baseline drift under load (architectural invariant)
         self.baseline_update_threshold_ms = thresh.get(
-            'baseline_update_threshold_ms', DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
+            "baseline_update_threshold_ms", DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
         )
 
         # Acceleration threshold for rate-of-change detection (Phase 3)
         # Detects sudden RTT spikes and triggers immediate RED state
-        self.accel_threshold_ms = thresh.get('accel_threshold_ms', 15.0)
+        self.accel_threshold_ms = thresh.get("accel_threshold_ms", 15.0)
 
         # Baseline RTT security bounds - reject values outside this range
-        bounds = thresh.get('baseline_rtt_bounds', {})
-        self.baseline_rtt_min = bounds.get('min', MIN_SANE_BASELINE_RTT)
-        self.baseline_rtt_max = bounds.get('max', MAX_SANE_BASELINE_RTT)
+        bounds = thresh.get("baseline_rtt_bounds", {})
+        self.baseline_rtt_min = bounds.get("min", MIN_SANE_BASELINE_RTT)
+        self.baseline_rtt_max = bounds.get("max", MAX_SANE_BASELINE_RTT)
 
         # Validate threshold ordering: target < warn < hard_red
         # This ensures state transitions are logically correct
@@ -309,42 +407,45 @@ class Config(BaseConfig):
 
     def _load_ping_config(self, cm: dict) -> None:
         """Load ping hosts and median setting."""
-        self.ping_hosts = cm['ping_hosts']
-        self.use_median_of_three = cm.get('use_median_of_three', False)
+        self.ping_hosts = cm["ping_hosts"]
+        self.use_median_of_three = cm.get("use_median_of_three", False)
 
     def _load_fallback_config(self, cm: dict) -> None:
         """Load fallback connectivity check settings."""
-        fallback = cm.get('fallback_checks', {})
-        self.fallback_enabled = fallback.get('enabled', True)  # Enabled by default
-        self.fallback_check_gateway = fallback.get('check_gateway', True)
-        self.fallback_check_tcp = fallback.get('check_tcp', True)
-        self.fallback_gateway_ip = fallback.get('gateway_ip', '10.10.110.1')  # Default gateway
-        self.fallback_tcp_targets = fallback.get('tcp_targets', [
-            ['1.1.1.1', 443],
-            ['8.8.8.8', 443],
-        ])
-        self.fallback_mode = fallback.get('fallback_mode', 'graceful_degradation')
-        self.fallback_max_cycles = fallback.get('max_fallback_cycles', 3)
+        fallback = cm.get("fallback_checks", {})
+        self.fallback_enabled = fallback.get("enabled", True)  # Enabled by default
+        self.fallback_check_gateway = fallback.get("check_gateway", True)
+        self.fallback_check_tcp = fallback.get("check_tcp", True)
+        self.fallback_gateway_ip = fallback.get("gateway_ip", "10.10.110.1")  # Default gateway
+        self.fallback_tcp_targets = fallback.get(
+            "tcp_targets",
+            [
+                ["1.1.1.1", 443],
+                ["8.8.8.8", 443],
+            ],
+        )
+        self.fallback_mode = fallback.get("fallback_mode", "graceful_degradation")
+        self.fallback_max_cycles = fallback.get("max_fallback_cycles", 3)
 
     def _load_timeout_config(self) -> None:
         """Load timeout settings with defaults."""
-        timeouts = self.data.get('timeouts', {})
-        self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_AUTORATE_SSH_TIMEOUT)
-        self.timeout_ping = timeouts.get('ping', DEFAULT_AUTORATE_PING_TIMEOUT)
+        timeouts = self.data.get("timeouts", {})
+        self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT)
+        self.timeout_ping = timeouts.get("ping", DEFAULT_AUTORATE_PING_TIMEOUT)
 
     def _load_router_transport_config(self) -> None:
         """Load router transport settings (SSH or REST)."""
-        router = self.data.get('router', {})
-        self.router_transport = router.get('transport', 'ssh')  # Default to SSH
+        router = self.data.get("router", {})
+        self.router_transport = router.get("transport", "ssh")  # Default to SSH
         # REST API specific settings (only used if transport=rest)
-        self.router_password = router.get('password', '')
-        self.router_port = router.get('port', 443)
-        self.router_verify_ssl = router.get('verify_ssl', False)
+        self.router_password = router.get("password", "")
+        self.router_port = router.get("port", 443)
+        self.router_verify_ssl = router.get("verify_ssl", False)
 
     def _load_lock_and_state_config(self) -> None:
         """Load lock file and derive state file path."""
-        self.lock_file = Path(self.data['lock_file'])
-        self.lock_timeout = self.data['lock_timeout']
+        self.lock_file = Path(self.data["lock_file"])
+        self.lock_timeout = self.data["lock_timeout"]
 
         # State file (for persisting hysteresis counters)
         # Derive from lock file path: /tmp/wanctl_att.lock -> /tmp/wanctl_att_state.json
@@ -353,22 +454,22 @@ class Config(BaseConfig):
 
     def _load_logging_config(self) -> None:
         """Load logging paths."""
-        self.main_log = self.data['logging']['main_log']
-        self.debug_log = self.data['logging']['debug_log']
+        self.main_log = self.data["logging"]["main_log"]
+        self.debug_log = self.data["logging"]["debug_log"]
 
     def _load_health_check_config(self) -> None:
         """Load health check settings with defaults."""
-        health = self.data.get('health_check', {})
-        self.health_check_enabled = health.get('enabled', True)
-        self.health_check_host = health.get('host', '127.0.0.1')
-        self.health_check_port = health.get('port', 9101)
+        health = self.data.get("health_check", {})
+        self.health_check_enabled = health.get("enabled", True)
+        self.health_check_host = health.get("host", "127.0.0.1")
+        self.health_check_port = health.get("port", 9101)
 
     def _load_metrics_config(self) -> None:
         """Load metrics settings (Prometheus-compatible, disabled by default)."""
-        metrics_config = self.data.get('metrics', {})
-        self.metrics_enabled = metrics_config.get('enabled', False)
-        self.metrics_host = metrics_config.get('host', '127.0.0.1')
-        self.metrics_port = metrics_config.get('port', 9100)
+        metrics_config = self.data.get("metrics", {})
+        self.metrics_enabled = metrics_config.get("enabled", False)
+        self.metrics_host = metrics_config.get("host", "127.0.0.1")
+        self.metrics_port = metrics_config.get("port", 9100)
 
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
@@ -376,9 +477,9 @@ class Config(BaseConfig):
         self._load_queue_config()
 
         # Continuous monitoring parameters
-        cm = self.data['continuous_monitoring']
-        self.enabled = cm['enabled']
-        self.baseline_rtt_initial = cm['baseline_rtt_initial']
+        cm = self.data["continuous_monitoring"]
+        self.enabled = cm["enabled"]
+        self.baseline_rtt_initial = cm["baseline_rtt_initial"]
 
         # Download parameters (STATE-BASED FLOORS - Phase 2A: 4-state)
         self._load_download_config(cm)
@@ -418,6 +519,7 @@ class Config(BaseConfig):
 # ROUTEROS INTERFACE
 # =============================================================================
 
+
 class RouterOS:
     """RouterOS interface for setting queue limits.
 
@@ -427,6 +529,7 @@ class RouterOS:
 
     Transport is selected via config.router_transport field.
     """
+
     def __init__(self, config: Config, logger: logging.Logger):
         self.config = config
         self.logger = logger
@@ -444,9 +547,9 @@ class RouterOS:
         # RouterOS supports semicolon-separated commands
         cmd = (
             f'/queue tree set [find name="{self.config.queue_down}"] '
-            f'queue=cake-down-{wan_lower} max-limit={down_bps}; '
+            f"queue=cake-down-{wan_lower} max-limit={down_bps}; "
             f'/queue tree set [find name="{self.config.queue_up}"] '
-            f'queue=cake-up-{wan_lower} max-limit={up_bps}'
+            f"queue=cake-up-{wan_lower} max-limit={up_bps}"
         )
 
         rc, _, _ = self.ssh.run_cmd(cmd)
@@ -465,9 +568,23 @@ class RouterOS:
 # QUEUE CONTROLLER (3-ZONE LOGIC)
 # =============================================================================
 
+
 class QueueController:
     """Controls one queue (download or upload) with 3-zone or 4-zone logic"""
-    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float, factor_down_yellow: float = 1.0, green_required: int = 5):
+
+    def __init__(
+        self,
+        name: str,
+        floor_green: int,
+        floor_yellow: int,
+        floor_soft_red: int,
+        floor_red: int,
+        ceiling: int,
+        step_up: int,
+        factor_down: float,
+        factor_down_yellow: float = 1.0,
+        green_required: int = 5,
+    ):
         self.name = name
         self.floor_green_bps = floor_green
         self.floor_yellow_bps = floor_yellow
@@ -476,17 +593,21 @@ class QueueController:
         self.ceiling_bps = ceiling
         self.step_up_bps = step_up
         self.factor_down = factor_down
-        self.factor_down_yellow = factor_down_yellow  # Gentle decay for YELLOW (default 1.0 = no decay)
+        self.factor_down_yellow = (
+            factor_down_yellow  # Gentle decay for YELLOW (default 1.0 = no decay)
+        )
         self.current_rate = ceiling  # Start at ceiling
 
         # Hysteresis counters (require consecutive green cycles before stepping up)
         self.green_streak = 0
-        self.soft_red_streak = 0      # Phase 2A: Track SOFT_RED sustain
+        self.soft_red_streak = 0  # Phase 2A: Track SOFT_RED sustain
         self.red_streak = 0
         self.green_required = green_required  # Consecutive GREEN cycles before stepping up
-        self.soft_red_required = 1     # Reduced from 3 for faster response (50ms vs 150ms)
+        self.soft_red_required = 1  # Reduced from 3 for faster response (50ms vs 150ms)
 
-    def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> tuple[str, int]:
+    def adjust(
+        self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float
+    ) -> tuple[str, int]:
         """
         Apply 3-zone logic with hysteresis and return (zone, new_rate)
 
@@ -538,7 +659,14 @@ class QueueController:
         self.current_rate = new_rate
         return zone, new_rate
 
-    def adjust_4state(self, baseline_rtt: float, load_rtt: float, green_threshold: float, soft_red_threshold: float, hard_red_threshold: float) -> tuple[str, int]:
+    def adjust_4state(
+        self,
+        baseline_rtt: float,
+        load_rtt: float,
+        green_threshold: float,
+        soft_red_threshold: float,
+        hard_red_threshold: float,
+    ) -> tuple[str, int]:
         """
         Apply 4-state logic with hysteresis and return (state, new_rate)
 
@@ -632,9 +760,18 @@ class QueueController:
 # WAN CONTROLLER
 # =============================================================================
 
+
 class WANController:
     """Controls both download and upload for one WAN"""
-    def __init__(self, wan_name: str, config: Config, router: RouterOS, rtt_measurement: RTTMeasurement, logger: logging.Logger):
+
+    def __init__(
+        self,
+        wan_name: str,
+        config: Config,
+        router: RouterOS,
+        rtt_measurement: RTTMeasurement,
+        logger: logging.Logger,
+    ):
         self.wan_name = wan_name
         self.config = config
         self.router = router
@@ -677,9 +814,9 @@ class WANController:
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
-        self.green_threshold = config.target_bloat_ms         # 15ms: GREEN → YELLOW
-        self.soft_red_threshold = config.warn_bloat_ms        # 45ms: YELLOW → SOFT_RED
-        self.hard_red_threshold = config.hard_red_bloat_ms    # 80ms: SOFT_RED → RED
+        self.green_threshold = config.target_bloat_ms  # 15ms: GREEN → YELLOW
+        self.soft_red_threshold = config.warn_bloat_ms  # 45ms: YELLOW → SOFT_RED
+        self.hard_red_threshold = config.hard_red_bloat_ms  # 80ms: SOFT_RED → RED
         # Legacy 3-state thresholds (for upload)
         self.target_delta = config.target_bloat_ms
         self.warn_delta = config.warn_bloat_ms
@@ -711,7 +848,7 @@ class WANController:
         # =====================================================================
         self.rate_limiter = RateLimiter(
             max_changes=DEFAULT_RATE_LIMIT_MAX_CHANGES,
-            window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS
+            window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
         )
 
         # =====================================================================
@@ -728,9 +865,7 @@ class WANController:
         # Separates persistence concerns from business logic
         # =====================================================================
         self.state_manager = WANControllerState(
-            state_file=config.state_file,
-            logger=logger,
-            wan_name=wan_name
+            state_file=config.state_file, logger=logger, wan_name=wan_name
         )
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
@@ -749,14 +884,14 @@ class WANController:
             # Ping multiple hosts concurrently, take median to handle reflector variation
             hosts_to_ping = self.ping_hosts[:3]
             rtts = self.rtt_measurement.ping_hosts_concurrent(
-                hosts=hosts_to_ping,
-                count=1,
-                timeout=3.0
+                hosts=hosts_to_ping, count=1, timeout=3.0
             )
 
             if len(rtts) >= 2:
                 median_rtt = statistics.median(rtts)
-                self.logger.debug(f"{self.wan_name}: Median-of-{len(rtts)} RTT = {median_rtt:.2f}ms")
+                self.logger.debug(
+                    f"{self.wan_name}: Median-of-{len(rtts)} RTT = {median_rtt:.2f}ms"
+                )
                 return median_rtt
             elif len(rtts) == 1:
                 return rtts[0]
@@ -806,9 +941,8 @@ class WANController:
             # Line is idle or nearly idle - safe to update baseline
             old_baseline = self.baseline_rtt
             new_baseline = (
-                (1 - self.alpha_baseline) * self.baseline_rtt
-                + self.alpha_baseline * measured_rtt
-            )
+                1 - self.alpha_baseline
+            ) * self.baseline_rtt + self.alpha_baseline * measured_rtt
 
             # Security bounds check - reject corrupted/invalid baseline values
             if not (self.baseline_rtt_min <= new_baseline <= self.baseline_rtt_max):
@@ -960,11 +1094,7 @@ class WANController:
             return True
 
         # Apply to router
-        success = self.router.set_limits(
-            wan=self.wan_name,
-            down_bps=dl_rate,
-            up_bps=ul_rate
-        )
+        success = self.router.set_limits(wan=self.wan_name, down_bps=dl_rate, up_bps=ul_rate)
 
         if not success:
             self.logger.error(f"{self.wan_name}: Failed to apply limits")
@@ -1012,7 +1142,7 @@ class WANController:
             # We have connectivity, just can't measure RTT via ICMP
             self.icmp_unavailable_cycles += 1
 
-            if self.config.fallback_mode == 'graceful_degradation':
+            if self.config.fallback_mode == "graceful_degradation":
                 # Mode C: Graceful degradation with cycle-based strategy
                 if self.icmp_unavailable_cycles == 1:
                     # Cycle 1: Use last known RTT and continue normally
@@ -1037,12 +1167,14 @@ class WANController:
                     )
                     return (False, None)  # Trigger watchdog restart
 
-            elif self.config.fallback_mode == 'freeze':
+            elif self.config.fallback_mode == "freeze":
                 # Mode A: Always freeze rates when ICMP unavailable
-                self.logger.warning(f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)")
+                self.logger.warning(
+                    f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)"
+                )
                 return (True, None)  # Caller will save state and return True
 
-            elif self.config.fallback_mode == 'use_last_rtt':
+            elif self.config.fallback_mode == "use_last_rtt":
                 # Mode B: Always use last known RTT
                 measured_rtt = self.load_rtt
                 self.logger.warning(
@@ -1053,7 +1185,9 @@ class WANController:
 
             else:
                 # Unknown mode, default to original behavior
-                self.logger.error(f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}")
+                self.logger.error(
+                    f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}"
+                )
                 return (False, None)
 
         else:
@@ -1103,14 +1237,16 @@ class WANController:
 
         # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
         dl_zone, dl_rate = self.download.adjust_4state(
-            self.baseline_rtt, self.load_rtt,
-            self.green_threshold, self.soft_red_threshold, self.hard_red_threshold
+            self.baseline_rtt,
+            self.load_rtt,
+            self.green_threshold,
+            self.soft_red_threshold,
+            self.hard_red_threshold,
         )
 
         # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
         ul_zone, ul_rate = self.upload.adjust(
-            self.baseline_rtt, self.load_rtt,
-            self.target_delta, self.warn_delta
+            self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
         )
 
         # Log decision
@@ -1119,7 +1255,7 @@ class WANController:
             f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
             f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
             f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-            f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
+            f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
         )
 
         # Apply rate changes (with flash wear + rate limit protection)
@@ -1152,32 +1288,32 @@ class WANController:
 
         if state is not None:
             # Restore download controller state
-            if 'download' in state:
-                dl = state['download']
-                self.download.green_streak = dl.get('green_streak', 0)
-                self.download.soft_red_streak = dl.get('soft_red_streak', 0)
-                self.download.red_streak = dl.get('red_streak', 0)
-                self.download.current_rate = dl.get('current_rate', self.download.ceiling_bps)
+            if "download" in state:
+                dl = state["download"]
+                self.download.green_streak = dl.get("green_streak", 0)
+                self.download.soft_red_streak = dl.get("soft_red_streak", 0)
+                self.download.red_streak = dl.get("red_streak", 0)
+                self.download.current_rate = dl.get("current_rate", self.download.ceiling_bps)
 
             # Restore upload controller state
-            if 'upload' in state:
-                ul = state['upload']
-                self.upload.green_streak = ul.get('green_streak', 0)
-                self.upload.soft_red_streak = ul.get('soft_red_streak', 0)
-                self.upload.red_streak = ul.get('red_streak', 0)
-                self.upload.current_rate = ul.get('current_rate', self.upload.ceiling_bps)
+            if "upload" in state:
+                ul = state["upload"]
+                self.upload.green_streak = ul.get("green_streak", 0)
+                self.upload.soft_red_streak = ul.get("soft_red_streak", 0)
+                self.upload.red_streak = ul.get("red_streak", 0)
+                self.upload.current_rate = ul.get("current_rate", self.upload.ceiling_bps)
 
             # Restore EWMA state
-            if 'ewma' in state:
-                ewma = state['ewma']
-                self.baseline_rtt = ewma.get('baseline_rtt', self.baseline_rtt)
-                self.load_rtt = ewma.get('load_rtt', self.load_rtt)
+            if "ewma" in state:
+                ewma = state["ewma"]
+                self.baseline_rtt = ewma.get("baseline_rtt", self.baseline_rtt)
+                self.load_rtt = ewma.get("load_rtt", self.load_rtt)
 
             # Restore last applied rates (flash wear protection)
-            if 'last_applied' in state:
-                applied = state['last_applied']
-                self.last_applied_dl_rate = applied.get('dl_rate')
-                self.last_applied_ul_rate = applied.get('ul_rate')
+            if "last_applied" in state:
+                applied = state["last_applied"]
+                self.last_applied_dl_rate = applied.get("dl_rate")
+                self.last_applied_ul_rate = applied.get("ul_rate")
 
     @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
     def save_state(self) -> None:
@@ -1187,22 +1323,19 @@ class WANController:
                 self.download.green_streak,
                 self.download.soft_red_streak,
                 self.download.red_streak,
-                self.download.current_rate
+                self.download.current_rate,
             ),
             upload=self.state_manager.build_upload_state(
                 self.upload.green_streak,
                 self.upload.soft_red_streak,
                 self.upload.red_streak,
-                self.upload.current_rate
+                self.upload.current_rate,
             ),
-            ewma={
-                'baseline_rtt': self.baseline_rtt,
-                'load_rtt': self.load_rtt
-            },
+            ewma={"baseline_rtt": self.baseline_rtt, "load_rtt": self.load_rtt},
             last_applied={
-                'dl_rate': self.last_applied_dl_rate,
-                'ul_rate': self.last_applied_ul_rate
-            }
+                "dl_rate": self.last_applied_dl_rate,
+                "ul_rate": self.last_applied_ul_rate,
+            },
         )
 
 
@@ -1210,8 +1343,10 @@ class WANController:
 # MAIN CONTROLLER
 # =============================================================================
 
+
 class ContinuousAutoRate:
     """Main controller managing one or more WANs"""
+
     def __init__(self, config_files: list[str], debug: bool = False):
         self.wan_controllers = []
         self.debug = debug
@@ -1222,15 +1357,27 @@ class ContinuousAutoRate:
             logger = setup_logging(config, "cake_continuous", debug)
 
             logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
-            logger.info(f"Download: GREEN={config.download_floor_green/1e6:.0f}M, YELLOW={config.download_floor_yellow/1e6:.0f}M, "
-                       f"SOFT_RED={config.download_floor_soft_red/1e6:.0f}M, RED={config.download_floor_red/1e6:.0f}M, "
-                       f"ceiling={config.download_ceiling/1e6:.0f}M, step={config.download_step_up/1e6:.1f}M, factor={config.download_factor_down}")
-            logger.info(f"Upload: GREEN={config.upload_floor_green/1e6:.0f}M, YELLOW={config.upload_floor_yellow/1e6:.0f}M, RED={config.upload_floor_red/1e6:.0f}M, ceiling={config.upload_ceiling/1e6:.0f}M, "
-                       f"step={config.upload_step_up/1e6:.1f}M, factor={config.upload_factor_down}")
-            logger.info(f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→SOFT_RED={config.warn_bloat_ms}ms, SOFT_RED→RED={config.hard_red_bloat_ms}ms")
-            logger.info(f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→RED={config.warn_bloat_ms}ms")
-            logger.info(f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}")
-            logger.info(f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}")
+            logger.info(
+                f"Download: GREEN={config.download_floor_green / 1e6:.0f}M, YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
+                f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, RED={config.download_floor_red / 1e6:.0f}M, "
+                f"ceiling={config.download_ceiling / 1e6:.0f}M, step={config.download_step_up / 1e6:.1f}M, factor={config.download_factor_down}"
+            )
+            logger.info(
+                f"Upload: GREEN={config.upload_floor_green / 1e6:.0f}M, YELLOW={config.upload_floor_yellow / 1e6:.0f}M, RED={config.upload_floor_red / 1e6:.0f}M, ceiling={config.upload_ceiling / 1e6:.0f}M, "
+                f"step={config.upload_step_up / 1e6:.1f}M, factor={config.upload_factor_down}"
+            )
+            logger.info(
+                f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→SOFT_RED={config.warn_bloat_ms}ms, SOFT_RED→RED={config.hard_red_bloat_ms}ms"
+            )
+            logger.info(
+                f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→RED={config.warn_bloat_ms}ms"
+            )
+            logger.info(
+                f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}"
+            )
+            logger.info(
+                f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}"
+            )
 
             # Create shared instances
             router = RouterOS(config, logger)
@@ -1239,17 +1386,15 @@ class ContinuousAutoRate:
                 logger,
                 timeout_ping=config.timeout_ping,
                 aggregation_strategy=RTTAggregationStrategy.AVERAGE,
-                log_sample_stats=True  # Log min/max for debugging
+                log_sample_stats=True,  # Log min/max for debugging
             )
 
             # Create WAN controller
             wan_controller = WANController(config.wan_name, config, router, rtt_measurement, logger)
 
-            self.wan_controllers.append({
-                'controller': wan_controller,
-                'config': config,
-                'logger': logger
-            })
+            self.wan_controllers.append(
+                {"controller": wan_controller, "config": config, "logger": logger}
+            )
 
     def run_cycle(self, use_lock: bool = True) -> bool:
         """Run one cycle for all WANs
@@ -1265,9 +1410,9 @@ class ContinuousAutoRate:
         all_success = True
 
         for wan_info in self.wan_controllers:
-            controller = wan_info['controller']
-            config = wan_info['config']
-            logger = wan_info['logger']
+            controller = wan_info["controller"]
+            config = wan_info["config"]
+            logger = wan_info["logger"]
 
             try:
                 if use_lock:
@@ -1291,12 +1436,13 @@ class ContinuousAutoRate:
 
     def get_lock_paths(self) -> list[Path]:
         """Return lock file paths for all configured WANs"""
-        return [wan_info['config'].lock_file for wan_info in self.wan_controllers]
+        return [wan_info["config"].lock_file for wan_info in self.wan_controllers]
 
 
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
+
 
 def main() -> int | None:
     """Main entry point for continuous CAKE auto-tuning daemon.
@@ -1341,20 +1487,21 @@ def main() -> int | None:
         description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
     )
     parser.add_argument(
-        '--config', nargs='+', required=True,
-        help='One or more config files (supports single-WAN or multi-WAN)'
+        "--config",
+        nargs="+",
+        required=True,
+        help="One or more config files (supports single-WAN or multi-WAN)",
     )
     parser.add_argument(
-        '--debug', action='store_true',
-        help='Enable debug logging to console and debug log file'
+        "--debug", action="store_true", help="Enable debug logging to console and debug log file"
     )
     parser.add_argument(
-        '--oneshot', action='store_true',
-        help='Run one cycle and exit (for testing/manual runs)'
+        "--oneshot", action="store_true", help="Run one cycle and exit (for testing/manual runs)"
     )
     parser.add_argument(
-        '--validate-config', action='store_true',
-        help='Validate configuration and exit (dry-run mode for CI/CD)'
+        "--validate-config",
+        action="store_true",
+        help="Validate configuration and exit (dry-run mode for CI/CD)",
     )
 
     args = parser.parse_args()
@@ -1369,17 +1516,27 @@ def main() -> int | None:
                 print(f"  WAN: {config.wan_name}")
                 print(f"  Transport: {config.router_transport}")
                 print(f"  Router: {config.router_host}:{config.router_user}")
-                print(f"  Download: {config.download_floor_red/1e6:.0f}M - {config.download_ceiling/1e6:.0f}M")
-                print(f"    Floors: GREEN={config.download_floor_green/1e6:.0f}M, "
-                      f"YELLOW={config.download_floor_yellow/1e6:.0f}M, "
-                      f"SOFT_RED={config.download_floor_soft_red/1e6:.0f}M, "
-                      f"RED={config.download_floor_red/1e6:.0f}M")
-                print(f"  Upload: {config.upload_floor_red/1e6:.0f}M - {config.upload_ceiling/1e6:.0f}M")
-                print(f"    Floors: GREEN={config.upload_floor_green/1e6:.0f}M, "
-                      f"YELLOW={config.upload_floor_yellow/1e6:.0f}M, "
-                      f"RED={config.upload_floor_red/1e6:.0f}M")
-                print(f"  Thresholds: GREEN<={config.target_bloat_ms}ms, "
-                      f"SOFT_RED<={config.warn_bloat_ms}ms, RED>{config.hard_red_bloat_ms}ms")
+                print(
+                    f"  Download: {config.download_floor_red / 1e6:.0f}M - {config.download_ceiling / 1e6:.0f}M"
+                )
+                print(
+                    f"    Floors: GREEN={config.download_floor_green / 1e6:.0f}M, "
+                    f"YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
+                    f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, "
+                    f"RED={config.download_floor_red / 1e6:.0f}M"
+                )
+                print(
+                    f"  Upload: {config.upload_floor_red / 1e6:.0f}M - {config.upload_ceiling / 1e6:.0f}M"
+                )
+                print(
+                    f"    Floors: GREEN={config.upload_floor_green / 1e6:.0f}M, "
+                    f"YELLOW={config.upload_floor_yellow / 1e6:.0f}M, "
+                    f"RED={config.upload_floor_red / 1e6:.0f}M"
+                )
+                print(
+                    f"  Thresholds: GREEN<={config.target_bloat_ms}ms, "
+                    f"SOFT_RED<={config.warn_bloat_ms}ms, RED>{config.hard_red_bloat_ms}ms"
+                )
                 print(f"  Ping hosts: {config.ping_hosts}")
                 print(f"  Queue names: {config.queue_down}, {config.queue_up}")
             except Exception as e:
@@ -1402,21 +1559,19 @@ def main() -> int | None:
     for lock_path in controller.get_lock_paths():
         # Use unified lock validation and acquisition from lock_utils
         # This handles PID validation, stale lock cleanup, and atomic lock creation
-        logger = controller.wan_controllers[0]['logger']  # Use first logger for multi-WAN
-        lock_timeout = controller.wan_controllers[0]['config'].lock_timeout
+        logger = controller.wan_controllers[0]["logger"]  # Use first logger for multi-WAN
+        lock_timeout = controller.wan_controllers[0]["config"].lock_timeout
         try:
             if not validate_and_acquire_lock(lock_path, lock_timeout, logger):
                 # Another instance is running
                 for wan_info in controller.wan_controllers:
-                    wan_info['logger'].error(
-                        "Another instance is running, refusing to start"
-                    )
+                    wan_info["logger"].error("Another instance is running, refusing to start")
                 return 1
             lock_files.append(lock_path)
         except RuntimeError as e:
             # Unexpected error during lock validation
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].error(f"Failed to validate lock: {e}")
+                wan_info["logger"].error(f"Failed to validate lock: {e}")
             return 1
 
     # Register emergency cleanup handler for abnormal termination (e.g., SIGKILL)
@@ -1443,7 +1598,7 @@ def main() -> int | None:
     metrics_server = None
 
     # Start metrics server if enabled (use first WAN's config for settings)
-    first_config = controller.wan_controllers[0]['config']
+    first_config = controller.wan_controllers[0]["config"]
     if first_config.metrics_enabled:
         try:
             metrics_server = start_metrics_server(
@@ -1451,13 +1606,13 @@ def main() -> int | None:
                 port=first_config.metrics_port,
             )
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].info(
+                wan_info["logger"].info(
                     f"Prometheus metrics available at http://{first_config.metrics_host}:{first_config.metrics_port}/metrics"
                 )
         except OSError as e:
             # Non-fatal: log warning but continue without metrics
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].warning(f"Failed to start metrics server: {e}")
+                wan_info["logger"].warning(f"Failed to start metrics server: {e}")
 
     # Start health check server
     if first_config.health_check_enabled:
@@ -1470,13 +1625,15 @@ def main() -> int | None:
         except OSError as e:
             # Non-fatal: log warning but continue without health check
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].warning(f"Failed to start health check server: {e}")
+                wan_info["logger"].warning(f"Failed to start health check server: {e}")
 
     # Log startup
     for wan_info in controller.wan_controllers:
-        wan_info['logger'].info(f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval")
+        wan_info["logger"].info(
+            f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval"
+        )
         if is_systemd_available():
-            wan_info['logger'].info("Systemd watchdog support enabled")
+            wan_info["logger"].info("Systemd watchdog support enabled")
 
     try:
         while not is_shutdown_requested():
@@ -1494,7 +1651,7 @@ def main() -> int | None:
                 consecutive_failures += 1
 
                 for wan_info in controller.wan_controllers:
-                    wan_info['logger'].warning(
+                    wan_info["logger"].warning(
                         f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})"
                     )
 
@@ -1502,7 +1659,7 @@ def main() -> int | None:
                 if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
                     watchdog_enabled = False
                     for wan_info in controller.wan_controllers:
-                        wan_info['logger'].error(
+                        wan_info["logger"].error(
                             f"Sustained failure: {consecutive_failures} consecutive "
                             f"failed cycles. Stopping watchdog - systemd will terminate us."
                         )
@@ -1525,7 +1682,7 @@ def main() -> int | None:
         # Log shutdown when detected (safe - in main loop, not signal handler)
         if is_shutdown_requested():
             for wan_info in controller.wan_controllers:
-                wan_info['logger'].info("Shutdown requested, exiting gracefully...")
+                wan_info["logger"].info("Shutdown requested, exiting gracefully...")
 
     finally:
         # CLEANUP PRIORITY: locks > connections > servers
@@ -1536,7 +1693,7 @@ def main() -> int | None:
             try:
                 lock_path.unlink(missing_ok=True)
                 for wan_info in controller.wan_controllers:
-                    wan_info['logger'].debug(f"Lock released: {lock_path}")
+                    wan_info["logger"].debug(f"Lock released: {lock_path}")
             except OSError:
                 pass  # Best effort - may already be gone
 
@@ -1549,14 +1706,14 @@ def main() -> int | None:
         # 2. Clean up SSH/REST connections
         for wan_info in controller.wan_controllers:
             try:
-                router = wan_info['controller'].router
+                router = wan_info["controller"].router
                 # Handle both SSH and REST transports
-                if hasattr(router, 'ssh') and router.ssh:
+                if hasattr(router, "ssh") and router.ssh:
                     router.ssh.close()
-                if hasattr(router, 'close'):
+                if hasattr(router, "close"):
                     router.close()
             except Exception as e:
-                wan_info['logger'].debug(f"Error closing router connection: {e}")
+                wan_info["logger"].debug(f"Error closing router connection: {e}")
 
         # 3. Shut down metrics server
         if metrics_server:
@@ -1564,7 +1721,7 @@ def main() -> int | None:
                 metrics_server.stop()
             except Exception as e:
                 for wan_info in controller.wan_controllers:
-                    wan_info['logger'].debug(f"Error shutting down metrics server: {e}")
+                    wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
 
         # 4. Shut down health check server
         if health_server:
@@ -1572,11 +1729,11 @@ def main() -> int | None:
                 health_server.shutdown()
             except Exception as e:
                 for wan_info in controller.wan_controllers:
-                    wan_info['logger'].debug(f"Error shutting down health server: {e}")
+                    wan_info["logger"].debug(f"Error shutting down health server: {e}")
 
         # Log clean shutdown
         for wan_info in controller.wan_controllers:
-            wan_info['logger'].info("Daemon shutdown complete")
+            wan_info["logger"].info("Daemon shutdown complete")
 
 
 if __name__ == "__main__":

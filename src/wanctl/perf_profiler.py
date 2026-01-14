@@ -195,7 +195,9 @@ class OperationProfiler:
         return report
 
 
-def measure_operation(func: Callable[..., Any], label: str, logger: logging.Logger | None = None) -> Callable[..., Any]:
+def measure_operation(
+    func: Callable[..., Any], label: str, logger: logging.Logger | None = None
+) -> Callable[..., Any]:
     """Decorator for timing function calls.
 
     Wraps a function to measure its execution time and log the result.
@@ -214,7 +216,9 @@ def measure_operation(func: Callable[..., Any], label: str, logger: logging.Logg
     Returns:
         Wrapped function that times execution
     """
+
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         with PerfTimer(label, logger):
             return func(*args, **kwargs)
+
     return wrapper

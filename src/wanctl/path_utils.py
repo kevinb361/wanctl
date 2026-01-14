@@ -27,9 +27,7 @@ def get_cake_root() -> Path:
 
 
 def ensure_directory_exists(
-    path: str | Path,
-    logger: logging.Logger | None = None,
-    mode: int = 0o755
+    path: str | Path, logger: logging.Logger | None = None, mode: int = 0o755
 ) -> Path:
     """Ensure a directory exists, creating it if necessary.
 
@@ -70,7 +68,7 @@ def ensure_file_directory(
     file_path: str | Path,
     logger: logging.Logger | None = None,
     mode: int = 0o755,
-    resolve: bool = False
+    resolve: bool = False,
 ) -> Path:
     """Ensure the directory containing a file exists.
 
@@ -99,9 +97,7 @@ def ensure_file_directory(
 
 
 def safe_file_path(
-    file_path: str | Path,
-    create_parent: bool = False,
-    logger: logging.Logger | None = None
+    file_path: str | Path, create_parent: bool = False, logger: logging.Logger | None = None
 ) -> Path:
     """Validate and optionally prepare a file path for use.
 

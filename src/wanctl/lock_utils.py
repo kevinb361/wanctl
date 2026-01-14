@@ -65,10 +65,10 @@ def is_process_alive(pid: int) -> bool:
     # os.kill succeeded - process exists
     # Additional check: is it a zombie?
     try:
-        with open(f'/proc/{pid}/stat') as f:
+        with open(f"/proc/{pid}/stat") as f:
             stat = f.read()
             # Third field is state: Z = zombie
-            if ') Z ' in stat or stat.endswith(' Z'):
+            if ") Z " in stat or stat.endswith(" Z"):
                 return False  # Zombie - treat as dead
     except (FileNotFoundError, PermissionError, OSError):
         # /proc not available or not accessible - can't determine

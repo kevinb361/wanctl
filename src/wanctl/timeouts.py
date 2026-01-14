@@ -123,8 +123,7 @@ def get_ssh_timeout(component: ComponentName) -> int:
 
     if component not in timeouts:
         raise ValueError(
-            f"Unknown component: {component}. "
-            f"Must be one of: {', '.join(timeouts.keys())}"
+            f"Unknown component: {component}. Must be one of: {', '.join(timeouts.keys())}"
         )
 
     return timeouts[component]
@@ -147,12 +146,15 @@ def get_ping_timeout(component: ComponentName, total: bool = False) -> int:
         return DEFAULT_AUTORATE_PING_TIMEOUT
 
     if component == "steering":
-        return DEFAULT_STEERING_PING_TOTAL_TIMEOUT if total else DEFAULT_STEERING_PING_TOTAL_TIMEOUT // 3
+        return (
+            DEFAULT_STEERING_PING_TOTAL_TIMEOUT
+            if total
+            else DEFAULT_STEERING_PING_TOTAL_TIMEOUT // 3
+        )
 
     if component == "calibrate":
         return DEFAULT_CALIBRATE_PING_TIMEOUT
 
     raise ValueError(
-        f"Unknown component: {component}. "
-        f"Must be one of: autorate, steering, calibrate"
+        f"Unknown component: {component}. Must be one of: autorate, steering, calibrate"
     )

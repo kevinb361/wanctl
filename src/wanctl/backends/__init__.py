@@ -33,12 +33,12 @@ def get_backend(config) -> RouterBackend:
     Raises:
         ValueError: If router type is not supported.
     """
-    router_type = config.router.get('type', 'routeros')
+    router_type = config.router.get("type", "routeros")
 
-    if router_type == 'routeros':
+    if router_type == "routeros":
         return RouterOSBackend.from_config(config)
     else:
         raise ValueError(f"Unsupported router type: {router_type}")
 
 
-__all__ = ['RouterBackend', 'RouterOSBackend', 'get_backend']
+__all__ = ["RouterBackend", "RouterOSBackend", "get_backend"]
