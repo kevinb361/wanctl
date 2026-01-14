@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-09)
 ## Current Position
 
 Phase: 14 of 15 (WANController Refactoring)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-14 — Completed 14-01-PLAN.md
+Last activity: 2026-01-14 — Completed 14-02-PLAN.md
 
-Progress: ████░░░░░░░░░░░░░░░░ 20% (1/5 plans in phase)
+Progress: ████████░░░░░░░░░░░░ 40% (2/5 plans in phase)
 
 ## Performance Metrics
 
@@ -38,8 +38,8 @@ Progress: ████░░░░░░░░░░░░░░░░ 20% (1/5 
 
 **Recent Trend:**
 
-- Last 5 plans: [12-02 ✓, 13-01 ✓, 13-02 ✓, 14-01 ✓]
-- Trend: Excellent - Phase 14 started (1/5 plans complete)
+- Last 5 plans: [13-01 ✓, 13-02 ✓, 14-01 ✓, 14-02 ✓]
+- Trend: Excellent - Phase 14 progressing (2/5 plans complete)
 
 **Current Performance:**
 
@@ -95,7 +95,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Completed 14-01-PLAN.md
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
 
 ## Milestone Achievements
@@ -396,3 +396,10 @@ Resume file: None
   - Added 17 unit tests covering all 3 fallback modes
   - Test count increased from 474 to 491
   - No changes to protected zones
+
+- ✓ 14-02: Extract apply_rate_changes_if_needed() (6 min execution)
+  - Extracted 45 lines of flash wear + rate limiting from run_cycle()
+  - Created apply_rate_changes_if_needed(dl_rate, ul_rate) -> bool method
+  - Added 14 unit tests covering flash wear, rate limiting, router failure
+  - Test count increased from 491 to 505
+  - run_cycle() reduced from ~120 to ~69 lines (67% total reduction)

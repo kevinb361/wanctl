@@ -280,7 +280,7 @@ Plans:
 Plans:
 
 - [x] 14-01: Extract handle_icmp_failure() from run_cycle()
-- [ ] 14-02: Extract flash wear protection logic
+- [x] 14-02: Extract flash wear protection logic
 - [ ] 14-03: Extract rate calculation logic
 - [ ] 14-04: Extract baseline update logic
 - [ ] 14-05: Final run_cycle() cleanup
@@ -321,5 +321,5 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 14. WANController Refactoring           | v1.1      | 1/5            | In progress                   | -           |
+| 14. WANController Refactoring           | v1.1      | 2/5            | In progress                   | -           |
 | 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
