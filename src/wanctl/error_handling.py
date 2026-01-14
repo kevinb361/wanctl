@@ -33,7 +33,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from typing import Any, TypeVar
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 # Log level constants
 LOG_DEBUG = logging.DEBUG
@@ -113,11 +113,11 @@ def handle_errors(
             except exception_types as e:
                 # Get logger from self (for methods)
                 logger = None
-                if args and hasattr(args[0], 'logger'):
+                if args and hasattr(args[0], "logger"):
                     logger = args[0].logger
-                elif args and hasattr(args[0], '__dict__'):
+                elif args and hasattr(args[0], "__dict__"):
                     # Try to find a logger in the object
-                    for attr in ['logger', '_logger', 'log']:
+                    for attr in ["logger", "_logger", "log"]:
                         if hasattr(args[0], attr):
                             potential_logger = getattr(args[0], attr)
                             if isinstance(potential_logger, logging.Logger):
@@ -130,28 +130,18 @@ def handle_errors(
 
                 # Format error message
                 if error_msg:
-                    # Handle error message with optional self references
                     try:
-                        if '{self' in error_msg and args and hasattr(args[0], '__dict__'):
-                            # For messages like "{self.wan_name}: ...", replace with actual values
+                        msg = error_msg
+                        # Replace {self.attr} patterns with actual values from first arg
+                        if "{self." in msg and args:
                             obj = args[0]
-                            message = error_msg
-                            # Find all {self.attr} patterns and replace
-                            for match in re.finditer(r'\{self\.(\w+)\}', error_msg):
-                                attr_name = match.group(1)
-                                if hasattr(obj, attr_name):
-                                    attr_value = getattr(obj, attr_name)
-                                    message = message.replace(
-                                        f'{{self.{attr_name}}}',
-                                        str(attr_value)
-                                    )
-                            # Now format with remaining placeholders
-                            message = message.format(exception=str(e), func=func.__name__)
-                        else:
-                            message = error_msg.format(exception=str(e), func=func.__name__)
-                    except (KeyError, ValueError, AttributeError, TypeError) as fmt_err:
-                        # If formatting fails, fall back to simple message
-                        logger.debug(f"Could not format error message: {fmt_err}")
+                            msg = re.sub(
+                                r"\{self\.(\w+)\}",
+                                lambda m: str(getattr(obj, m.group(1), m.group(0))),
+                                msg,
+                            )
+                        message = msg.format(exception=str(e), func=func.__name__)
+                    except (KeyError, ValueError, AttributeError, TypeError):
                         message = f"{func.__name__} failed: {e}"
                 else:
                     message = f"{func.__name__} failed: {e}"
@@ -248,7 +238,7 @@ def safe_call(
     default: Any = None,
     log_level: int = logging.WARNING,
     log_traceback: bool = False,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """
     Safely invoke a function with error handling and logging.
