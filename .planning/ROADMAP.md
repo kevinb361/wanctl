@@ -258,11 +258,13 @@ Plans:
 **Goal**: Update inline documentation, code comments, and docstrings across codebase
 **Depends on**: Phase 12
 **Research**: Unlikely (internal documentation)
-**Plans**: TBD
+**Plans**: 2 plans
+**Status**: Planned
 
 Plans:
 
-- [ ] 13-01: TBD
+- [ ] 13-01: Documentation consistency review and stale reference fixes
+- [ ] 13-02: Add inline comments to protected algorithm zones
 
 #### Phase 14: WANController Refactoring
 
