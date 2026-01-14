@@ -1,15 +1,16 @@
 """Unit tests for router command utilities."""
 
 import logging
+
 import pytest
 
 from wanctl.router_command_utils import (
     check_command_success,
-    safe_parse_output,
-    validate_rule_status,
     extract_field_value,
     extract_queue_stats,
     handle_command_error,
+    safe_parse_output,
+    validate_rule_status,
 )
 
 

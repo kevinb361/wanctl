@@ -10,7 +10,6 @@ Only update baseline when delta is minimal (line is idle).
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from .state_utils import safe_json_load_file
 
@@ -162,7 +161,7 @@ class BaselineValidator:
             return False
         return True
 
-    def get_validated(self, baseline_rtt: Optional[float]) -> Optional[float]:
+    def get_validated(self, baseline_rtt: float | None) -> float | None:
         """Validate and return baseline RTT, or None if invalid.
 
         Args:
@@ -204,7 +203,7 @@ class BaselineRTTLoader:
         self.change_threshold = change_threshold
         self.last_baseline = None
 
-    def load(self) -> Optional[float]:
+    def load(self) -> float | None:
         """Load baseline RTT from state file.
 
         Reads ewma.baseline_rtt from autorate_continuous state file with
@@ -258,7 +257,7 @@ class BaselineRTTLoader:
             return None
 
 
-def calculate_rtt_delta(current_rtt: float, baseline_rtt: Optional[float]) -> float:
+def calculate_rtt_delta(current_rtt: float, baseline_rtt: float | None) -> float:
     """Calculate RTT delta from baseline.
 
     Helper function for calculating delta when baseline manager not available.

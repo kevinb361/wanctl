@@ -37,7 +37,6 @@ from tests.integration.framework import (
 from tests.integration.framework.latency_collector import measure_baseline_rtt
 from tests.integration.framework.load_generator import create_load_generator
 
-
 PROFILES_DIR = Path(__file__).parent / "profiles"
 DALLAS_HOST = "104.200.21.31"
 
@@ -118,7 +117,7 @@ class TestLatencyControl:
                 controller_monitor = None
 
         # Start collection
-        print(f"\nStarting latency collection at 10Hz...")
+        print("\nStarting latency collection at 10Hz...")
         latency_collector.start()
 
         if controller_monitor:
@@ -252,7 +251,7 @@ class TestLatencyControl:
             print(f"Controller: {len(ca.state_transitions)} transitions, "
                   f"congestion={'detected' if ca.detected_congestion else 'not detected'}")
 
-        print(f"\nSLA Results:")
+        print("\nSLA Results:")
         for r in report.sla_evaluation.results:
             status_mark = "[+]" if r.passed else "[X]"
             print(f"  {status_mark} {r.sla_name}: {r.actual} (expected {r.expected})")
@@ -295,7 +294,7 @@ if __name__ == "__main__":
     generator = ReportGenerator(output_dir=output_dir)
     output_files = generator.generate(report)
 
-    print(f"\nReports generated:")
+    print("\nReports generated:")
     for fmt, path in output_files.items():
         print(f"  {fmt}: {path}")
 

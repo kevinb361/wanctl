@@ -4,12 +4,13 @@ import json
 import logging
 import tempfile
 from pathlib import Path
+
 import pytest
 
 from wanctl.baseline_rtt_manager import (
+    BaselineRTTLoader,
     BaselineRTTManager,
     BaselineValidator,
-    BaselineRTTLoader,
     calculate_rtt_delta,
 )
 

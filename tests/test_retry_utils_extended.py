@@ -2,9 +2,10 @@
 
 import logging
 import time
+
 import pytest
 
-from wanctl.retry_utils import verify_with_retry, measure_with_retry
+from wanctl.retry_utils import measure_with_retry, verify_with_retry
 
 
 @pytest.fixture

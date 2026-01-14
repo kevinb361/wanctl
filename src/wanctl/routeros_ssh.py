@@ -26,7 +26,6 @@ Usage:
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
 
 import paramiko
 
@@ -76,7 +75,7 @@ class RouterOSSSH:
         self.ssh_key = ssh_key
         self.timeout = timeout
         self.logger = logger or logging.getLogger(__name__)
-        self._client: Optional[paramiko.SSHClient] = None
+        self._client: paramiko.SSHClient | None = None
 
     def _get_known_hosts_path(self) -> Path:
         """Get path to user's known_hosts file.
@@ -186,7 +185,7 @@ class RouterOSSSH:
             self._connect()
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False, timeout: Optional[int] = None) -> Tuple[int, str, str]:
+    def run_cmd(self, cmd: str, capture: bool = False, timeout: int | None = None) -> tuple[int, str, str]:
         """Execute RouterOS command via persistent SSH connection.
 
         Uses paramiko's exec_command() on a persistent connection for

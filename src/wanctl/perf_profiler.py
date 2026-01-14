@@ -18,7 +18,8 @@ Use OperationProfiler for accumulating metrics across multiple cycles:
 import logging
 import time
 from collections import deque
-from typing import Any, Callable, Deque, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 class PerfTimer:
@@ -34,7 +35,7 @@ class PerfTimer:
         # Logs: "ping_measurement: 123.4ms"
     """
 
-    def __init__(self, label: str, logger: Optional[logging.Logger] = None):
+    def __init__(self, label: str, logger: logging.Logger | None = None):
         """
         Initialize timer.
 
@@ -97,7 +98,7 @@ class OperationProfiler:
                         Default 100 prevents unbounded growth.
         """
         self.max_samples = max_samples
-        self.samples: Dict[str, Deque[float]] = {}
+        self.samples: dict[str, deque[float]] = {}
 
     def record(self, label: str, elapsed_ms: float) -> None:
         """Record a measurement.
@@ -110,7 +111,7 @@ class OperationProfiler:
             self.samples[label] = deque(maxlen=self.max_samples)
         self.samples[label].append(elapsed_ms)
 
-    def stats(self, label: str) -> Dict[str, Any]:
+    def stats(self, label: str) -> dict[str, Any]:
         """Get statistics for a label.
 
         Returns a dictionary with:
@@ -151,7 +152,7 @@ class OperationProfiler:
             "samples": samples,
         }
 
-    def clear(self, label: Optional[str] = None) -> None:
+    def clear(self, label: str | None = None) -> None:
         """Clear samples for a specific label or all labels.
 
         Args:
@@ -162,7 +163,7 @@ class OperationProfiler:
         elif label in self.samples:
             self.samples[label].clear()
 
-    def report(self, logger: Optional[logging.Logger] = None) -> str:
+    def report(self, logger: logging.Logger | None = None) -> str:
         """Generate a summary report of all collected metrics.
 
         Args:
@@ -194,7 +195,7 @@ class OperationProfiler:
         return report
 
 
-def measure_operation(func: Callable[..., Any], label: str, logger: Optional[logging.Logger] = None) -> Callable[..., Any]:
+def measure_operation(func: Callable[..., Any], label: str, logger: logging.Logger | None = None) -> Callable[..., Any]:
     """Decorator for timing function calls.
 
     Wraps a function to measure its execution time and log the result.

@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 import yaml
 
 if TYPE_CHECKING:
-    from .latency_collector import LatencyStats
     from .controller_monitor import ControllerAnalysis
+    from .latency_collector import LatencyStats
 
 
 @dataclass

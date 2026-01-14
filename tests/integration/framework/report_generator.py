@@ -4,14 +4,14 @@ Produces JSON and markdown reports from test results.
 """
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .controller_monitor import ControllerAnalysis
 from .latency_collector import LatencyStats
-from .load_generator import LoadProfile, LoadResult
+from .load_generator import LoadResult
 from .sla_checker import SLAEvaluation
 
 
@@ -166,7 +166,7 @@ class ReportGenerator:
         # Header
         status = "PASSED" if report.overall_passed else "FAILED"
         status_emoji = "+" if report.overall_passed else "X"
-        lines.append(f"# wanctl Latency Validation Report")
+        lines.append("# wanctl Latency Validation Report")
         lines.append("")
         lines.append(f"**Status:** [{status_emoji}] {status}")
         lines.append(f"**Test:** {report.test_name}")

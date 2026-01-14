@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -105,7 +105,8 @@ class ControllerMonitor:
     def start(self) -> None:
         """Mark start of monitoring period."""
         self._start_time = time.time()
-        self._start_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Use UTC time since remote systems typically use UTC for journalctl
+        self._start_timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         self._entries = []
 
     def stop(self) -> ControllerAnalysis:

@@ -860,7 +860,7 @@ class WANController:
                     f"ICMP-specific issue, continuing with degraded monitoring"
                 )
                 return True
-            except (socket.timeout, OSError, socket.gaierror) as e:
+            except (TimeoutError, OSError, socket.gaierror) as e:
                 self.logger.debug(f"TCP to {host}:{port} failed: {e}")
                 continue
 

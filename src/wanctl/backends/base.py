@@ -17,9 +17,8 @@ To add a new backend:
 4. Document config schema for the new router type
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional
 import logging
+from abc import ABC, abstractmethod
 
 
 class RouterBackend(ABC):
@@ -29,7 +28,7 @@ class RouterBackend(ABC):
     with wanctl's autorate and steering systems.
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         """Initialize the backend with an optional logger.
 
         Args:
@@ -54,7 +53,7 @@ class RouterBackend(ABC):
         pass
 
     @abstractmethod
-    def get_bandwidth(self, queue: str) -> Optional[int]:
+    def get_bandwidth(self, queue: str) -> int | None:
         """Get the current max-limit on a queue/shaper.
 
         Used for verification after setting limits.
@@ -68,7 +67,7 @@ class RouterBackend(ABC):
         pass
 
     @abstractmethod
-    def get_queue_stats(self, queue: str) -> Optional[dict]:
+    def get_queue_stats(self, queue: str) -> dict | None:
         """Get statistics for a queue (packets, bytes, drops, queue depth).
 
         Used by the multi-signal congestion detection system.
@@ -120,7 +119,7 @@ class RouterBackend(ABC):
         pass
 
     @abstractmethod
-    def is_rule_enabled(self, comment: str) -> Optional[bool]:
+    def is_rule_enabled(self, comment: str) -> bool | None:
         """Check if a firewall/mangle rule is enabled.
 
         Args:

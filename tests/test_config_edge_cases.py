@@ -9,7 +9,6 @@ import pytest
 from wanctl.config_base import BaseConfig, ConfigValidationError, validate_field
 from wanctl.config_validation_utils import validate_alpha
 
-
 # =============================================================================
 # Boundary Length Tests
 # =============================================================================
