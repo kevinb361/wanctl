@@ -142,9 +142,8 @@ class Config(BaseConfig):
         {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
     ]
 
-    def _load_specific_fields(self) -> None:
-        """Load autorate-specific configuration fields"""
-        # Queues (validated to prevent command injection)
+    def _load_queue_config(self) -> None:
+        """Load queue names with command injection validation."""
         self.queue_down = self.validate_identifier(
             self.data['queues']['download'], 'queues.download'
         )
@@ -152,12 +151,8 @@ class Config(BaseConfig):
             self.data['queues']['upload'], 'queues.upload'
         )
 
-        # Continuous monitoring parameters
-        cm = self.data['continuous_monitoring']
-        self.enabled = cm['enabled']
-        self.baseline_rtt_initial = cm['baseline_rtt_initial']
-
-        # Download parameters (STATE-BASED FLOORS - Phase 2A: 4-state)
+    def _load_download_config(self, cm: dict) -> None:
+        """Load download parameters with state-based floors and validation."""
         dl = cm['download']
         # Support both legacy (single floor) and v2/v3 (state-based floors)
         if 'floor_green_mbps' in dl:
@@ -188,7 +183,8 @@ class Config(BaseConfig):
             logger=logging.getLogger(__name__),
         )
 
-        # Upload parameters (STATE-BASED FLOORS)
+    def _load_upload_config(self, cm: dict) -> None:
+        """Load upload parameters with state-based floors and validation."""
         ul = cm['upload']
         # Support both legacy (single floor) and v2 (state-based floors)
         if 'floor_green_mbps' in ul:
@@ -216,7 +212,8 @@ class Config(BaseConfig):
             logger=logging.getLogger(__name__),
         )
 
-        # Thresholds
+    def _load_threshold_config(self, cm: dict) -> None:
+        """Load threshold settings with ordering validation."""
         thresh = cm['thresholds']
         self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
         self.warn_bloat_ms = thresh['warn_bloat_ms']              # YELLOW → SOFT_RED (45ms)
@@ -238,11 +235,13 @@ class Config(BaseConfig):
             logger=logging.getLogger(__name__),
         )
 
-        # Ping configuration
+    def _load_ping_config(self, cm: dict) -> None:
+        """Load ping hosts and median setting."""
         self.ping_hosts = cm['ping_hosts']
         self.use_median_of_three = cm.get('use_median_of_three', False)
 
-        # Fallback connectivity checks (optional, with sensible defaults)
+    def _load_fallback_config(self, cm: dict) -> None:
+        """Load fallback connectivity check settings."""
         fallback = cm.get('fallback_checks', {})
         self.fallback_enabled = fallback.get('enabled', True)  # Enabled by default
         self.fallback_check_gateway = fallback.get('check_gateway', True)
@@ -255,12 +254,14 @@ class Config(BaseConfig):
         self.fallback_mode = fallback.get('fallback_mode', 'graceful_degradation')
         self.fallback_max_cycles = fallback.get('max_fallback_cycles', 3)
 
-        # Timeouts (with sensible defaults)
+    def _load_timeout_config(self) -> None:
+        """Load timeout settings with defaults."""
         timeouts = self.data.get('timeouts', {})
         self.timeout_ssh_command = timeouts.get('ssh_command', DEFAULT_AUTORATE_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get('ping', DEFAULT_AUTORATE_PING_TIMEOUT)
 
-        # Router transport configuration (ssh or rest)
+    def _load_router_transport_config(self) -> None:
+        """Load router transport settings (SSH or REST)."""
         router = self.data.get('router', {})
         self.router_transport = router.get('transport', 'ssh')  # Default to SSH
         # REST API specific settings (only used if transport=rest)
@@ -268,7 +269,8 @@ class Config(BaseConfig):
         self.router_port = router.get('port', 443)
         self.router_verify_ssl = router.get('verify_ssl', False)
 
-        # Lock file
+    def _load_lock_and_state_config(self) -> None:
+        """Load lock file and derive state file path."""
         self.lock_file = Path(self.data['lock_file'])
         self.lock_timeout = self.data['lock_timeout']
 
@@ -277,22 +279,67 @@ class Config(BaseConfig):
         lock_stem = self.lock_file.stem
         self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
 
-        # Logging
+    def _load_logging_config(self) -> None:
+        """Load logging paths."""
         self.main_log = self.data['logging']['main_log']
         self.debug_log = self.data['logging']['debug_log']
 
-        # Health check configuration (optional, with defaults)
+    def _load_health_check_config(self) -> None:
+        """Load health check settings with defaults."""
         health = self.data.get('health_check', {})
         self.health_check_enabled = health.get('enabled', True)
         self.health_check_host = health.get('host', '127.0.0.1')
         self.health_check_port = health.get('port', 9101)
 
-        # Metrics configuration (optional, disabled by default)
-        # When enabled, exposes Prometheus-compatible metrics at /metrics endpoint
+    def _load_metrics_config(self) -> None:
+        """Load metrics settings (Prometheus-compatible, disabled by default)."""
         metrics_config = self.data.get('metrics', {})
         self.metrics_enabled = metrics_config.get('enabled', False)
         self.metrics_host = metrics_config.get('host', '127.0.0.1')
         self.metrics_port = metrics_config.get('port', 9100)
+
+    def _load_specific_fields(self) -> None:
+        """Load autorate-specific configuration fields (orchestration only)."""
+        # Queues (validated to prevent command injection)
+        self._load_queue_config()
+
+        # Continuous monitoring parameters
+        cm = self.data['continuous_monitoring']
+        self.enabled = cm['enabled']
+        self.baseline_rtt_initial = cm['baseline_rtt_initial']
+
+        # Download parameters (STATE-BASED FLOORS - Phase 2A: 4-state)
+        self._load_download_config(cm)
+
+        # Upload parameters (STATE-BASED FLOORS)
+        self._load_upload_config(cm)
+
+        # Thresholds (depends on continuous_monitoring section)
+        self._load_threshold_config(cm)
+
+        # Ping configuration
+        self._load_ping_config(cm)
+
+        # Fallback connectivity checks
+        self._load_fallback_config(cm)
+
+        # Timeouts
+        self._load_timeout_config()
+
+        # Router transport (SSH or REST)
+        self._load_router_transport_config()
+
+        # Lock file and state file
+        self._load_lock_and_state_config()
+
+        # Logging
+        self._load_logging_config()
+
+        # Health check
+        self._load_health_check_config()
+
+        # Metrics
+        self._load_metrics_config()
 
 
 # =============================================================================
