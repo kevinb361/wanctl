@@ -424,3 +424,287 @@ class TestIcmpRecovery:
         info_calls = [str(call) for call in controller.logger.info.call_args_list]
         recovery_logged = any("ICMP recovered" in str(call) for call in info_calls)
         assert not recovery_logged, "Should not log recovery when counter was zero"
+
+
+class TestApplyRateChangesIfNeeded:
+    """Tests for WANController.apply_rate_changes_if_needed() method.
+
+    Tests flash wear protection and rate limiting behavior:
+    - Unchanged rates skip router call
+    - Changed rates call router
+    - Rate limiting throttles updates
+    - Router failure returns False
+    - Success updates tracking state
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for WANController."""
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.10.110.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+        return config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.autorate_continuous import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    # =========================================================================
+    # Flash wear protection tests
+    # =========================================================================
+
+    def test_unchanged_rates_skip_router_call(self, controller, mock_router):
+        """Flash wear protection: unchanged rates should not call router."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(100_000_000, 20_000_000)
+
+        assert result is True
+        assert mock_router.set_limits.call_count == 0
+        controller.logger.debug.assert_called()
+
+    def test_changed_dl_rate_calls_router(self, controller, mock_router):
+        """Changed download rate should call router."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 20_000_000)
+
+        assert result is True
+        mock_router.set_limits.assert_called_once_with(
+            wan="TestWAN",
+            down_bps=90_000_000,
+            up_bps=20_000_000
+        )
+
+    def test_changed_ul_rate_calls_router(self, controller, mock_router):
+        """Changed upload rate should call router."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(100_000_000, 18_000_000)
+
+        assert result is True
+        mock_router.set_limits.assert_called_once_with(
+            wan="TestWAN",
+            down_bps=100_000_000,
+            up_bps=18_000_000
+        )
+
+    def test_both_rates_changed_calls_router(self, controller, mock_router):
+        """Changed both rates should call router."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        mock_router.set_limits.assert_called_once()
+
+    def test_none_last_applied_calls_router(self, controller, mock_router):
+        """None as last_applied should call router (first update)."""
+        controller.last_applied_dl_rate = None
+        controller.last_applied_ul_rate = None
+
+        result = controller.apply_rate_changes_if_needed(100_000_000, 20_000_000)
+
+        assert result is True
+        mock_router.set_limits.assert_called_once()
+
+    # =========================================================================
+    # Rate limiting tests
+    # =========================================================================
+
+    def test_rate_limited_skips_router_saves_state(self, controller, mock_router):
+        """Rate limit exceeded should skip router but save state."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        # Replace rate_limiter with a mock
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = False
+        mock_rate_limiter.time_until_available.return_value = 5.0
+        controller.rate_limiter = mock_rate_limiter
+
+        with patch.object(controller, "save_state") as mock_save:
+            result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        assert mock_router.set_limits.call_count == 0
+        mock_save.assert_called_once()
+        controller.logger.warning.assert_called()
+
+    def test_rate_limited_records_metric_when_enabled(self, controller, mock_router):
+        """Rate limiting should record metric when metrics enabled."""
+        controller.config.metrics_enabled = True
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        # Replace rate_limiter with a mock
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = False
+        mock_rate_limiter.time_until_available.return_value = 5.0
+        controller.rate_limiter = mock_rate_limiter
+
+        with (
+            patch.object(controller, "save_state"),
+            patch("wanctl.autorate_continuous.record_rate_limit_event") as mock_metric,
+        ):
+            result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        mock_metric.assert_called_once_with("TestWAN")
+
+    def test_rate_limited_no_metric_when_disabled(self, controller, mock_router):
+        """Rate limiting should not record metric when metrics disabled."""
+        controller.config.metrics_enabled = False
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        # Replace rate_limiter with a mock
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = False
+        mock_rate_limiter.time_until_available.return_value = 5.0
+        controller.rate_limiter = mock_rate_limiter
+
+        with (
+            patch.object(controller, "save_state"),
+            patch("wanctl.autorate_continuous.record_rate_limit_event") as mock_metric,
+        ):
+            result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        mock_metric.assert_not_called()
+
+    # =========================================================================
+    # Router failure tests
+    # =========================================================================
+
+    def test_router_failure_returns_false(self, controller, mock_router):
+        """Router.set_limits failure should return False."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        mock_router.set_limits.return_value = False
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is False
+        controller.logger.error.assert_called()
+
+    def test_router_failure_does_not_update_tracking(self, controller, mock_router):
+        """Router failure should not update last_applied tracking."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        mock_router.set_limits.return_value = False
+
+        controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        # Tracking should remain unchanged
+        assert controller.last_applied_dl_rate == 100_000_000
+        assert controller.last_applied_ul_rate == 20_000_000
+
+    # =========================================================================
+    # Success tracking tests
+    # =========================================================================
+
+    def test_success_updates_tracking(self, controller, mock_router):
+        """Successful update should track last_applied rates."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        assert controller.last_applied_dl_rate == 90_000_000
+        assert controller.last_applied_ul_rate == 18_000_000
+
+    def test_success_records_change_with_rate_limiter(self, controller, mock_router):
+        """Successful update should record change with rate limiter."""
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+        # Replace rate_limiter with a mock to verify record_change is called
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = True
+        controller.rate_limiter = mock_rate_limiter
+
+        controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        mock_rate_limiter.record_change.assert_called_once()
+
+    def test_success_records_metric_when_enabled(self, controller, mock_router):
+        """Successful update should record router_update metric when enabled."""
+        controller.config.metrics_enabled = True
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        with patch("wanctl.autorate_continuous.record_router_update") as mock_metric:
+            controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        mock_metric.assert_called_once_with("TestWAN")
+
+    def test_success_no_metric_when_disabled(self, controller, mock_router):
+        """Successful update should not record metric when disabled."""
+        controller.config.metrics_enabled = False
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        with patch("wanctl.autorate_continuous.record_router_update") as mock_metric:
+            controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        mock_metric.assert_not_called()
