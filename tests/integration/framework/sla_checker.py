@@ -49,15 +49,11 @@ class SLAConfig:
             max_bloat_over_baseline_ms=latency.get(
                 "max_bloat_over_baseline_ms", cls.max_bloat_over_baseline_ms
             ),
-            flat_top_threshold_ms=latency.get(
-                "flat_top_threshold_ms", cls.flat_top_threshold_ms
-            ),
+            flat_top_threshold_ms=latency.get("flat_top_threshold_ms", cls.flat_top_threshold_ms),
             flat_top_max_duration_sec=latency.get(
                 "flat_top_max_duration_sec", cls.flat_top_max_duration_sec
             ),
-            max_response_time_ms=controller.get(
-                "max_response_time_ms", cls.max_response_time_ms
-            ),
+            max_response_time_ms=controller.get("max_response_time_ms", cls.max_response_time_ms),
             min_rate_reduction_pct=controller.get(
                 "min_rate_reduction_pct", cls.min_rate_reduction_pct
             ),
@@ -136,9 +132,7 @@ class SLAChecker:
 
         return SLAEvaluation(overall_passed=overall_passed, results=results)
 
-    def _check_latency_slas(
-        self, stats: "LatencyStats", baseline_rtt_ms: float
-    ) -> list[SLAResult]:
+    def _check_latency_slas(self, stats: "LatencyStats", baseline_rtt_ms: float) -> list[SLAResult]:
         """Check latency-related SLAs."""
         results = []
 
@@ -212,9 +206,7 @@ class SLAChecker:
 
         return results
 
-    def _check_controller_slas(
-        self, analysis: "ControllerAnalysis"
-    ) -> list[SLAResult]:
+    def _check_controller_slas(self, analysis: "ControllerAnalysis") -> list[SLAResult]:
         """Check controller response SLAs."""
         results = []
 

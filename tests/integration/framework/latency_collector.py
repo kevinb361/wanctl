@@ -144,9 +144,7 @@ class LatencyCollector:
         except (subprocess.TimeoutExpired, subprocess.SubprocessError):
             pass
 
-        return LatencySample(
-            timestamp=timestamp, rtt_ms=None, target=self.target, success=False
-        )
+        return LatencySample(timestamp=timestamp, rtt_ms=None, target=self.target, success=False)
 
     def _ping_standard(self, timestamp: float) -> LatencySample:
         """Fallback to standard ping command."""
@@ -175,9 +173,7 @@ class LatencyCollector:
         except (subprocess.TimeoutExpired, subprocess.SubprocessError):
             pass
 
-        return LatencySample(
-            timestamp=timestamp, rtt_ms=None, target=self.target, success=False
-        )
+        return LatencySample(timestamp=timestamp, rtt_ms=None, target=self.target, success=False)
 
     def _compute_stats(self) -> LatencyStats:
         """Compute latency distribution statistics."""

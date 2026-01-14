@@ -40,7 +40,7 @@ class TestCheckCommandSuccess:
             cmd="/invalid command",
             err="syntax error",
             logger=logger,
-            operation="queue update"
+            operation="queue update",
         )
         assert result is False
 
@@ -55,6 +55,7 @@ class TestSafeParseOutput:
 
     def test_successful_parse(self, logger):
         """Test successful parsing."""
+
         def parse_func(output):
             return int(output.strip())
 
@@ -63,6 +64,7 @@ class TestSafeParseOutput:
 
     def test_parse_function_returns_none(self, logger):
         """Test when parse function returns None."""
+
         def parse_func(output):
             return None
 
@@ -71,6 +73,7 @@ class TestSafeParseOutput:
 
     def test_parse_exception_handling(self, logger):
         """Test exception handling in parse function."""
+
         def parse_func(output):
             raise ValueError("Invalid input")
 
@@ -79,6 +82,7 @@ class TestSafeParseOutput:
 
     def test_empty_output(self, logger):
         """Test with empty output."""
+
         def parse_func(output):
             return "should_not_be_called"
 
@@ -87,6 +91,7 @@ class TestSafeParseOutput:
 
     def test_whitespace_only_output(self, logger):
         """Test with whitespace-only output."""
+
         def parse_func(output):
             return "should_not_be_called"
 
@@ -161,7 +166,7 @@ class TestExtractFieldValue:
 
     def test_extract_string_field(self, logger):
         """Test extracting string field."""
-        output = 'name=WAN-Download-Spectrum parent=bridge1'
+        output = "name=WAN-Download-Spectrum parent=bridge1"
         result = extract_field_value(output, "name", str, logger=logger)
         assert result == "WAN-Download-Spectrum"
 
@@ -196,59 +201,59 @@ class TestExtractQueueStats:
         """Test extracting all queue statistics."""
         output = (
             'name="WAN-Download" packets=1000 bytes=5000000 dropped=10 '
-            'queued-packets=3 queued-bytes=1500'
+            "queued-packets=3 queued-bytes=1500"
         )
         result = extract_queue_stats(output, logger=logger)
 
-        assert result['packets'] == 1000
-        assert result['bytes'] == 5000000
-        assert result['dropped'] == 10
-        assert result['queued_packets'] == 3
-        assert result['queued_bytes'] == 1500
+        assert result["packets"] == 1000
+        assert result["bytes"] == 5000000
+        assert result["dropped"] == 10
+        assert result["queued_packets"] == 3
+        assert result["queued_bytes"] == 1500
 
     def test_partial_stats(self, logger):
         """Test with only some stats present."""
         output = "packets=500 dropped=2"
         result = extract_queue_stats(output, logger=logger)
 
-        assert result['packets'] == 500
-        assert result['dropped'] == 2
-        assert result['bytes'] == 0  # Not present, defaults to 0
-        assert result['queued_packets'] == 0
+        assert result["packets"] == 500
+        assert result["dropped"] == 2
+        assert result["bytes"] == 0  # Not present, defaults to 0
+        assert result["queued_packets"] == 0
 
     def test_bytes_without_queued_bytes(self, logger):
         """Test that 'bytes' regex doesn't match 'queued-bytes'."""
         output = "bytes=1000000 queued-bytes=2000"
         result = extract_queue_stats(output, logger=logger)
 
-        assert result['bytes'] == 1000000
-        assert result['queued_bytes'] == 2000
+        assert result["bytes"] == 1000000
+        assert result["queued_bytes"] == 2000
 
     def test_large_numbers(self, logger):
         """Test with large numbers (realistic values)."""
         output = "packets=184614358 bytes=272603902153 dropped=0 queued-packets=0"
         result = extract_queue_stats(output, logger=logger)
 
-        assert result['packets'] == 184614358
-        assert result['bytes'] == 272603902153
+        assert result["packets"] == 184614358
+        assert result["bytes"] == 272603902153
 
     def test_empty_output(self, logger):
         """Test with empty output (returns defaults)."""
         result = extract_queue_stats("", logger=logger)
 
-        assert result['packets'] == 0
-        assert result['bytes'] == 0
-        assert result['dropped'] == 0
-        assert result['queued_packets'] == 0
-        assert result['queued_bytes'] == 0
+        assert result["packets"] == 0
+        assert result["bytes"] == 0
+        assert result["dropped"] == 0
+        assert result["queued_packets"] == 0
+        assert result["queued_bytes"] == 0
 
     def test_malformed_number(self, logger):
         """Test with malformed number (skips field)."""
         output = "packets=invalid bytes=1000"
         result = extract_queue_stats(output, logger=logger)
 
-        assert result['packets'] == 0  # Failed conversion
-        assert result['bytes'] == 1000  # This one succeeded
+        assert result["packets"] == 0  # Failed conversion
+        assert result["bytes"] == 1000  # This one succeeded
 
 
 class TestHandleCommandError:
@@ -263,11 +268,7 @@ class TestHandleCommandError:
     def test_failure_with_return_value(self, logger):
         """Test failed command with return value."""
         success, value = handle_command_error(
-            rc=1,
-            err="not found",
-            cmd="/queue tree print",
-            logger=logger,
-            return_value=None
+            rc=1, err="not found", cmd="/queue tree print", logger=logger, return_value=None
         )
         assert success is False
         assert value is None
@@ -275,11 +276,7 @@ class TestHandleCommandError:
     def test_failure_returns_custom_value(self, logger):
         """Test failed command returns custom value."""
         success, value = handle_command_error(
-            rc=127,
-            err="error",
-            cmd="/invalid",
-            logger=logger,
-            return_value=-1
+            rc=127, err="error", cmd="/invalid", logger=logger, return_value=-1
         )
         assert success is False
         assert value == -1
@@ -287,11 +284,7 @@ class TestHandleCommandError:
     def test_success_ignores_return_value(self, logger):
         """Test that success ignores return_value parameter."""
         success, value = handle_command_error(
-            rc=0,
-            err="",
-            cmd="/command",
-            logger=logger,
-            return_value="should_be_ignored"
+            rc=0, err="", cmd="/command", logger=logger, return_value="should_be_ignored"
         )
         assert success is True
         assert value is None
@@ -316,7 +309,7 @@ class TestRouterCommandUtilsIntegration:
         rc = 0
         output = (
             'name="WAN-Download" packets=1000 bytes=5000000 dropped=5 '
-            'queued-packets=2 queued-bytes=1000'
+            "queued-packets=2 queued-bytes=1000"
         )
 
         # Check command success
@@ -325,17 +318,15 @@ class TestRouterCommandUtilsIntegration:
 
         # Parse output
         stats = extract_queue_stats(output, logger=logger)
-        assert stats['packets'] == 1000
-        assert stats['dropped'] == 5
+        assert stats["packets"] == 1000
+        assert stats["dropped"] == 5
 
     def test_rule_enable_verify_flow(self, logger):
         """Test rule enable and verification flow."""
         # Enable rule
         rc = 0
         success = check_command_success(
-            rc,
-            "/ip/firewall/mangle/enable [find comment=ADAPTIVE]",
-            logger=logger
+            rc, "/ip/firewall/mangle/enable [find comment=ADAPTIVE]", logger=logger
         )
         assert success is True
 
@@ -355,7 +346,7 @@ class TestRouterCommandUtilsIntegration:
             err=err,
             cmd="/queue/tree/print",
             logger=logger,
-            return_value=0  # Default rate
+            return_value=0,  # Default rate
         )
 
         assert success is False

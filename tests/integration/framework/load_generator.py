@@ -34,8 +34,14 @@ class LoadProfile:
             data = yaml.safe_load(f)
         # Filter out SLA config keys (used by SLAConfig, not LoadProfile)
         profile_keys = {
-            "name", "description", "tool", "duration_seconds",
-            "warmup_seconds", "cooldown_seconds", "host", "parameters"
+            "name",
+            "description",
+            "tool",
+            "duration_seconds",
+            "warmup_seconds",
+            "cooldown_seconds",
+            "host",
+            "parameters",
         }
         filtered = {k: v for k, v in data.items() if k in profile_keys}
         return cls(**filtered)
@@ -64,9 +70,7 @@ class LoadGenerator(ABC):
         pass
 
     @abstractmethod
-    def wait_and_collect(
-        self, process: subprocess.Popen, profile: LoadProfile
-    ) -> LoadResult:
+    def wait_and_collect(self, process: subprocess.Popen, profile: LoadProfile) -> LoadResult:
         """Wait for completion and collect results."""
         pass
 
@@ -123,13 +127,9 @@ class FlentGenerator(LoadGenerator):
                 param_name = key.replace("test_parameter_", "")
                 cmd.extend(["--test-parameter", f"{param_name}={value}"])
 
-        return subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def wait_and_collect(
-        self, process: subprocess.Popen, profile: LoadProfile
-    ) -> LoadResult:
+    def wait_and_collect(self, process: subprocess.Popen, profile: LoadProfile) -> LoadResult:
         """Wait for flent to complete and collect results."""
         start_time = time.time()
 
@@ -192,20 +192,14 @@ class NetperfGenerator(LoadGenerator):
             test_type,
         ]
 
-        return subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def wait_and_collect(
-        self, process: subprocess.Popen, profile: LoadProfile
-    ) -> LoadResult:
+    def wait_and_collect(self, process: subprocess.Popen, profile: LoadProfile) -> LoadResult:
         """Wait for netperf to complete."""
         start_time = time.time()
 
         try:
-            stdout, stderr = process.communicate(
-                timeout=profile.duration_seconds + 30
-            )
+            stdout, stderr = process.communicate(timeout=profile.duration_seconds + 30)
             success = process.returncode == 0
             error = stderr if not success else None
         except subprocess.TimeoutExpired:

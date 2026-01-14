@@ -82,11 +82,7 @@ class TestAtomicWriteJson:
             "boolean": True,
             "null": None,
             "list": [1, 2, 3],
-            "nested": {
-                "deep": {
-                    "value": "found"
-                }
-            }
+            "nested": {"deep": {"value": "found"}},
         }
 
         atomic_write_json(file_path, data)

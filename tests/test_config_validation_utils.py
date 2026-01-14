@@ -304,20 +304,20 @@ class TestValidateAlpha:
     def test_alpha_nan_invalid(self, logger):
         """Test that NaN alpha value is invalid."""
         with pytest.raises(ConfigValidationError) as exc_info:
-            validate_alpha(float('nan'), "alpha", logger=logger)
+            validate_alpha(float("nan"), "alpha", logger=logger)
         # NaN comparisons always return False, so it will fail the range check
         assert "not in valid range" in str(exc_info.value)
 
     def test_alpha_positive_infinity_invalid(self, logger):
         """Test that positive infinity alpha is invalid."""
         with pytest.raises(ConfigValidationError) as exc_info:
-            validate_alpha(float('inf'), "alpha", logger=logger)
+            validate_alpha(float("inf"), "alpha", logger=logger)
         assert "not in valid range" in str(exc_info.value)
 
     def test_alpha_negative_infinity_invalid(self, logger):
         """Test that negative infinity alpha is invalid."""
         with pytest.raises(ConfigValidationError) as exc_info:
-            validate_alpha(float('-inf'), "alpha", logger=logger)
+            validate_alpha(float("-inf"), "alpha", logger=logger)
         assert "not in valid range" in str(exc_info.value)
 
     def test_alpha_none_invalid(self, logger):
@@ -465,8 +465,11 @@ class TestValidateSampleCounts:
     def test_valid_sample_counts_defaults(self, logger):
         """Test valid sample counts with typical defaults."""
         bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=8, good_samples=15, red_samples_required=2,
-            green_samples_required=15, logger=logger
+            bad_samples=8,
+            good_samples=15,
+            red_samples_required=2,
+            green_samples_required=15,
+            logger=logger,
         )
         assert bad == 8
         assert good == 15
@@ -476,8 +479,11 @@ class TestValidateSampleCounts:
     def test_valid_sample_counts_all_one(self, logger):
         """Test minimum valid sample counts (all 1)."""
         bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=1, good_samples=1, red_samples_required=1,
-            green_samples_required=1, logger=logger
+            bad_samples=1,
+            good_samples=1,
+            red_samples_required=1,
+            green_samples_required=1,
+            logger=logger,
         )
         assert bad == 1
         assert good == 1
@@ -487,8 +493,11 @@ class TestValidateSampleCounts:
     def test_valid_sample_counts_large_values(self, logger):
         """Test large but reasonable sample counts."""
         bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=100, good_samples=100, red_samples_required=50,
-            green_samples_required=50, logger=logger
+            bad_samples=100,
+            good_samples=100,
+            red_samples_required=50,
+            green_samples_required=50,
+            logger=logger,
         )
         assert bad == 100
         assert good == 100
@@ -583,8 +592,11 @@ class TestConfigValidationIntegration:
 
         # Sample counts
         bad_samples, good_samples, red_req, green_req = validate_sample_counts(
-            bad_samples=8, good_samples=15, red_samples_required=2,
-            green_samples_required=15, logger=logger
+            bad_samples=8,
+            good_samples=15,
+            red_samples_required=2,
+            green_samples_required=15,
+            logger=logger,
         )
 
         assert green == 5.0

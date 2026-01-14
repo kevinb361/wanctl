@@ -546,9 +546,7 @@ class TestApplyRateChangesIfNeeded:
 
         assert result is True
         mock_router.set_limits.assert_called_once_with(
-            wan="TestWAN",
-            down_bps=90_000_000,
-            up_bps=20_000_000
+            wan="TestWAN", down_bps=90_000_000, up_bps=20_000_000
         )
 
     def test_changed_ul_rate_calls_router(self, controller, mock_router):
@@ -560,9 +558,7 @@ class TestApplyRateChangesIfNeeded:
 
         assert result is True
         mock_router.set_limits.assert_called_once_with(
-            wan="TestWAN",
-            down_bps=100_000_000,
-            up_bps=18_000_000
+            wan="TestWAN", down_bps=100_000_000, up_bps=18_000_000
         )
 
     def test_both_rates_changed_calls_router(self, controller, mock_router):

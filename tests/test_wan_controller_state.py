@@ -32,7 +32,7 @@ class TestWANControllerState:
             "download": {"green_streak": 5},
             "upload": {"green_streak": 3},
             "ewma": {"baseline_rtt": 20.0},
-            "last_applied": {"dl_rate": 100000000}
+            "last_applied": {"dl_rate": 100000000},
         }
         state_file.write_text(json.dumps(state))
 
@@ -43,10 +43,20 @@ class TestWANControllerState:
     def test_save_creates_file(self, state_manager, state_file):
         """Should create state file on save."""
         state_manager.save(
-            download={"green_streak": 5, "soft_red_streak": 0, "red_streak": 0, "current_rate": 100000000},
-            upload={"green_streak": 3, "soft_red_streak": 0, "red_streak": 0, "current_rate": 20000000},
+            download={
+                "green_streak": 5,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 100000000,
+            },
+            upload={
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 20000000,
+            },
             ewma={"baseline_rtt": 20.0, "load_rtt": 22.0},
-            last_applied={"dl_rate": 100000000, "ul_rate": 20000000}
+            last_applied={"dl_rate": 100000000, "ul_rate": 20000000},
         )
 
         assert state_file.exists()
@@ -60,10 +70,20 @@ class TestWANControllerState:
     def test_save_preserves_schema(self, state_manager, state_file):
         """Saved state should match expected schema exactly."""
         state_manager.save(
-            download={"green_streak": 5, "soft_red_streak": 1, "red_streak": 0, "current_rate": 100000000},
-            upload={"green_streak": 3, "soft_red_streak": 0, "red_streak": 2, "current_rate": 20000000},
+            download={
+                "green_streak": 5,
+                "soft_red_streak": 1,
+                "red_streak": 0,
+                "current_rate": 100000000,
+            },
+            upload={
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 2,
+                "current_rate": 20000000,
+            },
             ewma={"baseline_rtt": 20.5, "load_rtt": 22.3},
-            last_applied={"dl_rate": 100000000, "ul_rate": 20000000}
+            last_applied={"dl_rate": 100000000, "ul_rate": 20000000},
         )
 
         state = json.loads(state_file.read_text())
@@ -83,7 +103,7 @@ class TestWANControllerState:
             "green_streak": 5,
             "soft_red_streak": 1,
             "red_streak": 0,
-            "current_rate": 100000000
+            "current_rate": 100000000,
         }
 
     def test_build_upload_state(self, state_manager):
@@ -94,7 +114,7 @@ class TestWANControllerState:
             "green_streak": 3,
             "soft_red_streak": 0,
             "red_streak": 2,
-            "current_rate": 20000000
+            "current_rate": 20000000,
         }
 
     def test_load_invalid_json_returns_none(self, state_manager, state_file):
@@ -106,10 +126,20 @@ class TestWANControllerState:
     def test_roundtrip_preserves_data(self, state_manager, state_file):
         """Save then load should preserve all data."""
         original = {
-            "download": {"green_streak": 5, "soft_red_streak": 1, "red_streak": 0, "current_rate": 100000000},
-            "upload": {"green_streak": 3, "soft_red_streak": 0, "red_streak": 2, "current_rate": 20000000},
+            "download": {
+                "green_streak": 5,
+                "soft_red_streak": 1,
+                "red_streak": 0,
+                "current_rate": 100000000,
+            },
+            "upload": {
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 2,
+                "current_rate": 20000000,
+            },
             "ewma": {"baseline_rtt": 20.5, "load_rtt": 22.3},
-            "last_applied": {"dl_rate": 100000000, "ul_rate": 20000000}
+            "last_applied": {"dl_rate": 100000000, "ul_rate": 20000000},
         }
 
         state_manager.save(**original)

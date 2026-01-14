@@ -78,7 +78,7 @@ class TestBaselineBoundsValidation:
         """Create a WANController with mocked dependencies."""
         from wanctl.autorate_continuous import WANController
 
-        with patch.object(WANController, 'load_state', return_value=None):
+        with patch.object(WANController, "load_state", return_value=None):
             controller = WANController(
                 wan_name="TestWAN",
                 config=mock_config,

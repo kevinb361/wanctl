@@ -137,9 +137,7 @@ class ReportGenerator:
             "controller": self._controller_to_dict(report.controller_analysis),
         }
 
-    def _controller_to_dict(
-        self, analysis: ControllerAnalysis | None
-    ) -> dict[str, Any] | None:
+    def _controller_to_dict(self, analysis: ControllerAnalysis | None) -> dict[str, Any] | None:
         """Convert controller analysis to dict."""
         if analysis is None:
             return None
@@ -187,13 +185,17 @@ class ReportGenerator:
         lines.append(f"| P99 | {report.latency_stats.p99_ms:.1f}ms |")
         lines.append(f"| Max | {report.latency_stats.max_ms:.1f}ms |")
         lines.append(f"| Jitter | {report.latency_stats.jitter_ms:.1f}ms |")
-        lines.append(f"| Samples | {report.latency_stats.successful_samples}/{report.latency_stats.samples} |")
+        lines.append(
+            f"| Samples | {report.latency_stats.successful_samples}/{report.latency_stats.samples} |"
+        )
         lines.append(f"| Packet Loss | {report.latency_stats.loss_pct:.1f}% |")
         lines.append("")
 
         # Flat-top status
         if report.latency_stats.flat_top_detected:
-            lines.append(f"**WARNING:** Flat-top detected ({report.latency_stats.flat_top_duration_sec:.1f}s at >{report.latency_stats.flat_top_threshold_ms:.0f}ms)")
+            lines.append(
+                f"**WARNING:** Flat-top detected ({report.latency_stats.flat_top_duration_sec:.1f}s at >{report.latency_stats.flat_top_threshold_ms:.0f}ms)"
+            )
             lines.append("")
 
         # SLA Results

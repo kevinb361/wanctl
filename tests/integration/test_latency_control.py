@@ -234,12 +234,14 @@ class TestLatencyControl:
     def _print_summary(self, report: ValidationReport) -> None:
         """Print test summary to console."""
         status = "PASSED" if report.overall_passed else "FAILED"
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"TEST {status}: {report.test_name}")
-        print(f"{'='*60}")
-        print(f"Latency: P50={report.latency_stats.p50_ms:.1f}ms, "
-              f"P95={report.latency_stats.p95_ms:.1f}ms, "
-              f"P99={report.latency_stats.p99_ms:.1f}ms")
+        print(f"{'=' * 60}")
+        print(
+            f"Latency: P50={report.latency_stats.p50_ms:.1f}ms, "
+            f"P95={report.latency_stats.p95_ms:.1f}ms, "
+            f"P99={report.latency_stats.p99_ms:.1f}ms"
+        )
         print(f"Baseline: {report.baseline_rtt_ms:.1f}ms")
         print(f"Samples: {report.latency_stats.successful_samples}/{report.latency_stats.samples}")
 
@@ -248,8 +250,10 @@ class TestLatencyControl:
 
         if report.controller_analysis:
             ca = report.controller_analysis
-            print(f"Controller: {len(ca.state_transitions)} transitions, "
-                  f"congestion={'detected' if ca.detected_congestion else 'not detected'}")
+            print(
+                f"Controller: {len(ca.state_transitions)} transitions, "
+                f"congestion={'detected' if ca.detected_congestion else 'not detected'}"
+            )
 
         print("\nSLA Results:")
         for r in report.sla_evaluation.results:

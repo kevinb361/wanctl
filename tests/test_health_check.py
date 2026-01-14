@@ -1,4 +1,5 @@
 """Tests for the health check HTTP endpoint."""
+
 import json
 import socket
 import time

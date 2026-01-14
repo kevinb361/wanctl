@@ -157,11 +157,7 @@ class TestValidateSchema:
 
     def test_valid_schema(self):
         """Test validating a complete valid schema."""
-        data = {
-            "name": "test",
-            "router": {"host": "192.168.1.1"},
-            "value": 50
-        }
+        data = {"name": "test", "router": {"host": "192.168.1.1"}, "value": 50}
         schema = [
             {"path": "name", "type": str, "required": True},
             {"path": "router.host", "type": str, "required": True},
@@ -241,7 +237,10 @@ class TestBaseConfigValidation:
 
     def test_validate_comment_valid(self):
         """Test validating valid comments."""
-        assert BaseConfig.validate_comment("ADAPTIVE: Steer to ATT", "test") == "ADAPTIVE: Steer to ATT"
+        assert (
+            BaseConfig.validate_comment("ADAPTIVE: Steer to ATT", "test")
+            == "ADAPTIVE: Steer to ATT"
+        )
         assert BaseConfig.validate_comment("Simple comment", "test") == "Simple comment"
 
     def test_validate_comment_empty(self):
@@ -337,7 +336,10 @@ class TestValidatePingHost:
     def test_hostname_with_hyphens(self):
         """Test hostnames with hyphens are valid."""
         assert BaseConfig.validate_ping_host("my-router.local", "host") == "my-router.local"
-        assert BaseConfig.validate_ping_host("test-1-2-3.example.com", "host") == "test-1-2-3.example.com"
+        assert (
+            BaseConfig.validate_ping_host("test-1-2-3.example.com", "host")
+            == "test-1-2-3.example.com"
+        )
 
     # -------------------------------------------------------------------------
     # Command injection attacks (security-critical)
@@ -550,7 +552,7 @@ class TestValidateIdentifierSecurityEdgeCases:
         """Test unicode lookalike characters are rejected."""
         # Using a unicode semicolon (GREEK QUESTION MARK U+037E looks like ;)
         with pytest.raises(ConfigValidationError):
-            BaseConfig.validate_identifier("queue\u037Ecommand", "queue_name")
+            BaseConfig.validate_identifier("queue\u037ecommand", "queue_name")
 
 
 class TestValidateCommentSecurityEdgeCases:
@@ -629,7 +631,7 @@ class TestSchemaVersioning:
 
     def test_current_schema_version_constant(self):
         """Test that CURRENT_SCHEMA_VERSION is defined."""
-        assert hasattr(BaseConfig, 'CURRENT_SCHEMA_VERSION')
+        assert hasattr(BaseConfig, "CURRENT_SCHEMA_VERSION")
         assert BaseConfig.CURRENT_SCHEMA_VERSION == "1.0"
 
     def test_schema_version_stored_on_instance(self, tmp_path):
@@ -644,7 +646,7 @@ router:
   ssh_key: "/path/to/key"
 """)
         config = BaseConfig(str(config_file))
-        assert hasattr(config, 'schema_version')
+        assert hasattr(config, "schema_version")
         assert config.schema_version == "1.0"
 
     def test_missing_schema_version_defaults_to_1_0(self, tmp_path):
@@ -664,6 +666,7 @@ router:
     def test_different_schema_version_logs_info(self, tmp_path, caplog):
         """Test that different schema version logs info message."""
         import logging
+
         config_file = tmp_path / "test.yaml"
         config_file.write_text("""
 schema_version: "0.9"
@@ -683,6 +686,7 @@ router:
     def test_current_schema_version_no_log(self, tmp_path, caplog):
         """Test that current schema version does not log."""
         import logging
+
         config_file = tmp_path / "test.yaml"
         config_file.write_text("""
 schema_version: "1.0"

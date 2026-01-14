@@ -193,7 +193,9 @@ class TestCollectCakeStats:
     # Failure tracking tests (W8 fix)
     # =========================================================================
 
-    def test_first_failure_logs_warning(self, daemon, mock_state_mgr, mock_logger, mock_cake_reader):
+    def test_first_failure_logs_warning(
+        self, daemon, mock_state_mgr, mock_logger, mock_cake_reader
+    ):
         """Test first failure logs warning (W8 fix)."""
         mock_cake_reader.read_stats.return_value = None
         mock_state_mgr.state["cake_read_failures"] = 0
@@ -204,9 +206,7 @@ class TestCollectCakeStats:
         assert "CAKE stats read failed" in str(mock_logger.warning.call_args)
         assert "failure 1" in str(mock_logger.warning.call_args)
 
-    def test_first_failure_increments_counter(
-        self, daemon, mock_state_mgr, mock_cake_reader
-    ):
+    def test_first_failure_increments_counter(self, daemon, mock_state_mgr, mock_cake_reader):
         """Test first failure increments failure counter."""
         mock_cake_reader.read_stats.return_value = None
         mock_state_mgr.state["cake_read_failures"] = 0
@@ -228,9 +228,7 @@ class TestCollectCakeStats:
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_not_called()
 
-    def test_third_failure_logs_error(
-        self, daemon, mock_state_mgr, mock_logger, mock_cake_reader
-    ):
+    def test_third_failure_logs_error(self, daemon, mock_state_mgr, mock_logger, mock_cake_reader):
         """Test third failure logs error and enters degraded mode (W8 fix)."""
         mock_cake_reader.read_stats.return_value = None
         mock_state_mgr.state["cake_read_failures"] = 2
@@ -262,9 +260,7 @@ class TestCollectCakeStats:
         assert drops == 0
         assert queued == 0
 
-    def test_failure_does_not_update_history(
-        self, daemon, mock_state_mgr, mock_cake_reader
-    ):
+    def test_failure_does_not_update_history(self, daemon, mock_state_mgr, mock_cake_reader):
         """Test failure does not update history deques."""
         mock_cake_reader.read_stats.return_value = None
         mock_state_mgr.state["cake_drops_history"] = []
@@ -314,9 +310,7 @@ class TestRunDaemonLoop:
     # Shutdown event tests
     # =========================================================================
 
-    def test_shutdown_event_stops_loop(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_shutdown_event_stops_loop(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test that setting shutdown_event stops the loop."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -325,17 +319,13 @@ class TestRunDaemonLoop:
 
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog"):
-                result = run_daemon_loop(
-                    mock_daemon, mock_config, mock_logger, shutdown_event
-                )
+                result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Daemon should not have run any cycles
         mock_daemon.run_cycle.assert_not_called()
 
-    def test_shutdown_after_cycles(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_shutdown_after_cycles(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test shutdown after running some cycles."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -351,9 +341,7 @@ class TestRunDaemonLoop:
 
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog"):
-                result = run_daemon_loop(
-                    mock_daemon, mock_config, mock_logger, shutdown_event
-                )
+                result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         assert mock_daemon.run_cycle.call_count == 3
@@ -381,9 +369,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog") as mock_notify:
                 with patch("wanctl.steering.daemon.notify_degraded"):
-                    result = run_daemon_loop(
-                        mock_daemon, mock_config, mock_logger, shutdown_event
-                    )
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Watchdog should not be notified on failure
@@ -411,9 +397,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog") as mock_notify:
                 with patch("wanctl.steering.daemon.notify_degraded"):
-                    result = run_daemon_loop(
-                        mock_daemon, mock_config, mock_logger, shutdown_event
-                    )
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Should have notified watchdog for successful cycles 2 and 3
@@ -443,9 +427,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=True):
             with patch("wanctl.steering.daemon.notify_watchdog") as mock_watchdog:
                 with patch("wanctl.steering.daemon.notify_degraded") as mock_degraded:
-                    result = run_daemon_loop(
-                        mock_daemon, mock_config, mock_logger, shutdown_event
-                    )
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Watchdog should never be notified (all failures)
@@ -474,9 +456,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=True):
             with patch("wanctl.steering.daemon.notify_watchdog") as mock_watchdog:
                 with patch("wanctl.steering.daemon.notify_degraded"):
-                    result = run_daemon_loop(
-                        mock_daemon, mock_config, mock_logger, shutdown_event
-                    )
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Watchdog should be notified for each successful cycle
@@ -501,9 +481,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=True):
             with patch("wanctl.steering.daemon.notify_watchdog"):
                 with patch("wanctl.steering.daemon.notify_degraded") as mock_degraded:
-                    result = run_daemon_loop(
-                        mock_daemon, mock_config, mock_logger, shutdown_event
-                    )
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         # Degraded should be called - first at threshold, then on each subsequent cycle
@@ -545,9 +523,7 @@ class TestRunDaemonLoop:
             # Allow some tolerance for timing variations
             assert 0.08 <= interval <= 0.15
 
-    def test_sleep_handles_slow_cycle(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_sleep_handles_slow_cycle(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test that sleep handles cycles longer than interval."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -567,9 +543,7 @@ class TestRunDaemonLoop:
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog"):
                 # Should not hang even with slow cycles
-                result = run_daemon_loop(
-                    mock_daemon, mock_config, mock_logger, shutdown_event
-                )
+                result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
         assert mock_daemon.run_cycle.call_count == 2
@@ -578,9 +552,7 @@ class TestRunDaemonLoop:
     # Systemd availability tests
     # =========================================================================
 
-    def test_systemd_available_logged(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_systemd_available_logged(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test that systemd availability is logged."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -594,9 +566,7 @@ class TestRunDaemonLoop:
         info_calls = [str(c) for c in mock_logger.info.call_args_list]
         assert any("Systemd watchdog support enabled" in str(c) for c in info_calls)
 
-    def test_systemd_not_available(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_systemd_not_available(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test behavior when systemd is not available."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -624,9 +594,7 @@ class TestRunDaemonLoop:
 
         with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
             with patch("wanctl.steering.daemon.notify_watchdog"):
-                result = run_daemon_loop(
-                    mock_daemon, mock_config, mock_logger, shutdown_event
-                )
+                result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
         assert result == 0
 
@@ -634,9 +602,7 @@ class TestRunDaemonLoop:
     # Startup message tests
     # =========================================================================
 
-    def test_startup_message_logged(
-        self, mock_daemon, mock_config, mock_logger, shutdown_event
-    ):
+    def test_startup_message_logged(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test that startup message with interval is logged."""
         from wanctl.steering.daemon import run_daemon_loop
 
@@ -849,24 +815,18 @@ class TestExecuteSteeringTransition:
         """Test metrics recorded when config.metrics_enabled=True."""
         daemon.config.metrics_enabled = True
 
-        with patch(
-            "wanctl.steering.daemon.record_steering_transition"
-        ) as mock_record:
+        with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
             daemon.execute_steering_transition(
                 "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
             )
 
-            mock_record.assert_called_once_with(
-                "spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED"
-            )
+            mock_record.assert_called_once_with("spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED")
 
     def test_metrics_not_recorded_when_disabled(self, daemon):
         """Test metrics not recorded when config.metrics_enabled=False."""
         daemon.config.metrics_enabled = False
 
-        with patch(
-            "wanctl.steering.daemon.record_steering_transition"
-        ) as mock_record:
+        with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
             daemon.execute_steering_transition(
                 "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
             )
@@ -878,9 +838,7 @@ class TestExecuteSteeringTransition:
         daemon.config.metrics_enabled = True
         daemon.router.enable_steering.return_value = False
 
-        with patch(
-            "wanctl.steering.daemon.record_steering_transition"
-        ) as mock_record:
+        with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
             daemon.execute_steering_transition(
                 "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
             )
@@ -1026,9 +984,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 0.0
         mock_state_mgr.state["queue_ewma"] = 0.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=10.0, queued_packets=20
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=10.0, queued_packets=20)
 
         # First update from 0: result equals new value
         assert rtt_ewma == 10.0
@@ -1046,9 +1002,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 10.0
         mock_state_mgr.state["queue_ewma"] = 50.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=20.0, queued_packets=100
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=20.0, queued_packets=100)
 
         assert rtt_ewma == pytest.approx(13.0, abs=0.001)
         assert queue_ewma == pytest.approx(70.0, abs=0.001)
@@ -1066,9 +1020,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 10.0
         mock_state_mgr.state["queue_ewma"] = 50.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=0.0, queued_packets=50
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=0.0, queued_packets=50)
 
         assert rtt_ewma == pytest.approx(7.0, abs=0.001)
         # Queue EWMA unchanged when input equals current
@@ -1083,9 +1035,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 10.0
         mock_state_mgr.state["queue_ewma"] = 50.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=10.0, queued_packets=0
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=10.0, queued_packets=0)
 
         # RTT EWMA unchanged when input equals current
         assert rtt_ewma == pytest.approx(10.0, abs=0.001)
@@ -1096,9 +1046,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 10.0
         mock_state_mgr.state["queue_ewma"] = 50.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=0.0, queued_packets=0
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=0.0, queued_packets=0)
 
         assert rtt_ewma == pytest.approx(7.0, abs=0.001)
         assert queue_ewma == pytest.approx(30.0, abs=0.001)
@@ -1136,9 +1084,7 @@ class TestUpdateEwmaSmoothing:
         assert mock_state_mgr.state["queue_ewma"] == 50.0
 
         # Second update (uses persisted values from first)
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=20.0, queued_packets=100
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=20.0, queued_packets=100)
         # RTT: 0.7*10.0 + 0.3*20.0 = 13.0
         # Queue: 0.6*50.0 + 0.4*100.0 = 70.0
         assert rtt_ewma == pytest.approx(13.0, abs=0.001)
@@ -1153,9 +1099,7 @@ class TestUpdateEwmaSmoothing:
         mock_state_mgr.state["rtt_delta_ewma"] = 10.0
         mock_state_mgr.state["queue_ewma"] = 50.0
 
-        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(
-            delta=20.0, queued_packets=100
-        )
+        rtt_ewma, queue_ewma = daemon.update_ewma_smoothing(delta=20.0, queued_packets=100)
 
         assert rtt_ewma == mock_state_mgr.state["rtt_delta_ewma"]
         assert queue_ewma == mock_state_mgr.state["queue_ewma"]
@@ -1256,9 +1200,7 @@ class TestUnifiedStateMachine:
         return MagicMock()
 
     @pytest.fixture
-    def daemon_cake(
-        self, mock_config_cake, mock_state_mgr, mock_router, mock_logger
-    ):
+    def daemon_cake(self, mock_config_cake, mock_state_mgr, mock_router, mock_logger):
         """Create a SteeringDaemon in CAKE-aware mode."""
         from wanctl.steering.daemon import SteeringDaemon
 
@@ -1274,9 +1216,7 @@ class TestUnifiedStateMachine:
         return daemon
 
     @pytest.fixture
-    def daemon_legacy(
-        self, mock_config_legacy, mock_state_mgr, mock_router, mock_logger
-    ):
+    def daemon_legacy(self, mock_config_legacy, mock_state_mgr, mock_router, mock_logger):
         """Create a SteeringDaemon in legacy mode."""
         from wanctl.steering.daemon import SteeringDaemon
 
@@ -1294,9 +1234,7 @@ class TestUnifiedStateMachine:
     # CAKE-aware mode tests
     # =========================================================================
 
-    def test_cake_red_assessment_increments_degrade_count(
-        self, daemon_cake, mock_state_mgr
-    ):
+    def test_cake_red_assessment_increments_degrade_count(self, daemon_cake, mock_state_mgr):
         """Test CAKE RED assessment increments red_count (degrade counter)."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1305,21 +1243,17 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 0
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             daemon_cake._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["red_count"] == 1
 
-    def test_cake_green_assessment_increments_recover_count(
-        self, daemon_cake, mock_state_mgr
-    ):
+    def test_cake_green_assessment_increments_recover_count(self, daemon_cake, mock_state_mgr):
         """Test CAKE GREEN assessment increments good_count (recover counter) in degraded state."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1328,21 +1262,17 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["good_count"] = 0
 
         signals = CongestionSignals(
-            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.GREEN
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
             daemon_cake._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["good_count"] == 1
 
-    def test_cake_yellow_resets_degrade_count(
-        self, daemon_cake, mock_state_mgr
-    ):
+    def test_cake_yellow_resets_degrade_count(self, daemon_cake, mock_state_mgr):
         """Test CAKE YELLOW assessment resets red_count without state change."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1351,13 +1281,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 1  # Had one RED before
 
         signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=20,
-            baseline_rtt=25.0
+            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=20, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.YELLOW
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.YELLOW
         ):
             result = daemon_cake._update_state_machine_unified(signals)
 
@@ -1376,13 +1304,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 1  # One short of threshold (2)
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             result = daemon_cake._update_state_machine_unified(signals)
 
@@ -1402,13 +1328,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["good_count"] = 2  # One short of threshold (3)
 
         signals = CongestionSignals(
-            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.GREEN
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
             result = daemon_cake._update_state_machine_unified(signals)
 
@@ -1421,9 +1345,7 @@ class TestUnifiedStateMachine:
     # Legacy mode tests
     # =========================================================================
 
-    def test_legacy_high_delta_increments_degrade_count(
-        self, daemon_legacy, mock_state_mgr
-    ):
+    def test_legacy_high_delta_increments_degrade_count(self, daemon_legacy, mock_state_mgr):
         """Test legacy mode: high delta increments bad_count (degrade counter)."""
         from wanctl.steering.cake_stats import CongestionSignals
 
@@ -1431,17 +1353,14 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["bad_count"] = 0
 
         signals = CongestionSignals(
-            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )  # delta > bad_threshold_ms (25.0)
 
         daemon_legacy._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["bad_count"] == 1
 
-    def test_legacy_low_delta_increments_recover_count(
-        self, daemon_legacy, mock_state_mgr
-    ):
+    def test_legacy_low_delta_increments_recover_count(self, daemon_legacy, mock_state_mgr):
         """Test legacy mode: low delta increments good_count (recover counter)."""
         from wanctl.steering.cake_stats import CongestionSignals
 
@@ -1449,8 +1368,7 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["good_count"] = 0
 
         signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )  # delta < recovery_threshold_ms (12.0)
 
         daemon_legacy._update_state_machine_unified(signals)
@@ -1467,8 +1385,7 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["bad_count"] = 1  # One short of threshold (2)
 
         signals = CongestionSignals(
-            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         result = daemon_legacy._update_state_machine_unified(signals)
@@ -1488,8 +1405,7 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["good_count"] = 2  # One short of threshold (3)
 
         signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         result = daemon_legacy._update_state_machine_unified(signals)
@@ -1503,9 +1419,7 @@ class TestUnifiedStateMachine:
     # Cross-mode tests
     # =========================================================================
 
-    def test_counter_reset_on_state_change_cake(
-        self, daemon_cake, mock_state_mgr, mock_router
-    ):
+    def test_counter_reset_on_state_change_cake(self, daemon_cake, mock_state_mgr, mock_router):
         """Test counters reset on state change (CAKE mode)."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1515,13 +1429,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["good_count"] = 5  # Should reset
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             daemon_cake._update_state_machine_unified(signals)
 
@@ -1530,9 +1442,7 @@ class TestUnifiedStateMachine:
         # good_count is reset when we're degrading
         assert mock_state_mgr.state["good_count"] == 0
 
-    def test_state_normalization_handles_legacy_names(
-        self, daemon_cake, mock_state_mgr
-    ):
+    def test_state_normalization_handles_legacy_names(self, daemon_cake, mock_state_mgr):
         """Test state normalization handles legacy state names."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1542,13 +1452,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 0
 
         signals = CongestionSignals(
-            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.GREEN
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
             daemon_cake._update_state_machine_unified(signals)
 
@@ -1567,26 +1475,18 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 1
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
-            with patch(
-                "wanctl.steering.daemon.record_steering_transition"
-            ) as mock_record:
+            with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
                 daemon_cake._update_state_machine_unified(signals)
 
-        mock_record.assert_called_once_with(
-            "spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED"
-        )
+        mock_record.assert_called_once_with("spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED")
 
-    def test_congestion_state_stored_for_observability(
-        self, daemon_cake, mock_state_mgr
-    ):
+    def test_congestion_state_stored_for_observability(self, daemon_cake, mock_state_mgr):
         """Test congestion_state is stored in state for observability."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1595,13 +1495,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["congestion_state"] = "GREEN"  # Initial
 
         signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=20,
-            baseline_rtt=25.0
+            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=20, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.YELLOW
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.YELLOW
         ):
             daemon_cake._update_state_machine_unified(signals)
 
@@ -1634,14 +1532,12 @@ class TestUnifiedStateMachine:
             )
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         # Quick degrade: 2 RED cycles
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             daemon._update_state_machine_unified(signals)  # red_count=1
             daemon._update_state_machine_unified(signals)  # Transition
@@ -1654,13 +1550,11 @@ class TestUnifiedStateMachine:
 
         # Slow recover: needs 5 GREEN cycles
         green_signals = CongestionSignals(
-            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0,
-            baseline_rtt=25.0
+            rtt_delta=2.0, rtt_delta_ewma=2.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.GREEN
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
             for _ in range(4):  # First 4 cycles - not enough
                 daemon._update_state_machine_unified(green_signals)
@@ -1671,17 +1565,14 @@ class TestUnifiedStateMachine:
 
         # 5th GREEN cycle triggers recovery
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.GREEN
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
             daemon._update_state_machine_unified(green_signals)
 
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
         mock_router.disable_steering.assert_called_once()
 
-    def test_router_failure_prevents_state_change(
-        self, daemon_cake, mock_state_mgr, mock_router
-    ):
+    def test_router_failure_prevents_state_change(self, daemon_cake, mock_state_mgr, mock_router):
         """Test router failure prevents state change."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1691,13 +1582,11 @@ class TestUnifiedStateMachine:
         mock_state_mgr.state["red_count"] = 1
 
         signals = CongestionSignals(
-            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60,
-            baseline_rtt=25.0
+            rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
         with patch(
-            "wanctl.steering.daemon.assess_congestion_state",
-            return_value=CongestionState.RED
+            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             result = daemon_cake._update_state_machine_unified(signals)
 
