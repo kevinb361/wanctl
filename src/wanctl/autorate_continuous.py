@@ -668,21 +668,53 @@ class WANController:
             return self.rtt_measurement.ping_host(self.ping_hosts[0], count=1)
 
     def update_ewma(self, measured_rtt: float) -> None:
-        """Update both EWMAs (fast load, slow baseline)"""
+        """
+        Update both EWMAs (fast load, slow baseline).
+
+        Fast EWMA (load_rtt): Responsive to current conditions, always updates.
+        Slow EWMA (baseline_rtt): Only updates when line is idle (delta < threshold).
+        """
         # Fast EWMA for load_rtt (responsive to current conditions)
         self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * measured_rtt
 
-        # PROTECTED: Baseline only updates when delta < threshold (idle). Prevents drift under load.
-        # Slow EWMA for baseline_rtt (ONLY update when line is genuinely idle)
-        # This tracks the "normal" RTT without congestion
-        #
-        # Critical: Only update baseline when delta is very small
-        # This prevents baseline drift during load, which would mask true bloat
+        # Slow EWMA for baseline_rtt (conditional update via protected logic)
+        self._update_baseline_if_idle(measured_rtt)
+
+    def _update_baseline_if_idle(self, measured_rtt: float) -> None:
+        """
+        Update baseline RTT ONLY when line is idle (delta < threshold).
+
+        PROTECTED ZONE - ARCHITECTURAL INVARIANT
+        =========================================
+        This logic prevents baseline drift under load. If baseline tracked load RTT,
+        delta would approach zero and bloat detection would fail. The threshold
+        (baseline_update_threshold) determines "idle" vs "under load".
+
+        DO NOT MODIFY without explicit approval. See docs/CORE-ALGORITHM-ANALYSIS.md.
+
+        Args:
+            measured_rtt: Current RTT measurement in milliseconds
+
+        Side Effects:
+            Updates self.baseline_rtt if delta < threshold (line is idle).
+            Logs debug message when baseline updates (helps debug drift issues).
+        """
         delta = self.load_rtt - self.baseline_rtt
+
+        # PROTECTED: Baseline ONLY updates when line is idle
         if delta < self.baseline_update_threshold:
             # Line is idle or nearly idle - safe to update baseline
-            self.baseline_rtt = (1 - self.alpha_baseline) * self.baseline_rtt + self.alpha_baseline * measured_rtt
-        # else: Under load - freeze baseline to prevent drift
+            old_baseline = self.baseline_rtt
+            self.baseline_rtt = (
+                (1 - self.alpha_baseline) * self.baseline_rtt
+                + self.alpha_baseline * measured_rtt
+            )
+            self.logger.debug(
+                f"{self.wan_name}: Baseline updated {old_baseline:.2f}ms -> "
+                f"{self.baseline_rtt:.2f}ms "
+                f"(delta={delta:.1f}ms < threshold={self.baseline_update_threshold}ms)"
+            )
+        # else: Under load - freeze baseline (no update, no logging to avoid spam)
 
     def verify_local_connectivity(self) -> bool:
         """
