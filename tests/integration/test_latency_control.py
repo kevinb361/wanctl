@@ -280,18 +280,18 @@ if __name__ == "__main__":
         print(f"Profile not found: {profile_path}")
         sys.exit(1)
 
-    output_dir = Path("/tmp/wanctl_validation")
-    output_dir.mkdir(exist_ok=True)
+    test_output_dir = Path("/tmp/wanctl_validation")
+    test_output_dir.mkdir(exist_ok=True)
 
     test = TestLatencyControl()
     report = test.run_validation_test(
         profile_path=profile_path,
-        output_dir=output_dir,
+        output_dir=test_output_dir,
         with_controller=True,
     )
 
     # Generate reports
-    generator = ReportGenerator(output_dir=output_dir)
+    generator = ReportGenerator(output_dir=test_output_dir)
     output_files = generator.generate(report)
 
     print("\nReports generated:")
