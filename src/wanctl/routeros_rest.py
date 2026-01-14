@@ -38,7 +38,8 @@ Usage:
 """
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+import re
+from typing import Any
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
@@ -74,7 +75,7 @@ class RouterOSREST:
         port: int = 443,
         verify_ssl: bool = False,
         timeout: int = 15,
-        logger: Optional[logging.Logger] = None
+        logger: logging.Logger | None = None
     ):
         """Initialize RouterOS REST API client.
 
@@ -106,8 +107,8 @@ class RouterOSREST:
 
         # Cache for queue/rule IDs to reduce API calls
         # Key: queue_name or rule_comment, Value: RouterOS ID (e.g., "*1")
-        self._queue_id_cache: Dict[str, str] = {}
-        self._mangle_id_cache: Dict[str, str] = {}
+        self._queue_id_cache: dict[str, str] = {}
+        self._mangle_id_cache: dict[str, str] = {}
 
         self.logger.debug(f"RouterOS REST client initialized: {self.base_url}")
 
@@ -149,7 +150,7 @@ class RouterOSREST:
         )
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
-    def run_cmd(self, cmd: str, capture: bool = False, timeout: Optional[int] = None) -> Tuple[int, str, str]:
+    def run_cmd(self, cmd: str, capture: bool = False, timeout: int | None = None) -> tuple[int, str, str]:
         """Execute RouterOS command via REST API.
 
         Converts CLI-style commands to REST API calls.
@@ -192,7 +193,7 @@ class RouterOSREST:
             self.logger.error(f"Unexpected error: {e}")
             return 1, "", str(e)
 
-    def _execute_command(self, cmd: str, timeout: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def _execute_command(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
         """Parse CLI command and execute via REST API.
 
         Supports common queue tree operations:
@@ -221,7 +222,7 @@ class RouterOSREST:
         else:
             return self._execute_single_command(cmd, timeout=timeout_val)
 
-    def _execute_single_command(self, cmd: str, timeout: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def _execute_single_command(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
         """Execute a single CLI command via REST API.
 
         Args:
@@ -247,7 +248,54 @@ class RouterOSREST:
             self.logger.warning(f"Unsupported command for REST API: {cmd}")
             return None
 
-    def _handle_queue_tree_set(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
+    def _parse_find_name(self, cmd: str) -> str | None:
+        """Extract queue name from [find name="..."] pattern.
+
+        Args:
+            cmd: RouterOS command string containing [find name="..."]
+
+        Returns:
+            Extracted name string, or None if pattern not found
+        """
+        match = re.search(r'\[find name="([^"]+)"\]', cmd)
+        return match.group(1) if match else None
+
+    def _parse_find_comment(self, cmd: str) -> str | None:
+        """Extract comment from [find comment="..."] pattern.
+
+        Args:
+            cmd: RouterOS command string containing [find comment="..."]
+
+        Returns:
+            Extracted comment string, or None if pattern not found
+        """
+        match = re.search(r'\[find comment="([^"]+)"\]', cmd)
+        return match.group(1) if match else None
+
+    def _parse_parameters(self, cmd: str) -> dict[str, str]:
+        """Extract key=value parameters from RouterOS command.
+
+        Extracts common parameters like queue=, max-limit= from command strings.
+
+        Args:
+            cmd: RouterOS command string with key=value pairs
+
+        Returns:
+            Dict mapping parameter names to their values
+        """
+        params: dict[str, str] = {}
+
+        queue_match = re.search(r'queue=(\S+)', cmd)
+        if queue_match:
+            params['queue'] = queue_match.group(1)
+
+        limit_match = re.search(r'max-limit=(\d+)', cmd)
+        if limit_match:
+            params['max-limit'] = limit_match.group(1)
+
+        return params
+
+    def _handle_queue_tree_set(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree set command.
 
         Example: /queue tree set [find name="WAN-Download"] queue=cake-down max-limit=500000000
@@ -309,7 +357,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error updating queue: {e}")
             return None
 
-    def _handle_queue_reset_counters(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
+    def _handle_queue_reset_counters(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree reset-counters command.
 
         Example: /queue tree reset-counters [find name="WAN-Download"]
@@ -362,7 +410,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error resetting counters: {e}")
             return None
 
-    def _handle_queue_tree_print(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
+    def _handle_queue_tree_print(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree print command.
 
         Args:
@@ -398,7 +446,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _handle_mangle_rule(self, cmd: str, timeout: Optional[int] = None) -> Optional[dict]:
+    def _handle_mangle_rule(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /ip firewall mangle enable/disable commands.
 
         Args:
@@ -452,7 +500,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: Optional[int] = None) -> Optional[str]:
+    def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
         """Find queue tree ID by name.
 
         Uses caching to reduce API calls on repeated lookups.
@@ -495,7 +543,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error finding queue: {e}")
             return None
 
-    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True, timeout: Optional[int] = None) -> Optional[str]:
+    def _find_mangle_rule_id(self, comment: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
         """Find mangle rule ID by comment.
 
         Uses caching to reduce API calls on repeated lookups.
@@ -573,7 +621,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return False
 
-    def get_queue_stats(self, queue_name: str) -> Optional[dict]:
+    def get_queue_stats(self, queue_name: str) -> dict | None:
         """Get queue statistics.
 
         Args:
