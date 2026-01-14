@@ -148,15 +148,53 @@ class CakeStatsReader:
 
         return stats
 
+    def _calculate_stats_delta(self, current: CakeStats, queue_name: str) -> CakeStats:
+        """
+        Calculate delta from previous stats for cumulative counters.
+
+        Args:
+            current: Current cumulative stats from RouterOS
+            queue_name: Queue name for tracking previous stats
+
+        Returns:
+            CakeStats with:
+            - Cumulative counters (packets, bytes, dropped): delta from previous
+            - Instantaneous values (queued_packets, queued_bytes): current value
+
+        On first read, stores baseline and returns current values.
+        """
+        previous = self.previous_stats.get(queue_name)
+
+        if previous is None:
+            # First read - return current as delta, store for next time
+            self.logger.debug(f"CAKE stats [{queue_name}] first read, storing baseline")
+            self.previous_stats[queue_name] = current
+            return current
+
+        # Calculate deltas for cumulative counters
+        delta = CakeStats(
+            packets=current.packets - previous.packets,
+            bytes=current.bytes - previous.bytes,
+            dropped=current.dropped - previous.dropped,
+            queued_packets=current.queued_packets,  # instantaneous
+            queued_bytes=current.queued_bytes       # instantaneous
+        )
+
+        # Store current for next delta calculation
+        self.previous_stats[queue_name] = current
+
+        self.logger.debug(f"CAKE stats [{queue_name}] delta: {delta}")
+        return delta
+
     def read_stats(self, queue_name: str) -> Optional[CakeStats]:
         """
-        Read CAKE statistics for a specific queue
+        Read CAKE statistics for a specific queue.
 
-        Returns delta stats since last read (best practice - no counter resets)
+        Returns delta stats since last read (best practice - no counter resets):
         - Cumulative counters (packets, bytes, dropped): delta from previous
         - Instantaneous values (queued_packets, queued_bytes): current value
 
-        Returns CakeStats or None on error
+        Returns CakeStats or None on error.
         """
         # C2 fix: Validate queue_name to prevent command injection in RouterOS queries
         try:
@@ -166,104 +204,26 @@ class CakeStatsReader:
             self.logger.error(f"Invalid queue name: {e}")
             return None
 
+        # Execute RouterOS command
         cmd = f'/queue/tree print stats detail where name="{queue_name}"'
-        rc, out, err = self.client.run_cmd(cmd, capture=True, timeout=5)  # Fast query, high frequency
+        rc, out, err = self.client.run_cmd(cmd, capture=True, timeout=5)
 
         if rc != 0:
             self.logger.error(f"Failed to read CAKE stats for {queue_name}: {err}")
             return None
 
-        # Parse current cumulative stats from RouterOS
-        current = CakeStats()
-
+        # Parse response based on format
         try:
-            # Handle both SSH (text) and REST (JSON) output formats
             if out.strip().startswith('[') or out.strip().startswith('{'):
-                # JSON format (REST API) - uses unified JSON parsing utility
-                data = safe_json_loads_with_logging(
-                    out,
-                    logger=self.logger,
-                    error_context=f"CAKE stats for {queue_name}",
-                    log_invalid_content=True,
-                    content_preview_length=200
-                )
-
-                if data is None:
-                    return None
-
-                # REST API returns a list of matching queues
-                if isinstance(data, list) and len(data) > 0:
-                    q = data[0]
-                elif isinstance(data, dict):
-                    q = data
-                else:
-                    self.logger.warning(f"No queue data in response for {queue_name}")
-                    return None
-
-                # Validate that response contains expected fields
-                if not isinstance(q, dict):
-                    self.logger.error(f"Invalid queue data structure (not dict) for {queue_name}")
-                    return None
-
-                # Extract stats from JSON (field names use hyphens)
-                current.packets = int(q.get('packets', 0))
-                current.bytes = int(q.get('bytes', 0))
-                current.dropped = int(q.get('dropped', 0))
-                current.queued_packets = int(q.get('queued-packets', 0))
-                current.queued_bytes = int(q.get('queued-bytes', 0))
+                current = self._parse_json_response(out, queue_name)
             else:
-                # Text format (SSH CLI output)
-                # Example output:
-                # name="WAN-Download-1" parent=bridge1 ...
-                # rate=0 packet-rate=0 queued-bytes=0 queued-packets=0
-                # bytes=272603902153 packets=184614358 dropped=0
+                current = self._parse_text_response(out)
 
-                # Extract cumulative counters (monotonically increasing)
-                match = re.search(r'packets=(\d+)', out)
-                if match:
-                    current.packets = int(match.group(1))
+            if current is None:
+                return None
 
-                match = re.search(r'bytes=(\d+)', out)
-                if match:
-                    current.bytes = int(match.group(1))
-
-                match = re.search(r'dropped=(\d+)', out)
-                if match:
-                    current.dropped = int(match.group(1))
-
-                # Extract instantaneous values (current queue depth)
-                match = re.search(r'queued-packets=(\d+)', out)
-                if match:
-                    current.queued_packets = int(match.group(1))
-
-                match = re.search(r'queued-bytes=(\d+)', out)
-                if match:
-                    current.queued_bytes = int(match.group(1))
-
-            # Calculate delta from previous read (best practice)
-            previous = self.previous_stats.get(queue_name)
-
-            if previous is None:
-                # First read - return current as delta, store for next time
-                self.logger.debug(f"CAKE stats [{queue_name}] first read, storing baseline")
-                self.previous_stats[queue_name] = current
-                # Return current values for first sample
-                return current
-
-            # Calculate deltas for cumulative counters
-            delta = CakeStats(
-                packets=current.packets - previous.packets,
-                bytes=current.bytes - previous.bytes,
-                dropped=current.dropped - previous.dropped,
-                queued_packets=current.queued_packets,  # instantaneous
-                queued_bytes=current.queued_bytes       # instantaneous
-            )
-
-            # Store current for next delta calculation
-            self.previous_stats[queue_name] = current
-
-            self.logger.debug(f"CAKE stats [{queue_name}] delta: {delta}")
-            return delta
+            # Calculate delta from previous
+            return self._calculate_stats_delta(current, queue_name)
 
         except Exception as e:
             self.logger.error(f"Failed to parse CAKE stats: {e}")
