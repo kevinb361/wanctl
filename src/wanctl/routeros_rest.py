@@ -536,86 +536,42 @@ class RouterOSREST:
     def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
         """Find queue tree ID by name.
 
-        Uses caching to reduce API calls on repeated lookups.
-        Queue IDs are stable unless queues are deleted/recreated.
-
         Args:
             queue_name: Name of the queue
             use_cache: Whether to use cached ID (default True)
-            timeout: Request timeout in seconds (uses self.timeout if None)
+            timeout: Request timeout in seconds
 
         Returns:
             Queue ID (e.g., "*1") or None if not found
         """
-        timeout_val = timeout if timeout is not None else self.timeout
-
-        # Check cache first
-        if use_cache and queue_name in self._queue_id_cache:
-            self.logger.debug(f"Queue ID cache hit: {queue_name} -> {self._queue_id_cache[queue_name]}")
-            return self._queue_id_cache[queue_name]
-
-        url = f"{self.base_url}/queue/tree"
-
-        try:
-            resp = self._session.get(url, params={"name": queue_name}, timeout=timeout_val)
-
-            if resp.ok and resp.json():
-                # RouterOS returns list of matching items
-                items = resp.json()
-                if items:
-                    queue_id = items[0].get('.id')
-                    # Cache the result
-                    if queue_id:
-                        self._queue_id_cache[queue_name] = queue_id
-                        self.logger.debug(f"Queue ID cached: {queue_name} -> {queue_id}")
-                    return queue_id
-
-            return None
-
-        except requests.RequestException as e:
-            self.logger.error(f"REST API error finding queue: {e}")
-            return None
+        return self._find_resource_id(
+            endpoint="queue/tree",
+            filter_key="name",
+            filter_value=queue_name,
+            cache=self._queue_id_cache,
+            use_cache=use_cache,
+            timeout=timeout
+        )
 
     def _find_mangle_rule_id(self, comment: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
         """Find mangle rule ID by comment.
 
-        Uses caching to reduce API calls on repeated lookups.
-
         Args:
             comment: Comment of the rule
             use_cache: Whether to use cached ID (default True)
-            timeout: Request timeout in seconds (uses self.timeout if None)
+            timeout: Request timeout in seconds
 
         Returns:
             Rule ID or None if not found
         """
-        timeout_val = timeout if timeout is not None else self.timeout
-
-        # Check cache first
-        if use_cache and comment in self._mangle_id_cache:
-            self.logger.debug(f"Mangle ID cache hit: {comment} -> {self._mangle_id_cache[comment]}")
-            return self._mangle_id_cache[comment]
-
-        url = f"{self.base_url}/ip/firewall/mangle"
-
-        try:
-            resp = self._session.get(url, params={"comment": comment}, timeout=timeout_val)
-
-            if resp.ok and resp.json():
-                items = resp.json()
-                if items:
-                    rule_id = items[0].get('.id')
-                    # Cache the result
-                    if rule_id:
-                        self._mangle_id_cache[comment] = rule_id
-                        self.logger.debug(f"Mangle ID cached: {comment} -> {rule_id}")
-                    return rule_id
-
-            return None
-
-        except requests.RequestException as e:
-            self.logger.error(f"REST API error finding rule: {e}")
-            return None
+        return self._find_resource_id(
+            endpoint="ip/firewall/mangle",
+            filter_key="comment",
+            filter_value=comment,
+            cache=self._mangle_id_cache,
+            use_cache=use_cache,
+            timeout=timeout
+        )
 
     def set_queue_limit(self, queue_name: str, max_limit: int) -> bool:
         """Set queue tree max-limit directly via REST API.
