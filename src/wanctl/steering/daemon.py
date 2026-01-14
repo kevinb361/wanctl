@@ -209,6 +209,60 @@ class SteeringConfig(BaseConfig):
         mode = self.data.get('mode', {})
         self.cake_aware = mode.get('cake_aware', True)
         self.enable_yellow_state = mode.get('enable_yellow_state', True)
+        self.use_confidence_scoring = mode.get('use_confidence_scoring', False)
+
+    def _load_confidence_config(self) -> None:
+        """Load Phase 2B confidence scoring configuration.
+
+        Only loads if use_confidence_scoring is enabled. All values have safe
+        defaults, with dry_run=True as the most critical default for safe deployment.
+
+        The confidence_config dict structure matches Phase2BController's config_v3 format.
+        """
+        if not self.use_confidence_scoring:
+            self.confidence_config = None
+            return
+
+        confidence = self.data.get('confidence', {})
+
+        # Validate confidence thresholds are in 0-100 range
+        steer_threshold = confidence.get('steer_threshold', 55)
+        recovery_threshold = confidence.get('recovery_threshold', 20)
+        if not (0 <= steer_threshold <= 100):
+            raise ValueError(
+                f"confidence.steer_threshold ({steer_threshold}) must be in range 0-100"
+            )
+        if not (0 <= recovery_threshold <= 100):
+            raise ValueError(
+                f"confidence.recovery_threshold ({recovery_threshold}) must be in range 0-100"
+            )
+        if recovery_threshold >= steer_threshold:
+            raise ValueError(
+                f"confidence.recovery_threshold ({recovery_threshold}) must be less than "
+                f"steer_threshold ({steer_threshold})"
+            )
+
+        self.confidence_config = {
+            'confidence': {
+                'steer_threshold': steer_threshold,
+                'recovery_threshold': recovery_threshold,
+                'sustain_duration_sec': confidence.get('sustain_duration_sec', 2.0),
+                'recovery_sustain_sec': confidence.get('recovery_sustain_sec', 3.0),
+            },
+            'timers': {
+                'hold_down_duration_sec': confidence.get('hold_down_duration_sec', 30.0),
+            },
+            'flap_detection': {
+                'enabled': confidence.get('flap_detection_enabled', True),
+                'window_minutes': confidence.get('flap_window_minutes', 5),
+                'max_toggles': confidence.get('max_toggles', 4),
+                'penalty_duration_sec': confidence.get('penalty_duration_sec', 60.0),
+                'penalty_threshold_add': confidence.get('penalty_threshold_add', 15),
+            },
+            'dry_run': {
+                'enabled': confidence.get('dry_run', True),  # DEFAULT TRUE for safe deployment
+            },
+        }
 
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
@@ -303,6 +357,7 @@ class SteeringConfig(BaseConfig):
         self._load_rtt_measurement()
         self._load_cake_queues()  # Depends on _load_topology for primary_wan
         self._load_operational_mode()
+        self._load_confidence_config()  # Depends on _load_operational_mode for use_confidence_scoring
 
         # Thresholds and bounds
         self._load_thresholds()
