@@ -114,6 +114,8 @@ class Config(BaseConfig):
          "required": True, "min": 0.1, "max": 100},
         {"path": "continuous_monitoring.download.factor_down", "type": float,
          "required": True, "min": 0.1, "max": 1.0},
+        {"path": "continuous_monitoring.download.factor_down_yellow", "type": float,
+         "required": False, "min": 0.8, "max": 1.0},
 
         # Upload parameters
         {"path": "continuous_monitoring.upload.ceiling_mbps", "type": (int, float),
@@ -185,6 +187,8 @@ class Config(BaseConfig):
         self.download_ceiling = dl['ceiling_mbps'] * MBPS_TO_BPS
         self.download_step_up = dl['step_up_mbps'] * MBPS_TO_BPS
         self.download_factor_down = dl['factor_down']
+        # YELLOW decay factor: gentle 4% per cycle (vs RED's aggressive 15%)
+        self.download_factor_down_yellow = dl.get('factor_down_yellow', 0.96)
 
         # Validate download floor ordering: red <= soft_red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -445,7 +449,7 @@ class RouterOS:
 
 class QueueController:
     """Controls one queue (download or upload) with 3-zone or 4-zone logic"""
-    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float):
+    def __init__(self, name: str, floor_green: int, floor_yellow: int, floor_soft_red: int, floor_red: int, ceiling: int, step_up: int, factor_down: float, factor_down_yellow: float = 1.0):
         self.name = name
         self.floor_green_bps = floor_green
         self.floor_yellow_bps = floor_yellow
@@ -454,6 +458,7 @@ class QueueController:
         self.ceiling_bps = ceiling
         self.step_up_bps = step_up
         self.factor_down = factor_down
+        self.factor_down_yellow = factor_down_yellow  # Gentle decay for YELLOW (default 1.0 = no decay)
         self.current_rate = ceiling  # Start at ceiling
 
         # Hysteresis counters (require consecutive green cycles before stepping up)
@@ -461,7 +466,7 @@ class QueueController:
         self.soft_red_streak = 0      # Phase 2A: Track SOFT_RED sustain
         self.red_streak = 0
         self.green_required = 5        # Require 5 consecutive green cycles before stepping up
-        self.soft_red_required = 3     # Phase 2A: Require 3 cycles (~6s) to confirm SOFT_RED
+        self.soft_red_required = 1     # Reduced from 3 for faster response (50ms vs 150ms)
 
     def adjust(self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float) -> tuple[str, int]:
         """
@@ -589,7 +594,9 @@ class QueueController:
             # GREEN: Only step up after 5 consecutive green cycles
             new_rate = self.current_rate + self.step_up_bps
         elif zone == "YELLOW":
-            # YELLOW or not enough green streak -> hold steady with yellow floor
+            # YELLOW: Gentle decay to prevent congestion buildup
+            # Uses factor_down_yellow (default 0.96 = 4% per cycle)
+            new_rate = int(self.current_rate * self.factor_down_yellow)
             state_floor = self.floor_yellow_bps
         # else: GREEN but not sustained -> use default floor_green_bps
 
@@ -626,7 +633,8 @@ class WANController:
             floor_red=config.download_floor_red,
             ceiling=config.download_ceiling,
             step_up=config.download_step_up,
-            factor_down=config.download_factor_down
+            factor_down=config.download_factor_down,
+            factor_down_yellow=config.download_factor_down_yellow,  # YELLOW decay
         )
 
         self.upload = QueueController(
