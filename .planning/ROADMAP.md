@@ -10,8 +10,14 @@ None
 
 ## Milestones
 
-- ✅ **v1.0 Performance Optimization** - [Phases 1-5](#v10-performance-optimization-shipped-2026-01-13) (shipped 2026-01-13)
-- 🚧 **v1.1 Code Quality** - [Phases 6-15](#-v11-code-quality-in-progress) (in progress)
+### Completed
+
+- ✅ [v1.1 Code Quality](milestones/v1.1-ROADMAP.md) (Phases 6-15) - SHIPPED 2026-01-14
+- ✅ [v1.0 Performance Optimization](milestones/v1.0-ROADMAP.md) (Phases 1-5) - SHIPPED 2026-01-13
+
+### Planned
+
+(None currently - see `/gsd:discuss-milestone` to plan next milestone)
 
 ## Phases
 
@@ -132,204 +138,33 @@ Plans:
 
 </details>
 
-### 🚧 v1.1 Code Quality (In Progress)
+<details>
+<summary>✅ v1.1 Code Quality (Phases 6-15) - SHIPPED 2026-01-14</summary>
 
 **Milestone Goal:** Improve code maintainability through systematic refactoring while preserving production stability of core algorithms.
 
-#### Phase 6: Quick Wins
+- [x] Phase 6: Quick Wins (6/6 plans) - Docstrings and signal handler extraction
+- [x] Phase 7: Core Algorithm Analysis (3/3 plans) - Risk assessment and protected zones
+- [x] Phase 8: Extract Common Helpers (3/3 plans) - signal_utils.py, systemd_utils.py
+- [x] Phase 9: Utility Consolidation Part 1 (2/2 plans) - paths.py, lockfile.py merged
+- [x] Phase 10: Utility Consolidation Part 2 (2/2 plans) - ping_utils.py, rate_limiter.py merged
+- [x] Phase 11: Refactor Long Functions (3/3 plans) - Config, calibrate, CakeStats
+- [x] Phase 12: RouterOSREST Refactoring (2/2 plans) - Parsing helpers, ID lookup
+- [x] Phase 13: Documentation Improvements (2/2 plans) - Protected zone comments
+- [x] Phase 14: WANController Refactoring (5/5 plans) - 4 methods extracted, +54 tests
+- [x] Phase 15: SteeringDaemon Refactoring (6/6 plans) - 5 methods extracted, unified state machine, +66 tests
 
-**Goal**: Add docstrings and extract signal handlers for immediate code clarity improvements
-**Depends on**: v1.0 milestone complete
-**Research**: Unlikely (internal documentation and refactoring)
-**Plans**: 6 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-13
+**Key Results:** 120 new tests (474 → 594), ~350 lines removed via consolidation, Phase2BController integrated with dry-run mode.
 
-Plans:
+See [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 
-- [x] 06-01: Docstrings for autorate_continuous.py (main, handle_signal)
-- [x] 06-02: Docstrings for steering/daemon.py (main, fallback_to_history)
-- [x] 06-03: Docstrings for calibrate.py (Colors, main, signal_handler)
-- [x] 06-04: Docstrings for state_manager.py (validator closures)
-- [x] 06-05: Extract signal handler - autorate_continuous.py
-- [x] 06-06: Extract signal handler - calibrate.py
-
-**Accomplishments**: All entry point docstrings added (9 items), all signal handlers extracted to module-level (2 files), consistent signal handling pattern established across daemons and utilities.
-
-#### Phase 7: Core Algorithm Analysis
-
-**Goal**: Analyze WANController and SteeringDaemon, document refactoring recommendations WITHOUT implementing
-**Depends on**: Phase 6
-**Research**: Unlikely (internal code analysis)
-**Plans**: 3 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-13
-
-Plans:
-
-- [x] 07-01: WANController structural analysis
-- [x] 07-02: SteeringDaemon structural analysis
-- [x] 07-03: Synthesize recommendations into CORE-ALGORITHM-ANALYSIS.md
-
-**Accomplishments**: Created comprehensive docs/CORE-ALGORITHM-ANALYSIS.md with 12 refactoring opportunities (6 LOW, 4 MEDIUM, 2 HIGH risk), defined 9 protected zones with exact line ranges, provided implementation guidance for Phases 14-15. Analysis-only phase complete.
-
-#### Phase 8: Extract Common Helpers
-
-**Goal**: Factor out duplicated main() entry point patterns and \_load_specific_fields helper
-**Depends on**: Phase 7
-**Research**: Unlikely (internal refactoring)
-**Plans**: 3 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 08-01: Signal handling extraction (signal_utils.py)
-- [x] 08-02: Systemd utilities extraction (systemd_utils.py)
-- [x] 08-03: Split Steering Config loading (15 helper methods)
-
-#### Phase 9: Utility Consolidation - Part 1
-
-**Goal**: Consolidate routing and state utilities to reduce fragmentation
-**Depends on**: Phase 8
-**Research**: Unlikely (internal reorganization)
-**Plans**: 2 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-13
-
-Plans:
-
-- [x] 09-01: Merge paths.py into path_utils.py
-- [x] 09-02: Merge lockfile.py into lock_utils.py
-
-**Accomplishments**: Eliminated 2 redundant modules (paths.py, lockfile.py) by consolidating into path_utils.py and lock_utils.py. 175 lines removed, module fragmentation reduced.
-
-#### Phase 10: Utility Consolidation - Part 2
-
-**Goal**: Consolidate config, retry, and logging utilities to complete utility reorganization
-**Depends on**: Phase 9
-**Research**: Unlikely (internal reorganization)
-**Plans**: 2 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 10-01: Merge ping_utils.py into rtt_measurement.py
-- [x] 10-02: Merge rate_limiter.py into rate_utils.py
-
-**Accomplishments**: Eliminated 2 redundant modules (ping_utils.py, rate_limiter.py) by consolidating into rtt_measurement.py and rate_utils.py. 178 lines removed, module fragmentation reduced.
-
-#### Phase 11: Refactor Long Functions
-
-**Goal**: Break down non-critical long functions (>100 lines) for improved readability
-**Depends on**: Phase 10
-**Research**: Unlikely (internal refactoring)
-**Plans**: 3 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 11-01: Split Config.\_load_specific_fields() into 12 helper methods
-- [x] 11-02: Split run_calibration() into 6 step helper functions
-- [x] 11-03: Split CakeStatsReader.read_stats() into 3 parser methods
-
-**Accomplishments**: Refactored 3 long functions. Config.\_load_specific_fields() reduced to 15 lines (12 helpers), run_calibration() to 79 lines (6 step helpers), read_stats() to 33 lines (3 parser helpers). All 474 tests pass.
-
-#### Phase 12: RouterOSREST Refactoring
-
-**Goal**: Refactor 577-line RouterOSREST class to improve maintainability
-**Depends on**: Phase 11
-**Research**: Unlikely (internal refactoring)
-**Plans**: 2 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 12-01: Extract command parsing helpers
-- [x] 12-02: Consolidate ID lookup methods
-
-**Accomplishments**: Created 3 parsing helpers and 1 generic ID lookup method. Reduced code duplication by ~90 lines total. All 474 tests pass.
-
-#### Phase 13: Documentation Improvements
-
-**Goal**: Update inline documentation, code comments, and docstrings across codebase
-**Depends on**: Phase 12
-**Research**: Unlikely (internal documentation)
-**Plans**: 2 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 13-01: Documentation consistency review and stale reference fixes
-- [x] 13-02: Add inline comments to protected algorithm zones
-
-**Accomplishments**: Fixed stale module references in test docstrings, added 7 PROTECTED zone comments to WANController (3) and SteeringDaemon (4) to guide future refactoring in Phases 14-15.
-
-#### Phase 14: WANController Refactoring
-
-**Goal**: Implement approved recommendations from Phase 7 analysis for WANController
-**Depends on**: Phase 13 and explicit approval of Phase 7 recommendations
-**Research**: Unlikely (implementing pre-approved changes)
-**Plans**: 5 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 14-01: Extract handle_icmp_failure() from run_cycle()
-- [x] 14-02: Extract flash wear protection logic
-- [x] 14-03: Extract concurrent RTT measurement to utility
-- [x] 14-04: Extract baseline update logic
-- [x] 14-05: Extract state persistence to WANControllerState
-
-**Accomplishments**: Extracted 4 methods/helpers from run_cycle(), created WANControllerState manager (StateManager pattern), added 54 new tests (474 → 528). All protected zones preserved.
-
-#### Phase 15: SteeringDaemon Refactoring
-
-**Goal**: Implement approved recommendations from Phase 7 analysis for SteeringDaemon
-**Depends on**: Phase 14 and explicit approval of Phase 7 recommendations
-**Research**: Unlikely (implementing pre-approved changes)
-**Plans**: 6 plans
-**Status**: ✓ Complete
-**Completed**: 2026-01-14
-
-Plans:
-
-- [x] 15-01: Extract update_ewma_smoothing() from run_cycle()
-- [x] 15-02: Extract collect_cake_stats() from run_cycle()
-- [x] 15-03: Extract execute_steering_transition() routing control
-- [x] 15-04: Extract run_daemon_loop() from main()
-- [x] 15-05: Unify state machine methods (S6 recommendation)
-- [x] 15-06: Integrate Phase2BController confidence scoring (S7 recommendation)
-
-**Accomplishments**: Extracted 5 methods from run_cycle()/main(), created execute_steering_transition() consolidating 4 callsites, unified state machine (CAKE-aware + legacy), integrated Phase2BController with dry-run mode for safe production validation. Added 66 new tests (528 → 594). All protected zones preserved.
-
-**Note**: HIGH RISK phase. Explicit approval obtained for each recommendation from Phase 7.
+</details>
 
 ## Progress
 
-**Execution Order:**
-v1.0: 1 → 2 → 3 (complete)
-v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress)
+**All milestones complete.** No active development phases.
 
-| Phase                                   | Milestone | Plans Complete | Status                        | Completed   |
-| --------------------------------------- | --------- | -------------- | ----------------------------- | ----------- |
-| 1. Measurement Infrastructure Profiling | v1.0      | 3/3            | ✓ Complete                    | 2026-01-13  |
-| 2. Interval Optimization                | v1.0      | 2/3            | ✓ Complete (02-02 skipped)    | 2026-01-13  |
-| 3. Production Finalization              | v1.0      | 2/2            | ✓ Complete                    | 2026-01-13  |
-| 4. RouterOS Communication Optimization  | v1.0      | N/A            | ✅ Already in production code | Pre-Phase 1 |
-| 5. Measurement Layer Optimization       | v1.0      | N/A            | ⚠️ Partially implemented      | Pre-Phase 1 |
-| 6. Quick Wins                           | v1.1      | 6/6            | ✓ Complete                    | 2026-01-13  |
-| 7. Core Algorithm Analysis              | v1.1      | 3/3            | ✓ Complete                    | 2026-01-13  |
-| 8. Extract Common Helpers               | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
-| 9. Utility Consolidation - Part 1       | v1.1      | 2/2            | ✓ Complete                    | 2026-01-13  |
-| 10. Utility Consolidation - Part 2      | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
-| 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 14. WANController Refactoring           | v1.1      | 5/5            | ✓ Complete                    | 2026-01-14  |
-| 15. SteeringDaemon Refactoring          | v1.1      | 6/6            | ✓ Complete                    | 2026-01-14  |
+| Milestone                     | Phases | Status   | Shipped    |
+| ----------------------------- | ------ | -------- | ---------- |
+| v1.0 Performance Optimization | 1-5    | Complete | 2026-01-13 |
+| v1.1 Code Quality             | 6-15   | Complete | 2026-01-14 |

@@ -1,80 +1,97 @@
-# wanctl Performance Optimization
+# wanctl
 
 ## What This Is
 
-wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that continuously monitors network latency and adjusts queue limits in real-time, with optional multi-WAN steering for latency-sensitive traffic. This project focuses on optimizing the measurement, control, and steering performance to reduce latency overhead and improve responsiveness in home network environments.
+wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that continuously monitors network latency and adjusts queue limits in real-time, with optional multi-WAN steering for latency-sensitive traffic.
 
 ## Core Value
 
-**Original:** Reduce measurement and control latency to under 2 seconds per cycle while maintaining production reliability in home network deployments.
+Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-**Updated (2026-01-13):** After Phase 1 profiling, discovered cycle latency was already 30-41ms (2-4% of budget). Pivoted to improving congestion response time by implementing 500ms cycle interval (4x faster response) while maintaining production reliability.
+## Current State (v1.1)
+
+- **Version:** v1.1 Code Quality (shipped 2026-01-14)
+- **Cycle Interval:** 50ms (40x faster than original 2s baseline)
+- **Tests:** 594 passing
+- **LOC:** ~20,960 Python
+- **Status:** Production stable, Phase2BController in dry-run validation
 
 ## Requirements
 
 ### Validated
 
-- ✓ Continuous RTT monitoring with 500ms control loops (optimized from 2s) — existing + enhanced
+**Core Features:**
+
+- ✓ Continuous RTT monitoring with 50ms control loops — v1.0
 - ✓ Multi-state congestion control (GREEN/YELLOW/SOFT_RED/RED) — existing
 - ✓ Multi-signal detection (RTT + CAKE drops + queue depth) — existing
 - ✓ Dual-transport router control (REST API + SSH fallback) — existing
 - ✓ Optional multi-WAN steering with latency-aware routing — existing
 - ✓ Configuration-driven (YAML-based for multiple WAN types) — existing
 - ✓ File-based state persistence with locking — existing
-- ✓ systemd integration with persistent event loop (converted from timers) — existing + enhanced
-- ✓ Performance profiling infrastructure (instrumentation, collection, analysis) — Phase 1 complete
+- ✓ systemd integration with persistent event loop — v1.0
 
-### Completed (Phase 1)
+**v1.0 Performance Optimization:**
 
-- ✓ Profile and measure baseline performance (30-41ms cycles, 2-4% of 2s budget)
-- ✓ Implement persistent event loop architecture (replaced timer-based execution)
-- ✓ Optimize cycle interval to 500ms (4x faster congestion response: 4s → 1s)
-- ✓ Adjust EWMA parameters to preserve time constants at new interval
-- ✓ Update steering daemon for 500ms operation
-- ✓ Performance profiling infrastructure (PerfTimer module, analysis tools, documentation)
+- ✓ 50ms cycle interval (40x faster than 2s baseline) — v1.0
+- ✓ EWMA time constants preserved via alpha scaling — v1.0
+- ✓ Sub-second congestion detection (50-100ms response) — v1.0
 
-### Deferred (Low ROI Based on Profiling)
+**v1.1 Code Quality:**
 
-- [ ] SSH connection pooling — RouterOS communication only 20ms, 0.2% of cycles (flash wear protection working)
-- [ ] Parallel ping measurement — Would save ~15ms but already at 2-4% budget utilization
-- [ ] CAKE stats caching — Not needed, stats reads infrequent due to flash wear protection
-- [ ] State file optimization — Not a bottleneck in profiling data
+- ✓ Shared signal_utils.py and systemd_utils.py modules — v1.1
+- ✓ Consolidated utility modules (paths, lockfile, ping, rate_limiter) — v1.1
+- ✓ CORE-ALGORITHM-ANALYSIS.md with protected zones defined — v1.1
+- ✓ WANController refactored (4 methods extracted from run_cycle) — v1.1
+- ✓ SteeringDaemon refactored (5 methods extracted) — v1.1
+- ✓ Unified state machine (CAKE-aware + legacy combined) — v1.1
+- ✓ Phase2BController integrated with dry-run mode — v1.1
+
+### Active
+
+- [ ] Phase2BController production validation (currently dry-run)
+- [ ] Enable confidence-based steering after validation period
+
+### Deferred
+
+- [ ] SSH connection pooling — Low ROI, REST API already optimal
+- [ ] CAKE stats caching — Not needed, flash wear protection working
 
 ### Out of Scope
 
-- Machine learning-based bandwidth prediction — adds complexity, not addressing core latency issues
-- Prometheus/Grafana integration — monitoring not core to optimization
-- New CAKE qdisc features — kernel/router features out of scope
+- Machine learning-based bandwidth prediction — unnecessary complexity
+- Prometheus/Grafana integration — not core to functionality
 - Breaking changes to configuration format — maintain compatibility
-- Full rewrite of core algorithms — keep proven control logic, optimize execution
-- Support for non-RouterOS devices — focus on existing RouterOS integration
+- Support for non-RouterOS devices — focused on existing integration
 
 ## Context
 
-wanctl has been developed through multiple phases (Phase 2A: synthetic traffic disabled, Phase 2B: confidence-based steering). The codebase is production-ready with comprehensive testing (590+ line test suite).
+wanctl is a production dual-WAN controller deployed in a home network environment. Reliability and backward compatibility are critical.
 
-**Phase 1 Profiling Findings (Jan 7-13, 2026):**
+**Architecture:** Layered design (Router Control → Measurement → Congestion Assessment → State Management → Control Logic). Python 3.12 with Ruff linting, pytest testing, proper error handling.
 
-- 7-day baseline collection: 352,730 profiling samples across both WANs
-- **Actual performance significantly better than documented assumptions:**
-  - RouterOS REST API: ~20ms per call (not ~150ms SSH as documented)
-  - Ping measurement: 30-40ms (not 100-150ms as assumed)
-  - Total cycle time: 30-41ms average (only 2-4% of 2-second budget)
-  - Flash wear protection working perfectly: only 0.2% of cycles update router
-- **Original optimization assumptions were incorrect** - system already highly efficient
+**v1.0 Performance Optimization (2026-01-13):**
 
-**Phase 1 Optimizations Implemented (Jan 13, 2026):**
+- Profiled 352,730 samples, discovered 30-41ms cycles (not ~200ms as assumed)
+- Reduced cycle interval from 2s to 50ms (40x faster)
+- Event loop architecture replaced timer-based execution
+- See: `docs/PRODUCTION_INTERVAL.md`
 
-- Converted steering daemon from timer-triggered to persistent event loop
-- Reduced cycle interval from 2s to 500ms (4x faster congestion response)
-- Adjusted EWMA alphas to preserve time constants at new interval
-- Updated steering thresholds (red_samples: 2→8, green_samples: 15→60)
-- Result: Congestion detection 4s → 1s, still only 10% CPU utilization
-- See: `docs/FASTER_RESPONSE_INTERVAL.md` for detailed analysis
+**v1.1 Code Quality (2026-01-14):**
 
-Current architecture uses layered design with clean separation (Router Control → Measurement → Congestion Assessment → State Management → Control Logic). Codebase follows Python 3.12 standards with Ruff linting, pytest testing, and proper error handling.
+- 10 phases of systematic refactoring (Phases 6-15)
+- Created shared modules: signal_utils.py, systemd_utils.py
+- Consolidated 4 redundant utility modules
+- Documented 12 refactoring opportunities in CORE-ALGORITHM-ANALYSIS.md
+- Extracted methods from WANController and SteeringDaemon
+- Unified state machine (CAKE-aware + legacy)
+- Integrated Phase2BController with dry-run mode
+- Added 120 new tests (474 → 594)
 
-The project runs in a home network environment on production, so reliability and backward compatibility are critical.
+**Next Steps:**
+
+- Validate Phase2BController in production (dry-run for 1 week)
+- Enable confidence-based steering after successful validation
 
 ## Constraints
 
@@ -88,18 +105,17 @@ The project runs in a home network environment on production, so reliability and
 
 ## Key Decisions
 
-| Decision                                                   | Rationale                                                     | Outcome                             | Date       |
-| ---------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- | ---------- |
-| Focus on all three performance bottlenecks holistically    | Balanced optimization has more impact than single area focus  | ✓ Profiling revealed no bottlenecks | 2026-01-09 |
-| Maintain API and config compatibility                      | Minimize friction for existing deployment                     | ✓ Maintained                        | 2026-01-13 |
-| Interactive mode with comprehensive planning               | Careful review of each optimization step, thorough validation | ✓ Phase 1 complete                  | 2026-01-09 |
-| Production reliability first                               | Home network use case requires proven stability               | ✓ Maintained                        | 2026-01-09 |
-| Profile before optimizing                                  | Measure actual performance vs assumptions                     | ✓ Critical - assumptions were wrong | 2026-01-10 |
-| Implement 500ms cycle despite low ROI of pure optimization | Use headroom for faster congestion response                   | ✓ Implemented (4x faster)           | 2026-01-13 |
-| Convert to persistent event loop architecture              | More accurate timing, cleaner implementation                  | ✓ Implemented                       | 2026-01-13 |
-| Preserve EWMA time constants when changing interval        | Mathematical correctness, predictable behavior                | ✓ Alphas adjusted correctly         | 2026-01-13 |
-| Document findings in FASTER_RESPONSE_INTERVAL.md           | Capture analysis for future reference                         | ✓ Complete                          | 2026-01-10 |
+| Decision                                        | Rationale                                                  | Outcome                         | Date       |
+| ----------------------------------------------- | ---------------------------------------------------------- | ------------------------------- | ---------- |
+| Profile before optimizing                       | Measure actual performance vs assumptions                  | ✓ Assumptions were wrong        | 2026-01-10 |
+| 50ms cycle interval (40x faster)                | Use headroom for faster congestion response                | ✓ Production stable             | 2026-01-13 |
+| Preserve EWMA time constants via alpha scaling  | Mathematical correctness, predictable behavior             | ✓ Implemented correctly         | 2026-01-13 |
+| Risk-based refactoring (LOW/MEDIUM/HIGH)        | Protect production stability during code quality work      | ✓ All protected zones preserved | 2026-01-13 |
+| Define 9 protected zones with exact line ranges | Prevent accidental core algorithm modification             | ✓ Documented in analysis        | 2026-01-13 |
+| Phase2BController dry-run mode for integration  | Safe production validation before enabling routing changes | ✓ Integrated, validating        | 2026-01-14 |
+| Unified state machine (CAKE-aware + legacy)     | Reduce code duplication, single code path                  | ✓ Implemented with tests        | 2026-01-14 |
+| Extract methods from run_cycle() systematically | Improve testability and maintainability                    | ✓ 120 new tests added           | 2026-01-14 |
 
 ---
 
-_Last updated: 2026-01-13 after Phase 1 completion_
+_Last updated: 2026-01-14 after v1.1 milestone_
