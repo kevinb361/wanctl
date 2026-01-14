@@ -83,15 +83,16 @@ Main control loop configuration.
 
 Download bandwidth parameters.
 
-| Field                 | Type   | Unit | Description                                     |
-| --------------------- | ------ | ---- | ----------------------------------------------- |
-| `floor_green_mbps`    | number | Mbps | Floor during GREEN state (healthy)              |
-| `floor_yellow_mbps`   | number | Mbps | Floor during YELLOW state (early warning)       |
-| `floor_soft_red_mbps` | number | Mbps | Floor during SOFT_RED state (optional)          |
-| `floor_red_mbps`      | number | Mbps | Floor during RED state (severe congestion)      |
-| `ceiling_mbps`        | number | Mbps | Maximum bandwidth limit                         |
-| `step_up_mbps`        | number | Mbps | Recovery step size                              |
-| `factor_down`         | number | 0-1  | Backoff multiplier (e.g., 0.85 = 15% reduction) |
+| Field                 | Type   | Unit | Description                                                    |
+| --------------------- | ------ | ---- | -------------------------------------------------------------- |
+| `floor_green_mbps`    | number | Mbps | Floor during GREEN state (healthy)                             |
+| `floor_yellow_mbps`   | number | Mbps | Floor during YELLOW state (early warning)                      |
+| `floor_soft_red_mbps` | number | Mbps | Floor during SOFT_RED state (optional)                         |
+| `floor_red_mbps`      | number | Mbps | Floor during RED state (severe congestion)                     |
+| `ceiling_mbps`        | number | Mbps | Maximum bandwidth limit                                        |
+| `step_up_mbps`        | number | Mbps | Recovery step size                                             |
+| `factor_down`         | number | 0-1  | Backoff multiplier (e.g., 0.85 = 15% reduction)                |
+| `green_required`      | int    | -    | Consecutive GREEN cycles before stepping up (1-10, default: 5) |
 
 ```yaml
 continuous_monitoring:
@@ -109,12 +110,13 @@ continuous_monitoring:
 
 Upload bandwidth parameters.
 
-| Field          | Type   | Unit | Description              |
-| -------------- | ------ | ---- | ------------------------ |
-| `floor_mbps`   | number | Mbps | Minimum upload bandwidth |
-| `ceiling_mbps` | number | Mbps | Maximum upload bandwidth |
-| `step_up_mbps` | number | Mbps | Recovery step size       |
-| `factor_down`  | number | 0-1  | Backoff multiplier       |
+| Field            | Type   | Unit | Description                                                    |
+| ---------------- | ------ | ---- | -------------------------------------------------------------- |
+| `floor_mbps`     | number | Mbps | Minimum upload bandwidth                                       |
+| `ceiling_mbps`   | number | Mbps | Maximum upload bandwidth                                       |
+| `step_up_mbps`   | number | Mbps | Recovery step size                                             |
+| `factor_down`    | number | 0-1  | Backoff multiplier                                             |
+| `green_required` | int    | -    | Consecutive GREEN cycles before stepping up (1-10, default: 5) |
 
 ```yaml
 continuous_monitoring:
