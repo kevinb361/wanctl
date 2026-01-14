@@ -708,3 +708,156 @@ class TestApplyRateChangesIfNeeded:
             controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
 
         mock_metric.assert_not_called()
+
+
+class TestUpdateBaselineIfIdle:
+    """Tests for WANController._update_baseline_if_idle() baseline protection.
+
+    These tests validate the PROTECTED ZONE invariant: baseline RTT only updates
+    when the line is idle (delta < threshold). This prevents baseline drift under
+    load, which would mask true bloat detection.
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for WANController."""
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.10.110.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+        return config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.autorate_continuous import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    # =========================================================================
+    # Baseline update behavior tests
+    # =========================================================================
+
+    def test_baseline_updates_when_idle(self, controller):
+        """Baseline should update when delta < threshold (idle)."""
+        controller.baseline_rtt = 20.0
+        controller.load_rtt = 21.0  # delta = 1ms
+        controller.baseline_update_threshold = 3.0
+        controller.alpha_baseline = 0.1  # 10% weight for visible change
+
+        controller._update_baseline_if_idle(22.0)
+
+        # Baseline should have moved toward measured_rtt
+        assert controller.baseline_rtt > 20.0
+
+    def test_baseline_freezes_under_load(self, controller):
+        """Baseline should NOT update when delta >= threshold (under load)."""
+        controller.baseline_rtt = 20.0
+        controller.load_rtt = 25.0  # delta = 5ms
+        controller.baseline_update_threshold = 3.0
+
+        original_baseline = controller.baseline_rtt
+        controller._update_baseline_if_idle(30.0)
+
+        # Baseline should NOT change
+        assert controller.baseline_rtt == original_baseline
+
+    def test_baseline_freeze_prevents_drift(self, controller):
+        """Simulated load scenario: baseline must not drift toward load."""
+        controller.baseline_rtt = 20.0
+        controller.load_rtt = 20.0
+        controller.baseline_update_threshold = 3.0
+        controller.alpha_baseline = 0.1  # 10% weight
+
+        # Simulate 100 cycles under load
+        for _ in range(100):
+            # Load increases
+            controller.load_rtt = 50.0  # High load RTT
+            measured_rtt = 55.0  # Even higher measurement
+
+            # Update EWMA (full method to test integration)
+            controller.update_ewma(measured_rtt)
+
+        # Baseline should NOT have drifted significantly toward load
+        # With delta > threshold, baseline freezes at original value
+        assert controller.baseline_rtt == pytest.approx(20.0, abs=0.1)
+
+    def test_threshold_boundary_exact_equal(self, controller):
+        """Edge case: delta exactly equals threshold."""
+        controller.baseline_rtt = 20.0
+        controller.load_rtt = 23.0  # delta = 3ms exactly
+        controller.baseline_update_threshold = 3.0
+
+        original_baseline = controller.baseline_rtt
+        controller._update_baseline_if_idle(25.0)
+
+        # delta >= threshold should freeze (not update)
+        assert controller.baseline_rtt == original_baseline
+
+    def test_baseline_logs_on_update(self, controller):
+        """Should log debug message when baseline updates."""
+        controller.baseline_rtt = 20.0
+        controller.load_rtt = 20.5  # delta = 0.5ms (idle)
+        controller.baseline_update_threshold = 3.0
+
+        controller._update_baseline_if_idle(21.0)
+
+        # Verify debug was called with baseline update message
+        controller.logger.debug.assert_called_once()
+        call_args = controller.logger.debug.call_args[0][0]
+        assert "Baseline updated" in call_args
+        assert "20.00ms" in call_args  # old baseline
