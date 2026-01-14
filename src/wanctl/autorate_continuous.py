@@ -124,6 +124,8 @@ class Config(BaseConfig):
          "required": True, "min": 0.1, "max": 100},
         {"path": "continuous_monitoring.upload.factor_down", "type": float,
          "required": True, "min": 0.1, "max": 1.0},
+        {"path": "continuous_monitoring.upload.factor_down_yellow", "type": float,
+         "required": False, "min": 0.9, "max": 1.0},
 
         # Thresholds
         {"path": "continuous_monitoring.thresholds.target_bloat_ms", "type": (int, float),
@@ -221,6 +223,8 @@ class Config(BaseConfig):
         self.upload_ceiling = ul['ceiling_mbps'] * MBPS_TO_BPS
         self.upload_step_up = ul['step_up_mbps'] * MBPS_TO_BPS
         self.upload_factor_down = ul['factor_down']
+        # Upload YELLOW decay (gentler than download, default 0.94 = 6% per cycle)
+        self.upload_factor_down_yellow = ul.get('factor_down_yellow', 0.94)
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -515,7 +519,10 @@ class QueueController:
         elif self.green_streak >= self.green_required:
             # GREEN: Only step up after 5 consecutive green cycles
             new_rate = self.current_rate + self.step_up_bps
-        # else: YELLOW or not enough green streak -> hold steady
+        elif zone == "YELLOW":
+            # YELLOW: Gentle decay to prevent congestion buildup
+            new_rate = int(self.current_rate * self.factor_down_yellow)
+        # else: GREEN but not sustained -> hold steady
 
         # Enforce floor and ceiling constraints
         new_rate = enforce_rate_bounds(new_rate, floor=self.floor_red_bps, ceiling=self.ceiling_bps)
@@ -655,7 +662,8 @@ class WANController:
             floor_red=config.upload_floor_red,
             ceiling=config.upload_ceiling,
             step_up=config.upload_step_up,
-            factor_down=config.upload_factor_down
+            factor_down=config.upload_factor_down,
+            factor_down_yellow=config.upload_factor_down_yellow,  # Upload YELLOW decay
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
