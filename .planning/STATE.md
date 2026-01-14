@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-09)
 ## Current Position
 
 Phase: 14 of 15 (WANController Refactoring)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-14 — Completed 14-03-PLAN.md
+Last activity: 2026-01-14 — Completed 14-04-PLAN.md
 
-Progress: ████████████░░░░░░░░ 60% (3/5 plans in phase)
+Progress: ████████████████░░░░ 80% (4/5 plans in phase)
 
 ## Performance Metrics
 
@@ -38,8 +38,8 @@ Progress: ████████████░░░░░░░░ 60% (3/5 
 
 **Recent Trend:**
 
-- Last 5 plans: [13-02 ✓, 14-01 ✓, 14-02 ✓, 14-03 ✓]
-- Trend: Excellent - Phase 14 progressing (3/5 plans complete)
+- Last 5 plans: [14-01 ✓, 14-02 ✓, 14-03 ✓, 14-04 ✓]
+- Trend: Excellent - Phase 14 progressing (4/5 plans complete)
 
 **Current Performance:**
 
@@ -95,7 +95,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Completed 14-03-PLAN.md
+Stopped at: Completed 14-04-PLAN.md
 Resume file: None
 
 ## Milestone Achievements
@@ -410,3 +410,10 @@ Resume file: None
   - Added 10 unit tests for concurrent ping utility
   - Test count increased from 505 to 515
   - Concurrent ping utility reusable for steering daemon (Phase 15)
+
+- ✓ 14-04: Extract baseline update logic (5 min execution)
+  - Extracted \_update_baseline_if_idle() helper with PROTECTED ZONE marking
+  - Added debug logging when baseline updates (aids drift debugging)
+  - Added 5 unit tests for baseline drift protection invariant
+  - Test count increased from 515 to 520
+  - Exact conditional and EWMA formula preserved
