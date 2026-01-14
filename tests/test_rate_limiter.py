@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from wanctl.rate_limiter import RateLimiter
+from wanctl.rate_utils import RateLimiter
 
 
 class TestRateLimiterInit:
@@ -217,7 +217,7 @@ class TestMonotonicTime:
         limiter = RateLimiter(max_changes=2, window_seconds=60)
 
         # Mock time.monotonic to control time
-        with patch("wanctl.rate_limiter.time.monotonic") as mock_time:
+        with patch("wanctl.rate_utils.time.monotonic") as mock_time:
             mock_time.return_value = 100.0
             limiter.record_change()
 

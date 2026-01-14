@@ -34,8 +34,7 @@ from wanctl.metrics import (
     record_router_update,
     start_metrics_server,
 )
-from wanctl.rate_limiter import RateLimiter
-from wanctl.rate_utils import enforce_rate_bounds
+from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import get_router_client
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
