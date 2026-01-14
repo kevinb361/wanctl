@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-09)
 
 **Core value:** Reduce measurement and control latency to under 2 seconds per cycle while maintaining production reliability in home network deployments.
-**Current focus:** Phase 14 In Progress — WANController Refactoring
+**Current focus:** Phase 14 Complete — Ready for Phase 15 (SteeringDaemon Refactoring)
 
 ## Current Position
 
 Phase: 14 of 15 (WANController Refactoring)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-01-14 — Completed 14-04-PLAN.md
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-01-14 — Completed 14-05-PLAN.md
 
-Progress: ████████████████░░░░ 80% (4/5 plans in phase)
+Progress: ████████████████████ 100% (5/5 plans in phase)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: ~10 min (excluding Phase 1 profiling collection)
-- Total execution time: Phase 1: 4 days, Phase 2: 39 min, Phase 3: 21 min, Phase 6: 10 min, Phase 9: 6 min, Phase 10: 8 min, Phase 11: 14 min, Phase 14: 18 min (3 plans)
+- Total execution time: Phase 1: 4 days, Phase 2: 39 min, Phase 3: 21 min, Phase 6: 10 min, Phase 9: 6 min, Phase 10: 8 min, Phase 11: 14 min, Phase 14: 31 min (5 plans)
 
 **By Phase:**
 
@@ -35,11 +35,12 @@ Progress: ████████████████░░░░ 80% (4/5 
 | 9. Utility Consolidation - Part 1       | 2/2   | Complete | 3 min    |
 | 10. Utility Consolidation - Part 2      | 2/2   | Complete | 4 min    |
 | 11. Refactor Long Functions             | 3/3   | Complete | 5 min    |
+| 14. WANController Refactoring           | 5/5   | Complete | 6 min    |
 
 **Recent Trend:**
 
-- Last 5 plans: [14-01 ✓, 14-02 ✓, 14-03 ✓, 14-04 ✓]
-- Trend: Excellent - Phase 14 progressing (4/5 plans complete)
+- Last 5 plans: [14-01 ✓, 14-02 ✓, 14-03 ✓, 14-04 ✓, 14-05 ✓]
+- Trend: Excellent - Phase 14 complete (5/5 plans)
 
 **Current Performance:**
 
@@ -95,7 +96,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Completed 14-04-PLAN.md
+Stopped at: Completed 14-05-PLAN.md (Phase 14 complete)
 Resume file: None
 
 ## Milestone Achievements
@@ -417,3 +418,20 @@ Resume file: None
   - Added 5 unit tests for baseline drift protection invariant
   - Test count increased from 515 to 520
   - Exact conditional and EWMA formula preserved
+
+- ✓ 14-05: Extract state persistence (8 min execution)
+  - Created WANControllerState class in new wan_controller_state.py module
+  - Refactored load_state()/save_state() to delegate to state manager
+  - Added 8 unit tests for state persistence functionality
+  - Test count increased from 520 to 528
+  - State schema preserved exactly (backward compatible)
+
+**Phase 14 Complete:** All 5 plans finished (31 min total execution time)
+
+**Phase 14 Accomplishments:**
+
+- Methods extracted from run_cycle(): handle_icmp_failure(), apply_rate_changes_if_needed(), \_update_baseline_if_idle()
+- New utilities: ping_hosts_concurrent() in RTTMeasurement
+- New modules: wan_controller_state.py (StateManager pattern)
+- Total new tests: 54 tests (474 → 528)
+- All protected zones preserved

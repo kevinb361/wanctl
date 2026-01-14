@@ -275,7 +275,8 @@ Plans:
 **Depends on**: Phase 13 and explicit approval of Phase 7 recommendations
 **Research**: Unlikely (implementing pre-approved changes)
 **Plans**: 5 plans
-**Status**: In progress
+**Status**: ✓ Complete
+**Completed**: 2026-01-14
 
 Plans:
 
@@ -283,9 +284,9 @@ Plans:
 - [x] 14-02: Extract flash wear protection logic
 - [x] 14-03: Extract concurrent RTT measurement to utility
 - [x] 14-04: Extract baseline update logic
-- [ ] 14-05: Final run_cycle() cleanup
+- [x] 14-05: Extract state persistence to WANControllerState
 
-**Note**: LOW RISK extractions only. Protected zones preserved.
+**Accomplishments**: Extracted 4 methods/helpers from run_cycle(), created WANControllerState manager (StateManager pattern), added 54 new tests (474 → 528). All protected zones preserved.
 
 #### Phase 15: SteeringDaemon Refactoring
 
@@ -321,5 +322,5 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 14. WANController Refactoring           | v1.1      | 4/5            | In progress                   | -           |
+| 14. WANController Refactoring           | v1.1      | 5/5            | ✓ Complete                    | 2026-01-14  |
 | 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
