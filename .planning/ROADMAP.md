@@ -243,12 +243,15 @@ Plans:
 **Depends on**: Phase 11
 **Research**: Unlikely (internal refactoring)
 **Plans**: 2 plans
-**Status**: In progress
+**Status**: ✓ Complete
+**Completed**: 2026-01-14
 
 Plans:
 
 - [x] 12-01: Extract command parsing helpers
-- [ ] 12-02: Extract command execution helpers
+- [x] 12-02: Consolidate ID lookup methods
+
+**Accomplishments**: Created 3 parsing helpers and 1 generic ID lookup method. Reduced code duplication by ~90 lines total. All 474 tests pass.
 
 #### Phase 13: Documentation Improvements
 
@@ -306,7 +309,7 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 9. Utility Consolidation - Part 1       | v1.1      | 2/2            | ✓ Complete                    | 2026-01-13  |
 | 10. Utility Consolidation - Part 2      | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
-| 12. RouterOSREST Refactoring            | v1.1      | 1/2            | In progress                   | -           |
+| 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 13. Documentation Improvements          | v1.1      | 0/?            | Not started                   | -           |
 | 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
 | 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
