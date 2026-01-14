@@ -91,7 +91,6 @@ class TestDeprecationWarningsInConfig:
     def test_bad_samples_logs_deprecation_warning(self, minimal_config_data, caplog):
         """Loading config with bad_samples logs deprecation warning."""
         import logging
-        from wanctl.steering.daemon import SteeringConfig
 
         minimal_config_data['thresholds']['bad_samples'] = 8
 
