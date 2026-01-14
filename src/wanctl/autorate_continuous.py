@@ -128,10 +128,16 @@ class Config(BaseConfig):
          "required": True, "min": 1, "max": 100},
         {"path": "continuous_monitoring.thresholds.warn_bloat_ms", "type": (int, float),
          "required": True, "min": 1, "max": 200},
+        # Alpha values - optional if time_constant_sec is provided
         {"path": "continuous_monitoring.thresholds.alpha_baseline", "type": float,
-         "required": True, "min": 0.0001, "max": 1.0},
+         "required": False, "min": 0.0001, "max": 1.0},
         {"path": "continuous_monitoring.thresholds.alpha_load", "type": float,
-         "required": True, "min": 0.001, "max": 1.0},
+         "required": False, "min": 0.001, "max": 1.0},
+        # Time constants - preferred over raw alpha (auto-calculates alpha from interval)
+        {"path": "continuous_monitoring.thresholds.baseline_time_constant_sec", "type": (int, float),
+         "required": False, "min": 1, "max": 600},
+        {"path": "continuous_monitoring.thresholds.load_time_constant_sec", "type": (int, float),
+         "required": False, "min": 0.05, "max": 10},
 
         # Baseline RTT bounds (optional - security validation)
         {"path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -227,8 +233,38 @@ class Config(BaseConfig):
         self.target_bloat_ms = thresh['target_bloat_ms']          # GREEN → YELLOW (15ms)
         self.warn_bloat_ms = thresh['warn_bloat_ms']              # YELLOW → SOFT_RED (45ms)
         self.hard_red_bloat_ms = thresh.get('hard_red_bloat_ms', DEFAULT_HARD_RED_BLOAT_MS)
-        self.alpha_baseline = thresh['alpha_baseline']
-        self.alpha_load = thresh['alpha_load']
+
+        # EWMA alpha calculation - prefer time constants (human-readable, interval-independent)
+        # Formula: alpha = cycle_interval / time_constant
+        logger = logging.getLogger(__name__)
+        cycle_interval = CYCLE_INTERVAL_SECONDS
+
+        # Baseline alpha: require either time_constant or raw alpha
+        if 'baseline_time_constant_sec' in thresh:
+            tc = thresh['baseline_time_constant_sec']
+            self.alpha_baseline = cycle_interval / tc
+            logger.info(f"Calculated alpha_baseline={self.alpha_baseline:.6f} from time_constant={tc}s")
+        elif 'alpha_baseline' in thresh:
+            self.alpha_baseline = thresh['alpha_baseline']
+        else:
+            raise ValueError("Config must specify either baseline_time_constant_sec or alpha_baseline")
+
+        # Load alpha: require either time_constant or raw alpha
+        if 'load_time_constant_sec' in thresh:
+            tc = thresh['load_time_constant_sec']
+            self.alpha_load = cycle_interval / tc
+            logger.info(f"Calculated alpha_load={self.alpha_load:.4f} from time_constant={tc}s")
+        elif 'alpha_load' in thresh:
+            self.alpha_load = thresh['alpha_load']
+            # Warn if raw alpha seems miscalculated for current interval
+            expected_tc = cycle_interval / self.alpha_load
+            if expected_tc > 5.0:  # Time constant > 5 seconds is suspiciously slow
+                logger.warning(
+                    f"alpha_load={self.alpha_load} gives {expected_tc:.1f}s time constant - "
+                    f"consider using load_time_constant_sec for clarity"
+                )
+        else:
+            raise ValueError("Config must specify either load_time_constant_sec or alpha_load")
         # Baseline update threshold - only update baseline when delta is below this value
         # Prevents baseline drift under load (architectural invariant)
         self.baseline_update_threshold_ms = thresh.get(
