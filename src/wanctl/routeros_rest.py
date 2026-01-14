@@ -307,28 +307,16 @@ class RouterOSREST:
         Returns:
             API response dict or None on failure
         """
-        import re
-
         timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract queue name from [find name="..."]
-        name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
-        if not name_match:
+        queue_name = self._parse_find_name(cmd)
+        if not queue_name:
             self.logger.error(f"Could not parse queue name from: {cmd}")
             return None
 
-        queue_name = name_match.group(1)
-
         # Extract parameters (queue=, max-limit=)
-        params = {}
-
-        queue_match = re.search(r'queue=(\S+)', cmd)
-        if queue_match:
-            params['queue'] = queue_match.group(1)
-
-        limit_match = re.search(r'max-limit=(\d+)', cmd)
-        if limit_match:
-            params['max-limit'] = limit_match.group(1)
+        params = self._parse_parameters(cmd)
 
         if not params:
             self.logger.error(f"No parameters found in: {cmd}")
@@ -370,21 +358,19 @@ class RouterOSREST:
         Returns:
             API response dict or None on failure
         """
-        import re
-
         timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract queue name from [find name="..."]
-        name_match = re.search(r'\[find name="([^"]+)"\]', cmd)
-        if not name_match:
+        queue_name = self._parse_find_name(cmd)
+        if not queue_name:
             # Try alternative format: where name="..."
             name_match = re.search(r'name="([^"]+)"', cmd)
+            if name_match:
+                queue_name = name_match.group(1)
 
-        if not name_match:
+        if not queue_name:
             self.logger.error(f"Could not parse queue name from: {cmd}")
             return None
-
-        queue_name = name_match.group(1)
 
         # Find the queue ID
         queue_id = self._find_queue_id(queue_name, timeout=timeout_val)
@@ -420,11 +406,9 @@ class RouterOSREST:
         Returns:
             Queue details dict or None on failure
         """
-        import re
-
         timeout_val = timeout if timeout is not None else self.timeout
 
-        # Extract queue name if filtering
+        # Extract queue name if filtering (uses 'where name=' syntax, not [find])
         name_match = re.search(r'where name="([^"]+)"', cmd)
 
         url = f"{self.base_url}/queue/tree"
@@ -456,17 +440,13 @@ class RouterOSREST:
         Returns:
             API response dict or None on failure
         """
-        import re
-
         timeout_val = timeout if timeout is not None else self.timeout
 
         # Extract comment from [find comment="..."]
-        comment_match = re.search(r'\[find comment="([^"]+)"\]', cmd)
-        if not comment_match:
+        comment = self._parse_find_comment(cmd)
+        if not comment:
             self.logger.error(f"Could not parse rule comment from: {cmd}")
             return None
-
-        comment = comment_match.group(1)
 
         # Determine if enable or disable
         if 'enable' in cmd:
