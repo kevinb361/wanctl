@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 
 ## Current Position
 
-Phase: 17 of 20 (Config Documentation)
+Phase: 18 of 20 (Deprecation Warnings)
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-01-14 - Phase 16 complete
+Last activity: 2026-01-14 - Phase 17 complete
 
-Progress: ██░░░░░░░░ 20%
+Progress: ████░░░░░░ 40%
 
 ## Performance Metrics
 
@@ -35,7 +35,7 @@ Progress: ██░░░░░░░░ 20%
 - Cycle time: 30-41ms average (60-80% of 50ms budget)
 - Cycle interval: 50ms (production standard)
 - Router CPU: 0% idle, 45% peak under load
-- Tests: 605 passing
+- Tests: 611 passing
 - Status: **Production stable**
 
 ## Accumulated Context
@@ -84,6 +84,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Plan Phase 17: Config Documentation (`/gsd:plan-phase 17`)
-2. Continue with phases 17-20
+1. Plan Phase 18: Deprecation Warnings (`/gsd:plan-phase 18`)
+2. Continue with phases 18-20
 3. Continue Phase2B dry-run validation in parallel

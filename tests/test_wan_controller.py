@@ -41,6 +41,8 @@ class TestHandleIcmpFailure:
         config.alpha_baseline = 0.001
         config.alpha_load = 0.1
         config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -336,6 +338,8 @@ class TestIcmpRecovery:
         config.alpha_baseline = 0.001
         config.alpha_load = 0.1
         config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -462,6 +466,8 @@ class TestApplyRateChangesIfNeeded:
         config.alpha_baseline = 0.001
         config.alpha_load = 0.1
         config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True
@@ -743,6 +749,8 @@ class TestUpdateBaselineIfIdle:
         config.alpha_baseline = 0.001
         config.alpha_load = 0.1
         config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
         config.ping_hosts = ["1.1.1.1"]
         config.use_median_of_three = False
         config.fallback_enabled = True

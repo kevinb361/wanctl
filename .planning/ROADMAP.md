@@ -180,11 +180,11 @@ Plans:
 **Goal**: Document EWMA alphas and baseline_rtt_bounds in CONFIG_SCHEMA.md; add bounds validation to autorate
 **Depends on**: Phase 16
 **Research**: Unlikely (internal documentation)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
-- [ ] 17-01: TBD
+- [x] 17-01: Document baseline_rtt_bounds, add autorate validation, update example configs
 
 #### Phase 18: Deprecation Warnings
 
@@ -226,7 +226,7 @@ Plans:
 | Phase                      | Milestone | Plans | Status      | Completed  |
 | -------------------------- | --------- | ----- | ----------- | ---------- |
 | 16. Timer Interval Fix     | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 17. Config Documentation   | v1.2      | 0/?   | Not started | -          |
+| 17. Config Documentation   | v1.2      | 1/1   | Complete    | 2026-01-14 |
 | 18. Deprecation Warnings   | v1.2      | 0/?   | Not started | -          |
 | 19. Config Edge Case Tests | v1.2      | 0/?   | Not started | -          |
 | 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -          |

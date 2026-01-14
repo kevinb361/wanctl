@@ -277,8 +277,26 @@ Congestion detection thresholds.
 | `min_queue_red`          | number | packets | Queue depth for RED                   |
 | `red_samples_required`   | number | count   | Consecutive RED before steering       |
 | `green_samples_required` | number | count   | Consecutive GREEN before recovery     |
-| `rtt_ewma_alpha`         | number | 0-1     | RTT smoothing factor                  |
-| `queue_ewma_alpha`       | number | 0-1     | Queue depth smoothing factor          |
+| `rtt_ewma_alpha`         | number | 0-1     | RTT smoothing factor (default: 0.3)   |
+| `queue_ewma_alpha`       | number | 0-1     | Queue depth smoothing (default: 0.4)  |
+
+#### `thresholds.baseline_rtt_bounds` (optional)
+
+Security bounds for baseline RTT validation. Values outside these bounds are rejected as corrupted or invalid.
+
+| Field | Type   | Unit | Default | Description                |
+| ----- | ------ | ---- | ------- | -------------------------- |
+| `min` | number | ms   | 10      | Minimum valid baseline RTT |
+| `max` | number | ms   | 60      | Maximum valid baseline RTT |
+
+**Rationale:** Typical home ISP latencies are 20-50ms. Values below 10ms suggest local LAN (not internet), while values above 60ms suggest routing issues or corrupted autorate state.
+
+```yaml
+thresholds:
+  baseline_rtt_bounds:
+    min: 10 # Reject baseline below 10ms
+    max: 60 # Reject baseline above 60ms
+```
 
 ### `mode`
 
