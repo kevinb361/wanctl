@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-09)
 
 **Core value:** Reduce measurement and control latency to under 2 seconds per cycle while maintaining production reliability in home network deployments.
-**Current focus:** Phase 14 Complete — Ready for Phase 15 (SteeringDaemon Refactoring)
+**Current focus:** Phase 15 In Progress — SteeringDaemon Refactoring
 
 ## Current Position
 
-Phase: 14 of 15 (WANController Refactoring)
-Plan: 5 of 5 in current phase
-Status: Phase complete
-Last activity: 2026-01-14 — Completed 14-05-PLAN.md
+Phase: 15 of 15 (SteeringDaemon Refactoring)
+Plan: 4 of 5 in current phase
+Status: Phase in progress
+Last activity: 2026-01-13 — Completed 15-03-PLAN.md
 
-Progress: ████████████████████ 100% (5/5 plans in phase)
+Progress: ████████████████░░░░ 80% (4/5 plans in phase)
 
 ## Performance Metrics
 
@@ -36,11 +36,12 @@ Progress: ████████████████████ 100% (5/5
 | 10. Utility Consolidation - Part 2      | 2/2   | Complete | 4 min    |
 | 11. Refactor Long Functions             | 3/3   | Complete | 5 min    |
 | 14. WANController Refactoring           | 5/5   | Complete | 6 min    |
+| 15. SteeringDaemon Refactoring          | 4/5   | Progress | 18 min   |
 
 **Recent Trend:**
 
-- Last 5 plans: [14-01 ✓, 14-02 ✓, 14-03 ✓, 14-04 ✓, 14-05 ✓]
-- Trend: Excellent - Phase 14 complete (5/5 plans)
+- Last 5 plans: [15-01 ✓, 15-02 ✓, 15-03 ✓, 15-04 ✓, 15-05 ○]
+- Trend: Excellent - Phase 15 in progress (4/5 plans)
 
 **Current Performance:**
 
@@ -95,8 +96,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-14
-Stopped at: Completed 14-05-PLAN.md (Phase 14 complete)
+Last session: 2026-01-13
+Stopped at: Completed 15-03-PLAN.md and created summary
 Resume file: None
 
 ## Milestone Achievements
@@ -435,3 +436,44 @@ Resume file: None
 - New modules: wan_controller_state.py (StateManager pattern)
 - Total new tests: 54 tests (474 → 528)
 - All protected zones preserved
+
+### Phase 15 Summary (In Progress)
+
+**Completed:**
+
+- ✓ 15-01: Extract update_ewma_smoothing() (5 min execution)
+  - Created update_ewma_smoothing() method returning (rtt_delta_ewma, queue_ewma)
+  - run_cycle() now calls the extracted method
+  - Added 10 unit tests for EWMA smoothing
+  - Test count increased from 528 to 538
+  - Preserves C5 protected zone (numeric stability)
+
+- ✓ 15-02: Extract collect_cake_stats() (15 min execution)
+  - Created collect_cake_stats() -> tuple[int, int] method
+  - Handles CAKE stats reading with W8 failure tracking
+  - Added 13 unit tests for CAKE stats collection
+  - Test count increased from 538 to 551
+
+- ✓ 15-03: Extract execute_steering_transition() (30 min execution)
+  - Created execute_steering_transition(from_state, to_state, enable_steering) -> bool
+  - Consolidated routing control from 4 callsites in state machine methods
+  - Added 15 unit tests for routing transitions
+  - Test count increased from 551 to 566
+
+- ✓ 15-04: Extract run_daemon_loop() (20 min execution)
+  - Created run_daemon_loop() module-level function
+  - Simplified main() to initialization and delegation
+  - Added 13 unit tests for daemon loop
+  - Test count increased from 566 to 579
+
+**Remaining:**
+
+- ○ 15-05: Unify state machine methods (S6 recommendation from Phase 7)
+
+**Phase 15 Accomplishments So Far:**
+
+- Methods extracted from run_cycle(): update_ewma_smoothing(), collect_cake_stats()
+- Methods extracted from state machines: execute_steering_transition()
+- Functions extracted from main(): run_daemon_loop()
+- Total new tests: 51 tests (528 → 579)
+- All protected zones preserved (C5 numeric stability, W8 failure tracking)
