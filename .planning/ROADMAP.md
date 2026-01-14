@@ -259,12 +259,15 @@ Plans:
 **Depends on**: Phase 12
 **Research**: Unlikely (internal documentation)
 **Plans**: 2 plans
-**Status**: In progress
+**Status**: ✓ Complete
+**Completed**: 2026-01-14
 
 Plans:
 
 - [x] 13-01: Documentation consistency review and stale reference fixes
-- [ ] 13-02: Add inline comments to protected algorithm zones
+- [x] 13-02: Add inline comments to protected algorithm zones
+
+**Accomplishments**: Fixed stale module references in test docstrings, added 7 PROTECTED zone comments to WANController (3) and SteeringDaemon (4) to guide future refactoring in Phases 14-15.
 
 #### Phase 14: WANController Refactoring
 
@@ -312,6 +315,6 @@ v1.1: 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 (in progress
 | 10. Utility Consolidation - Part 2      | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 11. Refactor Long Functions             | v1.1      | 3/3            | ✓ Complete                    | 2026-01-14  |
 | 12. RouterOSREST Refactoring            | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
-| 13. Documentation Improvements          | v1.1      | 1/2            | In progress                   | -           |
+| 13. Documentation Improvements          | v1.1      | 2/2            | ✓ Complete                    | 2026-01-14  |
 | 14. WANController Refactoring           | v1.1      | 0/?            | Not started                   | -           |
 | 15. SteeringDaemon Refactoring          | v1.1      | 0/?            | Not started                   | -           |
