@@ -1,0 +1,37 @@
+# Quick RRUL test profile for CI/development
+#
+# Runs a 30-second RRUL test for faster feedback during
+# development and CI pipelines. Less thorough than standard
+# but catches obvious regressions.
+#
+# Target: Dallas netperf server (104.200.21.31)
+# Duration: 30 seconds with 3s warmup/cooldown
+# Purpose: Quick smoke test for CI
+
+name: rrul_quick
+description: "30-second RRUL test for CI and quick validation"
+tool: flent
+duration_seconds: 30
+warmup_seconds: 3
+cooldown_seconds: 3
+host: "104.200.21.31"
+
+parameters:
+  test_name: rrul
+  # Still use 8 streams - we need realistic load
+  test_parameter_tcp_streams: 8
+
+# Slightly relaxed SLAs for quick test
+# (shorter duration means less statistical confidence)
+latency_slas:
+  p95_max_ms: 60.0
+  p99_max_ms: 120.0
+  avg_max_ms: 40.0
+  max_bloat_over_baseline_ms: 40.0
+  flat_top_threshold_ms: 100.0
+  flat_top_max_duration_sec: 2.0
+
+controller_slas:
+  max_response_time_ms: 500.0
+  min_rate_reduction_pct: 10.0
+  require_state_transitions: true

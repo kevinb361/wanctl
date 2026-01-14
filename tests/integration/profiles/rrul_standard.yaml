@@ -1,0 +1,38 @@
+# Standard RRUL test profile for latency validation
+#
+# Runs a full 2-minute RRUL (Realtime Response Under Load) test
+# with 8 parallel streams to generate realistic congestion.
+#
+# Target: Dallas netperf server (104.200.21.31)
+# Duration: 2 minutes with 5s warmup/cooldown
+# Purpose: Thorough validation of latency control
+
+name: rrul_standard
+description: "2-minute RRUL test with 8 streams for full validation"
+tool: flent
+duration_seconds: 120
+warmup_seconds: 5
+cooldown_seconds: 5
+host: "104.200.21.31"
+
+parameters:
+  # RRUL test generates bidirectional TCP traffic
+  # with concurrent latency measurement
+  test_name: rrul
+
+  # 8 parallel streams saturate the link
+  test_parameter_tcp_streams: 8
+
+# SLA thresholds for this profile
+latency_slas:
+  p95_max_ms: 50.0
+  p99_max_ms: 100.0
+  avg_max_ms: 30.0
+  max_bloat_over_baseline_ms: 30.0
+  flat_top_threshold_ms: 100.0
+  flat_top_max_duration_sec: 2.0
+
+controller_slas:
+  max_response_time_ms: 500.0
+  min_rate_reduction_pct: 10.0
+  require_state_transitions: true
