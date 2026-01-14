@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** All milestones complete - ready for next milestone planning
+**Current focus:** v1.2 Configuration & Polish - Phase2B completion, config improvements
 
 ## Current Position
 
-Phase: N/A (no active milestone)
-Plan: N/A
-Status: All milestones complete
-Last activity: 2026-01-14 - v1.1 Code Quality milestone shipped
+Phase: 16 of 20 (Timer Interval Fix)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-14 - Milestone v1.2 created
 
-Progress: All phases complete
+Progress: ░░░░░░░░░░ 0%
 
 ## Performance Metrics
 
@@ -56,11 +56,12 @@ None currently.
 
 - **v1.0 Performance Optimization** (2026-01-13): 40x speed improvement achieved
 - **v1.1 Code Quality** (2026-01-14): Systematic refactoring complete, 120 new tests
+- **v1.2 Configuration & Polish** (2026-01-14): Created - Phase2B rollout, config improvements, 5 phases (16-20)
 
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: v1.1 milestone complete, tagged v1.1
+Stopped at: Milestone v1.2 initialization
 Resume file: None
 
 ## Milestone Achievements
@@ -74,6 +75,7 @@ Resume file: None
 
 **Goal:** Improve code maintainability through systematic refactoring
 **Achieved:**
+
 - Consolidated utility modules (~350 lines removed)
 - Extracted methods from WANController and SteeringDaemon
 - Unified state machine
@@ -82,6 +84,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Validate Phase2BController in production (dry-run for 1 week)
-2. Enable confidence-based steering after validation
-3. Plan next milestone (`/gsd:discuss-milestone`)
+1. Plan Phase 16: Timer Interval Fix (`/gsd:plan-phase 16`)
+2. Execute v1.2 phases (16-20)
+3. Continue Phase2B dry-run validation in parallel

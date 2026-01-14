@@ -15,9 +15,9 @@ None
 - ✅ [v1.1 Code Quality](milestones/v1.1-ROADMAP.md) (Phases 6-15) - SHIPPED 2026-01-14
 - ✅ [v1.0 Performance Optimization](milestones/v1.0-ROADMAP.md) (Phases 1-5) - SHIPPED 2026-01-13
 
-### Planned
+### In Progress
 
-(None currently - see `/gsd:discuss-milestone` to plan next milestone)
+- 🚧 **v1.2 Configuration & Polish** - Phases 16-20 (in progress)
 
 ## Phases
 
@@ -160,9 +160,78 @@ See [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 
 </details>
 
+### 🚧 v1.2 Configuration & Polish (In Progress)
+
+**Milestone Goal:** Complete Phase2B rollout, improve configuration documentation and validation.
+
+#### Phase 16: Timer Interval Fix
+
+**Goal**: Fix Phase2B timer decrement to use actual cycle interval instead of hardcoded 2s
+**Depends on**: v1.1 complete
+**Research**: Unlikely (internal bug fix)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 16-01: TBD (run /gsd:plan-phase 16 to break down)
+
+#### Phase 17: Config Documentation
+
+**Goal**: Document EWMA alphas and baseline_rtt_bounds in CONFIG_SCHEMA.md; add bounds validation to autorate
+**Depends on**: Phase 16
+**Research**: Unlikely (internal documentation)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 17-01: TBD
+
+#### Phase 18: Deprecation Warnings
+
+**Goal**: Add warnings for legacy steering params (bad_samples → red_samples_required, good_samples → green_samples_required)
+**Depends on**: Phase 17
+**Research**: Unlikely (internal patterns)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 18-01: TBD
+
+#### Phase 19: Config Edge Case Tests
+
+**Goal**: Test boundary conditions, special characters, and long names in config validation
+**Depends on**: Phase 18
+**Research**: Unlikely (internal testing)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 19-01: TBD
+
+#### Phase 20: Phase2B Enablement
+
+**Goal**: Enable confidence-based steering in production (set dry_run: false after validation)
+**Depends on**: Phase 19 + adequate dry-run validation data
+**Research**: Unlikely (config change, code exists)
+**Plans**: TBD
+
+Plans:
+
+- [ ] 20-01: TBD
+
 ## Progress
 
-**All milestones complete.** No active development phases.
+**Active milestone:** v1.2 Configuration & Polish (Phases 16-20)
+
+| Phase                      | Milestone | Plans | Status      | Completed |
+| -------------------------- | --------- | ----- | ----------- | --------- |
+| 16. Timer Interval Fix     | v1.2      | 0/?   | Not started | -         |
+| 17. Config Documentation   | v1.2      | 0/?   | Not started | -         |
+| 18. Deprecation Warnings   | v1.2      | 0/?   | Not started | -         |
+| 19. Config Edge Case Tests | v1.2      | 0/?   | Not started | -         |
+| 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -         |
+
+### Completed Milestones
 
 | Milestone                     | Phases | Status   | Shipped    |
 | ----------------------------- | ------ | -------- | ---------- |
