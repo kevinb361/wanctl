@@ -71,19 +71,21 @@ class Colors:
         BOLD: Bold text formatting
         END: Reset to default terminal colors
     """
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+
+    HEADER = "\033[95m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
 
 def print_header(msg: str):
     """Print a section header"""
@@ -126,9 +128,11 @@ def print_result(label: str, value: str, unit: str = ""):
 # CALIBRATION DATA
 # =============================================================================
 
+
 @dataclass
 class CalibrationResult:
     """Results from calibration process"""
+
     # Connection info
     wan_name: str
     router_host: str
@@ -177,6 +181,7 @@ class CalibrationResult:
 # CONNECTIVITY TESTS
 # =============================================================================
 
+
 def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> bool:
     """Test SSH connectivity to router"""
     print_step(f"Testing SSH connectivity to {user}@{host}...")
@@ -187,7 +192,9 @@ def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> b
     cmd.extend([f"{user}@{host}", "echo ok"])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT
+        )
         if result.returncode == 0 and "ok" in result.stdout:
             print_success("SSH connection successful")
             return True
@@ -231,6 +238,7 @@ def test_netperf_server(host: str) -> bool:
 # MEASUREMENTS
 # =============================================================================
 
+
 def measure_baseline_rtt(ping_host: str) -> float | None:
     """Measure baseline RTT (idle latency)"""
     print_step(f"Measuring baseline RTT to {ping_host}...")
@@ -267,7 +275,9 @@ def measure_baseline_rtt(ping_host: str) -> float | None:
         return None
 
 
-def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt: float) -> tuple[float, float]:
+def measure_throughput_download(
+    netperf_host: str, ping_host: str, baseline_rtt: float
+) -> tuple[float, float]:
     """
     Measure download throughput with latency under load.
     Returns: (throughput_mbps, bloat_ms)
@@ -275,15 +285,21 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
     print_step("Measuring download throughput (latency under load)...")
 
     # Start netperf in background (TCP_MAERTS = receive from server)
-    netperf_cmd = ["netperf", "-H", netperf_host, "-t", "TCP_MAERTS",
-                   "-l", str(NETPERF_DURATION), "-v", "2"]
+    netperf_cmd = [
+        "netperf",
+        "-H",
+        netperf_host,
+        "-t",
+        "TCP_MAERTS",
+        "-l",
+        str(NETPERF_DURATION),
+        "-v",
+        "2",
+    ]
 
     try:
         netperf_proc = subprocess.Popen(
-            netperf_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            netperf_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
         # Wait for ramp-up
@@ -291,7 +307,9 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT)
+        ping_result = subprocess.run(
+            ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT
+        )
 
         # Get netperf result
         stdout, stderr = netperf_proc.communicate(timeout=TIMEOUT_LONG)
@@ -326,7 +344,9 @@ def measure_throughput_download(netperf_host: str, ping_host: str, baseline_rtt:
         return 0.0, 0.0
 
 
-def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: float) -> tuple[float, float]:
+def measure_throughput_upload(
+    netperf_host: str, ping_host: str, baseline_rtt: float
+) -> tuple[float, float]:
     """
     Measure upload throughput with latency under load.
     Returns: (throughput_mbps, bloat_ms)
@@ -334,15 +354,21 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
     print_step("Measuring upload throughput (latency under load)...")
 
     # Start netperf in background (TCP_STREAM = send to server)
-    netperf_cmd = ["netperf", "-H", netperf_host, "-t", "TCP_STREAM",
-                   "-l", str(NETPERF_DURATION), "-v", "2"]
+    netperf_cmd = [
+        "netperf",
+        "-H",
+        netperf_host,
+        "-t",
+        "TCP_STREAM",
+        "-l",
+        str(NETPERF_DURATION),
+        "-v",
+        "2",
+    ]
 
     try:
         netperf_proc = subprocess.Popen(
-            netperf_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            netperf_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
         # Wait for ramp-up
@@ -350,7 +376,9 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT)
+        ping_result = subprocess.run(
+            ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT
+        )
 
         # Get netperf result
         stdout, stderr = netperf_proc.communicate(timeout=TIMEOUT_LONG)
@@ -388,17 +416,22 @@ def measure_throughput_upload(netperf_host: str, ping_host: str, baseline_rtt: f
 # BINARY SEARCH (requires RouterOS SSH)
 # =============================================================================
 
-def set_cake_limit(host: str, user: str, queue_name: str, rate_bps: int,
-                   ssh_key: str | None = None) -> bool:
+
+def set_cake_limit(
+    host: str, user: str, queue_name: str, rate_bps: int, ssh_key: str | None = None
+) -> bool:
     """Set CAKE queue limit via SSH"""
     cmd = ["ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes"]
     if ssh_key:
         cmd.extend(["-i", ssh_key])
-    cmd.extend([f"{user}@{host}",
-                f'/queue/tree set [find name="{queue_name}"] max-limit={rate_bps}'])
+    cmd.extend(
+        [f"{user}@{host}", f'/queue/tree set [find name="{queue_name}"] max-limit={rate_bps}']
+    )
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT
+        )
         return result.returncode == 0
     except Exception:
         return False
@@ -416,7 +449,7 @@ def binary_search_optimal_rate(
     baseline_rtt: float,
     target_bloat: float,
     ssh_key: str | None = None,
-    iterations: int = BINARY_SEARCH_ITERATIONS
+    iterations: int = BINARY_SEARCH_ITERATIONS,
 ) -> tuple[float, float]:
     """
     Binary search for optimal rate that maintains target bloat.
@@ -432,7 +465,7 @@ def binary_search_optimal_rate(
         test_rate = (min_rate + max_rate) / 2
         rate_bps = int(test_rate * 1_000_000)
 
-        print_info(f"  Iteration {i+1}/{iterations}: Testing {test_rate:.1f} Mbps")
+        print_info(f"  Iteration {i + 1}/{iterations}: Testing {test_rate:.1f} Mbps")
 
         # Set CAKE limit
         if not set_cake_limit(router_host, router_user, queue_name, rate_bps, ssh_key):
@@ -467,6 +500,7 @@ def binary_search_optimal_rate(
 # =============================================================================
 # CONFIG GENERATION
 # =============================================================================
+
 
 def generate_config(result: CalibrationResult, output_path: Path) -> bool:
     """Generate wanctl config file from calibration results"""
@@ -561,7 +595,7 @@ def generate_config(result: CalibrationResult, output_path: Path) -> bool:
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(header)
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
@@ -691,9 +725,7 @@ def _step_raw_throughput(
 
     time.sleep(3)  # Pause between tests
 
-    raw_upload, upload_bloat_raw = measure_throughput_upload(
-        netperf_host, ping_host, baseline_rtt
-    )
+    raw_upload, upload_bloat_raw = measure_throughput_upload(netperf_host, ping_host, baseline_rtt)
 
     print_result("Raw download", f"{raw_download:.1f}", "Mbps")
     print_result("Download bloat", f"{download_bloat_raw:.1f}", "ms")
@@ -854,7 +886,7 @@ def _step_save_results(result: CalibrationResult, output_dir: str) -> bool:
     # Also save raw results as JSON
     results_path = Path(output_dir) / f"{result.wan_name}_calibration.json"
     try:
-        with open(results_path, 'w') as f:
+        with open(results_path, "w") as f:
             json.dump(result.to_dict(), f, indent=2)
         print_info(f"Raw results saved to: {results_path}")
     except Exception as e:
@@ -865,7 +897,9 @@ def _step_save_results(result: CalibrationResult, output_dir: str) -> bool:
     print_info(f"  1. Review the generated config: {output_path}")
     print_info("  2. Update queue names to match your RouterOS config")
     print_info("  3. Copy SSH key: sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key")
-    print_info(f"  4. Enable the service: sudo systemctl enable --now wanctl@{result.wan_name}.timer")
+    print_info(
+        f"  4. Enable the service: sudo systemctl enable --now wanctl@{result.wan_name}.timer"
+    )
 
     return True
 
@@ -873,6 +907,7 @@ def _step_save_results(result: CalibrationResult, output_dir: str) -> bool:
 # =============================================================================
 # MAIN CALIBRATION WIZARD
 # =============================================================================
+
 
 def run_calibration(
     wan_name: str,
@@ -927,9 +962,7 @@ def run_calibration(
         return None
 
     # Step 3: Raw throughput
-    throughput_result = _step_raw_throughput(
-        netperf_host, ping_host, baseline_rtt, skip_throughput
-    )
+    throughput_result = _step_raw_throughput(netperf_host, ping_host, baseline_rtt, skip_throughput)
     if throughput_result is None:
         return None
     raw_download, raw_upload, download_bloat_raw, upload_bloat_raw = throughput_result
@@ -991,6 +1024,7 @@ def run_calibration(
 # CLI ENTRY POINT
 # =============================================================================
 
+
 def main():
     """Main entry point for baseline RTT calibration utility.
 
@@ -1025,31 +1059,39 @@ Examples:
   %(prog)s --wan-name wan1 --router 192.168.1.1
   %(prog)s --wan-name cable --router 192.168.1.1 --user admin
   %(prog)s --wan-name fiber --router 192.168.1.1 --skip-binary-search
-        """
+        """,
     )
 
-    parser.add_argument("--wan-name", required=True,
-                        help="Name for this WAN (e.g., wan1, cable, fiber)")
-    parser.add_argument("--router", required=True,
-                        help="Router IP or hostname")
-    parser.add_argument("--user", default="admin",
-                        help="SSH username for router (default: admin)")
-    parser.add_argument("--ssh-key",
-                        help="Path to SSH private key")
-    parser.add_argument("--netperf-host", default="netperf.bufferbloat.net",
-                        help="Netperf server hostname")
-    parser.add_argument("--ping-host", default="1.1.1.1",
-                        help="Host for RTT measurements (default: 1.1.1.1)")
-    parser.add_argument("--download-queue",
-                        help="RouterOS download queue name")
-    parser.add_argument("--upload-queue",
-                        help="RouterOS upload queue name")
-    parser.add_argument("--target-bloat", type=float, default=DEFAULT_TARGET_BLOAT_MS,
-                        help=f"Target bloat for binary search (default: {DEFAULT_TARGET_BLOAT_MS}ms)")
-    parser.add_argument("--output-dir", default="/etc/wanctl",
-                        help="Directory for generated config (default: /etc/wanctl)")
-    parser.add_argument("--skip-binary-search", action="store_true",
-                        help="Skip binary search (measure raw throughput only)")
+    parser.add_argument(
+        "--wan-name", required=True, help="Name for this WAN (e.g., wan1, cable, fiber)"
+    )
+    parser.add_argument("--router", required=True, help="Router IP or hostname")
+    parser.add_argument("--user", default="admin", help="SSH username for router (default: admin)")
+    parser.add_argument("--ssh-key", help="Path to SSH private key")
+    parser.add_argument(
+        "--netperf-host", default="netperf.bufferbloat.net", help="Netperf server hostname"
+    )
+    parser.add_argument(
+        "--ping-host", default="1.1.1.1", help="Host for RTT measurements (default: 1.1.1.1)"
+    )
+    parser.add_argument("--download-queue", help="RouterOS download queue name")
+    parser.add_argument("--upload-queue", help="RouterOS upload queue name")
+    parser.add_argument(
+        "--target-bloat",
+        type=float,
+        default=DEFAULT_TARGET_BLOAT_MS,
+        help=f"Target bloat for binary search (default: {DEFAULT_TARGET_BLOAT_MS}ms)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="/etc/wanctl",
+        help="Directory for generated config (default: /etc/wanctl)",
+    )
+    parser.add_argument(
+        "--skip-binary-search",
+        action="store_true",
+        help="Skip binary search (measure raw throughput only)",
+    )
 
     args = parser.parse_args()
 

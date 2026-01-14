@@ -10,12 +10,14 @@ import yaml
 
 class ConfigValidationError(ValueError):
     """Raised when config values fail security or schema validation."""
+
     pass
 
 
 # =============================================================================
 # SCHEMA VALIDATION HELPERS
 # =============================================================================
+
 
 def _get_nested(data: dict, path: str, default: Any = None) -> Any:
     """Get a nested value from a dictionary using dot notation.
@@ -28,7 +30,7 @@ def _get_nested(data: dict, path: str, default: Any = None) -> Any:
     Returns:
         Value at path, or default if not found
     """
-    keys = path.split('.')
+    keys = path.split(".")
     current = data
     for key in keys:
         if not isinstance(current, dict) or key not in current:
@@ -52,7 +54,7 @@ def validate_field(
     min_val: int | float | None = None,
     max_val: int | float | None = None,
     choices: list | None = None,
-    default: Any = None
+    default: Any = None,
 ) -> Any:
     """Validate a single config field.
 
@@ -92,13 +94,9 @@ def validate_field(
 
     # Check numeric range
     if min_val is not None and value < min_val:
-        raise ConfigValidationError(
-            f"Value out of range for {path}: {value} < {min_val} (minimum)"
-        )
+        raise ConfigValidationError(f"Value out of range for {path}: {value} < {min_val} (minimum)")
     if max_val is not None and value > max_val:
-        raise ConfigValidationError(
-            f"Value out of range for {path}: {value} > {max_val} (maximum)"
-        )
+        raise ConfigValidationError(f"Value out of range for {path}: {value} > {max_val} (maximum)")
 
     # Check choices
     if choices is not None and value not in choices:
@@ -159,8 +157,7 @@ def validate_schema(data: dict, schema: list[dict]) -> dict[str, Any]:
 
     if errors:
         raise ConfigValidationError(
-            f"Config validation failed with {len(errors)} error(s):\n  - " +
-            "\n  - ".join(errors)
+            f"Config validation failed with {len(errors)} error(s):\n  - " + "\n  - ".join(errors)
         )
 
     return validated
@@ -225,13 +222,13 @@ class BaseConfig:
             validate_schema(self.data, self.SCHEMA)
 
         # Universal fields (present in all configs) - already validated
-        self.wan_name = self.validate_identifier(self.data['wan_name'], 'wan_name')
+        self.wan_name = self.validate_identifier(self.data["wan_name"], "wan_name")
 
         # Router SSH configuration
-        router = self.data['router']
-        self.router_host = router['host']
-        self.router_user = router['user']
-        self.ssh_key = router['ssh_key']
+        router = self.data["router"]
+        self.router_host = router["host"]
+        self.router_user = router["user"]
+        self.ssh_key = router["ssh_key"]
 
         # Load component-specific fields
         self._load_specific_fields()
@@ -249,7 +246,7 @@ class BaseConfig:
 
         Legacy configs without schema_version are assumed to be version 1.0.
         """
-        schema_version = self.data.get('schema_version', '1.0')
+        schema_version = self.data.get("schema_version", "1.0")
 
         # Store version for potential use by subclasses or diagnostics
         self.schema_version = schema_version
@@ -259,8 +256,7 @@ class BaseConfig:
             # For now, we accept older versions with a warning
             logger = logging.getLogger(__name__)
             logger.info(
-                f"Config schema version {schema_version} "
-                f"(current: {self.CURRENT_SCHEMA_VERSION})"
+                f"Config schema version {schema_version} (current: {self.CURRENT_SCHEMA_VERSION})"
             )
             # Future migration hooks:
             # self._migrate_schema(schema_version, self.CURRENT_SCHEMA_VERSION)
@@ -291,11 +287,11 @@ class BaseConfig:
 
     # Pattern for safe RouterOS identifiers (queue names, interface names, etc.)
     # Allows: alphanumeric, dash, underscore, dot (for interface names like ether1.100)
-    _SAFE_IDENTIFIER_PATTERN = re.compile(r'^[A-Za-z0-9_.-]+$')
+    _SAFE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 
     # Pattern for safe mangle rule comments
     # Allows: alphanumeric, dash, underscore, space, colon (for "ADAPTIVE: ..." comments)
-    _SAFE_COMMENT_PATTERN = re.compile(r'^[A-Za-z0-9_.\-: ]+$')
+    _SAFE_COMMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.\-: ]+$")
 
     @classmethod
     def validate_identifier(cls, value: str, field_name: str) -> str:
@@ -320,9 +316,7 @@ class BaseConfig:
         if not value:
             raise ConfigValidationError(f"{field_name}: cannot be empty")
         if len(value) > 64:
-            raise ConfigValidationError(
-                f"{field_name}: too long ({len(value)} chars, max 64)"
-            )
+            raise ConfigValidationError(f"{field_name}: too long ({len(value)} chars, max 64)")
         if not cls._SAFE_IDENTIFIER_PATTERN.match(value):
             raise ConfigValidationError(
                 f"{field_name}: contains invalid characters: '{value}'. "
@@ -351,9 +345,7 @@ class BaseConfig:
         if not value:
             raise ConfigValidationError(f"{field_name}: cannot be empty")
         if len(value) > 128:
-            raise ConfigValidationError(
-                f"{field_name}: too long ({len(value)} chars, max 128)"
-            )
+            raise ConfigValidationError(f"{field_name}: too long ({len(value)} chars, max 128)")
         if not cls._SAFE_COMMENT_PATTERN.match(value):
             raise ConfigValidationError(
                 f"{field_name}: contains invalid characters: '{value}'. "
@@ -384,9 +376,7 @@ class BaseConfig:
         if not value:
             raise ConfigValidationError(f"{field_name}: cannot be empty")
         if len(value) > 256:
-            raise ConfigValidationError(
-                f"{field_name}: too long ({len(value)} chars, max 256)"
-            )
+            raise ConfigValidationError(f"{field_name}: too long ({len(value)} chars, max 256)")
 
         # Try IPv4
         try:
@@ -405,8 +395,8 @@ class BaseConfig:
         # Try hostname (RFC 1123: lowercase letters, digits, hyphens, and dots)
         # Pattern: (label.)*label where label = alphanumeric + hyphens, no leading/trailing hyphens
         hostname_pattern = re.compile(
-            r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$',
-            re.IGNORECASE
+            r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
+            re.IGNORECASE,
         )
         if hostname_pattern.match(value):
             return value

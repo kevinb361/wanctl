@@ -161,7 +161,7 @@ def check_command_success(
     cmd: str,
     err: str = "",
     logger: logging.Logger | None = None,
-    operation: str = "command execution"
+    operation: str = "command execution",
 ) -> bool:
     """Validate router command execution result.
 
@@ -194,7 +194,7 @@ def safe_parse_output(
     parse_func: Callable[[str], Any | None],
     logger: logging.Logger | None = None,
     operation: str = "output parsing",
-    default: Any = None
+    default: Any = None,
 ) -> Any:
     """Safely parse router command output with error handling.
 
@@ -229,10 +229,7 @@ def safe_parse_output(
         return default
 
 
-def validate_rule_status(
-    output: str,
-    logger: logging.Logger | None = None
-) -> bool | None:
+def validate_rule_status(output: str, logger: logging.Logger | None = None) -> bool | None:
     """Check if a RouterOS mangle rule is enabled or disabled.
 
     Parses RouterOS output to determine rule status:
@@ -260,10 +257,10 @@ def validate_rule_status(
 
     try:
         # First line contains rule status
-        first_line = output.split('\n')[0]
+        first_line = output.split("\n")[0]
         # RouterOS shows 'X' flag for disabled rules
         # Example: "0 X ;;; ADAPTIVE: Steer..."
-        is_disabled = 'X' in first_line
+        is_disabled = "X" in first_line
         return not is_disabled  # Return True if enabled, False if disabled
     except Exception as e:
         logger.error(f"Failed to parse rule status: {e}")
@@ -271,10 +268,7 @@ def validate_rule_status(
 
 
 def extract_field_value(
-    output: str,
-    field_name: str,
-    field_type: type = int,
-    logger: logging.Logger | None = None
+    output: str, field_name: str, field_type: type = int, logger: logging.Logger | None = None
 ) -> Any | None:
     """Extract a field value from router output using regex.
 
@@ -303,7 +297,7 @@ def extract_field_value(
     try:
         # Support both hyphenated and non-hyphenated field names
         # This handles both field_name and field-name variants
-        pattern = rf'(?:{field_name}|{field_name.replace("_", "-")})=([^\s\n]+)'
+        pattern = rf"(?:{field_name}|{field_name.replace('_', '-')})=([^\s\n]+)"
         match = re.search(pattern, output)
 
         if not match:
@@ -323,17 +317,16 @@ def extract_field_value(
             return field_type(value_str)
 
     except (ValueError, TypeError) as e:
-        logger.error(f"Failed to convert {field_name}={match.group(1) if match else '?'} to {field_type.__name__}: {e}")
+        logger.error(
+            f"Failed to convert {field_name}={match.group(1) if match else '?'} to {field_type.__name__}: {e}"
+        )
         return None
     except Exception as e:
         logger.error(f"Unexpected error extracting {field_name}: {e}")
         return None
 
 
-def extract_queue_stats(
-    output: str,
-    logger: logging.Logger | None = None
-) -> dict | None:
+def extract_queue_stats(output: str, logger: logging.Logger | None = None) -> dict | None:
     """Extract queue statistics from RouterOS output.
 
     Consolidates pattern: extract packets, bytes, dropped, queued-packets, queued-bytes.
@@ -353,13 +346,7 @@ def extract_queue_stats(
     if logger is None:
         logger = logging.getLogger(__name__)
 
-    stats = {
-        'packets': 0,
-        'bytes': 0,
-        'dropped': 0,
-        'queued_packets': 0,
-        'queued_bytes': 0
-    }
+    stats = {"packets": 0, "bytes": 0, "dropped": 0, "queued_packets": 0, "queued_bytes": 0}
 
     if not output:
         logger.warning("Empty output when extracting queue stats")
@@ -368,11 +355,11 @@ def extract_queue_stats(
     try:
         # Extract each stat field
         patterns = {
-            'packets': r'packets=(\d+)',
-            'bytes': r'(?<!queued-)bytes=(\d+)',  # Don't match queued-bytes
-            'dropped': r'dropped=(\d+)',
-            'queued_packets': r'queued-packets=(\d+)',
-            'queued_bytes': r'queued-bytes=(\d+)'
+            "packets": r"packets=(\d+)",
+            "bytes": r"(?<!queued-)bytes=(\d+)",  # Don't match queued-bytes
+            "dropped": r"dropped=(\d+)",
+            "queued_packets": r"queued-packets=(\d+)",
+            "queued_bytes": r"queued-bytes=(\d+)",
         }
 
         for key, pattern in patterns.items():
@@ -388,11 +375,7 @@ def extract_queue_stats(
 
 
 def handle_command_error[T](
-    rc: int,
-    err: str,
-    cmd: str,
-    logger: logging.Logger | None = None,
-    return_value: T | None = None
+    rc: int, err: str, cmd: str, logger: logging.Logger | None = None, return_value: T | None = None
 ) -> CommandResult[T]:
     """Handle command execution error and return a CommandResult.
 

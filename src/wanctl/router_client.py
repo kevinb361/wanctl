@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from wanctl.routeros_rest import RouterOSREST
 
 # Type alias for router clients
-RouterClient = Union[RouterOSSSH, 'RouterOSREST']
+RouterClient = Union[RouterOSSSH, "RouterOSREST"]
 
 
 def get_router_client(config, logger: logging.Logger) -> RouterClient:
@@ -63,14 +63,15 @@ def get_router_client(config, logger: logging.Logger) -> RouterClient:
         ValueError: If transport type is not supported
     """
     # Get transport type from config
-    transport = getattr(config, 'router_transport', 'ssh')
+    transport = getattr(config, "router_transport", "ssh")
 
-    if transport == 'ssh':
+    if transport == "ssh":
         logger.debug("Using SSH transport (paramiko)")
         return RouterOSSSH.from_config(config, logger)
 
-    elif transport == 'rest':
+    elif transport == "rest":
         from wanctl.routeros_rest import RouterOSREST
+
         logger.debug("Using REST API transport")
         return RouterOSREST.from_config(config, logger)
 
@@ -78,4 +79,4 @@ def get_router_client(config, logger: logging.Logger) -> RouterClient:
         raise ValueError(f"Unsupported router transport: {transport}")
 
 
-__all__ = ['get_router_client', 'RouterClient']
+__all__ = ["get_router_client", "RouterClient"]

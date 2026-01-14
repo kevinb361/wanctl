@@ -69,10 +69,11 @@ def parse_ping_output(text: str, logger_instance: logging.Logger | None = None) 
 
 class RTTAggregationStrategy(Enum):
     """RTT aggregation strategy when multiple samples collected."""
+
     AVERAGE = "average"  # Mean of all samples
-    MEDIAN = "median"    # Median of all samples
-    MIN = "min"          # Minimum (best RTT)
-    MAX = "max"          # Maximum (worst RTT)
+    MEDIAN = "median"  # Median of all samples
+    MIN = "min"  # Minimum (best RTT)
+    MAX = "max"  # Maximum (worst RTT)
 
 
 class RTTMeasurement:
@@ -161,9 +162,7 @@ class RTTMeasurement:
             )
 
             if result.returncode != 0:
-                self.logger.warning(
-                    f"Ping to {host} failed (returncode {result.returncode})"
-                )
+                self.logger.warning(f"Ping to {host} failed (returncode {result.returncode})")
                 return None
 
             # Parse RTT values using unified parser
@@ -226,10 +225,7 @@ class RTTMeasurement:
                 raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")
 
     def ping_hosts_concurrent(
-        self,
-        hosts: list[str],
-        count: int = 1,
-        timeout: float = 3.0
+        self, hosts: list[str], count: int = 1, timeout: float = 3.0
     ) -> list[float]:
         """
         Ping multiple hosts concurrently and return successful RTTs.
@@ -261,10 +257,7 @@ class RTTMeasurement:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
             # Submit all pings in parallel
-            future_to_host = {
-                executor.submit(self.ping_host, host, count): host
-                for host in hosts
-            }
+            future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
 
             # Collect results with timeout
             try:

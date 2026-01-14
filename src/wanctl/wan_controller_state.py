@@ -58,7 +58,7 @@ class WANControllerState:
             self.state_file,
             logger=self.logger,
             default=None,
-            error_context=f"{self.wan_name} state"
+            error_context=f"{self.wan_name} state",
         )
 
         if state is not None:
@@ -71,7 +71,7 @@ class WANControllerState:
         download: dict[str, Any],
         upload: dict[str, Any],
         ewma: dict[str, float],
-        last_applied: dict[str, int | None]
+        last_applied: dict[str, int | None],
     ) -> None:
         """
         Save state to disk with atomic write.
@@ -83,42 +83,34 @@ class WANControllerState:
             last_applied: Last applied rates (dl_rate, ul_rate)
         """
         state = {
-            'download': download,
-            'upload': upload,
-            'ewma': ewma,
-            'last_applied': last_applied,
-            'timestamp': datetime.datetime.now().isoformat()
+            "download": download,
+            "upload": upload,
+            "ewma": ewma,
+            "last_applied": last_applied,
+            "timestamp": datetime.datetime.now().isoformat(),
         }
 
         atomic_write_json(self.state_file, state)
         self.logger.debug(f"{self.wan_name}: Saved state to {self.state_file}")
 
     def build_download_state(
-        self,
-        green_streak: int,
-        soft_red_streak: int,
-        red_streak: int,
-        current_rate: int
+        self, green_streak: int, soft_red_streak: int, red_streak: int, current_rate: int
     ) -> dict[str, int]:
         """Build download state dict for save()."""
         return {
-            'green_streak': green_streak,
-            'soft_red_streak': soft_red_streak,
-            'red_streak': red_streak,
-            'current_rate': current_rate
+            "green_streak": green_streak,
+            "soft_red_streak": soft_red_streak,
+            "red_streak": red_streak,
+            "current_rate": current_rate,
         }
 
     def build_upload_state(
-        self,
-        green_streak: int,
-        soft_red_streak: int,
-        red_streak: int,
-        current_rate: int
+        self, green_streak: int, soft_red_streak: int, red_streak: int, current_rate: int
     ) -> dict[str, int]:
         """Build upload state dict for save()."""
         return {
-            'green_streak': green_streak,
-            'soft_red_streak': soft_red_streak,
-            'red_streak': red_streak,
-            'current_rate': current_rate
+            "green_streak": green_streak,
+            "soft_red_streak": soft_red_streak,
+            "red_streak": red_streak,
+            "current_rate": current_rate,
         }

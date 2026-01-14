@@ -12,6 +12,7 @@ from wanctl.path_utils import ensure_file_directory
 # JSON STRUCTURED LOGGING
 # =============================================================================
 
+
 class JSONFormatter(logging.Formatter):
     """JSON formatter for structured logging.
 
@@ -42,13 +43,32 @@ class JSONFormatter(logging.Formatter):
 
     # Standard LogRecord attributes to exclude from extra fields
     # These are internal to the logging module and not useful in JSON output
-    _EXCLUDE_ATTRS = frozenset({
-        'name', 'msg', 'args', 'created', 'filename', 'funcName',
-        'levelname', 'levelno', 'lineno', 'module', 'msecs', 'message',
-        'pathname', 'process', 'processName', 'relativeCreated',
-        'stack_info', 'exc_info', 'exc_text', 'thread', 'threadName',
-        'taskName',
-    })
+    _EXCLUDE_ATTRS = frozenset(
+        {
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "message",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "taskName",
+        }
+    )
 
     def format(self, record: logging.LogRecord) -> str:
         """Format a log record as a JSON string.
@@ -60,16 +80,16 @@ class JSONFormatter(logging.Formatter):
             JSON string representation of the log record
         """
         log_data: dict[str, Any] = {
-            'timestamp': datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
+            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
         }
 
         # Add extra fields from the record
         # These come from the `extra` parameter in logging calls
         for key, value in record.__dict__.items():
-            if key.startswith('_') or key in self._EXCLUDE_ATTRS:
+            if key.startswith("_") or key in self._EXCLUDE_ATTRS:
                 continue
             # Ensure the value is JSON-serializable
             try:
@@ -81,9 +101,9 @@ class JSONFormatter(logging.Formatter):
 
         # Include exception info if present
         if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
+            log_data["exception"] = self.formatException(record.exc_info)
 
-        return json.dumps(log_data, separators=(',', ':'))
+        return json.dumps(log_data, separators=(",", ":"))
 
 
 def get_log_format() -> str:
@@ -96,17 +116,14 @@ def get_log_format() -> str:
     Returns:
         "json" or "text"
     """
-    fmt = os.environ.get('WANCTL_LOG_FORMAT', 'text').lower()
-    if fmt in ('json', 'text'):
+    fmt = os.environ.get("WANCTL_LOG_FORMAT", "text").lower()
+    if fmt in ("json", "text"):
         return fmt
     # Invalid value, fall back to text
-    return 'text'
+    return "text"
 
 
-def _create_formatter(
-    log_format: str,
-    wan_name: str
-) -> logging.Formatter:
+def _create_formatter(log_format: str, wan_name: str) -> logging.Formatter:
     """Create a formatter based on the specified format.
 
     Args:
@@ -116,19 +133,14 @@ def _create_formatter(
     Returns:
         Configured formatter instance
     """
-    if log_format == 'json':
+    if log_format == "json":
         return JSONFormatter()
     else:
-        return logging.Formatter(
-            f"%(asctime)s [{wan_name}] [%(levelname)s] %(message)s"
-        )
+        return logging.Formatter(f"%(asctime)s [{wan_name}] [%(levelname)s] %(message)s")
 
 
 def setup_logging(
-    config,
-    logger_prefix: str,
-    debug: bool = False,
-    log_format: str | None = None
+    config, logger_prefix: str, debug: bool = False, log_format: str | None = None
 ) -> logging.Logger:
     """Setup logging with file and optional console output.
 
@@ -172,7 +184,7 @@ def setup_logging(
     effective_format = log_format if log_format else get_log_format()
 
     # Ensure log directories exist
-    for path in (config.main_log, getattr(config, 'debug_log', None)):
+    for path in (config.main_log, getattr(config, "debug_log", None)):
         if path:
             ensure_file_directory(path, logger=logger)
 
@@ -186,7 +198,7 @@ def setup_logging(
     logger.addHandler(fh)
 
     # Debug log and console - DEBUG level
-    if debug and hasattr(config, 'debug_log'):
+    if debug and hasattr(config, "debug_log"):
         dfh = logging.FileHandler(config.debug_log)
         dfh.setLevel(logging.DEBUG)
         dfh.setFormatter(formatter)

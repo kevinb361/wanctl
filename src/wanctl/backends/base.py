@@ -156,7 +156,7 @@ class RouterBackend(ABC):
         return True
 
     @classmethod
-    def from_config(cls, config) -> 'RouterBackend':
+    def from_config(cls, config) -> "RouterBackend":
         """Factory method to create backend from config object.
 
         Args:

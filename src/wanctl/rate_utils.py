@@ -66,9 +66,7 @@ def enforce_rate_bounds(
 
     # Validate constraint consistency
     if floor is not None and ceiling is not None and floor > ceiling:
-        raise ValueError(
-            f"Invalid rate bounds: floor ({floor}) cannot exceed ceiling ({ceiling})"
-        )
+        raise ValueError(f"Invalid rate bounds: floor ({floor}) cannot exceed ceiling ({ceiling})")
 
     return int(result)
 

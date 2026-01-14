@@ -42,7 +42,7 @@ class RouterOSBackend(RouterBackend):
         user: str,
         ssh_key: str,
         timeout: int = 15,
-        logger: logging.Logger | None = None
+        logger: logging.Logger | None = None,
     ):
         """Initialize RouterOS backend.
 
@@ -55,15 +55,11 @@ class RouterOSBackend(RouterBackend):
         """
         super().__init__(logger)
         self.ssh = RouterOSSSH(
-            host=host,
-            user=user,
-            ssh_key=ssh_key,
-            timeout=timeout,
-            logger=self.logger
+            host=host, user=user, ssh_key=ssh_key, timeout=timeout, logger=self.logger
         )
 
     @classmethod
-    def from_config(cls, config) -> 'RouterOSBackend':
+    def from_config(cls, config) -> "RouterOSBackend":
         """Create RouterOSBackend from config object.
 
         Expects config.router dict with:
@@ -78,13 +74,10 @@ class RouterOSBackend(RouterBackend):
             Configured RouterOSBackend instance
         """
         router = config.router
-        timeout = config.timeouts.get('ssh_command', 15) if hasattr(config, 'timeouts') else 15
+        timeout = config.timeouts.get("ssh_command", 15) if hasattr(config, "timeouts") else 15
 
         return cls(
-            host=router['host'],
-            user=router['user'],
-            ssh_key=router['ssh_key'],
-            timeout=timeout
+            host=router["host"], user=router["user"], ssh_key=router["ssh_key"], timeout=timeout
         )
 
     def set_bandwidth(self, queue: str, rate_bps: int) -> bool:
@@ -126,7 +119,7 @@ class RouterOSBackend(RouterBackend):
 
         # Check for unlimited (0 or not set)
         if max_limit is None:
-            if 'max-limit=0' in out or 'max-limit=' not in out:
+            if "max-limit=0" in out or "max-limit=" not in out:
                 return 0
             self.logger.warning(f"Could not parse max-limit for {queue}")
             return None
@@ -241,5 +234,5 @@ class RouterOSBackend(RouterBackend):
         Returns:
             True if router responds to identity command
         """
-        rc, out, _ = self.ssh.run_cmd('/system/identity/print', capture=True)
+        rc, out, _ = self.ssh.run_cmd("/system/identity/print", capture=True)
         return rc == 0 and bool(out.strip())
