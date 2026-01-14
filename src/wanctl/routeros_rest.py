@@ -480,6 +480,59 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
+    def _find_resource_id(
+        self,
+        endpoint: str,
+        filter_key: str,
+        filter_value: str,
+        cache: dict[str, str],
+        use_cache: bool = True,
+        timeout: int | None = None
+    ) -> str | None:
+        """Find RouterOS resource ID by filter key/value.
+
+        Generic method for looking up resource IDs with caching support.
+        Used by queue and mangle rule lookups.
+
+        Args:
+            endpoint: REST API endpoint (e.g., "queue/tree", "ip/firewall/mangle")
+            filter_key: Filter parameter name (e.g., "name", "comment")
+            filter_value: Value to filter by
+            cache: Cache dict to use for this resource type
+            use_cache: Whether to check/update cache (default True)
+            timeout: Request timeout in seconds
+
+        Returns:
+            Resource ID (e.g., "*1") or None if not found
+        """
+        timeout_val = timeout if timeout is not None else self.timeout
+
+        # Check cache first
+        if use_cache and filter_value in cache:
+            self.logger.debug(f"Resource ID cache hit: {filter_value} -> {cache[filter_value]}")
+            return cache[filter_value]
+
+        url = f"{self.base_url}/{endpoint}"
+
+        try:
+            resp = self._session.get(url, params={filter_key: filter_value}, timeout=timeout_val)
+
+            if resp.ok and resp.json():
+                items = resp.json()
+                if items:
+                    resource_id = items[0].get('.id')
+                    # Cache the result
+                    if resource_id and use_cache:
+                        cache[filter_value] = resource_id
+                        self.logger.debug(f"Resource ID cached: {filter_value} -> {resource_id}")
+                    return resource_id
+
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error finding resource: {e}")
+            return None
+
     def _find_queue_id(self, queue_name: str, use_cache: bool = True, timeout: int | None = None) -> str | None:
         """Find queue tree ID by name.
 
