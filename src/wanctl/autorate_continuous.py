@@ -778,6 +778,82 @@ class WANController:
         )
         return False
 
+    def apply_rate_changes_if_needed(self, dl_rate: int, ul_rate: int) -> bool:
+        """
+        Apply rate changes to router with flash wear protection and rate limiting.
+
+        Only sends updates to router when rates have actually changed (flash wear
+        protection) and within the rate limit window (API overload protection).
+
+        PROTECTED LOGIC - RouterOS writes queue changes to NAND flash. Repeated
+        writes accelerate flash wear. See docs/CORE-ALGORITHM-ANALYSIS.md.
+
+        Args:
+            dl_rate: Download rate in bits per second
+            ul_rate: Upload rate in bits per second
+
+        Returns:
+            True if cycle should continue (rates applied or skipped),
+            False if router update failed (triggers watchdog restart)
+
+        Side Effects:
+            - Updates last_applied_dl_rate/last_applied_ul_rate on success
+            - Records rate_limiter change on successful router update
+            - Records metrics (router_update, rate_limit_event)
+            - Calls save_state() when rate limited
+        """
+        # =====================================================================
+        # PROTECTED: Flash wear protection - only send queue limits when values change.
+        # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
+        # =====================================================================
+        if dl_rate == self.last_applied_dl_rate and ul_rate == self.last_applied_ul_rate:
+            self.logger.debug(
+                f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)"
+            )
+            return True  # Success - no update needed
+
+        # =====================================================================
+        # PROTECTED: Rate limiting prevents RouterOS API overload (RB5009 limit ~50 req/sec).
+        # See docs/CORE-ALGORITHM-ANALYSIS.md.
+        # =====================================================================
+        if not self.rate_limiter.can_change():
+            wait_time = self.rate_limiter.time_until_available()
+            self.logger.warning(
+                f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
+                f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
+                f"possible instability (next slot in {wait_time:.1f}s)"
+            )
+            if self.config.metrics_enabled:
+                record_rate_limit_event(self.wan_name)
+            # Still return True - cycle completed, just throttled the update
+            # Save state to preserve EWMA and streak counters
+            self.save_state()
+            return True
+
+        # Apply to router
+        success = self.router.set_limits(
+            wan=self.wan_name,
+            down_bps=dl_rate,
+            up_bps=ul_rate
+        )
+
+        if not success:
+            self.logger.error(f"{self.wan_name}: Failed to apply limits")
+            return False
+
+        # Record successful change for rate limiting
+        self.rate_limiter.record_change()
+
+        # Record metrics for router update
+        if self.config.metrics_enabled:
+            record_router_update(self.wan_name)
+
+        # Update tracking after successful write
+        self.last_applied_dl_rate = dl_rate
+        self.last_applied_ul_rate = ul_rate
+        self.logger.debug(f"{self.wan_name}: Applied new limits to router")
+        return True
+
     def handle_icmp_failure(self) -> tuple[bool, float | None]:
         """
         Handle ICMP ping failure with fallback connectivity checks.
@@ -903,59 +979,9 @@ class WANController:
             f"DL={dl_rate/1e6:.0f}M, UL={ul_rate/1e6:.0f}M"
         )
 
-        # =====================================================================
-        # PROTECTED: Flash wear protection - only send queue limits when values change.
-        # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
-        # =====================================================================
-        # RouterOS writes queue changes to NAND flash. Sending the same values
-        # repeatedly would cause unnecessary flash wear over time.
-        # DO NOT REMOVE THIS CHECK - it protects the router's flash memory.
-        # =====================================================================
-        if dl_rate != self.last_applied_dl_rate or ul_rate != self.last_applied_ul_rate:
-            # =====================================================================
-            # PROTECTED: Rate limiting prevents RouterOS API overload (RB5009 limit ~50 req/sec).
-            # See docs/CORE-ALGORITHM-ANALYSIS.md.
-            # =====================================================================
-            # During rapid state oscillations, limit how often we send updates
-            # to prevent router API overload. Skip update if rate limited.
-            # =====================================================================
-            if not self.rate_limiter.can_change():
-                wait_time = self.rate_limiter.time_until_available()
-                self.logger.warning(
-                    f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
-                    f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
-                    f"possible instability (next slot in {wait_time:.1f}s)"
-                )
-                if self.config.metrics_enabled:
-                    record_rate_limit_event(self.wan_name)
-                # Still return True - cycle completed, just throttled the update
-                # Save state to preserve EWMA and streak counters
-                self.save_state()
-                return True
-
-            success = self.router.set_limits(
-                wan=self.wan_name,
-                down_bps=dl_rate,
-                up_bps=ul_rate
-            )
-
-            if not success:
-                self.logger.error(f"{self.wan_name}: Failed to apply limits")
-                return False
-
-            # Record successful change for rate limiting
-            self.rate_limiter.record_change()
-
-            # Record metrics for router update
-            if self.config.metrics_enabled:
-                record_router_update(self.wan_name)
-
-            # Update tracking after successful write
-            self.last_applied_dl_rate = dl_rate
-            self.last_applied_ul_rate = ul_rate
-            self.logger.debug(f"{self.wan_name}: Applied new limits to router")
-        else:
-            self.logger.debug(f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)")
+        # Apply rate changes (with flash wear + rate limit protection)
+        if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
+            return False
 
         # Save state after successful cycle
         self.save_state()
