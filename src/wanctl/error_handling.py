@@ -27,6 +27,7 @@ Usage:
 
 import functools
 import logging
+import re
 import traceback
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -136,7 +137,6 @@ def handle_errors(
                             obj = args[0]
                             message = error_msg
                             # Find all {self.attr} patterns and replace
-                            import re
                             for match in re.finditer(r'\{self\.(\w+)\}', error_msg):
                                 attr_name = match.group(1)
                                 if hasattr(obj, attr_name):
