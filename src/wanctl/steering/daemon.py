@@ -25,6 +25,7 @@ import atexit
 import json
 import logging
 import sys
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -571,6 +572,47 @@ class SteeringDaemon:
         return current_state == self.config.state_good or \
                current_state in ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
 
+    def execute_steering_transition(
+        self,
+        from_state: str,
+        to_state: str,
+        enable_steering: bool
+    ) -> bool:
+        """Execute steering state transition with routing control.
+
+        Handles router enable/disable, transition logging, state update,
+        and metrics recording.
+
+        Args:
+            from_state: Current state name
+            to_state: Target state name
+            enable_steering: True to enable steering (degrade), False to disable (recover)
+
+        Returns:
+            True if transition succeeded, False if routing failed
+        """
+        # Execute routing change
+        if enable_steering:
+            if not self.router.enable_steering():
+                self.logger.error(f"Failed to enable steering, staying in {from_state}")
+                return False
+        else:
+            if not self.router.disable_steering():
+                self.logger.error(f"Failed to disable steering, staying in {from_state}")
+                return False
+
+        # Log transition and update state
+        self.state_mgr.log_transition(from_state, to_state)
+        self.state_mgr.state["current_state"] = to_state
+
+        # Record metrics if enabled
+        if self.config.metrics_enabled:
+            record_steering_transition(
+                self.config.primary_wan, from_state, to_state
+            )
+
+        return True
+
     def measure_current_rtt(self) -> float | None:
         """Measure current RTT to ping host"""
         return self.rtt_measurement.ping_host(
@@ -712,18 +754,11 @@ class SteeringDaemon:
                     )
 
                     # Enable steering
-                    if self.router.enable_steering():
-                        self.state_mgr.log_transition(current_state, self.config.state_degraded)
-                        state["current_state"] = self.config.state_degraded
+                    if self.execute_steering_transition(
+                        current_state, self.config.state_degraded, enable_steering=True
+                    ):
                         red_count = 0
                         state_changed = True
-                        # Record transition in metrics
-                        if self.config.metrics_enabled:
-                            record_steering_transition(
-                                self.config.primary_wan, current_state, self.config.state_degraded
-                            )
-                    else:
-                        self.logger.error(f"Failed to enable steering, staying in {self.config.state_good}")
 
             elif assessment == CongestionState.YELLOW:
                 red_count = 0
@@ -855,6 +890,56 @@ class SteeringDaemon:
 
         return state_changed
 
+    def collect_cake_stats(self) -> tuple[int, int]:
+        """Collect CAKE statistics (drops and queued packets).
+
+        Handles CAKE-aware mode check, stats reading, history updates,
+        and consecutive failure tracking (W8 fix).
+
+        Returns:
+            tuple[int, int]: (cake_drops, queued_packets)
+            Returns (0, 0) if CAKE-aware disabled or read fails
+        """
+        # Return early if CAKE-aware mode is disabled or no reader configured
+        if not self.config.cake_aware or not self.cake_reader:
+            return (0, 0)
+
+        state = self.state_mgr.state
+
+        # Read CAKE statistics (using delta math, no resets needed)
+        stats = self.cake_reader.read_stats(self.config.primary_download_queue)
+        if stats:
+            cake_drops = stats.dropped
+            queued_packets = stats.queued_packets
+
+            # Reset failure counter on successful read
+            state["cake_read_failures"] = 0
+
+            # Update history (W4 fix: deques handle automatic eviction)
+            state["cake_drops_history"].append(cake_drops)
+            state["queue_depth_history"].append(queued_packets)
+            # No manual trim needed - deques with maxlen automatically evict oldest elements
+
+            return (cake_drops, queued_packets)
+        else:
+            # W8 fix: Track consecutive CAKE read failures
+            state["cake_read_failures"] += 1
+            if state["cake_read_failures"] == 1:
+                # First failure - log warning
+                self.logger.warning(
+                    f"CAKE stats read failed for {self.config.primary_download_queue}, "
+                    f"using RTT-only decisions (failure {state['cake_read_failures']})"
+                )
+            elif state["cake_read_failures"] >= 3:
+                # Multiple failures - enter degraded mode
+                if state["cake_read_failures"] == 3:
+                    self.logger.error(
+                        f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
+                        f"entering degraded mode (RTT-only decisions)"
+                    )
+            # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
+            return (0, 0)
+
     def run_cycle(self) -> bool:
         """
         Execute one steering cycle
@@ -870,40 +955,7 @@ class SteeringDaemon:
         baseline_rtt = state["baseline_rtt"]
 
         # === CAKE Stats Collection (if enabled) ===
-        cake_drops = 0
-        queued_packets = 0
-
-        if self.config.cake_aware and self.cake_reader:
-            # Read CAKE statistics (using delta math, no resets needed)
-            stats = self.cake_reader.read_stats(self.config.primary_download_queue)
-            if stats:
-                cake_drops = stats.dropped
-                queued_packets = stats.queued_packets
-
-                # Reset failure counter on successful read
-                state["cake_read_failures"] = 0
-
-                # Update history (W4 fix: deques handle automatic eviction)
-                state["cake_drops_history"].append(cake_drops)
-                state["queue_depth_history"].append(queued_packets)
-                # No manual trim needed - deques with maxlen automatically evict oldest elements
-            else:
-                # W8 fix: Track consecutive CAKE read failures
-                state["cake_read_failures"] += 1
-                if state["cake_read_failures"] == 1:
-                    # First failure - log warning
-                    self.logger.warning(
-                        f"CAKE stats read failed for {self.config.primary_download_queue}, "
-                        f"using RTT-only decisions (failure {state['cake_read_failures']})"
-                    )
-                elif state["cake_read_failures"] >= 3:
-                    # Multiple failures - enter degraded mode
-                    if state["cake_read_failures"] == 3:
-                        self.logger.error(
-                            f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
-                            f"entering degraded mode (RTT-only decisions)"
-                        )
-                    # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
+        cake_drops, queued_packets = self.collect_cake_stats()
 
         # === RTT Measurement ===
         # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
