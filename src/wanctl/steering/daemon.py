@@ -790,18 +790,11 @@ class SteeringDaemon:
                     )
 
                     # Disable steering
-                    if self.router.disable_steering():
-                        self.state_mgr.log_transition(current_state, self.config.state_good)
-                        state["current_state"] = self.config.state_good
+                    if self.execute_steering_transition(
+                        current_state, self.config.state_good, enable_steering=False
+                    ):
                         good_count = 0
                         state_changed = True
-                        # Record transition in metrics
-                        if self.config.metrics_enabled:
-                            record_steering_transition(
-                                self.config.primary_wan, current_state, self.config.state_good
-                            )
-                    else:
-                        self.logger.error(f"Failed to disable steering, staying in {self.config.state_degraded}")
 
             else:  # YELLOW or RED - stay degraded
                 good_count = 0
@@ -848,13 +841,11 @@ class SteeringDaemon:
                     f"{self.config.primary_wan.upper()} DEGRADED detected (delta={delta:.1f}ms sustained for {bad_count} samples)"
                 )
 
-                if self.router.enable_steering():
-                    self.state_mgr.log_transition(current_state, self.config.state_degraded)
-                    state["current_state"] = self.config.state_degraded
+                if self.execute_steering_transition(
+                    current_state, self.config.state_degraded, enable_steering=True
+                ):
                     bad_count = 0
                     state_changed = True
-                else:
-                    self.logger.error(f"Failed to enable steering, staying in {self.config.state_good}")
 
         else:  # Degraded state
             # Normalize state name
@@ -877,13 +868,11 @@ class SteeringDaemon:
                     f"{self.config.primary_wan.upper()} RECOVERED (delta={delta:.1f}ms sustained for {good_count} samples)"
                 )
 
-                if self.router.disable_steering():
-                    self.state_mgr.log_transition(current_state, self.config.state_good)
-                    state["current_state"] = self.config.state_good
+                if self.execute_steering_transition(
+                    current_state, self.config.state_good, enable_steering=False
+                ):
                     good_count = 0
                     state_changed = True
-                else:
-                    self.logger.error(f"Failed to disable steering, staying in {self.config.state_degraded}")
 
         state["bad_count"] = bad_count
         state["good_count"] = good_count
@@ -940,6 +929,39 @@ class SteeringDaemon:
             # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
             return (0, 0)
 
+    def update_ewma_smoothing(self, delta: float, queued_packets: int) -> tuple[float, float]:
+        """
+        Update EWMA smoothed values for RTT delta and queue depth.
+
+        PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
+        Formula: (1-alpha)*current + alpha*new. Do not modify without approval.
+        See docs/CORE-ALGORITHM-ANALYSIS.md.
+
+        Args:
+            delta: Current RTT delta (current_rtt - baseline_rtt)
+            queued_packets: Current CAKE queue depth in packets
+
+        Returns:
+            tuple[float, float]: (rtt_delta_ewma, queue_ewma) updated values
+        """
+        state = self.state_mgr.state
+
+        rtt_delta_ewma = ewma_update(
+            state["rtt_delta_ewma"],
+            delta,
+            self.config.rtt_ewma_alpha
+        )
+        state["rtt_delta_ewma"] = rtt_delta_ewma
+
+        queue_ewma = ewma_update(
+            state["queue_ewma"],
+            float(queued_packets),
+            self.config.queue_ewma_alpha
+        )
+        state["queue_ewma"] = queue_ewma
+
+        return rtt_delta_ewma, queue_ewma
+
     def run_cycle(self) -> bool:
         """
         Execute one steering cycle
@@ -968,21 +990,9 @@ class SteeringDaemon:
         delta = self.calculate_delta(current_rtt)
 
         # === EWMA Smoothing (if CAKE-aware) ===
-        # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load. Formula: (1-alpha)*current + alpha*new
+        # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
         if self.config.cake_aware:
-            rtt_delta_ewma = ewma_update(
-                state["rtt_delta_ewma"],
-                delta,
-                self.config.rtt_ewma_alpha
-            )
-            state["rtt_delta_ewma"] = rtt_delta_ewma
-
-            queue_ewma = ewma_update(
-                state["queue_ewma"],
-                float(queued_packets),
-                self.config.queue_ewma_alpha
-            )
-            state["queue_ewma"] = queue_ewma
+            rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
         else:
             rtt_delta_ewma = delta
 
@@ -1039,8 +1049,84 @@ class SteeringDaemon:
 
 
 # =============================================================================
+# DAEMON LOOP
+# =============================================================================
+
+
+def run_daemon_loop(
+    daemon: SteeringDaemon,
+    config: SteeringConfig,
+    logger: logging.Logger,
+    shutdown_event: threading.Event,
+) -> int:
+    """
+    Run continuous daemon loop with watchdog and failure tracking.
+
+    Executes steering cycles until shutdown signal received.
+    Manages systemd watchdog notifications based on cycle success.
+    Stops watchdog after MAX_CONSECUTIVE_FAILURES to trigger restart.
+
+    Args:
+        daemon: Initialized SteeringDaemon instance
+        config: Steering configuration (for measurement_interval)
+        logger: Logger for status messages
+        shutdown_event: Event signaling shutdown request
+
+    Returns:
+        Exit code: 0 for graceful shutdown
+    """
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 3
+    watchdog_enabled = True
+
+    logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
+    if is_systemd_available():
+        logger.info("Systemd watchdog support enabled")
+
+    # Main event loop - runs continuously until shutdown signal
+    while not shutdown_event.is_set():
+        cycle_start = time.monotonic()
+
+        # Run one cycle
+        cycle_success = daemon.run_cycle()
+
+        elapsed = time.monotonic() - cycle_start
+
+        # Track consecutive failures for watchdog
+        if cycle_success:
+            consecutive_failures = 0
+        else:
+            consecutive_failures += 1
+            logger.warning(f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")
+
+            # Stop watchdog notifications if sustained failures
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+                watchdog_enabled = False
+                logger.error(
+                    f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
+                    f"Stopping watchdog - systemd will terminate us."
+                )
+                notify_degraded("consecutive failures exceeded threshold")
+
+        # Notify systemd watchdog ONLY if healthy
+        if watchdog_enabled and cycle_success:
+            notify_watchdog()
+        elif not watchdog_enabled:
+            notify_degraded(f"{consecutive_failures} consecutive failures")
+
+        # Sleep for remainder of cycle interval (interruptible)
+        sleep_time = max(0, config.measurement_interval - elapsed)
+        if sleep_time > 0 and not shutdown_event.is_set():
+            shutdown_event.wait(timeout=sleep_time)
+
+    logger.info("Shutdown signal received, exiting gracefully")
+    return 0
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """Main entry point for adaptive multi-WAN steering daemon.
@@ -1158,57 +1244,12 @@ def main():
         rtt_measurement, baseline_loader, logger
     )
 
-    # Daemon mode variables
-    consecutive_failures = 0
-    MAX_CONSECUTIVE_FAILURES = 3
-    watchdog_enabled = True
-
-    logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
-    if is_systemd_available():
-        logger.info("Systemd watchdog support enabled")
-
     # Get shutdown event for direct access in timed waits
     shutdown_event = get_shutdown_event()
 
     try:
-        # Main event loop - runs continuously until shutdown signal
-        while not shutdown_event.is_set():
-            cycle_start = time.monotonic()
-
-            # Run one cycle
-            cycle_success = daemon.run_cycle()
-
-            elapsed = time.monotonic() - cycle_start
-
-            # Track consecutive failures for watchdog
-            if cycle_success:
-                consecutive_failures = 0
-            else:
-                consecutive_failures += 1
-                logger.warning(f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")
-
-                # Stop watchdog notifications if sustained failures
-                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
-                    watchdog_enabled = False
-                    logger.error(
-                        f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
-                        f"Stopping watchdog - systemd will terminate us."
-                    )
-                    notify_degraded("consecutive failures exceeded threshold")
-
-            # Notify systemd watchdog ONLY if healthy
-            if watchdog_enabled and cycle_success:
-                notify_watchdog()
-            elif not watchdog_enabled:
-                notify_degraded(f"{consecutive_failures} consecutive failures")
-
-            # Sleep for remainder of cycle interval (interruptible)
-            sleep_time = max(0, config.measurement_interval - elapsed)
-            if sleep_time > 0 and not shutdown_event.is_set():
-                shutdown_event.wait(timeout=sleep_time)
-
-        logger.info("Shutdown signal received, exiting gracefully")
-        return 0
+        # Run the daemon loop (extracted for testability)
+        return run_daemon_loop(daemon, config, logger, shutdown_event)
 
     except KeyboardInterrupt:
         # KeyboardInterrupt may bypass signal handler in some cases

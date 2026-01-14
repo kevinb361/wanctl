@@ -20,14 +20,15 @@ from .congestion_assessment import (
     CongestionState,
     StateThresholds,
     assess_congestion_state,
-    ewma_update
+    ewma_update,
 )
 from .daemon import (
-    SteeringDaemon,
-    SteeringConfig,
+    BaselineLoader,
     RouterOSController,
     RTTMeasurement,
-    BaselineLoader,
+    SteeringConfig,
+    SteeringDaemon,
+    run_daemon_loop,
 )
 
 # Phase 2B (optional)
@@ -45,6 +46,7 @@ __all__ = [
     'RouterOSController',
     'RTTMeasurement',
     'BaselineLoader',
+    'run_daemon_loop',
     # CAKE statistics
     'CakeStats',
     'CakeStatsReader',
