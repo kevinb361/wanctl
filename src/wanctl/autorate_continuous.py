@@ -40,13 +40,13 @@ from wanctl.signal_utils import (
     is_shutdown_requested,
     register_signal_handlers,
 )
-from wanctl.wan_controller_state import WANControllerState
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
     notify_watchdog,
 )
 from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
+from wanctl.wan_controller_state import WANControllerState
 
 # =============================================================================
 # CONSTANTS
