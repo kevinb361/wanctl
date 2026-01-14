@@ -169,11 +169,11 @@ See [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 **Goal**: Fix Phase2B timer decrement to use actual cycle interval instead of hardcoded 2s
 **Depends on**: v1.1 complete
 **Research**: Unlikely (internal bug fix)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
-- [ ] 16-01: TBD (run /gsd:plan-phase 16 to break down)
+- [x] 16-01: Fix Phase2B timer interval (add cycle_interval param, update decrements, add tests)
 
 #### Phase 17: Config Documentation
 
@@ -223,13 +223,13 @@ Plans:
 
 **Active milestone:** v1.2 Configuration & Polish (Phases 16-20)
 
-| Phase                      | Milestone | Plans | Status      | Completed |
-| -------------------------- | --------- | ----- | ----------- | --------- |
-| 16. Timer Interval Fix     | v1.2      | 0/?   | Not started | -         |
-| 17. Config Documentation   | v1.2      | 0/?   | Not started | -         |
-| 18. Deprecation Warnings   | v1.2      | 0/?   | Not started | -         |
-| 19. Config Edge Case Tests | v1.2      | 0/?   | Not started | -         |
-| 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -         |
+| Phase                      | Milestone | Plans | Status      | Completed  |
+| -------------------------- | --------- | ----- | ----------- | ---------- |
+| 16. Timer Interval Fix     | v1.2      | 1/1   | Complete    | 2026-01-14 |
+| 17. Config Documentation   | v1.2      | 0/?   | Not started | -          |
+| 18. Deprecation Warnings   | v1.2      | 0/?   | Not started | -          |
+| 19. Config Edge Case Tests | v1.2      | 0/?   | Not started | -          |
+| 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -          |
 
 ### Completed Milestones
 

@@ -189,7 +189,8 @@ class TimerManager:
         hold_down_duration: int,
         state_good: str,
         state_degraded: str,
-        logger: logging.Logger
+        logger: logging.Logger,
+        cycle_interval: float = 0.05
     ):
         self.steer_threshold = steer_threshold
         self.recovery_threshold = recovery_threshold
@@ -199,6 +200,7 @@ class TimerManager:
         self.state_good = state_good
         self.state_degraded = state_degraded
         self.logger = logger
+        self.cycle_interval = cycle_interval
 
     def _is_good_state(self, current_state: str) -> bool:
         """Check if current state is a 'good' state (handles legacy names)"""
@@ -239,7 +241,7 @@ class TimerManager:
                 )
             else:
                 # Decrement timer
-                timer_state.degrade_timer -= 2  # Assessment interval is 2s
+                timer_state.degrade_timer -= self.cycle_interval
                 self.logger.info(
                     f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"degrade_timer={timer_state.degrade_timer}s"
@@ -277,7 +279,7 @@ class TimerManager:
 
         if timer_state.hold_down_timer is not None:
             # Decrement timer
-            timer_state.hold_down_timer -= 2
+            timer_state.hold_down_timer -= self.cycle_interval
             self.logger.debug(
                 f"[PHASE2B] hold_down_active remaining={timer_state.hold_down_timer}s "
                 f"confidence={timer_state.confidence_score} (ignored)"
@@ -327,7 +329,7 @@ class TimerManager:
                 )
             else:
                 # Decrement timer
-                timer_state.recovery_timer -= 2
+                timer_state.recovery_timer -= self.cycle_interval
                 self.logger.info(
                     f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
                     f"recovery_timer={timer_state.recovery_timer}s"
@@ -502,12 +504,14 @@ class Phase2BController:
         config_v3: dict,
         logger: logging.Logger,
         state_good: str = "WAN1_GOOD",
-        state_degraded: str = "WAN1_DEGRADED"
+        state_degraded: str = "WAN1_DEGRADED",
+        cycle_interval: float = 0.05
     ):
         self.logger = logger
         self.config = config_v3
         self.state_good = state_good
         self.state_degraded = state_degraded
+        self.cycle_interval = cycle_interval
 
         # Confidence thresholds
         confidence_cfg = config_v3['confidence']
@@ -524,7 +528,8 @@ class Phase2BController:
             hold_down_duration=timers_cfg['hold_down_duration_sec'],
             state_good=state_good,
             state_degraded=state_degraded,
-            logger=logger
+            logger=logger,
+            cycle_interval=cycle_interval
         )
 
         # Flap detector

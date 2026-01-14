@@ -627,7 +627,8 @@ class SteeringDaemon:
                 config_v3=self.config.confidence_config,
                 logger=self.logger,
                 state_good=self.config.state_good,
-                state_degraded=self.config.state_degraded
+                state_degraded=self.config.state_degraded,
+                cycle_interval=ASSESSMENT_INTERVAL_SECONDS
             )
             dry_run_status = self.config.confidence_config['dry_run']['enabled']
             self.logger.info(
