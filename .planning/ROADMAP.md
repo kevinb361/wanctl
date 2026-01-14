@@ -217,19 +217,19 @@ Plans:
 
 Plans:
 
-- [ ] 20-01: TBD
+- [x] 20-01: Enable Phase2B confidence scoring (dry-run mode)
 
 ## Progress
 
-**Active milestone:** v1.2 Configuration & Polish (Phases 16-20)
+**Active milestone:** v1.2 Configuration & Polish (Phases 16-20) - COMPLETE
 
-| Phase                      | Milestone | Plans | Status      | Completed  |
-| -------------------------- | --------- | ----- | ----------- | ---------- |
-| 16. Timer Interval Fix     | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 17. Config Documentation   | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 18. Deprecation Warnings   | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 19. Config Edge Case Tests | v1.2      | 1/1   | Complete    | 2026-01-14 |
-| 20. Phase2B Enablement     | v1.2      | 0/?   | Not started | -          |
+| Phase                      | Milestone | Plans | Status   | Completed  |
+| -------------------------- | --------- | ----- | -------- | ---------- |
+| 16. Timer Interval Fix     | v1.2      | 1/1   | Complete | 2026-01-14 |
+| 17. Config Documentation   | v1.2      | 1/1   | Complete | 2026-01-14 |
+| 18. Deprecation Warnings   | v1.2      | 1/1   | Complete | 2026-01-14 |
+| 19. Config Edge Case Tests | v1.2      | 1/1   | Complete | 2026-01-14 |
+| 20. Phase2B Enablement     | v1.2      | 1/1   | Complete | 2026-01-14 |
 
 ### Completed Milestones
 
@@ -237,3 +237,4 @@ Plans:
 | ----------------------------- | ------ | -------- | ---------- |
 | v1.0 Performance Optimization | 1-5    | Complete | 2026-01-13 |
 | v1.1 Code Quality             | 6-15   | Complete | 2026-01-14 |
+| v1.2 Configuration & Polish   | 16-20  | Complete | 2026-01-14 |

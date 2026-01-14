@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 ## Current Position
 
 Phase: 20 of 20 (Phase2B Enablement)
-Plan: None yet
-Status: Ready to plan
-Last activity: 2026-01-14 - Phase 19 complete
+Plan: 1 of 1 complete
+Status: Phase complete - Milestone complete
+Last activity: 2026-01-14 - Completed 20-01-PLAN.md
 
-Progress: ████████░░ 80%
+Progress: ██████████ 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 42 (v1.0: 8, v1.1: 34)
-- v1.1 execution: 1 day (2026-01-13 to 2026-01-14)
+- Total plans completed: 47 (v1.0: 8, v1.1: 34, v1.2: 5)
+- v1.2 execution: 1 day (2026-01-14)
 
 **By Milestone:**
 
@@ -29,6 +29,7 @@ Progress: ████████░░ 80%
 | ----------------------------- | ------ | ----- | ----------- | ---------- |
 | v1.0 Performance Optimization | 1-5    | 8     | N/A         | 2026-01-13 |
 | v1.1 Code Quality             | 6-15   | 34    | +120        | 2026-01-14 |
+| v1.2 Configuration & Polish   | 16-20  | 5     | +77         | 2026-01-14 |
 
 **Current Performance:**
 
@@ -61,7 +62,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-14
-Stopped at: Milestone v1.2 initialization
+Stopped at: Completed v1.2 milestone - Phase2B enabled (dry-run)
 Resume file: None
 
 ## Milestone Achievements
@@ -82,8 +83,19 @@ Resume file: None
 - Integrated Phase2BController with dry-run mode
 - Added 120 new tests (474 → 594)
 
+### v1.2 Configuration & Polish (Shipped 2026-01-14)
+
+**Goal:** Complete Phase2B rollout, improve configuration documentation
+**Achieved:**
+
+- Fixed Phase2B timer interval (cycle_interval param)
+- Documented baseline_rtt_bounds in CONFIG_SCHEMA.md
+- Added deprecation warnings for legacy steering params
+- Added config edge case tests (+77 tests, 594 → 671)
+- Enabled Phase2B confidence scoring in dry-run mode
+
 ## Next Steps
 
-1. Plan Phase 20: Phase2B Enablement (`/gsd:plan-phase 20`)
-2. Complete v1.2 milestone
-3. Continue Phase2B dry-run validation in parallel
+1. Monitor Phase2B dry-run validation (1 week recommended)
+2. After validation: Set `dry_run: false` for live routing
+3. Complete v1.2 milestone with `/gsd:complete-milestone`
