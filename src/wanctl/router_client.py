@@ -35,7 +35,7 @@ Configuration (in YAML):
 """
 
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from wanctl.routeros_ssh import RouterOSSSH
 
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 RouterClient = Union[RouterOSSSH, "RouterOSREST"]
 
 
-def get_router_client(config, logger: logging.Logger) -> RouterClient:
+def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
     """Factory function to create the appropriate router client.
 
     Selects between SSH (paramiko) and REST API based on config.

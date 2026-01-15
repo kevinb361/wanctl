@@ -6,6 +6,7 @@ import random
 import subprocess
 import time
 from collections.abc import Callable
+from typing import Any
 
 
 def is_retryable_error(exception: Exception) -> bool:
@@ -85,7 +86,7 @@ def retry_with_backoff(
     max_delay: float = 10.0,
     jitter: bool = True,
     on_retry: Callable[[int, Exception, float], None] | None = None,
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator that retries a function on transient failures with exponential backoff.
 
@@ -128,9 +129,9 @@ def retry_with_backoff(
     - Give up after 3 attempts
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Get logger from self if method, otherwise create basic logger
             if args and hasattr(args[0], "logger"):
                 logger = args[0].logger
@@ -200,12 +201,12 @@ def retry_with_backoff(
 
 
 def verify_with_retry(
-    check_func: Callable,
-    expected_result,
+    check_func: Callable[[], Any],
+    expected_result: Any,
     max_retries: int = 3,
     initial_delay: float = 0.1,
     backoff_factor: float = 2.0,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
     operation_name: str = "verification",
 ) -> bool:
     """
@@ -275,13 +276,13 @@ def verify_with_retry(
 
 
 def measure_with_retry(
-    measure_func: Callable,
+    measure_func: Callable[[], Any],
     max_retries: int = 3,
     retry_delay: float = 0.5,
-    fallback_func: Callable = None,
-    logger: logging.Logger = None,
+    fallback_func: Callable[[], Any] | None = None,
+    logger: logging.Logger | None = None,
     operation_name: str = "measurement",
-) -> any:
+) -> Any:
     """
     Retry a measurement function with fixed delay, falling back on exhaustion.
 

@@ -31,12 +31,13 @@ Deadlock-safe: Signal handler does not log (logging in signal handlers is unsafe
 
 import signal
 import threading
+import types
 
 # Module-level shutdown event (thread-safe)
 _shutdown_event = threading.Event()
 
 
-def _signal_handler(signum: int, frame) -> None:
+def _signal_handler(signum: int, frame: types.FrameType | None) -> None:
     """Signal handler for SIGTERM and SIGINT.
 
     Sets the shutdown event to allow the main loop to exit gracefully.

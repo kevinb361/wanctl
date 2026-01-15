@@ -25,6 +25,7 @@ build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
+    "mypy>=1.10.0",
     "pyflakes>=3.4.0",
     "pytest>=8.0.0",
     "ruff>=0.4.0",
@@ -50,4 +51,13 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["wanctl"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_ignores = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+disable_error_code = ["import-untyped"]
 

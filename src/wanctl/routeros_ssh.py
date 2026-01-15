@@ -26,6 +26,7 @@ Usage:
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import paramiko
 
@@ -54,7 +55,12 @@ class RouterOSSSH:
     """
 
     def __init__(
-        self, host: str, user: str, ssh_key: str, timeout: int = 15, logger: logging.Logger = None
+        self,
+        host: str,
+        user: str,
+        ssh_key: str,
+        timeout: int = 15,
+        logger: logging.Logger | None = None,
     ):
         """Initialize RouterOS SSH client.
 
@@ -91,7 +97,7 @@ class RouterOSSSH:
         return known_hosts
 
     @classmethod
-    def from_config(cls, config, logger: logging.Logger) -> "RouterOSSSH":
+    def from_config(cls, config: Any, logger: logging.Logger) -> "RouterOSSSH":
         """Create RouterOSSSH instance from a config object.
 
         Expects config to have:

@@ -87,39 +87,39 @@ class Colors:
 # =============================================================================
 
 
-def print_header(msg: str):
+def print_header(msg: str) -> None:
     """Print a section header"""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'=' * 60}{Colors.END}")
     print(f"{Colors.BOLD}{Colors.BLUE}{msg}{Colors.END}")
     print(f"{Colors.BOLD}{Colors.BLUE}{'=' * 60}{Colors.END}\n")
 
 
-def print_step(msg: str):
+def print_step(msg: str) -> None:
     """Print a step message"""
     print(f"{Colors.GREEN}[*]{Colors.END} {msg}")
 
 
-def print_info(msg: str):
+def print_info(msg: str) -> None:
     """Print an info message"""
     print(f"{Colors.CYAN}[i]{Colors.END} {msg}")
 
 
-def print_warning(msg: str):
+def print_warning(msg: str) -> None:
     """Print a warning message"""
     print(f"{Colors.YELLOW}[!]{Colors.END} {msg}")
 
 
-def print_error(msg: str):
+def print_error(msg: str) -> None:
     """Print an error message"""
     print(f"{Colors.RED}[x]{Colors.END} {msg}")
 
 
-def print_success(msg: str):
+def print_success(msg: str) -> None:
     """Print a success message"""
     print(f"{Colors.GREEN}[+]{Colors.END} {msg}")
 
 
-def print_result(label: str, value: str, unit: str = ""):
+def print_result(label: str, value: str, unit: str = "") -> None:
     """Print a result value"""
     print(f"    {Colors.BOLD}{label}:{Colors.END} {Colors.CYAN}{value}{Colors.END} {unit}")
 
@@ -1025,7 +1025,7 @@ def run_calibration(
 # =============================================================================
 
 
-def main():
+def main() -> int:
     """Main entry point for baseline RTT calibration utility.
 
     Parses command-line arguments and runs calibration workflow to discover

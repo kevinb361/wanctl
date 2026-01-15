@@ -386,7 +386,7 @@ class SteeringConfig(BaseConfig):
         metrics_config = self.data.get("metrics", {})
         self.metrics_enabled = metrics_config.get("enabled", False)
 
-    def _load_specific_fields(self):
+    def _load_specific_fields(self) -> None:
         """Load steering daemon-specific configuration fields.
 
         Orchestrates loading of all steering-specific config by calling
@@ -950,7 +950,7 @@ class SteeringDaemon:
             Current RTT or None if all retries fail and no fallback available
         """
 
-        def fallback_to_history():
+        def fallback_to_history() -> float | None:
             """Fallback to historical RTT data when current measurement fails.
 
             Uses moving average of last N RTT values as fallback when ping fails.
@@ -1515,7 +1515,7 @@ def run_daemon_loop(
 # =============================================================================
 
 
-def main():
+def main() -> int | None:
     """Main entry point for adaptive multi-WAN steering daemon.
 
     Runs continuous steering control loop that monitors congestion state from
@@ -1609,7 +1609,7 @@ def main():
         return 1
 
     # Register emergency cleanup handler for lock file
-    def emergency_lock_cleanup():
+    def emergency_lock_cleanup() -> None:
         """Emergency cleanup - runs via atexit if finally block doesn't complete."""
         try:
             config.lock_file.unlink(missing_ok=True)

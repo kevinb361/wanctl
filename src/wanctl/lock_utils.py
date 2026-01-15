@@ -10,6 +10,7 @@ import errno
 import logging
 import os
 import time
+import types
 from pathlib import Path
 
 
@@ -269,7 +270,12 @@ class LockFile:
             raise LockAcquisitionError(self.lock_path, age)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         if self.lock_path.exists():
             self.lock_path.unlink()
             self.logger.debug(f"Lock released: {self.lock_path}")

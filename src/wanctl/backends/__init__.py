@@ -16,11 +16,13 @@ Usage:
     stats = backend.get_queue_stats("WAN-Download-1")
 """
 
+from typing import Any
+
 from wanctl.backends.base import RouterBackend
 from wanctl.backends.routeros import RouterOSBackend
 
 
-def get_backend(config) -> RouterBackend:
+def get_backend(config: Any) -> RouterBackend:
     """Factory function to create the appropriate backend.
 
     Args:

@@ -113,7 +113,7 @@ class RouterOSREST:
         self.logger.debug(f"RouterOS REST client initialized: {self.base_url}")
 
     @classmethod
-    def from_config(cls, config, logger: logging.Logger) -> "RouterOSREST":
+    def from_config(cls, config: Any, logger: logging.Logger) -> "RouterOSREST":
         """Create RouterOSREST instance from a config object.
 
         Expects config to have:

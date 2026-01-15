@@ -261,7 +261,7 @@ class TimerManager:
 
         return None
 
-    def update_hold_down_timer(self, timer_state: TimerState, current_state: str):
+    def update_hold_down_timer(self, timer_state: TimerState, current_state: str) -> None:
         """
         Update hold-down timer (post-steer cooldown).
 
@@ -386,7 +386,7 @@ class FlapDetector:
         self.penalty_threshold_add = penalty_threshold_add
         self.logger = logger
 
-    def record_toggle(self, timer_state: TimerState, event: str):
+    def record_toggle(self, timer_state: TimerState, event: str) -> None:
         """Record a steering state change (enable or disable)"""
         if not self.enabled:
             return
@@ -452,7 +452,9 @@ class DryRunLogger:
         self.enabled = enabled
         self.logger = logger
 
-    def log_decision(self, decision: str, confidence: int, contributors: list[str], sustained: int):
+    def log_decision(
+        self, decision: str, confidence: int, contributors: list[str], sustained: int
+    ) -> None:
         """Log a hypothetical steering decision"""
         if not self.enabled:
             return
