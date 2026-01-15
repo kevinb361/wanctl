@@ -1578,7 +1578,7 @@ def main() -> int | None:
     # atexit handlers run on normal exit, sys.exit(), and unhandled exceptions
     # but NOT on SIGKILL - that's unavoidable. However, this covers more cases
     # than relying solely on the finally block.
-    def emergency_lock_cleanup():
+    def emergency_lock_cleanup() -> None:
         """Emergency cleanup - runs via atexit if finally block doesn't complete."""
         for lock_path in lock_files:
             try:

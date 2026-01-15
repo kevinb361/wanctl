@@ -29,7 +29,7 @@ import functools
 import logging
 import re
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any, TypeVar
 
@@ -107,7 +107,7 @@ def handle_errors(
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except exception_types as e:
@@ -182,7 +182,7 @@ def safe_operation(
     log_level: int = logging.WARNING,
     log_traceback: bool = False,
     exception_types: tuple = (Exception,),
-):
+) -> Generator[None, None, None]:
     """
     Context manager for safe operations with error handling.
 
@@ -233,12 +233,12 @@ def safe_operation(
 
 def safe_call(
     func: Callable[..., Any],
-    *args,
+    *args: Any,
     logger: logging.Logger | None = None,
     default: Any = None,
     log_level: int = logging.WARNING,
     log_traceback: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> Any:
     """
     Safely invoke a function with error handling and logging.

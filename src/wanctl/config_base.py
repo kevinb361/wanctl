@@ -233,11 +233,11 @@ class BaseConfig:
         # Load component-specific fields
         self._load_specific_fields()
 
-    def _validate_base_schema(self):
+    def _validate_base_schema(self) -> None:
         """Validate base schema fields present in all configs."""
         validate_schema(self.data, self.BASE_SCHEMA)
 
-    def _validate_schema_version(self):
+    def _validate_schema_version(self) -> None:
         """Validate and log schema version from config file.
 
         Checks the schema_version field in the config and logs if it differs
@@ -261,7 +261,7 @@ class BaseConfig:
             # Future migration hooks:
             # self._migrate_schema(schema_version, self.CURRENT_SCHEMA_VERSION)
 
-    def _load_specific_fields(self):
+    def _load_specific_fields(self) -> None:
         """Override in subclasses to load component-specific config.
 
         Subclasses should:

@@ -7,6 +7,7 @@ Reads CAKE queue statistics (drops, queue depth) via SSH
 import logging
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from ..config_base import ConfigValidationError
 from ..router_client import get_router_client
@@ -44,7 +45,7 @@ class CongestionSignals:
 class CakeStatsReader:
     """Read CAKE statistics from RouterOS queue (supports SSH and REST)"""
 
-    def __init__(self, config, logger: logging.Logger):
+    def __init__(self, config: Any, logger: logging.Logger):
         self.config = config
         self.logger = logger
 

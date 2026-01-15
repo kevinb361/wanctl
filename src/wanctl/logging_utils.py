@@ -140,7 +140,7 @@ def _create_formatter(log_format: str, wan_name: str) -> logging.Formatter:
 
 
 def setup_logging(
-    config, logger_prefix: str, debug: bool = False, log_format: str | None = None
+    config: Any, logger_prefix: str, debug: bool = False, log_format: str | None = None
 ) -> logging.Logger:
     """Setup logging with file and optional console output.
 

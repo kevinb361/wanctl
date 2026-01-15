@@ -16,6 +16,7 @@ Config schema:
 """
 
 import logging
+from typing import Any
 
 from wanctl.backends.base import RouterBackend
 from wanctl.router_command_utils import (
@@ -59,7 +60,7 @@ class RouterOSBackend(RouterBackend):
         )
 
     @classmethod
-    def from_config(cls, config) -> "RouterOSBackend":
+    def from_config(cls, config: Any) -> "RouterOSBackend":
         """Create RouterOSBackend from config object.
 
         Expects config.router dict with:

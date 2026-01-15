@@ -19,6 +19,7 @@ To add a new backend:
 
 import logging
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class RouterBackend(ABC):
@@ -156,7 +157,7 @@ class RouterBackend(ABC):
         return True
 
     @classmethod
-    def from_config(cls, config) -> "RouterBackend":
+    def from_config(cls, config: Any) -> "RouterBackend":
         """Factory method to create backend from config object.
 
         Args:
