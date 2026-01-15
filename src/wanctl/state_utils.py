@@ -17,17 +17,18 @@ from typing import Any
 from wanctl.path_utils import ensure_file_directory
 
 
-def atomic_write_json(file_path: Path, data: dict[str, Any], indent: int = 2) -> None:
+def atomic_write_json(file_path: Path, data: dict[str, Any]) -> None:
     """Atomically write JSON data to a file.
 
     Uses write-to-temp-then-rename pattern to ensure the file is never
     in a partial/corrupt state. The rename operation is atomic on POSIX
     systems when source and destination are on the same filesystem.
 
+    Uses compact JSON format (no indentation) for faster serialization.
+
     Args:
         file_path: Path to the target file
         data: Dictionary to serialize as JSON
-        indent: JSON indentation level (default: 2)
 
     Raises:
         OSError: If the write or rename operation fails
@@ -48,7 +49,8 @@ def atomic_write_json(file_path: Path, data: dict[str, Any], indent: int = 2) ->
 
     try:
         with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=indent)
+            # Compact JSON format (no whitespace) for faster serialization
+            json.dump(data, f, separators=(",", ":"))
             f.flush()
             os.fsync(f.fileno())  # Ensure data is written to disk
 

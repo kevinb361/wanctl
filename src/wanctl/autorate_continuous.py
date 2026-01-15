@@ -85,6 +85,7 @@ MAX_SANE_BASELINE_RTT = 60.0
 # Rate limiter defaults (protects router API during instability)
 DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
+FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 
 # Conversion factors
 MBPS_TO_BPS = 1_000_000
@@ -867,6 +868,8 @@ class WANController:
         self.state_manager = WANControllerState(
             state_file=config.state_file, logger=logger, wan_name=wan_name
         )
+        # Periodic force save counter (safety net against crashes)
+        self._cycles_since_forced_save = 0
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -1262,8 +1265,13 @@ class WANController:
         if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
             return False
 
-        # Save state after successful cycle
-        self.save_state()
+        # Save state with periodic force save (safety net against crashes)
+        self._cycles_since_forced_save += 1
+        if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
+            self.save_state(force=True)
+            self._cycles_since_forced_save = 0
+        else:
+            self.save_state()
 
         # Record metrics if enabled
         if self.config.metrics_enabled:
@@ -1316,8 +1324,12 @@ class WANController:
                 self.last_applied_ul_rate = applied.get("ul_rate")
 
     @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
-    def save_state(self) -> None:
-        """Save hysteresis state to disk for persistence across restarts."""
+    def save_state(self, force: bool = False) -> None:
+        """Save hysteresis state to disk for persistence across restarts.
+
+        Args:
+            force: If True, bypass dirty tracking and always write
+        """
         self.state_manager.save(
             download=self.state_manager.build_download_state(
                 self.download.green_streak,
@@ -1336,6 +1348,7 @@ class WANController:
                 "dl_rate": self.last_applied_dl_rate,
                 "ul_rate": self.last_applied_ul_rate,
             },
+            force=force,
         )
 
 
@@ -1685,10 +1698,16 @@ def main() -> int | None:
                 wan_info["logger"].info("Shutdown requested, exiting gracefully...")
 
     finally:
-        # CLEANUP PRIORITY: locks > connections > servers
-        # Lock cleanup is most critical - enables restart if we crash mid-cleanup
+        # CLEANUP PRIORITY: state > locks > connections > servers
 
-        # 1. Clean up lock files FIRST (highest priority for restart capability)
+        # 0. Force save state for all WANs (preserve EWMA/counters on shutdown)
+        for wan_info in controller.wan_controllers:
+            try:
+                wan_info["controller"].save_state(force=True)
+            except Exception:
+                pass  # Best effort
+
+        # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:
             try:
                 lock_path.unlink(missing_ok=True)

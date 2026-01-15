@@ -49,6 +49,21 @@ router:
   password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
 ```
 
+## Development Commands
+
+```bash
+# Tests (use venv directly, not system python)
+.venv/bin/pytest tests/ -v
+.venv/bin/pytest tests/test_foo.py -v  # specific file
+
+# Linting and type checking
+.venv/bin/ruff check src/ tests/
+.venv/bin/mypy src/wanctl/
+
+# Format code
+.venv/bin/ruff format src/ tests/
+```
+
 ## Quick Commands
 
 ```bash

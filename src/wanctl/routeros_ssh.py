@@ -231,7 +231,8 @@ class RouterOSSSH:
             if capture:
                 stdout_text = stdout.read().decode("utf-8", errors="replace")
                 stderr_text = stderr.read().decode("utf-8", errors="replace")
-                self.logger.debug(f"RouterOS stdout: {stdout_text}")
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug(f"RouterOS stdout: {stdout_text}")
                 return exit_status, stdout_text, stderr_text
             else:
                 # Drain the channels even if not capturing (required for proper cleanup)
