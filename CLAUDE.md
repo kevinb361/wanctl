@@ -105,6 +105,12 @@ ssh cake-spectrum 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
 - Only new latency-sensitive connections rerouted
 - Autorate baseline RTT is authoritative (steering must not alter)
 
+## ICMP Blackout Handling
+
+**Resolved:** Spectrum ISP ICMP blocking (v1.1.0 fix)
+
+When ICMP is blocked/filtered, controller now measures TCP RTT as fallback during connectivity checks. This prevents watchdog restarts and provides accurate latency data even during ICMP outages. See `CHANGELOG.md` for details.
+
 ## Known Issues
 
 None currently. See `CHANGELOG.md` for resolved issues.
