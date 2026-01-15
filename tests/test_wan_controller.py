@@ -105,7 +105,7 @@ class TestHandleIcmpFailure:
         controller.load_rtt = 28.5
 
         # Mock connectivity check to return True (connectivity exists)
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -120,7 +120,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 1  # Will become 2
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -134,7 +134,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 2  # Will become 3
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -148,7 +148,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 3  # Will become 4
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -163,7 +163,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 10  # Well past max
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -180,7 +180,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -194,7 +194,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 100
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -211,7 +211,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 32.7
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -225,7 +225,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 100
         controller.load_rtt = 32.7
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -242,7 +242,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=False):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -257,11 +257,83 @@ class TestHandleIcmpFailure:
             controller.config.fallback_mode = mode
             controller.icmp_unavailable_cycles = 0
 
-            with patch.object(controller, "verify_connectivity_fallback", return_value=False):
+            with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
                 should_continue, measured_rtt = controller.handle_icmp_failure()
 
             assert should_continue is False, f"Mode {mode} should fail on total loss"
             assert measured_rtt is None
+
+    # =========================================================================
+    # TCP RTT fallback tests
+    # =========================================================================
+
+    def test_tcp_rtt_used_when_available(self, controller):
+        """Should use TCP RTT directly when ICMP fails but TCP RTT is available."""
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5  # Should NOT be used
+
+        # TCP RTT of 25.5ms available
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 25.5)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is True
+        assert measured_rtt == 25.5  # TCP RTT, not load_rtt
+        assert controller.icmp_unavailable_cycles == 1
+        controller.logger.warning.assert_called()
+
+    def test_tcp_rtt_bypasses_degradation_cycles(self, controller):
+        """TCP RTT should bypass cycle-based degradation in graceful_degradation mode."""
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.config.fallback_max_cycles = 3
+        controller.icmp_unavailable_cycles = 10  # Would normally trigger failure
+        controller.load_rtt = 28.5
+
+        # TCP RTT available - should work regardless of cycle count
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 30.2)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is True
+        assert measured_rtt == 30.2  # TCP RTT used despite high cycle count
+        assert controller.icmp_unavailable_cycles == 11
+
+    def test_tcp_rtt_works_in_freeze_mode(self, controller):
+        """TCP RTT should be used even in freeze mode when available."""
+        controller.config.fallback_mode = "freeze"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5
+
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 22.1)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is True
+        assert measured_rtt == 22.1  # TCP RTT, not freeze (None)
+
+    def test_tcp_rtt_works_in_use_last_rtt_mode(self, controller):
+        """TCP RTT should be used even in use_last_rtt mode when available."""
+        controller.config.fallback_mode = "use_last_rtt"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5  # Should NOT be used
+
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 19.8)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is True
+        assert measured_rtt == 19.8  # TCP RTT, not load_rtt
+
+    def test_fallback_to_degradation_when_no_tcp_rtt(self, controller):
+        """Should fall back to degradation behavior when TCP RTT is None."""
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.config.fallback_max_cycles = 3
+        controller.icmp_unavailable_cycles = 3  # Cycle 4 - would fail
+        controller.load_rtt = 28.5
+
+        # Connectivity exists but no TCP RTT (gateway-only case)
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is False  # Cycle 4 should fail
+        assert measured_rtt is None
 
     # =========================================================================
     # Unknown mode tests
@@ -273,7 +345,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=True):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -291,7 +363,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
 
         with (
-            patch.object(controller, "verify_connectivity_fallback", return_value=True),
+            patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
             patch("wanctl.autorate_continuous.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()
@@ -305,7 +377,7 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
 
         with (
-            patch.object(controller, "verify_connectivity_fallback", return_value=True),
+            patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
             patch("wanctl.autorate_continuous.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()

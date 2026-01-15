@@ -985,65 +985,93 @@ class WANController:
             return True
         return False
 
-    def verify_tcp_connectivity(self) -> bool:
+    def verify_tcp_connectivity(self) -> tuple[bool, float | None]:
         """
-        Check if we can establish TCP connections (HTTPS).
+        Check if we can establish TCP connections (HTTPS) and measure RTT.
 
         Tests multiple targets using TCP handshake to verify Internet connectivity
-        when ICMP is blocked/filtered.
+        when ICMP is blocked/filtered. Times successful connections to provide
+        TCP-based RTT as fallback for ICMP.
 
         Returns:
-            True if ANY TCP connection succeeds (ICMP-specific issue)
-            False if all TCP attempts fail (total connectivity loss)
+            (connected, rtt_ms):
+            - connected: True if ANY TCP connection succeeds
+            - rtt_ms: Median RTT in milliseconds from successful connections, or None
         """
         if not self.config.fallback_check_tcp:
-            return False
+            return (False, None)
 
+        rtts: list[float] = []
         for host, port in self.config.fallback_tcp_targets:
             try:
-                sock = socket.create_connection((host, port), timeout=2)
+                start = time.monotonic()
+                sock = socket.create_connection((host, port), timeout=0.5)
                 sock.close()
-                self.logger.warning(
-                    f"{self.wan_name}: ICMP failed but TCP to {host}:{port} succeeded - "
-                    f"ICMP-specific issue, continuing with degraded monitoring"
-                )
-                return True
+                rtt_ms = (time.monotonic() - start) * 1000
+                rtts.append(rtt_ms)
+                self.logger.debug(f"TCP to {host}:{port} succeeded, RTT={rtt_ms:.1f}ms")
             except (TimeoutError, OSError, socket.gaierror) as e:
                 self.logger.debug(f"TCP to {host}:{port} failed: {e}")
                 continue
 
-        return False  # All TCP attempts failed
+        if rtts:
+            median_rtt = statistics.median(rtts) if len(rtts) > 1 else rtts[0]
+            self.logger.info(
+                f"{self.wan_name}: TCP connectivity verified, RTT={median_rtt:.1f}ms "
+                f"(from {len(rtts)} targets)"
+            )
+            return (True, median_rtt)
 
-    def verify_connectivity_fallback(self) -> bool:
+        return (False, None)  # All TCP attempts failed
+
+    def verify_connectivity_fallback(self) -> tuple[bool, float | None]:
         """
-        Multi-protocol connectivity verification.
+        Multi-protocol connectivity verification with TCP RTT measurement.
 
         When all ICMP pings fail, verify if we have ANY connectivity
         using alternative protocols before declaring total failure.
+        Also measures TCP RTT to provide fallback latency data.
 
         Returns:
-            True if ANY connectivity detected (ICMP-specific issue)
-            False if total connectivity loss confirmed
+            (has_connectivity, tcp_rtt_ms):
+            - has_connectivity: True if ANY connectivity detected
+            - tcp_rtt_ms: TCP RTT in milliseconds if measured, None otherwise
         """
         if not self.config.fallback_enabled:
-            return False
+            return (False, None)
 
         self.logger.warning(f"{self.wan_name}: All ICMP pings failed - running fallback checks")
 
         # Check 1: Local gateway (fastest, ~50ms)
-        if self.verify_local_connectivity():
-            return True
+        # Note: Gateway RTT is not useful for WAN latency measurement
+        gateway_ok = self.verify_local_connectivity()
 
-        # Check 2: TCP HTTPS (most reliable, ~100-200ms)
-        if self.verify_tcp_connectivity():
-            return True
+        # Check 2: TCP HTTPS (most reliable, measures WAN RTT)
+        tcp_ok, tcp_rtt = self.verify_tcp_connectivity()
 
-        # If both fail, it's likely a real WAN outage
+        if tcp_ok:
+            # TCP succeeded - we have connectivity AND RTT measurement
+            if gateway_ok:
+                self.logger.warning(
+                    f"{self.wan_name}: External pings failed but gateway and TCP reachable - "
+                    f"ICMP filtering detected"
+                )
+            return (True, tcp_rtt)
+
+        if gateway_ok:
+            # Gateway OK but TCP failed - partial connectivity
+            self.logger.warning(
+                f"{self.wan_name}: External pings failed but gateway reachable - "
+                f"likely WAN issue, not container networking"
+            )
+            return (True, None)
+
+        # Both fail - total connectivity loss
         self.logger.error(
             f"{self.wan_name}: Both ICMP and TCP connectivity failed - "
             f"confirmed total connectivity loss"
         )
-        return False
+        return (False, None)
 
     def apply_rate_changes_if_needed(self, dl_rate: int, ul_rate: int) -> bool:
         """
@@ -1119,67 +1147,65 @@ class WANController:
 
     def handle_icmp_failure(self) -> tuple[bool, float | None]:
         """
-        Handle ICMP ping failure with fallback connectivity checks.
+        Handle ICMP ping failure with TCP RTT fallback.
 
         Called when measure_rtt() returns None. Runs fallback connectivity checks
-        (gateway ping, TCP handshake) and applies mode-specific behavior:
-        - graceful_degradation: Use last RTT (cycle 1), freeze (cycles 2-3), fail (cycle 4+)
-        - freeze: Always freeze rates, return success
-        - use_last_rtt: Always use last known RTT
+        (gateway ping, TCP handshake with RTT measurement). If TCP RTT is available,
+        uses it directly. Otherwise applies mode-specific degradation behavior.
 
         Returns:
             (should_continue, measured_rtt):
-            - should_continue: True if cycle should proceed (or end successfully), False to trigger restart
-            - measured_rtt: RTT value to use (from last known), or None if should_continue is False
-              or if rates should be frozen (freeze mode, graceful_degradation cycles 2-3)
+            - should_continue: True if cycle should proceed, False to trigger restart
+            - measured_rtt: RTT value (TCP or last known), or None to freeze rates
 
         Note:
-            Also records ping failure metrics if metrics are enabled.
+            TCP RTT is preferred over stale ICMP data when available.
         """
         if self.config.metrics_enabled:
             record_ping_failure(self.wan_name)
 
-        # Run fallback connectivity checks
-        has_connectivity = self.verify_connectivity_fallback()
+        # Run fallback connectivity checks (now includes TCP RTT measurement)
+        has_connectivity, tcp_rtt = self.verify_connectivity_fallback()
 
         if has_connectivity:
-            # We have connectivity, just can't measure RTT via ICMP
             self.icmp_unavailable_cycles += 1
 
+            # If we have TCP RTT, use it directly - no degradation needed
+            if tcp_rtt is not None:
+                self.logger.warning(
+                    f"{self.wan_name}: ICMP unavailable - using TCP RTT={tcp_rtt:.1f}ms as fallback"
+                )
+                return (True, tcp_rtt)
+
+            # No TCP RTT available (gateway-only connectivity) - use degradation modes
             if self.config.fallback_mode == "graceful_degradation":
-                # Mode C: Graceful degradation with cycle-based strategy
                 if self.icmp_unavailable_cycles == 1:
-                    # Cycle 1: Use last known RTT and continue normally
                     measured_rtt = self.load_rtt
                     self.logger.warning(
-                        f"{self.wan_name}: ICMP unavailable (cycle 1/{self.config.fallback_max_cycles}) - "
-                        f"using last RTT={measured_rtt:.1f}ms"
+                        f"{self.wan_name}: ICMP unavailable, no TCP RTT (cycle 1/"
+                        f"{self.config.fallback_max_cycles}) - using last RTT={measured_rtt:.1f}ms"
                     )
                     return (True, measured_rtt)
                 elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
-                    # Cycles 2-3: Freeze rates (don't adjust, but don't fail)
                     self.logger.warning(
-                        f"{self.wan_name}: ICMP unavailable (cycle {self.icmp_unavailable_cycles}/"
-                        f"{self.config.fallback_max_cycles}) - freezing rates"
+                        f"{self.wan_name}: ICMP unavailable, no TCP RTT (cycle "
+                        f"{self.icmp_unavailable_cycles}/{self.config.fallback_max_cycles}) - freezing rates"
                     )
-                    return (True, None)  # Caller will save state and return True
+                    return (True, None)
                 else:
-                    # Cycle 4+: Give up (ICMP down for too long)
                     self.logger.error(
                         f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
                         f"(>{self.config.fallback_max_cycles}) - giving up"
                     )
-                    return (False, None)  # Trigger watchdog restart
+                    return (False, None)
 
             elif self.config.fallback_mode == "freeze":
-                # Mode A: Always freeze rates when ICMP unavailable
                 self.logger.warning(
                     f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)"
                 )
-                return (True, None)  # Caller will save state and return True
+                return (True, None)
 
             elif self.config.fallback_mode == "use_last_rtt":
-                # Mode B: Always use last known RTT
                 measured_rtt = self.load_rtt
                 self.logger.warning(
                     f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
@@ -1188,7 +1214,6 @@ class WANController:
                 return (True, measured_rtt)
 
             else:
-                # Unknown mode, default to original behavior
                 self.logger.error(
                     f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}"
                 )
