@@ -134,8 +134,8 @@ class RouterOSREST:
         import os
 
         # Get password - support environment variable
-        password = getattr(config, "router_password", None)
-        if password and password.startswith("${") and password.endswith("}"):
+        password = getattr(config, "router_password", None) or ""
+        if password.startswith("${") and password.endswith("}"):
             env_var = password[2:-1]
             password = os.environ.get(env_var, "")
 

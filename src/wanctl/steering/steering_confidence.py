@@ -163,10 +163,10 @@ class TimerState:
     confidence_score: int = 0
     confidence_contributors: list[str] = field(default_factory=list)
 
-    # Sustain timers (seconds remaining)
-    degrade_timer: int | None = None  # Countdown to enable steering
-    hold_down_timer: int | None = None  # Post-steer cooldown
-    recovery_timer: int | None = None  # Countdown to disable steering
+    # Sustain timers (seconds remaining, float for sub-second cycle intervals)
+    degrade_timer: float | None = None  # Countdown to enable steering
+    hold_down_timer: float | None = None  # Post-steer cooldown
+    recovery_timer: float | None = None  # Countdown to disable steering
 
     # Flap detection - deque with maxlen for automatic size-bounding
     # maxlen=20 prevents unbounded growth; time-based pruning still applies
@@ -237,7 +237,8 @@ class TimerManager:
                     f"degrade_timer_start={self.sustain_duration}s"
                 )
             else:
-                # Decrement timer
+                # Decrement timer (we know it's not None from the if check above)
+                assert timer_state.degrade_timer is not None
                 timer_state.degrade_timer -= self.cycle_interval
                 self.logger.info(
                     f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
@@ -277,12 +278,13 @@ class TimerManager:
         if timer_state.hold_down_timer is not None:
             # Decrement timer
             timer_state.hold_down_timer -= self.cycle_interval
+            remaining = timer_state.hold_down_timer  # Local var for mypy
             self.logger.debug(
-                f"[PHASE2B] hold_down_active remaining={timer_state.hold_down_timer}s "
+                f"[PHASE2B] hold_down_active remaining={remaining}s "
                 f"confidence={timer_state.confidence_score} (ignored)"
             )
 
-            if timer_state.hold_down_timer <= 0:
+            if remaining <= 0:
                 # Hold-down expired
                 self.logger.info("[PHASE2B] hold_down_expired resume_evaluation")
                 timer_state.hold_down_timer = None
@@ -325,7 +327,8 @@ class TimerManager:
                     f"recovery_timer_start={self.recovery_duration}s"
                 )
             else:
-                # Decrement timer
+                # Decrement timer (we know it's not None from the if check above)
+                assert timer_state.recovery_timer is not None
                 timer_state.recovery_timer -= self.cycle_interval
                 self.logger.info(
                     f"[PHASE2B] confidence={confidence} signals={timer_state.confidence_contributors} "
@@ -409,7 +412,7 @@ class FlapDetector:
             return base_threshold
 
         # Check if penalty already active
-        if timer_state.flap_penalty_active:
+        if timer_state.flap_penalty_active and timer_state.flap_penalty_expiry is not None:
             if time.monotonic() < timer_state.flap_penalty_expiry:
                 # Penalty still active
                 return base_threshold + self.penalty_threshold_add

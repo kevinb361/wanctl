@@ -16,6 +16,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 from wanctl.config_base import BaseConfig
 from wanctl.config_validation_utils import (
@@ -1361,7 +1362,7 @@ class ContinuousAutoRate:
     """Main controller managing one or more WANs"""
 
     def __init__(self, config_files: list[str], debug: bool = False):
-        self.wan_controllers = []
+        self.wan_controllers: list[dict[str, Any]] = []
         self.debug = debug
 
         # Load each WAN config and create controller
@@ -1564,7 +1565,7 @@ def main() -> int | None:
     # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
         controller.run_cycle(use_lock=True)
-        return
+        return None
 
     # Daemon mode: continuous loop with 2-second cycle time
     # Acquire locks once at startup and hold for entire run
@@ -1753,6 +1754,8 @@ def main() -> int | None:
         # Log clean shutdown
         for wan_info in controller.wan_controllers:
             wan_info["logger"].info("Daemon shutdown complete")
+
+    return None
 
 
 if __name__ == "__main__":

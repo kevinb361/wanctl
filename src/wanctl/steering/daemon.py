@@ -653,6 +653,8 @@ class SteeringDaemon:
         self.logger = logger
 
         # CAKE-aware components (if enabled)
+        self.cake_reader: CakeStatsReader | None
+        self.thresholds: StateThresholds | None
         if self.config.cake_aware:
             self.cake_reader = CakeStatsReader(config, logger)
             self.thresholds = StateThresholds(
@@ -720,6 +722,7 @@ class SteeringDaemon:
             - assessment_value: CongestionState.value for CAKE mode, None for legacy
         """
         if self.config.cake_aware:
+            assert self.thresholds is not None  # Set when cake_aware is True
             assessment = assess_congestion_state(signals, self.thresholds, self.logger)
             return (
                 assessment == CongestionState.RED,
@@ -898,6 +901,7 @@ class SteeringDaemon:
 
         # Get counters - CAKE: red_count, Legacy: bad_count
         if self.config.cake_aware:
+            assert self.thresholds is not None  # Set when cake_aware is True
             degrade_count = state["red_count"]
             degrade_threshold = self.thresholds.red_samples_required
             recover_threshold = self.thresholds.green_samples_required
@@ -1079,6 +1083,7 @@ class SteeringDaemon:
             )
 
             # In live mode (dry_run=False), use confidence decision for routing
+            assert self.config.confidence_config is not None  # Guaranteed by confidence_controller check
             if confidence_decision and not self.config.confidence_config["dry_run"]["enabled"]:
                 return self._apply_confidence_decision(confidence_decision)
             # In dry-run mode, confidence logs decisions but falls through to hysteresis
@@ -1092,6 +1097,7 @@ class SteeringDaemon:
         DEPRECATED: Use _update_state_machine_unified() instead.
         This method is kept for reference and potential rollback.
         """
+        assert self.thresholds is not None  # Required for CAKE-aware mode
         # PROTECTED: Asymmetric hysteresis - quick to enable (8 samples), slow to disable (60 samples).
         # Do not change thresholds without production validation. See docs/CORE-ALGORITHM-ANALYSIS.md.
         state = self.state_mgr.state
