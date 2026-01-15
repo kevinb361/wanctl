@@ -25,7 +25,7 @@ def validate_bandwidth_order(
     floor_green: int | None = None,
     ceiling: int | None = None,
     convert_to_mbps: bool = False,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> bool:
     """Validate bandwidth floor and ceiling constraints.
 
@@ -59,6 +59,8 @@ def validate_bandwidth_order(
         floor_yellow = floor_red
     if floor_soft_red is None:
         floor_soft_red = floor_yellow
+    if ceiling is None:
+        raise ConfigValidationError(f"{name.capitalize()} ceiling is required for validation")
     if floor_green is None:
         floor_green = ceiling
 
@@ -95,7 +97,7 @@ def validate_threshold_order(
     target_bloat_ms: float,
     warn_bloat_ms: float,
     hard_red_bloat_ms: float,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> bool:
     """Validate threshold ordering for congestion detection.
 
@@ -149,7 +151,7 @@ def validate_alpha(
     field_name: str,
     min_val: float = 0.0,
     max_val: float = 1.0,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> float:
     """Validate EWMA smoothing factor (alpha) is in valid range.
 
@@ -199,7 +201,7 @@ def validate_baseline_rtt(
     baseline_rtt_ms: float,
     min_ms: int = MIN_SANE_BASELINE_RTT,
     max_ms: int = MAX_SANE_BASELINE_RTT,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> float:
     """Validate baseline RTT is within sane bounds.
 
@@ -253,7 +255,7 @@ def validate_rtt_thresholds(
     green_rtt_ms: float,
     yellow_rtt_ms: float | None = None,
     red_rtt_ms: float | None = None,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> tuple[float, float, float]:
     """Validate RTT thresholds are properly ordered.
 
@@ -309,7 +311,7 @@ def validate_sample_counts(
     good_samples: int = 15,
     red_samples_required: int = 2,
     green_samples_required: int = 15,
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
 ) -> tuple[int, int, int, int]:
     """Validate state confirmation sample requirements are reasonable.
 

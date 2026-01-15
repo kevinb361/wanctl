@@ -63,7 +63,7 @@ class CakeStatsReader:
         #   - Reset → read window creates measurement gap (some drops could be missed)
         #   - Extra RouterOS command adds latency during 2-second steering cycles
         #   - Less accurate (captures cumulative state instead of exact interval)
-        self.previous_stats = {}  # queue_name -> CakeStats
+        self.previous_stats: dict[str, CakeStats] = {}  # queue_name -> CakeStats
 
     def _parse_json_response(self, out: str, queue_name: str) -> CakeStats | None:
         """

@@ -66,7 +66,7 @@ def atomic_write_json(file_path: Path, data: dict[str, Any]) -> None:
         raise
 
 
-def safe_read_json(file_path: Path, default: dict[str, Any] = None) -> dict[str, Any]:
+def safe_read_json(file_path: Path, default: dict[str, Any] | None = None) -> dict[str, Any]:
     """Safely read JSON data from a file.
 
     Handles missing files and JSON decode errors gracefully.

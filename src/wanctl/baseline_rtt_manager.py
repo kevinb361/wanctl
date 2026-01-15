@@ -193,7 +193,7 @@ class BaselineRTTLoader:
         self.validator = validator
         self.logger = logger
         self.change_threshold = change_threshold
-        self.last_baseline = None
+        self.last_baseline: float | None = None
 
     def load(self) -> float | None:
         """Load baseline RTT from state file.

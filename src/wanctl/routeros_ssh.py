@@ -217,6 +217,7 @@ class RouterOSSSH:
             Exception: On non-retryable errors or after max retry attempts
         """
         self._ensure_connected()
+        assert self._client is not None  # Guaranteed by _ensure_connected()
 
         timeout_val = timeout if timeout is not None else self.timeout
         self.logger.debug(f"RouterOS command: {cmd} (timeout={timeout_val}s)")
