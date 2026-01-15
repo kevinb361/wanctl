@@ -50,17 +50,17 @@ class TestAtomicWriteJson:
             result = json.load(f)
         assert result == new_data
 
-    def test_custom_indent(self, temp_dir):
-        """Test custom indentation level."""
+    def test_compact_json_format(self, temp_dir):
+        """Test that JSON is written in compact format (no whitespace)."""
         file_path = temp_dir / "test.json"
-        data = {"key": "value"}
+        data = {"key": "value", "nested": {"inner": 1}}
 
-        atomic_write_json(file_path, data, indent=4)
+        atomic_write_json(file_path, data)
 
         with open(file_path) as f:
             content = f.read()
-        # With indent=4, there should be 4-space indentation
-        assert "    " in content
+        # Compact format should have no spaces after colons or commas
+        assert content == '{"key":"value","nested":{"inner":1}}'
 
     def test_no_temp_file_left_on_success(self, temp_dir):
         """Test that no temporary files are left after successful write."""

@@ -13,6 +13,9 @@ import statistics
 import subprocess
 from enum import Enum
 
+# Pre-compiled regex for RTT parsing (avoids per-call compilation overhead)
+_RTT_PATTERN = re.compile(r"time=([0-9.]+)")
+
 
 def parse_ping_output(text: str, logger_instance: logging.Logger | None = None) -> list[float]:
     """
@@ -47,8 +50,8 @@ def parse_ping_output(text: str, logger_instance: logging.Logger | None = None) 
             continue
 
         try:
-            # Use regex for robust parsing - handles various ping formats
-            match = re.search(r"time=([0-9.]+)", line)
+            # Use pre-compiled regex for robust parsing - handles various ping formats
+            match = _RTT_PATTERN.search(line)
             if match:
                 rtt = float(match.group(1))
                 rtts.append(rtt)
