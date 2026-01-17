@@ -55,11 +55,13 @@ continuous_monitoring:
 
   # Thresholds - tuned for DOCSIS latency characteristics
   thresholds:
-    target_bloat_ms: 15         # GREEN -> YELLOW
+    target_bloat_ms: 12         # GREEN -> YELLOW (earlier detection)
     warn_bloat_ms: 45           # YELLOW -> SOFT_RED
     hard_red_bloat_ms: 80       # SOFT_RED -> RED
-    alpha_baseline: 0.02        # Slow baseline tracking
-    alpha_load: 0.20            # Fast response to load changes
+    # EWMA time constants (interval-independent)
+    baseline_time_constant_sec: 50   # Slow EWMA for stable baseline
+    load_time_constant_sec: 0.10     # Fast EWMA for load RTT (100ms)
+    accel_threshold_ms: 12           # RTT spike threshold for instant RED
 
   # Median-of-three helps with DOCSIS reflector variation
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
