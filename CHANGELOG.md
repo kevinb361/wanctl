@@ -5,6 +5,20 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Tuned `accel_threshold_ms`** - Reduced from 15ms to 12ms for faster spike detection
+  - A/B testing showed 19% reduction in average RTT under load (48ms → 39ms)
+  - 11% reduction in peak latency spikes (83ms → 74ms avg peak)
+  - 50% reduction in 100ms+ spike frequency (40% → 20% of test runs)
+  - Lower values (10ms) caused over-correction; higher values (15ms) missed spikes
+
+### Documentation
+
+- Updated `cable.yaml.example` with modern EWMA time constants and `accel_threshold_ms`
+
 ## [1.1.0] - 2026-01-14
 
 **First stable release** - Adaptive CAKE bandwidth control for MikroTik RouterOS.
@@ -24,13 +38,13 @@ observability, and validated 50ms cycle interval for sub-second congestion respo
 
 ### Performance
 
-| Metric | Value |
-|--------|-------|
-| Cycle Interval | 50ms (20Hz polling) |
+| Metric               | Value                  |
+| -------------------- | ---------------------- |
+| Cycle Interval       | 50ms (20Hz polling)    |
 | Congestion Detection | 50-100ms response time |
-| Router CPU (idle) | 0% |
-| Router CPU (load) | 45% peak |
-| Flash Wear Reduction | 99.7% |
+| Router CPU (idle)    | 0%                     |
+| Router CPU (load)    | 45% peak               |
+| Flash Wear Reduction | 99.7%                  |
 
 ### Features
 
