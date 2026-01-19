@@ -852,6 +852,8 @@ class WANController:
             max_changes=DEFAULT_RATE_LIMIT_MAX_CHANGES,
             window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
         )
+        # Track if we've logged about rate limiting (log once per throttle window)
+        self._rate_limit_logged = False
 
         # =====================================================================
         # FALLBACK CONNECTIVITY TRACKING
@@ -1112,12 +1114,15 @@ class WANController:
         # See docs/CORE-ALGORITHM-ANALYSIS.md.
         # =====================================================================
         if not self.rate_limiter.can_change():
-            wait_time = self.rate_limiter.time_until_available()
-            self.logger.warning(
-                f"{self.wan_name}: Rate limit exceeded (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
-                f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling update - "
-                f"possible instability (next slot in {wait_time:.1f}s)"
-            )
+            # Log once when entering throttled state (not every cycle)
+            if not self._rate_limit_logged:
+                wait_time = self.rate_limiter.time_until_available()
+                self.logger.debug(
+                    f"{self.wan_name}: Rate limit active (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
+                    f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling updates "
+                    f"(next slot in {wait_time:.1f}s)"
+                )
+                self._rate_limit_logged = True
             if self.config.metrics_enabled:
                 record_rate_limit_event(self.wan_name)
             # Still return True - cycle completed, just throttled the update
@@ -1134,6 +1139,7 @@ class WANController:
 
         # Record successful change for rate limiting
         self.rate_limiter.record_change()
+        self._rate_limit_logged = False  # Reset so we log next throttle window
 
         # Record metrics for router update
         if self.config.metrics_enabled:

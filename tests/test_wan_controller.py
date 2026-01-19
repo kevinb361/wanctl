@@ -673,7 +673,7 @@ class TestApplyRateChangesIfNeeded:
         assert result is True
         assert mock_router.set_limits.call_count == 0
         mock_save.assert_called_once()
-        controller.logger.warning.assert_called()
+        controller.logger.debug.assert_called()  # Rate limit logged at DEBUG level
 
     def test_rate_limited_records_metric_when_enabled(self, controller, mock_router):
         """Rate limiting should record metric when metrics enabled."""
