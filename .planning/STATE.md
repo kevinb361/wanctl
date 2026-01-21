@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.3 Reliability & Hardening - Phase 21 Critical Safety Tests
+**Current focus:** v1.3 Reliability & Hardening - Phase 22 Deployment Safety
 
 ## Current Position
 
 Phase: 21 of 23 (Critical Safety Tests)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-01-21 - Completed 21-01-PLAN.md (TEST-01, TEST-02)
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-01-21 - Completed 21-02-PLAN.md (TEST-03)
 
-Progress: [###-----------------] 17% (1/6 plans across 3 phases)
+Progress: [######--------------] 33% (2/6 plans across 3 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v1.3)
-- Average duration: 6 minutes
-- Total execution time: 6 minutes
+
+- Total plans completed: 2 (v1.3)
+- Average duration: 6.5 minutes
+- Total execution time: 13 minutes
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 21 | 1/2 | 6m | 6m |
-| 22 | 0/TBD | - | - |
-| 23 | 0/TBD | - | - |
+| ----- | ----- | ----- | -------- |
+| 21    | 2/2   | 13m   | 6.5m     |
+| 22    | 0/TBD | -     | -        |
+| 23    | 0/TBD | -     | -        |
 
-*Updated after each plan completion*
+_Updated after each plan completion_
 
 ## Accumulated Context
 
@@ -40,9 +41,12 @@ Progress: [###-----------------] 17% (1/6 plans across 3 phases)
 All decisions logged in PROJECT.md Key Decisions table.
 
 Recent:
+
 - v1.3 scope defined from CONCERNS.md analysis (8 requirements)
 - Baseline freeze tests use 100+ cycles to prove sustained load invariant
 - Corruption tests cover 12 distinct failure modes for comprehensive coverage
+- Failover is sticky: once triggered, stays on fallback until close()
+- Lazy client creation: fallback only instantiated on first failure
 
 ### Deferred Issues
 
@@ -61,8 +65,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-21T13:14:54Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-01-21T13:15:48Z
+Stopped at: Completed 21-02-PLAN.md - Phase 21 complete
 Resume file: None
 
 ## Milestone Achievements
@@ -76,6 +80,7 @@ Resume file: None
 
 **Goal:** Improve code maintainability through systematic refactoring
 **Achieved:**
+
 - Consolidated utility modules (~350 lines removed)
 - Extracted methods from WANController and SteeringDaemon
 - Unified state machine
@@ -86,6 +91,7 @@ Resume file: None
 
 **Goal:** Complete Phase2B rollout, improve configuration documentation
 **Achieved:**
+
 - Fixed Phase2B timer interval (cycle_interval param)
 - Documented baseline_rtt_bounds in CONFIG_SCHEMA.md
 - Added deprecation warnings for legacy steering params
@@ -94,5 +100,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Execute 21-02-PLAN.md (TEST-03: ICMP blackout recovery tests)
-2. Continue through phases 22-23
+1. Plan Phase 22 (Deployment Safety) with `/gsd:plan-phase 22`
+2. Execute Phase 22 plans
+3. Continue through phase 23
