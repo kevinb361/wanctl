@@ -35,7 +35,7 @@ from wanctl.metrics import (
     start_metrics_server,
 )
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
-from wanctl.router_client import get_router_client, get_router_client_with_failover
+from wanctl.router_client import get_router_client_with_failover
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
     is_shutdown_requested,

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config_base import ConfigValidationError
-from ..router_client import get_router_client, get_router_client_with_failover
+from ..router_client import get_router_client_with_failover
 from ..state_utils import safe_json_loads
 
 
