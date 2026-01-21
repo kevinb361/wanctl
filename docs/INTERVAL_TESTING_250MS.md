@@ -17,6 +17,7 @@
 ## Test Parameters
 
 ### Cycle Interval
+
 - **Previous:** 500ms (0.5s)
 - **Current:** 250ms (0.25s)
 - **Change:** 2x faster polling rate
@@ -24,10 +25,12 @@
 ### EWMA Alpha Values (Time-Constant Preservation)
 
 **Spectrum (Cable):**
+
 - `alpha_baseline`: 0.005 → 0.0025 (preserves 100s time constant)
 - `alpha_load`: 0.05 → 0.025 (preserves 10s time constant)
 
 **ATT (VDSL):**
+
 - `alpha_baseline`: 0.00375 → 0.001875 (preserves 133s time constant)
 - `alpha_load`: 0.05 → 0.025 (preserves 10s time constant)
 
@@ -42,6 +45,7 @@
 ### Mathematical Verification
 
 ✅ All time constants preserved:
+
 - Baseline smoothing: 400 samples × 0.25s = 100s ✓
 - Load smoothing: 40 samples × 0.25s = 10s ✓
 - RED activation: 16 samples × 0.25s = 4s ✓
@@ -55,12 +59,14 @@
 ### Baseline RTT Drift
 
 **Spectrum (Cable):**
+
 - Baseline RTT: 25.8ms (stable)
 - Observed drift: <1ms over monitoring period
 - Behavior: Properly frozen during delta >3ms events
 - Status: ✅ STABLE
 
 **ATT (VDSL):**
+
 - Baseline RTT: 28.0ms (rock solid)
 - Observed drift: 0ms (no drift detected)
 - Status: ✅ STABLE
@@ -70,11 +76,13 @@
 ### Oscillation/Flapping
 
 **Spectrum:**
+
 - Queue limits: 940M/38M (stable throughout)
 - State: GREEN/GREEN (no transitions)
 - Rate changes: 0 (flash wear protection working)
 
 **ATT:**
+
 - Queue limits: 95M/18M (stable throughout)
 - State: GREEN/GREEN (no transitions)
 - Rate changes: 0 (flash wear protection working)
@@ -86,12 +94,14 @@
 **Hardware:** MikroTik RB5009UG+S+ (ARM64, 4 cores @ 1400MHz)
 
 **CPU Usage:**
+
 - Overall: 1% (baseline ~1% at 500ms)
 - Per-core max: 3% (core 1)
 - Target threshold: <30%
 - Headroom: 96%
 
 **Impact Analysis:**
+
 - 4x polling increase (1Hz → 4Hz): negligible CPU impact
 - RB5009 handles 250ms interval effortlessly
 - Status: ✅ EXCELLENT
@@ -99,6 +109,7 @@
 ### State Transitions
 
 **During monitoring period:**
+
 - Both WANs: GREEN/GREEN (optimal state)
 - No congestion events observed
 - No false triggers from measurement noise
@@ -117,11 +128,13 @@
 ### System Health
 
 **Services:**
+
 - wanctl@spectrum: ✅ active (running)
 - wanctl@att: ✅ active (running)
 - steering: ✅ active (running)
 
 **Error count (5min sample):**
+
 - Spectrum: 0 errors
 - ATT: 0 errors
 - Steering: 0 errors
@@ -135,12 +148,14 @@
 ### Cycle Timing Accuracy
 
 **Spectrum (Cable):**
+
 - Target: 250ms
 - Actual: 247-253ms
 - Variance: ±1.2%
 - Notes: Variance normal for cable (CMTS scheduling)
 
 **ATT (VDSL):**
+
 - Target: 250ms
 - Actual: 249-251ms
 - Variance: ±0.4%
@@ -151,11 +166,13 @@
 ### Congestion Response Time (Theoretical)
 
 **RED Activation:**
+
 - Previous (500ms): 2 samples × 500ms = 1 second
 - Current (250ms): 16 samples × 250ms = 4 seconds
 - **Note:** Sample count increased to preserve wall-clock time (4s maintained)
 
 **GREEN Recovery:**
+
 - Previous (500ms): 60 samples × 500ms = 30 seconds
 - Current (250ms): 120 samples × 250ms = 30 seconds
 - **Note:** Sample count increased to preserve wall-clock time (30s maintained)
@@ -164,14 +181,14 @@
 
 ### Comparison to 500ms Baseline
 
-| Metric | 500ms | 250ms | Change |
-|--------|-------|-------|--------|
-| Cycle time | 247-253ms | 247-253ms | No change (autorate execution, not interval) |
-| Polling rate | 2 Hz | 4 Hz | 2x faster |
-| Router CPU | ~1% | 1-3% | Negligible increase |
-| Baseline stability | Stable | Stable | Maintained |
-| RED activation | 4s | 4s | Preserved (sample count adjusted) |
-| GREEN recovery | 30s | 30s | Preserved (sample count adjusted) |
+| Metric             | 500ms     | 250ms     | Change                                       |
+| ------------------ | --------- | --------- | -------------------------------------------- |
+| Cycle time         | 247-253ms | 247-253ms | No change (autorate execution, not interval) |
+| Polling rate       | 2 Hz      | 4 Hz      | 2x faster                                    |
+| Router CPU         | ~1%       | 1-3%      | Negligible increase                          |
+| Baseline stability | Stable    | Stable    | Maintained                                   |
+| RED activation     | 4s        | 4s        | Preserved (sample count adjusted)            |
+| GREEN recovery     | 30s       | 30s       | Preserved (sample count adjusted)            |
 
 ---
 
@@ -197,6 +214,7 @@
 ### Immediate (Pending)
 
 **24-48 Hour Soak Test:**
+
 - Monitor under various load conditions:
   - Normal browsing/streaming
   - Heavy downloads (>500 Mbps)
@@ -210,10 +228,12 @@
 ### Follow-up Testing
 
 **If 250ms stable:**
+
 - Proceed to plan 02-02: 100ms interval testing (4x faster)
 - Target: Sub-second congestion detection
 
 **If issues found:**
+
 - Analyze root cause
 - Adjust parameters if needed
 - Consider finalizing at 250ms (still 2x improvement)
@@ -225,6 +245,7 @@
 ✅ **PROCEED with 24-48h monitoring**
 
 Initial deployment shows excellent stability. Continue monitoring under real-world load conditions to verify:
+
 1. Baseline RTT remains stable under heavy load (no drift >5ms)
 2. State transitions work correctly during congestion events
 3. No oscillation/flapping over extended period
@@ -239,15 +260,18 @@ If 24-48h monitoring confirms stability, proceed to 100ms interval testing (plan
 ### Files Modified
 
 **Autorate daemon:**
+
 - `src/wanctl/autorate_continuous.py`: CYCLE_INTERVAL_SECONDS = 0.25
 
 **WAN configurations:**
+
 - `configs/spectrum.yaml`: alpha_baseline, alpha_load updated
 - `configs/att.yaml`: alpha_baseline, alpha_load updated
 
 **Steering daemon:**
+
 - `src/wanctl/steering/daemon.py`: MAX_HISTORY_SAMPLES = 480, ASSESSMENT_INTERVAL_SECONDS = 0.25
-- `configs/steering_config_v2.yaml`: interval_seconds, red_samples, green_samples, history_size updated
+- `configs/steering.yaml`: interval_seconds, red_samples, green_samples, history_size updated
 
 ### Deployment Method
 

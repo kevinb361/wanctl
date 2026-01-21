@@ -15,6 +15,7 @@ Each measurement takes time, and the sum must stay under 2 seconds per cycle to 
 ### Why Profiling Matters
 
 By measuring actual cycle times, we can:
+
 - Identify which subsystems consume the most time
 - Detect occasional spikes (p95/p99 percentiles)
 - Compare transport methods (REST API vs SSH)
@@ -36,6 +37,7 @@ grep -q "ms$" /var/log/wanctl/wan1.log && echo "✓ Timing logs present"
 ```
 
 The log output should show lines like:
+
 ```
 steering_rtt_measurement: 45.2ms
 steering_cake_stats_read: 67.8ms
@@ -45,6 +47,7 @@ autorate_cycle_total: 126.5ms
 ### 2. Python Environment
 
 Ensure Python 3.6+ is available:
+
 ```bash
 python3 --version
 ```
@@ -64,7 +67,8 @@ Longer collection periods improve statistical significance and capture transient
 ### How to Collect
 
 The instrumentation automatically logs timing data. Logs are written to:
-- Steering daemon: Configured in `configs/steering_config_v2.yaml` (typically `/var/log/wanctl/steering.log`)
+
+- Steering daemon: Configured in `configs/steering.yaml` (typically `/var/log/wanctl/steering.log`)
 - Autorate daemon: Configured in `configs/wan1.yaml` (typically `/var/log/wanctl/wan1.log`)
 
 **No additional setup required** - timing is logged automatically.
@@ -102,15 +106,15 @@ If your deployment supports both REST and SSH transports:
 
 Based on architecture design and testing:
 
-| Subsystem | Transport | Typical Latency | Note |
-|-----------|-----------|-----------------|------|
-| RouterOS command | REST API | ~50ms | Recommended |
-| RouterOS command | SSH | ~150-200ms | Fallback |
-| ICMP ping (3 samples) | Any | ~100-150ms | Network RTT dependent |
-| CAKE stats read | REST API | ~50-100ms | RouterOS query latency |
-| Steering cycle total | REST | ~200-250ms | Excellent headroom |
-| Steering cycle total | SSH | ~300-350ms | Still acceptable |
-| Autorate cycle total | Any | ~150-250ms | Less timing-critical |
+| Subsystem             | Transport | Typical Latency | Note                   |
+| --------------------- | --------- | --------------- | ---------------------- |
+| RouterOS command      | REST API  | ~50ms           | Recommended            |
+| RouterOS command      | SSH       | ~150-200ms      | Fallback               |
+| ICMP ping (3 samples) | Any       | ~100-150ms      | Network RTT dependent  |
+| CAKE stats read       | REST API  | ~50-100ms       | RouterOS query latency |
+| Steering cycle total  | REST      | ~200-250ms      | Excellent headroom     |
+| Steering cycle total  | SSH       | ~300-350ms      | Still acceptable       |
+| Autorate cycle total  | Any       | ~150-250ms      | Less timing-critical   |
 
 ### Interpreting Baseline vs Actual
 
@@ -178,6 +182,7 @@ The analysis report includes:
 4. **Recommendations** - Priority ranking for optimizations
 
 Focus on:
+
 - Which subsystem takes the most time?
 - How much headroom before 2-second limit?
 - Are spikes (p99) significant?
@@ -187,20 +192,24 @@ Focus on:
 ### Key Questions
 
 **Q: Which subsystem dominates total time?**
+
 - Look at percentages in "Bottleneck Analysis"
 - Example: If RTT measurement = 60% of cycle, prioritize ICMP optimization
 
 **Q: Are there spikes (p99 >> avg)?**
+
 - Spikes indicate occasional delays
 - P99 > 2x average suggests transient congestion or router issues
 - May need retry logic or adaptive timeouts in Phase 2+
 
 **Q: Does one transport outperform the other?**
+
 - Compare REST vs SSH in separate profiling runs
 - REST is typically 2-3x faster
 - SSH spikes may exceed 2-second limit during congestion
 
 **Q: Is cycle time consistently < 2 seconds?**
+
 - Check max_ms values
 - p99 should be well under 2000ms
 - Average should have 500+ ms headroom
@@ -246,15 +255,16 @@ Headroom: ~1.7 seconds (acceptable, but less margin for spikes)
 
 ### Optimization Priorities by Phase
 
-| Phase | Focus | Expected Improvement |
-|-------|-------|----------------------|
-| Phase 2 | RouterOS communication (REST API, connection pooling) | 30-50% reduction |
-| Phase 3 | ICMP measurement (caching, parallel collection) | 20-40% reduction |
-| Phase 4 | State I/O (batching, async writes) | 5-15% reduction |
+| Phase   | Focus                                                 | Expected Improvement |
+| ------- | ----------------------------------------------------- | -------------------- |
+| Phase 2 | RouterOS communication (REST API, connection pooling) | 30-50% reduction     |
+| Phase 3 | ICMP measurement (caching, parallel collection)       | 20-40% reduction     |
+| Phase 4 | State I/O (batching, async writes)                    | 5-15% reduction      |
 
 ### Continuing Measurement
 
 Re-collect profiling data:
+
 - After major optimizations
 - Quarterly to detect changes in network behavior
 - If complaints about responsiveness emerge
@@ -267,11 +277,13 @@ Re-collect profiling data:
 **Symptom:** `profiling_collector.py` reports no data
 
 **Causes:**
+
 1. Log file path incorrect
 2. Profiling hooks not deployed (Plan 01-01 not applied)
 3. Daemons not running
 
 **Solution:**
+
 - Verify log file exists: `ls -l /var/log/wanctl/wan1.log`
 - Check for timing output: `grep "ms$" /var/log/wanctl/wan1.log | head`
 - Ensure daemons running: `systemctl status wanctl@*`
@@ -283,6 +295,7 @@ Re-collect profiling data:
 **Cause:** Log file exists but contains no timing lines
 
 **Solution:**
+
 - Wait for at least one cycle to complete (autorate: 10 min, steering: 2 sec)
 - Verify profiler module deployed: `test -f src/wanctl/perf_profiler.py`
 
@@ -291,11 +304,13 @@ Re-collect profiling data:
 **Symptom:** P99 >> average (e.g., avg 50ms, p99 200ms)
 
 **Causes:**
+
 1. Network congestion during collection period
 2. Router CPU load
 3. SSH connection timeouts
 
 **Solution:**
+
 - Collect longer period (1-2 weeks vs 7 days)
 - Check router CPU during problem times: `ssh admin@router 'system resource print'`
 - If SSH, consider switching to REST API (Phase 2)
@@ -357,6 +372,7 @@ python3 scripts/analyze_profiling.py --log-file profiling_data/wan1.log \
 Using index method: `index = (percentile/100) * (count - 1)`
 
 Useful for identifying outliers:
+
 - If `p99 < 1.5x avg`: Consistent performance, no outliers
 - If `p99 > 3x avg`: Significant outliers, investigate cause
 
