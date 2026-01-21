@@ -1,11 +1,12 @@
 """Tests for state_utils module - atomic file operations."""
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
 
-from wanctl.state_utils import atomic_write_json, safe_read_json
+from wanctl.state_utils import atomic_write_json, safe_json_load_file, safe_read_json
 
 
 class TestAtomicWriteJson:
@@ -191,3 +192,186 @@ class TestAtomicityGuarantees:
         result = safe_read_json(file_path)
 
         assert result == data
+
+
+class TestStateCorruptionRecovery:
+    """Tests proving graceful recovery from state file corruption.
+
+    SAFETY INVARIANT: Corrupted state files must return defaults, not crash.
+    This prevents daemon failures during interrupted writes or disk corruption.
+
+    These tests validate the defensive error handling in safe_json_load_file()
+    which is used throughout the codebase for state file loading.
+    """
+
+    def test_partial_json_returns_default(self, temp_dir):
+        """Truncated JSON (interrupted write) returns default, not crash.
+
+        Simulates an interrupted atomic write where the temp file was renamed
+        but the JSON content was only partially written.
+        """
+        file_path = temp_dir / "state.json"
+
+        # Simulate interrupted write - missing closing braces
+        with open(file_path, "w") as f:
+            f.write('{"ewma": {"baseline_rtt": 30.0')  # Truncated
+
+        result = safe_json_load_file(file_path, default={"initialized": True})
+        assert result == {"initialized": True}  # Graceful recovery
+
+    def test_truncated_json_logs_error(self, temp_dir, caplog):
+        """Truncated JSON should log error message with context."""
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write('{"key": "value"')  # Missing closing brace
+
+        logger = logging.getLogger("test_state_corruption")
+        caplog.set_level(logging.ERROR)
+
+        result = safe_json_load_file(
+            file_path,
+            logger=logger,
+            default={},
+            error_context="test state",
+        )
+
+        assert result == {}
+        # Verify error was logged
+        assert any(
+            "Failed to parse" in record.message and "test state" in record.message
+            for record in caplog.records
+        ), "Expected error log with context not found"
+
+    def test_binary_garbage_returns_default(self, temp_dir):
+        """Non-JSON binary content returns default gracefully.
+
+        Simulates complete file corruption or accidental overwrite with binary data.
+        """
+        file_path = temp_dir / "state.json"
+
+        # Write binary garbage (non-UTF-8 compatible)
+        with open(file_path, "wb") as f:
+            f.write(b"\x00\x01\x02\xff\xfe\xfd\x80\x81\x82")
+
+        logger = logging.getLogger("test_binary")
+        result = safe_json_load_file(
+            file_path,
+            logger=logger,
+            default={"fallback": True},
+            error_context="corrupted state",
+        )
+
+        assert result == {"fallback": True}
+
+    def test_utf8_decode_error_returns_default(self, temp_dir):
+        """Invalid UTF-8 bytes return default gracefully.
+
+        JSON files should be valid UTF-8. Invalid encoding should not crash.
+        """
+        file_path = temp_dir / "state.json"
+
+        # Write invalid UTF-8 sequence embedded in otherwise valid-looking JSON start
+        with open(file_path, "wb") as f:
+            f.write(b'{"key": "\xff\xfe invalid"}')
+
+        result = safe_json_load_file(file_path, default={"recovered": True})
+        # Should return default due to JSON decode error (invalid escape or encoding)
+        assert result == {"recovered": True}
+
+    def test_empty_object_is_valid(self, temp_dir):
+        """Empty JSON object {} is valid and should be returned as-is."""
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write("{}")
+
+        result = safe_json_load_file(file_path, default={"should_not_return": True})
+        assert result == {}  # Valid empty object, not default
+
+    def test_null_content_returns_null(self, temp_dir):
+        """File containing only 'null' returns None (valid JSON null)."""
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write("null")
+
+        result = safe_json_load_file(file_path, default={"fallback": True})
+        assert result is None  # JSON null is valid, returns None
+
+    def test_empty_file_returns_default(self, temp_dir):
+        """Completely empty file (0 bytes) returns default."""
+        file_path = temp_dir / "state.json"
+        file_path.touch()  # Create empty file
+
+        result = safe_json_load_file(file_path, default={"initialized": False})
+        assert result == {"initialized": False}
+
+    def test_whitespace_only_returns_default(self, temp_dir):
+        """File with only whitespace returns default."""
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write("   \n\t  \n  ")
+
+        result = safe_json_load_file(file_path, default={"empty": True})
+        assert result == {"empty": True}
+
+    def test_array_instead_of_object_is_valid(self, temp_dir):
+        """JSON array is valid JSON and should be returned."""
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write("[1, 2, 3]")
+
+        result = safe_json_load_file(file_path, default={"fallback": True})
+        assert result == [1, 2, 3]  # Valid JSON array
+
+    def test_nested_truncation_returns_default(self, temp_dir):
+        """Deeply nested truncated JSON returns default.
+
+        Simulates partial write of complex autorate state structure.
+        """
+        file_path = temp_dir / "state.json"
+
+        # Simulate truncated autorate state file
+        truncated_state = '{"ewma": {"baseline_rtt": 25.5, "load_rtt": 30.2}, "rates": {"download":'
+        with open(file_path, "w") as f:
+            f.write(truncated_state)
+
+        result = safe_json_load_file(
+            file_path,
+            default={"reset": True, "baseline_rtt": 20.0},
+            error_context="autorate state",
+        )
+        assert result == {"reset": True, "baseline_rtt": 20.0}
+
+    def test_missing_file_returns_default(self, temp_dir):
+        """Non-existent file returns default without error."""
+        file_path = temp_dir / "nonexistent.json"
+
+        logger = logging.getLogger("test_missing")
+        result = safe_json_load_file(
+            file_path,
+            logger=logger,
+            default={"new_state": True},
+        )
+
+        assert result == {"new_state": True}
+
+    def test_corruption_recovery_multiple_attempts(self, temp_dir):
+        """Multiple load attempts with corruption always return default.
+
+        Verifies consistent behavior across repeated loads of corrupted file.
+        """
+        file_path = temp_dir / "state.json"
+
+        with open(file_path, "w") as f:
+            f.write('{"incomplete":')
+
+        default = {"consistent": True}
+
+        # Load multiple times - should always return same default
+        for _ in range(5):
+            result = safe_json_load_file(file_path, default=default)
+            assert result == default
