@@ -15,9 +15,9 @@ Requirements for v1.3 Reliability & Hardening. Derived from CONCERNS.md analysis
 
 ### Deployment Safety
 
-- [ ] **DEPLOY-01**: Rename `configs/steering_config.yaml` -> `configs/steering.yaml`
-- [ ] **DEPLOY-02**: Deploy script fails fast when production config is missing
-- [ ] **DEPLOY-03**: Deployment validation script checks state files, queues, router reachability
+- [x] **DEPLOY-01**: Rename `configs/steering_config.yaml` -> `configs/steering.yaml`
+- [x] **DEPLOY-02**: Deploy script fails fast when production config is missing
+- [x] **DEPLOY-03**: Deployment validation script checks state files, queues, router reachability
 
 ### Edge Case Tests
 
@@ -45,9 +45,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-01     | Phase 21 | Complete |
 | TEST-02     | Phase 21 | Complete |
 | TEST-03     | Phase 21 | Complete |
-| DEPLOY-01   | Phase 22 | Pending  |
-| DEPLOY-02   | Phase 22 | Pending  |
-| DEPLOY-03   | Phase 22 | Pending  |
+| DEPLOY-01   | Phase 22 | Complete |
+| DEPLOY-02   | Phase 22 | Complete |
+| DEPLOY-03   | Phase 22 | Complete |
 | TEST-04     | Phase 23 | Pending  |
 | TEST-05     | Phase 23 | Pending  |
 
@@ -60,4 +60,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-21_
-_Last updated: 2026-01-21 after Phase 21 completion_
+_Last updated: 2026-01-21 after Phase 22 completion_

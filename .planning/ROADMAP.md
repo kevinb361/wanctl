@@ -183,7 +183,7 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
 **Milestone Goal:** Close test coverage gaps identified in CONCERNS.md analysis and improve deployment safety.
 
 - [x] **Phase 21: Critical Safety Tests** - Test core algorithm safety invariants
-- [ ] **Phase 22: Deployment Safety** - Config cleanup and validation scripts
+- [x] **Phase 22: Deployment Safety** - Config cleanup and validation scripts
 - [ ] **Phase 23: Edge Case Tests** - Boundary condition test coverage
 
 ## Phase Details (v1.3)
@@ -217,11 +217,13 @@ Plans:
 1. Config file renamed from `steering_config.yaml` to `steering.yaml` with all references updated
 2. Deploy script exits non-zero when required production config is missing
 3. Validation script checks state files, queue existence, and router reachability before startup
-**Plans**: 1 plan
+   **Plans**: 1 plan
 
 Plans:
 
-- [ ] 22-01-PLAN.md - Config cleanup, deploy script hardening, validation script (DEPLOY-01, DEPLOY-02, DEPLOY-03)
+- [x] 22-01-PLAN.md - Config cleanup, deploy script hardening, validation script (DEPLOY-01, DEPLOY-02, DEPLOY-03)
+
+**Phase 22 Complete:** Legacy config removed, deploy script hardened with fail-fast, validation script created (423 lines).
 
 ### Phase 23: Edge Case Tests
 
@@ -245,7 +247,7 @@ Plans:
 | Phase                     | Milestone | Plans | Status      | Completed  |
 | ------------------------- | --------- | ----- | ----------- | ---------- |
 | 21. Critical Safety Tests | v1.3      | 2     | Complete    | 2026-01-21 |
-| 22. Deployment Safety     | v1.3      | 1     | Not started | -          |
+| 22. Deployment Safety     | v1.3      | 1     | Complete    | 2026-01-21 |
 | 23. Edge Case Tests       | v1.3      | TBD   | Not started | -          |
 
 ### Completed Milestones

@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.3 Reliability & Hardening - Phase 22 Deployment Safety
+**Current focus:** v1.3 Reliability & Hardening - Phase 23 Edge Case Tests
 
 ## Current Position
 
@@ -102,6 +102,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Plan Phase 23 (Documentation Refresh) with `/gsd:plan-phase 23`
+1. Plan Phase 23 (Edge Case Tests) with `/gsd:plan-phase 23`
 2. Execute Phase 23 plans
 3. Complete v1.3 milestone
