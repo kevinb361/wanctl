@@ -54,6 +54,10 @@ def enforce_rate_bounds(
         >>> enforce_rate_bounds(50_000_000, floor=20_000_000, ceiling=None)
         50000000  # No ceiling, respects floor
     """
+    # Validate constraint consistency FIRST (before applying bounds)
+    if floor is not None and ceiling is not None and floor > ceiling:
+        raise ValueError(f"Invalid rate bounds: floor ({floor}) cannot exceed ceiling ({ceiling})")
+
     result = float(rate)
 
     # Apply floor constraint (minimum)
@@ -63,10 +67,6 @@ def enforce_rate_bounds(
     # Apply ceiling constraint (maximum)
     if ceiling is not None:
         result = min(result, ceiling)
-
-    # Validate constraint consistency
-    if floor is not None and ceiling is not None and floor > ceiling:
-        raise ValueError(f"Invalid rate bounds: floor ({floor}) cannot exceed ceiling ({ceiling})")
 
     return int(result)
 

@@ -7,8 +7,6 @@ pattern from steering/state_manager.py.
 """
 
 import datetime
-import hashlib
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -47,31 +45,37 @@ class WANControllerState:
         self.state_file = state_file
         self.logger = logger
         self.wan_name = wan_name
-        # Dirty tracking: hash of last saved state (excludes timestamp)
-        self._last_saved_hash: str | None = None
+        # Dirty tracking: store last saved state for comparison (excludes timestamp)
+        self._last_saved_state: dict[str, Any] | None = None
 
-    def _compute_state_hash(
+    def _is_state_changed(
         self,
         download: dict[str, Any],
         upload: dict[str, Any],
         ewma: dict[str, float],
         last_applied: dict[str, int | None],
-    ) -> str:
-        """Compute hash of state for dirty tracking (excludes timestamp)."""
-        state_for_hash = {
+    ) -> bool:
+        """Check if state has changed since last save (excludes timestamp).
+
+        Uses direct field comparison instead of MD5 hashing for better performance
+        at high cycle rates (50ms/20Hz).
+        """
+        if self._last_saved_state is None:
+            return True
+
+        current = {
             "download": download,
             "upload": upload,
             "ewma": ewma,
             "last_applied": last_applied,
         }
-        serialized = json.dumps(state_for_hash, sort_keys=True)
-        return hashlib.md5(serialized.encode()).hexdigest()
+        return current != self._last_saved_state
 
     def load(self) -> dict[str, Any] | None:
         """
         Load state from disk.
 
-        Also initializes dirty tracking hash to prevent immediate rewrite.
+        Also initializes dirty tracking state to prevent immediate rewrite.
 
         Returns:
             State dictionary if found and valid, None if missing or invalid.
@@ -86,14 +90,14 @@ class WANControllerState:
 
         if state is not None:
             self.logger.debug(f"{self.wan_name}: Loaded state from {self.state_file}")
-            # Initialize hash from loaded state to prevent immediate rewrite
+            # Initialize last saved state to prevent immediate rewrite
             if all(k in state for k in ["download", "upload", "ewma", "last_applied"]):
-                self._last_saved_hash = self._compute_state_hash(
-                    state["download"],
-                    state["upload"],
-                    state["ewma"],
-                    state["last_applied"],
-                )
+                self._last_saved_state = {
+                    "download": state["download"],
+                    "upload": state["upload"],
+                    "ewma": state["ewma"],
+                    "last_applied": state["last_applied"],
+                }
 
         return state
 
@@ -120,9 +124,7 @@ class WANControllerState:
         Returns:
             True if state was written, False if skipped (unchanged)
         """
-        current_hash = self._compute_state_hash(download, upload, ewma, last_applied)
-
-        if not force and self._last_saved_hash == current_hash:
+        if not force and not self._is_state_changed(download, upload, ewma, last_applied):
             self.logger.debug(f"{self.wan_name}: State unchanged, skipping disk write")
             return False
 
@@ -135,7 +137,13 @@ class WANControllerState:
         }
 
         atomic_write_json(self.state_file, state)
-        self._last_saved_hash = current_hash
+        # Update last saved state for dirty tracking
+        self._last_saved_state = {
+            "download": download,
+            "upload": upload,
+            "ewma": ewma,
+            "last_applied": last_applied,
+        }
         self.logger.debug(f"{self.wan_name}: Saved state to {self.state_file}")
         return True
 
