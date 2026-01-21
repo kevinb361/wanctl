@@ -36,7 +36,7 @@ from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
 from ..retry_utils import measure_with_retry, verify_with_retry
-from ..router_client import get_router_client
+from ..router_client import get_router_client, get_router_client_with_failover
 from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..signal_utils import (
     get_shutdown_event,
@@ -472,7 +472,7 @@ class RouterOSController:
     def __init__(self, config: SteeringConfig, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        self.client = get_router_client(config, logger)
+        self.client = get_router_client_with_failover(config, logger)
 
     def get_rule_status(self) -> bool | None:
         """
