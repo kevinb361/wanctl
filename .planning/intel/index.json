@@ -1,0 +1,2071 @@
+{
+  "version": 1,
+  "updated": 1768997283651,
+  "files": {
+    "/home/kevin/projects/wanctl/src/wanctl/routeros_ssh.py": {
+      "exports": [
+        "RouterOSSSH",
+        "close",
+        "run_cmd",
+        "from_config"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "wanctl",
+        "pathlib",
+        "paramiko"
+      ],
+      "indexed": 1768997283655
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/router_client.py": {
+      "exports": [
+        "get_router_client"
+      ],
+      "imports": [
+        "typing",
+        "wanctl",
+        "logging"
+      ],
+      "indexed": 1768997283656
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/config_validation_utils.py": {
+      "exports": [
+        "validate_rtt_thresholds",
+        "validate_bandwidth_order",
+        "validate_sample_counts",
+        "validate_alpha",
+        "validate_threshold_order",
+        "validate_baseline_rtt"
+      ],
+      "imports": [
+        "wanctl",
+        "logging"
+      ],
+      "indexed": 1768997283662
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/metrics.py": {
+      "exports": [
+        "is_running",
+        "do_GET",
+        "record_steering_transition",
+        "stop",
+        "get_counter",
+        "log_message",
+        "MetricsRegistry",
+        "MetricsHandler",
+        "record_steering_state",
+        "record_ping_failure",
+        "set_gauge",
+        "MetricsServer",
+        "inc_counter",
+        "record_router_update",
+        "record_autorate_cycle",
+        "record_rate_limit_event",
+        "exposition",
+        "get_gauge",
+        "reset",
+        "start",
+        "start_metrics_server"
+      ],
+      "imports": [
+        "threading",
+        "http",
+        "typing",
+        "logging"
+      ],
+      "indexed": 1768997283672
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/health_check.py": {
+      "exports": [
+        "HealthCheckHandler",
+        "log_message",
+        "start_health_server",
+        "do_GET",
+        "update_health_status",
+        "shutdown",
+        "HealthCheckServer"
+      ],
+      "imports": [
+        "threading",
+        "typing",
+        "logging",
+        "json",
+        "wanctl",
+        "time",
+        "http"
+      ],
+      "indexed": 1768997283675
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering_logger.py": {
+      "exports": [
+        "log_rule_state",
+        "log_debug_cycle_state",
+        "log_error_with_context",
+        "log_state_transition",
+        "log_state_progress_legacy",
+        "log_transition_detected",
+        "log_failure_with_counter",
+        "SteeringLogger",
+        "log_degraded_mode_recovery",
+        "log_retry_attempt",
+        "log_state_progress",
+        "log_baseline_update",
+        "log_measurement",
+        "log_degraded_mode_entry",
+        "log_cache_hit"
+      ],
+      "imports": [
+        "steering",
+        "logging"
+      ],
+      "indexed": 1768997283682
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/routeros_rest.py": {
+      "exports": [
+        "RouterOSREST",
+        "set_queue_limit",
+        "from_config",
+        "run_cmd",
+        "test_connection",
+        "close",
+        "get_queue_stats"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "re",
+        "requests",
+        "json",
+        "os",
+        "wanctl",
+        "urllib3"
+      ],
+      "indexed": 1768997283699
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/rate_utils.py": {
+      "exports": [
+        "can_change",
+        "enforce_rate_bounds",
+        "RateLimiter",
+        "enforce_floor",
+        "enforce_ceiling",
+        "record_change",
+        "changes_remaining",
+        "time_until_available"
+      ],
+      "imports": [
+        "time",
+        "collections"
+      ],
+      "indexed": 1768997283703
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/state_utils.py": {
+      "exports": [
+        "atomic_write_json",
+        "safe_json_loads",
+        "safe_read_json",
+        "safe_json_load_file"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "json",
+        "wanctl",
+        "os",
+        "tempfile",
+        "pathlib"
+      ],
+      "indexed": 1768997283706
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/lock_utils.py": {
+      "exports": [
+        "validate_and_acquire_lock",
+        "is_process_alive",
+        "read_lock_pid",
+        "LockFile",
+        "acquire_lock",
+        "LockAcquisitionError",
+        "validate_lock"
+      ],
+      "imports": [
+        "types",
+        "logging",
+        "errno",
+        "time",
+        "os",
+        "pathlib"
+      ],
+      "indexed": 1768997283710
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/systemd_utils.py": {
+      "exports": [
+        "notify_status",
+        "is_systemd_available",
+        "notify_stopping",
+        "notify_watchdog",
+        "notify_ready",
+        "notify_degraded"
+      ],
+      "imports": [
+        "systemd"
+      ],
+      "indexed": 1768997283711
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/state_manager.py": {
+      "exports": [
+        "get",
+        "non_negative_float",
+        "load",
+        "validate_field",
+        "to_dict",
+        "validate_state",
+        "non_negative_int",
+        "save",
+        "get_defaults",
+        "bounded_float",
+        "SteeringStateManager",
+        "add_measurement",
+        "update",
+        "string_enum",
+        "set",
+        "validator",
+        "StateSchema",
+        "log_transition",
+        "StateManager",
+        "optional_positive_float",
+        "reset"
+      ],
+      "imports": [
+        "collections",
+        "typing",
+        "fcntl",
+        "logging",
+        "datetime",
+        "state_utils",
+        "shutil",
+        "pathlib"
+      ],
+      "indexed": 1768997283724
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/error_handling.py": {
+      "exports": [
+        "safe_operation",
+        "safe_call",
+        "handle_errors",
+        "decorator",
+        "wrapper"
+      ],
+      "imports": [
+        "collections",
+        "typing",
+        "functools",
+        "logging",
+        "contextlib",
+        "re",
+        "traceback"
+      ],
+      "indexed": 1768997283728
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/rtt_measurement.py": {
+      "exports": [
+        "RTTMeasurement",
+        "RTTAggregationStrategy",
+        "ping_hosts_concurrent",
+        "parse_ping_output",
+        "ping_host"
+      ],
+      "imports": [
+        "concurrent",
+        "statistics",
+        "logging",
+        "re",
+        "enum",
+        "subprocess"
+      ],
+      "indexed": 1768997283733
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/path_utils.py": {
+      "exports": [
+        "ensure_directory_exists",
+        "get_cake_root",
+        "safe_file_path",
+        "ensure_file_directory"
+      ],
+      "imports": [
+        "os",
+        "pathlib",
+        "logging"
+      ],
+      "indexed": 1768997283735
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/autorate_continuous.py": {
+      "exports": [
+        "handle_icmp_failure",
+        "run_cycle",
+        "verify_tcp_connectivity",
+        "update_ewma",
+        "verify_connectivity_fallback",
+        "load_state",
+        "main",
+        "set_limits",
+        "apply_rate_changes_if_needed",
+        "Config",
+        "measure_rtt",
+        "RouterOS",
+        "adjust_4state",
+        "save_state",
+        "ContinuousAutoRate",
+        "verify_local_connectivity",
+        "emergency_lock_cleanup",
+        "get_lock_paths",
+        "adjust",
+        "QueueController",
+        "WANController"
+      ],
+      "imports": [
+        "traceback",
+        "statistics",
+        "typing",
+        "argparse",
+        "logging",
+        "pathlib",
+        "socket",
+        "wanctl",
+        "time",
+        "atexit",
+        "sys"
+      ],
+      "indexed": 1768997283774
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/config_base.py": {
+      "exports": [
+        "validate_schema",
+        "BaseConfig",
+        "validate_comment",
+        "validate_ping_host",
+        "validate_identifier",
+        "validate_field",
+        "ConfigValidationError"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "re",
+        "socket",
+        "yaml"
+      ],
+      "indexed": 1768997283781
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/wan_controller_state.py": {
+      "exports": [
+        "WANControllerState",
+        "build_download_state",
+        "load",
+        "build_upload_state",
+        "save"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "hashlib",
+        "json",
+        "datetime",
+        "state_utils",
+        "pathlib"
+      ],
+      "indexed": 1768997283784
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/timeouts.py": {
+      "exports": [
+        "get_ssh_timeout",
+        "get_ping_timeout"
+      ],
+      "imports": [
+        "typing"
+      ],
+      "indexed": 1768997283786
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/calibrate.py": {
+      "exports": [
+        "print_result",
+        "print_error",
+        "test_ssh_connectivity",
+        "measure_throughput_upload",
+        "measure_throughput_download",
+        "print_info",
+        "Colors",
+        "print_header",
+        "main",
+        "to_dict",
+        "print_warning",
+        "run_calibration",
+        "set_cake_limit",
+        "measure_baseline_rtt",
+        "test_netperf_server",
+        "print_step",
+        "generate_config",
+        "CalibrationResult",
+        "print_success",
+        "binary_search_optimal_rate"
+      ],
+      "imports": [
+        "statistics",
+        "typing",
+        "argparse",
+        "pathlib",
+        "json",
+        "re",
+        "datetime",
+        "dataclasses",
+        "yaml",
+        "wanctl",
+        "time",
+        "subprocess",
+        "sys"
+      ],
+      "indexed": 1768997283806
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/__init__.py": {
+      "exports": [],
+      "imports": [],
+      "indexed": 1768997283808
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/baseline_rtt_manager.py": {
+      "exports": [
+        "BaselineRTTLoader",
+        "get_validated",
+        "to_dict",
+        "validate",
+        "get_delta",
+        "load",
+        "update_baseline_ewma",
+        "BaselineValidator",
+        "BaselineRTTManager",
+        "set_baseline",
+        "calculate_rtt_delta",
+        "from_dict"
+      ],
+      "imports": [
+        "state_utils",
+        "pathlib",
+        "logging"
+      ],
+      "indexed": 1768997283812
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/perf_profiler.py": {
+      "exports": [
+        "OperationProfiler",
+        "clear",
+        "report",
+        "measure_operation",
+        "stats",
+        "PerfTimer",
+        "record",
+        "wrapper"
+      ],
+      "imports": [
+        "time",
+        "collections",
+        "typing",
+        "logging"
+      ],
+      "indexed": 1768997283815
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/signal_utils.py": {
+      "exports": [
+        "get_shutdown_event",
+        "register_signal_handlers",
+        "is_shutdown_requested",
+        "reset_shutdown_state",
+        "wait_for_shutdown"
+      ],
+      "imports": [
+        "threading",
+        "types",
+        "signal"
+      ],
+      "indexed": 1768997283818
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/retry_utils.py": {
+      "exports": [
+        "retry_with_backoff",
+        "measure_with_retry",
+        "verify_with_retry",
+        "decorator",
+        "is_retryable_error",
+        "wrapper"
+      ],
+      "imports": [
+        "collections",
+        "random",
+        "typing",
+        "functools",
+        "logging",
+        "requests",
+        "time",
+        "subprocess"
+      ],
+      "indexed": 1768997283826
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/logging_utils.py": {
+      "exports": [
+        "JSONFormatter",
+        "setup_logging",
+        "get_log_format",
+        "format"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "json",
+        "datetime",
+        "wanctl",
+        "os"
+      ],
+      "indexed": 1768997283832
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/router_command_utils.py": {
+      "exports": [
+        "ok",
+        "validate_rule_status",
+        "unwrap",
+        "unwrap_or",
+        "unwrap_or_else",
+        "CommandResult",
+        "extract_queue_stats",
+        "is_err",
+        "is_ok",
+        "extract_field_value",
+        "err",
+        "handle_command_error",
+        "check_command_success",
+        "map",
+        "safe_parse_output"
+      ],
+      "imports": [
+        "collections",
+        "typing",
+        "logging",
+        "re",
+        "dataclasses",
+        "__future__"
+      ],
+      "indexed": 1768997283842
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/backends/routeros.py": {
+      "exports": [
+        "RouterOSBackend",
+        "reset_queue_counters",
+        "get_bandwidth",
+        "from_config",
+        "is_rule_enabled",
+        "enable_rule",
+        "test_connection",
+        "set_bandwidth",
+        "disable_rule",
+        "get_queue_stats"
+      ],
+      "imports": [
+        "typing",
+        "wanctl",
+        "logging"
+      ],
+      "indexed": 1768997283848
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/backends/__init__.py": {
+      "exports": [
+        "get_backend"
+      ],
+      "imports": [
+        "typing",
+        "wanctl"
+      ],
+      "indexed": 1768997283849
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/backends/base.py": {
+      "exports": [
+        "reset_queue_counters",
+        "get_bandwidth",
+        "from_config",
+        "is_rule_enabled",
+        "enable_rule",
+        "RouterBackend",
+        "test_connection",
+        "set_bandwidth",
+        "disable_rule",
+        "get_queue_stats"
+      ],
+      "imports": [
+        "abc",
+        "typing",
+        "logging"
+      ],
+      "indexed": 1768997283850
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering/steering_confidence.py": {
+      "exports": [
+        "evaluate",
+        "log_decision",
+        "TimerState",
+        "TimerManager",
+        "check_flapping",
+        "ConfidenceSignals",
+        "update_hold_down_timer",
+        "update_degrade_timer",
+        "update_recovery_timer",
+        "record_toggle",
+        "FlapDetector",
+        "Phase2BController",
+        "DryRunLogger",
+        "ConfidenceWeights",
+        "compute_confidence"
+      ],
+      "imports": [
+        "time",
+        "collections",
+        "dataclasses",
+        "logging"
+      ],
+      "indexed": 1768997283862
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering/cake_stats.py": {
+      "exports": [
+        "read_stats",
+        "CongestionSignals",
+        "CakeStatsReader",
+        "CakeStats"
+      ],
+      "imports": [
+        "typing",
+        "logging",
+        "re",
+        "dataclasses",
+        "state_utils",
+        "router_client",
+        "config_base"
+      ],
+      "indexed": 1768997283867
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering/daemon.py": {
+      "exports": [
+        "update_state_machine",
+        "run_cycle",
+        "BaselineLoader",
+        "disable_steering",
+        "update_ewma_smoothing",
+        "collect_cake_stats",
+        "calculate_delta",
+        "main",
+        "SteeringDaemon",
+        "run_daemon_loop",
+        "fallback_to_history",
+        "RouterOSController",
+        "get_rule_status",
+        "enable_steering",
+        "emergency_lock_cleanup",
+        "execute_steering_transition",
+        "load_baseline_rtt",
+        "SteeringConfig",
+        "measure_current_rtt",
+        "create_steering_state_schema",
+        "update_baseline_rtt"
+      ],
+      "imports": [
+        "threading",
+        "config_validation_utils",
+        "retry_utils",
+        "time",
+        "config_base",
+        "rtt_measurement",
+        "sys",
+        "timeouts",
+        "cake_stats",
+        "argparse",
+        "logging",
+        "congestion_assessment",
+        "traceback",
+        "state_manager",
+        "signal_utils",
+        "logging_utils",
+        "systemd_utils",
+        "router_client",
+        "steering_confidence",
+        "json",
+        "metrics",
+        "lock_utils",
+        "atexit",
+        "pathlib"
+      ],
+      "indexed": 1768997283899
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering/__init__.py": {
+      "exports": [],
+      "imports": [
+        "cake_stats",
+        "daemon",
+        "congestion_assessment"
+      ],
+      "indexed": 1768997283902
+    },
+    "/home/kevin/projects/wanctl/src/wanctl/steering/congestion_assessment.py": {
+      "exports": [
+        "ewma_update",
+        "StateThresholds",
+        "CongestionState",
+        "assess_congestion_state"
+      ],
+      "imports": [
+        "cake_stats",
+        "logging",
+        "math",
+        "dataclasses",
+        "enum"
+      ],
+      "indexed": 1768997283905
+    },
+    "/home/kevin/projects/wanctl/tests/test_config_validation_utils.py": {
+      "exports": [
+        "test_target_equals_warn_invalid",
+        "TestValidateSampleCounts",
+        "test_bad_samples_too_high_invalid",
+        "test_valid_rtt_thresholds_equal_allowed",
+        "test_valid_alpha_max_boundary",
+        "test_rtt_yellow_less_than_green_invalid",
+        "test_warn_equals_hard_red_invalid",
+        "test_baseline_rtt_int_to_float_conversion",
+        "test_convert_to_mbps_display",
+        "test_three_state_valid_ordering",
+        "test_baseline_rtt_very_low_invalid",
+        "test_alpha_outside_custom_bounds",
+        "test_valid_sample_counts_defaults",
+        "test_configuration_validation_error_accumulation",
+        "test_valid_threshold_ordering",
+        "TestConfigValidationIntegration",
+        "test_rtt_red_less_than_yellow_invalid",
+        "logger",
+        "test_red_samples_required_zero_invalid",
+        "test_valid_rtt_thresholds_with_defaults",
+        "TestValidateThresholdOrder",
+        "test_four_state_valid_ordering",
+        "test_alpha_nan_invalid",
+        "test_alpha_custom_bounds",
+        "test_target_greater_than_warn_invalid",
+        "test_alpha_negative_infinity_invalid",
+        "test_valid_baseline_rtt_maximum",
+        "TestValidateBaselineRTT",
+        "test_rtt_thresholds_large_values",
+        "test_valid_sample_counts_large_values",
+        "test_green_samples_required_too_high_invalid",
+        "test_full_autorate_config_validation",
+        "test_small_thresholds_valid",
+        "test_valid_baseline_rtt_minimum",
+        "test_rtt_thresholds_with_none_yellow",
+        "test_full_steering_config_validation",
+        "test_soft_red_violation",
+        "test_green_greater_than_ceiling_invalid",
+        "test_valid_alpha_min_boundary",
+        "test_alpha_below_minimum_invalid",
+        "test_valid_rtt_thresholds_explicit",
+        "test_valid_alpha_middle_range",
+        "test_large_thresholds_valid",
+        "test_valid_alpha_small_smoothing",
+        "test_valid_alpha_large_smoothing",
+        "test_baseline_rtt_custom_bounds",
+        "test_rtt_thresholds_small_values",
+        "test_baseline_rtt_very_high_invalid",
+        "test_default_floors",
+        "test_alpha_above_maximum_invalid",
+        "test_rtt_thresholds_with_none_red",
+        "test_bad_samples_zero_invalid",
+        "TestValidateBandwidthOrder",
+        "test_warn_greater_than_hard_red_invalid",
+        "test_baseline_rtt_below_minimum_invalid",
+        "test_good_samples_negative_invalid",
+        "test_alpha_none_invalid",
+        "test_alpha_invalid_string_raises_error",
+        "test_baseline_rtt_above_maximum_invalid",
+        "test_yellow_greater_than_green_invalid",
+        "test_alpha_int_to_float_conversion",
+        "test_green_samples_required_negative_invalid",
+        "test_equal_floors_valid",
+        "test_valid_sample_counts_all_one",
+        "test_valid_baseline_rtt_typical",
+        "TestValidateRTTThresholds",
+        "TestValidateAlpha",
+        "test_red_greater_than_yellow_invalid",
+        "test_red_samples_required_too_high_invalid",
+        "test_alpha_positive_infinity_invalid"
+      ],
+      "imports": [
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997283918
+    },
+    "/home/kevin/projects/wanctl/tests/test_wan_controller_state.py": {
+      "exports": [
+        "TestDirtyStateTracking",
+        "test_save_skipped_when_unchanged",
+        "test_save_preserves_schema",
+        "test_streak_change_triggers_write",
+        "test_load_returns_state_dict",
+        "test_build_download_state",
+        "test_save_creates_file",
+        "test_load_invalid_json_returns_none",
+        "test_build_upload_state",
+        "state_file",
+        "state_manager",
+        "test_load_initializes_hash",
+        "test_save_writes_when_changed",
+        "test_roundtrip_preserves_data",
+        "TestWANControllerState",
+        "sample_state",
+        "test_force_bypasses_dirty_check",
+        "test_rate_change_triggers_write",
+        "test_load_returns_none_for_missing_file"
+      ],
+      "imports": [
+        "json",
+        "pytest",
+        "wanctl",
+        "unittest"
+      ],
+      "indexed": 1768997283923
+    },
+    "/home/kevin/projects/wanctl/tests/test_state_manager.py": {
+      "exports": [
+        "test_update_method",
+        "test_load_invalid_json_uses_defaults",
+        "test_get_defaults",
+        "test_load_and_save_roundtrip",
+        "test_manager_initialization",
+        "logger",
+        "test_save_creates_file",
+        "test_validate_state_fills_defaults",
+        "test_simple_schema_creation",
+        "test_get_method",
+        "TestStateManager",
+        "TestStateSchema",
+        "test_nested_dict_state",
+        "temp_state_file",
+        "test_to_dict_method",
+        "test_reset_method",
+        "test_validate_state_preserves_provided_values",
+        "test_validate_field_type_conversion",
+        "TestStateManagerWithNestedData",
+        "test_list_state",
+        "test_validate_field_invalid_name",
+        "test_set_method",
+        "test_load_nonexistent_file_uses_defaults",
+        "test_context_in_error_messages"
+      ],
+      "imports": [
+        "logging",
+        "pytest",
+        "wanctl",
+        "tempfile",
+        "pathlib"
+      ],
+      "indexed": 1768997283930
+    },
+    "/home/kevin/projects/wanctl/tests/test_path_utils.py": {
+      "exports": [
+        "test_creates_single_level_directory",
+        "test_returns_path_object",
+        "TestSafeFilePath",
+        "test_string_path_input",
+        "logger",
+        "test_without_create_parent_no_creation",
+        "test_returns_same_path_on_second_call",
+        "test_existing_directory_is_idempotent",
+        "test_safe_file_path_workflow",
+        "TestEnsureDirectoryExists",
+        "test_with_create_parent_creates_directory",
+        "test_custom_mode_respected",
+        "test_empty_path_returns_path_object",
+        "test_existing_file_path_unchanged",
+        "test_multiple_files_same_directory",
+        "test_creates_nested_directories",
+        "test_create_and_write_file",
+        "test_returns_parent_path",
+        "test_handles_deeply_nested_file",
+        "test_idempotent_on_existing_parent",
+        "temp_dir",
+        "TestEnsureFileDirectory",
+        "test_deep_nesting_with_create_parent",
+        "TestPathUtilsIntegration",
+        "test_creates_parent_directory"
+      ],
+      "imports": [
+        "logging",
+        "pytest",
+        "wanctl",
+        "tempfile",
+        "pathlib"
+      ],
+      "indexed": 1768997283935
+    },
+    "/home/kevin/projects/wanctl/tests/test_config_edge_cases.py": {
+      "exports": [
+        "test_field_negative_zero_float",
+        "test_identifier_64_chars_with_valid_pattern",
+        "test_byte_order_mark_rejected",
+        "test_soft_hyphen_rejected",
+        "test_alpha_negative_zero",
+        "test_field_very_large_float",
+        "test_alpha_largest_under_one",
+        "test_rtl_embedding_rejected",
+        "test_ping_host_255_chars_valid",
+        "test_identifier_64_chars_valid",
+        "test_fullwidth_letters_rejected",
+        "test_identifier_65_chars_invalid",
+        "test_cyrillic_e_rejected",
+        "test_field_zero_with_zero_min",
+        "test_field_negative_one_with_zero_min_invalid",
+        "test_alpha_exactly_zero",
+        "test_comment_129_chars_invalid",
+        "test_cyrillic_o_rejected",
+        "test_field_one_below_min_invalid",
+        "test_ping_host_256_chars_valid",
+        "test_combining_characters_rejected",
+        "test_alpha_tiny_above_one_invalid",
+        "test_ltr_override_rejected",
+        "test_identifier_63_chars_valid",
+        "TestUnicodeEdgeCases",
+        "test_field_float_exactly_at_max",
+        "test_field_negative_large_int",
+        "test_zero_width_space_rejected",
+        "test_ltr_embedding_rejected",
+        "test_alpha_tiny_below_zero_invalid",
+        "test_comment_zero_width_rejected",
+        "test_comment_128_chars_with_valid_pattern",
+        "test_greek_omicron_rejected",
+        "TestBoundaryLengths",
+        "test_alpha_smallest_positive",
+        "test_comment_127_chars_valid",
+        "test_zero_width_non_joiner_rejected",
+        "test_zero_width_joiner_rejected",
+        "test_object_replacement_char_rejected",
+        "test_alpha_exactly_one",
+        "test_comment_cyrillic_rejected",
+        "test_field_large_int",
+        "test_hostname_label_63_chars_valid",
+        "test_word_joiner_rejected",
+        "test_field_subnormal_float",
+        "test_rtl_override_rejected",
+        "test_field_exactly_at_min",
+        "test_field_one_above_max_invalid",
+        "TestNumericBoundaries",
+        "test_field_float_exactly_at_min",
+        "test_comment_128_chars_valid",
+        "test_non_breaking_space_rejected",
+        "test_field_exactly_at_max",
+        "test_ping_host_257_chars_invalid",
+        "test_cyrillic_a_rejected",
+        "test_hostname_label_64_chars_invalid"
+      ],
+      "imports": [
+        "math",
+        "wanctl",
+        "pytest",
+        "sys"
+      ],
+      "indexed": 1768997283946
+    },
+    "/home/kevin/projects/wanctl/tests/test_logging_utils.py": {
+      "exports": [
+        "test_log_format_parameter",
+        "TestGetLogFormat",
+        "test_debug_mode_adds_handlers",
+        "test_creates_json_formatter",
+        "TestIntegration",
+        "test_text_format_output",
+        "TestCreateFormatter",
+        "test_json_from_env",
+        "test_creates_logger",
+        "test_format_excludes_internal_attrs",
+        "test_full_workflow_text_mode",
+        "test_text_from_env",
+        "test_default_is_text",
+        "test_format_compact_output",
+        "test_creates_text_formatter",
+        "test_reuses_existing_logger",
+        "TestSetupLogging",
+        "test_creates_file_handler",
+        "test_env_variable_json_format",
+        "test_format_with_message_args",
+        "test_case_insensitive",
+        "test_json_format_with_extra_fields",
+        "test_format_non_serializable_extra",
+        "test_format_with_exception",
+        "test_invalid_value_defaults_to_text",
+        "test_format_with_extra_fields",
+        "test_basic_format",
+        "MockConfig",
+        "test_json_format_output",
+        "TestJSONFormatter",
+        "test_full_workflow_json_mode",
+        "test_text_formatter_includes_wan_name"
+      ],
+      "imports": [
+        "unittest",
+        "logging",
+        "json",
+        "wanctl",
+        "sys",
+        "os",
+        "pathlib"
+      ],
+      "indexed": 1768997283956
+    },
+    "/home/kevin/projects/wanctl/tests/test_retry_utils_extended.py": {
+      "exports": [
+        "test_exhausted_retries",
+        "test_verify_state_machine_transition",
+        "TestVerifyWithRetry",
+        "test_exponential_backoff_timing",
+        "test_persistent_failure_with_fallback",
+        "test_fallback_not_called_on_success",
+        "test_zero_or_negative_measurements_valid",
+        "logger",
+        "test_flaky_network_measurement",
+        "test_verify_with_none_logger",
+        "test_none_logger",
+        "test_success_after_retries",
+        "test_different_expected_values",
+        "test_verify_boolean_state",
+        "fallback_to_history",
+        "measure_rtt",
+        "TestMeasureWithRetry",
+        "TestRetryPatternCombinations",
+        "check_rule",
+        "test_fallback_on_exhaustion",
+        "test_false_value_valid",
+        "check_rule_state",
+        "test_rtt_measurement_pattern",
+        "TestMeasureWithRetryIntegration",
+        "test_varying_measurement_values",
+        "check_func_string",
+        "test_verify_then_measure_pattern",
+        "test_fixed_delay_between_retries",
+        "test_immediate_success",
+        "check_func",
+        "test_empty_string_valid",
+        "measure_func",
+        "test_exhausted_without_fallback",
+        "test_multiple_verify_attempts_success",
+        "check_func_number",
+        "test_fallback_with_history",
+        "fallback_func"
+      ],
+      "imports": [
+        "time",
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997283966
+    },
+    "/home/kevin/projects/wanctl/tests/test_autorate_baseline_bounds.py": {
+      "exports": [
+        "TestBaselineBoundsConstants",
+        "mock_config",
+        "mock_logger",
+        "test_default_bounds_constants",
+        "mock_router",
+        "controller",
+        "test_baseline_above_max_rejected",
+        "test_baseline_at_min_boundary_accepted",
+        "test_baseline_within_bounds_accepted",
+        "test_baseline_below_min_rejected",
+        "TestBaselineBoundsValidation",
+        "test_baseline_at_max_boundary_accepted"
+      ],
+      "imports": [
+        "unittest",
+        "wanctl",
+        "pytest"
+      ],
+      "indexed": 1768997283969
+    },
+    "/home/kevin/projects/wanctl/tests/test_rtt_measurement.py": {
+      "exports": [
+        "mock_logger",
+        "test_exception_in_ping_logged_and_continues",
+        "mock_subprocess",
+        "test_timeout_handled_gracefully",
+        "test_various_ping_output_formats",
+        "test_returns_list_of_rtts",
+        "test_empty_hosts_returns_empty_list",
+        "test_all_failures_return_empty_list",
+        "test_partial_failures_return_successful_only",
+        "test_single_host_works",
+        "test_three_hosts_for_median_of_three",
+        "TestPingHostsConcurrent",
+        "TestParsesPingOutput",
+        "rtt_measurement",
+        "test_count_parameter_passed_to_ping_host"
+      ],
+      "imports": [
+        "subprocess",
+        "pytest",
+        "wanctl",
+        "unittest"
+      ],
+      "indexed": 1768997283973
+    },
+    "/home/kevin/projects/wanctl/tests/test_steering_daemon.py": {
+      "exports": [
+        "test_both_zero_decays_both",
+        "test_enable_steering_success_logs_transition",
+        "test_disable_steering_failure_logs_error",
+        "run_cycle_with_shutdown",
+        "mock_config_legacy",
+        "test_zero_queued_packets_decays_ewma",
+        "test_failure_counter_resets_on_success",
+        "run_cycle_always_fail",
+        "test_legacy_high_delta_increments_degrade_count",
+        "test_cake_red_assessment_increments_degrade_count",
+        "test_returns_zero_on_graceful_shutdown",
+        "test_zero_delta_decays_ewma",
+        "mock_rtt_measurement",
+        "run_cycle_slow",
+        "test_sleep_timing_respects_interval",
+        "run_cycle_alternate",
+        "mock_cake_reader",
+        "test_metrics_not_recorded_when_disabled",
+        "test_ewma_update_with_existing_values",
+        "test_degraded_notification_after_failures",
+        "test_successful_read_updates_queue_history",
+        "test_fourth_failure_does_not_log_error_again",
+        "test_watchdog_disabled_after_max_failures",
+        "mock_state_mgr",
+        "run_cycle_failing",
+        "test_counter_reset_on_state_change_cake",
+        "daemon",
+        "test_router_failure_prevents_state_change",
+        "test_state_persistence_queue_ewma",
+        "test_shutdown_after_cycles",
+        "test_transition_returns_true_allows_counter_reset",
+        "test_state_normalization_handles_legacy_names",
+        "test_cake_green_assessment_increments_recover_count",
+        "test_no_cake_reader_returns_zeros",
+        "TestUnifiedStateMachine",
+        "test_return_values_match_state",
+        "run_cycle_with_timing",
+        "test_failure_does_not_update_history",
+        "mock_router",
+        "test_enable_steering_success_updates_state",
+        "test_legacy_low_delta_increments_recover_count",
+        "test_cake_transitions_to_good_after_threshold",
+        "test_first_failure_increments_counter",
+        "test_successful_read_returns_correct_values",
+        "test_systemd_available_logged",
+        "mock_baseline_loader",
+        "test_congestion_state_stored_for_observability",
+        "test_disable_steering_success_updates_state",
+        "test_sleep_handles_slow_cycle",
+        "test_enable_steering_failure_logs_error",
+        "test_legacy_transitions_to_good_after_good_samples",
+        "test_successful_read_updates_drops_history",
+        "test_disable_steering_calls_router_disable",
+        "daemon_legacy",
+        "test_enable_steering_calls_router_enable",
+        "TestRunDaemonLoop",
+        "test_cake_transitions_to_degraded_after_threshold",
+        "test_state_persistence_multiple_updates",
+        "test_cake_yellow_resets_degrade_count",
+        "test_return_type_is_tuple",
+        "shutdown_event",
+        "mock_config_cake",
+        "test_cake_aware_disabled_returns_zeros",
+        "daemon_cake",
+        "test_first_failure_logs_warning",
+        "test_disable_steering_failure_returns_false",
+        "test_normal_ewma_update",
+        "test_third_failure_logs_error",
+        "mock_config",
+        "test_asymmetric_hysteresis_quick_degrade_slow_recover_cake",
+        "test_second_failure_does_not_log",
+        "run_cycle_success",
+        "test_shutdown_event_stops_loop",
+        "test_transition_returns_false_prevents_counter_reset",
+        "mock_logger",
+        "mock_daemon",
+        "test_disable_steering_success_logs_transition",
+        "test_state_persistence_rtt_delta_ewma",
+        "test_failure_returns_zeros",
+        "test_metrics_recorded_on_transition_when_enabled",
+        "run_cycle_fail",
+        "test_legacy_transitions_to_degraded_after_bad_samples",
+        "test_startup_message_logged",
+        "TestUpdateEwmaSmoothing",
+        "test_consecutive_failure_counting",
+        "test_systemd_not_available",
+        "test_metrics_recorded_when_enabled",
+        "TestCollectCakeStats",
+        "test_watchdog_notification_on_success",
+        "test_enable_steering_failure_returns_false",
+        "test_successful_read_resets_failure_counter",
+        "TestExecuteSteeringTransition",
+        "test_metrics_not_recorded_on_router_failure"
+      ],
+      "imports": [
+        "threading",
+        "unittest",
+        "pytest",
+        "wanctl",
+        "time"
+      ],
+      "indexed": 1768997284005
+    },
+    "/home/kevin/projects/wanctl/tests/test_config_base.py": {
+      "exports": [
+        "test_missing_required_field_raises",
+        "test_validate_identifier_special_chars",
+        "test_different_schema_version_logs_info",
+        "test_parentheses_rejected",
+        "test_newline_with_command",
+        "test_backticks_rejected",
+        "test_double_quotes_rejected",
+        "test_list_rejected",
+        "test_valid_ipv4_addresses",
+        "test_schema_version_stored_on_instance",
+        "test_validate_comment_invalid_chars",
+        "test_hostname_with_underscore",
+        "test_shell_variable_rejected",
+        "test_command_injection_dollar_paren",
+        "test_valid_single_label_hostname",
+        "test_hostname_label_too_long",
+        "test_command_injection_backticks",
+        "test_validate_comment_empty",
+        "test_semicolon_rejected",
+        "test_non_dict_in_path",
+        "test_valid_ipv6_addresses",
+        "TestValidatePingHost",
+        "TestBaseConfigValidation",
+        "test_min_value_validation",
+        "test_max_value_validation",
+        "test_string_value",
+        "test_ampersand_rejected",
+        "test_value_within_range",
+        "TestValidateField",
+        "TestValidateSchema",
+        "test_missing_optional_field_returns_default",
+        "test_valid_string_field",
+        "test_hostname_with_spaces",
+        "test_missing_nested_key",
+        "test_hash_comment",
+        "test_command_injection_semicolon",
+        "test_empty_string_rejected",
+        "test_choices_validation_invalid",
+        "test_single_quotes_rejected",
+        "test_validate_identifier_too_long",
+        "test_validate_comment_valid",
+        "test_non_string_rejected",
+        "test_too_long_rejected",
+        "test_newline_injection_rejected",
+        "test_single_quotes",
+        "test_schema_with_defaults",
+        "test_valid_rule_name_comment",
+        "test_hostname_starting_with_hyphen",
+        "test_pipe_rejected",
+        "test_current_schema_version_no_log",
+        "test_valid_hostnames",
+        "TestGetNested",
+        "test_validate_identifier_non_string",
+        "test_invalid_ipv4_negative_octet",
+        "test_command_injection_newline",
+        "test_carriage_return_injection",
+        "test_validate_identifier_invalid_chars",
+        "test_valid_nested_field",
+        "TestValidateIdentifierSecurityEdgeCases",
+        "test_shell_variable_expansion",
+        "test_command_injection_variable_expansion",
+        "test_choices_validation_valid",
+        "test_valid_adaptive_steer_comment",
+        "test_command_injection_ampersand",
+        "test_missing_schema_version_defaults_to_1_0",
+        "test_validate_identifier_valid",
+        "test_dict_value",
+        "test_hostname_ending_with_hyphen",
+        "test_dollar_paren_rejected",
+        "test_missing_key_returns_default",
+        "test_int_value",
+        "test_wrong_type_raises",
+        "test_none_value",
+        "test_hostname_with_numbers",
+        "test_valid_schema",
+        "test_double_quotes",
+        "test_redirect_rejected",
+        "test_current_schema_version_constant",
+        "TestTypeName",
+        "test_command_injection_redirect",
+        "test_null_byte_injection",
+        "test_command_injection_pipe",
+        "test_validate_comment_too_long",
+        "test_none_rejected",
+        "TestValidateCommentSecurityEdgeCases",
+        "test_unicode_bypass_attempt",
+        "test_ipv4_like_strings_accepted_as_hostnames",
+        "test_schema_multiple_errors",
+        "test_validate_comment_non_string",
+        "test_validate_identifier_empty",
+        "test_nested_key",
+        "test_command_injection_complex_payload",
+        "test_hostname_with_hyphens",
+        "test_list_value",
+        "TestSchemaVersioning",
+        "test_int_coerced_to_float",
+        "test_tuple_of_types",
+        "test_simple_key"
+      ],
+      "imports": [
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997284022
+    },
+    "/home/kevin/projects/wanctl/tests/test_router_command_utils.py": {
+      "exports": [
+        "test_large_numbers",
+        "test_success_ignores_return_value",
+        "test_rule_enable_verify_flow",
+        "test_rule_disabled",
+        "test_extract_string_field",
+        "test_multiline_output",
+        "test_extract_float_field",
+        "test_default_logger",
+        "test_whitespace_only_output",
+        "test_malformed_number",
+        "test_failure_rc_nonzero",
+        "test_invalid_conversion",
+        "TestHandleCommandError",
+        "test_parse_exception_handling",
+        "parse_func",
+        "logger",
+        "TestExtractFieldValue",
+        "test_failure_with_return_value",
+        "test_error_handling_with_fallback",
+        "test_bytes_without_queued_bytes",
+        "TestRouterCommandUtilsIntegration",
+        "test_successful_parse",
+        "test_enabled_with_other_flags",
+        "test_whitespace_output",
+        "TestValidateRuleStatus",
+        "test_extract_all_stats",
+        "test_failure_returns_custom_value",
+        "TestSafeParseOutput",
+        "TestCheckCommandSuccess",
+        "test_extract_field_with_underscore",
+        "test_queue_stats_retrieval_flow",
+        "TestExtractQueueStats",
+        "test_failure_with_error_message",
+        "test_disabled_with_more_flags",
+        "test_rule_enabled",
+        "test_success_rc_zero",
+        "test_extract_integer_field",
+        "test_parse_function_returns_none",
+        "test_full_queue_operation_success",
+        "test_field_not_found",
+        "test_extract_hyphenated_field",
+        "test_partial_stats",
+        "test_empty_output"
+      ],
+      "imports": [
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997284031
+    },
+    "/home/kevin/projects/wanctl/tests/test_retry_utils.py": {
+      "exports": [
+        "timeout_then_succeed",
+        "test_runtime_error_not_retryable",
+        "test_exponential_backoff",
+        "test_passes_arguments_correctly",
+        "test_oserror_connection_timed_out_is_retryable",
+        "test_preserves_function_metadata",
+        "test_returns_correct_value",
+        "test_connection_refused_is_retryable",
+        "test_jitter_adds_randomness",
+        "test_oserror_connection_reset_is_retryable",
+        "test_timeout_expired_retries",
+        "test_timeout_expired_is_retryable",
+        "with_args",
+        "succeed",
+        "fail_then_succeed",
+        "test_retries_on_transient_error",
+        "return_complex",
+        "test_oserror_other_not_retryable",
+        "test_oserror_connection_refused_is_retryable",
+        "test_type_error_not_retryable",
+        "my_method",
+        "MyClass",
+        "fail",
+        "test_uses_logger_from_self",
+        "test_max_delay_caps_backoff",
+        "test_oserror_network_unreachable_is_retryable",
+        "always_fail",
+        "TestRetryWithBackoff",
+        "test_oserror_broken_pipe_is_retryable",
+        "track_timing",
+        "test_success_on_first_attempt",
+        "test_non_retryable_error_raises_immediately",
+        "test_max_attempts_reached",
+        "test_value_error_not_retryable",
+        "my_function",
+        "TestIsRetryableError",
+        "test_connection_reset_is_retryable",
+        "test_connection_error_is_retryable",
+        "test_case_insensitive_matching",
+        "create_decorated"
+      ],
+      "imports": [
+        "unittest",
+        "pytest",
+        "wanctl",
+        "time",
+        "subprocess"
+      ],
+      "indexed": 1768997284037
+    },
+    "/home/kevin/projects/wanctl/tests/test_steering_deprecation.py": {
+      "exports": [
+        "test_warns_when_deprecated_param_present",
+        "test_good_samples_logs_deprecation_warning",
+        "test_no_warning_when_deprecated_param_absent",
+        "test_both_params_logs_warning",
+        "test_bad_samples_logs_deprecation_warning",
+        "minimal_config_data",
+        "test_warning_message_format",
+        "TestDeprecationWarningHelper",
+        "test_new_params_no_warning",
+        "TestDeprecationWarningsInConfig"
+      ],
+      "imports": [
+        "unittest",
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997284040
+    },
+    "/home/kevin/projects/wanctl/tests/test_wan_controller.py": {
+      "exports": [
+        "mock_logger",
+        "test_total_connectivity_loss_all_modes",
+        "test_baseline_updates_when_idle",
+        "test_rate_limited_no_metric_when_disabled",
+        "test_success_no_metric_when_disabled",
+        "test_changed_ul_rate_calls_router",
+        "test_icmp_recovery_logs_message",
+        "test_graceful_degradation_cycle_3_freezes",
+        "test_success_records_metric_when_enabled",
+        "test_unknown_mode_returns_false",
+        "test_router_failure_returns_false",
+        "test_baseline_freezes_under_load",
+        "test_baseline_logs_on_update",
+        "test_no_recovery_log_when_counter_zero",
+        "test_freeze_mode_freezes_on_high_cycle_count",
+        "test_tcp_rtt_bypasses_degradation_cycles",
+        "mock_rtt_measurement",
+        "test_fallback_to_degradation_when_no_tcp_rtt",
+        "TestIcmpRecovery",
+        "test_metrics_recorded_when_enabled",
+        "test_rate_limited_records_metric_when_enabled",
+        "test_success_records_change_with_rate_limiter",
+        "mock_router",
+        "test_router_failure_does_not_update_tracking",
+        "test_graceful_degradation_cycle_1_uses_last_rtt",
+        "test_use_last_rtt_mode_uses_last_rtt",
+        "test_graceful_degradation_cycle_2_freezes",
+        "TestHandleIcmpFailure",
+        "test_tcp_rtt_works_in_use_last_rtt_mode",
+        "test_metrics_not_recorded_when_disabled",
+        "test_both_rates_changed_calls_router",
+        "test_graceful_degradation_cycle_5_still_fails",
+        "mock_config",
+        "TestApplyRateChangesIfNeeded",
+        "test_total_connectivity_loss_returns_false",
+        "test_none_last_applied_calls_router",
+        "test_success_updates_tracking",
+        "test_use_last_rtt_mode_continues_on_high_cycle_count",
+        "test_threshold_boundary_exact_equal",
+        "test_icmp_recovery_resets_counter",
+        "test_tcp_rtt_works_in_freeze_mode",
+        "controller",
+        "TestUpdateBaselineIfIdle",
+        "test_tcp_rtt_used_when_available",
+        "test_unchanged_rates_skip_router_call",
+        "test_rate_limited_skips_router_saves_state",
+        "test_baseline_freeze_prevents_drift",
+        "test_changed_dl_rate_calls_router",
+        "test_freeze_mode_always_freezes",
+        "test_graceful_degradation_cycle_4_fails"
+      ],
+      "imports": [
+        "unittest",
+        "wanctl",
+        "pytest"
+      ],
+      "indexed": 1768997284060
+    },
+    "/home/kevin/projects/wanctl/tests/test_state_utils.py": {
+      "exports": [
+        "test_missing_file_returns_custom_default",
+        "test_creates_parent_directories",
+        "test_invalid_json_returns_custom_default",
+        "test_overwrites_existing_file",
+        "test_missing_file_returns_default",
+        "test_read_existing_file",
+        "TestAtomicWriteJson",
+        "test_complex_data_structure",
+        "test_non_serializable_data_raises",
+        "test_write_to_path_object",
+        "test_read_during_write_sees_old_or_new",
+        "TestAtomicityGuarantees",
+        "test_compact_json_format",
+        "test_no_temp_file_left_on_success",
+        "TestSafeReadJson",
+        "test_basic_write",
+        "test_empty_file_returns_default",
+        "test_invalid_json_returns_default"
+      ],
+      "imports": [
+        "json",
+        "pytest",
+        "wanctl",
+        "pathlib"
+      ],
+      "indexed": 1768997284065
+    },
+    "/home/kevin/projects/wanctl/tests/test_steering_timers.py": {
+      "exports": [
+        "timer_state",
+        "logger",
+        "test_default_cycle_interval",
+        "TestTimerManagerCycleInterval",
+        "test_hold_down_timer_decrements_by_cycle_interval",
+        "TestPhase2BControllerCycleInterval",
+        "config_v3",
+        "test_timer_manager_stores_cycle_interval",
+        "timer_manager",
+        "test_custom_cycle_interval",
+        "test_timer_manager_custom_cycle_interval",
+        "test_degrade_timer_expiry_timing",
+        "test_hold_down_timer_expiry_timing",
+        "test_recovery_timer_decrements_by_cycle_interval",
+        "test_recovery_timer_expiry_timing",
+        "test_cycle_interval_passed_to_timer_manager",
+        "test_degrade_timer_decrements_by_cycle_interval"
+      ],
+      "imports": [
+        "unittest",
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997284069
+    },
+    "/home/kevin/projects/wanctl/tests/conftest.py": {
+      "exports": [
+        "temp_dir",
+        "sample_config_data"
+      ],
+      "imports": [
+        "pytest",
+        "pathlib",
+        "tempfile",
+        "sys"
+      ],
+      "indexed": 1768997284070
+    },
+    "/home/kevin/projects/wanctl/tests/test_steering_logger.py": {
+      "exports": [
+        "test_retry_attempt_failure",
+        "TestLogStateTransition",
+        "test_log_measurement_none_baseline",
+        "test_log_measurement_cake_aware",
+        "test_retry_attempt_success",
+        "test_initialization",
+        "test_log_state_transition_with_reason",
+        "test_log_cache_hit",
+        "logger",
+        "TestSteeringLoggerWANNames",
+        "test_rule_disabled_verified",
+        "test_log_degraded_mode_recovery",
+        "TestLogFailureWithCounter",
+        "TestLogRuleState",
+        "test_state_suffix_extraction",
+        "test_log_state_transition_basic",
+        "test_first_failure_warning",
+        "TestLogRetryAttempt",
+        "congestion_signals",
+        "test_baseline_minor_change",
+        "TestSteeringLoggerInitialization",
+        "TestLogDegradedMode",
+        "steering_logger",
+        "TestLogBaselineUpdate",
+        "test_baseline_significant_change",
+        "test_sustained_failure_debug",
+        "test_log_degraded_mode_entry",
+        "TestLogErrorWithContext",
+        "test_log_debug_with_details",
+        "test_rule_verified_with_retries",
+        "test_rule_enabled_verified",
+        "test_threshold_failure_error",
+        "test_log_debug_cycle_state",
+        "test_different_wan_names",
+        "TestLogDebugCycleState",
+        "test_log_measurement_rtt_only",
+        "test_log_error_with_context",
+        "TestLogMeasurement",
+        "test_baseline_initialization",
+        "test_log_cache_hit_no_context",
+        "TestLogCacheHit",
+        "test_rule_verify_failed",
+        "test_wan_name_uppercase_conversion"
+      ],
+      "imports": [
+        "wanctl",
+        "pytest",
+        "logging"
+      ],
+      "indexed": 1768997284077
+    },
+    "/home/kevin/projects/wanctl/tests/__init__.py": {
+      "exports": [],
+      "imports": [],
+      "indexed": 1768997284078
+    },
+    "/home/kevin/projects/wanctl/tests/test_health_check.py": {
+      "exports": [
+        "test_404_on_unknown_path",
+        "test_start_and_shutdown",
+        "test_get_current_state_green",
+        "test_get_current_state_yellow",
+        "test_updates_consecutive_failures",
+        "TestHealthServer",
+        "reset_handler_state",
+        "test_root_endpoint_returns_health",
+        "test_get_current_state_soft_red",
+        "TestUpdateHealthStatus",
+        "test_health_endpoint_returns_json",
+        "TestHealthCheckHandler",
+        "test_health_endpoint_with_failures",
+        "find_free_port",
+        "test_health_with_mock_controller",
+        "test_get_current_state_red"
+      ],
+      "imports": [
+        "unittest",
+        "urllib",
+        "json",
+        "socket",
+        "pytest",
+        "wanctl",
+        "time"
+      ],
+      "indexed": 1768997284083
+    },
+    "/home/kevin/projects/wanctl/tests/test_rate_limiter.py": {
+      "exports": [
+        "test_can_change_when_empty",
+        "test_old_changes_expire",
+        "test_initial_deque_empty",
+        "TestRecordChange",
+        "TestMonotonicTime",
+        "test_invalid_max_changes_negative",
+        "test_invalid_window_seconds_zero",
+        "test_custom_values",
+        "test_time_until_available_when_under_limit",
+        "test_uses_monotonic_time",
+        "test_changes_remaining_when_empty",
+        "TestTimeUntilAvailable",
+        "test_invalid_window_seconds_negative",
+        "test_very_short_window",
+        "test_default_values",
+        "test_time_until_available_when_limited",
+        "test_concurrent_like_behavior",
+        "test_time_until_available_decreases",
+        "test_changes_remaining_after_some_changes",
+        "test_cannot_change_at_limit",
+        "test_changes_remaining_after_expiration",
+        "TestRateLimiterInit",
+        "test_record_change_adds_entry",
+        "TestChangesRemaining",
+        "test_changes_remaining_at_limit",
+        "test_time_until_available_when_available",
+        "test_partial_expiration",
+        "test_single_change_limit",
+        "test_multiple_records",
+        "TestEdgeCases",
+        "test_can_change_under_limit",
+        "test_deque_maxlen_enforced",
+        "test_invalid_max_changes_zero",
+        "TestCanChange"
+      ],
+      "imports": [
+        "time",
+        "unittest",
+        "wanctl",
+        "pytest"
+      ],
+      "indexed": 1768997284089
+    },
+    "/home/kevin/projects/wanctl/tests/test_baseline_rtt_manager.py": {
+      "exports": [
+        "test_delta_negative",
+        "test_update_baseline_when_idle",
+        "test_delta_with_none_baseline",
+        "test_get_delta_with_valid_baseline",
+        "test_from_dict",
+        "test_baseline_frozen_when_under_load",
+        "test_initialization",
+        "test_set_baseline",
+        "test_validate_above_maximum",
+        "logger",
+        "test_to_dict",
+        "test_load_nonexistent_file",
+        "TestBaselineRTTManagerEWMAAccuracy",
+        "test_load_logs_significant_changes",
+        "test_get_delta_with_none_baseline",
+        "test_load_valid_baseline",
+        "TestBaselineRTTLoader",
+        "test_ewma_freezes_under_load",
+        "test_get_validated_with_none",
+        "TestBaselineRTTManager",
+        "TestCalculateRTTDelta",
+        "TestBaselineValidator",
+        "test_get_validated_with_valid",
+        "temp_state_file",
+        "test_load_out_of_bounds",
+        "test_validate_below_minimum",
+        "test_ewma_convergence_idle",
+        "test_from_dict_with_none",
+        "test_get_validated_with_invalid",
+        "test_delta_with_valid_baseline",
+        "test_validator_initialization",
+        "test_loader_initialization",
+        "test_load_invalid_json",
+        "test_validate_within_bounds",
+        "test_load_missing_baseline"
+      ],
+      "imports": [
+        "logging",
+        "json",
+        "pytest",
+        "wanctl",
+        "tempfile",
+        "pathlib"
+      ],
+      "indexed": 1768997284096
+    },
+    "/home/kevin/projects/wanctl/tests/test_lockfile.py": {
+      "exports": [
+        "test_exception_attributes",
+        "test_releases_lock_on_exit",
+        "test_removes_stale_lock",
+        "logger",
+        "test_releases_lock_on_exception",
+        "TestLockFile",
+        "test_sequential_locks_work",
+        "test_exception_message",
+        "TestLockAcquisitionError",
+        "TestLockFileIntegration",
+        "test_raises_on_recent_lock",
+        "test_acquires_lock_when_no_existing",
+        "test_exception_in_lock_context_preserves_info",
+        "CustomError",
+        "test_context_manager_returns_self",
+        "test_creates_parent_directory_not_required",
+        "test_timeout_boundary_stale",
+        "test_timeout_boundary_recent"
+      ],
+      "imports": [
+        "logging",
+        "pytest",
+        "wanctl",
+        "time",
+        "os",
+        "pathlib"
+      ],
+      "indexed": 1768997284100
+    },
+    "/home/kevin/projects/wanctl/tests/test_lock_utils.py": {
+      "exports": [
+        "TestAcquireLock",
+        "TestIsProcessAlive",
+        "test_read_invalid_pid_format",
+        "test_recent_lock_no_pid_returns_false",
+        "test_invalid_pid_is_dead",
+        "test_current_process_lock_returns_false",
+        "test_no_lock_file_returns_true",
+        "test_read_valid_pid",
+        "logger",
+        "test_read_pid_with_whitespace",
+        "TestReadLockPid",
+        "test_lock_has_correct_permissions",
+        "test_remove_stale_lock_and_acquire_new",
+        "test_read_nonexistent_file",
+        "test_current_process_is_alive",
+        "TestValidateAndAcquireLock",
+        "test_old_lock_no_pid_returns_true",
+        "test_acquire_new_lock_succeeds",
+        "temp_lock",
+        "test_acquire_existing_lock_fails",
+        "test_nonexistent_pid_is_dead",
+        "TestValidateLock",
+        "test_recent_lock_with_dead_pid_returns_true"
+      ],
+      "imports": [
+        "logging",
+        "pytest",
+        "wanctl",
+        "time",
+        "os",
+        "tempfile",
+        "pathlib"
+      ],
+      "indexed": 1768997284105
+    },
+    "/home/kevin/projects/wanctl/tests/test_timeouts.py": {
+      "exports": [
+        "test_return_type_is_int",
+        "test_ssh_timeout_calibrate",
+        "test_quick_timeout",
+        "TestTimeoutConstants",
+        "test_long_timeout",
+        "test_autorate_ssh_timeout",
+        "test_autorate_ping_timeout_total_flag_ignored",
+        "TestGetPingTimeout",
+        "test_ping_timeout_autorate",
+        "test_calibrate_ssh_timeout",
+        "test_unknown_component_raises_error",
+        "test_case_sensitive_component",
+        "test_calibrate_ping_timeout",
+        "test_steering_ssh_timeout",
+        "test_ping_timeout_calibrate",
+        "test_lock_timeout",
+        "test_steering_ping_timeout_total",
+        "test_autorate_ping_timeout",
+        "test_ping_timeout_steering",
+        "test_timeout_ordering",
+        "test_per_ping_less_than_total",
+        "test_ssh_timeout_steering",
+        "test_standard_timeout",
+        "test_ssh_timeout_autorate",
+        "test_steering_ping_timeout_per_ping",
+        "TestGetSshTimeout"
+      ],
+      "imports": [
+        "wanctl",
+        "pytest"
+      ],
+      "indexed": 1768997284108
+    },
+    "/home/kevin/projects/wanctl/tests/integration/test_latency_control.py": {
+      "exports": [
+        "run_validation_test",
+        "report_generator",
+        "TestLatencyControl",
+        "test_rrul_standard",
+        "output_dir",
+        "test_rrul_quick",
+        "pytest_addoption",
+        "with_controller"
+      ],
+      "imports": [
+        "pathlib",
+        "pytest",
+        "datetime",
+        "tests",
+        "sys"
+      ],
+      "indexed": 1768997284114
+    },
+    "/home/kevin/projects/wanctl/tests/integration/conftest.py": {
+      "exports": [
+        "pytest_configure",
+        "check_dependencies",
+        "integration_output_dir",
+        "skip_if_missing_deps",
+        "pytest_addoption",
+        "with_controller"
+      ],
+      "imports": [
+        "shutil",
+        "pytest",
+        "pathlib"
+      ],
+      "indexed": 1768997284116
+    },
+    "/home/kevin/projects/wanctl/tests/integration/__init__.py": {
+      "exports": [],
+      "imports": [],
+      "indexed": 1768997284117
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/load_generator.py": {
+      "exports": [
+        "from_yaml",
+        "LoadProfile",
+        "LoadGenerator",
+        "wait_and_collect",
+        "is_available",
+        "NetperfGenerator",
+        "start",
+        "LoadResult",
+        "create_load_generator",
+        "FlentGenerator",
+        "run_load_test"
+      ],
+      "imports": [
+        "time",
+        "typing",
+        "abc",
+        "dataclasses",
+        "yaml",
+        "shutil",
+        "subprocess",
+        "pathlib"
+      ],
+      "indexed": 1768997284122
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/report_generator.py": {
+      "exports": [
+        "ValidationReport",
+        "generate",
+        "ReportGenerator"
+      ],
+      "imports": [
+        "latency_collector",
+        "typing",
+        "load_generator",
+        "json",
+        "sla_checker",
+        "datetime",
+        "dataclasses",
+        "controller_monitor",
+        "pathlib"
+      ],
+      "indexed": 1768997284130
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/sla_checker.py": {
+      "exports": [
+        "from_yaml",
+        "failed_slas",
+        "check_all",
+        "passed_slas",
+        "SLAEvaluation",
+        "SLAResult",
+        "SLAConfig",
+        "SLAChecker"
+      ],
+      "imports": [
+        "latency_collector",
+        "typing",
+        "dataclasses",
+        "yaml",
+        "controller_monitor",
+        "pathlib"
+      ],
+      "indexed": 1768997284134
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/controller_monitor.py": {
+      "exports": [
+        "detected_congestion",
+        "is_available",
+        "StateTransition",
+        "stop",
+        "ControllerAnalysis",
+        "start",
+        "ControllerMonitor"
+      ],
+      "imports": [
+        "re",
+        "datetime",
+        "dataclasses",
+        "time",
+        "subprocess"
+      ],
+      "indexed": 1768997284140
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/__init__.py": {
+      "exports": [],
+      "imports": [
+        "latency_collector",
+        "load_generator",
+        "report_generator",
+        "sla_checker",
+        "controller_monitor"
+      ],
+      "indexed": 1768997284141
+    },
+    "/home/kevin/projects/wanctl/tests/integration/framework/latency_collector.py": {
+      "exports": [
+        "LatencySample",
+        "LatencyStats",
+        "percentile",
+        "measure_baseline_rtt",
+        "LatencyCollector",
+        "stop",
+        "start"
+      ],
+      "imports": [
+        "time",
+        "threading",
+        "statistics",
+        "re",
+        "dataclasses",
+        "shutil",
+        "subprocess"
+      ],
+      "indexed": 1768997284147
+    },
+    "/home/kevin/projects/wanctl/scripts/analyze_profiling.py": {
+      "exports": [
+        "generate_markdown_report",
+        "main",
+        "identify_cycle_totals",
+        "calculate_statistics",
+        "calculate_percentages",
+        "parse_timing_lines"
+      ],
+      "imports": [
+        "collections",
+        "typing",
+        "argparse",
+        "pathlib",
+        "json",
+        "re",
+        "datetime",
+        "sys"
+      ],
+      "indexed": 1768997284153
+    },
+    "/home/kevin/projects/wanctl/scripts/profiling_collector.py": {
+      "exports": [
+        "main",
+        "calculate_statistics",
+        "format_text_output",
+        "parse_timing_lines",
+        "format_csv_output"
+      ],
+      "imports": [
+        "collections",
+        "typing",
+        "argparse",
+        "pathlib",
+        "json",
+        "re",
+        "sys"
+      ],
+      "indexed": 1768997284158
+    }
+  }
+}

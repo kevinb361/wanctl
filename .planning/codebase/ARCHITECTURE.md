@@ -1,178 +1,226 @@
 # Architecture
 
-**Analysis Date:** 2026-01-09
+**Analysis Date:** 2026-01-21
 
 ## Pattern Overview
 
-**Overall:** Daemon-based adaptive bandwidth control with optional multi-WAN steering
+**Overall:** Dual-daemon adaptive control system with two independent persistent daemons coordinating via state files and router APIs. Each daemon is a separate entry point, running its own control loop with configurable cycle intervals.
 
 **Key Characteristics:**
-- Continuous monitoring loops (2-second intervals for steering, configurable for autorate)
-- State machine-driven (GREEN/YELLOW/SOFT_RED/RED states for congestion)
-- Dual-transport router control (REST preferred, SSH fallback)
-- Configuration-driven (same code for fiber, cable, DSL, multi-WAN)
-- Multi-signal decision making (RTT + CAKE drops + queue depth)
-- File-based state persistence with locking for concurrent safety
+- Layered architecture: configuration → business logic → router backends → network transport
+- State-driven coordination: daemons share router state via JSON persistence, not direct IPC
+- Pluggable router backends: abstract interface allows SSH or REST API transport without changing core logic
+- Decorator-based error handling: consolidates repetitive try/except patterns across 73+ method calls
+- Metrics-first design: built-in Prometheus-compatible metrics server for observability
 
 ## Layers
 
-**Router Control Layer:**
-- Purpose: Communicate with MikroTik RouterOS device
-- Contains: REST API client, SSH client, factory pattern selector
-- Depends on: requests, paramiko, configuration
-- Used by: Autorate and steering daemons
-- Files: `src/wanctl/routeros_rest.py`, `src/wanctl/routeros_ssh.py`, `src/wanctl/router_client.py`
+**Configuration Layer:**
+- Purpose: Load, validate, and provide runtime configuration from YAML files
+- Location: `src/wanctl/config_base.py`, `src/wanctl/config_validation_utils.py`
+- Contains: BaseConfig class with schema validation, environment variable interpolation, security checks
+- Depends on: yaml, logging
+- Used by: Both autorate_continuous and steering daemons
 
-**Measurement Layer:**
-- Purpose: Collect network metrics (RTT, CAKE stats, queue depth)
-- Contains: ICMP ping, CAKE statistics reader, RTT aggregation
-- Depends on: Router control layer, system utilities (ping)
-- Used by: Autorate and steering daemons
-- Files: `src/wanctl/rtt_measurement.py`, `src/wanctl/steering/cake_stats.py`
-
-**Congestion Assessment Layer:**
-- Purpose: Evaluate network health from measurements
-- Contains: Three-state congestion model (GREEN/YELLOW/RED), confidence scoring, EWMA smoothing
-- Depends on: Measurements
-- Used by: State machines
-- Files: `src/wanctl/steering/congestion_assessment.py`, `src/wanctl/steering/steering_confidence.py`
+**Transport Layer (Router Communication):**
+- Purpose: Abstract away SSH vs REST API differences, provide unified command interface
+- Location: `src/wanctl/backends/base.py` (interface), `src/wanctl/backends/routeros.py` (implementation)
+- Also: `src/wanctl/routeros_ssh.py` (raw SSH client), `src/wanctl/routeros_rest.py` (REST client)
+- Contains: RouterBackend abstract base, RouterOSBackend implementation for MikroTik
+- Depends on: paramiko (SSH), requests (REST), re (output parsing)
+- Used by: CakeStatsReader, WANController, SteeringDaemon
 
 **State Management Layer:**
-- Purpose: Persist and track daemon state across cycles
-- Contains: JSON file I/O, state schemas, locking
-- Depends on: File system, error handling
-- Used by: Autorate and steering daemons
-- Files: `src/wanctl/state_manager.py`, `src/wanctl/state_utils.py`
+- Purpose: Atomically load/save controller state, track dirty state to avoid unnecessary writes
+- Location: `src/wanctl/wan_controller_state.py`, `src/wanctl/state_manager.py`
+- Contains: WANControllerState (autorate persistence), SteeringStateManager (steering daemon), validators
+- Depends on: json, pathlib, logging, hashlib (dirty tracking)
+- Used by: autorate_continuous.main(), steering.daemon.main()
+
+**Measurement Layer:**
+- Purpose: Collect network metrics (RTT, queue stats) via subprocess commands and router queries
+- Location: `src/wanctl/rtt_measurement.py`, `src/wanctl/steering/cake_stats.py`
+- Contains: RTTMeasurement (ping-based), CakeStatsReader (queue statistics)
+- Depends on: subprocess (ping), concurrent.futures (parallel commands), re (parsing)
+- Used by: WANController, SteeringDaemon
 
 **Control Logic Layer:**
-- Purpose: Implement bandwidth adjustment and steering algorithms
-- Contains: State machines, rate limiter, queue controller, steering daemon
-- Depends on: Router control, measurement, congestion assessment, state management
-- Used by: Main entry points
-- Files: `src/wanctl/autorate_continuous.py`, `src/wanctl/steering/daemon.py`
+- Purpose: Decision-making algorithms for rate adjustment and traffic steering
+- Location: `src/wanctl/autorate_continuous.py` (main controller), `src/wanctl/steering/daemon.py` (steering daemon)
+- Also: `src/wanctl/steering/congestion_assessment.py`, `src/wanctl/rate_utils.py`
+- Contains: BandwidthController (rate logic), WANController (per-WAN state), SteeringDaemon (latency-sensitive routing)
+- Depends on: All layers below
+- Used by: main() entry points
 
-**Configuration & Validation Layer:**
-- Purpose: Parse config YAML and validate all inputs
-- Contains: Schema definitions, bandwidth bounds, RTT thresholds, identifier validation
-- Depends on: PyYAML, error handling
-- Used by: All layers (dependency injection)
-- Files: `src/wanctl/config_base.py`, `src/wanctl/config_validation_utils.py`
+**Utility Layer:**
+- Purpose: Cross-cutting concerns (locking, logging, signal handling, metrics, error handling)
+- Location: `src/wanctl/lock_utils.py`, `src/wanctl/logging_utils.py`, `src/wanctl/signal_utils.py`, `src/wanctl/metrics.py`, `src/wanctl/error_handling.py`
+- Contains: File-based locks, structured logging, signal handlers, Prometheus metrics, error decorators
+- Depends on: fcntl, logging, signal, http.server, threading
+- Used by: All layers, especially main() functions
 
 ## Data Flow
 
-**Autorate Continuous Cycle (10-minute intervals by default):**
+**Autorate Control Cycle (50ms):**
 
-1. Load configuration from YAML
-2. Acquire lock file (prevent concurrent execution)
-3. Measure RTT to public reflector (ping)
-4. Calculate RTT delta from baseline
-5. Update EWMA (exponential moving average)
-6. Read CAKE queue statistics from RouterOS
-7. Assess congestion state (GREEN/YELLOW/SOFT_RED/RED)
-8. Update state machine (good/bad counters, transitions)
-9. Adjust CAKE queue limits if state changed
-10. Persist state to JSON file
-11. Release lock
+1. **Measurement**: RTTMeasurement.measure() pings the target, parses RTT samples
+2. **State Load**: WANControllerState.load() reads previous state from disk (dirty tracking prevents redundant I/O)
+3. **Congestion Assessment**: Compare RTT delta against baseline using EWMA smoothing (prevents baseline drift under load)
+4. **Rate Adjustment**: BandwidthController.control() applies state machine logic (GREEN/YELLOW/RED zones) to adjust queue limits
+5. **Router Update**: RouterBackend.set_bandwidth() sends new limit to router via SSH or REST (only when value changes)
+6. **Metrics Recording**: record_autorate_cycle() increments Prometheus counters
+7. **State Persist**: WANControllerState.save() writes state atomically (only if dirty hash changed)
+8. **Loop Sleep**: wait for next 50ms cycle
 
-**Steering Daemon Cycle (2-second intervals):**
+Time-constant preservation:
+- Baseline RTT updated only when delta < 3ms (architectural invariant: baseline must freeze during load)
+- Rate changes: immediate decrease, increase requires sustained GREEN cycles (5 cycles default)
+- SOFT_RED state: clamps rate to floor and holds (no repeated decay)
 
-1. Load baseline RTT from autorate state
-2. Measure current RTT
-3. Calculate RTT delta
-4. Read CAKE statistics (optional, cake-aware mode)
-5. Compute confidence score (0-100)
-6. Apply sustain timers (degrade, hold_down, recovery)
-7. Update steering state machine
-8. Enable/disable RouterOS mangle rules if state changed
-9. Persist state to JSON file
+**Steering Daemon Cycle (2 seconds, synced with primary WAN controller):**
 
-**State Machine:**
-- **GOOD state:** All traffic uses primary WAN (default)
-- **DEGRADED state:** Latency-sensitive traffic routed to alternate WAN
-- Transitions: Triggered by sustained RTT degradation (configurable threshold + sample count)
-- Recovery: Requires sustained improvement (asymmetric hysteresis)
+1. **RTT Measurement**: RTTMeasurement.measure() pings target with TCP RTT fallback for ICMP blackout
+2. **CAKE Stats**: CakeStatsReader.read_stats() retrieves queue depth and drops from primary WAN queue
+3. **Congestion Signals**: CongestionSignals combines RTT delta, CAKE drops, and queue depth
+4. **State Assessment**: assess_congestion_state() maps signals to GREEN/YELLOW/RED state
+5. **Hysteresis**: Track consecutive RED/GREEN samples to prevent flapping (asymmetric streak counting)
+6. **State Transition**: Apply state machine: <PRIMARY>_GOOD → <PRIMARY>_DEGRADED when RED confirmed
+7. **Routing Control**: Router.enable_steering() or disable_steering() activates mangle rules
+8. **Phase2B Confidence Scoring**: Optional dry-run validation (disabled by default in production)
+9. **Metrics Recording**: record_steering_state() and record_steering_transition()
+10. **State Persist**: SteeringStateManager.save() writes state
+11. **Systemd Integration**: notify_watchdog() for integration with systemd timers
+
+**State Sharing Mechanism:**
+
+Both daemons read autorate state to access baseline RTT:
+- SteeringDaemon reads baseline_rtt from autorate's state file during congestion assessment
+- This provides authoritative RTT baseline (prevents steering from altering autorate measurements)
+- State files use MD5 hashes for dirty tracking (avoids router API calls for unchanged state)
 
 ## Key Abstractions
 
-**WANController:**
-- Purpose: Encapsulate control logic for a single WAN
-- Location: `src/wanctl/autorate_continuous.py` (line ~459)
-- Pattern: Class with state machine methods
+**RouterBackend (Abstract):**
+- Purpose: Unified interface for different router platforms
+- Examples: `src/wanctl/backends/base.py` (interface), `src/wanctl/backends/routeros.py` (MikroTik implementation)
+- Pattern: Subclass implements set_bandwidth(), get_queue_stats(), enable_rule(), disable_rule() methods
+- Extensibility: New router types (OpenWrt, pfSense) add backend subclass without changing wanctl logic
 
-**RouterOS (Client):**
-- Purpose: Abstract router API (REST or SSH)
-- Location: `src/wanctl/router_client.py` (factory pattern)
-- Pattern: Factory returns appropriate client based on config
+**BandwidthController (State Machine):**
+- Purpose: Rate adjustment logic across three zones (GREEN/YELLOW/RED)
+- Pattern: Zone determines rate change strategy (immediate down, sustained-up, SOFT_RED hold)
+- State: Tracks current rate, zone streaks (consecutive counts), EWMA-smoothed bloat
+- Returns: (zone, new_rate_bps) tuple for each cycle
 
-**StateManager:**
-- Purpose: Manage state persistence and schema
-- Location: `src/wanctl/state_manager.py`
-- Pattern: Handles JSON serialization, validation, locking
+**WANController (Per-WAN Aggregator):**
+- Purpose: Manages download and upload rate control for a single WAN
+- State: Separate BandwidthController instances for download and upload directions
+- Responsibility: Load/save state, run measurement, apply control, update router
+- Lock: File-based lock prevents concurrent access to state file
 
-**BaselineRTTManager:**
-- Purpose: EWMA smoothing for baseline RTT with idle-only updates
-- Location: `src/wanctl/baseline_rtt_manager.py`
-- Pattern: Prevents baseline drift during load
+**SteeringDaemon (Routing Orchestrator):**
+- Purpose: Routes latency-sensitive traffic to alternate WAN during primary degradation
+- State: Tracks state machine (<PRIMARY>_GOOD or <PRIMARY>_DEGRADED), streak counters
+- Decision: Multi-signal assessment (RTT delta + CAKE drops + queue depth) with hysteresis
+- Routing: Enables/disables mangle rules (address-list overrides, connection marks, DSCP classification)
 
-**CakeStatsReader:**
-- Purpose: Read CAKE queue statistics (graceful degradation if unavailable)
-- Location: `src/wanctl/steering/cake_stats.py`
-- Pattern: Returns None on failure, logging provides diagnostics
+**RTTMeasurement (Ping Executor):**
+- Purpose: Flexible ping-based RTT measurement with multiple strategies
+- Aggregation: AVERAGE, MEDIAN, MIN, MAX strategies for sample reduction
+- Fallback: TCP RTT when ICMP is blocked (v1.1.0 enhancement for Spectrum ISP)
+- Parallelization: Concurrent.futures for parallel ping to multiple targets
+
+**CakeStatsReader (Router Query):**
+- Purpose: Collect CAKE queue statistics without resetting counters
+- Delta Calculation: Subtracts previous stats from current (avoids race condition from reset)
+- Transport Agnostic: Works with both SSH (CLI parsing) and REST API (JSON)
+- History: Maintains previous stats for delta math (no router API overhead)
+
+**MetricsRegistry (Prometheus Exporter):**
+- Purpose: Thread-safe metrics collection without external library
+- Metrics: Gauges (point-in-time values), Counters (monotonically increasing)
+- Labels: Supports labeled metrics (e.g., 'wan' and 'direction' tags)
+- Transport: Built-in HTTP server exposes metrics at /metrics endpoint
 
 ## Entry Points
 
-**Autorate Entry:**
-- Location: `src/wanctl/autorate_continuous.py` (main() function, line ~808)
-- Triggers: systemd timer or manual invocation
-- Responsibilities: Parse args, load config, run continuous control loop
+**autorate_continuous (Continuous Rate Control):**
+- Location: `src/wanctl/autorate_continuous.py:main()`
+- Triggers: Started by systemd service or manual invocation
+- Responsibilities: Load config, establish lock, start metrics/health servers, run control loop
+- Cycle interval: 50ms (configurable, currently 0.05s for fast congestion response)
+- Signal handling: SIGTERM graceful shutdown, SIGUSR1 debug toggle
 
-**Steering Entry:**
-- Location: `src/wanctl/steering/daemon.py` (main() function, line ~889)
-- Triggers: systemd timer (every 2 seconds)
-- Responsibilities: Parse args, load steering config, run steering cycle
+**wanctl-steering (WAN Steering Daemon):**
+- Location: `src/wanctl/steering/daemon.py:main()`
+- Triggers: Started by systemd timer (2-second one-shot execution)
+- Responsibilities: Measure latency, assess congestion, execute steering decisions, persist state
+- Colocated: Runs on primary WAN controller (has autorate state access)
+- Signal handling: SIGTERM graceful shutdown
 
-**Calibration Entry:**
-- Location: `src/wanctl/calibrate.py`
-- Triggers: Manual invocation for baseline RTT discovery
-- Responsibilities: Measure RTT, suggest bandwidth limits, no persistent changes
+**wanctl-calibrate (Baseline Calibration Tool):**
+- Location: `src/wanctl/calibrate.py:main()`
+- Triggers: Manual tool for one-time calibration
+- Responsibilities: Measure unloaded RTT, save initial baseline for controller
+- Output: Writes baseline to config file for autorate_continuous to load
 
 ## Error Handling
 
-**Strategy:** Exceptions thrown at layer boundaries, caught and logged at daemon level, operations continue with graceful degradation
+**Strategy:** Fail-safe defaults with redundant fallbacks. No errors silently ignored.
 
 **Patterns:**
-- `ConfigValidationError` - Invalid configuration (fatal)
-- `LockAcquisitionError` - Cannot acquire lock (skip cycle, retry next interval)
-- CAKE read failures - Log warning, continue with RTT-only mode
-- RTT measurement failures - Retry up to 3 times, use last known RTT as fallback
-- RouterOS command failures - Log error, skip state transition, preserve previous state
+
+1. **Decorator-based Error Wrapping**: `@handle_errors()` decorator catches exceptions, logs, returns default
+   - Example: `src/wanctl/error_handling.py` consolidates 73+ try/except blocks
+   - Supports custom error messages, log levels, callbacks, re-raising
+
+2. **Retry with Backoff**: `src/wanctl/retry_utils.py` provides measure_with_retry() and verify_with_retry()
+   - Measures with exponential backoff (1s, 2s, 4s pattern)
+   - Verification uses linear backoff with max attempts
+   - Logs failures at WARNING level, degraded mode at ERROR level
+
+3. **Graceful Degradation**:
+   - ICMP blackout: Falls back to TCP RTT measurement (v1.1.0 fix)
+   - CAKE stats unavailable: Returns (0, 0) and increments failure counter
+   - Lock acquisition failure: Exits with error (prevents concurrent daemons)
+
+4. **Rate Limiting**: `src/wanctl/rate_utils.py` RateLimiter prevents router API thrashing
+   - Max changes per window (default 10 per 60s)
+   - Logs deferred changes at DEBUG level to reduce noise
+
+5. **Systemd Integration**: notify_degraded() signals degraded mode to systemd
+   - Health check endpoint: `/health` returns JSON status
+   - Watchdog pings: notify_watchdog() keeps systemd from restarting service
 
 ## Cross-Cutting Concerns
 
-**Input Validation:**
-- All config values validated at parse time
-- All user input (queue names, WAN names) validated against identifier rules
-- Prevents command injection in RouterOS queries
-- Centralized in `config_validation_utils.py`
+**Logging:**
+- Main log: All info/warning/error messages
+- Debug log: Detailed cycle traces, state transitions, timing data
+- Setup: `src/wanctl/logging_utils.py` configures dual-file logging with rotation
 
-**Bounds Checking:**
-- RTT thresholds: MIN_SANE_BASELINE_RTT=10ms, MAX_SANE_BASELINE_RTT=60ms
-- Bandwidth limits: enforced_rate_bounds prevents queue rate out of range
-- EWMA factors: alpha must be in [0.0, 1.0]
-- Confidence scores: clamped to [0, 100]
+**Validation:**
+- Config: Schema validation at load time (required fields, type checks, bounds)
+- State: Field-level validators (non_negative_int, bounded_float, optional_positive_float)
+- Router Commands: Output parsing validates success patterns before trusting results
+
+**Authentication:**
+- SSH: Private key-based (no passwords), specified in config
+- REST: Password-based with optional SSL verification
+- Both use environment variable interpolation (${ROUTER_PASSWORD}, etc.)
+
+**State Persistence:**
+- JSON files: `/var/lib/wanctl/*.json` (download/upload state per WAN)
+- Atomic writes: Temp file → rename pattern prevents corruption
+- Dirty tracking: MD5 hash prevents unnecessary writes on unchanged state
+- Permission preservation: State files maintain 600 (rw------) permissions
 
 **Locking:**
-- File-based locks prevent concurrent execution of same WAN
-- Lock path: `/run/wanctl/<wan_name>.lock`
-- Ensures state consistency across processes
-- Files: `src/wanctl/lockfile.py`
-
-**Logging:**
-- Structured logging with context (WAN name, cycle number)
-- Levels: DEBUG (detailed), INFO (state transitions), WARNING (failures), ERROR (fatal)
-- Destination: File and optionally syslog
+- File-based locks: `/var/lib/wanctl/*.lock` prevents concurrent daemon instances
+- Timeout: Configurable timeout (default 5 minutes, FORCE_SAVE every 60 seconds)
+- Release on exit: atexit handler ensures lock cleanup
+- Per-WAN locks: Separate locks for download and upload control
 
 ---
 
-*Architecture analysis: 2026-01-09*
-*Update when major patterns change*
+*Architecture analysis: 2026-01-21*
