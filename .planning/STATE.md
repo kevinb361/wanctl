@@ -9,27 +9,27 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 21 of 23 (Critical Safety Tests)
-Plan: 2 of 2 complete
+Phase: 22 of 23 (Deployment Safety)
+Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2026-01-21 - Completed 21-02-PLAN.md (TEST-03)
+Last activity: 2026-01-21 - Completed 22-01-PLAN.md
 
-Progress: [######--------------] 33% (2/6 plans across 3 phases)
+Progress: [#########-----------] 50% (3/6 plans across 3 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2 (v1.3)
-- Average duration: 6.5 minutes
-- Total execution time: 13 minutes
+- Total plans completed: 3 (v1.3)
+- Average duration: 7 minutes
+- Total execution time: 21 minutes
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 21    | 2/2   | 13m   | 6.5m     |
-| 22    | 0/TBD | -     | -        |
+| 22    | 1/1   | 8m    | 8m       |
 | 23    | 0/TBD | -     | -        |
 
 _Updated after each plan completion_
@@ -47,6 +47,8 @@ Recent:
 - Corruption tests cover 12 distinct failure modes for comprehensive coverage
 - Failover is sticky: once triggered, stays on fallback until close()
 - Lazy client creation: fallback only instantiated on first failure
+- steering.yaml is canonical config name (legacy steering_config_v2.yaml removed)
+- Deploy script fails-fast on missing steering.yaml (no silent fallback)
 
 ### Deferred Issues
 
@@ -65,8 +67,8 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-21T13:15:48Z
-Stopped at: Completed 21-02-PLAN.md - Phase 21 complete
+Last session: 2026-01-21T13:49:26Z
+Stopped at: Completed 22-01-PLAN.md - Phase 22 complete
 Resume file: None
 
 ## Milestone Achievements
@@ -100,6 +102,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Plan Phase 22 (Deployment Safety) with `/gsd:plan-phase 22`
-2. Execute Phase 22 plans
-3. Continue through phase 23
+1. Plan Phase 23 (Documentation Refresh) with `/gsd:plan-phase 23`
+2. Execute Phase 23 plans
+3. Complete v1.3 milestone
