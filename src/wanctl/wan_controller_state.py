@@ -147,21 +147,14 @@ class WANControllerState:
         self.logger.debug(f"{self.wan_name}: Saved state to {self.state_file}")
         return True
 
-    def build_download_state(
+    def build_controller_state(
         self, green_streak: int, soft_red_streak: int, red_streak: int, current_rate: int
     ) -> dict[str, int]:
-        """Build download state dict for save()."""
-        return {
-            "green_streak": green_streak,
-            "soft_red_streak": soft_red_streak,
-            "red_streak": red_streak,
-            "current_rate": current_rate,
-        }
+        """Build controller state dict for save().
 
-    def build_upload_state(
-        self, green_streak: int, soft_red_streak: int, red_streak: int, current_rate: int
-    ) -> dict[str, int]:
-        """Build upload state dict for save()."""
+        Used for both download and upload controllers since they share
+        the same state structure (hysteresis counters and current rate).
+        """
         return {
             "green_streak": green_streak,
             "soft_red_streak": soft_red_streak,

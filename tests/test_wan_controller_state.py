@@ -95,22 +95,20 @@ class TestWANControllerState:
         assert state["ewma"]["baseline_rtt"] == 20.5
         assert state["last_applied"]["dl_rate"] == 100000000
 
-    def test_build_download_state(self, state_manager):
-        """Should build correct download state dict."""
-        result = state_manager.build_download_state(5, 1, 0, 100000000)
-
-        assert result == {
+    def test_build_controller_state(self, state_manager):
+        """Should build correct controller state dict for both download and upload."""
+        # Test with download-typical values
+        result_dl = state_manager.build_controller_state(5, 1, 0, 100000000)
+        assert result_dl == {
             "green_streak": 5,
             "soft_red_streak": 1,
             "red_streak": 0,
             "current_rate": 100000000,
         }
 
-    def test_build_upload_state(self, state_manager):
-        """Should build correct upload state dict."""
-        result = state_manager.build_upload_state(3, 0, 2, 20000000)
-
-        assert result == {
+        # Test with upload-typical values
+        result_ul = state_manager.build_controller_state(3, 0, 2, 20000000)
+        assert result_ul == {
             "green_streak": 3,
             "soft_red_streak": 0,
             "red_streak": 2,
