@@ -1,5 +1,34 @@
 # Project Milestones: wanctl
 
+## v1.3 Reliability & Hardening (Shipped: 2026-01-21)
+
+**Delivered:** Safety invariant test coverage, deployment validation, and production wiring for REST-to-SSH failover.
+
+**Phases completed:** 21-24 (5 plans total)
+
+**Key accomplishments:**
+
+- Implemented FailoverRouterClient with automatic REST-to-SSH failover (16 tests)
+- Proved baseline RTT freeze invariant under 100+ cycles of sustained load (5 tests)
+- Proved state file corruption recovery across 12 distinct failure scenarios
+- Created 423-line deployment validation script (config, router, state checks)
+- Hardened deploy.sh with fail-fast on missing steering.yaml
+- Wired safety features into all 3 production entry points
+
+**Stats:**
+
+- 11 files modified
+- +1,526 lines changed
+- 4 phases, 5 plans
+- 54 new tests (671 → 725)
+- 1 day (2026-01-21)
+
+**Git range:** `test(21-01)` → `docs(24): complete`
+
+**What's next:** Monitor production failover behavior, consider Phase2BController enablement.
+
+---
+
 ## v1.2 Configuration & Polish (Shipped: 2026-01-14)
 
 **Delivered:** Phase2B confidence-based steering enabled in dry-run mode, configuration documentation and validation improvements.

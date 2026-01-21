@@ -12,13 +12,14 @@ None
 
 ### Completed
 
+- [v1.3 Reliability & Hardening](milestones/v1.3-ROADMAP.md) (Phases 21-24) - SHIPPED 2026-01-21
 - [v1.2 Configuration & Polish](milestones/v1.2-ROADMAP.md) (Phases 16-20) - SHIPPED 2026-01-14
 - [v1.1 Code Quality](milestones/v1.1-ROADMAP.md) (Phases 6-15) - SHIPPED 2026-01-14
 - [v1.0 Performance Optimization](milestones/v1.0-ROADMAP.md) (Phases 1-5) - SHIPPED 2026-01-13
 
 ### In Progress
 
-- **v1.3 Reliability & Hardening** (Phases 21-24) - Test coverage gaps and deployment safety
+None currently. Run `/gsd:new-milestone` to start next milestone.
 
 ## Phases
 
@@ -178,106 +179,31 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
 
 </details>
 
-### v1.3 Reliability & Hardening (In Progress)
+<details>
+<summary>v1.3 Reliability & Hardening (Phases 21-24) - SHIPPED 2026-01-21</summary>
 
 **Milestone Goal:** Close test coverage gaps identified in CONCERNS.md analysis and improve deployment safety.
 
-- [x] **Phase 21: Critical Safety Tests** - Test core algorithm safety invariants
-- [x] **Phase 22: Deployment Safety** - Config cleanup and validation scripts
-- [x] **Phase 23: Edge Case Tests** - Boundary condition test coverage
-- [x] **Phase 24: Wire Integration Gaps** - Connect implemented features to production
+- [x] Phase 21: Critical Safety Tests (2/2 plans) - Baseline freeze, state corruption, failover tests
+- [x] Phase 22: Deployment Safety (1/1 plans) - Config cleanup, deploy hardening, validation script
+- [x] Phase 23: Edge Case Tests (1/1 plans) - Rate limiter, dual fallback tests
+- [x] Phase 24: Wire Integration Gaps (1/1 plans) - FailoverRouterClient + validation wired to production
 
-## Phase Details (v1.3)
+**Key Results:** +54 tests (671 to 725), REST-to-SSH failover active, deployment validation integrated.
 
-### Phase 21: Critical Safety Tests
+See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 
-**Goal**: Core control algorithms have tests verifying safety invariants
-**Depends on**: Nothing (first v1.3 phase)
-**Requirements**: TEST-01, TEST-02, TEST-03
-**Success Criteria** (what must be TRUE):
-
-1. Test proves baseline RTT remains frozen when delta > 3ms during sustained load
-2. Test proves state file corruption (partial JSON) triggers graceful recovery
-3. Test proves REST API failure automatically falls back to SSH transport
-   **Plans**: 2 plans
-
-Plans:
-
-- [x] 21-01-PLAN.md - Baseline freeze + state corruption tests (TEST-01, TEST-02)
-- [x] 21-02-PLAN.md - Transport failover implementation + tests (TEST-03)
-
-**Phase 21 Complete:** +46 tests (671 to 717), safety invariants proven for baseline freeze, state corruption recovery, and REST-to-SSH failover.
-
-### Phase 22: Deployment Safety
-
-**Goal**: Deployment is safer with consistent naming and validation
-**Depends on**: Phase 21
-**Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03
-**Success Criteria** (what must be TRUE):
-
-1. Config file renamed from `steering_config.yaml` to `steering.yaml` with all references updated
-2. Deploy script exits non-zero when required production config is missing
-3. Validation script checks state files, queue existence, and router reachability before startup
-   **Plans**: 1 plan
-
-Plans:
-
-- [x] 22-01-PLAN.md - Config cleanup, deploy script hardening, validation script (DEPLOY-01, DEPLOY-02, DEPLOY-03)
-
-**Phase 22 Complete:** Legacy config removed, deploy script hardened with fail-fast, validation script created (423 lines).
-
-### Phase 23: Edge Case Tests
-
-**Goal**: Boundary conditions have explicit test coverage
-**Depends on**: Phase 22
-**Requirements**: TEST-04, TEST-05
-**Success Criteria** (what must be TRUE):
-
-1. Test proves rate limiter handles rapid restarts without burst exceeding configured limit
-2. Test proves dual fallback failure (ICMP + TCP both down) returns safe defaults, not stale data
-   **Plans**: 1 plan
-
-Plans:
-
-- [x] 23-01-PLAN.md - Rate limiter rapid restart tests + dual fallback failure tests (TEST-04, TEST-05)
-
-**Phase 23 Complete:** +56 tests (671 to 727), edge cases proven for rate limiter restart behavior and dual fallback failure safety.
-
-### Phase 24: Wire Integration Gaps
-
-**Goal**: Implemented safety features are active in production code paths
-**Depends on**: Phase 23
-**Gap Closure**: Closes integration gaps from v1.3-MILESTONE-AUDIT.md
-**Success Criteria** (what must be TRUE):
-
-1. Production code uses `get_router_client_with_failover()` for REST->SSH failover
-2. `validate-deployment.sh` is called automatically before daemon starts
-3. E2E flow "REST failover" completes successfully (REST fail -> SSH fallback -> operation succeeds)
-4. E2E flow "Deployment validation" completes successfully (deploy -> validate -> start)
-
-**Plans**: 1 plan
-
-Plans:
-
-- [x] 24-01-PLAN.md - Wire FailoverRouterClient and validation script to production
-
-**Phase 24 Complete:** FailoverRouterClient wired into all 3 production entry points, validate-deployment.sh integrated into deploy.sh workflow.
+</details>
 
 ## Progress
 
-**All completed milestones collapsed above.**
-
-| Phase                     | Milestone | Plans | Status   | Completed  |
-| ------------------------- | --------- | ----- | -------- | ---------- |
-| 21. Critical Safety Tests | v1.3      | 2     | Complete | 2026-01-21 |
-| 22. Deployment Safety     | v1.3      | 1     | Complete | 2026-01-21 |
-| 23. Edge Case Tests       | v1.3      | 1     | Complete | 2026-01-21 |
-| 24. Wire Integration Gaps | v1.3      | 1     | Complete | 2026-01-21 |
+**All milestones completed. 24 phases shipped across 4 milestones.**
 
 ### Completed Milestones
 
-| Milestone                     | Phases | Status   | Shipped    |
-| ----------------------------- | ------ | -------- | ---------- |
-| v1.0 Performance Optimization | 1-5    | Complete | 2026-01-13 |
-| v1.1 Code Quality             | 6-15   | Complete | 2026-01-14 |
-| v1.2 Configuration & Polish   | 16-20  | Complete | 2026-01-14 |
+| Milestone                     | Phases | Plans | Status   | Shipped    |
+| ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.3 Reliability & Hardening  | 21-24  | 5     | Complete | 2026-01-21 |
+| v1.2 Configuration & Polish   | 16-20  | 5     | Complete | 2026-01-14 |
+| v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
+| v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
