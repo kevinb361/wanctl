@@ -2,42 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-14)
+See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** All milestones complete (v1.2 shipped), Phase2B validation in progress
+**Current focus:** v1.3 Reliability & Hardening — test coverage gaps and deployment safety
 
 ## Current Position
 
-Phase: 20 of 20 (Phase2B Enablement)
-Plan: 1 of 1 complete
-Status: Phase complete - Milestone complete
-Last activity: 2026-01-14 - Completed 20-01-PLAN.md
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-21 — Milestone v1.3 started
 
-Progress: ██████████ 100%
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 47 (v1.0: 8, v1.1: 34, v1.2: 5)
-- v1.2 execution: 1 day (2026-01-14)
-
-**By Milestone:**
-
-| Milestone                     | Phases | Plans | Tests Added | Shipped    |
-| ----------------------------- | ------ | ----- | ----------- | ---------- |
-| v1.0 Performance Optimization | 1-5    | 8     | N/A         | 2026-01-13 |
-| v1.1 Code Quality             | 6-15   | 34    | +120        | 2026-01-14 |
-| v1.2 Configuration & Polish   | 16-20  | 5     | +77         | 2026-01-14 |
-
-**Current Performance:**
-
-- Cycle time: 30-41ms average (60-80% of 50ms budget)
-- Cycle interval: 50ms (production standard)
-- Router CPU: 0% idle, 45% peak under load
-- Tests: 671 passing
-- Status: **Production stable**
+Progress: ░░░░░░░░░░ 0%
 
 ## Accumulated Context
 
@@ -47,7 +24,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 
 ### Deferred Issues
 
-- Phase2BController production enablement (currently dry-run, requires 1 week validation)
+- Phase2BController production enablement (currently dry-run, requires continued validation)
 
 ### Blockers/Concerns
 
@@ -57,12 +34,13 @@ None currently.
 
 - **v1.0 Performance Optimization** (2026-01-13): 40x speed improvement achieved
 - **v1.1 Code Quality** (2026-01-14): Systematic refactoring complete, 120 new tests
-- **v1.2 Configuration & Polish** (2026-01-14): Created - Phase2B rollout, config improvements, 5 phases (16-20)
+- **v1.2 Configuration & Polish** (2026-01-14): Phase2B rollout, config improvements, 77 new tests
+- **v1.3 Reliability & Hardening** (2026-01-21): Started — test coverage gaps, deployment safety
 
 ## Session Continuity
 
-Last session: 2026-01-14
-Stopped at: Completed v1.2 milestone - Phase2B enabled (dry-run)
+Last session: 2026-01-21
+Stopped at: Defining v1.3 requirements
 Resume file: None
 
 ## Milestone Achievements
@@ -96,6 +74,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Monitor Phase2B dry-run validation (1 week recommended)
-2. After validation: Set `dry_run: false` for live routing
-3. Plan next milestone if new features needed (`/gsd:new-milestone`)
+1. Define v1.3 requirements from CONCERNS.md analysis
+2. Create roadmap with phases 21+
+3. Begin phase planning with `/gsd:plan-phase`
