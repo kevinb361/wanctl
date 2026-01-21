@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.3 Reliability & Hardening - Phase 23 Edge Case Tests
+**Current focus:** v1.3 Reliability & Hardening - Complete
 
 ## Current Position
 
 Phase: 24 of 24 (Wire Integration Gaps)
-Plan: 0 of 1 pending
-Status: Phase pending (gap closure)
-Last activity: 2026-01-21 - Added Phase 24 from audit gaps
+Plan: 1 of 1 complete
+Status: Phase complete, v1.3 milestone complete
+Last activity: 2026-01-21 - Completed 24-01-PLAN.md (integration gaps closed)
 
-Progress: [##################..] 80% (4/5 plans across 4 phases)
+Progress: [####################] 100% (5/5 plans across 4 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4 (v1.3)
-- Average duration: 6 minutes
-- Total execution time: 23 minutes
+- Total plans completed: 5 (v1.3)
+- Average duration: 6.2 minutes
+- Total execution time: 31 minutes
 
 **By Phase:**
 
@@ -31,6 +31,7 @@ Progress: [##################..] 80% (4/5 plans across 4 phases)
 | 21    | 2/2   | 13m   | 6.5m     |
 | 22    | 1/1   | 8m    | 8m       |
 | 23    | 1/1   | 2m    | 2m       |
+| 24    | 1/1   | 8m    | 8m       |
 
 _Updated after each plan completion_
 
@@ -51,6 +52,8 @@ Recent:
 - Deploy script fails-fast on missing steering.yaml (no silent fallback)
 - Restart isolation documented as design characteristic (new RateLimiter = fresh quota)
 - Parameterized tests for fallback mode coverage
+- All production router clients use failover-enabled factory (24-01)
+- Validation runs after deployment but warns only - does not block (24-01)
 
 ### Deferred Issues
 
@@ -65,12 +68,12 @@ None currently.
 - **v1.0 Performance Optimization** (2026-01-13): 40x speed improvement achieved
 - **v1.1 Code Quality** (2026-01-14): Systematic refactoring complete, 120 new tests
 - **v1.2 Configuration & Polish** (2026-01-14): Phase2B rollout, config improvements, 77 new tests
-- **v1.3 Reliability & Hardening** (2026-01-21): Complete - 56 new edge case tests, deployment safety
+- **v1.3 Reliability & Hardening** (2026-01-21): Complete - integration gaps closed, 727 total tests
 
 ## Session Continuity
 
-Last session: 2026-01-21T15:19:27Z
-Stopped at: Completed 23-01-PLAN.md - Phase 23 complete, v1.3 complete
+Last session: 2026-01-21T15:33:00Z
+Stopped at: Completed 24-01-PLAN.md - Phase 24 complete, v1.3 complete
 Resume file: None
 
 ## Milestone Achievements
@@ -107,14 +110,15 @@ Resume file: None
 **Goal:** Close test coverage gaps, improve deployment safety
 **Achieved:**
 
+- TEST-03: REST-to-SSH failover wired into production (autorate, steering, cake_stats)
 - TEST-04: Rate limiter burst protection proven (4 new tests)
 - TEST-05: Dual fallback failure safe defaults proven (6 new tests)
+- DEPLOY-03: Pre-deployment validation wired into deploy.sh
 - Deployment safety with fail-fast on missing config
 - 727 total tests (+56 from 671)
 
 ## Next Steps
 
-1. Plan Phase 24 (wire integration gaps)
-2. Execute Phase 24
-3. Re-audit milestone to verify gaps closed
-4. Complete v1.3 milestone
+1. v1.3 milestone complete - all integration gaps closed
+2. Monitor production deployments for failover behavior
+3. Future: Enable Phase2BController when dry-run validation complete
