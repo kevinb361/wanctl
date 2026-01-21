@@ -250,12 +250,12 @@ Plans:
 **Gap Closure**: Closes integration gaps from v1.3-MILESTONE-AUDIT.md
 **Success Criteria** (what must be TRUE):
 
-1. Production code uses `get_router_client_with_failover()` for REST→SSH failover
+1. Production code uses `get_router_client_with_failover()` for REST->SSH failover
 2. `validate-deployment.sh` is called automatically before daemon starts
-3. E2E flow "REST failover" completes successfully (REST fail → SSH fallback → operation succeeds)
-4. E2E flow "Deployment validation" completes successfully (deploy → validate → start)
+3. E2E flow "REST failover" completes successfully (REST fail -> SSH fallback -> operation succeeds)
+4. E2E flow "Deployment validation" completes successfully (deploy -> validate -> start)
 
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
