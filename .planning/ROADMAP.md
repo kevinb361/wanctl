@@ -217,11 +217,11 @@ Plans:
 1. Config file renamed from `steering_config.yaml` to `steering.yaml` with all references updated
 2. Deploy script exits non-zero when required production config is missing
 3. Validation script checks state files, queue existence, and router reachability before startup
-   **Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
-- [ ] 22-01: TBD
+- [ ] 22-01-PLAN.md - Config cleanup, deploy script hardening, validation script (DEPLOY-01, DEPLOY-02, DEPLOY-03)
 
 ### Phase 23: Edge Case Tests
 
@@ -245,7 +245,7 @@ Plans:
 | Phase                     | Milestone | Plans | Status      | Completed  |
 | ------------------------- | --------- | ----- | ----------- | ---------- |
 | 21. Critical Safety Tests | v1.3      | 2     | Complete    | 2026-01-21 |
-| 22. Deployment Safety     | v1.3      | TBD   | Not started | -          |
+| 22. Deployment Safety     | v1.3      | 1     | Not started | -          |
 | 23. Edge Case Tests       | v1.3      | TBD   | Not started | -          |
 
 ### Completed Milestones
