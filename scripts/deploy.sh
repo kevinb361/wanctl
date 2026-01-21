@@ -564,6 +564,25 @@ fi
 
 verify_deployment "$WAN_NAME"
 
+# Deploy validation script
+print_step "Deploying validation script..."
+if [[ -f "$PROJECT_ROOT/scripts/validate-deployment.sh" ]]; then
+    scp "$PROJECT_ROOT/scripts/validate-deployment.sh" "$TARGET_HOST:/tmp/validate-deployment.sh"
+    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR/scripts && sudo mv /tmp/validate-deployment.sh $TARGET_CODE_DIR/scripts/validate-deployment.sh && sudo chmod 755 $TARGET_CODE_DIR/scripts/validate-deployment.sh"
+    print_success "Validation script deployed"
+else
+    print_warning "Validation script not found: scripts/validate-deployment.sh"
+fi
+
+# Run pre-startup validation
+print_step "Running pre-startup validation..."
+if ssh "$TARGET_HOST" "test -f $TARGET_CODE_DIR/scripts/validate-deployment.sh" && \
+   ssh "$TARGET_HOST" "$TARGET_CODE_DIR/scripts/validate-deployment.sh $TARGET_CONFIG_DIR/${WAN_NAME}.yaml"; then
+    print_success "Pre-startup validation passed"
+else
+    print_warning "Pre-startup validation found issues - review before starting daemon"
+fi
+
 print_next_steps "$WAN_NAME"
 
 print_success "Deployment complete!"
