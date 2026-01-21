@@ -1,9 +1,10 @@
 # Steering Daemon Configuration Mismatch Issue
 
-**Status:** RESOLVED (temporary fix applied 2026-01-11)
+**Status:** CLOSED
 **Severity:** Medium (steering non-functional for 3+ days, but no impact on bufferbloat control)
 **Discovered:** 2026-01-11 during debug log review
 **Root Cause:** Deployment script filename mismatch + generic template deployed
+**Resolution:** Permanent fix applied 2026-01-21. `steering.yaml` is now the canonical config file. Legacy `steering_config_v2.yaml` removed. Deploy script now fails fast if steering.yaml is missing.
 
 ---
 
@@ -25,20 +26,21 @@ The deployment script (`scripts/deploy.sh:354-361`) looks for configs in this or
 2. **Fallback:** `configs/examples/steering.yaml.example` (generic template ⚠️)
 
 But the actual production config exists as:
+
 - `configs/steering_config.yaml` ✅ (correct values for this deployment)
 
 **Result:** The generic example template was deployed with placeholder values.
 
 ### Configuration Mismatches
 
-| Setting | Generic Template (Deployed) | Correct Value (Not Deployed) | Impact |
-|---------|---------------------------|----------------------------|--------|
-| `cake_state_sources.primary` | `/run/wanctl/wan1_state.json` | `/run/wanctl/spectrum_state.json` | File not found, baseline RTT unavailable |
-| `cake_queues.primary_download` | `WAN-Download-1` | `WAN-Download-Spectrum` | CAKE stats failed to read |
-| `cake_queues.primary_upload` | `WAN-Upload-1` | `WAN-Upload-Spectrum` | CAKE stats failed to read |
-| `router.host` | `192.168.1.1` | `10.10.99.1` | Connection timeouts |
-| `topology.primary_wan` | `wan1` | `spectrum` | Mismatch with actual WAN names |
-| `topology.alternate_wan` | `wan2` | `att` | Mismatch with actual WAN names |
+| Setting                        | Generic Template (Deployed)   | Correct Value (Not Deployed)      | Impact                                   |
+| ------------------------------ | ----------------------------- | --------------------------------- | ---------------------------------------- |
+| `cake_state_sources.primary`   | `/run/wanctl/wan1_state.json` | `/run/wanctl/spectrum_state.json` | File not found, baseline RTT unavailable |
+| `cake_queues.primary_download` | `WAN-Download-1`              | `WAN-Download-Spectrum`           | CAKE stats failed to read                |
+| `cake_queues.primary_upload`   | `WAN-Upload-1`                | `WAN-Upload-Spectrum`             | CAKE stats failed to read                |
+| `router.host`                  | `192.168.1.1`                 | `10.10.99.1`                      | Connection timeouts                      |
+| `topology.primary_wan`         | `wan1`                        | `spectrum`                        | Mismatch with actual WAN names           |
+| `topology.alternate_wan`       | `wan2`                        | `att`                             | Mismatch with actual WAN names           |
 
 ### Error Evidence
 
@@ -52,6 +54,7 @@ But the actual production config exists as:
 ```
 
 **Actual state files that exist:**
+
 ```
 /run/wanctl/spectrum_state.json  ✅ (Spectrum WAN, updated every 2s)
 /run/wanctl/att_state.json       ✅ (ATT WAN, updated every 2s)
@@ -94,17 +97,18 @@ But the actual production config exists as:
 ```yaml
 # Fixed values:
 cake_state_sources:
-  primary: "/run/wanctl/spectrum_state.json"  # Was: wan1_state.json
+  primary: "/run/wanctl/spectrum_state.json" # Was: wan1_state.json
 
 cake_queues:
-  primary_download: "WAN-Download-Spectrum"   # Was: WAN-Download-1
-  primary_upload: "WAN-Upload-Spectrum"       # Was: WAN-Upload-1
+  primary_download: "WAN-Download-Spectrum" # Was: WAN-Download-1
+  primary_upload: "WAN-Upload-Spectrum" # Was: WAN-Upload-1
 
 router:
-  host: "10.10.99.1"                          # Was: 192.168.1.1
+  host: "10.10.99.1" # Was: 192.168.1.1
 ```
 
 **Verification:**
+
 ```bash
 # After fix:
 ✅ Baseline RTT reading: 23.31ms (from spectrum_state.json)
@@ -122,15 +126,18 @@ router:
 **Action:** Rename `configs/steering_config.yaml` → `configs/steering.yaml`
 
 **Pros:**
+
 - Minimal code changes
 - Deploy script works as-is
 - Clear naming (no `_config` suffix needed)
 
 **Cons:**
+
 - Need to update any documentation referencing old filename
 - Git history shows as file deletion + addition (not a rename)
 
 **Implementation:**
+
 ```bash
 cd ~/projects/wanctl
 git mv configs/steering_config.yaml configs/steering.yaml
@@ -142,14 +149,17 @@ git commit -m "fix: Rename steering config to match deploy script expectations"
 **Action:** Modify `scripts/deploy.sh:354-361` to look for `steering_config.yaml` first
 
 **Pros:**
+
 - Maintains consistent naming pattern (`spectrum.yaml`, `att.yaml`, `steering_config.yaml`)
 - No config file changes needed
 
 **Cons:**
+
 - Deploy script becomes less intuitive (non-standard naming)
 - Doesn't fix the underlying inconsistency
 
 **Implementation:**
+
 ```bash
 # In scripts/deploy.sh line 354:
 if [[ -f "$PROJECT_ROOT/configs/steering_config.yaml" ]]; then
@@ -162,10 +172,12 @@ if [[ -f "$PROJECT_ROOT/configs/steering_config.yaml" ]]; then
 **Action:** Create symlink `steering.yaml` → `steering_config.yaml`
 
 **Pros:**
+
 - Both names work
 - No code changes needed
 
 **Cons:**
+
 - Adds complexity
 - Symlinks in git can be problematic
 - Doesn't solve the naming inconsistency
@@ -175,16 +187,19 @@ if [[ -f "$PROJECT_ROOT/configs/steering_config.yaml" ]]; then
 **Action:** Deploy uses template with variable substitution for deployment-specific values
 
 **Pros:**
+
 - Single source of truth for config schema
 - Deployment-specific values in separate file (like `.env`)
 - Prevents future config drift
 
 **Cons:**
+
 - Significant refactoring needed
 - Overkill for current 2-container deployment
 - Better suited for multi-site deployments
 
 **Future Enhancement Idea:**
+
 ```yaml
 # configs/steering.yaml.template
 cake_state_sources:
@@ -208,12 +223,14 @@ ROUTER_IP=10.10.99.1
 This is the simplest, cleanest fix that aligns with the deploy script's expectations and eliminates future confusion.
 
 **Rationale:**
+
 1. Other configs use simple names: `spectrum.yaml`, `att.yaml` (not `spectrum_config.yaml`)
 2. The `_config` suffix is redundant (all files in `configs/` are configs)
 3. Deploy script already expects `steering.yaml`
 4. Minimal changes needed
 
 **Implementation Steps:**
+
 ```bash
 # 1. Rename in repo
 git mv configs/steering_config.yaml configs/steering.yaml
@@ -235,11 +252,13 @@ grep -r "steering_config.yaml" docs/ README.md .claude/
 Add to deployment documentation:
 
 1. **Verify config exists before deploying:**
+
    ```bash
    ls -l configs/steering.yaml  # Must exist for --with-steering
    ```
 
 2. **Check deployed config after deployment:**
+
    ```bash
    ssh target-host 'diff /etc/wanctl/steering.yaml - < configs/steering.yaml'
    ```
@@ -295,20 +314,24 @@ Add to deployment documentation:
 ## Related Files
 
 **Configuration:**
+
 - ✅ `configs/steering_config.yaml` (correct production config)
 - ❌ `configs/steering.yaml` (missing - should exist)
 - ⚠️ `configs/examples/steering.yaml.example` (generic template - deployed by mistake)
 
 **Deployment:**
+
 - `scripts/deploy.sh` (deployment automation)
 - `scripts/install-systemd.sh` (systemd setup)
 
 **Runtime:**
+
 - `/etc/wanctl/steering.yaml` (deployed config - currently fixed manually)
 - `/run/wanctl/spectrum_state.json` (autorate state - correct source)
 - `/var/log/wanctl/steering.log` (steering daemon logs)
 
 **Documentation:**
+
 - `docs/DEPLOYMENT.md` (should document steering setup)
 - `docs/STEERING.md` (steering feature documentation)
 - `README.md` (quick start)
@@ -317,11 +340,11 @@ Add to deployment documentation:
 
 ## Action Items
 
-- [x] **Immediate:** Manual fix applied to production (2026-01-11) ✅
-- [ ] **Week 1:** Rename `steering_config.yaml` → `steering.yaml` in repo
-- [ ] **Week 1:** Update deployment documentation with verification steps
-- [ ] **Week 2:** Add config validation to `scripts/deploy.sh`
-- [ ] **Week 2:** Add steering health check monitoring
+- [x] **Immediate:** Manual fix applied to production (2026-01-11)
+- [x] **2026-01-21:** `steering.yaml` established as canonical config name
+- [x] **2026-01-21:** Legacy `steering_config_v2.yaml` removed from repository
+- [x] **2026-01-21:** Deploy script updated to fail-fast when steering.yaml missing
+- [x] **2026-01-21:** Pre-startup validation script created (`scripts/validate-deployment.sh`)
 - [ ] **Future:** Consider template + variable substitution for multi-site deployments
 
 ---
@@ -336,5 +359,5 @@ Add to deployment documentation:
 ---
 
 **Document created:** 2026-01-11
-**Last updated:** 2026-01-11
-**Status:** Issue documented, temporary fix applied, permanent fix pending
+**Last updated:** 2026-01-21
+**Status:** CLOSED - Permanent fix applied. Deploy script now fails fast on missing config.

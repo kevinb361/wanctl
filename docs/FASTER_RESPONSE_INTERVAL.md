@@ -98,7 +98,7 @@ continuous_monitoring:
 #### Consecutive Sample Counts (Preserve Time-Based Intent)
 
 ```yaml
-# configs/steering_config_v2.yaml
+# configs/steering.yaml
 thresholds:
   # Current (2s interval)
   red_samples_required: 2    # 2 × 2s = 4 seconds
@@ -112,7 +112,7 @@ thresholds:
 #### Measurement Interval
 
 ```yaml
-# configs/steering_config_v2.yaml
+# configs/steering.yaml
 measurement:
   interval_seconds: 0.5 # Changed from 2
 ```
@@ -141,7 +141,7 @@ steering_v3:
 ### 4. State File History
 
 ```yaml
-# configs/steering_config_v2.yaml (and others)
+# configs/steering.yaml (and others)
 state:
   history_size: 240 # Changed from 60 (maintain 2 minutes of history)
 ```
@@ -272,10 +272,10 @@ state:
 | `configs/spectrum.yaml`             | `alpha_load: 0.20`             | `0.05`    | Preserve 10s time constant  |
 | `configs/att.yaml`                  | `alpha_baseline: 0.015`        | `0.00375` | Preserve 133s time constant |
 | `configs/att.yaml`                  | `alpha_load: 0.20`             | `0.05`    | Preserve 10s time constant  |
-| `configs/steering_config_v2.yaml`   | `interval_seconds: 2`          | `0.5`     | Match autorate interval     |
-| `configs/steering_config_v2.yaml`   | `red_samples_required: 2`      | `8`       | Preserve 4s activation time |
-| `configs/steering_config_v2.yaml`   | `green_samples_required: 15`   | `60`      | Preserve 30s recovery time  |
-| `configs/steering_config_v2.yaml`   | `history_size: 60`             | `240`     | Preserve 2min history       |
+| `configs/steering.yaml`             | `interval_seconds: 2`          | `0.5`     | Match autorate interval     |
+| `configs/steering.yaml`             | `red_samples_required: 2`      | `8`       | Preserve 4s activation time |
+| `configs/steering.yaml`             | `green_samples_required: 15`   | `60`      | Preserve 30s recovery time  |
+| `configs/steering.yaml`             | `history_size: 60`             | `240`     | Preserve 2min history       |
 | `src/wanctl/steering/daemon.py`     | `MAX_HISTORY_SAMPLES = 60`     | `240`     | Preserve 2min history       |
 
 ## Notes
