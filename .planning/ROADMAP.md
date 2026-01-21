@@ -197,10 +197,11 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
   1. Test proves baseline RTT remains frozen when delta > 3ms during sustained load
   2. Test proves state file corruption (partial JSON) triggers graceful recovery
   3. Test proves REST API failure automatically falls back to SSH transport
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: TBD
+- [ ] 21-01-PLAN.md - Baseline freeze + state corruption tests (TEST-01, TEST-02)
+- [ ] 21-02-PLAN.md - Transport failover implementation + tests (TEST-03)
 
 ### Phase 22: Deployment Safety
 
@@ -235,7 +236,7 @@ Plans:
 
 | Phase                      | Milestone | Plans | Status      | Completed  |
 | -------------------------- | --------- | ----- | ----------- | ---------- |
-| 21. Critical Safety Tests  | v1.3      | TBD   | Not started | -          |
+| 21. Critical Safety Tests  | v1.3      | 2     | Planned     | -          |
 | 22. Deployment Safety      | v1.3      | TBD   | Not started | -          |
 | 23. Edge Case Tests        | v1.3      | TBD   | Not started | -          |
 
