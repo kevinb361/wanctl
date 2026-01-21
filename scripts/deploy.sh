@@ -347,15 +347,16 @@ deploy_steering_systemd() {
         fi
     done
 
-    # Also deploy steering config if available
+    # Deploy steering config - REQUIRED for --with-steering
     if [[ -f "$PROJECT_ROOT/configs/steering.yaml" ]]; then
         scp "$PROJECT_ROOT/configs/steering.yaml" "$TARGET_HOST:/tmp/steering.yaml"
         ssh "$TARGET_HOST" "sudo mv /tmp/steering.yaml $TARGET_CONFIG_DIR/steering.yaml && sudo chown root:wanctl $TARGET_CONFIG_DIR/steering.yaml && sudo chmod 640 $TARGET_CONFIG_DIR/steering.yaml"
         print_success "Steering config deployed"
-    elif [[ -f "$PROJECT_ROOT/configs/examples/steering.yaml.example" ]]; then
-        scp "$PROJECT_ROOT/configs/examples/steering.yaml.example" "$TARGET_HOST:/tmp/steering.yaml"
-        ssh "$TARGET_HOST" "sudo mv /tmp/steering.yaml $TARGET_CONFIG_DIR/steering.yaml && sudo chown root:wanctl $TARGET_CONFIG_DIR/steering.yaml && sudo chmod 640 $TARGET_CONFIG_DIR/steering.yaml"
-        print_warning "Using example steering config - customize $TARGET_CONFIG_DIR/steering.yaml"
+    else
+        print_error "Production steering config not found: configs/steering.yaml"
+        print_error "Create configs/steering.yaml before deploying with --with-steering"
+        print_error "See configs/examples/steering.yaml.example for template"
+        exit 1
     fi
 
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
