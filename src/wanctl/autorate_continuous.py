@@ -1366,13 +1366,13 @@ class WANController:
             force: If True, bypass dirty tracking and always write
         """
         self.state_manager.save(
-            download=self.state_manager.build_download_state(
+            download=self.state_manager.build_controller_state(
                 self.download.green_streak,
                 self.download.soft_red_streak,
                 self.download.red_streak,
                 self.download.current_rate,
             ),
-            upload=self.state_manager.build_upload_state(
+            upload=self.state_manager.build_controller_state(
                 self.upload.green_streak,
                 self.upload.soft_red_streak,
                 self.upload.red_streak,
