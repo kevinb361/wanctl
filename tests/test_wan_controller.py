@@ -949,3 +949,164 @@ class TestUpdateBaselineIfIdle:
         call_args = controller.logger.debug.call_args[0][0]
         assert "Baseline updated" in call_args
         assert "20.00ms" in call_args  # old baseline
+
+
+class TestDualFallbackFailure:
+    """Tests for dual fallback failure scenarios (ICMP + TCP both down).
+
+    Verifies TEST-05 requirement: Dual fallback failure returns safe defaults,
+    not stale data. When both ICMP pings and TCP connectivity checks fail,
+    the controller must return (False, None) to signal total connectivity loss
+    rather than using stale load_rtt values.
+
+    "Safe defaults" = (False, None) - don't continue cycle, no RTT measurement
+    "Stale data" = using self.load_rtt when connectivity is actually lost
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for WANController."""
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.10.110.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+        return config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.autorate_continuous import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    def test_dual_failure_returns_safe_defaults_not_stale_data(self, controller):
+        """Dual fallback failure returns (False, None), not stale load_rtt.
+
+        When both ICMP and TCP fail (total connectivity loss), the controller
+        must return safe defaults (False, None) rather than the stale load_rtt
+        value. This prevents acting on outdated RTT data when connectivity
+        is actually lost.
+        """
+        # Set a stale load_rtt value that should NOT be returned
+        controller.load_rtt = 28.5
+        controller.icmp_unavailable_cycles = 0
+
+        # Mock dual failure - both ICMP and TCP fail
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        # Safe defaults: (False, None) - NOT (True, 28.5)
+        assert should_continue is False, "Cycle should NOT continue on total connectivity loss"
+        assert measured_rtt is None, "Measured RTT must be None, NOT stale load_rtt (28.5)"
+
+    @pytest.mark.parametrize(
+        "mode,stale_rtt",
+        [
+            ("graceful_degradation", 28.5),
+            ("freeze", 35.0),
+            ("use_last_rtt", 42.1),
+        ],
+    )
+    def test_dual_failure_safe_across_all_fallback_modes(self, controller, mode, stale_rtt):
+        """Dual failure returns (False, None) regardless of fallback mode.
+
+        All fallback modes must return safe defaults on total connectivity loss.
+        The mode-specific behavior only applies when connectivity exists but
+        ICMP is filtered. Total loss always returns (False, None).
+        """
+        controller.config.fallback_mode = mode
+        controller.load_rtt = stale_rtt  # Distinct stale value per mode
+        controller.icmp_unavailable_cycles = 0
+
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
+
+        assert should_continue is False, f"Mode '{mode}' must return False on total loss"
+        assert measured_rtt is None, f"Mode '{mode}' must return None, not stale RTT ({stale_rtt})"
+
+    def test_dual_failure_does_not_increment_cycle_counter(self, controller):
+        """Total connectivity loss should NOT increment icmp_unavailable_cycles.
+
+        The cycle counter is for tracking ICMP-unavailable-but-connected states.
+        Total connectivity loss is a different condition - the counter should
+        remain unchanged because we're not in a "degraded but working" state.
+        """
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5
+
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+            controller.handle_icmp_failure()
+
+        assert controller.icmp_unavailable_cycles == 0, "Counter should NOT increment on total loss"
+
+    def test_dual_failure_logs_warning(self, controller):
+        """Total connectivity loss should log a warning."""
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5
+
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+            controller.handle_icmp_failure()
+
+        # Warning should be logged for total connectivity loss
+        controller.logger.warning.assert_called()
