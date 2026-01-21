@@ -21,8 +21,8 @@ Requirements for v1.3 Reliability & Hardening. Derived from CONCERNS.md analysis
 
 ### Edge Case Tests
 
-- [ ] **TEST-04**: Rate limiter handles rapid daemon restarts without burst exceeding limit
-- [ ] **TEST-05**: Dual fallback failure (ICMP + TCP) returns safe defaults, not stale data
+- [x] **TEST-04**: Rate limiter handles rapid daemon restarts without burst exceeding limit
+- [x] **TEST-05**: Dual fallback failure (ICMP + TCP) returns safe defaults, not stale data
 
 ## Future Requirements
 
@@ -48,8 +48,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-01   | Phase 22 | Complete |
 | DEPLOY-02   | Phase 22 | Complete |
 | DEPLOY-03   | Phase 22 | Complete |
-| TEST-04     | Phase 23 | Pending  |
-| TEST-05     | Phase 23 | Pending  |
+| TEST-04     | Phase 23 | Complete |
+| TEST-05     | Phase 23 | Complete |
 
 **Coverage:**
 
@@ -60,4 +60,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-21_
-_Last updated: 2026-01-21 after Phase 22 completion_
+_Last updated: 2026-01-21 after Phase 23 completion_
