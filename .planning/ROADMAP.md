@@ -234,11 +234,11 @@ Plans:
 
 1. Test proves rate limiter handles rapid restarts without burst exceeding configured limit
 2. Test proves dual fallback failure (ICMP + TCP both down) returns safe defaults, not stale data
-   **Plans**: TBD
+   **Plans**: 1 plan
 
 Plans:
 
-- [ ] 23-01: TBD
+- [ ] 23-01-PLAN.md - Rate limiter rapid restart tests + dual fallback failure tests (TEST-04, TEST-05)
 
 ## Progress
 
@@ -248,7 +248,7 @@ Plans:
 | ------------------------- | --------- | ----- | ----------- | ---------- |
 | 21. Critical Safety Tests | v1.3      | 2     | Complete    | 2026-01-21 |
 | 22. Deployment Safety     | v1.3      | 1     | Complete    | 2026-01-21 |
-| 23. Edge Case Tests       | v1.3      | TBD   | Not started | -          |
+| 23. Edge Case Tests       | v1.3      | 1     | Not started | -          |
 
 ### Completed Milestones
 
