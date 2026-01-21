@@ -71,7 +71,8 @@ DEFAULT_BASELINE_UPDATE_THRESHOLD_MS = 3.0
 # Conservative alternatives: 100ms (20x speed, 2x headroom) or 250ms (8x speed, 4x headroom)
 # See docs/PRODUCTION_INTERVAL.md for validation results and configuration guidance
 #
-# With 0.05-second cycles and 0.85 factor_down, recovery from 920M to floor takes ~80 cycles = 4 seconds
+# With 0.05s cycles and 0.85 factor_down, recovery from 920M to floor
+# takes ~80 cycles = 4 seconds
 CYCLE_INTERVAL_SECONDS = 0.05
 
 # Default bloat thresholds (milliseconds)
@@ -806,7 +807,7 @@ class WANController:
             name=f"{wan_name}-Upload",
             floor_green=config.upload_floor_green,
             floor_yellow=config.upload_floor_yellow,
-            floor_soft_red=config.upload_floor_yellow,  # Phase 2A: Upload unchanged, use yellow for soft_red
+            floor_soft_red=config.upload_floor_yellow,  # Upload uses yellow for soft_red
             floor_red=config.upload_floor_red,
             ceiling=config.upload_ceiling,
             step_up=config.upload_step_up,
@@ -1194,13 +1195,15 @@ class WANController:
                     return (True, measured_rtt)
                 elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
                     self.logger.warning(
-                        f"{self.wan_name}: ICMP unavailable, no TCP RTT (cycle "
-                        f"{self.icmp_unavailable_cycles}/{self.config.fallback_max_cycles}) - freezing rates"
+                        f"{self.wan_name}: ICMP unavailable, no TCP RTT "
+                        f"(cycle {self.icmp_unavailable_cycles}/"
+                        f"{self.config.fallback_max_cycles}) - freezing rates"
                     )
                     return (True, None)
                 else:
                     self.logger.error(
-                        f"{self.wan_name}: ICMP unavailable for {self.icmp_unavailable_cycles} cycles "
+                        f"{self.wan_name}: ICMP unavailable for "
+                        f"{self.icmp_unavailable_cycles} cycles "
                         f"(>{self.config.fallback_max_cycles}) - giving up"
                     )
                     return (False, None)
@@ -1402,20 +1405,36 @@ class ContinuousAutoRate:
             logger = setup_logging(config, "cake_continuous", debug)
 
             logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
+            dl_green = config.download_floor_green / 1e6
+            dl_yellow = config.download_floor_yellow / 1e6
+            dl_soft_red = config.download_floor_soft_red / 1e6
+            dl_red = config.download_floor_red / 1e6
+            dl_ceil = config.download_ceiling / 1e6
+            dl_step = config.download_step_up / 1e6
             logger.info(
-                f"Download: GREEN={config.download_floor_green / 1e6:.0f}M, YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
-                f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, RED={config.download_floor_red / 1e6:.0f}M, "
-                f"ceiling={config.download_ceiling / 1e6:.0f}M, step={config.download_step_up / 1e6:.1f}M, factor={config.download_factor_down}"
+                f"Download: GREEN={dl_green:.0f}M, YELLOW={dl_yellow:.0f}M, "
+                f"SOFT_RED={dl_soft_red:.0f}M, RED={dl_red:.0f}M, "
+                f"ceiling={dl_ceil:.0f}M, step={dl_step:.1f}M, "
+                f"factor={config.download_factor_down}"
+            )
+            ul_green = config.upload_floor_green / 1e6
+            ul_yellow = config.upload_floor_yellow / 1e6
+            ul_red = config.upload_floor_red / 1e6
+            ul_ceil = config.upload_ceiling / 1e6
+            ul_step = config.upload_step_up / 1e6
+            logger.info(
+                f"Upload: GREEN={ul_green:.0f}M, YELLOW={ul_yellow:.0f}M, "
+                f"RED={ul_red:.0f}M, ceiling={ul_ceil:.0f}M, "
+                f"step={ul_step:.1f}M, factor={config.upload_factor_down}"
             )
             logger.info(
-                f"Upload: GREEN={config.upload_floor_green / 1e6:.0f}M, YELLOW={config.upload_floor_yellow / 1e6:.0f}M, RED={config.upload_floor_red / 1e6:.0f}M, ceiling={config.upload_ceiling / 1e6:.0f}M, "
-                f"step={config.upload_step_up / 1e6:.1f}M, factor={config.upload_factor_down}"
+                f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, "
+                f"YELLOW→SOFT_RED={config.warn_bloat_ms}ms, "
+                f"SOFT_RED→RED={config.hard_red_bloat_ms}ms"
             )
             logger.info(
-                f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→SOFT_RED={config.warn_bloat_ms}ms, SOFT_RED→RED={config.hard_red_bloat_ms}ms"
-            )
-            logger.info(
-                f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, YELLOW→RED={config.warn_bloat_ms}ms"
+                f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, "
+                f"YELLOW→RED={config.warn_bloat_ms}ms"
             )
             logger.info(
                 f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}"
@@ -1561,18 +1580,18 @@ def main() -> int | None:
                 print(f"  WAN: {config.wan_name}")
                 print(f"  Transport: {config.router_transport}")
                 print(f"  Router: {config.router_host}:{config.router_user}")
-                print(
-                    f"  Download: {config.download_floor_red / 1e6:.0f}M - {config.download_ceiling / 1e6:.0f}M"
-                )
+                dl_min = config.download_floor_red / 1e6
+                dl_max = config.download_ceiling / 1e6
+                print(f"  Download: {dl_min:.0f}M - {dl_max:.0f}M")
                 print(
                     f"    Floors: GREEN={config.download_floor_green / 1e6:.0f}M, "
                     f"YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
                     f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, "
                     f"RED={config.download_floor_red / 1e6:.0f}M"
                 )
-                print(
-                    f"  Upload: {config.upload_floor_red / 1e6:.0f}M - {config.upload_ceiling / 1e6:.0f}M"
-                )
+                ul_min = config.upload_floor_red / 1e6
+                ul_max = config.upload_ceiling / 1e6
+                print(f"  Upload: {ul_min:.0f}M - {ul_max:.0f}M")
                 print(
                     f"    Floors: GREEN={config.upload_floor_green / 1e6:.0f}M, "
                     f"YELLOW={config.upload_floor_yellow / 1e6:.0f}M, "
