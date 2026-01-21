@@ -18,7 +18,7 @@ None
 
 ### In Progress
 
-- **v1.3 Reliability & Hardening** (Phases 21-23) - Test coverage gaps and deployment safety
+- **v1.3 Reliability & Hardening** (Phases 21-24) - Test coverage gaps and deployment safety
 
 ## Phases
 
@@ -185,6 +185,7 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
 - [x] **Phase 21: Critical Safety Tests** - Test core algorithm safety invariants
 - [x] **Phase 22: Deployment Safety** - Config cleanup and validation scripts
 - [x] **Phase 23: Edge Case Tests** - Boundary condition test coverage
+- [ ] **Phase 24: Wire Integration Gaps** - Connect implemented features to production
 
 ## Phase Details (v1.3)
 
@@ -242,6 +243,24 @@ Plans:
 
 **Phase 23 Complete:** +56 tests (671 to 727), edge cases proven for rate limiter restart behavior and dual fallback failure safety.
 
+### Phase 24: Wire Integration Gaps
+
+**Goal**: Implemented safety features are active in production code paths
+**Depends on**: Phase 23
+**Gap Closure**: Closes integration gaps from v1.3-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+
+1. Production code uses `get_router_client_with_failover()` for REST→SSH failover
+2. `validate-deployment.sh` is called automatically before daemon starts
+3. E2E flow "REST failover" completes successfully (REST fail → SSH fallback → operation succeeds)
+4. E2E flow "Deployment validation" completes successfully (deploy → validate → start)
+
+**Plans**: TBD
+
+Plans:
+
+- [ ] 24-01-PLAN.md - Wire FailoverRouterClient and validation script to production
+
 ## Progress
 
 **All completed milestones collapsed above.**
@@ -251,6 +270,7 @@ Plans:
 | 21. Critical Safety Tests | v1.3      | 2     | Complete | 2026-01-21 |
 | 22. Deployment Safety     | v1.3      | 1     | Complete | 2026-01-21 |
 | 23. Edge Case Tests       | v1.3      | 1     | Complete | 2026-01-21 |
+| 24. Wire Integration Gaps | v1.3      | 1     | Pending  | -          |
 
 ### Completed Milestones
 
