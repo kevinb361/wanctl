@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config_base import ConfigValidationError
-from ..router_client import get_router_client
+from ..router_client import get_router_client, get_router_client_with_failover
 from ..state_utils import safe_json_loads
 
 
@@ -49,8 +49,8 @@ class CakeStatsReader:
         self.config = config
         self.logger = logger
 
-        # Create router client using factory (supports SSH and REST)
-        self.client = get_router_client(config, logger)
+        # Create router client using factory (supports SSH and REST) with failover
+        self.client = get_router_client_with_failover(config, logger)
 
         # Track previous stats for delta calculation (best practice - no RouterOS resets needed)
         # Delta math approach:

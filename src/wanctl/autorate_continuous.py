@@ -35,7 +35,7 @@ from wanctl.metrics import (
     start_metrics_server,
 )
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
-from wanctl.router_client import get_router_client
+from wanctl.router_client import get_router_client, get_router_client_with_failover
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
     is_shutdown_requested,
@@ -535,8 +535,8 @@ class RouterOS:
     def __init__(self, config: Config, logger: logging.Logger):
         self.config = config
         self.logger = logger
-        # Use factory function to get appropriate client (SSH or REST)
-        self.ssh = get_router_client(config, logger)
+        # Use factory function to get appropriate client (SSH or REST) with failover
+        self.ssh = get_router_client_with_failover(config, logger)
 
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
         """Set CAKE limits for one WAN using a single batched SSH command"""
