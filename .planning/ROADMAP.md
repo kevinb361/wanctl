@@ -182,7 +182,7 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
 
 **Milestone Goal:** Close test coverage gaps identified in CONCERNS.md analysis and improve deployment safety.
 
-- [ ] **Phase 21: Critical Safety Tests** - Test core algorithm safety invariants
+- [x] **Phase 21: Critical Safety Tests** - Test core algorithm safety invariants
 - [ ] **Phase 22: Deployment Safety** - Config cleanup and validation scripts
 - [ ] **Phase 23: Edge Case Tests** - Boundary condition test coverage
 
@@ -194,14 +194,18 @@ See [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full details.
 **Depends on**: Nothing (first v1.3 phase)
 **Requirements**: TEST-01, TEST-02, TEST-03
 **Success Criteria** (what must be TRUE):
-  1. Test proves baseline RTT remains frozen when delta > 3ms during sustained load
-  2. Test proves state file corruption (partial JSON) triggers graceful recovery
-  3. Test proves REST API failure automatically falls back to SSH transport
-**Plans**: 2 plans
+
+1. Test proves baseline RTT remains frozen when delta > 3ms during sustained load
+2. Test proves state file corruption (partial JSON) triggers graceful recovery
+3. Test proves REST API failure automatically falls back to SSH transport
+   **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md - Baseline freeze + state corruption tests (TEST-01, TEST-02)
-- [ ] 21-02-PLAN.md - Transport failover implementation + tests (TEST-03)
+
+- [x] 21-01-PLAN.md - Baseline freeze + state corruption tests (TEST-01, TEST-02)
+- [x] 21-02-PLAN.md - Transport failover implementation + tests (TEST-03)
+
+**Phase 21 Complete:** +46 tests (671 to 717), safety invariants proven for baseline freeze, state corruption recovery, and REST-to-SSH failover.
 
 ### Phase 22: Deployment Safety
 
@@ -209,12 +213,14 @@ Plans:
 **Depends on**: Phase 21
 **Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03
 **Success Criteria** (what must be TRUE):
-  1. Config file renamed from `steering_config.yaml` to `steering.yaml` with all references updated
-  2. Deploy script exits non-zero when required production config is missing
-  3. Validation script checks state files, queue existence, and router reachability before startup
-**Plans**: TBD
+
+1. Config file renamed from `steering_config.yaml` to `steering.yaml` with all references updated
+2. Deploy script exits non-zero when required production config is missing
+3. Validation script checks state files, queue existence, and router reachability before startup
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 22-01: TBD
 
 ### Phase 23: Edge Case Tests
@@ -223,22 +229,24 @@ Plans:
 **Depends on**: Phase 22
 **Requirements**: TEST-04, TEST-05
 **Success Criteria** (what must be TRUE):
-  1. Test proves rate limiter handles rapid restarts without burst exceeding configured limit
-  2. Test proves dual fallback failure (ICMP + TCP both down) returns safe defaults, not stale data
-**Plans**: TBD
+
+1. Test proves rate limiter handles rapid restarts without burst exceeding configured limit
+2. Test proves dual fallback failure (ICMP + TCP both down) returns safe defaults, not stale data
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 23-01: TBD
 
 ## Progress
 
 **All completed milestones collapsed above.**
 
-| Phase                      | Milestone | Plans | Status      | Completed  |
-| -------------------------- | --------- | ----- | ----------- | ---------- |
-| 21. Critical Safety Tests  | v1.3      | 2     | Planned     | -          |
-| 22. Deployment Safety      | v1.3      | TBD   | Not started | -          |
-| 23. Edge Case Tests        | v1.3      | TBD   | Not started | -          |
+| Phase                     | Milestone | Plans | Status      | Completed  |
+| ------------------------- | --------- | ----- | ----------- | ---------- |
+| 21. Critical Safety Tests | v1.3      | 2     | Complete    | 2026-01-21 |
+| 22. Deployment Safety     | v1.3      | TBD   | Not started | -          |
+| 23. Edge Case Tests       | v1.3      | TBD   | Not started | -          |
 
 ### Completed Milestones
 

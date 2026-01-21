@@ -9,9 +9,9 @@ Requirements for v1.3 Reliability & Hardening. Derived from CONCERNS.md analysis
 
 ### Critical Safety Tests
 
-- [ ] **TEST-01**: Baseline RTT remains frozen during sustained load (delta > 3ms threshold)
-- [ ] **TEST-02**: State file corruption recovery handles partial JSON writes gracefully
-- [ ] **TEST-03**: REST API failure triggers automatic SSH transport failover
+- [x] **TEST-01**: Baseline RTT remains frozen during sustained load (delta > 3ms threshold)
+- [x] **TEST-02**: State file corruption recovery handles partial JSON writes gracefully
+- [x] **TEST-03**: REST API failure triggers automatic SSH transport failover
 
 ### Deployment Safety
 
@@ -30,32 +30,34 @@ None currently. All identified items included in v1.3.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
+| Feature                         | Reason                                             |
+| ------------------------------- | -------------------------------------------------- |
 | Steering daemon health endpoint | Lower priority than test coverage (v1.4 candidate) |
-| Multi-site deployment patterns | Not needed for single-site production |
-| Config template automation | Manual deployment working, low ROI |
+| Multi-site deployment patterns  | Not needed for single-site production              |
+| Config template automation      | Manual deployment working, low ROI                 |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| TEST-01 | Phase 21 | Pending |
-| TEST-02 | Phase 21 | Pending |
-| TEST-03 | Phase 21 | Pending |
-| DEPLOY-01 | Phase 22 | Pending |
-| DEPLOY-02 | Phase 22 | Pending |
-| DEPLOY-03 | Phase 22 | Pending |
-| TEST-04 | Phase 23 | Pending |
-| TEST-05 | Phase 23 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| TEST-01     | Phase 21 | Complete |
+| TEST-02     | Phase 21 | Complete |
+| TEST-03     | Phase 21 | Complete |
+| DEPLOY-01   | Phase 22 | Pending  |
+| DEPLOY-02   | Phase 22 | Pending  |
+| DEPLOY-03   | Phase 22 | Pending  |
+| TEST-04     | Phase 23 | Pending  |
+| TEST-05     | Phase 23 | Pending  |
 
 **Coverage:**
+
 - v1.3 requirements: 8 total
 - Mapped to phases: 8
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-01-21*
-*Last updated: 2026-01-21 after roadmap creation*
+
+_Requirements defined: 2026-01-21_
+_Last updated: 2026-01-21 after Phase 21 completion_
