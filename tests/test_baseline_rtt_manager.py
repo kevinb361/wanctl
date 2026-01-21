@@ -311,3 +311,144 @@ class TestBaselineRTTManagerEWMAAccuracy:
 
         # Should not update, remain at initial value
         assert manager.baseline_rtt == 50.0
+
+
+class TestBaselineFreezeInvariant:
+    """Tests proving baseline RTT freezing invariant under sustained load.
+
+    ARCHITECTURAL INVARIANT: Baseline RTT must not drift when delta > threshold.
+    This prevents baseline from chasing load, which would mask true congestion.
+
+    Reference: docs/PORTABLE_CONTROLLER_ARCHITECTURE.md
+    """
+
+    def test_baseline_frozen_sustained_load(self, logger):
+        """Baseline MUST remain frozen during 100+ cycles of sustained load.
+
+        This test proves the critical safety invariant that baseline RTT never
+        drifts during sustained load, preventing the controller from losing
+        sensitivity to congestion over time.
+        """
+        manager = BaselineRTTManager(
+            initial_baseline=20.0,
+            alpha_baseline=0.1,
+            baseline_update_threshold=3.0,
+            logger=logger,
+        )
+        initial_baseline = manager.baseline_rtt
+
+        # Run 100 cycles with delta consistently > 3ms (sustained load)
+        for cycle in range(100):
+            # Simulate load: measured RTT 50ms, load RTT 45ms
+            # Delta = 45 - 20 = 25ms (>> 3ms threshold)
+            manager.update_baseline_ewma(measured_rtt=50.0, load_rtt=45.0)
+
+        # INVARIANT: Baseline MUST NOT have drifted
+        assert manager.baseline_rtt == pytest.approx(initial_baseline, abs=0.01), (
+            f"Baseline drifted from {initial_baseline}ms to {manager.baseline_rtt}ms "
+            f"during sustained load - safety invariant violated!"
+        )
+
+    def test_baseline_frozen_at_exact_threshold(self, logger):
+        """Baseline should freeze when delta equals threshold exactly (edge case).
+
+        At delta == threshold, baseline should NOT update (conservative behavior).
+        """
+        manager = BaselineRTTManager(
+            initial_baseline=20.0,
+            alpha_baseline=0.1,
+            baseline_update_threshold=3.0,
+            logger=logger,
+        )
+        initial_baseline = manager.baseline_rtt
+
+        # Delta = load_rtt - baseline = 23.0 - 20.0 = 3.0 (exactly threshold)
+        for _ in range(50):
+            manager.update_baseline_ewma(measured_rtt=25.0, load_rtt=23.0)
+
+        # At exact threshold, delta >= threshold, so baseline freezes
+        assert manager.baseline_rtt == pytest.approx(initial_baseline, abs=0.01), (
+            "Baseline should freeze at exact threshold boundary"
+        )
+
+    def test_baseline_frozen_logs_debug(self, logger, caplog):
+        """Verify 'frozen (under load)' debug message is logged when baseline freezes."""
+        import logging as log_module
+
+        # Enable DEBUG level to capture the log message
+        caplog.set_level(log_module.DEBUG)
+
+        manager = BaselineRTTManager(
+            initial_baseline=20.0,
+            alpha_baseline=0.1,
+            baseline_update_threshold=3.0,
+            logger=logger,
+        )
+
+        # Trigger freeze condition (delta > threshold)
+        manager.update_baseline_ewma(measured_rtt=50.0, load_rtt=45.0)
+
+        # Check for expected log message
+        assert any(
+            "frozen (under load)" in record.message for record in caplog.records
+        ), "Expected 'frozen (under load)' debug log not found"
+
+    def test_baseline_updates_only_when_idle(self, logger):
+        """Verify baseline updates resume when delta < threshold (idle state)."""
+        manager = BaselineRTTManager(
+            initial_baseline=20.0,
+            alpha_baseline=0.1,
+            baseline_update_threshold=3.0,
+            logger=logger,
+        )
+
+        # Phase 1: Under load (50 cycles) - baseline should freeze
+        for _ in range(50):
+            manager.update_baseline_ewma(measured_rtt=50.0, load_rtt=45.0)
+
+        assert manager.baseline_rtt == pytest.approx(20.0, abs=0.01), (
+            "Baseline should remain frozen during load phase"
+        )
+
+        # Phase 2: Idle (delta < threshold) - baseline should update
+        # New RTT conditions: measured=18, load_rtt=21 -> delta = 21 - 20 = 1 < 3
+        baseline_before_idle = manager.baseline_rtt
+        manager.update_baseline_ewma(measured_rtt=18.0, load_rtt=21.0)
+
+        # Expected: new_baseline = (1 - 0.1) * 20.0 + 0.1 * 18.0 = 18.0 + 1.8 = 19.8
+        expected_baseline = 0.9 * 20.0 + 0.1 * 18.0
+        assert manager.baseline_rtt == pytest.approx(expected_baseline, abs=0.01), (
+            f"Baseline should update during idle: expected {expected_baseline:.2f}, "
+            f"got {manager.baseline_rtt:.2f}"
+        )
+        assert manager.baseline_rtt != baseline_before_idle, (
+            "Baseline should change during idle conditions"
+        )
+
+    def test_baseline_freeze_with_varying_load_intensity(self, logger):
+        """Baseline stays frozen regardless of how much over threshold delta is."""
+        manager = BaselineRTTManager(
+            initial_baseline=20.0,
+            alpha_baseline=0.1,
+            baseline_update_threshold=3.0,
+            logger=logger,
+        )
+        initial_baseline = manager.baseline_rtt
+
+        # Varying load intensities, all above threshold
+        load_scenarios = [
+            (30.0, 25.0),   # delta = 5ms (light load)
+            (100.0, 90.0),  # delta = 70ms (heavy load)
+            (200.0, 180.0), # delta = 160ms (extreme load)
+            (25.0, 23.5),   # delta = 3.5ms (just above threshold)
+        ]
+
+        for measured, load in load_scenarios:
+            for _ in range(25):
+                manager.update_baseline_ewma(measured_rtt=measured, load_rtt=load)
+
+        # Baseline must remain unchanged through all load scenarios
+        assert manager.baseline_rtt == pytest.approx(initial_baseline, abs=0.01), (
+            f"Baseline drifted during varying load intensities: "
+            f"{initial_baseline}ms -> {manager.baseline_rtt}ms"
+        )
