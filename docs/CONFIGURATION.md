@@ -15,10 +15,12 @@ wan_name: "wan1"
 
 # Router connection settings
 router:
-  type: routeros        # Router type (only 'routeros' currently supported)
-  host: "192.168.1.1"   # Router IP or hostname
-  user: "admin"         # SSH username
-  ssh_key: "/etc/wanctl/ssh/router.key"  # Path to SSH private key
+  type: routeros # Router platform (only 'routeros' currently supported)
+  transport: "ssh" # Transport: "ssh" (default) or "rest"
+  host: "192.168.1.1" # Router IP or hostname
+  user: "admin" # SSH username
+  ssh_key: "/etc/wanctl/ssh/router.key" # Path to SSH private key (for ssh transport)
+  # password: "${ROUTER_PASSWORD}"       # REST API password (for rest transport)
 
 # Queue names in RouterOS (must match your queue tree config)
 queues:
@@ -30,41 +32,41 @@ continuous_monitoring:
   enabled: true
 
   # Initial baseline RTT estimate (will be measured and tracked)
-  baseline_rtt_initial: 25  # milliseconds
+  baseline_rtt_initial: 25 # milliseconds
 
   # Download parameters
   download:
     # State-dependent floors (4-state mode)
-    floor_green_mbps: 550     # Floor when in GREEN state
-    floor_yellow_mbps: 350    # Floor when in YELLOW state
-    floor_soft_red_mbps: 275  # Floor when in SOFT_RED state
-    floor_red_mbps: 200       # Floor when in RED state
+    floor_green_mbps: 550 # Floor when in GREEN state
+    floor_yellow_mbps: 350 # Floor when in YELLOW state
+    floor_soft_red_mbps: 275 # Floor when in SOFT_RED state
+    floor_red_mbps: 200 # Floor when in RED state
 
     # OR legacy single floor (3-state mode)
     # floor_mbps: 200         # Single floor for all states
 
-    ceiling_mbps: 940         # Maximum bandwidth
-    step_up_mbps: 10          # Recovery step size
-    factor_down: 0.85         # Backoff factor (0.85 = 15% reduction)
+    ceiling_mbps: 940 # Maximum bandwidth
+    step_up_mbps: 10 # Recovery step size
+    factor_down: 0.85 # Backoff factor (0.85 = 15% reduction)
 
   # Upload parameters (always 3-state)
   upload:
-    floor_mbps: 8             # Minimum bandwidth
-    ceiling_mbps: 38          # Maximum bandwidth
-    step_up_mbps: 1           # Recovery step size
-    factor_down: 0.90         # Backoff factor
+    floor_mbps: 8 # Minimum bandwidth
+    ceiling_mbps: 38 # Maximum bandwidth
+    step_up_mbps: 1 # Recovery step size
+    factor_down: 0.90 # Backoff factor
 
   # RTT thresholds for state transitions
   thresholds:
-    target_bloat_ms: 15       # GREEN -> YELLOW (delta threshold)
-    warn_bloat_ms: 45         # YELLOW -> SOFT_RED (delta threshold)
-    hard_red_bloat_ms: 80     # SOFT_RED -> RED (delta threshold)
-    alpha_baseline: 0.02      # Baseline EWMA smoothing (lower = slower)
-    alpha_load: 0.20          # Load RTT EWMA smoothing (higher = faster)
+    target_bloat_ms: 15 # GREEN -> YELLOW (delta threshold)
+    warn_bloat_ms: 45 # YELLOW -> SOFT_RED (delta threshold)
+    hard_red_bloat_ms: 80 # SOFT_RED -> RED (delta threshold)
+    alpha_baseline: 0.02 # Baseline EWMA smoothing (lower = slower)
+    alpha_load: 0.20 # Load RTT EWMA smoothing (higher = faster)
 
   # Ping configuration
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-  use_median_of_three: true   # Use median for noise reduction
+  use_median_of_three: true # Use median for noise reduction
 
 # Logging
 logging:
@@ -73,12 +75,12 @@ logging:
 
 # Lock file (prevents concurrent runs)
 lock_file: "/run/wanctl/wan1.lock"
-lock_timeout: 300  # seconds
+lock_timeout: 300 # seconds
 
 # Timeouts
 timeouts:
-  ssh_command: 15  # SSH command timeout (seconds)
-  ping: 1          # Per-ping timeout (seconds)
+  ssh_command: 15 # SSH command timeout (seconds)
+  ping: 1 # Per-ping timeout (seconds)
 
 # State file location
 state_file: "/var/lib/wanctl/wan1_state.json"
@@ -99,6 +101,7 @@ download:
 ```
 
 State transitions:
+
 - GREEN: delta <= target_bloat_ms
 - YELLOW: target_bloat_ms < delta <= warn_bloat_ms
 - SOFT_RED: warn_bloat_ms < delta <= hard_red_bloat_ms
@@ -116,6 +119,7 @@ download:
 ```
 
 State transitions:
+
 - GREEN: delta <= target_bloat_ms
 - YELLOW: target_bloat_ms < delta <= warn_bloat_ms
 - RED: delta > warn_bloat_ms
@@ -125,6 +129,7 @@ State transitions:
 ### Baseline RTT
 
 Set `baseline_rtt_initial` to your typical idle ping time:
+
 - Fiber: 5-15ms
 - Cable: 20-35ms
 - DSL: 25-50ms
@@ -134,6 +139,7 @@ The system will measure and track the actual baseline via EWMA.
 ### Floors
 
 Set floors based on your minimum acceptable performance:
+
 - GREEN floor: 50-70% of ceiling (normal operation)
 - YELLOW floor: 30-50% of ceiling (early warning)
 - SOFT_RED floor: 20-40% of ceiling (RTT-only congestion)
@@ -142,6 +148,7 @@ Set floors based on your minimum acceptable performance:
 ### Thresholds
 
 Tune based on your baseline RTT:
+
 - target_bloat_ms: 50-100% of baseline (GREEN -> YELLOW)
 - warn_bloat_ms: 150-200% of baseline (YELLOW -> SOFT_RED)
 - hard_red_bloat_ms: 250-350% of baseline (SOFT_RED -> RED)
@@ -169,7 +176,7 @@ thresholds:
   target_bloat_ms: 5
   warn_bloat_ms: 15
   hard_red_bloat_ms: 30
-  alpha_baseline: 0.01  # Very slow (fiber is stable)
+  alpha_baseline: 0.01 # Very slow (fiber is stable)
 ```
 
 ### Cable (DOCSIS)
@@ -181,7 +188,7 @@ thresholds:
   warn_bloat_ms: 45
   hard_red_bloat_ms: 80
 ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-use_median_of_three: true  # Essential for DOCSIS
+use_median_of_three: true # Essential for DOCSIS
 ```
 
 ### DSL (VDSL/ADSL)
@@ -189,16 +196,17 @@ use_median_of_three: true  # Essential for DOCSIS
 ```yaml
 baseline_rtt_initial: 31
 thresholds:
-  target_bloat_ms: 3   # Tighter for lower baseline
+  target_bloat_ms: 3 # Tighter for lower baseline
   warn_bloat_ms: 10
-  alpha_baseline: 0.015  # Slower (DSL is noisy)
+  alpha_baseline: 0.015 # Slower (DSL is noisy)
 upload:
-  factor_down: 0.95  # Very conservative (DSL upload sensitive)
+  factor_down: 0.95 # Very conservative (DSL upload sensitive)
 ```
 
 ## Validation
 
 The config loader validates:
+
 - Required fields present
 - Numeric values in valid ranges
 - Paths are valid formats
