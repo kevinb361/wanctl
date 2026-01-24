@@ -242,6 +242,6 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | Phase                          | Plans Complete | Status      | Completed  |
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 27. Test Coverage Setup        | 1/1            | Complete    | 2026-01-24 |
-| 28. Codebase Cleanup           | 0/TBD          | Not started | -          |
+| 28. Codebase Cleanup           | 0/1            | Planned     | -          |
 | 29. Documentation Verification | 0/TBD          | Not started | -          |
 | 30. Security Audit             | 0/TBD          | Not started | -          |
