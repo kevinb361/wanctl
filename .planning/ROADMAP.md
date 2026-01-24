@@ -199,12 +199,13 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 
 **Milestone Goal:** Add HTTP health endpoint to steering daemon for external monitoring and container orchestration.
 
-- [ ] **Phase 25: Health Endpoint Core** - HTTP server, routes, threading, lifecycle
+- [x] **Phase 25: Health Endpoint Core** - HTTP server, routes, threading, lifecycle (2026-01-24)
 - [ ] **Phase 26: Steering State & Integration** - Response content, daemon wiring
 
 Plans:
-- [ ] 25-01-PLAN.md - Create health endpoint module with HTTP server
-- [ ] 25-02-PLAN.md - Add unit tests for steering health endpoint
+
+- [x] 25-01-PLAN.md - Create health endpoint module with HTTP server
+- [x] 25-02-PLAN.md - Add unit tests for steering health endpoint
 
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
@@ -223,7 +224,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ### Current Milestone
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 25. Health Endpoint Core | 0/2 | Planned | - |
-| 26. Steering State & Integration | 0/2 | Not started | - |
+| Phase                            | Plans Complete | Status      | Completed  |
+| -------------------------------- | -------------- | ----------- | ---------- |
+| 25. Health Endpoint Core         | 2/2            | Complete    | 2026-01-24 |
+| 26. Steering State & Integration | 0/2            | Not started | -          |
