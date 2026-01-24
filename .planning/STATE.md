@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 Phase: 26 of 26 (complete)
 Plan: N/A
 Status: Ready to plan
-Last activity: 2026-01-24 — Quick task 003 (remove deprecated params)
+Last activity: 2026-01-24 — Quick task 004 (fix socket warnings)
 
 Progress: [████████████████████] 100% (v1.4: 4/4 plans)
 
@@ -64,6 +64,7 @@ None currently.
 | 001 | Rename Phase2B to confidence-based steering | 2026-01-24 | ed77d74 | [001-rename-phase2b-to-confidence-based-steer](./quick/001-rename-phase2b-to-confidence-based-steer/) |
 | 002 | Fix health endpoint version number          | 2026-01-24 | 7168896 | [002-fix-health-version](./quick/002-fix-health-version/)                                             |
 | 003 | Remove deprecated sample params             | 2026-01-24 | ed10708 | [003-remove-deprecated-sample-params](./quick/003-remove-deprecated-sample-params/)                   |
+| 004 | Fix socket ResourceWarning in health tests  | 2026-01-24 | b648ddb | [004-fix-socket-warnings](./quick/004-fix-socket-warnings/)                                           |
 
 ### Shipped Milestones
 
@@ -80,7 +81,7 @@ None — ready for next milestone planning.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Quick task 003 complete
+Stopped at: Quick task 004 complete
 Resume file: None
 
 ## Next Steps
