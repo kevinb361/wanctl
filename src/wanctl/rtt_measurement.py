@@ -10,7 +10,7 @@ import concurrent.futures
 import logging
 import re
 import statistics
-import subprocess
+import subprocess  # nosec B404 - required for ping RTT measurement
 from enum import Enum
 
 # Pre-compiled regex for RTT parsing (avoids per-call compilation overhead)
@@ -157,7 +157,7 @@ class RTTMeasurement:
                 # Default: count packets + 2 seconds overhead
                 subprocess_timeout = count + 2
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - cmd is hardcoded ping
                 cmd,
                 capture_output=True,
                 text=True,

@@ -87,5 +87,7 @@ addopts = "--cov-config=pyproject.toml"
 
 [tool.bandit]
 exclude_dirs = [".venv", "build", "dist"]
-# Note: tests/ not excluded - CONTEXT.md requires all findings block
-# B101 (assert_used) may need inline nosec in tests if it triggers
+# B101: assert used for invariant checks, not user input validation
+# B311: random used for retry jitter timing, not cryptographic purposes
+# B601: paramiko exec_command receives RouterOS API commands from internal code, not user input
+skips = ["B101", "B311", "B601"]

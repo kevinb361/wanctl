@@ -1756,7 +1756,7 @@ def main() -> int | None:
             try:
                 wan_info["controller"].save_state(force=True)
             except Exception:
-                pass  # Best effort
+                pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
 
         # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:
@@ -1771,7 +1771,7 @@ def main() -> int | None:
         try:
             atexit.unregister(emergency_lock_cleanup)
         except Exception:
-            pass  # Not critical if this fails
+            pass  # nosec B110 - Not critical if this fails during shutdown
 
         # 2. Clean up SSH/REST connections
         for wan_info in controller.wan_controllers:

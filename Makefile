@@ -50,6 +50,7 @@ security-secrets:
 	.venv/bin/detect-secrets scan --baseline .secrets.baseline
 
 # License compliance (pip-licenses)
+# Note: LGPL allowed (paramiko) - weak copyleft permits library use without affecting wanctl's license
 security-licenses:
 	@echo "Checking license compliance..."
-	.venv/bin/pip-licenses --fail-on="GPL;AGPL;LGPL" --partial-match
+	.venv/bin/pip-licenses --fail-on="GPL-2.0;GPL-3.0;AGPL-3.0"

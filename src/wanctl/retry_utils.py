@@ -2,8 +2,8 @@
 
 import functools
 import logging
-import random
-import subprocess
+import random  # nosec B311 - used for jitter timing, not security
+import subprocess  # nosec B404 - used for type checking TimeoutExpired
 import time
 from collections.abc import Callable
 from typing import Any
@@ -169,7 +169,7 @@ def retry_with_backoff(
                     # Calculate delay with jitter
                     actual_delay = delay
                     if jitter:
-                        # Add 0-50% random jitter
+                        # Add 0-50% random jitter (nosec B311 - timing, not crypto)
                         jitter_amount = delay * random.uniform(0, 0.5)
                         actual_delay = delay + jitter_amount
 

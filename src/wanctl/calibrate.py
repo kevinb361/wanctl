@@ -21,7 +21,7 @@ import argparse
 import json
 import re
 import statistics
-import subprocess
+import subprocess  # nosec B404 - Required for running netperf/ping calibration tools
 import sys
 import time
 from dataclasses import dataclass
@@ -192,7 +192,7 @@ def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> b
     cmd.extend([f"{user}@{host}", "echo ok"])
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - cmd built from config, not user input
             cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT
         )
         if result.returncode == 0 and "ok" in result.stdout:
@@ -216,7 +216,9 @@ def test_netperf_server(host: str) -> bool:
     cmd = ["netperf", "-H", host, "-t", "TCP_STREAM", "-l", "2"]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_STANDARD)
+        result = subprocess.run(  # nosec B603 - cmd is hardcoded netperf invocation
+            cmd, capture_output=True, text=True, timeout=TIMEOUT_STANDARD
+        )
         if result.returncode == 0:
             print_success("Netperf server reachable")
             return True
@@ -246,7 +248,9 @@ def measure_baseline_rtt(ping_host: str) -> float | None:
     cmd = ["ping", "-c", str(PING_COUNT), "-i", str(PING_INTERVAL), ping_host]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_LONG)
+        result = subprocess.run(  # nosec B603 - cmd is hardcoded ping invocation
+            cmd, capture_output=True, text=True, timeout=TIMEOUT_LONG
+        )
 
         if result.returncode != 0:
             print_error(f"Ping failed: {result.stderr}")
@@ -298,7 +302,7 @@ def measure_throughput_download(
     ]
 
     try:
-        netperf_proc = subprocess.Popen(
+        netperf_proc = subprocess.Popen(  # nosec B603 - cmd is hardcoded netperf
             netperf_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
@@ -307,7 +311,7 @@ def measure_throughput_download(
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(
+        ping_result = subprocess.run(  # nosec B603 - cmd is hardcoded ping
             ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT
         )
 
@@ -367,7 +371,7 @@ def measure_throughput_upload(
     ]
 
     try:
-        netperf_proc = subprocess.Popen(
+        netperf_proc = subprocess.Popen(  # nosec B603 - cmd is hardcoded netperf
             netperf_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
@@ -376,7 +380,7 @@ def measure_throughput_upload(
 
         # Measure latency under load
         ping_cmd = ["ping", "-c", "30", "-i", "0.2", ping_host]
-        ping_result = subprocess.run(
+        ping_result = subprocess.run(  # nosec B603 - cmd is hardcoded ping
             ping_cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_PING_TIMEOUT
         )
 
@@ -429,7 +433,7 @@ def set_cake_limit(
     )
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - cmd built from config, not user input
             cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT
         )
         return result.returncode == 0
