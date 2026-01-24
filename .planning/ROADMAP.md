@@ -12,7 +12,7 @@ None
 
 ### Current
 
-None - planning next milestone
+- **v1.6 Test Coverage 90%** (Phases 31-37) - IN PROGRESS
 
 ### Completed
 
@@ -31,6 +31,20 @@ None - planning next milestone
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.6 Test Coverage 90% (Phases 31-37) - IN PROGRESS
+
+**Milestone Goal:** Increase test coverage from 45.7% to 90%+ with CI enforcement.
+
+- [ ] **Phase 31: Coverage Infrastructure** - Threshold enforcement and CI integration
+- [ ] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage
+- [ ] **Phase 33: State & Infrastructure Tests** - State manager and utility modules
+- [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
+- [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
+- [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
+- [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
+
+See [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) for full details.
 
 <details>
 <summary>v1.5 Quality & Hygiene (Phases 27-30) - SHIPPED 2026-01-24</summary>
@@ -229,7 +243,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: Planning next milestone**
+**Current: v1.6 Phase 31 ready to plan**
 
 ### Completed Milestones
 
@@ -243,3 +257,17 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 30 phases, 60 plans across 6 milestones
+
+### v1.6 Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 31. Coverage Infrastructure | 0/1 | Not started | - |
+| 32. Backend Client Tests | 0/2 | Not started | - |
+| 33. State & Infrastructure Tests | 0/2 | Not started | - |
+| 34. Metrics & Measurement Tests | 0/2 | Not started | - |
+| 35. Core Controller Tests | 0/3 | Not started | - |
+| 36. Steering Daemon Tests | 0/2 | Not started | - |
+| 37. CLI Tool Tests | 0/2 | Not started | - |
+
+**v1.6 Total:** 7 phases, 14 plans

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90%
+**Current focus:** v1.6 Test Coverage 90% - Phase 31
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-01-24 — Milestone v1.6 started
+Phase: 31 of 37 (Coverage Infrastructure)
+Plan: 0 of 1 in current phase
+Status: Ready to plan
+Last activity: 2026-01-24 — Roadmap created for v1.6
 
 Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
 
@@ -38,7 +38,7 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 ### Deferred Issues
 
-- COV-04: Coverage threshold enforcement → Now active in v1.6 scope
+None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 
 ### Blockers/Concerns
 
@@ -46,7 +46,7 @@ None currently.
 
 ### Pending Todos
 
-3 todos remaining in `.planning/todos/pending/`:
+4 todos remaining in `.planning/todos/pending/`:
 
 - Add metrics history feature (observability)
 - Integration test for router communication (testing)
@@ -74,11 +74,11 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Starting v1.6 milestone
+Stopped at: v1.6 roadmap created, Phase 31 ready to plan
 Resume file: None
 
 ## Next Steps
 
-1. Define requirements for v1.6
-2. Create roadmap with phases
-3. Execute phases
+1. `/gsd:plan-phase 31` - Plan coverage infrastructure
+2. Execute Phase 31 (1 plan)
+3. Continue through Phases 32-37
