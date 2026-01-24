@@ -148,6 +148,8 @@ class TestHealthServer:
             data = json.loads(exc_info.value.read().decode())
             assert data["status"] == "degraded"
             assert data["consecutive_failures"] == 3
+            # Close the HTTPError to release the socket
+            exc_info.value.close()
         finally:
             server.shutdown()
 
@@ -161,6 +163,8 @@ class TestHealthServer:
             with pytest.raises(urllib.error.HTTPError) as exc_info:
                 urllib.request.urlopen(url, timeout=5)
             assert exc_info.value.code == 404
+            # Close the HTTPError to release the socket
+            exc_info.value.close()
         finally:
             server.shutdown()
 
