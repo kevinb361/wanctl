@@ -202,6 +202,10 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 - [ ] **Phase 25: Health Endpoint Core** - HTTP server, routes, threading, lifecycle
 - [ ] **Phase 26: Steering State & Integration** - Response content, daemon wiring
 
+Plans:
+- [ ] 25-01-PLAN.md - Create health endpoint module with HTTP server
+- [ ] 25-02-PLAN.md - Add unit tests for steering health endpoint
+
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
@@ -221,5 +225,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 25. Health Endpoint Core | 0/2 | Not started | - |
+| 25. Health Endpoint Core | 0/2 | Planned | - |
 | 26. Steering State & Integration | 0/2 | Not started | - |
