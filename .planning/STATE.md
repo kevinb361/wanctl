@@ -44,7 +44,7 @@ None currently.
 
 ### Pending Todos
 
-6 todos in `.planning/todos/pending/`:
+11 todos in `.planning/todos/pending/`:
 
 - Remove deprecated bad_samples/good_samples parameters (config)
 - Fix RuntimeWarning about module import (core)
@@ -52,6 +52,11 @@ None currently.
 - Fix health endpoint version number (observability)
 - Verify project documentation is correct and up to date (docs)
 - General cleanup and optimization sweep (core)
+- Add test coverage measurement (testing)
+- Dependency security audit (security)
+- Integration test for router communication (testing)
+- Graceful shutdown behavior review (core)
+- Error recovery scenario testing (reliability)
 
 ### Quick Tasks Completed
 
