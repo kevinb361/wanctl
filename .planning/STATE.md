@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.4 Observability - Steering Health Endpoint
 
 ## Current Position
 
-Phase: 24 phases complete across 4 milestones
-Plan: All shipped
-Status: Ready for next milestone
-Last activity: 2026-01-24 - Completed quick task 001: Rename Phase2B to confidence-based steering
+Phase: 25 (defining)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-23 — Milestone v1.4 started
 
-Progress: [####################] 100% (v1.0-v1.3 shipped)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.4 starting)
 
 ## Performance Metrics
 
@@ -61,16 +61,20 @@ None currently.
 
 - **v1.0 Performance Optimization** (2026-01-13): 40x speed improvement (2s to 50ms)
 - **v1.1 Code Quality** (2026-01-14): 120 new tests, systematic refactoring
-- **v1.2 Configuration & Polish** (2026-01-14): Phase2B rollout, config improvements
+- **v1.2 Configuration & Polish** (2026-01-14): Confidence-based steering rollout, config improvements
 - **v1.3 Reliability & Hardening** (2026-01-21): Safety invariant tests, deployment validation
+
+### Current Milestone
+
+- **v1.4 Observability** (started 2026-01-23): Steering daemon health endpoint
 
 ## Session Continuity
 
-Last session: 2026-01-21T16:30:00Z
-Stopped at: v1.3 milestone completed and archived
+Last session: 2026-01-23
+Stopped at: v1.4 milestone started, defining requirements
 Resume file: None
 
 ## Next Steps
 
-1. Define next milestone scope (`/gsd:new-milestone`)
-2. Or take a break — all planned work is shipped!
+1. Define requirements (`/gsd:new-milestone` in progress)
+2. Create roadmap for v1.4

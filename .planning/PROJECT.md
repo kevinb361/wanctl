@@ -8,15 +8,16 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.3 Reliability & Hardening
+## Current Milestone: v1.4 Observability
 
-**Goal:** Close test coverage gaps for architectural invariants and improve deployment safety.
+**Goal:** Add health endpoint for steering daemon to enable external monitoring and container orchestration.
 
 **Target features:**
 
-- Critical safety tests (baseline freezing, state corruption, SSH failover)
-- Deployment validation (config rename, fail-fast, validation script)
-- Edge case tests (rate limiter, ICMP/TCP fallback)
+- HTTP health endpoint for steering daemon (port 9102)
+- Steering state visibility (current decision, confidence scores, WAN states)
+- JSON response compatible with Kubernetes probes
+- Uptime and version reporting
 
 ## Current State (v1.2)
 
@@ -67,21 +68,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-**v1.3 Reliability & Hardening:**
+**v1.4 Observability:**
 
-- [ ] Test baseline RTT freezing under sustained load
-- [ ] Test state file corruption recovery scenarios
-- [ ] Test SSH transport failover when REST fails
-- [ ] Rename steering_config.yaml → steering.yaml
-- [ ] Fail-fast on missing production config in deploy.sh
-- [ ] Add deployment validation script
-- [ ] Test rate limiter edge cases (restart, window boundaries)
-- [ ] Test ICMP/TCP fallback failure handling
+- [ ] Create health endpoint module for steering daemon
+- [ ] Expose steering state (enabled/disabled, current decision)
+- [ ] Expose confidence scores from ConfidenceController
+- [ ] Expose WAN congestion states (primary/secondary)
+- [ ] Add uptime and version to health response
+- [ ] Integrate health server into steering daemon lifecycle
 
 **Ongoing:**
 
-- [ ] Phase2B production validation (currently dry-run, 1 week validation)
-- [ ] Enable confidence-based steering (set dry_run: false after validation)
+- [ ] Confidence-based steering validation (enabled 2026-01-23, monitoring)
 
 ### Deferred
 
@@ -128,10 +126,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Added 77 edge case tests (594 → 671)
 - Enabled Phase2B confidence scoring in dry-run mode
 
+**v1.3 Reliability & Hardening (2026-01-21):**
+
+- 4 phases of safety and deployment improvements (Phases 21-24)
+- REST-to-SSH failover with FailoverRouterClient
+- Baseline freeze invariant tests, state corruption recovery
+- Deployment validation script (423 lines)
+- 54 new tests (671 → 725)
+
 **Next Steps:**
 
-- Validate Phase2B in production (dry-run for 1 week)
-- Enable confidence-based steering (set dry_run: false) after validation
+- Add steering daemon health endpoint (v1.4)
+- Monitor confidence-based steering in production
 
 ## Constraints
 
@@ -158,4 +164,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-21 after v1.3 milestone started_
+_Last updated: 2026-01-23 after v1.4 milestone started_
