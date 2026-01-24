@@ -1,5 +1,34 @@
 # Project Milestones: wanctl
 
+## v1.4 Observability (Shipped: 2026-01-24)
+
+**Delivered:** HTTP health endpoint for steering daemon enabling external monitoring and container orchestration.
+
+**Phases completed:** 25-26 (4 plans total)
+
+**Key accomplishments:**
+
+- Created steering daemon HTTP health endpoint on port 9102 with JSON responses
+- Implemented 200/503 status codes for Kubernetes probe compatibility
+- Exposed live steering state: confidence scores, congestion states, decision timestamps
+- Integrated health server lifecycle with daemon (start/stop automatically)
+- Added 28 tests covering all 14 requirements (HLTH-_, STEER-_, INTG-\*)
+- Achieved 100% requirement coverage with zero tech debt
+
+**Stats:**
+
+- 14 files modified
+- +2,375 lines changed
+- 2 phases, 4 plans
+- 28 new tests (725 → 752)
+- 1 day (2026-01-24)
+
+**Git range:** `feat(25-01)` → `docs(26-02)`
+
+**What's next:** Deploy to production, integrate with monitoring dashboards.
+
+---
+
 ## v1.3 Reliability & Hardening (Shipped: 2026-01-21)
 
 **Delivered:** Safety invariant test coverage, deployment validation, and production wiring for REST-to-SSH failover.

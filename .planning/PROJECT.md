@@ -8,24 +8,13 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.4 Observability
+## Current State (v1.4)
 
-**Goal:** Add health endpoint for steering daemon to enable external monitoring and container orchestration.
-
-**Target features:**
-
-- HTTP health endpoint for steering daemon (port 9102)
-- Steering state visibility (current decision, confidence scores, WAN states)
-- JSON response compatible with Kubernetes probes
-- Uptime and version reporting
-
-## Current State (v1.2)
-
-- **Version:** v1.2 Configuration & Polish (shipped 2026-01-14)
+- **Version:** v1.4 Observability (shipped 2026-01-24)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 671 passing
-- **LOC:** ~22,065 Python
-- **Status:** Production stable, Phase2BController in dry-run validation
+- **Tests:** 752 passing
+- **LOC:** ~25,900 Python
+- **Status:** Production stable, steering health endpoint on port 9102
 
 ## Requirements
 
@@ -66,16 +55,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Config edge case tests (+77 tests) — v1.2
 - ✓ Phase2B confidence scoring enabled (dry-run mode) — v1.2
 
-### Active
-
 **v1.4 Observability:**
 
-- [ ] Create health endpoint module for steering daemon
-- [ ] Expose steering state (enabled/disabled, current decision)
-- [ ] Expose confidence scores from ConfidenceController
-- [ ] Expose WAN congestion states (primary/secondary)
-- [ ] Add uptime and version to health response
-- [ ] Integrate health server into steering daemon lifecycle
+- ✓ HTTP health endpoint for steering daemon (port 9102) — v1.4
+- ✓ Steering state exposure (enabled/disabled, decision timestamp) — v1.4
+- ✓ Confidence scores from ConfidenceController in health response — v1.4
+- ✓ WAN congestion states (primary/secondary) in health response — v1.4
+- ✓ Uptime and version in health response — v1.4
+- ✓ Health server lifecycle integrated with steering daemon — v1.4
+
+### Active
 
 **Ongoing:**
 
@@ -134,10 +123,19 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Deployment validation script (423 lines)
 - 54 new tests (671 → 725)
 
+**v1.4 Observability (2026-01-24):**
+
+- 2 phases of monitoring infrastructure (Phases 25-26)
+- HTTP health endpoint for steering daemon on port 9102
+- Live steering state exposure (confidence, congestion, decisions)
+- Kubernetes-compatible health probes (200/503)
+- 28 new tests (725 → 752)
+
 **Next Steps:**
 
-- Add steering daemon health endpoint (v1.4)
-- Monitor confidence-based steering in production
+- Deploy health endpoint to production
+- Monitor confidence-based steering behavior
+- Plan next milestone (v1.5)
 
 ## Constraints
 
@@ -151,17 +149,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ## Key Decisions
 
-| Decision                                        | Rationale                                                  | Outcome                         | Date       |
-| ----------------------------------------------- | ---------------------------------------------------------- | ------------------------------- | ---------- |
-| Profile before optimizing                       | Measure actual performance vs assumptions                  | ✓ Assumptions were wrong        | 2026-01-10 |
-| 50ms cycle interval (40x faster)                | Use headroom for faster congestion response                | ✓ Production stable             | 2026-01-13 |
-| Preserve EWMA time constants via alpha scaling  | Mathematical correctness, predictable behavior             | ✓ Implemented correctly         | 2026-01-13 |
-| Risk-based refactoring (LOW/MEDIUM/HIGH)        | Protect production stability during code quality work      | ✓ All protected zones preserved | 2026-01-13 |
-| Define 9 protected zones with exact line ranges | Prevent accidental core algorithm modification             | ✓ Documented in analysis        | 2026-01-13 |
-| Phase2BController dry-run mode for integration  | Safe production validation before enabling routing changes | ✓ Integrated, validating        | 2026-01-14 |
-| Unified state machine (CAKE-aware + legacy)     | Reduce code duplication, single code path                  | ✓ Implemented with tests        | 2026-01-14 |
-| Extract methods from run_cycle() systematically | Improve testability and maintainability                    | ✓ 120 new tests added           | 2026-01-14 |
+| Decision                                          | Rationale                                                  | Outcome                         | Date       |
+| ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------- | ---------- |
+| Profile before optimizing                         | Measure actual performance vs assumptions                  | ✓ Assumptions were wrong        | 2026-01-10 |
+| 50ms cycle interval (40x faster)                  | Use headroom for faster congestion response                | ✓ Production stable             | 2026-01-13 |
+| Preserve EWMA time constants via alpha scaling    | Mathematical correctness, predictable behavior             | ✓ Implemented correctly         | 2026-01-13 |
+| Risk-based refactoring (LOW/MEDIUM/HIGH)          | Protect production stability during code quality work      | ✓ All protected zones preserved | 2026-01-13 |
+| Define 9 protected zones with exact line ranges   | Prevent accidental core algorithm modification             | ✓ Documented in analysis        | 2026-01-13 |
+| Phase2BController dry-run mode for integration    | Safe production validation before enabling routing changes | ✓ Integrated, validating        | 2026-01-14 |
+| Unified state machine (CAKE-aware + legacy)       | Reduce code duplication, single code path                  | ✓ Implemented with tests        | 2026-01-14 |
+| Extract methods from run_cycle() systematically   | Improve testability and maintainability                    | ✓ 120 new tests added           | 2026-01-14 |
+| Port 9102 for steering health (9101 for autorate) | Separate health endpoints per daemon                       | ✓ Deployed, Kubernetes-ready    | 2026-01-24 |
 
 ---
 
-_Last updated: 2026-01-23 after v1.4 milestone started_
+_Last updated: 2026-01-24 after v1.4 milestone complete_

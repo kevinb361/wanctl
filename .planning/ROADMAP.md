@@ -192,25 +192,23 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 
 </details>
 
-### v1.4 Observability (Phases 25-26) - SHIPPED 2026-01-24
+<details>
+<summary>v1.4 Observability (Phases 25-26) - SHIPPED 2026-01-24</summary>
 
 **Milestone Goal:** Add HTTP health endpoint to steering daemon for external monitoring and container orchestration.
 
-- [x] **Phase 25: Health Endpoint Core** - HTTP server, routes, threading, lifecycle (2026-01-24)
-- [x] **Phase 26: Steering State & Integration** - Response content, daemon wiring (2026-01-24)
+- [x] Phase 25: Health Endpoint Core (2/2 plans) - HTTP server, routes, threading, lifecycle
+- [x] Phase 26: Steering State & Integration (2/2 plans) - Response content, daemon wiring
 
-Plans:
-
-- [x] 25-01-PLAN.md - Create health endpoint module with HTTP server
-- [x] 25-02-PLAN.md - Add unit tests for steering health endpoint
-- [x] 26-01-PLAN.md - Extend health response with steering state fields
-- [x] 26-02-PLAN.md - Wire health server into daemon lifecycle
+**Key Results:** HTTP health endpoint on port 9102, 28 new tests (725 → 752), 100% requirement coverage.
 
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
+</details>
+
 ## Progress
 
-**Current: v1.4 Observability Complete**
+**Current: Ready for next milestone**
 
 ### Completed Milestones
 
@@ -222,9 +220,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-### v1.4 Observability (Complete)
-
-| Phase                            | Plans Complete | Status   | Completed  |
-| -------------------------------- | -------------- | -------- | ---------- |
-| 25. Health Endpoint Core         | 2/2            | Complete | 2026-01-24 |
-| 26. Steering State & Integration | 2/2            | Complete | 2026-01-24 |
+**Total:** 26 phases, 52 plans across 5 milestones
