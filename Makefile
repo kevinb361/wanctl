@@ -10,6 +10,10 @@ coverage:
 	@echo ""
 	@echo "HTML report: coverage-report/index.html"
 
+# Run tests with coverage enforcement (used by CI)
+coverage-check:
+	.venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90
+
 # Linting
 lint:
 	.venv/bin/ruff check src/ tests/
@@ -22,8 +26,8 @@ type:
 format:
 	.venv/bin/ruff format src/ tests/
 
-# All CI checks (lint, type, test)
-ci: lint type test
+# All CI checks (lint, type, coverage)
+ci: lint type coverage-check
 
 # Clean build artifacts
 clean:
