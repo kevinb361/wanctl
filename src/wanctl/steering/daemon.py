@@ -58,10 +58,8 @@ from .congestion_assessment import (
     ewma_update,
 )
 from .steering_confidence import (
-    ConfidenceSignals as Phase2BSignals,
-)
-from .steering_confidence import (
-    Phase2BController,
+    ConfidenceController,
+    ConfidenceSignals,
 )
 
 # =============================================================================
@@ -245,12 +243,12 @@ class SteeringConfig(BaseConfig):
         self.use_confidence_scoring = mode.get("use_confidence_scoring", False)
 
     def _load_confidence_config(self) -> None:
-        """Load Phase 2B confidence scoring configuration.
+        """Load confidence-based steering configuration.
 
         Only loads if use_confidence_scoring is enabled. All values have safe
         defaults, with dry_run=True as the most critical default for safe deployment.
 
-        The confidence_config dict structure matches Phase2BController's config_v3 format.
+        The confidence_config dict structure matches ConfidenceController's config_v3 format.
         """
         if not self.use_confidence_scoring:
             self.confidence_config = None
@@ -449,7 +447,7 @@ def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
             "queue_ewma": 0.0,
             "cake_drops_history": [],
             "queue_depth_history": [],
-            "cake_state_history": [],  # For Phase 2B confidence scoring
+            "cake_state_history": [],  # For confidence-based steering
             "red_count": 0,
             "congestion_state": "GREEN",
             "cake_read_failures": 0,
@@ -673,10 +671,10 @@ class SteeringDaemon:
             self.thresholds = None
             self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
 
-        # Phase 2B confidence scoring controller (if enabled)
-        self.confidence_controller: Phase2BController | None = None
+        # Confidence-based steering controller (if enabled)
+        self.confidence_controller: ConfidenceController | None = None
         if self.config.use_confidence_scoring and self.config.confidence_config:
-            self.confidence_controller = Phase2BController(
+            self.confidence_controller = ConfidenceController(
                 config_v3=self.config.confidence_config,
                 logger=self.logger,
                 state_good=self.config.state_good,
@@ -684,7 +682,7 @@ class SteeringDaemon:
                 cycle_interval=ASSESSMENT_INTERVAL_SECONDS,
             )
             dry_run_status = self.config.confidence_config["dry_run"]["enabled"]
-            self.logger.info(f"[PHASE2B] Confidence scoring enabled (dry_run={dry_run_status})")
+            self.logger.info(f"[CONFIDENCE] Confidence scoring enabled (dry_run={dry_run_status})")
 
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
@@ -1049,7 +1047,7 @@ class SteeringDaemon:
         Update state machine based on congestion signals.
 
         If confidence scoring is enabled:
-        - Evaluates Phase2BController in parallel with hysteresis
+        - Evaluates ConfidenceController in parallel with hysteresis
         - In dry-run mode: logs confidence decisions but uses hysteresis for routing
         - In live mode: uses confidence decision for routing
 
@@ -1066,8 +1064,8 @@ class SteeringDaemon:
         if self.confidence_controller:
             state = self.state_mgr.state
 
-            # Convert CongestionSignals to Phase2BSignals format
-            phase2b_signals = Phase2BSignals(
+            # Convert CongestionSignals to ConfidenceSignals format
+            phase2b_signals = ConfidenceSignals(
                 cake_state=state.get("congestion_state", "GREEN"),
                 rtt_delta_ms=signals.rtt_delta,
                 drops_per_sec=float(signals.cake_drops),
@@ -1237,7 +1235,7 @@ class SteeringDaemon:
         # === Update State Machine ===
         state_changed = self.update_state_machine(signals)
 
-        # Track cake_state_history for Phase 2B confidence scoring
+        # Track cake_state_history for confidence-based steering
         if self.config.cake_aware and "congestion_state" in state:
             cake_state_history = state.get("cake_state_history", [])
             cake_state_history.append(state["congestion_state"])
