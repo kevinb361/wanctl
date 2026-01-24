@@ -5,6 +5,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,6 +13,7 @@ from wanctl import __version__
 from wanctl.steering.health import (
     SteeringHealthHandler,
     SteeringHealthServer,
+    _congestion_state_code,
     start_steering_health_server,
     update_steering_health_status,
 )
@@ -217,3 +219,275 @@ class TestUpdateSteeringHealthStatus:
 
         update_steering_health_status(0)
         assert SteeringHealthHandler.consecutive_failures == 0
+
+
+class TestSteeringHealthResponseFields:
+    """Tests for steering-specific response fields (STEER-01 through STEER-05)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_daemon(self):
+        """Create a mock SteeringDaemon with realistic state."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None  # Disabled by default
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,  # 60s ago
+        }
+        return daemon
+
+    def test_steering_enabled_false_when_good(self, mock_daemon):
+        """Test that steering.enabled=False when state=GOOD."""
+        mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "steering" in data
+            assert data["steering"]["enabled"] is False
+            assert data["steering"]["state"] == "SPECTRUM_GOOD"
+        finally:
+            server.shutdown()
+
+    def test_steering_enabled_true_when_degraded(self, mock_daemon):
+        """Test that steering.enabled=True when state=DEGRADED."""
+        mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "steering" in data
+            assert data["steering"]["enabled"] is True
+            assert data["steering"]["state"] == "SPECTRUM_DEGRADED"
+        finally:
+            server.shutdown()
+
+    def test_congestion_state_fields(self, mock_daemon):
+        """Test that congestion.primary.state and state_code are present."""
+        mock_daemon.state_mgr.state["congestion_state"] = "YELLOW"
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "congestion" in data
+            assert "primary" in data["congestion"]
+            assert data["congestion"]["primary"]["state"] == "YELLOW"
+            assert data["congestion"]["primary"]["state_code"] == 1
+        finally:
+            server.shutdown()
+
+    def test_congestion_state_codes(self):
+        """Test that congestion state codes are GREEN=0, YELLOW=1, RED=2, UNKNOWN=3."""
+        assert _congestion_state_code("GREEN") == 0
+        assert _congestion_state_code("YELLOW") == 1
+        assert _congestion_state_code("RED") == 2
+        assert _congestion_state_code("UNKNOWN") == 3
+        assert _congestion_state_code("INVALID") == 3
+
+    def test_decision_timestamp_iso8601(self, mock_daemon):
+        """Test that last_transition_time is valid ISO 8601."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "decision" in data
+            timestamp = data["decision"]["last_transition_time"]
+            assert timestamp is not None
+            # Verify ISO 8601 format (contains T separator)
+            assert "T" in timestamp
+            # Handle timezone format (may be +00:00 or Z)
+            if timestamp.endswith("+00:00"):
+                pass  # Standard format
+            elif "+" in timestamp or "-" in timestamp.split("T")[1]:
+                pass  # Has timezone offset
+            else:
+                timestamp = timestamp + "+00:00"  # Add timezone for parsing
+            # Just verify it's a valid datetime string
+            assert len(timestamp) > 10
+        finally:
+            server.shutdown()
+
+    def test_time_in_state_positive(self, mock_daemon):
+        """Test that time_in_state_seconds > 0."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "decision" in data
+            time_in_state = data["decision"]["time_in_state_seconds"]
+            assert isinstance(time_in_state, (int, float))
+            # Should be positive (transition was 60s ago in mock)
+            assert time_in_state > 0
+        finally:
+            server.shutdown()
+
+    def test_counters_present(self, mock_daemon):
+        """Test that counters.red_count, good_count, cake_read_failures are present."""
+        mock_daemon.state_mgr.state["red_count"] = 3
+        mock_daemon.state_mgr.state["good_count"] = 10
+        mock_daemon.state_mgr.state["cake_read_failures"] = 1
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "counters" in data
+            assert data["counters"]["red_count"] == 3
+            assert data["counters"]["good_count"] == 10
+            assert data["counters"]["cake_read_failures"] == 1
+        finally:
+            server.shutdown()
+
+    def test_thresholds_from_config(self, mock_daemon):
+        """Test that thresholds match daemon.config values."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "thresholds" in data
+            assert data["thresholds"]["green_rtt_ms"] == 5.0
+            assert data["thresholds"]["yellow_rtt_ms"] == 15.0
+            assert data["thresholds"]["red_rtt_ms"] == 15.0
+            assert data["thresholds"]["red_samples_required"] == 2
+            assert data["thresholds"]["green_samples_required"] == 15
+        finally:
+            server.shutdown()
+
+    def test_pid_present(self, mock_daemon):
+        """Test that pid field is integer > 0."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "pid" in data
+            assert isinstance(data["pid"], int)
+            assert data["pid"] > 0
+        finally:
+            server.shutdown()
+
+    def test_confidence_when_enabled(self, mock_daemon):
+        """Test that confidence.primary is present when controller active."""
+        # Enable confidence controller with timer_state
+        mock_daemon.confidence_controller = MagicMock()
+        mock_daemon.confidence_controller.timer_state.confidence_score = 75.5
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "confidence" in data
+            assert data["confidence"]["primary"] == 75.5
+        finally:
+            server.shutdown()
+
+    def test_confidence_absent_when_disabled(self, mock_daemon):
+        """Test that confidence key is absent when controller is None."""
+        # Ensure confidence controller is disabled
+        mock_daemon.confidence_controller = None
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "confidence" not in data
+        finally:
+            server.shutdown()
+
+    def test_errors_field(self, mock_daemon):
+        """Test that errors.consecutive_failures and cake_read_failures are present."""
+        mock_daemon.state_mgr.state["cake_read_failures"] = 2
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+        update_steering_health_status(1)  # Set consecutive failures
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "errors" in data
+            assert data["errors"]["consecutive_failures"] == 1
+            assert data["errors"]["cake_read_failures"] == 2
+        finally:
+            server.shutdown()

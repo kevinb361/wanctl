@@ -16,7 +16,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
 
@@ -63,9 +63,7 @@ def _format_iso_timestamp(
     elapsed_since_event = now_monotonic - monotonic_ts
 
     # Convert to wall-clock time
-    event_time = datetime.now(timezone.utc) - __import__("datetime").timedelta(
-        seconds=elapsed_since_event
-    )
+    event_time = datetime.now(UTC) - timedelta(seconds=elapsed_since_event)
     return event_time.isoformat()
 
 
@@ -192,7 +190,8 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             if self.daemon.confidence_controller:
                 health["confidence"] = {
                     "primary": round(
-                        self.daemon.confidence_controller.confidence_score, 1
+                        self.daemon.confidence_controller.timer_state.confidence_score,
+                        1,
                     ),
                 }
 
