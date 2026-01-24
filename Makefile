@@ -1,4 +1,4 @@
-.PHONY: test coverage lint type format ci clean
+.PHONY: test coverage lint type format ci clean security security-deps security-code security-secrets security-licenses
 
 # Run tests without coverage
 test:
@@ -29,3 +29,27 @@ ci: lint type test
 clean:
 	rm -rf .coverage coverage-report/ *.egg-info/ dist/ build/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# Run all security scans
+security: security-deps security-code security-secrets security-licenses
+	@echo "All security checks passed"
+
+# Dependency vulnerability scan (pip-audit)
+security-deps:
+	@echo "Scanning dependencies for vulnerabilities..."
+	.venv/bin/pip-audit
+
+# Static security analysis (bandit)
+security-code:
+	@echo "Running static security analysis..."
+	.venv/bin/bandit -r src/ -c pyproject.toml
+
+# Secret detection (detect-secrets)
+security-secrets:
+	@echo "Checking for secrets..."
+	.venv/bin/detect-secrets scan --baseline .secrets.baseline
+
+# License compliance (pip-licenses)
+security-licenses:
+	@echo "Checking license compliance..."
+	.venv/bin/pip-licenses --fail-on="GPL;AGPL;LGPL" --partial-match
