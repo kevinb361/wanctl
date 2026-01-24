@@ -15,11 +15,11 @@
 
 ### Risk Distribution
 
-| Risk Level | Count | Scope |
-|------------|-------|-------|
-| LOW | 6 | Pure extractions, no algorithm changes |
-| MEDIUM | 4 | Structural improvements, requires testing |
-| HIGH | 2 | Core algorithm changes, requires explicit approval |
+| Risk Level | Count | Scope                                              |
+| ---------- | ----- | -------------------------------------------------- |
+| LOW        | 6     | Pure extractions, no algorithm changes             |
+| MEDIUM     | 4     | Structural improvements, requires testing          |
+| HIGH       | 2     | Core algorithm changes, requires explicit approval |
 
 ---
 
@@ -31,21 +31,22 @@
 
 ### Current Structure
 
-| Method | Lines | Complexity | Primary Responsibility |
-|--------|-------|------------|------------------------|
-| `__init__` | 82 | MEDIUM | Initialize controllers, load state |
-| `measure_rtt` | 42 | MEDIUM | Ping hosts, aggregate RTT |
-| `update_ewma` | 15 | LOW | Update baseline/load EWMAs |
-| `verify_local_connectivity` | 13 | LOW | Check gateway reachability |
-| `verify_tcp_connectivity` | 23 | MEDIUM | TCP handshake checks |
-| `verify_connectivity_fallback` | 20 | LOW | Orchestrate fallback checks |
-| **`run_cycle`** | **176** | **HIGH** | **Main control loop** |
-| `load_state` | 40 | MEDIUM | Restore persisted state |
-| `save_state` | 32 | LOW | Persist state to disk |
+| Method                         | Lines   | Complexity | Primary Responsibility             |
+| ------------------------------ | ------- | ---------- | ---------------------------------- |
+| `__init__`                     | 82      | MEDIUM     | Initialize controllers, load state |
+| `measure_rtt`                  | 42      | MEDIUM     | Ping hosts, aggregate RTT          |
+| `update_ewma`                  | 15      | LOW        | Update baseline/load EWMAs         |
+| `verify_local_connectivity`    | 13      | LOW        | Check gateway reachability         |
+| `verify_tcp_connectivity`      | 23      | MEDIUM     | TCP handshake checks               |
+| `verify_connectivity_fallback` | 20      | LOW        | Orchestrate fallback checks        |
+| **`run_cycle`**                | **176** | **HIGH**   | **Main control loop**              |
+| `load_state`                   | 40      | MEDIUM     | Restore persisted state            |
+| `save_state`                   | 32      | LOW        | Persist state to disk              |
 
 ### Complexity Hotspots
 
 **1. `run_cycle()` (Lines 785-960) - PRIMARY HOTSPOT**
+
 - **Lines:** 176 (11% of class)
 - **Responsibilities:** 6+ distinct operations
 - **Nesting:** 4 levels deep
@@ -57,10 +58,12 @@
   - Difficult to test individual execution paths
 
 **2. `__init__()` (Lines 564-644) - SECONDARY HOTSPOT**
+
 - **Lines:** 82
 - **Issues:** Multiple initialization phases, high parameter coupling, disk I/O during construction
 
 **3. `measure_rtt()` (Lines 645-686) - TERTIARY HOTSPOT**
+
 - **Lines:** 42
 - **Issues:** Concurrent futures complexity, multiple failure modes, non-deterministic behavior
 
@@ -69,6 +72,7 @@
 #### LOW Risk
 
 **W1. Extract Fallback Connectivity Logic**
+
 - **Location:** Lines 798-858 (61 lines within `run_cycle()`)
 - **Proposed:** `handle_icmp_failure() -> tuple[bool, float | None]`
 - **Benefits:** 32% reduction in `run_cycle()`, isolates fallback logic for independent testing
@@ -76,6 +80,7 @@
 - **Dependencies:** None (self-contained)
 
 **W2. Extract Flash Wear Protection Logic**
+
 - **Location:** Lines 892-942 (51 lines within `run_cycle()`)
 - **Proposed:** `apply_rate_changes_if_needed(dl_rate, ul_rate) -> bool`
 - **Benefits:** Separates flash wear protection (architectural invariant) from cycle logic
@@ -83,6 +88,7 @@
 - **Dependencies:** None (uses existing instance variables)
 
 **W3. Simplify Concurrent RTT Measurement**
+
 - **Location:** Lines 654-683 (30 lines in `measure_rtt()`)
 - **Proposed:** Move concurrent futures logic to `rtt_measurement.py` utility
 - **Benefits:** Reduces `measure_rtt()` from 42 to ~15 lines, reusable by steering daemon
@@ -94,6 +100,7 @@
 #### MEDIUM Risk
 
 **W4. Extract EWMA Update Validation Logic**
+
 - **Location:** Lines 688-702 (15 lines in `update_ewma()`)
 - **Proposed:** Add `_update_baseline_if_idle()` helper with explicit conditional logic
 - **Benefits:** Makes baseline update conditional logic more explicit, adds debug logging
@@ -102,6 +109,7 @@
 - **Approval:** Defer to Phase 14 implementation
 
 **W5. Extract State Persistence to Dedicated Manager**
+
 - **Location:** Lines 962-1033 (72 lines for load/save)
 - **Proposed:** Create `WANControllerState` class following steering daemon's `StateManager` pattern
 - **Benefits:** Separates persistence from business logic, enables reuse
@@ -110,12 +118,12 @@
 
 ### Protected Zones
 
-| Zone | Lines | Why Protected | Safe Changes | Prohibited Changes |
-|------|-------|---------------|--------------|-------------------|
-| **Baseline Update Threshold** | 688-702 | Prevents baseline drift under load | Make threshold configurable, add logging | Remove conditional, change formula |
-| **Flash Wear Protection** | 898, 937-938 | Prevents NAND flash wear (100K-1M writes) | Extract to method, add metrics | Remove change detection |
-| **Rate Limiting Logic** | 905-917 | Prevents RouterOS API overload | Make limits configurable | Remove rate limiting |
-| **QueueController Transitions** | QueueController class | Core autorate algorithm | Extract state logic, add logging | Modify thresholds/hysteresis |
+| Zone                            | Lines                 | Why Protected                             | Safe Changes                             | Prohibited Changes                 |
+| ------------------------------- | --------------------- | ----------------------------------------- | ---------------------------------------- | ---------------------------------- |
+| **Baseline Update Threshold**   | 688-702               | Prevents baseline drift under load        | Make threshold configurable, add logging | Remove conditional, change formula |
+| **Flash Wear Protection**       | 898, 937-938          | Prevents NAND flash wear (100K-1M writes) | Extract to method, add metrics           | Remove change detection            |
+| **Rate Limiting Logic**         | 905-917               | Prevents RouterOS API overload            | Make limits configurable                 | Remove rate limiting               |
+| **QueueController Transitions** | QueueController class | Core autorate algorithm                   | Extract state logic, add logging         | Modify thresholds/hysteresis       |
 
 ---
 
@@ -128,6 +136,7 @@
 ### Current Structure
 
 **Classes:**
+
 - `SteeringConfig` (188-316): Configuration loading
 - `RouterOSController` (400-456): Mangle rule control
 - `BaselineLoader` (492-502): Baseline RTT synchronization
@@ -146,6 +155,7 @@
 ### Complexity Hotspots
 
 **1. `run_cycle()` (Lines 849-977) - PRIMARY HOTSPOT**
+
 - **Lines:** 129 (11% of file)
 - **Responsibilities:** 8+ distinct responsibilities
 - **Issues:**
@@ -155,6 +165,7 @@
   - Inline history management (W4 fix)
 
 **2. `_update_state_machine_cake_aware()` (Lines 669-772) - FLAGGED IN CONCERNS.md**
+
 - **Lines:** 104 (9% of file)
 - **Cyclomatic Complexity:** ~12
 - **Issues:**
@@ -164,10 +175,12 @@
   - CONCERNS.md flagged: "State machine state transitions fragile"
 
 **3. `_update_state_machine_legacy()` (Lines 774-847)**
+
 - **Lines:** 74
 - **Issues:** Code duplication with CAKE-aware version (~60% overlap)
 
 **4. `main()` (Lines 983-1179) - LARGEST FUNCTION**
+
 - **Lines:** 197 (17% of file)
 - **Responsibilities:** 12+ (arg parsing, signal registration, config load, logging setup, component initialization, lock acquisition, daemon creation, systemd watchdog, event loop, failure tracking, cleanup)
 
@@ -176,18 +189,21 @@
 #### LOW Risk
 
 **S1. Extract EWMA Smoothing Logic**
+
 - **Location:** Lines 909-923 (15 lines in `run_cycle()`)
 - **Proposed:** `update_ewma_smoothing(delta, queued_packets)`
 - **Benefits:** Can test EWMA smoothing without full cycle execution
 - **Dependencies:** None (self-contained extraction)
 
 **S2. Extract CAKE Stats Collection**
+
 - **Location:** Lines 863-898 (36 lines in `run_cycle()`)
 - **Proposed:** `collect_cake_stats() -> tuple[int, int]`
 - **Benefits:** Test CAKE read failures without full cycle, preserves W8 fix
 - **Dependencies:** None (self-contained extraction)
 
 **S3. Extract Configuration Field Loading Groups**
+
 - **Location:** Lines 188-316 (129 lines in `_load_specific_fields()`)
 - **Proposed:** Split into 12 focused methods (`_load_router_config()`, etc.)
 - **Benefits:** Test individual config sections, easier debugging
@@ -196,6 +212,7 @@
 #### MEDIUM Risk
 
 **S4. Extract State Machine Routing Control**
+
 - **Location:** Lines 706-717, 749-760 (24 lines total)
 - **Proposed:** `execute_steering_transition(from_state, to_state, enable_steering) -> bool`
 - **Benefits:** Test routing transitions without state machine complexity
@@ -203,6 +220,7 @@
 - **Dependencies:** Both state machine methods must be updated
 
 **S5. Extract Daemon Control Loop from main()**
+
 - **Location:** Lines 1117-1154 (38 lines)
 - **Proposed:** `run_daemon_loop(daemon, config, logger, shutdown_event) -> int`
 - **Benefits:** Test control loop without full process lifecycle
@@ -212,6 +230,7 @@
 #### HIGH Risk (Requires Explicit Approval)
 
 **S6. Unify State Machine Methods (CAKE-aware + Legacy)**
+
 - **Location:** Lines 669-772 + 774-847 (178 lines total)
 - **Proposed:** `_update_state_machine_unified(signals: CongestionSignals) -> bool`
 - **Benefits:** 40% reduction in state machine code, single test suite
@@ -220,6 +239,7 @@
 - **Recommendation:** DEFER to Phase 15 with validation period
 
 **S7. Confidence Scoring Integration**
+
 - **Current:** Phase 2B controller (`steering_confidence.py`, 644 lines) exists but unused
 - **Proposed:** Replace hysteresis with confidence scoring via config flag
 - **Benefits:** Multi-signal scoring (0-100), built-in flap detection, better decisions
@@ -234,6 +254,7 @@
 ### Confidence Scoring Integration Details
 
 **Current Hysteresis Logic:**
+
 ```python
 if assessment == CongestionState.RED:
     red_count += 1
@@ -246,6 +267,7 @@ elif assessment == CongestionState.GREEN:
 ```
 
 **Proposed Confidence Integration:**
+
 ```python
 decision = confidence_controller.evaluate(signals, current_state)
 if decision == "ENABLE_STEERING":
@@ -255,24 +277,26 @@ elif decision == "DISABLE_STEERING":
 ```
 
 **What Changes:**
+
 - State counters (red_count, good_count) → TimerState
 - Sample thresholds → Duration thresholds (sustain_duration_sec)
 - No flap detection → Built-in FlapDetector with penalty
 
 **What's Protected During Integration:**
+
 - Baseline RTT bounds (10-60ms, C4 fix)
 - RouterOS mangle rule validation (C2 fix)
 - EWMA smoothing (alpha bounds, C5 fix)
 
 ### Protected Zones
 
-| Zone | Lines | Why Protected | Safe Changes | Prohibited Changes |
-|------|-------|---------------|--------------|-------------------|
-| **State Transition Logic** | 669-847 | Core steering algorithm, carefully tuned asymmetric hysteresis | Extract routing control, add logging | Change counter reset logic, modify thresholds |
-| **Baseline RTT Validation** | 492-502 | Security fix C4, prevents malicious baseline attacks | Make bounds configurable | Remove bounds check, widen without justification |
-| **EWMA Smoothing** | 909-923 | Numeric stability C5, production-tuned alphas | Extract to method, make alpha configurable | Change formula, remove bounds validation |
-| **RouterOS Mangle Control** | 400-456 | Security C2 + reliability W6 (command injection, retry with verification) | Add metrics, improve errors | Remove validation, remove retry |
-| **Signal Handling** | 100-144 | Concurrency W5, graceful shutdown | Add logging, extract to shared module | Replace Event with boolean, remove registration |
+| Zone                        | Lines   | Why Protected                                                             | Safe Changes                               | Prohibited Changes                               |
+| --------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------ |
+| **State Transition Logic**  | 669-847 | Core steering algorithm, carefully tuned asymmetric hysteresis            | Extract routing control, add logging       | Change counter reset logic, modify thresholds    |
+| **Baseline RTT Validation** | 492-502 | Security fix C4, prevents malicious baseline attacks                      | Make bounds configurable                   | Remove bounds check, widen without justification |
+| **EWMA Smoothing**          | 909-923 | Numeric stability C5, production-tuned alphas                             | Extract to method, make alpha configurable | Change formula, remove bounds validation         |
+| **RouterOS Mangle Control** | 400-456 | Security C2 + reliability W6 (command injection, retry with verification) | Add metrics, improve errors                | Remove validation, remove retry                  |
+| **Signal Handling**         | 100-144 | Concurrency W5, graceful shutdown                                         | Add logging, extract to shared module      | Replace Event with boolean, remove registration  |
 
 ---
 
@@ -298,26 +322,29 @@ Both controllers share these complexity sources:
 
 ### Shared Refactoring Opportunities
 
-| Opportunity | Benefits Both | Implementation |
-|-------------|---------------|----------------|
-| Concurrent RTT measurement utility | Reduce duplication, shared testing | Move to `rtt_measurement.py` |
-| State persistence manager pattern | Consistent state handling | WANController adopts steering's StateManager |
-| Signal handler standardization | Already done in Phase 6 | N/A |
-| Rate limiter utility | WANController has it, steering could use | Extract to shared module |
+| Opportunity                        | Benefits Both                            | Implementation                               |
+| ---------------------------------- | ---------------------------------------- | -------------------------------------------- |
+| Concurrent RTT measurement utility | Reduce duplication, shared testing       | Move to `rtt_measurement.py`                 |
+| State persistence manager pattern  | Consistent state handling                | WANController adopts steering's StateManager |
+| Signal handler standardization     | Already done in Phase 6                  | N/A                                          |
+| Rate limiter utility               | WANController has it, steering could use | Extract to shared module                     |
 
 ### Architectural Considerations
 
 **Interface Contracts:**
+
 - Autorate state file schema (baseline_rtt field) consumed by steering
 - WANController owns baseline RTT updates
 - SteeringDaemon is read-only consumer via BaselineLoader
 
 **Dependencies:**
+
 - WANController → SteeringDaemon: One-way (state file only)
 - Can refactor independently (Phase 14 and 15 don't block each other)
 - Phase 14 concurrent RTT utility benefits Phase 15
 
 **State File Schema:**
+
 - Must be preserved during refactoring
 - Migration required if adding/removing fields
 - Both controllers share common fields (baseline_rtt, ewma values)
@@ -357,14 +384,15 @@ Both controllers share these complexity sources:
 
 **Testing Strategy:**
 
-| Phase | Focus | Tests |
-|-------|-------|-------|
-| Before | Baseline capture | Test all fallback modes, flash wear, rate limiting |
-| Per-Opportunity | Unit tests | New extracted methods |
-| After | Regression | Verify existing integration tests pass |
-| Production | Validation | 24-hour stability, soak-monitor.sh |
+| Phase           | Focus            | Tests                                              |
+| --------------- | ---------------- | -------------------------------------------------- |
+| Before          | Baseline capture | Test all fallback modes, flash wear, rate limiting |
+| Per-Opportunity | Unit tests       | New extracted methods                              |
+| After           | Regression       | Verify existing integration tests pass             |
+| Production      | Validation       | 24-hour stability, soak-monitor.sh                 |
 
 **Rollback Plan:**
+
 - Each refactoring is atomic commit
 - Revert individual commit if issues found
 - Production validation after each LOW/MEDIUM change
@@ -409,12 +437,12 @@ Both controllers share these complexity sources:
 
 **Testing Strategy:**
 
-| Phase | Focus | Tests |
-|-------|-------|-------|
-| Week 1-2 | LOW risk | Unit tests for extracted methods |
-| Week 2-3 | MEDIUM risk | Integration tests with router mocks |
+| Phase    | Focus                | Tests                                                        |
+| -------- | -------------------- | ------------------------------------------------------------ |
+| Week 1-2 | LOW risk             | Unit tests for extracted methods                             |
+| Week 2-3 | MEDIUM risk          | Integration tests with router mocks                          |
 | Week 3-4 | HIGH risk validation | Parallel run (confidence vs hysteresis), decision comparison |
-| Week 4+ | Production | 1-week parallel validation before switching |
+| Week 4+  | Production           | 1-week parallel validation before switching                  |
 
 ---
 
@@ -445,11 +473,11 @@ If touching protected zones (state machines, EWMA, rate calculations):
 
 ### Rollback Procedures
 
-| Risk Level | Rollback Strategy |
-|------------|-------------------|
-| LOW | Revert single commit, redeploy |
-| MEDIUM | Revert to last known-good, validate 24 hours |
-| HIGH | Config flag instant revert (no redeploy needed) |
+| Risk Level | Rollback Strategy                               |
+| ---------- | ----------------------------------------------- |
+| LOW        | Revert single commit, redeploy                  |
+| MEDIUM     | Revert to last known-good, validate 24 hours    |
+| HIGH       | Config flag instant revert (no redeploy needed) |
 
 ---
 
@@ -459,31 +487,32 @@ If touching protected zones (state machines, EWMA, rate calculations):
 
 **WANController Methods:**
 
-| Method | Lines | Params | Cyclomatic | Priority |
-|--------|-------|--------|------------|----------|
-| run_cycle | 176 | 0 | HIGH (7+) | P1 |
-| __init__ | 82 | 5 | MEDIUM | P2 |
-| measure_rtt | 42 | 0 | MEDIUM | P1 |
-| load_state | 40 | 0 | MEDIUM | P2 |
-| save_state | 32 | 0 | LOW | P2 |
-| verify_tcp_connectivity | 23 | 0 | MEDIUM | P3 |
-| verify_connectivity_fallback | 20 | 0 | LOW | P1 |
-| update_ewma | 15 | 1 | LOW | P2 |
-| verify_local_connectivity | 13 | 0 | LOW | P3 |
+| Method                       | Lines | Params | Cyclomatic | Priority |
+| ---------------------------- | ----- | ------ | ---------- | -------- |
+| run_cycle                    | 176   | 0      | HIGH (7+)  | P1       |
+| **init**                     | 82    | 5      | MEDIUM     | P2       |
+| measure_rtt                  | 42    | 0      | MEDIUM     | P1       |
+| load_state                   | 40    | 0      | MEDIUM     | P2       |
+| save_state                   | 32    | 0      | LOW        | P2       |
+| verify_tcp_connectivity      | 23    | 0      | MEDIUM     | P3       |
+| verify_connectivity_fallback | 20    | 0      | LOW        | P1       |
+| update_ewma                  | 15    | 1      | LOW        | P2       |
+| verify_local_connectivity    | 13    | 0      | LOW        | P3       |
 
 **SteeringDaemon Methods/Functions:**
 
-| Method/Function | Lines | Cyclomatic | Priority |
-|-----------------|-------|------------|----------|
-| main | 197 | HIGH (10+) | P2 |
-| _load_specific_fields | 129 | MEDIUM | P1 |
-| run_cycle | 129 | HIGH (6+) | P1 |
-| _update_state_machine_cake_aware | 104 | HIGH (12) | P3 |
-| _update_state_machine_legacy | 74 | MEDIUM (6) | P3 |
+| Method/Function                   | Lines | Cyclomatic | Priority |
+| --------------------------------- | ----- | ---------- | -------- |
+| main                              | 197   | HIGH (10+) | P2       |
+| \_load_specific_fields            | 129   | MEDIUM     | P1       |
+| run_cycle                         | 129   | HIGH (6+)  | P1       |
+| \_update_state_machine_cake_aware | 104   | HIGH (12)  | P3       |
+| \_update_state_machine_legacy     | 74    | MEDIUM (6) | P3       |
 
 ### Appendix B: State Machine Diagrams
 
 **WANController Download (4-State):**
+
 ```
               ┌─────────────────────────────────────┐
               │           QueueController           │
@@ -504,6 +533,7 @@ If touching protected zones (state machines, EWMA, rate calculations):
 ```
 
 **SteeringDaemon (2-State with Asymmetric Hysteresis):**
+
 ```
                          red_count >= red_samples_required
     ┌─────────────┐          (enable steering)           ┌─────────────┐
@@ -520,6 +550,7 @@ If touching protected zones (state machines, EWMA, rate calculations):
 ### Appendix C: Dependency Graph
 
 **File Dependencies:**
+
 ```
 autorate_continuous.py
 ├── router_client.py (RouterOS wrapper)
@@ -534,12 +565,13 @@ steering/daemon.py
 ├── state_utils.py (StateManager base)
 ├── cake_stats.py (CAKE reader)
 ├── congestion_assessment.py (EWMA, state assessment)
-├── steering_confidence.py (Phase 2B, unused)
+├── steering_confidence.py (confidence-based steering)
 ├── [state file: /var/lib/wanctl/steering.json]
 └── [reads: /var/lib/wanctl/autorate-{primary}.json] (baseline RTT)
 ```
 
 **State File Schema (Shared Fields):**
+
 ```json
 {
   "baseline_rtt": 25.4,

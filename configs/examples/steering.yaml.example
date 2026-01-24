@@ -87,9 +87,9 @@ mode:
   cake_aware: true              # Use multi-signal detection (recommended)
   reset_counters: true          # Reset CAKE counters before reading
   enable_yellow_state: true     # Enable YELLOW early warning state
-  use_confidence_scoring: false # Phase 2B: Enable confidence-based steering (optional)
+  use_confidence_scoring: false # Enable confidence-based steering (optional)
 
-# Phase 2B: Confidence-based steering (optional)
+# Confidence-based steering (optional)
 # Only used when mode.use_confidence_scoring: true
 # Provides multi-signal confidence scoring for more nuanced steering decisions.
 # IMPORTANT: Start with dry_run: true to validate before enabling live routing.
