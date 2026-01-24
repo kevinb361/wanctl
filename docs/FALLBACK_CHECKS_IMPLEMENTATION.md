@@ -1,7 +1,7 @@
 # Fallback Connectivity Checks - Implementation Complete
 
 **Date:** 2026-01-11
-**Version:** Implemented for v1.0.0-rc8 (pending version bump)
+**Version:** v1.4.0
 **Status:** READY FOR DEPLOYMENT
 
 ## Overview
@@ -13,17 +13,20 @@ Implemented Mode C (Graceful Degradation) fallback connectivity checks to handle
 ### 1. Fallback Check Methods (3 protocols)
 
 **Gateway Check (`verify_local_connectivity`):**
+
 - Pings local gateway (10.10.110.1)
 - Differentiates WAN issues from container networking problems
 - Execution time: ~50ms
 
 **TCP Connection Check (`verify_tcp_connectivity`):**
+
 - Attempts TCP handshake to 1.1.1.1:443 and 8.8.8.8:443
 - Most reliable indicator of Internet connectivity
 - Execution time: ~100-200ms
 - Handles socket.gaierror for DNS resolution failures
 
 **Combined Fallback (`verify_connectivity_fallback`):**
+
 - Runs gateway check first (fastest)
 - Falls back to TCP if gateway check fails
 - Logs clearly whether connectivity exists or confirmed total loss
@@ -33,35 +36,42 @@ Implemented Mode C (Graceful Degradation) fallback connectivity checks to handle
 When ICMP pings fail but other connectivity exists:
 
 **Cycle 1 (2 seconds):**
+
 - Use last known RTT (`self.load_rtt`)
 - Continue normal CAKE rate adjustments
 - Log: "ICMP unavailable (cycle 1/3) - using last RTT=X.Xms"
 
 **Cycles 2-3 (4-6 seconds):**
+
 - Freeze CAKE rates (no adjustments)
 - Return `True` to avoid triggering watchdog
 - Log: "ICMP unavailable (cycle 2/3) - freezing rates"
 
 **Cycle 4+ (8+ seconds):**
+
 - Give up and return `False`
 - Triggers watchdog restart (original behavior)
 - Log: "ICMP unavailable for X cycles (>3) - giving up"
 
 **Recovery:**
+
 - When ICMP recovers, reset counter and log recovery
 - Log: "ICMP recovered after X cycles"
 
 ### 3. Alternative Modes (Also Implemented)
 
 **Mode A: Freeze** (`fallback_mode: "freeze"`)
+
 - Always freeze rates when ICMP unavailable
 - Most conservative option
 
 **Mode B: Use Last RTT** (`fallback_mode: "use_last_rtt"`)
+
 - Always use last known RTT value
 - Continue adjustments with potentially stale data
 
 **Mode C: Graceful Degradation** (`fallback_mode: "graceful_degradation"`) ← DEFAULT
+
 - Cycle-based strategy (recommended)
 - Best balance of resilience and safety
 
@@ -75,18 +85,19 @@ continuous_monitoring:
 
   # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
   fallback_checks:
-    enabled: true                          # Enable multi-protocol verification
-    check_gateway: true                    # Try pinging local gateway first
-    check_tcp: true                        # Try TCP connections to verify Internet
-    gateway_ip: "10.10.110.1"             # Gateway to check (container default gateway)
-    tcp_targets:                           # TCP endpoints to test (HTTPS)
+    enabled: true # Enable multi-protocol verification
+    check_gateway: true # Try pinging local gateway first
+    check_tcp: true # Try TCP connections to verify Internet
+    gateway_ip: "10.10.110.1" # Gateway to check (container default gateway)
+    tcp_targets: # TCP endpoints to test (HTTPS)
       - ["1.1.1.1", 443]
       - ["8.8.8.8", 443]
-    fallback_mode: "graceful_degradation"  # "freeze", "use_last_rtt", or "graceful_degradation"
-    max_fallback_cycles: 3                 # Max cycles before giving up (graceful mode only)
+    fallback_mode: "graceful_degradation" # "freeze", "use_last_rtt", or "graceful_degradation"
+    max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)
 ```
 
 **Configuration Features:**
+
 - All fields optional with sensible defaults
 - `enabled: true` by default (feature enabled out of the box)
 - Configurable for testing/debugging
@@ -95,6 +106,7 @@ continuous_monitoring:
 ## Files Modified
 
 ### Core Code
+
 1. **`src/wanctl/autorate_continuous.py`** - 150+ lines added:
    - Added `socket` import
    - Added fallback checks config loading (lines 235-246)
@@ -103,21 +115,25 @@ continuous_monitoring:
    - Modified `run_cycle()` with Mode C logic (lines 729-811)
 
 ### Configuration Files
+
 2. **`configs/spectrum.yaml`** - Added `fallback_checks` section (lines 58-68)
 3. **`configs/att.yaml`** - Added `fallback_checks` section (lines 53-63)
 
 ### Documentation
+
 4. **`docs/FALLBACK_CONNECTIVITY_CHECKS.md`** - Comprehensive proposal (created earlier)
 5. **`docs/FALLBACK_CHECKS_IMPLEMENTATION.md`** - This file (deployment guide)
 
 ## Testing Done
 
 ### Pre-Deployment Validation
+
 ✅ **Python syntax check:** `py_compile` passed
 ✅ **YAML syntax check:** Both configs valid
 ✅ **Config structure:** All fields optional with defaults
 
 ### Pending Tests (Post-Deployment)
+
 ⏳ **ICMP filter simulation:** Temporarily block ICMP to verify fallback triggers
 ⏳ **TCP connectivity verification:** Confirm TCP checks succeed when ICMP fails
 ⏳ **Graceful degradation:** Verify cycle-based behavior (use RTT → freeze → restart)
@@ -131,6 +147,7 @@ continuous_monitoring:
 **Reason:** Spectrum has the restart issue (19 restarts/week), ATT has zero issues.
 
 **Steps:**
+
 ```bash
 # 1. Copy updated code to cake-spectrum
 scp src/wanctl/autorate_continuous.py cake-spectrum:/tmp/
@@ -156,6 +173,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 ```
 
 **Expected Behavior After Deployment:**
+
 - Service starts normally
 - ICMP pings work as usual (no fallback checks triggered yet)
 - Logs show normal operation
@@ -165,6 +183,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 **Objective:** Verify fallback checks trigger correctly when ICMP is blocked.
 
 **Steps:**
+
 ```bash
 # 1. On MikroTik router - Block ICMP from cake-spectrum temporarily
 /ip firewall filter add chain=output src-address=10.10.110.246 protocol=icmp action=drop comment="TEST: Block ICMP from cake-spectrum"
@@ -192,6 +211,7 @@ ssh cake-spectrum 'sudo systemctl status wanctl@spectrum.service | grep "Active:
 ```
 
 **Success Criteria:**
+
 - ✅ Fallback checks trigger when ICMP blocked
 - ✅ TCP connectivity verification succeeds
 - ✅ Graceful degradation cycles through modes (use RTT → freeze → freeze)
@@ -199,6 +219,7 @@ ssh cake-spectrum 'sudo systemctl status wanctl@spectrum.service | grep "Active:
 - ✅ Service does NOT restart during test
 
 **Rollback If Needed:**
+
 ```bash
 ssh cake-spectrum 'sudo systemctl stop wanctl@spectrum.service'
 ssh cake-spectrum 'sudo cp /opt/wanctl/autorate_continuous.py.bak /opt/wanctl/autorate_continuous.py'
@@ -209,12 +230,14 @@ ssh cake-spectrum 'sudo systemctl start wanctl@spectrum.service'
 ### Phase 3: Monitor for 48 Hours
 
 **Metrics to Track:**
+
 1. **Restart frequency** - Should decrease from ~3/day to <1/day
 2. **Fallback trigger rate** - How often are fallback checks triggered?
 3. **Recovery success rate** - Does ICMP consistently recover after fallback?
 4. **No false positives** - Service doesn't restart unnecessarily
 
 **Monitoring Commands:**
+
 ```bash
 # Count restarts in past 24 hours
 ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service --since "24 hours ago" | grep -c "Failed with result .watchdog"'
@@ -234,6 +257,7 @@ ssh cake-spectrum 'sudo systemctl status wanctl@spectrum.service | grep "Active:
 **Reason:** ATT has zero restart issues, but adding fallback checks provides safety net.
 
 **Steps:** (Same as Phase 1, but for cake-att)
+
 ```bash
 # Deploy to cake-att
 scp src/wanctl/autorate_continuous.py cake-att:/tmp/
@@ -250,21 +274,25 @@ ssh cake-att 'sudo systemctl restart wanctl@att.service'
 ## Expected Impact
 
 ### Conservative Estimate
+
 - **Current:** 19 restarts in 7 days (~3/day)
 - **After:** 9-10 restarts in 7 days (~1.5/day) - **50% reduction**
 - **Assumes:** Half of failures are ICMP-specific, not total outages
 
 ### Optimistic Estimate
+
 - **Current:** 19 restarts in 7 days (~3/day)
 - **After:** 4-5 restarts in 7 days (~0.6/day) - **80% reduction**
 - **Assumes:** Most failures are ISP ICMP filtering/rate-limiting
 
 ### Best Case
+
 - **Current:** 19 restarts in 7 days (~3/day)
 - **After:** 0-2 restarts in 7 days (~0.3/day) - **90%+ reduction**
 - **Assumes:** Nearly all failures are transient ICMP issues
 
 **Jan 8 Event Analysis:**
+
 - 13 restarts in 7 minutes (00:33-00:40) strongly suggests ISP ICMP filtering during DDoS mitigation
 - Fallback checks would have prevented ALL 13 restarts if TCP connectivity remained available
 
@@ -273,26 +301,31 @@ ssh cake-att 'sudo systemctl restart wanctl@att.service'
 ### LOW RISK - Why This Is Safe
 
 **1. Fallback checks ONLY run when ICMP already failed**
+
 - No performance impact during normal operation
 - Only adds 100-300ms latency to already-failed cycles
 
 **2. Graceful degradation is conservative**
+
 - Cycle 1: Uses last RTT (EWMA is smooth enough for 2 seconds)
 - Cycles 2-3: Freezes rates (no adjustments, safe)
 - Cycle 4+: Original behavior (restart as before)
 
 **3. Configuration is flexible**
+
 - Can be disabled entirely: `enabled: false`
 - Can switch modes: "freeze", "use_last_rtt", "graceful_degradation"
 - Easy rollback (restore backup files)
 
 **4. No architectural changes**
+
 - Same baseline RTT tracking
 - Same EWMA smoothing
 - Same queue controller logic
 - Same flash wear protection
 
 **5. Extensive logging**
+
 - Every fallback check is logged with clear messages
 - Easy to diagnose issues post-deployment
 - No silent failures
@@ -300,8 +333,10 @@ ssh cake-att 'sudo systemctl restart wanctl@att.service'
 ## Troubleshooting
 
 ### Symptom: Service won't start after deployment
+
 **Cause:** Python syntax error or import issue
 **Solution:**
+
 ```bash
 # Check service logs
 ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -n 50'
@@ -316,12 +351,15 @@ ssh cake-spectrum 'sudo systemctl start wanctl@spectrum.service'
 ```
 
 ### Symptom: Fallback checks not triggering during test
+
 **Possible Causes:**
+
 1. ICMP filter not applied correctly on router
 2. `enabled: false` in config
 3. Container routing issue
 
 **Diagnosis:**
+
 ```bash
 # Verify ICMP is actually blocked
 ssh cake-spectrum 'ping -c 3 1.1.1.1'  # Should fail if filter active
@@ -334,8 +372,10 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -n 100 | grep -i f
 ```
 
 ### Symptom: Service restarting more frequently after deployment
+
 **Possible Cause:** TCP connectivity also failing (real total outages)
 **Diagnosis:**
+
 ```bash
 # Check what fallback checks found
 ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service --since "1 hour ago" | grep -E "(fallback|TCP|gateway)"'
@@ -345,6 +385,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service --since "1 hour ag
 ```
 
 ### Symptom: Rates frozen for too long
+
 **Possible Cause:** ICMP unavailable for extended period (>6 seconds)
 **Expected Behavior:** By design - after 3 cycles (6s), rates are frozen for safety
 **Solution:** If this is undesired, switch to `fallback_mode: "use_last_rtt"` (riskier)
