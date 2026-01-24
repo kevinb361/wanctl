@@ -84,3 +84,8 @@ show_contexts = true
 
 [tool.pytest.ini_options]
 addopts = "--cov-config=pyproject.toml"
+
+[tool.bandit]
+exclude_dirs = [".venv", "build", "dist"]
+# Note: tests/ not excluded - CONTEXT.md requires all findings block
+# B101 (assert_used) may need inline nosec in tests if it triggers
