@@ -57,6 +57,7 @@ from .congestion_assessment import (
     assess_congestion_state,
     ewma_update,
 )
+from .health import start_steering_health_server, update_steering_health_status
 from .steering_confidence import (
     ConfidenceController,
     ConfidenceSignals,
@@ -1324,6 +1325,9 @@ def run_daemon_loop(
                 )
                 notify_degraded("consecutive failures exceeded threshold")
 
+        # Update health server with current failure state (INTG-03)
+        update_steering_health_status(consecutive_failures)
+
         # Notify systemd watchdog ONLY if healthy
         if watchdog_enabled and cycle_success:
             notify_watchdog()
@@ -1456,6 +1460,18 @@ def main() -> int | None:
     # Create daemon
     daemon = SteeringDaemon(config, state_mgr, router, rtt_measurement, baseline_loader, logger)
 
+    # Start health server (INTG-01)
+    health_server = None
+    try:
+        health_server = start_steering_health_server(
+            host="127.0.0.1",
+            port=9102,
+            daemon=daemon,
+        )
+    except Exception as e:
+        # Log and continue - health endpoint is optional
+        logger.warning(f"Failed to start health server: {e}")
+
     # Get shutdown event for direct access in timed waits
     shutdown_event = get_shutdown_event()
 
@@ -1476,6 +1492,14 @@ def main() -> int | None:
         logger.error(traceback.format_exc())
         return 1
     finally:
+        # Shutdown health server (INTG-02)
+        if health_server is not None:
+            try:
+                health_server.shutdown()
+                logger.debug("Health server stopped")
+            except Exception as e:
+                logger.warning(f"Error shutting down health server: {e}")
+
         # Cleanup: release lock file
         logger.info("Shutting down daemon...")
         if config.lock_file.exists():
