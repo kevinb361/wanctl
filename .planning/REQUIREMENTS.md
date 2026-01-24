@@ -9,9 +9,9 @@ Requirements for Test Coverage 90% milestone. Each maps to roadmap phases.
 
 ### Coverage Infrastructure
 
-- [ ] **COV-01**: Coverage threshold set to 90% in pyproject.toml (fail_under)
-- [ ] **COV-02**: `make ci` fails if coverage drops below 90%
-- [ ] **COV-03**: Coverage badge updated to reflect new threshold
+- [x] **COV-01**: Coverage threshold set to 90% in pyproject.toml (fail_under) ✓
+- [x] **COV-02**: `make ci` fails if coverage drops below 90% ✓
+- [x] **COV-03**: Coverage badge updated to reflect new threshold ✓
 
 ### Core Controller Tests
 
@@ -75,62 +75,64 @@ None currently.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| 100% coverage | Diminishing returns, 90% is comprehensive |
-| Integration tests with real router | Requires hardware, unit tests sufficient |
-| Performance benchmarks in CI | Not coverage-related, separate concern |
+| Feature                            | Reason                                    |
+| ---------------------------------- | ----------------------------------------- |
+| 100% coverage                      | Diminishing returns, 90% is comprehensive |
+| Integration tests with real router | Requires hardware, unit tests sufficient  |
+| Performance benchmarks in CI       | Not coverage-related, separate concern    |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| COV-01 | Phase 31 | Pending |
-| COV-02 | Phase 31 | Pending |
-| COV-03 | Phase 31 | Pending |
-| CORE-01 | Phase 35 | Pending |
-| CORE-02 | Phase 35 | Pending |
-| CORE-03 | Phase 35 | Pending |
-| CORE-04 | Phase 35 | Pending |
-| CORE-05 | Phase 35 | Pending |
-| STEER-01 | Phase 36 | Pending |
-| STEER-02 | Phase 36 | Pending |
-| STEER-03 | Phase 36 | Pending |
-| STEER-04 | Phase 36 | Pending |
-| STEER-05 | Phase 36 | Pending |
-| CLI-01 | Phase 37 | Pending |
-| CLI-02 | Phase 37 | Pending |
-| CLI-03 | Phase 37 | Pending |
-| CLI-04 | Phase 37 | Pending |
-| BACK-01 | Phase 32 | Pending |
-| BACK-02 | Phase 32 | Pending |
-| BACK-03 | Phase 32 | Pending |
-| BACK-04 | Phase 32 | Pending |
-| BACK-05 | Phase 32 | Pending |
-| BACK-06 | Phase 32 | Pending |
-| STATE-01 | Phase 33 | Pending |
-| STATE-02 | Phase 33 | Pending |
-| STATE-03 | Phase 33 | Pending |
-| STATE-04 | Phase 33 | Pending |
-| MEAS-01 | Phase 34 | Pending |
-| MEAS-02 | Phase 34 | Pending |
-| MEAS-03 | Phase 34 | Pending |
-| MEAS-04 | Phase 34 | Pending |
-| MEAS-05 | Phase 34 | Pending |
-| MEAS-06 | Phase 34 | Pending |
-| INFRA-01 | Phase 33 | Pending |
-| INFRA-02 | Phase 33 | Pending |
-| INFRA-03 | Phase 33 | Pending |
-| INFRA-04 | Phase 33 | Pending |
-| INFRA-05 | Phase 33 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| COV-01      | Phase 31 | Complete |
+| COV-02      | Phase 31 | Complete |
+| COV-03      | Phase 31 | Complete |
+| CORE-01     | Phase 35 | Pending  |
+| CORE-02     | Phase 35 | Pending  |
+| CORE-03     | Phase 35 | Pending  |
+| CORE-04     | Phase 35 | Pending  |
+| CORE-05     | Phase 35 | Pending  |
+| STEER-01    | Phase 36 | Pending  |
+| STEER-02    | Phase 36 | Pending  |
+| STEER-03    | Phase 36 | Pending  |
+| STEER-04    | Phase 36 | Pending  |
+| STEER-05    | Phase 36 | Pending  |
+| CLI-01      | Phase 37 | Pending  |
+| CLI-02      | Phase 37 | Pending  |
+| CLI-03      | Phase 37 | Pending  |
+| CLI-04      | Phase 37 | Pending  |
+| BACK-01     | Phase 32 | Pending  |
+| BACK-02     | Phase 32 | Pending  |
+| BACK-03     | Phase 32 | Pending  |
+| BACK-04     | Phase 32 | Pending  |
+| BACK-05     | Phase 32 | Pending  |
+| BACK-06     | Phase 32 | Pending  |
+| STATE-01    | Phase 33 | Pending  |
+| STATE-02    | Phase 33 | Pending  |
+| STATE-03    | Phase 33 | Pending  |
+| STATE-04    | Phase 33 | Pending  |
+| MEAS-01     | Phase 34 | Pending  |
+| MEAS-02     | Phase 34 | Pending  |
+| MEAS-03     | Phase 34 | Pending  |
+| MEAS-04     | Phase 34 | Pending  |
+| MEAS-05     | Phase 34 | Pending  |
+| MEAS-06     | Phase 34 | Pending  |
+| INFRA-01    | Phase 33 | Pending  |
+| INFRA-02    | Phase 33 | Pending  |
+| INFRA-03    | Phase 33 | Pending  |
+| INFRA-04    | Phase 33 | Pending  |
+| INFRA-05    | Phase 33 | Pending  |
 
 **Coverage:**
+
 - v1.6 requirements: 38 total
 - Mapped to phases: 38
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after roadmap creation*
+
+_Requirements defined: 2026-01-24_
+_Last updated: 2026-01-24 after roadmap creation_

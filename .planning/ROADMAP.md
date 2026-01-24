@@ -36,8 +36,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Increase test coverage from 45.7% to 90%+ with CI enforcement.
 
-- [ ] **Phase 31: Coverage Infrastructure** - Threshold enforcement and CI integration
-  - [ ] 31-01-PLAN.md - Configure coverage threshold and CI enforcement
+- [x] **Phase 31: Coverage Infrastructure** - Threshold enforcement and CI integration ✓
+  - [x] 31-01-PLAN.md - Configure coverage threshold and CI enforcement
 - [ ] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage
 - [ ] **Phase 33: State & Infrastructure Tests** - State manager and utility modules
 - [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
@@ -261,14 +261,14 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ### v1.6 Progress
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 31. Coverage Infrastructure | 0/1 | Planned | - |
-| 32. Backend Client Tests | 0/2 | Not started | - |
-| 33. State & Infrastructure Tests | 0/2 | Not started | - |
-| 34. Metrics & Measurement Tests | 0/2 | Not started | - |
-| 35. Core Controller Tests | 0/3 | Not started | - |
-| 36. Steering Daemon Tests | 0/2 | Not started | - |
-| 37. CLI Tool Tests | 0/2 | Not started | - |
+| Phase                            | Plans Complete | Status      | Completed  |
+| -------------------------------- | -------------- | ----------- | ---------- |
+| 31. Coverage Infrastructure      | 1/1            | Complete    | 2026-01-24 |
+| 32. Backend Client Tests         | 0/2            | Not started | -          |
+| 33. State & Infrastructure Tests | 0/2            | Not started | -          |
+| 34. Metrics & Measurement Tests  | 0/2            | Not started | -          |
+| 35. Core Controller Tests        | 0/3            | Not started | -          |
+| 36. Steering Daemon Tests        | 0/2            | Not started | -          |
+| 37. CLI Tool Tests               | 0/2            | Not started | -          |
 
 **v1.6 Total:** 7 phases, 14 plans
