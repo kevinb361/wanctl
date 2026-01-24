@@ -338,7 +338,7 @@ class TestBaselineFreezeInvariant:
         initial_baseline = manager.baseline_rtt
 
         # Run 100 cycles with delta consistently > 3ms (sustained load)
-        for cycle in range(100):
+        for _cycle in range(100):
             # Simulate load: measured RTT 50ms, load RTT 45ms
             # Delta = 45 - 20 = 25ms (>> 3ms threshold)
             manager.update_baseline_ewma(measured_rtt=50.0, load_rtt=45.0)
