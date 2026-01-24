@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.5 Quality & Hygiene - Phase 29 Documentation Verification
+**Current focus:** v1.5 Quality & Hygiene - Phase 30 Security Audit
 
 ## Current Position
 
-Phase: 29 of 30 (Documentation Verification)
-Plan: 04 of 04 complete
-Status: Phase complete
-Last activity: 2026-01-24 — Completed 29-04-PLAN.md
+Phase: 30 of 30 (Security Audit)
+Plan: 01 of 02 complete
+Status: In progress
+Last activity: 2026-01-24 — Completed 30-01-PLAN.md
 
-Progress: [██████████████████████████░░░░] 97% (58/60 plans estimated)
+Progress: [███████████████████████████░░░] 98% (59/60 plans estimated)
 
 ## Performance Metrics
 
@@ -35,6 +35,10 @@ Progress: [███████████████████████
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
+**Phase 30-01 decisions:**
+- pip-audit over safety: PyPA official, no API key required
+- Docstring password example marked with pragma allowlist
+
 ### Deferred Issues
 
 None currently.
@@ -51,7 +55,7 @@ None currently.
 - ~~Verify project documentation is correct and up to date (docs)~~ DONE (29-04)
 - ~~General cleanup and optimization sweep (core)~~ DONE (28-01)
 - ~~Add test coverage measurement (testing)~~ DONE (27-01)
-- Dependency security audit (security)
+- Dependency security audit (security) - IN PROGRESS (30-01 complete)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability)
@@ -79,11 +83,11 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-01-24 17:31 UTC
-Stopped at: Completed 29-04-PLAN.md (Feature Documentation Verification)
+Last session: 2026-01-24 12:10 UTC
+Stopped at: Completed 30-01-PLAN.md (Security Tool Installation)
 Resume file: None
 
 ## Next Steps
 
-1. Continue to Phase 30 (if exists) or milestone completion
+1. Execute 30-02-PLAN.md (Run security scans and produce audit report)
 2. Complete v1.5 Quality & Hygiene milestone
