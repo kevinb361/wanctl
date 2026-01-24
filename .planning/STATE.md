@@ -42,6 +42,15 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 None currently.
 
+### Pending Todos
+
+4 todos in `.planning/todos/pending/`:
+
+- Remove deprecated bad_samples/good_samples parameters (config)
+- Fix RuntimeWarning about module import (core)
+- Add metrics history feature (observability)
+- Fix health endpoint version number (observability)
+
 ### Quick Tasks Completed
 
 | #   | Description                                 | Date       | Commit  | Directory                                                                                             |
