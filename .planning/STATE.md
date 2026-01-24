@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 Phase: 26 of 26 (complete)
 Plan: N/A
 Status: Ready to plan
-Last activity: 2026-01-23 — Quick task 002 (version fix)
+Last activity: 2026-01-24 — Quick task 003 (remove deprecated params)
 
 Progress: [████████████████████] 100% (v1.4: 4/4 plans)
 
@@ -45,9 +45,8 @@ None currently.
 
 ### Pending Todos
 
-10 todos in `.planning/todos/pending/`:
+9 todos in `.planning/todos/pending/`:
 
-- Remove deprecated bad_samples/good_samples parameters (config)
 - Fix RuntimeWarning about module import (core)
 - Add metrics history feature (observability)
 - Verify project documentation is correct and up to date (docs)
@@ -64,6 +63,7 @@ None currently.
 | --- | ------------------------------------------- | ---------- | ------- | ----------------------------------------------------------------------------------------------------- |
 | 001 | Rename Phase2B to confidence-based steering | 2026-01-24 | ed77d74 | [001-rename-phase2b-to-confidence-based-steer](./quick/001-rename-phase2b-to-confidence-based-steer/) |
 | 002 | Fix health endpoint version number          | 2026-01-24 | 7168896 | [002-fix-health-version](./quick/002-fix-health-version/)                                             |
+| 003 | Remove deprecated sample params             | 2026-01-24 | ed10708 | [003-remove-deprecated-sample-params](./quick/003-remove-deprecated-sample-params/)                   |
 
 ### Shipped Milestones
 
@@ -80,7 +80,7 @@ None — ready for next milestone planning.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Quick task 002 complete
+Stopped at: Quick task 003 complete
 Resume file: None
 
 ## Next Steps
