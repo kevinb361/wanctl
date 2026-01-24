@@ -206,6 +206,8 @@ Plans:
 
 - [x] 25-01-PLAN.md - Create health endpoint module with HTTP server
 - [x] 25-02-PLAN.md - Add unit tests for steering health endpoint
+- [ ] 26-01-PLAN.md - Extend health response with steering state fields
+- [ ] 26-02-PLAN.md - Wire health server into daemon lifecycle
 
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
@@ -224,7 +226,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ### Current Milestone
 
-| Phase                            | Plans Complete | Status      | Completed  |
-| -------------------------------- | -------------- | ----------- | ---------- |
-| 25. Health Endpoint Core         | 2/2            | Complete    | 2026-01-24 |
-| 26. Steering State & Integration | 0/2            | Not started | -          |
+| Phase                            | Plans Complete | Status   | Completed  |
+| -------------------------------- | -------------- | -------- | ---------- |
+| 25. Health Endpoint Core         | 2/2            | Complete | 2026-01-24 |
+| 26. Steering State & Integration | 0/2            | Planned  | -          |
