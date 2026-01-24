@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Improve code quality tooling, remove accumulated debt, and ensure documentation accuracy.
 
 - [x] **Phase 27: Test Coverage Setup** - Configure pytest-cov and establish coverage measurement (72% baseline)
-- [ ] **Phase 28: Codebase Cleanup** - Remove dead code, triage TODOs, analyze complexity
+- [x] **Phase 28: Codebase Cleanup** - Remove dead code, triage TODOs, analyze complexity
 - [ ] **Phase 29: Documentation Verification** - Verify docs match current implementation
 - [ ] **Phase 30: Security Audit** - Audit dependencies and add security scanning
 
@@ -223,7 +223,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.5 Quality & Hygiene (Phase 27)**
+**Current: v1.5 Quality & Hygiene (Phase 28)**
 
 ### Completed Milestones
 
@@ -242,6 +242,6 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | Phase                          | Plans Complete | Status      | Completed  |
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 27. Test Coverage Setup        | 1/1            | Complete    | 2026-01-24 |
-| 28. Codebase Cleanup           | 0/1            | Planned     | -          |
+| 28. Codebase Cleanup           | 1/1            | Complete    | 2026-01-24 |
 | 29. Documentation Verification | 0/TBD          | Not started | -          |
 | 30. Security Audit             | 0/TBD          | Not started | -          |
