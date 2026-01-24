@@ -28,6 +28,7 @@ dev = [
     "mypy>=1.10.0",
     "pyflakes>=3.4.0",
     "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
     "ruff>=0.4.0",
 ]
 
@@ -61,3 +62,20 @@ disallow_untyped_defs = false
 check_untyped_defs = true
 disable_error_code = ["import-untyped"]
 
+[tool.coverage.run]
+source = ["src", "tests"]
+branch = true
+parallel = true
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+precision = 1
+
+[tool.coverage.html]
+directory = "coverage-report"
+show_contexts = true
+
+[tool.pytest.ini_options]
+addopts = "--cov-config=pyproject.toml"
