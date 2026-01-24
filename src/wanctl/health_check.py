@@ -127,6 +127,7 @@ class HealthCheckServer:
     def shutdown(self) -> None:
         """Cleanly shut down the health check server."""
         self.server.shutdown()
+        self.server.server_close()
         self.thread.join(timeout=5.0)
 
 
