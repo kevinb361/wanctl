@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 Phase: 24 phases complete across 4 milestones
 Plan: All shipped
 Status: Ready for next milestone
-Last activity: 2026-01-21 - v1.3 milestone complete
+Last activity: 2026-01-24 - Completed quick task 001: Rename Phase2B to confidence-based steering
 
 Progress: [####################] 100% (v1.0-v1.3 shipped)
 
@@ -36,12 +36,17 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 ### Deferred Issues
 
-- Phase2BController production enablement (currently dry-run, requires continued validation)
 - Steering daemon health endpoint (v1.4 candidate)
 
 ### Blockers/Concerns
 
 None currently.
+
+### Quick Tasks Completed
+
+| #   | Description                                 | Date       | Commit  | Directory                                                                                             |
+| --- | ------------------------------------------- | ---------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| 001 | Rename Phase2B to confidence-based steering | 2026-01-24 | ed77d74 | [001-rename-phase2b-to-confidence-based-steer](./quick/001-rename-phase2b-to-confidence-based-steer/) |
 
 ### Shipped Milestones
 
