@@ -1082,7 +1082,9 @@ class SteeringDaemon:
             )
 
             # In live mode (dry_run=False), use confidence decision for routing
-            assert self.config.confidence_config is not None  # Guaranteed by confidence_controller check
+            assert (
+                self.config.confidence_config is not None
+            )  # Guaranteed by confidence_controller check
             if confidence_decision and not self.config.confidence_config["dry_run"]["enabled"]:
                 return self._apply_confidence_decision(confidence_decision)
             # In dry-run mode, confidence logs decisions but falls through to hysteresis

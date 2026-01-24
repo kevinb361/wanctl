@@ -262,9 +262,7 @@ class TestSteeringHealthResponseFields:
         """Test that steering.enabled=False when state=GOOD."""
         mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_GOOD"
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -281,9 +279,7 @@ class TestSteeringHealthResponseFields:
         """Test that steering.enabled=True when state=DEGRADED."""
         mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -300,9 +296,7 @@ class TestSteeringHealthResponseFields:
         """Test that congestion.primary.state and state_code are present."""
         mock_daemon.state_mgr.state["congestion_state"] = "YELLOW"
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -327,9 +321,7 @@ class TestSteeringHealthResponseFields:
     def test_decision_timestamp_iso8601(self, mock_daemon):
         """Test that last_transition_time is valid ISO 8601."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -356,9 +348,7 @@ class TestSteeringHealthResponseFields:
     def test_time_in_state_positive(self, mock_daemon):
         """Test that time_in_state_seconds > 0."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -379,9 +369,7 @@ class TestSteeringHealthResponseFields:
         mock_daemon.state_mgr.state["good_count"] = 10
         mock_daemon.state_mgr.state["cake_read_failures"] = 1
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -398,9 +386,7 @@ class TestSteeringHealthResponseFields:
     def test_thresholds_from_config(self, mock_daemon):
         """Test that thresholds match daemon.config values."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -419,9 +405,7 @@ class TestSteeringHealthResponseFields:
     def test_pid_present(self, mock_daemon):
         """Test that pid field is integer > 0."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -440,9 +424,7 @@ class TestSteeringHealthResponseFields:
         mock_daemon.confidence_controller = MagicMock()
         mock_daemon.confidence_controller.timer_state.confidence_score = 75.5
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -459,9 +441,7 @@ class TestSteeringHealthResponseFields:
         # Ensure confidence controller is disabled
         mock_daemon.confidence_controller = None
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -476,9 +456,7 @@ class TestSteeringHealthResponseFields:
         """Test that errors.consecutive_failures and cake_read_failures are present."""
         mock_daemon.state_mgr.state["cake_read_failures"] = 2
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
         update_steering_health_status(1)  # Set consecutive failures
 
         try:
@@ -533,9 +511,7 @@ class TestSteeringHealthLifecycle:
     def test_health_server_receives_daemon_reference(self, mock_daemon):
         """Test that daemon reference is passed to handler (INTG-01)."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             # Verify daemon reference is set on handler class
@@ -595,9 +571,7 @@ class TestSteeringHealthLifecycle:
         import concurrent.futures
 
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
@@ -645,9 +619,7 @@ class TestSteeringHealthLifecycle:
     def test_health_reflects_daemon_state_changes(self, mock_daemon):
         """Test that health response reflects daemon state changes (INTG-03)."""
         port = find_free_port()
-        server = start_steering_health_server(
-            host="127.0.0.1", port=port, daemon=mock_daemon
-        )
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
         try:
             url = f"http://127.0.0.1:{port}/health"
