@@ -182,7 +182,7 @@ class RouterOSSSH:
                 try:
                     self._client.close()
                 except Exception:
-                    pass
+                    pass  # nosec B110 - cleanup during reconnect, failure acceptable
             self._connect()
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
@@ -224,6 +224,7 @@ class RouterOSSSH:
 
         try:
             # Execute command with timeout
+            # nosec B601 - cmd is RouterOS API command from internal code, not user input
             stdin, stdout, stderr = self._client.exec_command(cmd, timeout=timeout_val)
 
             # Wait for command to complete and get exit status
