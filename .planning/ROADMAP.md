@@ -223,7 +223,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.5 Quality & Hygiene (Phase 28)**
+**Current: v1.5 Quality & Hygiene (Phase 29)**
 
 ### Completed Milestones
 
@@ -243,5 +243,17 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 27. Test Coverage Setup        | 1/1            | Complete    | 2026-01-24 |
 | 28. Codebase Cleanup           | 1/1            | Complete    | 2026-01-24 |
-| 29. Documentation Verification | 0/TBD          | Not started | -          |
+| 29. Documentation Verification | 0/4            | Planned     | -          |
 | 30. Security Audit             | 0/TBD          | Not started | -          |
+
+### Phase 29: Documentation Verification
+
+**Goal**: Ensure all documentation accurately reflects current 1.4.0 implementation
+**Depends on**: Phase 28 (cleanup may change code, affecting docs)
+**Plans**: 4 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — Version number standardization (fix stale versions to 1.4.0)
+- [ ] 29-02-PLAN.md — Config documentation verification (CONFIG_SCHEMA.md, CONFIGURATION.md)
+- [ ] 29-03-PLAN.md — Root documentation verification (CLAUDE.md, README.md)
+- [ ] 29-04-PLAN.md — Docs directory audit and report generation
