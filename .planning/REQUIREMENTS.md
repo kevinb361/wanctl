@@ -57,26 +57,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HLTH-01 | TBD | Pending |
-| HLTH-02 | TBD | Pending |
-| HLTH-03 | TBD | Pending |
-| HLTH-04 | TBD | Pending |
-| HLTH-05 | TBD | Pending |
-| HLTH-06 | TBD | Pending |
-| STEER-01 | TBD | Pending |
-| STEER-02 | TBD | Pending |
-| STEER-03 | TBD | Pending |
-| STEER-04 | TBD | Pending |
-| STEER-05 | TBD | Pending |
-| INTG-01 | TBD | Pending |
-| INTG-02 | TBD | Pending |
-| INTG-03 | TBD | Pending |
+| HLTH-01 | 25 | Pending |
+| HLTH-02 | 25 | Pending |
+| HLTH-03 | 25 | Pending |
+| HLTH-04 | 25 | Pending |
+| HLTH-05 | 25 | Pending |
+| HLTH-06 | 25 | Pending |
+| STEER-01 | 26 | Pending |
+| STEER-02 | 26 | Pending |
+| STEER-03 | 26 | Pending |
+| STEER-04 | 26 | Pending |
+| STEER-05 | 26 | Pending |
+| INTG-01 | 26 | Pending |
+| INTG-02 | 26 | Pending |
+| INTG-03 | 26 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-23*
-*Last updated: 2026-01-23 after initial definition*
+*Last updated: 2026-01-23 after roadmap creation*

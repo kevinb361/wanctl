@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-21)
+See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.4 Observability - Steering Health Endpoint
+**Current focus:** v1.4 Observability - Phase 25 Health Endpoint Core
 
 ## Current Position
 
-Phase: 25 (defining)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-01-23 — Milestone v1.4 started
+Phase: 25 of 26 (Health Endpoint Core)
+Plan: — (ready to plan)
+Status: Ready to plan
+Last activity: 2026-01-23 — Roadmap created for v1.4
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.4 starting)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.4: 0/4 plans)
 
 ## Performance Metrics
 
@@ -36,7 +36,7 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 ### Deferred Issues
 
-- Steering daemon health endpoint (v1.4 candidate)
+None for v1.4 (health endpoint is the deferred issue being addressed).
 
 ### Blockers/Concerns
 
@@ -72,10 +72,9 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: v1.4 milestone started, defining requirements
+Stopped at: Roadmap created, ready for phase planning
 Resume file: None
 
 ## Next Steps
 
-1. Define requirements (`/gsd:new-milestone` in progress)
-2. Create roadmap for v1.4
+1. Run `/gsd:plan-phase 25` to create detailed plan for Health Endpoint Core

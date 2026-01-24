@@ -19,7 +19,7 @@ None
 
 ### In Progress
 
-None currently. Run `/gsd:new-milestone` to start next milestone.
+- [v1.4 Observability](milestones/v1.4-ROADMAP.md) (Phases 25-26) - Steering daemon health endpoint
 
 ## Phases
 
@@ -195,9 +195,18 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 
 </details>
 
+### v1.4 Observability (Phases 25-26) - In Progress
+
+**Milestone Goal:** Add HTTP health endpoint to steering daemon for external monitoring and container orchestration.
+
+- [ ] **Phase 25: Health Endpoint Core** - HTTP server, routes, threading, lifecycle
+- [ ] **Phase 26: Steering State & Integration** - Response content, daemon wiring
+
+See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
+
 ## Progress
 
-**All milestones completed. 24 phases shipped across 4 milestones.**
+**Current: v1.4 Observability (Phases 25-26)**
 
 ### Completed Milestones
 
@@ -207,3 +216,10 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 | v1.2 Configuration & Polish   | 16-20  | 5     | Complete | 2026-01-14 |
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
+
+### Current Milestone
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 25. Health Endpoint Core | 0/2 | Not started | - |
+| 26. Steering State & Integration | 0/2 | Not started | - |
