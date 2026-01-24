@@ -1,11 +1,11 @@
-"""Tests for Phase2B timer behavior.
+"""Tests for confidence-based steering timer behavior.
 
 Tests the timer interval fix:
 - TimerManager decrements by cycle_interval (not hardcoded 2)
 - Degrade timer expires after correct number of cycles
 - Hold-down timer expires after correct number of cycles
 - Recovery timer expires after correct number of cycles
-- Phase2BController defaults to 0.05s cycle_interval
+- ConfidenceController defaults to 0.05s cycle_interval
 """
 
 import logging
@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from wanctl.steering.steering_confidence import (
-    Phase2BController,
+    ConfidenceController,
     TimerManager,
     TimerState,
 )
@@ -175,8 +175,8 @@ class TestTimerManagerCycleInterval:
         assert result == "DISABLE_STEERING"
 
 
-class TestPhase2BControllerCycleInterval:
-    """Tests for Phase2BController cycle_interval initialization."""
+class TestConfidenceControllerCycleInterval:
+    """Tests for ConfidenceController cycle_interval initialization."""
 
     @pytest.fixture
     def logger(self):
@@ -209,19 +209,19 @@ class TestPhase2BControllerCycleInterval:
         }
 
     def test_default_cycle_interval(self, config_v3, logger):
-        """Phase2BController defaults to 0.05s cycle_interval."""
-        controller = Phase2BController(config_v3=config_v3, logger=logger)
+        """ConfidenceController defaults to 0.05s cycle_interval."""
+        controller = ConfidenceController(config_v3=config_v3, logger=logger)
         assert controller.cycle_interval == 0.05
         assert controller.timer_mgr.cycle_interval == 0.05
 
     def test_custom_cycle_interval(self, config_v3, logger):
-        """Phase2BController accepts custom cycle_interval."""
-        controller = Phase2BController(config_v3=config_v3, logger=logger, cycle_interval=0.5)
+        """ConfidenceController accepts custom cycle_interval."""
+        controller = ConfidenceController(config_v3=config_v3, logger=logger, cycle_interval=0.5)
         assert controller.cycle_interval == 0.5
         assert controller.timer_mgr.cycle_interval == 0.5
 
     def test_cycle_interval_passed_to_timer_manager(self, config_v3, logger):
-        """Phase2BController passes cycle_interval to TimerManager."""
-        controller = Phase2BController(config_v3=config_v3, logger=logger, cycle_interval=0.1)
+        """ConfidenceController passes cycle_interval to TimerManager."""
+        controller = ConfidenceController(config_v3=config_v3, logger=logger, cycle_interval=0.1)
         # Verify TimerManager received the correct interval
         assert controller.timer_mgr.cycle_interval == 0.1
