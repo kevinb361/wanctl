@@ -44,13 +44,14 @@ None currently.
 
 ### Pending Todos
 
-5 todos in `.planning/todos/pending/`:
+6 todos in `.planning/todos/pending/`:
 
 - Remove deprecated bad_samples/good_samples parameters (config)
 - Fix RuntimeWarning about module import (core)
 - Add metrics history feature (observability)
 - Fix health endpoint version number (observability)
 - Verify project documentation is correct and up to date (docs)
+- General cleanup and optimization sweep (core)
 
 ### Quick Tasks Completed
 
