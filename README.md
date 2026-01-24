@@ -268,7 +268,7 @@ curl http://127.0.0.1:9101/health
 {
   "status": "healthy",
   "uptime_seconds": 3600.5,
-  "version": "1.0.0-rc7",
+  "version": "1.4.0",
   "consecutive_failures": 0,
   "wans": [
     {
