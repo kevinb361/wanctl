@@ -140,12 +140,9 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
             # Determine mode (dry_run or active)
             mode = "active"
-            if (
-                self.daemon.config.confidence_config
-                and self.daemon.config.confidence_config.get("dry_run", {}).get(
-                    "enabled", False
-                )
-            ):
+            if self.daemon.config.confidence_config and self.daemon.config.confidence_config.get(
+                "dry_run", {}
+            ).get("enabled", False):
                 mode = "dry_run"
 
             health["steering"] = {
@@ -173,9 +170,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 time_in_state = round(uptime, 1)
 
             health["decision"] = {
-                "last_transition_time": _format_iso_timestamp(
-                    last_transition, self.start_time
-                ),
+                "last_transition_time": _format_iso_timestamp(last_transition, self.start_time),
                 "time_in_state_seconds": time_in_state,
             }
 
@@ -250,9 +245,7 @@ def start_steering_health_server(
     SteeringHealthHandler.consecutive_failures = 0
 
     server = HTTPServer((host, port), SteeringHealthHandler)
-    thread = threading.Thread(
-        target=server.serve_forever, daemon=True, name="steering-health"
-    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True, name="steering-health")
     thread.start()
 
     logger.info(f"Steering health server started on http://{host}:{port}/health")
