@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.5 Quality & Hygiene - COMPLETE
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 30 of 30 (Security Audit)
-Plan: 02 of 02 complete
-Status: Phase complete - v1.5 milestone ready to close
-Last activity: 2026-01-24 - Completed 30-02-PLAN.md
+Phase: 30 of 30 complete
+Plan: All complete
+Status: v1.5 shipped — ready for next milestone
+Last activity: 2026-01-24 — v1.5 Quality & Hygiene shipped
 
 Progress: [██████████████████████████████] 100% (60/60 plans)
 
@@ -36,14 +36,9 @@ Progress: [███████████████████████
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
-**Phase 30-02 decisions:**
-- B101/B311/B601 skipped in bandit: false positives for this codebase
-- LGPL-2.1 (paramiko) acceptable: weak copyleft permits library use
-- Security scans not in make ci: recommend for release workflow instead
-
 ### Deferred Issues
 
-None currently.
+- COV-04: Coverage threshold enforcement (deferred to future milestone — "measure first")
 
 ### Blockers/Concerns
 
@@ -51,13 +46,9 @@ None currently.
 
 ### Pending Todos
 
-7 todos in `.planning/todos/pending/`:
+3 todos remaining in `.planning/todos/pending/`:
 
 - Add metrics history feature (observability)
-- ~~Verify project documentation is correct and up to date (docs)~~ DONE (29-04)
-- ~~General cleanup and optimization sweep (core)~~ DONE (28-01)
-- ~~Add test coverage measurement (testing)~~ DONE (27-01)
-- ~~Dependency security audit (security)~~ DONE (30-02)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability)
@@ -78,26 +69,14 @@ None currently.
 - **v1.2 Configuration & Polish** (2026-01-14): Confidence-based steering rollout, config improvements
 - **v1.3 Reliability & Hardening** (2026-01-21): Safety invariant tests, deployment validation
 - **v1.4 Observability** (2026-01-24): Steering daemon health endpoint on port 9102
-- **v1.5 Quality & Hygiene** (2026-01-24): Test coverage 90%+, documentation verification, security audit
-
-### Current Milestone
-
-**v1.5 Quality & Hygiene** - COMPLETE
-
-All phases complete:
-- Phase 27: Test coverage measurement (90.7%)
-- Phase 28: Code cleanup sweep
-- Phase 29: Documentation verification
-- Phase 30: Security audit (all scans pass)
+- **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
 
 ## Session Continuity
 
-Last session: 2026-01-24 12:21 UTC
-Stopped at: Completed 30-02-PLAN.md (Security Scan Execution)
+Last session: 2026-01-24
+Stopped at: v1.5 milestone shipped
 Resume file: None
 
 ## Next Steps
 
-1. Close v1.5 Quality & Hygiene milestone
-2. Create v1.5 release tag
-3. Update CHANGELOG.md with v1.5 release notes
+1. Plan next milestone with `/gsd:new-milestone`

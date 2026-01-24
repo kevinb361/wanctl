@@ -8,24 +8,16 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.5 Quality & Hygiene
+## Current State (v1.5)
 
-**Goal:** Improve code quality tooling, remove accumulated debt, and ensure documentation accuracy.
-
-**Target features:**
-
-- Test coverage measurement with pytest-cov
-- Codebase cleanup (dead code, TODOs, complexity)
-- Documentation verification (version numbers, examples)
-- Dependency security audit
-
-## Current State (v1.4)
-
-- **Version:** v1.4 Observability (shipped 2026-01-24)
+- **Version:** v1.5 Quality & Hygiene (shipped 2026-01-24)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 745 passing
-- **LOC:** ~25,900 Python
-- **Status:** Production stable, steering health endpoint on port 9102
+- **Tests:** 747 passing
+- **Coverage:** 72%
+- **LOC:** ~13,273 Python (src/)
+- **Status:** Production stable, quality tooling complete
+
+**Previous:** v1.4 Observability — steering health endpoint on port 9102
 
 ## Requirements
 
@@ -74,6 +66,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ WAN congestion states (primary/secondary) in health response — v1.4
 - ✓ Uptime and version in health response — v1.4
 - ✓ Health server lifecycle integrated with steering daemon — v1.4
+
+**v1.5 Quality & Hygiene:**
+
+- ✓ Test coverage infrastructure (pytest-cov, 72% baseline, HTML reports) — v1.5
+- ✓ Coverage badge in README.md — v1.5
+- ✓ Dead code and TODO cleanup verified — v1.5
+- ✓ Complexity analysis (11 high-complexity functions documented) — v1.5
+- ✓ Documentation verified to v1.4.0 (6 files updated, 14 issues fixed) — v1.5
+- ✓ Security audit (zero CVEs, 4 tools, `make security` target) — v1.5
 
 ### Active
 
@@ -142,9 +143,17 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Kubernetes-compatible health probes (200/503)
 - 28 new tests (725 → 752)
 
+**v1.5 Quality & Hygiene (2026-01-24):**
+
+- 4 phases of quality infrastructure (Phases 27-30)
+- Test coverage infrastructure (pytest-cov, 72% baseline)
+- Codebase cleanup (zero dead code, zero TODOs)
+- Documentation verified to v1.4.0 (14 issues fixed)
+- Security audit (zero CVEs, `make security` target)
+
 **Next Steps:**
 
-- Execute v1.5 Quality & Hygiene milestone
+- Plan next milestone
 
 ## Constraints
 
@@ -170,6 +179,9 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Extract methods from run_cycle() systematically   | Improve testability and maintainability                    | ✓ 120 new tests added           | 2026-01-14 |
 | Port 9102 for steering health (9101 for autorate) | Separate health endpoints per daemon                       | ✓ Deployed, Kubernetes-ready    | 2026-01-24 |
 
+| Advisory coverage threshold (no fail_under) | Measure first before enforcing | ✓ Baseline at 72% | 2026-01-24 |
+| 4-tool security scanning (`make security`) | Comprehensive coverage: deps, code, secrets, licenses | ✓ All scans pass | 2026-01-24 |
+
 ---
 
-_Last updated: 2026-01-23 after v1.5 milestone started_
+_Last updated: 2026-01-24 after v1.5 milestone shipped_

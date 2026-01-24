@@ -12,10 +12,11 @@ None
 
 ### Current
 
-- [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - IN PROGRESS
+None - planning next milestone
 
 ### Completed
 
+- [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
 - [v1.4 Observability](milestones/v1.4-ROADMAP.md) (Phases 25-26) - SHIPPED 2026-01-24
 - [v1.3 Reliability & Hardening](milestones/v1.3-ROADMAP.md) (Phases 21-24) - SHIPPED 2026-01-21
 - [v1.2 Configuration & Polish](milestones/v1.2-ROADMAP.md) (Phases 16-20) - SHIPPED 2026-01-14
@@ -31,7 +32,8 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.5 Quality & Hygiene (Phases 27-30) - COMPLETE
+<details>
+<summary>v1.5 Quality & Hygiene (Phases 27-30) - SHIPPED 2026-01-24</summary>
 
 **Milestone Goal:** Improve code quality tooling, remove accumulated debt, and ensure documentation accuracy.
 
@@ -40,7 +42,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 29: Documentation Verification** - Verify docs match current implementation
 - [x] **Phase 30: Security Audit** - Audit dependencies and add security scanning
 
+**Key Results:** pytest-cov + `make coverage`, zero dead code, docs verified to v1.4.0, zero CVEs + `make security`.
+
 See [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) for full details.
+
+</details>
 
 <details>
 <summary>v1.0 Performance Optimization (Phases 1-5) - SHIPPED 2026-01-13</summary>
@@ -223,40 +229,17 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.5 Quality & Hygiene (Phase 30)**
+**Current: Planning next milestone**
 
 ### Completed Milestones
 
 | Milestone                     | Phases | Plans | Status   | Shipped    |
 | ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability            | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening  | 21-24  | 5     | Complete | 2026-01-21 |
 | v1.2 Configuration & Polish   | 16-20  | 5     | Complete | 2026-01-14 |
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 26 phases, 52 plans across 5 milestones
-
-### Current Milestone Progress
-
-| Phase                          | Plans Complete | Status   | Completed  |
-| ------------------------------ | -------------- | -------- | ---------- |
-| 27. Test Coverage Setup        | 1/1            | Complete | 2026-01-24 |
-| 28. Codebase Cleanup           | 1/1            | Complete | 2026-01-24 |
-| 29. Documentation Verification | 4/4            | Complete | 2026-01-24 |
-| 30. Security Audit             | 2/2            | Complete | 2026-01-24 |
-
-### Phase 30: Security Audit
-
-**Goal**: Identify and address dependency security vulnerabilities
-**Depends on**: Nothing (independent of other phases)
-**Plans**: 2 plans
-**Status**: Complete
-**Completed**: 2026-01-24
-
-Plans:
-
-- [x] 30-01-PLAN.md - Install and configure security scanning tools
-- [x] 30-02-PLAN.md - Add Makefile targets, run scans, produce audit report
-
-**Accomplishments**: Zero CVE vulnerabilities found, `make security` target implemented (pip-audit, bandit, detect-secrets, pip-licenses), comprehensive audit report with transitive dependency tree documented.
+**Total:** 30 phases, 60 plans across 6 milestones

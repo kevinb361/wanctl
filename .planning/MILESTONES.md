@@ -1,5 +1,32 @@
 # Project Milestones: wanctl
 
+## v1.5 Quality & Hygiene (Shipped: 2026-01-24)
+
+**Delivered:** Code quality infrastructure with test coverage measurement, security scanning, and documentation verification.
+
+**Phases completed:** 27-30 (8 plans total)
+
+**Key accomplishments:**
+
+- Established test coverage infrastructure (pytest-cov, 72% baseline, HTML reports, README badge)
+- Verified codebase cleanliness (zero dead code, zero TODOs, complexity analysis for 11 functions)
+- Standardized documentation to v1.4.0 (6 files updated, 14 doc issues fixed)
+- Achieved security posture (zero CVEs, 4 security tools, `make security` target)
+
+**Stats:**
+
+- 20+ files modified
+- ~13,273 lines of Python (src/)
+- 4 phases, 8 plans
+- 747 tests, 72% coverage
+- 1 day (2026-01-24)
+
+**Git range:** `chore(27-01)` → `docs(30): complete`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.4 Observability (Shipped: 2026-01-24)
 
 **Delivered:** HTTP health endpoint for steering daemon enabling external monitoring and container orchestration.
