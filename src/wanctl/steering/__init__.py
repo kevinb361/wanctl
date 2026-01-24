@@ -31,12 +31,12 @@ from .daemon import (
     run_daemon_loop,
 )
 
-# Phase 2B (optional)
-PHASE2B_AVAILABLE = False
+# Confidence-based steering (optional)
+CONFIDENCE_AVAILABLE = False
 try:
     from . import steering_confidence as _sc
 
-    PHASE2B_AVAILABLE = bool(_sc)  # Reference to satisfy linters
+    CONFIDENCE_AVAILABLE = bool(_sc)  # Reference to satisfy linters
 except ImportError:
     pass
 
@@ -57,21 +57,21 @@ __all__ = [
     "StateThresholds",
     "assess_congestion_state",
     "ewma_update",
-    # Phase 2B (if available)
-    "PHASE2B_AVAILABLE",
+    # Confidence-based steering (if available)
+    "CONFIDENCE_AVAILABLE",
 ]
 
-# Add Phase2B exports if available
-if PHASE2B_AVAILABLE:
-    # Re-export Phase2B symbols (referenced via _sc for linter compatibility)
-    Phase2BController = _sc.Phase2BController
+# Add confidence-based steering exports if available
+if CONFIDENCE_AVAILABLE:
+    # Re-export confidence-based steering symbols (referenced via _sc for linter compatibility)
+    ConfidenceController = _sc.ConfidenceController
     ConfidenceSignals = _sc.ConfidenceSignals
     ConfidenceWeights = _sc.ConfidenceWeights
     TimerState = _sc.TimerState
     compute_confidence = _sc.compute_confidence
     __all__.extend(
         [
-            "Phase2BController",
+            "ConfidenceController",
             "ConfidenceSignals",
             "ConfidenceWeights",
             "TimerState",
