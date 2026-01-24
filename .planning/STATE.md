@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 31 of 37 (Coverage Infrastructure)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-01-24 — Roadmap created for v1.6
+Plan: 1 of 1 in current phase (COMPLETE)
+Status: Phase 31 complete, ready for Phase 32
+Last activity: 2026-01-24 — Completed 31-01-PLAN.md
 
-Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 1/7 phases (14%)
 
 ## Performance Metrics
 
@@ -36,13 +36,16 @@ Progress: [░░░░░░░░░░░░░░░░░░░░░░░
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
+**v1.6 Coverage Infrastructure:**
+- Keep `test` target fast for dev, `coverage-check` for CI enforcement (31-01)
+
 ### Deferred Issues
 
 None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 
 ### Blockers/Concerns
 
-None currently.
+- `make ci` will fail until coverage reaches 90% (expected, by design)
 
 ### Pending Todos
 
@@ -74,11 +77,11 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: v1.6 roadmap created, Phase 31 ready to plan
+Stopped at: Completed 31-01-PLAN.md (Phase 31 complete)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:plan-phase 31` - Plan coverage infrastructure
-2. Execute Phase 31 (1 plan)
-3. Continue through Phases 32-37
+1. `/gsd:plan-phase 32` - Plan health check coverage phase
+2. Execute Phase 32
+3. Continue through Phases 33-37 to reach 90% coverage
