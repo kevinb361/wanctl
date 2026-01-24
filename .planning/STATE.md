@@ -45,9 +45,8 @@ None currently.
 
 ### Pending Todos
 
-9 todos in `.planning/todos/pending/`:
+8 todos in `.planning/todos/pending/`:
 
-- Fix RuntimeWarning about module import (core)
 - Add metrics history feature (observability)
 - Verify project documentation is correct and up to date (docs)
 - General cleanup and optimization sweep (core)
