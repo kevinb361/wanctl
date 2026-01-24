@@ -31,14 +31,14 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.5 Quality & Hygiene (Phases 27-30) - IN PROGRESS
+### v1.5 Quality & Hygiene (Phases 27-30) - COMPLETE
 
 **Milestone Goal:** Improve code quality tooling, remove accumulated debt, and ensure documentation accuracy.
 
 - [x] **Phase 27: Test Coverage Setup** - Configure pytest-cov and establish coverage measurement (72% baseline)
 - [x] **Phase 28: Codebase Cleanup** - Remove dead code, triage TODOs, analyze complexity
 - [x] **Phase 29: Documentation Verification** - Verify docs match current implementation
-- [ ] **Phase 30: Security Audit** - Audit dependencies and add security scanning
+- [x] **Phase 30: Security Audit** - Audit dependencies and add security scanning
 
 See [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) for full details.
 
@@ -239,27 +239,24 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ### Current Milestone Progress
 
-| Phase                          | Plans Complete | Status      | Completed  |
-| ------------------------------ | -------------- | ----------- | ---------- |
-| 27. Test Coverage Setup        | 1/1            | Complete    | 2026-01-24 |
-| 28. Codebase Cleanup           | 1/1            | Complete    | 2026-01-24 |
-| 29. Documentation Verification | 4/4            | Complete    | 2026-01-24 |
-| 30. Security Audit             | 0/2            | Not started | -          |
+| Phase                          | Plans Complete | Status   | Completed  |
+| ------------------------------ | -------------- | -------- | ---------- |
+| 27. Test Coverage Setup        | 1/1            | Complete | 2026-01-24 |
+| 28. Codebase Cleanup           | 1/1            | Complete | 2026-01-24 |
+| 29. Documentation Verification | 4/4            | Complete | 2026-01-24 |
+| 30. Security Audit             | 2/2            | Complete | 2026-01-24 |
 
 ### Phase 30: Security Audit
 
 **Goal**: Identify and address dependency security vulnerabilities
 **Depends on**: Nothing (independent of other phases)
 **Plans**: 2 plans
+**Status**: Complete
+**Completed**: 2026-01-24
 
 Plans:
 
-- [ ] 30-01-PLAN.md - Install and configure security scanning tools
-- [ ] 30-02-PLAN.md - Add Makefile targets, run scans, produce audit report
+- [x] 30-01-PLAN.md - Install and configure security scanning tools
+- [x] 30-02-PLAN.md - Add Makefile targets, run scans, produce audit report
 
-**Success Criteria:**
-1. pip-audit check run against all dependencies
-2. Findings documented (including "no vulnerabilities found" if clean)
-3. Any CVEs found addressed (updated or documented as acceptable risk)
-4. `make security` target adds automated security scanning
-5. Transitive dependency tree reviewed and documented
+**Accomplishments**: Zero CVE vulnerabilities found, `make security` target implemented (pip-audit, bandit, detect-secrets, pip-licenses), comprehensive audit report with transitive dependency tree documented.
