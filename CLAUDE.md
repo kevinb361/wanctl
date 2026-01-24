@@ -120,7 +120,7 @@ None currently. See `CHANGELOG.md` for resolved issues.
 **Current:** v1.4.0 (Observability Release)
 
 - Steering daemon health endpoint (port 9102)
-- 600+ unit tests passing
+- 747 unit tests passing
 - Code quality improvements from v1.5 milestone
 
 ## Performance Characteristics
