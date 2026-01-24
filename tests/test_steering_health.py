@@ -491,3 +491,213 @@ class TestSteeringHealthResponseFields:
             assert data["errors"]["cake_read_failures"] == 2
         finally:
             server.shutdown()
+
+
+class TestSteeringHealthLifecycle:
+    """Integration tests for health server lifecycle (INTG-01 through INTG-03)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_daemon(self):
+        """Create a mock SteeringDaemon with realistic state."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        return daemon
+
+    def test_health_server_receives_daemon_reference(self, mock_daemon):
+        """Test that daemon reference is passed to handler (INTG-01)."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            # Verify daemon reference is set on handler class
+            assert SteeringHealthHandler.daemon is mock_daemon
+        finally:
+            server.shutdown()
+
+    def test_health_status_updates_with_failures(self):
+        """Test that status updates with failure count (INTG-03)."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+
+            # Initially healthy (failures = 0)
+            update_steering_health_status(0)
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["status"] == "healthy"
+
+            # Update to degraded (failures = 3)
+            update_steering_health_status(3)
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                urllib.request.urlopen(url, timeout=5)
+            assert exc_info.value.code == 503
+            data = json.loads(exc_info.value.read().decode())
+            assert data["status"] == "degraded"
+
+            # Back to healthy (failures = 0)
+            update_steering_health_status(0)
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["status"] == "healthy"
+        finally:
+            server.shutdown()
+
+    def test_health_server_graceful_shutdown(self):
+        """Test that server thread stops gracefully (INTG-02)."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        # Verify thread is alive
+        assert server.thread.is_alive()
+
+        # Shutdown
+        server.shutdown()
+
+        # Verify thread stopped within timeout (join called with 5.0s timeout)
+        assert not server.thread.is_alive()
+
+        # Note: Port may still be in TIME_WAIT state briefly after shutdown
+        # but that's normal TCP behavior - the important thing is the thread stopped
+
+    def test_concurrent_requests_during_update(self, mock_daemon):
+        """Test that concurrent requests during status update are safe."""
+        import concurrent.futures
+
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            results = []
+
+            def make_request():
+                """Make a health request and return response status."""
+                try:
+                    with urllib.request.urlopen(url, timeout=5) as response:
+                        data = json.loads(response.read().decode())
+                        return ("success", data.get("status"))
+                except urllib.error.HTTPError as e:
+                    data = json.loads(e.read().decode())
+                    return ("http_error", data.get("status"))
+                except Exception as e:
+                    return ("error", str(e))
+
+            def update_status_task():
+                """Update status values in a loop."""
+                for i in range(20):
+                    update_steering_health_status(i % 5)
+                    time.sleep(0.01)
+
+            # Run concurrent requests and updates
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+                # Start status updates
+                update_future = executor.submit(update_status_task)
+
+                # Make concurrent requests
+                request_futures = [executor.submit(make_request) for _ in range(10)]
+
+                # Wait for all to complete
+                update_future.result()
+                for future in request_futures:
+                    results.append(future.result())
+
+            # All requests should complete without error (success or http_error)
+            for result_type, status in results:
+                assert result_type in ("success", "http_error")
+                assert status in ("healthy", "degraded")
+
+        finally:
+            server.shutdown()
+
+    def test_health_reflects_daemon_state_changes(self, mock_daemon):
+        """Test that health response reflects daemon state changes (INTG-03)."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+
+            # Initial state: SPECTRUM_GOOD
+            mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["steering"]["enabled"] is False
+            assert data["steering"]["state"] == "SPECTRUM_GOOD"
+
+            # Change to SPECTRUM_DEGRADED
+            mock_daemon.state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["steering"]["enabled"] is True
+            assert data["steering"]["state"] == "SPECTRUM_DEGRADED"
+
+            # Change congestion state
+            mock_daemon.state_mgr.state["congestion_state"] = "RED"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["congestion"]["primary"]["state"] == "RED"
+            assert data["congestion"]["primary"]["state_code"] == 2
+
+        finally:
+            server.shutdown()
+
+    def test_daemon_none_returns_minimal_response(self):
+        """Test that daemon=None returns minimal response (status, uptime, version only)."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            # Minimal response has these fields
+            assert "status" in data
+            assert "uptime_seconds" in data
+            assert "version" in data
+
+            # Daemon-specific fields should NOT be present
+            assert "steering" not in data
+            assert "congestion" not in data
+            assert "decision" not in data
+            assert "counters" not in data
+            assert "thresholds" not in data
+            assert "pid" not in data
+
+        finally:
+            server.shutdown()
