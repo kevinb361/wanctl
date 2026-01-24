@@ -20,7 +20,7 @@ Usage:
     rest = RouterOSREST(
         host="192.168.1.1",
         user="admin",
-        password="password",
+        password="password",  # pragma: allowlist secret
         port=443,
         verify_ssl=False,
         timeout=15,
