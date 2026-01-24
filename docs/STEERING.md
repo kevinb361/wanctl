@@ -10,7 +10,7 @@ The steering daemon monitors your primary WAN for congestion and automatically r
 
 ## How It Works
 
-The steering daemon runs continuously with a 2-second cycle:
+The steering daemon runs continuously with a 50ms cycle (configurable):
 
 1. **Collect signals** from primary WAN:
    - RTT delta (from autorate state file)

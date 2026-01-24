@@ -1,6 +1,6 @@
 # Portable Controller Architecture
 
-**Status:** ✅ Production (v4.2 Phase 2A)
+**Status:** ✅ Production (v1.4.0)
 **Last Updated:** 2025-12-17
 
 ---
@@ -275,13 +275,13 @@ Same control algorithm means:
 
 ### 4. Extensibility
 
-New features (e.g., Phase 2B time-of-day bias) work on **all link types** immediately.
+New features (e.g., time-of-day bias, confidence-based steering) work on **all link types** immediately.
 
 ---
 
 ## Future Phases (Remain Config-Only)
 
-### Phase 2B: Time-of-Day Bias
+### Future: Time-of-Day Bias
 
 **Proposal:** Use historical congestion data to preemptively adjust floors.
 
@@ -424,7 +424,7 @@ The CAKE controller is a **portable, link-agnostic congestion control system**.
 
 **Phase 2A demonstrates this:** Spectrum uses 4-state, AT&T uses 3-state, same controller.
 
-**Phase 2B will continue this:** Time-of-day bias via config, no code changes needed.
+**Future phases will continue this:** Time-of-day bias via config, no code changes needed.
 
 ---
 
