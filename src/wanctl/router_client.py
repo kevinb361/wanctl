@@ -179,27 +179,31 @@ class FailoverRouterClient:
             )
         return self._fallback_client
 
-    def run_cmd(self, cmd: str) -> tuple[int, str, str]:
+    def run_cmd(
+        self, cmd: str, capture: bool = False, timeout: int | None = None
+    ) -> tuple[int, str, str]:
         """Execute command with automatic failover.
 
         Args:
             cmd: RouterOS command to execute
+            capture: Whether to capture output (passed to underlying transport)
+            timeout: Command timeout in seconds (passed to underlying transport)
 
         Returns:
             Tuple of (return_code, stdout, stderr)
         """
         if self._using_fallback:
-            return self._get_fallback().run_cmd(cmd)
+            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
 
         try:
-            return self._get_primary().run_cmd(cmd)
+            return self._get_primary().run_cmd(cmd, capture=capture, timeout=timeout)
         except (ConnectionError, TimeoutError, OSError) as e:
             self.logger.warning(
                 f"Primary transport ({self.primary_transport}) failed: {e}. "
                 f"Switching to fallback ({self.fallback_transport})"
             )
             self._using_fallback = True
-            return self._get_fallback().run_cmd(cmd)
+            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
 
     def close(self) -> None:
         """Close all transport connections.
