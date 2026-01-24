@@ -15,6 +15,16 @@ Example configs are in `configs/examples/`.
 
 These fields are required in all configuration files.
 
+### `schema_version` (optional)
+
+- **Type:** string
+- **Default:** `"1.0"`
+- **Description:** Configuration file schema version. Used for future migration logic when breaking config changes are needed.
+
+```yaml
+schema_version: "1.0"
+```
+
 ### `wan_name` (required)
 
 - **Type:** string
@@ -30,17 +40,34 @@ wan_name: "wan1"
 
 Router connection settings.
 
-| Field     | Type   | Required | Description             |
-| --------- | ------ | -------- | ----------------------- |
-| `host`    | string | yes      | RouterOS IP address     |
-| `user`    | string | yes      | SSH username            |
-| `ssh_key` | string | yes      | Path to SSH private key |
+| Field       | Type   | Required | Default      | Description                                   |
+| ----------- | ------ | -------- | ------------ | --------------------------------------------- |
+| `type`      | string | no       | `"routeros"` | Router platform (only `"routeros"` supported) |
+| `host`      | string | yes      | -            | RouterOS IP address                           |
+| `user`      | string | yes      | -            | SSH username                                  |
+| `ssh_key`   | string | yes      | -            | Path to SSH private key                       |
+| `transport` | string | no       | `"ssh"`      | Transport type: `"ssh"` or `"rest"`           |
+| `password`  | string | no       | -            | REST API password (for `transport: rest`)     |
+
+**Transport options:**
+
+- `ssh` (default): Uses SSH/Paramiko for RouterOS communication
+- `rest`: Uses RouterOS REST API (faster, requires password instead of ssh_key)
 
 ```yaml
+# SSH transport (default)
 router:
   host: "192.168.1.1"
   user: "admin"
   ssh_key: "/etc/wanctl/ssh/router.key"
+  transport: "ssh"  # Optional, this is the default
+
+# REST transport (faster)
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  password: "${ROUTER_PASSWORD}"  # From environment or secrets file
+  transport: "rest"
 ```
 
 ---
@@ -93,6 +120,14 @@ Download bandwidth parameters.
 | `step_up_mbps`        | number | Mbps | Recovery step size                                             |
 | `factor_down`         | number | 0-1  | Backoff multiplier (e.g., 0.85 = 15% reduction)                |
 | `green_required`      | int    | -    | Consecutive GREEN cycles before stepping up (1-10, default: 5) |
+
+**Floor ordering constraint:** Floors must be ordered from lowest to highest:
+
+```
+floor_red_mbps <= floor_soft_red_mbps <= floor_yellow_mbps <= floor_green_mbps <= ceiling_mbps
+```
+
+This ensures proper bandwidth reduction as congestion severity increases.
 
 ```yaml
 continuous_monitoring:
