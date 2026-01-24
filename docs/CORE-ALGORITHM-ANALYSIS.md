@@ -240,7 +240,7 @@
 
 **S7. Confidence Scoring Integration**
 
-- **Current:** Phase 2B controller (`steering_confidence.py`, 644 lines) exists but unused
+- **Current:** Confidence-based steering controller (`steering_confidence.py`, 644 lines) exists but unused
 - **Proposed:** Replace hysteresis with confidence scoring via config flag
 - **Benefits:** Multi-signal scoring (0-100), built-in flap detection, better decisions
 - **Why HIGH:** Behavioral change, config compatibility issues, state persistence schema changes
