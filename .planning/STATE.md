@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.4 Observability - Phase 25 Health Endpoint Core
+**Current focus:** v1.4 Observability - Phase 26 Steering State Integration
 
 ## Current Position
 
-Phase: 25 of 26 (Health Endpoint Core) — COMPLETE
-Plan: — (phase verified)
-Status: Ready for Phase 26
-Last activity: 2026-01-24 — Phase 25 verified, all must-haves confirmed
+Phase: 26 of 26 (Steering State Integration)
+Plan: 01 of 01
+Status: In progress
+Last activity: 2026-01-24 — Completed 26-01-PLAN.md
 
-Progress: [██████████░░░░░░░░░░] 50% (v1.4: 2/4 plans)
+Progress: [███████████████░░░░░] 75% (v1.4: 3/4 plans)
 
 ## Performance Metrics
 
@@ -44,6 +44,12 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 - Mirrored test_health_check.py patterns for test consistency
 - 10 test cases covering all HLTH-\* requirements
+
+**Plan 26-01 decisions:**
+
+- Used timer_state.confidence_score path to access confidence controller score
+- Cold start returns status:starting with 503 instead of partial response
+- time_in_state_seconds uses uptime as fallback when no transition recorded
 
 ### Deferred Issues
 
@@ -89,9 +95,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Phase 26 context gathered, ready to plan
+Stopped at: Completed 26-01-PLAN.md
 Resume file: None
 
 ## Next Steps
 
-1. Run `/gsd:discuss-phase 26` or `/gsd:plan-phase 26` to plan Steering State & Integration
+1. Verify Phase 26 complete (if no additional plans)
+2. Mark v1.4 Observability milestone as shipped
