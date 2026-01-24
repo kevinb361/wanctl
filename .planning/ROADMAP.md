@@ -10,6 +10,10 @@ None
 
 ## Milestones
 
+### Current
+
+- [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - IN PROGRESS
+
 ### Completed
 
 - [v1.4 Observability](milestones/v1.4-ROADMAP.md) (Phases 25-26) - SHIPPED 2026-01-24
@@ -26,6 +30,17 @@ None
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.5 Quality & Hygiene (Phases 27-30) - IN PROGRESS
+
+**Milestone Goal:** Improve code quality tooling, remove accumulated debt, and ensure documentation accuracy.
+
+- [ ] **Phase 27: Test Coverage Setup** - Configure pytest-cov and establish coverage measurement
+- [ ] **Phase 28: Codebase Cleanup** - Remove dead code, triage TODOs, analyze complexity
+- [ ] **Phase 29: Documentation Verification** - Verify docs match current implementation
+- [ ] **Phase 30: Security Audit** - Audit dependencies and add security scanning
+
+See [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) for full details.
 
 <details>
 <summary>v1.0 Performance Optimization (Phases 1-5) - SHIPPED 2026-01-13</summary>
@@ -208,7 +223,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: Ready for next milestone**
+**Current: v1.5 Quality & Hygiene (Phase 27)**
 
 ### Completed Milestones
 
@@ -221,3 +236,12 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 26 phases, 52 plans across 5 milestones
+
+### Current Milestone Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 27. Test Coverage Setup | 0/TBD | Not started | - |
+| 28. Codebase Cleanup | 0/TBD | Not started | - |
+| 29. Documentation Verification | 0/TBD | Not started | - |
+| 30. Security Audit | 0/TBD | Not started | - |

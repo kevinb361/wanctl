@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.5 Quality & Hygiene
+**Current focus:** v1.5 Quality & Hygiene - Phase 27 Test Coverage Setup
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-01-23 — Milestone v1.5 started
+Phase: 27 of 30 (Test Coverage Setup)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-24 — Roadmap created for v1.5
 
-Progress: [████████████████████] 100% (v1.4: 4/4 plans)
+Progress: [████████████████████░░░░░░░░░░] 87% (52/60 plans estimated)
 
 ## Performance Metrics
 
@@ -80,10 +80,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Quick task 004 complete
+Stopped at: Roadmap created for v1.5 milestone
 Resume file: None
 
 ## Next Steps
 
-1. Define requirements for v1.5
-2. Create roadmap with phase structure
+1. Run `/gsd:plan-phase 27` to create Test Coverage Setup plan
+2. Execute plan to configure pytest-cov and coverage reporting

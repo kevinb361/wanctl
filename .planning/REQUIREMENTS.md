@@ -57,32 +57,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COV-01 | — | Pending |
-| COV-02 | — | Pending |
-| COV-03 | — | Pending |
-| COV-04 | — | Pending |
-| COV-05 | — | Pending |
-| CLN-01 | — | Pending |
-| CLN-02 | — | Pending |
-| CLN-03 | — | Pending |
-| CLN-04 | — | Pending |
-| CLN-05 | — | Pending |
-| DOC-01 | — | Pending |
-| DOC-02 | — | Pending |
-| DOC-03 | — | Pending |
-| DOC-04 | — | Pending |
-| DOC-05 | — | Pending |
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| SEC-04 | — | Pending |
-| SEC-05 | — | Pending |
+| COV-01 | 27 | Pending |
+| COV-02 | 27 | Pending |
+| COV-03 | 27 | Pending |
+| COV-04 | 27 | Pending |
+| COV-05 | 27 | Pending |
+| CLN-01 | 28 | Pending |
+| CLN-02 | 28 | Pending |
+| CLN-03 | 28 | Pending |
+| CLN-04 | 28 | Pending |
+| CLN-05 | 28 | Pending |
+| DOC-01 | 29 | Pending |
+| DOC-02 | 29 | Pending |
+| DOC-03 | 29 | Pending |
+| DOC-04 | 29 | Pending |
+| DOC-05 | 29 | Pending |
+| SEC-01 | 30 | Pending |
+| SEC-02 | 30 | Pending |
+| SEC-03 | 30 | Pending |
+| SEC-04 | 30 | Pending |
+| SEC-05 | 30 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-23*
-*Last updated: 2026-01-23 after initial definition*
+*Last updated: 2026-01-24 after roadmap creation*
