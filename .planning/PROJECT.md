@@ -8,12 +8,22 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.6 Test Coverage 90%
+
+**Goal:** Increase test coverage from 45.7% to 90%+ with CI enforcement
+
+**Target features:**
+
+- Unit tests for all modules including CLI tools and backends
+- Coverage threshold enforcement (fail CI below 90%)
+- Complete the COV-04 requirement deferred from v1.5
+
 ## Current State (v1.5)
 
 - **Version:** v1.5 Quality & Hygiene (shipped 2026-01-24)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
 - **Tests:** 747 passing
-- **Coverage:** 72%
+- **Coverage:** 45.7% (statement), 72% (branch)
 - **LOC:** ~13,273 Python (src/)
 - **Status:** Production stable, quality tooling complete
 
@@ -153,7 +163,7 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 **Next Steps:**
 
-- Plan next milestone
+- Execute v1.6 Test Coverage 90% milestone
 
 ## Constraints
 
@@ -184,4 +194,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-24 after v1.5 milestone shipped_
+_Last updated: 2026-01-24 after v1.6 milestone started_

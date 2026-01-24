@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.6 Test Coverage 90%
 
 ## Current Position
 
-Phase: 30 of 30 complete
-Plan: All complete
-Status: v1.5 shipped — ready for next milestone
-Last activity: 2026-01-24 — v1.5 Quality & Hygiene shipped
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-24 — Milestone v1.6 started
 
-Progress: [██████████████████████████████] 100% (60/60 plans)
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -38,7 +38,7 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 ### Deferred Issues
 
-- COV-04: Coverage threshold enforcement (deferred to future milestone — "measure first")
+- COV-04: Coverage threshold enforcement → Now active in v1.6 scope
 
 ### Blockers/Concerns
 
@@ -74,9 +74,11 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: v1.5 milestone shipped
+Stopped at: Starting v1.6 milestone
 Resume file: None
 
 ## Next Steps
 
-1. Plan next milestone with `/gsd:new-milestone`
+1. Define requirements for v1.6
+2. Create roadmap with phases
+3. Execute phases
