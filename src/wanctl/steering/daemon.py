@@ -109,29 +109,6 @@ BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than thi
 
 
 # =============================================================================
-# DEPRECATION HELPERS
-# =============================================================================
-
-
-def _warn_deprecated_param(
-    config_dict: dict, old_name: str, new_name: str, logger: logging.Logger
-) -> None:
-    """Log deprecation warning if old parameter name is used.
-
-    Args:
-        config_dict: Configuration dictionary to check
-        old_name: Deprecated parameter name
-        new_name: Recommended replacement parameter name
-        logger: Logger instance for warning output
-    """
-    if old_name in config_dict:
-        logger.warning(
-            f"[DEPRECATED] '{old_name}' is deprecated, use '{new_name}' instead. "
-            f"'{old_name}' will be removed in a future version."
-        )
-
-
-# =============================================================================
 # CONFIGURATION
 # =============================================================================
 
@@ -299,14 +276,6 @@ class SteeringConfig(BaseConfig):
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
         thresholds = self.data["thresholds"]
-
-        # Deprecation warnings for legacy parameters
-        _warn_deprecated_param(
-            thresholds, "bad_samples", "red_samples_required", logging.getLogger(__name__)
-        )
-        _warn_deprecated_param(
-            thresholds, "good_samples", "green_samples_required", logging.getLogger(__name__)
-        )
 
         # Legacy RTT-only thresholds (backward compatibility)
         self.bad_threshold_ms = thresholds.get("bad_threshold_ms", DEFAULT_BAD_THRESHOLD_MS)
