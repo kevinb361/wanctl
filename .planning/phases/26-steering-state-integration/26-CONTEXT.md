@@ -1,7 +1,7 @@
-# Phase 26: Steering State & Integration - Context (DRAFT)
+# Phase 26: Steering State & Integration - Context
 
 **Gathered:** 2026-01-24
-**Status:** INCOMPLETE - Discussion paused
+**Status:** Ready for planning
 
 <domain>
 ## Phase Boundary
@@ -16,7 +16,7 @@ Wire the existing health endpoint (from Phase 25) into the steering daemon and e
 ### Steering Data Exposure
 
 **User decisions:**
-- WAN congestion states: Include BOTH string names AND numeric codes
+- WAN congestion states: Include BOTH string names AND numeric codes (e.g., "GREEN" + 0)
 - Timers: YES, expose internal timers (time since last decision, time in current state)
 - Mode: YES, expose dry_run/active mode
 - Error counts: YES, expose error counts (failed router calls, measurement timeouts)
@@ -34,7 +34,7 @@ Wire the existing health endpoint (from Phase 25) into the steering daemon and e
 ### Response Structure
 
 **User decisions:**
-- Timestamps: ISO 8601 strings (not Unix epoch)
+- Timestamps: ISO 8601 strings (e.g., "2026-01-24T10:30:00Z")
 - Field naming: Match autorate health endpoint convention
 
 **Claude's Discretion:**
@@ -47,44 +47,43 @@ Wire the existing health endpoint (from Phase 25) into the steering daemon and e
 
 ### Lifecycle Wiring
 
-**NOT YET DISCUSSED** - Discussion paused before completing this section
-
-Claude's Discretion on all lifecycle decisions:
+**Claude's Discretion (all lifecycle decisions):**
 - Startup failure behavior (fail daemon vs log and continue vs retry)
-- Startup sequence position
-- Mid-run crash handling
-- Logging verbosity
+- Startup sequence position (before config, after config, after main loop)
+- Mid-run crash handling (restart, log and continue, fail daemon)
+- Logging verbosity (full lifecycle vs errors only)
+- Graceful shutdown timeout
+- Watchdog/heartbeat for unresponsive health thread
+- Port configurability (hardcoded 9102 vs YAML config)
+- Bind address (127.0.0.1 vs 0.0.0.0 vs configurable)
 
 ### State Freshness
 
-**NOT YET DISCUSSED** - Discussion paused before starting this section
+**Claude's Discretion (all freshness decisions):**
+- Concurrency handling (read current vs snapshot vs lock)
+- Data age field (last_updated or data_age_ms)
+- Cold start behavior (partial, starting status, or 503)
+- Response caching (none vs brief cache)
 
 </decisions>
 
 <specifics>
 ## Specific Ideas
 
-Discussion incomplete - resume to capture any specific references or examples.
+- Match autorate health endpoint patterns for consistency (port 9101 uses similar structure)
+- Phase 25 created steering_health.py module with basic health server infrastructure
+- Existing health_check.py in autorate provides the pattern to follow
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-None captured yet.
+None — discussion stayed within phase scope.
 
 </deferred>
 
 ---
 
-## Resume Instructions
-
-This discussion was paused partway through. When resuming:
-1. Complete "Lifecycle wiring" area (only checked "more questions" once, user gave all to Claude discretion)
-2. Discuss "State freshness" area (not yet started)
-3. Create final CONTEXT.md
-
----
-
 *Phase: 26-steering-state-integration*
-*Context draft: 2026-01-24*
+*Context gathered: 2026-01-24*

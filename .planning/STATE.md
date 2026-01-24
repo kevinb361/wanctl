@@ -89,22 +89,8 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Phase 26 context discussion (2/4 areas complete)
-Resume file: .planning/phases/26-steering-state-integration/26-CONTEXT-DRAFT.md
-
-### Resume Context
-
-Paused during `/gsd:discuss-phase 26`. Completed:
-
-- Steering data exposure (12 questions answered)
-- Response structure (8 questions answered)
-
-Remaining:
-
-- Lifecycle wiring (4 questions answered, all Claude discretion — may skip remaining)
-- State freshness (not started)
-
-Then create final 26-CONTEXT.md.
+Stopped at: Phase 26 context gathered, ready to plan
+Resume file: None
 
 ## Next Steps
 
