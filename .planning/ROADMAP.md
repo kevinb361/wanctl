@@ -215,7 +215,7 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 - [x] Phase 25: Health Endpoint Core (2/2 plans) - HTTP server, routes, threading, lifecycle
 - [x] Phase 26: Steering State & Integration (2/2 plans) - Response content, daemon wiring
 
-**Key Results:** HTTP health endpoint on port 9102, 28 new tests (725 → 752), 100% requirement coverage.
+**Key Results:** HTTP health endpoint on port 9102, 28 new tests (725 -> 752), 100% requirement coverage.
 
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
@@ -223,7 +223,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.5 Quality & Hygiene (Phase 29)**
+**Current: v1.5 Quality & Hygiene (Phase 30)**
 
 ### Completed Milestones
 
@@ -244,19 +244,22 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | 27. Test Coverage Setup        | 1/1            | Complete    | 2026-01-24 |
 | 28. Codebase Cleanup           | 1/1            | Complete    | 2026-01-24 |
 | 29. Documentation Verification | 4/4            | Complete    | 2026-01-24 |
-| 30. Security Audit             | 0/TBD          | Not started | -          |
+| 30. Security Audit             | 0/2            | Not started | -          |
 
-### Phase 29: Documentation Verification
+### Phase 30: Security Audit
 
-**Goal**: Ensure all documentation accurately reflects current 1.4.0 implementation
-**Depends on**: Phase 28 (cleanup may change code, affecting docs)
-**Plans**: 4 plans
+**Goal**: Identify and address dependency security vulnerabilities
+**Depends on**: Nothing (independent of other phases)
+**Plans**: 2 plans
 
 Plans:
 
-- [x] 29-01-PLAN.md — Version number standardization (fix stale versions to 1.4.0)
-- [x] 29-02-PLAN.md — Config documentation verification (CONFIG_SCHEMA.md, CONFIGURATION.md)
-- [x] 29-03-PLAN.md — Root documentation verification (CLAUDE.md, README.md)
-- [x] 29-04-PLAN.md — Docs directory audit and report generation
+- [ ] 30-01-PLAN.md - Install and configure security scanning tools
+- [ ] 30-02-PLAN.md - Add Makefile targets, run scans, produce audit report
 
-**Phase 29 Complete:** 28 files audited, 14 issues fixed, comprehensive AUDIT-REPORT.md created. All documentation verified accurate for v1.4.0.
+**Success Criteria:**
+1. pip-audit check run against all dependencies
+2. Findings documented (including "no vulnerabilities found" if clean)
+3. Any CVEs found addressed (updated or documented as acceptable risk)
+4. `make security` target adds automated security scanning
+5. Transitive dependency tree reviewed and documented
