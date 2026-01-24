@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.5 Quality & Hygiene
 
 ## Current Position
 
-Phase: 26 of 26 (complete)
-Plan: N/A
-Status: Ready to plan
-Last activity: 2026-01-24 — Quick task 004 (fix socket warnings)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-23 — Milestone v1.5 started
 
 Progress: [████████████████████] 100% (v1.4: 4/4 plans)
 
@@ -75,7 +75,7 @@ None currently.
 
 ### Current Milestone
 
-None — ready for next milestone planning.
+**v1.5 Quality & Hygiene** — test coverage, cleanup, docs, security audit
 
 ## Session Continuity
 
@@ -85,4 +85,5 @@ Resume file: None
 
 ## Next Steps
 
-1. `/gsd:new-milestone` — start next milestone (questioning → research → requirements → roadmap)
+1. Define requirements for v1.5
+2. Create roadmap with phase structure
