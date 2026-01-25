@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 ## Current Position
 
-Phase: 39 of 41 (Data Recording)
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-01-25 - Completed 39-02-PLAN.md
+Phase: 40 of 41 (CLI Tool)
+Plan: 1 of 2 complete
+Status: In progress
+Last activity: 2026-01-25 - Completed 40-01-PLAN.md
 
-Progress: [███████ ] 50% (2/4 phases, 4/7 plans)
+Progress: [████████ ] 62% (2.5/4 phases, 5/7 plans)
 
 ## Performance Metrics
 
@@ -51,6 +51,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - VACUUM only after 100000+ deletions (expensive operation)
 - Steering metrics: 5 per cycle (rtt_ms, baseline, delta, enabled, state)
 - Config snapshot: labeled metric with trigger field on startup
+- Read-only connection mode (?mode=ro) for query operations
+- Use statistics.quantiles() from stdlib for percentile calculation
+- Granularity auto-selection: raw<6h<1m<24h<5m<7d<1h
 
 ### Deferred Issues
 
@@ -91,10 +94,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Phase 39 verified and complete
+Stopped at: Completed 40-01-PLAN.md
 Resume file: None
 
 ## Next Steps
 
-1. Proceed to Phase 40 (Query API)
+1. Complete Phase 40 Plan 02 (CLI Tool implementation)
 2. Continue through Phase 41 (Cleanup)
