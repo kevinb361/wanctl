@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 ## Current Position
 
-Phase: 40 of 41 (CLI Tool)
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-01-25 - Completed 40-02-PLAN.md
+Phase: 41 of 41 (API Endpoint)
+Plan: 1 of 1 complete
+Status: Phase complete - v1.7 Metrics History COMPLETE
+Last activity: 2026-01-25 - Completed 41-01-PLAN.md
 
-Progress: [█████████ ] 75% (3/4 phases, 6/7 plans)
+Progress: [██████████] 100% (4/4 phases, 7/7 plans)
 
 ## Performance Metrics
 
@@ -57,6 +57,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - CLI default time range: --last 1h when no args
 - State metrics show percentage distribution in summary
 - Empty results exit 0 with informational message
+- HTTP API on /metrics/history (existing port 9101)
+- Python-side pagination (offset/limit after full query)
 
 ### Deferred Issues
 
@@ -70,7 +72,7 @@ None.
 
 4 todos remaining in `.planning/todos/pending/`:
 
-- Add metrics history feature (observability) - COMPLETE (Phase 39-40)
+- Add metrics history feature (observability) - COMPLETE (Phase 38-41)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
@@ -93,13 +95,19 @@ None.
 - **v1.4 Observability** (2026-01-24): Steering daemon health endpoint on port 9102
 - **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
 - **v1.6 Test Coverage 90%** (2026-01-25): 743 new tests, 90%+ coverage enforced in CI
+- **v1.7 Metrics History** (2026-01-25): SQLite storage, CLI tool, HTTP API for metrics access
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 40-02-PLAN.md
+Stopped at: Completed 41-01-PLAN.md (v1.7 milestone complete)
 Resume file: None
 
 ## Next Steps
 
-1. Continue through Phase 41 (Cleanup)
+v1.7 Metrics History milestone complete. Milestone provides:
+
+- SQLite storage with downsampling (raw -> 1m -> 5m -> 1h)
+- Autorate + steering metrics recording
+- CLI tool: wanctl-history --last 1h
+- HTTP API: GET /metrics/history?range=1h
