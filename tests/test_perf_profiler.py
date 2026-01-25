@@ -196,3 +196,67 @@ class TestOperationProfiler:
         profiler.record("op", 10.0)
         report = profiler.report(mock_logger)
         mock_logger.info.assert_called_once_with(report)
+
+
+class TestMeasureOperationDecorator:
+    """Tests for measure_operation decorator."""
+
+    def test_decorator_returns_function_result(self) -> None:
+        """Decorated function should return original function's result."""
+
+        def sample_func(x: int, y: int) -> int:
+            return x + y
+
+        wrapped = measure_operation(sample_func, "add", None)
+        result = wrapped(2, 3)
+        assert result == 5
+
+    def test_decorator_times_execution(self) -> None:
+        """Decorator should log timing to provided logger."""
+        mock_logger = MagicMock(spec=logging.Logger)
+
+        def slow_func() -> str:
+            time.sleep(0.01)
+            return "done"
+
+        wrapped = measure_operation(slow_func, "slow_op", mock_logger)
+        result = wrapped()
+
+        assert result == "done"
+        mock_logger.debug.assert_called_once()
+        assert "slow_op:" in mock_logger.debug.call_args[0][0]
+
+    def test_decorator_without_logger(self) -> None:
+        """Decorator should work without logger (no exception)."""
+
+        def sample_func() -> str:
+            return "result"
+
+        wrapped = measure_operation(sample_func, "test", None)
+        result = wrapped()
+        assert result == "result"
+
+    def test_decorator_passes_args_and_kwargs(self) -> None:
+        """Decorator should pass args and kwargs to wrapped function."""
+
+        def func_with_args(a: str, b: str, c: str | None = None) -> str:
+            return f"{a}-{b}-{c}"
+
+        wrapped = measure_operation(func_with_args, "test", None)
+        result = wrapped("x", "y", c="z")
+        assert result == "x-y-z"
+
+    def test_decorator_handles_exception(self) -> None:
+        """Decorator should propagate exceptions from wrapped function."""
+        mock_logger = MagicMock(spec=logging.Logger)
+
+        def failing_func() -> None:
+            raise ValueError("test error")
+
+        wrapped = measure_operation(failing_func, "fail_op", mock_logger)
+
+        with pytest.raises(ValueError, match="test error"):
+            wrapped()
+        # Note: PerfTimer logs in __exit__ which runs before exception propagates
+        # so the log should still happen
+        mock_logger.debug.assert_called_once()
