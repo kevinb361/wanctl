@@ -1,7 +1,6 @@
 """Unit tests for path utilities."""
 
 import logging
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch

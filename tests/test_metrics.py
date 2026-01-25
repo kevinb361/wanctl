@@ -9,7 +9,6 @@ import socket
 import threading
 import time
 import urllib.request
-from unittest.mock import patch
 
 import pytest
 
@@ -223,7 +222,7 @@ class TestMetricsRegistryExposition:
         registry.set_gauge("a_metric", 2.0)
         registry.set_gauge("m_metric", 3.0)
         output = registry.exposition()
-        lines = [l for l in output.split("\n") if l and not l.startswith("#")]
+        lines = [line for line in output.split("\n") if line and not line.startswith("#")]
         assert lines == ["a_metric 2.0", "m_metric 3.0", "z_metric 1.0"]
 
     def test_exposition_same_base_name_multiple_labels(self):

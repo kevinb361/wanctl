@@ -764,7 +764,7 @@ class TestSteeringStateManager:
 
     def test_save_use_lock_true_acquires_lock(self, temp_state_file, steering_schema, logger):
         """Test save with use_lock=True acquires lock, writes, releases."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         manager = SteeringStateManager(temp_state_file, steering_schema, logger)
         manager.state["state"] = "RED"
@@ -773,7 +773,6 @@ class TestSteeringStateManager:
         lock_calls = []
 
         def track_flock(fd, operation):
-            import fcntl
 
             lock_calls.append(operation)
 

@@ -16,17 +16,13 @@ Coverage target: lines 1399-1503 (ContinuousAutoRate class), 1511-1808 (main()),
 and signal integration paths.
 """
 
-import argparse
-import atexit
-import runpy
 import signal
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from wanctl.signal_utils import reset_shutdown_state
-
 
 # =============================================================================
 # FIXTURES
@@ -1223,7 +1219,7 @@ class TestContinuousAutoRateInitLogging:
 
             from wanctl.autorate_continuous import ContinuousAutoRate
 
-            controller = ContinuousAutoRate([str(config_file)], debug=True)
+            ContinuousAutoRate([str(config_file)], debug=True)
 
             # Verify all expected log messages
             info_calls = [str(call) for call in mock_logger.info.call_args_list]
@@ -1352,7 +1348,6 @@ class TestContinuousAutoRateRunCycle:
         mock_wan_ctrl.run_cycle.return_value = True
 
         from wanctl.autorate_continuous import ContinuousAutoRate
-        from wanctl.lock_utils import LockFile
 
         # Create a real controller with mocks
         with patch.object(ContinuousAutoRate, "__init__", return_value=None):
@@ -2033,10 +2028,10 @@ class TestMainEntryPoint:
 
     def test_main_entry_point_exists(self):
         """Module should have if __name__ == '__main__' block."""
-        import wanctl.autorate_continuous as module
-
         # Read the source file to verify the block exists
         import inspect
+
+        import wanctl.autorate_continuous as module
 
         source = inspect.getsource(module)
         assert 'if __name__ == "__main__":' in source
@@ -2049,7 +2044,7 @@ class TestMainEntryPoint:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file), "--validate-config"]),
-            patch("wanctl.autorate_continuous.main", return_value=0) as mock_main,
+            patch("wanctl.autorate_continuous.main", return_value=0),
             patch("sys.exit") as mock_exit,
         ):
             # The module's if __name__ == "__main__" block won't run in this test

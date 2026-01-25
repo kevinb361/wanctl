@@ -430,7 +430,6 @@ class TestPingHostsConcurrentEdgeCases:
 
     def test_concurrent_timeout_logs_debug(self, mock_logger):
         """concurrent.futures.TimeoutError logged at debug level (lines 275-276)."""
-        import concurrent.futures
 
         rtt = RTTMeasurement(logger=mock_logger)
 
