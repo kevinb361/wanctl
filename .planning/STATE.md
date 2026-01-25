@@ -87,7 +87,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 35 (35-01 and 35-02)
+Stopped at: Completed phase 35 (35-01 entry points/config, 35-02 state transitions)
 Resume file: None
 
 ## Next Steps
