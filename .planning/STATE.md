@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 
 ## Current Position
 
-Phase: 36 of 37 (Steering Daemon Tests) - COMPLETE
-Plan: 2 of 2 in phase (COMPLETE)
-Status: Phase 36 complete, verified (91.0% daemon.py coverage)
-Last activity: 2026-01-25 - Completed phase 36 execution
+Phase: 37 of 37 (CLI Tool Tests) - IN PROGRESS
+Plan: 2 of 3 in phase (COMPLETE)
+Status: Plan 37-02 complete (perf_profiler.py 98.7% coverage)
+Last activity: 2026-01-25 - Completed 37-02-PLAN.md
 
-Progress: [████████████░░░░░░░░░░░░░░░░░░] 6/7 phases (86%)
+Progress: [██████████████████████████████] 7/7 phases (100%)
 
 ## Performance Metrics
 
@@ -63,6 +63,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Dry-run mode is production default for confidence controller - tests verify observability without side effects (36-02)
 - Use pytest.raises(SystemExit) for argparse errors since they call sys.exit directly (36-02)
 - Use call counter to simulate is_shutdown_requested sequence for exception-during-shutdown tests (36-02)
+- Test percentile calculation with 100 samples for clearer index verification (37-02)
+- Verify exception handling logs timing before exception propagates (37-02)
 
 ### Deferred Issues
 
@@ -102,11 +104,10 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 36-02-PLAN.md (high-level steering functions tests)
+Stopped at: Completed 37-02-PLAN.md (perf_profiler tests)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:discuss-phase 37` - Gather context for CLI tool tests
-2. `/gsd:plan-phase 37` - Plan CLI tests phase
-3. Execute Phase 37 to complete v1.6 milestone
+1. Execute 37-03-PLAN.md (remaining CLI tool tests)
+2. Complete v1.6 milestone and verify 90% coverage
