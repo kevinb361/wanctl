@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 35 of 37 (Core Controller Tests)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase 35 complete
-Last activity: 2026-01-25 - Completed 35-03-PLAN.md
+Plan: 6 of 6 in current phase (COMPLETE)
+Status: Phase 35 complete - all gap closure plans executed
+Last activity: 2026-01-25 - Completed 35-06-PLAN.md
 
 Progress: [██████░░░░░░░░░░░░░░░░░░░░░░░░] 5/7 phases (71%)
 
@@ -50,6 +50,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Baseline freeze tests use WANController directly (not QueueController) to test update_ewma integration (35-02)
 - Use controller_with_mocks fixture pattern returning tuple (ctrl, config, logger) for flexible test setup (35-03)
 - LockAcquisitionError requires (lock_path, age) positional arguments (35-03)
+- Mock ContinuousAutoRate.**new** for isolated instance testing (35-06)
+- Test entry point via source inspection rather than runpy.run_module (35-06)
 
 ### Deferred Issues
 
@@ -89,7 +91,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 35 (35-01 entry points/config, 35-02 state transitions, 35-03 error recovery)
+Stopped at: Completed phase 35 gap closure (35-04 through 35-06)
 Resume file: None
 
 ## Next Steps
