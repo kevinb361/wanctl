@@ -1110,3 +1110,222 @@ class TestDualFallbackFailure:
 
         # Warning should be logged for total connectivity loss
         controller.logger.warning.assert_called()
+
+
+class TestIcmpRecoveryExtended:
+    """Extended ICMP recovery tests for run_cycle integration."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for WANController."""
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.download_factor_down_yellow = 0.96
+        config.download_green_required = 5
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.upload_factor_down_yellow = 0.94
+        config.upload_green_required = 5
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.10.110.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+        return config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.autorate_continuous import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    def test_run_cycle_with_successful_rtt(self, controller, mock_router):
+        """Full cycle should succeed with valid RTT measurement."""
+        with (
+            patch.object(controller, "measure_rtt", return_value=25.0),
+            patch.object(controller, "save_state"),
+        ):
+            result = controller.run_cycle()
+
+        assert result is True
+        mock_router.set_limits.assert_called()
+
+    def test_run_cycle_state_transition_logged(self, controller, mock_logger):
+        """Info log should contain zone and rates."""
+        with (
+            patch.object(controller, "measure_rtt", return_value=25.0),
+            patch.object(controller, "save_state"),
+        ):
+            controller.run_cycle()
+
+        # Check for info log with zone and rates
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        # Should contain zone info like "GREEN" or "YELLOW" and rate info like "DL="
+        assert any("DL=" in call and "UL=" in call for call in info_calls)
+
+
+class TestRunCycleMetrics:
+    """Tests for run_cycle metrics recording."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for WANController with metrics enabled."""
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.download_factor_down_yellow = 0.96
+        config.download_green_required = 5
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.upload_factor_down_yellow = 0.94
+        config.upload_green_required = 5
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.10.110.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = True  # Enabled for these tests
+        config.state_file = MagicMock()
+        return config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.autorate_continuous import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    def test_run_cycle_records_metrics_when_enabled(self, controller):
+        """record_autorate_cycle should be called when metrics are enabled."""
+        with (
+            patch.object(controller, "measure_rtt", return_value=25.0),
+            patch.object(controller, "save_state"),
+            patch("wanctl.autorate_continuous.record_autorate_cycle") as mock_record,
+        ):
+            result = controller.run_cycle()
+
+        assert result is True
+        mock_record.assert_called_once()
+        # Verify it was called with expected params
+        call_kwargs = mock_record.call_args.kwargs
+        assert call_kwargs["wan_name"] == "TestWAN"
+        assert "dl_rate_mbps" in call_kwargs
+        assert "ul_rate_mbps" in call_kwargs
+        assert "baseline_rtt" in call_kwargs
+        assert "load_rtt" in call_kwargs
+
+    def test_run_cycle_skips_metrics_when_disabled(self, controller, mock_config):
+        """record_autorate_cycle should NOT be called when metrics are disabled."""
+        mock_config.metrics_enabled = False
+
+        with (
+            patch.object(controller, "measure_rtt", return_value=25.0),
+            patch.object(controller, "save_state"),
+            patch("wanctl.autorate_continuous.record_autorate_cycle") as mock_record,
+        ):
+            result = controller.run_cycle()
+
+        assert result is True
+        mock_record.assert_not_called()
