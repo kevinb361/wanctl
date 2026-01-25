@@ -92,6 +92,18 @@ Plans:
 
 **Key Results:** `wanctl-history` CLI with --last/--from/--to time queries, --metrics filter, table/JSON/summary output modes. MetricsReader module with query_metrics(), compute_summary(), select_granularity(). 82 new tests (35 reader + 47 CLI).
 
+### Phase 41: API Endpoint
+
+**Goal**: `/metrics/history` endpoint on autorate health server (port 9101) for programmatic access
+**Depends on**: Phase 40
+**Requirements**: API-01, API-02, API-03, API-04
+**Plans**: 1 plan
+**Status**: Ready for execution
+
+Plans:
+
+- [ ] 41-01-PLAN.md — /metrics/history endpoint with query params, pagination, and tests
+
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
 
@@ -308,7 +320,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** v1.7 Metrics History (Phase 40 of 41)
+**Current:** v1.7 Metrics History (Phase 41 of 41)
 
 ### Completed Milestones
 
