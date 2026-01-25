@@ -1726,3 +1726,294 @@ class TestDaemonErrorHandlers:
 
         # Verify atexit.register was called
         mock_atexit_register.assert_called_once()
+
+
+# =============================================================================
+# TestDaemonCleanupHandlers
+# =============================================================================
+
+
+class TestDaemonCleanupHandlers:
+    """Tests for main() finally block exception handlers.
+
+    Covers lines 1758-1802:
+    - save_state exception caught in finally
+    - atexit.unregister exception caught
+    - router.close exception caught and logged
+    - metrics_server.stop exception caught and logged
+    - health_server.shutdown exception caught and logged
+    """
+
+    def setup_method(self):
+        """Reset shutdown state before each test."""
+        reset_shutdown_state()
+
+    def teardown_method(self):
+        """Reset shutdown state after each test."""
+        reset_shutdown_state()
+
+    def test_cleanup_save_state_exception_caught(self, valid_config_yaml, tmp_path):
+        """save_state exception in finally should be caught and cleanup continues."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_wan_ctrl = MagicMock()
+        mock_wan_ctrl.save_state.side_effect = Exception("save failed")
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [tmp_path / "test.lock"]
+        mock_controller.wan_controllers = [
+            {
+                "controller": mock_wan_ctrl,
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            # Should not raise even though save_state fails
+            result = main()
+
+        # Daemon should complete cleanup despite save_state failure
+        assert result is None
+        # save_state should have been called
+        mock_wan_ctrl.save_state.assert_called()
+
+    def test_cleanup_atexit_unregister_exception_caught(self, valid_config_yaml, tmp_path):
+        """atexit.unregister exception should be caught."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [tmp_path / "test.lock"]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": MagicMock(),
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch("wanctl.autorate_continuous.atexit.register"),
+            patch(
+                "wanctl.autorate_continuous.atexit.unregister",
+                side_effect=Exception("unregister failed"),
+            ),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            # Should not raise despite unregister failure
+            result = main()
+
+        assert result is None
+
+    def test_cleanup_router_close_exception_logged(self, valid_config_yaml, tmp_path):
+        """router.close exception should be caught and logged."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_router = MagicMock()
+        mock_router.ssh = MagicMock()
+        mock_router.ssh.close.side_effect = Exception("close failed")
+        mock_wan_ctrl = MagicMock()
+        mock_wan_ctrl.router = mock_router
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [tmp_path / "test.lock"]
+        mock_controller.wan_controllers = [
+            {
+                "controller": mock_wan_ctrl,
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        assert result is None
+        # Verify debug log about close error
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("Error closing router connection" in call for call in debug_calls)
+
+    def test_cleanup_metrics_server_stop_exception_logged(self, valid_config_yaml, tmp_path):
+        """metrics_server.stop exception should be caught and logged."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_logger = MagicMock()
+        mock_metrics_server = MagicMock()
+        mock_metrics_server.stop.side_effect = Exception("stop failed")
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [tmp_path / "test.lock"]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=True,
+                    metrics_host="127.0.0.1",
+                    metrics_port=9100,
+                    health_check_enabled=False,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.start_metrics_server",
+                return_value=mock_metrics_server,
+            ),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        assert result is None
+        # Verify debug log about stop error
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("Error shutting down metrics server" in call for call in debug_calls)
+
+    def test_cleanup_health_server_shutdown_exception_logged(self, valid_config_yaml, tmp_path):
+        """health_server.shutdown exception should be caught and logged."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_logger = MagicMock()
+        mock_health_server = MagicMock()
+        mock_health_server.shutdown.side_effect = Exception("shutdown failed")
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [tmp_path / "test.lock"]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=True,
+                    health_check_host="127.0.0.1",
+                    health_check_port=9101,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.start_health_server",
+                return_value=mock_health_server,
+            ),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        assert result is None
+        # Verify debug log about shutdown error
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("Error shutting down health server" in call for call in debug_calls)
