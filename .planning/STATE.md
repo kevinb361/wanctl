@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 35 of 37 (Core Controller Tests)
-Plan: 6 of 6 in current phase (COMPLETE)
-Status: Phase 35 complete - all gap closure plans executed
-Last activity: 2026-01-25 - Completed 35-06-PLAN.md
+Plan: 5 of 6 in current phase (continued)
+Status: Phase 35 gap closure in progress
+Last activity: 2026-01-25 - Completed 35-05-PLAN.md
 
 Progress: [██████░░░░░░░░░░░░░░░░░░░░░░░░] 5/7 phases (71%)
 
@@ -52,6 +52,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - LockAcquisitionError requires (lock_path, age) positional arguments (35-03)
 - Mock ContinuousAutoRate.**new** for isolated instance testing (35-06)
 - Test entry point via source inspection rather than runpy.run_module (35-06)
+- Use side_effect function for time.monotonic to avoid StopIteration in TCP tests (35-05)
+- Replace real state_manager with mock after controller creation for load/save tests (35-05)
 
 ### Deferred Issues
 
@@ -91,7 +93,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 35 gap closure (35-04 through 35-06)
+Stopped at: Completed 35-05-PLAN.md (connectivity fallback and state persistence tests)
 Resume file: None
 
 ## Next Steps
