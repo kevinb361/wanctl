@@ -466,3 +466,474 @@ class TestQueueTreeSet:
         result = rest_client._handle_queue_tree_set(cmd)
 
         assert result is None
+
+
+# =============================================================================
+# TestQueueResetCounters - Queue Reset Counters Handler Tests
+# =============================================================================
+
+
+class TestQueueResetCounters:
+    """Tests for _handle_queue_reset_counters method."""
+
+    def test_handle_queue_reset_counters_success(self, rest_client, mock_session):
+        """POST to reset-counters endpoint."""
+        # Mock queue ID lookup
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        # Mock POST response
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        cmd = '/queue tree reset-counters [find name="WAN-Download"]'
+        result = rest_client._handle_queue_reset_counters(cmd)
+
+        assert result is not None
+        assert result["status"] == "ok"
+        assert result["queue"] == "WAN-Download"
+        mock_session.post.assert_called_once()
+
+    def test_handle_queue_reset_counters_find_name(self, rest_client, mock_session):
+        """Parses [find name="..."]."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Upload", ".id": "*2"}]
+        mock_session.get.return_value = get_response
+
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        cmd = '/queue tree reset-counters [find name="WAN-Upload"]'
+        result = rest_client._handle_queue_reset_counters(cmd)
+
+        assert result is not None
+        assert result["queue"] == "WAN-Upload"
+
+    def test_handle_queue_reset_counters_where_name(self, rest_client, mock_session):
+        """Parses where name="..." format."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        cmd = '/queue tree reset-counters where name="WAN-Download"'
+        result = rest_client._handle_queue_reset_counters(cmd)
+
+        assert result is not None
+        assert result["queue"] == "WAN-Download"
+
+    def test_handle_queue_reset_counters_no_name(self, rest_client):
+        """Returns None when no name found."""
+        cmd = "/queue tree reset-counters"
+        result = rest_client._handle_queue_reset_counters(cmd)
+        assert result is None
+
+    def test_handle_queue_reset_counters_queue_not_found(self, rest_client, mock_session):
+        """Returns None when queue doesn't exist."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = []
+        mock_session.get.return_value = get_response
+
+        cmd = '/queue tree reset-counters [find name="NonExistent"]'
+        result = rest_client._handle_queue_reset_counters(cmd)
+
+        assert result is None
+
+    def test_handle_queue_reset_counters_post_failure(self, rest_client, mock_session):
+        """Returns None on HTTP error."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        post_response = MagicMock()
+        post_response.ok = False
+        post_response.status_code = 500
+        post_response.text = "Internal Error"
+        mock_session.post.return_value = post_response
+
+        cmd = '/queue tree reset-counters [find name="WAN-Download"]'
+        result = rest_client._handle_queue_reset_counters(cmd)
+
+        assert result is None
+
+
+# =============================================================================
+# TestQueueTreePrint - Queue Tree Print Handler Tests
+# =============================================================================
+
+
+class TestQueueTreePrint:
+    """Tests for _handle_queue_tree_print method."""
+
+    def test_handle_queue_tree_print_all(self, rest_client, mock_session):
+        """GET without filter."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"name": "WAN-Download", ".id": "*1"},
+            {"name": "WAN-Upload", ".id": "*2"},
+        ]
+        mock_session.get.return_value = response
+
+        cmd = "/queue tree print"
+        result = rest_client._handle_queue_tree_print(cmd)
+
+        assert result is not None
+        assert len(result) == 2
+        mock_session.get.assert_called_once()
+
+    def test_handle_queue_tree_print_filtered(self, rest_client, mock_session):
+        """GET with name param."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        cmd = '/queue tree print where name="WAN-Download"'
+        result = rest_client._handle_queue_tree_print(cmd)
+
+        assert result is not None
+        assert len(result) == 1
+        call_kwargs = mock_session.get.call_args[1]
+        assert call_kwargs["params"]["name"] == "WAN-Download"
+
+    def test_handle_queue_tree_print_failure(self, rest_client, mock_session):
+        """Returns None on HTTP error."""
+        response = MagicMock()
+        response.ok = False
+        response.status_code = 500
+        mock_session.get.return_value = response
+
+        cmd = "/queue tree print"
+        result = rest_client._handle_queue_tree_print(cmd)
+
+        assert result is None
+
+
+# =============================================================================
+# TestMangleRule - Mangle Rule Handler Tests
+# =============================================================================
+
+
+class TestMangleRule:
+    """Tests for _handle_mangle_rule method."""
+
+    def test_handle_mangle_rule_enable(self, rest_client, mock_session):
+        """Sets disabled=false."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "steering", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/ip firewall mangle enable [find comment="steering"]'
+        result = rest_client._handle_mangle_rule(cmd)
+
+        assert result is not None
+        assert result["status"] == "ok"
+        assert result["disabled"] == "false"
+        mock_session.patch.assert_called_once()
+        call_kwargs = mock_session.patch.call_args[1]
+        assert call_kwargs["json"]["disabled"] == "false"
+
+    def test_handle_mangle_rule_disable(self, rest_client, mock_session):
+        """Sets disabled=true."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "steering", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/ip firewall mangle disable [find comment="steering"]'
+        result = rest_client._handle_mangle_rule(cmd)
+
+        assert result is not None
+        assert result["disabled"] == "true"
+        call_kwargs = mock_session.patch.call_args[1]
+        assert call_kwargs["json"]["disabled"] == "true"
+
+    def test_handle_mangle_rule_no_comment(self, rest_client):
+        """Returns None when no comment."""
+        cmd = "/ip firewall mangle enable"
+        result = rest_client._handle_mangle_rule(cmd)
+        assert result is None
+
+    def test_handle_mangle_rule_unknown_action(self, rest_client):
+        """Returns None when neither enable/disable."""
+        cmd = '/ip firewall mangle print [find comment="steering"]'
+        result = rest_client._handle_mangle_rule(cmd)
+        assert result is None
+
+    def test_handle_mangle_rule_not_found(self, rest_client, mock_session):
+        """Returns None when rule doesn't exist."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = []
+        mock_session.get.return_value = get_response
+
+        cmd = '/ip firewall mangle enable [find comment="nonexistent"]'
+        result = rest_client._handle_mangle_rule(cmd)
+
+        assert result is None
+
+    def test_handle_mangle_rule_patch_failure(self, rest_client, mock_session):
+        """Returns None on HTTP error."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "steering", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = False
+        patch_response.status_code = 403
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/ip firewall mangle enable [find comment="steering"]'
+        result = rest_client._handle_mangle_rule(cmd)
+
+        assert result is None
+
+
+# =============================================================================
+# TestResourceIdLookup - Resource ID Lookup Tests
+# =============================================================================
+
+
+class TestResourceIdLookup:
+    """Tests for _find_resource_id and related methods."""
+
+    def test_find_resource_id_cache_hit(self, rest_client, mock_session):
+        """Returns cached ID without API call."""
+        # Pre-populate cache
+        rest_client._queue_id_cache["WAN-Download"] = "*1"
+
+        result = rest_client._find_queue_id("WAN-Download")
+
+        assert result == "*1"
+        # No API call should be made
+        mock_session.get.assert_not_called()
+
+    def test_find_resource_id_cache_miss_then_hit(self, rest_client, mock_session):
+        """Caches result for next call."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        # First call - cache miss
+        result1 = rest_client._find_queue_id("WAN-Download")
+        assert result1 == "*1"
+        assert mock_session.get.call_count == 1
+
+        # Second call - cache hit
+        result2 = rest_client._find_queue_id("WAN-Download")
+        assert result2 == "*1"
+        # Should not make another API call
+        assert mock_session.get.call_count == 1
+
+    def test_find_resource_id_no_cache(self, rest_client, mock_session):
+        """use_cache=False always queries API."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        # Pre-populate cache
+        rest_client._queue_id_cache["WAN-Download"] = "*old"
+
+        # With use_cache=False, should query API despite cache
+        result = rest_client._find_queue_id("WAN-Download", use_cache=False)
+
+        assert result == "*1"
+        mock_session.get.assert_called_once()
+
+    def test_find_resource_id_not_found(self, rest_client, mock_session):
+        """Returns None when resource missing."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = []
+        mock_session.get.return_value = response
+
+        result = rest_client._find_queue_id("NonExistent")
+
+        assert result is None
+
+    def test_find_resource_id_network_error(self, rest_client, mock_session):
+        """Returns None on RequestException."""
+        mock_session.get.side_effect = requests.RequestException("Connection error")
+
+        result = rest_client._find_queue_id("WAN-Download")
+
+        assert result is None
+
+    def test_find_queue_id_uses_queue_cache(self, rest_client, mock_session):
+        """Uses _queue_id_cache."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        rest_client._find_queue_id("WAN-Download")
+
+        assert "WAN-Download" in rest_client._queue_id_cache
+        assert rest_client._queue_id_cache["WAN-Download"] == "*1"
+
+    def test_find_mangle_rule_id_uses_mangle_cache(self, rest_client, mock_session):
+        """Uses _mangle_id_cache."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"comment": "steering", ".id": "*5"}]
+        mock_session.get.return_value = response
+
+        rest_client._find_mangle_rule_id("steering")
+
+        assert "steering" in rest_client._mangle_id_cache
+        assert rest_client._mangle_id_cache["steering"] == "*5"
+
+
+# =============================================================================
+# TestHighLevelAPI - High-Level API Method Tests
+# =============================================================================
+
+
+class TestHighLevelAPI:
+    """Tests for high-level API methods."""
+
+    def test_set_queue_limit_success(self, rest_client, mock_session):
+        """Updates queue limit via PATCH."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        result = rest_client.set_queue_limit("WAN-Download", 500_000_000)
+
+        assert result is True
+        mock_session.patch.assert_called_once()
+        call_kwargs = mock_session.patch.call_args[1]
+        assert call_kwargs["json"]["max-limit"] == "500000000"
+
+    def test_set_queue_limit_queue_not_found(self, rest_client, mock_session):
+        """Returns False when queue not found."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = []
+        mock_session.get.return_value = response
+
+        result = rest_client.set_queue_limit("NonExistent", 500_000_000)
+
+        assert result is False
+
+    def test_set_queue_limit_patch_failure(self, rest_client, mock_session):
+        """Returns False on HTTP error."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = False
+        patch_response.status_code = 400
+        mock_session.patch.return_value = patch_response
+
+        result = rest_client.set_queue_limit("WAN-Download", 500_000_000)
+
+        assert result is False
+
+    def test_get_queue_stats_success(self, rest_client, mock_session):
+        """Returns queue dict from GET."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"name": "WAN-Download", ".id": "*1", "max-limit": "500000000", "rate": "100000"}
+        ]
+        mock_session.get.return_value = response
+
+        result = rest_client.get_queue_stats("WAN-Download")
+
+        assert result is not None
+        assert result["name"] == "WAN-Download"
+        assert result["max-limit"] == "500000000"
+
+    def test_get_queue_stats_not_found(self, rest_client, mock_session):
+        """Returns None when queue missing."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = []
+        mock_session.get.return_value = response
+
+        result = rest_client.get_queue_stats("NonExistent")
+
+        assert result is None
+
+    def test_get_queue_stats_network_error(self, rest_client, mock_session):
+        """Returns None on RequestException."""
+        mock_session.get.side_effect = requests.RequestException("Connection error")
+
+        result = rest_client.get_queue_stats("WAN-Download")
+
+        assert result is None
+
+    def test_test_connection_success(self, rest_client, mock_session):
+        """Returns True on ok response."""
+        response = MagicMock()
+        response.ok = True
+        mock_session.get.return_value = response
+
+        result = rest_client.test_connection()
+
+        assert result is True
+        mock_session.get.assert_called_once()
+        call_args = mock_session.get.call_args[0]
+        assert "system/resource" in call_args[0]
+
+    def test_test_connection_failure(self, rest_client, mock_session):
+        """Returns False on network error."""
+        mock_session.get.side_effect = requests.RequestException("Connection refused")
+
+        result = rest_client.test_connection()
+
+        assert result is False
+
+    def test_close_closes_session(self, rest_client, mock_session):
+        """Calls session.close()."""
+        rest_client.close()
+
+        mock_session.close.assert_called_once()
+        assert rest_client._session is None
+
+    def test_close_safe_when_no_session(self, rest_client):
+        """Handles None session."""
+        rest_client._session = None
+
+        # Should not raise
+        rest_client.close()
+
+    def test_close_safe_on_exception(self, rest_client, mock_session):
+        """Handles exception during close."""
+        mock_session.close.side_effect = RuntimeError("Close failed")
+
+        # Should not raise
+        rest_client.close()
+        assert rest_client._session is None
