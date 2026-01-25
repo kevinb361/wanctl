@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 36 of 37 (Steering Daemon Tests)
-Plan: 1 of 2 in phase
-Status: In progress
-Last activity: 2026-01-25 - Completed 36-01-PLAN.md
+Plan: 2 of 2 in phase (COMPLETE)
+Status: Phase complete
+Last activity: 2026-01-25 - Completed 36-02-PLAN.md
 
 Progress: [████████████░░░░░░░░░░░░░░░░░░] 6/7 phases (86%)
 
@@ -60,6 +60,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Use tmp_path for BaselineLoader file I/O tests (36-01)
 - Create valid_config_dict fixture as base for SteeringConfig test variations (36-01)
 - Test X flag position variations (" X ", "\tX\t", "\tX ", " X\t") for MikroTik parsing (36-01)
+- Dry-run mode is production default for confidence controller - tests verify observability without side effects (36-02)
+- Use pytest.raises(SystemExit) for argparse errors since they call sys.exit directly (36-02)
+- Use call counter to simulate is_shutdown_requested sequence for exception-during-shutdown tests (36-02)
 
 ### Deferred Issues
 
@@ -99,11 +102,10 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 36-01-PLAN.md (foundational steering classes tests)
+Stopped at: Completed 36-02-PLAN.md (high-level steering functions tests)
 Resume file: None
 
 ## Next Steps
 
-1. Execute 36-02-PLAN.md (SteeringDaemon and run_cycle tests)
-2. Complete Phase 36 verification
-3. Execute Phase 37 to complete v1.6 milestone
+1. Complete Phase 36 verification (run 36-VERIFICATION)
+2. Execute Phase 37 to complete v1.6 milestone
