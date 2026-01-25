@@ -17,8 +17,8 @@ from wanctl.calibrate import (
     measure_throughput_upload,
     run_calibration,
     set_cake_limit,
-    test_netperf_server,
-    test_ssh_connectivity,
+    check_netperf_server,
+    check_ssh_connectivity,
 )
 
 # =============================================================================
@@ -341,32 +341,32 @@ class TestConnectivity:
     """Tests for SSH and netperf connectivity functions."""
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_ssh_connectivity_success(self, mock_run):
+    def check_ssh_connectivity_success(self, mock_run):
         """Test SSH connectivity returns True on success."""
         mock_run.return_value = MagicMock(returncode=0, stdout="ok\n", stderr="")
-        result = test_ssh_connectivity("192.168.1.1", "admin")
+        result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is True
         assert mock_run.called
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_ssh_connectivity_failure(self, mock_run):
+    def check_ssh_connectivity_failure(self, mock_run):
         """Test SSH connectivity returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Connection refused")
-        result = test_ssh_connectivity("192.168.1.1", "admin")
+        result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_ssh_connectivity_timeout(self, mock_run):
+    def check_ssh_connectivity_timeout(self, mock_run):
         """Test SSH connectivity returns False on timeout."""
         mock_run.side_effect = TimeoutExpired(cmd="ssh", timeout=5)
-        result = test_ssh_connectivity("192.168.1.1", "admin")
+        result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_ssh_connectivity_with_ssh_key(self, mock_run):
+    def check_ssh_connectivity_with_ssh_key(self, mock_run):
         """Test SSH connectivity includes -i flag with SSH key."""
         mock_run.return_value = MagicMock(returncode=0, stdout="ok\n", stderr="")
-        result = test_ssh_connectivity("192.168.1.1", "admin", ssh_key="/path/to/key")
+        result = check_ssh_connectivity("192.168.1.1", "admin", ssh_key="/path/to/key")
         assert result is True
         # Verify -i and key path appear in the command
         call_args = mock_run.call_args[0][0]  # First positional arg is the command list
@@ -374,45 +374,45 @@ class TestConnectivity:
         assert "/path/to/key" in call_args
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_ssh_connectivity_generic_exception(self, mock_run):
+    def check_ssh_connectivity_generic_exception(self, mock_run):
         """Test SSH connectivity returns False on generic exception."""
         mock_run.side_effect = OSError("Network unreachable")
-        result = test_ssh_connectivity("192.168.1.1", "admin")
+        result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_netperf_server_success(self, mock_run):
+    def check_netperf_server_success(self, mock_run):
         """Test netperf server returns True on success."""
         mock_run.return_value = MagicMock(returncode=0, stdout=NETPERF_OUTPUT_SUCCESS, stderr="")
-        result = test_netperf_server("netperf.bufferbloat.net")
+        result = check_netperf_server("netperf.bufferbloat.net")
         assert result is True
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_netperf_server_failure(self, mock_run):
+    def check_netperf_server_failure(self, mock_run):
         """Test netperf server returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Connection refused")
-        result = test_netperf_server("netperf.bufferbloat.net")
+        result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_netperf_server_not_installed(self, mock_run):
+    def check_netperf_server_not_installed(self, mock_run):
         """Test netperf server returns False when netperf not installed."""
         mock_run.side_effect = FileNotFoundError("netperf not found")
-        result = test_netperf_server("netperf.bufferbloat.net")
+        result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_netperf_server_timeout(self, mock_run):
+    def check_netperf_server_timeout(self, mock_run):
         """Test netperf server returns False on timeout."""
         mock_run.side_effect = TimeoutExpired(cmd="netperf", timeout=30)
-        result = test_netperf_server("netperf.bufferbloat.net")
+        result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
-    def test_netperf_server_generic_exception(self, mock_run):
+    def check_netperf_server_generic_exception(self, mock_run):
         """Test netperf server returns False on generic exception."""
         mock_run.side_effect = OSError("Network unreachable")
-        result = test_netperf_server("netperf.bufferbloat.net")
+        result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
 
@@ -1021,7 +1021,7 @@ class TestMain:
 class TestStepHelpers:
     """Tests for calibration step helper functions."""
 
-    @patch("wanctl.calibrate.test_ssh_connectivity")
+    @patch("wanctl.calibrate.check_ssh_connectivity")
     def test_step_connectivity_ssh_failure(self, mock_ssh):
         """Test _step_connectivity_tests returns (False, False) on SSH failure."""
         from wanctl.calibrate import _step_connectivity_tests
@@ -1033,8 +1033,8 @@ class TestStepHelpers:
         assert success is False
         assert skip_throughput is False
 
-    @patch("wanctl.calibrate.test_ssh_connectivity")
-    @patch("wanctl.calibrate.test_netperf_server")
+    @patch("wanctl.calibrate.check_ssh_connectivity")
+    @patch("wanctl.calibrate.check_netperf_server")
     @patch("wanctl.calibrate.is_shutdown_requested")
     def test_step_connectivity_netperf_failure(self, mock_shutdown, mock_netperf, mock_ssh):
         """Test _step_connectivity_tests returns (True, True) on netperf failure."""
@@ -1049,8 +1049,8 @@ class TestStepHelpers:
         assert success is True
         assert skip_throughput is True  # Skip throughput since netperf failed
 
-    @patch("wanctl.calibrate.test_ssh_connectivity")
-    @patch("wanctl.calibrate.test_netperf_server")
+    @patch("wanctl.calibrate.check_ssh_connectivity")
+    @patch("wanctl.calibrate.check_netperf_server")
     @patch("wanctl.calibrate.is_shutdown_requested")
     def test_step_connectivity_full_success(self, mock_shutdown, mock_netperf, mock_ssh):
         """Test _step_connectivity_tests returns (True, False) on full success."""
@@ -1065,7 +1065,7 @@ class TestStepHelpers:
         assert success is True
         assert skip_throughput is False
 
-    @patch("wanctl.calibrate.test_ssh_connectivity")
+    @patch("wanctl.calibrate.check_ssh_connectivity")
     @patch("wanctl.calibrate.is_shutdown_requested")
     def test_step_connectivity_interrupt_after_ssh(self, mock_shutdown, mock_ssh):
         """Test _step_connectivity_tests returns (False, False) on interrupt."""

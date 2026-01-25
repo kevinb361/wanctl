@@ -182,8 +182,8 @@ class CalibrationResult:
 # =============================================================================
 
 
-def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> bool:
-    """Test SSH connectivity to router"""
+def check_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> bool:
+    """Check SSH connectivity to router."""
     print_step(f"Testing SSH connectivity to {user}@{host}...")
 
     cmd = ["ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes"]
@@ -209,8 +209,8 @@ def test_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> b
         return False
 
 
-def test_netperf_server(host: str) -> bool:
-    """Test netperf server connectivity"""
+def check_netperf_server(host: str) -> bool:
+    """Check netperf server connectivity."""
     print_step(f"Testing netperf server at {host}...")
 
     cmd = ["netperf", "-H", host, "-t", "TCP_STREAM", "-l", "2"]
@@ -637,7 +637,7 @@ def _step_connectivity_tests(
     """
     print_header("Step 1: Connectivity Tests")
 
-    if not test_ssh_connectivity(router_host, router_user, ssh_key):
+    if not check_ssh_connectivity(router_host, router_user, ssh_key):
         print_error("Router SSH connectivity failed. Please check:")
         print_info("  - Router IP/hostname is correct")
         print_info("  - SSH key is configured (if using key auth)")
@@ -649,7 +649,7 @@ def _step_connectivity_tests(
         print("\n\nCalibration interrupted.")
         return False, False
 
-    if not test_netperf_server(netperf_host):
+    if not check_netperf_server(netperf_host):
         print_warning("Netperf server not reachable - will measure RTT only")
         return True, True
     else:
