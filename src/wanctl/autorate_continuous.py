@@ -609,11 +609,14 @@ class QueueController:
         self.green_required = green_required  # Consecutive GREEN cycles before stepping up
         self.soft_red_required = 1  # Reduced from 3 for faster response (50ms vs 150ms)
 
+        # Track previous state for transition detection
+        self._last_zone: str = "GREEN"
+
     def adjust(
         self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float
-    ) -> tuple[str, int]:
+    ) -> tuple[str, int, str | None]:
         """
-        Apply 3-zone logic with hysteresis and return (zone, new_rate)
+        Apply 3-zone logic with hysteresis and return (zone, new_rate, transition_reason)
 
         Zones:
         - GREEN: delta <= target_delta -> slowly increase rate (requires consecutive green cycles)
@@ -623,6 +626,10 @@ class QueueController:
         Hysteresis:
         - RED: Immediate step-down on 1 red sample
         - GREEN: Require 5 consecutive green cycles before stepping up (prevents seesaw)
+
+        Returns:
+            (zone, new_rate, transition_reason)
+            transition_reason is None if no state change, otherwise explains why
         """
         delta = load_rtt - baseline_rtt
 
@@ -661,7 +668,25 @@ class QueueController:
         new_rate = enforce_rate_bounds(new_rate, floor=self.floor_red_bps, ceiling=self.ceiling_bps)
 
         self.current_rate = new_rate
-        return zone, new_rate
+
+        # Track state transitions with reason
+        transition_reason: str | None = None
+        if zone != self._last_zone:
+            if zone == "RED":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms exceeded warn threshold {warn_delta}ms"
+                )
+            elif zone == "YELLOW":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms exceeded target threshold {target_delta}ms"
+                )
+            elif zone == "GREEN":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms fell below target threshold {target_delta}ms"
+                )
+            self._last_zone = zone
+
+        return zone, new_rate, transition_reason
 
     def adjust_4state(
         self,
@@ -670,17 +695,17 @@ class QueueController:
         green_threshold: float,
         soft_red_threshold: float,
         hard_red_threshold: float,
-    ) -> tuple[str, int]:
+    ) -> tuple[str, int, str | None]:
         """
-        Apply 4-state logic with hysteresis and return (state, new_rate)
+        Apply 4-state logic with hysteresis and return (state, new_rate, transition_reason)
 
         Phase 2A: Download-only (Spectrum download)
         Upload continues to use 3-state adjust() method
 
         States (based on RTT delta from baseline):
-        - GREEN: delta ≤ 15ms -> slowly increase rate (requires consecutive green cycles)
-        - YELLOW: 15ms < delta ≤ 45ms -> hold steady
-        - SOFT_RED: 45ms < delta ≤ 80ms -> clamp to soft_red floor and HOLD (no steering)
+        - GREEN: delta <= 15ms -> slowly increase rate (requires consecutive green cycles)
+        - YELLOW: 15ms < delta <= 45ms -> hold steady
+        - SOFT_RED: 45ms < delta <= 80ms -> clamp to soft_red floor and HOLD (no steering)
         - RED: delta > 80ms -> aggressive backoff (immediate)
 
         Hysteresis:
@@ -688,6 +713,10 @@ class QueueController:
         - SOFT_RED: Requires 3 consecutive samples (~6 seconds)
         - GREEN: Requires 5 consecutive samples before stepping up
         - YELLOW: Immediate
+
+        Returns:
+            (zone, new_rate, transition_reason)
+            transition_reason is None if no state change, otherwise explains why
         """
         delta = load_rtt - baseline_rtt
 
@@ -757,7 +786,29 @@ class QueueController:
         new_rate = enforce_rate_bounds(new_rate, floor=state_floor, ceiling=self.ceiling_bps)
 
         self.current_rate = new_rate
-        return zone, new_rate
+
+        # Track state transitions with reason
+        transition_reason: str | None = None
+        if zone != self._last_zone:
+            if zone == "RED":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms exceeded hard_red threshold {hard_red_threshold}ms"
+                )
+            elif zone == "SOFT_RED":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms exceeded soft_red threshold {soft_red_threshold}ms"
+                )
+            elif zone == "YELLOW":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms exceeded green threshold {green_threshold}ms"
+                )
+            elif zone == "GREEN":
+                transition_reason = (
+                    f"RTT delta {delta:.1f}ms fell below green threshold {green_threshold}ms"
+                )
+            self._last_zone = zone
+
+        return zone, new_rate, transition_reason
 
 
 # =============================================================================
@@ -1287,7 +1338,7 @@ class WANController:
         self.previous_load_rtt = self.load_rtt
 
         # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
-        dl_zone, dl_rate = self.download.adjust_4state(
+        dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
             self.load_rtt,
             self.green_threshold,
@@ -1296,7 +1347,7 @@ class WANController:
         )
 
         # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
-        ul_zone, ul_rate = self.upload.adjust(
+        ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
             self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
         )
 
@@ -1330,6 +1381,26 @@ class WANController:
                 ),
             ]
             self._metrics_writer.write_metrics_batch(metrics_batch)
+
+            # Record state transition if occurred (with reason in labels)
+            if dl_transition_reason:
+                self._metrics_writer.write_metric(
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
+                    value=float(self._encode_state(dl_zone)),
+                    labels={"direction": "download", "reason": dl_transition_reason},
+                    granularity="raw",
+                )
+            if ul_transition_reason:
+                self._metrics_writer.write_metric(
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
+                    value=float(self._encode_state(ul_zone)),
+                    labels={"direction": "upload", "reason": ul_transition_reason},
+                    granularity="raw",
+                )
 
         # Apply rate changes (with flash wear + rate limit protection)
         if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
