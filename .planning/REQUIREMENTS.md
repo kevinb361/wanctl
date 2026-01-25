@@ -23,11 +23,11 @@ Requirements for Test Coverage 90% milestone. Each maps to roadmap phases.
 
 ### Steering Daemon Tests
 
-- [ ] **STEER-01**: steering/daemon.py coverage >=90% (currently 44%)
-- [ ] **STEER-02**: Daemon lifecycle (start/stop/restart) tested
-- [ ] **STEER-03**: Routing decision logic tested
-- [ ] **STEER-04**: Confidence-based steering paths tested
-- [ ] **STEER-05**: Congestion assessment integration tested
+- [x] **STEER-01**: steering/daemon.py coverage >=90% (91.0%) ✓
+- [x] **STEER-02**: Daemon lifecycle (start/stop/restart) tested ✓
+- [x] **STEER-03**: Routing decision logic tested ✓
+- [x] **STEER-04**: Confidence-based steering paths tested ✓
+- [x] **STEER-05**: Congestion assessment integration tested ✓
 
 ### CLI Tool Tests
 
@@ -95,11 +95,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORE-03     | Phase 35 | Pending  |
 | CORE-04     | Phase 35 | Pending  |
 | CORE-05     | Phase 35 | Pending  |
-| STEER-01    | Phase 36 | Pending  |
-| STEER-02    | Phase 36 | Pending  |
-| STEER-03    | Phase 36 | Pending  |
-| STEER-04    | Phase 36 | Pending  |
-| STEER-05    | Phase 36 | Pending  |
+| STEER-01    | Phase 36 | Complete |
+| STEER-02    | Phase 36 | Complete |
+| STEER-03    | Phase 36 | Complete |
+| STEER-04    | Phase 36 | Complete |
+| STEER-05    | Phase 36 | Complete |
 | CLI-01      | Phase 37 | Pending  |
 | CLI-02      | Phase 37 | Pending  |
 | CLI-03      | Phase 37 | Pending  |

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - Phase 35 complete
+**Current focus:** v1.6 Test Coverage 90% - Phase 36 complete
 
 ## Current Position
 
-Phase: 36 of 37 (Steering Daemon Tests)
+Phase: 36 of 37 (Steering Daemon Tests) - COMPLETE
 Plan: 2 of 2 in phase (COMPLETE)
-Status: Phase complete
-Last activity: 2026-01-25 - Completed 36-02-PLAN.md
+Status: Phase 36 complete, verified (91.0% daemon.py coverage)
+Last activity: 2026-01-25 - Completed phase 36 execution
 
 Progress: [████████████░░░░░░░░░░░░░░░░░░] 6/7 phases (86%)
 
@@ -107,5 +107,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Complete Phase 36 verification (run 36-VERIFICATION)
-2. Execute Phase 37 to complete v1.6 milestone
+1. `/gsd:discuss-phase 37` - Gather context for CLI tool tests
+2. `/gsd:plan-phase 37` - Plan CLI tests phase
+3. Execute Phase 37 to complete v1.6 milestone
