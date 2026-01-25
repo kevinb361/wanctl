@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 38 of 41 (Storage Foundation)
-Plan: 01 of 02 complete
-Status: In progress
-Last activity: 2026-01-25 — Completed 38-01-PLAN.md
+Plan: 02 of 02 complete
+Status: Phase complete
+Last activity: 2026-01-25 — Completed 38-02-PLAN.md
 
-Progress: [== ] 14% (1/7 plans)
+Progress: [==== ] 29% (2/7 plans)
 
 ## Performance Metrics
 
@@ -46,6 +46,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Configurable retention (default 7 days)
 - Use isolation_level=None for WAL mode (Python 3.12+ compatibility)
 - MetricsWriter singleton with \_reset_instance for test isolation
+- Batch deletion in 10000-row chunks to avoid blocking daemon
+- MODE aggregation for state metrics, AVG for RTT/rate
+- VACUUM only after 100000+ deletions (expensive operation)
 
 ### Deferred Issues
 
@@ -86,11 +89,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 38-01-PLAN.md
+Stopped at: Completed 38-02-PLAN.md (Phase 38 complete)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:execute-phase 38-02` — Execute Storage Tests plan
-2. Proceed to Phase 39 (Data Recording)
-3. Continue through Phase 40-41
+1. Proceed to Phase 39 (Data Recording)
+2. Continue through Phase 40-41 (Query API, Cleanup)
