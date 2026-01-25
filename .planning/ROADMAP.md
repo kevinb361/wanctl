@@ -41,9 +41,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage ✓
   - [x] 32-01-PLAN.md - REST client test coverage (routeros_rest.py)
   - [x] 32-02-PLAN.md - SSH client and base class test coverage
-- [ ] **Phase 33: State & Infrastructure Tests** - State manager and utility modules
-  - [ ] 33-01-PLAN.md - State manager test coverage (state_manager.py)
-  - [ ] 33-02-PLAN.md - Infrastructure utilities test coverage (error_handling, signal, systemd, path)
+- [x] **Phase 33: State & Infrastructure Tests** - State manager and utility modules ✓
+  - [x] 33-01-PLAN.md - State manager test coverage (state_manager.py)
+  - [x] 33-02-PLAN.md - Infrastructure utilities test coverage (error_handling, signal, systemd, path)
 - [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
 - [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
@@ -248,7 +248,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.6 Phase 32 planned (2 plans)**
+**Current: v1.6 Phase 33 complete (2 plans)**
 
 ### Completed Milestones
 
@@ -269,7 +269,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | -------------------------------- | -------------- | ----------- | ---------- |
 | 31. Coverage Infrastructure      | 1/1            | Complete    | 2026-01-24 |
 | 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
-| 33. State & Infrastructure Tests | 0/2            | Not started | -          |
+| 33. State & Infrastructure Tests | 2/2            | Complete    | 2026-01-25 |
 | 34. Metrics & Measurement Tests  | 0/2            | Not started | -          |
 | 35. Core Controller Tests        | 0/3            | Not started | -          |
 | 36. Steering Daemon Tests        | 0/2            | Not started | -          |
