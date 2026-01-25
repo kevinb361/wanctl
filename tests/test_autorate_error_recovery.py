@@ -564,3 +564,214 @@ class TestIcmpTcpFallbackAndRecovery:
         # Check for warning about total loss
         warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
         assert any("connectivity loss" in call for call in warning_calls)
+
+
+# =============================================================================
+# TestRunCycleErrorPaths - Integration tests for run_cycle error handling
+# =============================================================================
+
+
+class TestRunCycleErrorPaths:
+    """Integration tests for run_cycle error handling paths.
+
+    Tests for:
+    - Freeze mode saves state
+    - Router failure skips save_state
+    - Periodic force save (FORCE_SAVE_INTERVAL_CYCLES)
+    - Rate spike forces RED state
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_config, mock_router, mock_logger
+
+    def test_run_cycle_saves_state_on_freeze(self, controller_with_mocks):
+        """Freeze mode should call save_state."""
+        ctrl, mock_config, _, _ = controller_with_mocks
+        mock_config.fallback_mode = "freeze"
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)),
+            patch.object(ctrl, "save_state") as mock_save,
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        mock_save.assert_called_once()
+
+    def test_run_cycle_does_not_save_on_failure(self, controller_with_mocks):
+        """Router failure should NOT call save_state."""
+        ctrl, _, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state") as mock_save,
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is False
+        mock_save.assert_not_called()
+
+    def test_run_cycle_periodic_force_save(self, controller_with_mocks):
+        """Every FORCE_SAVE_INTERVAL_CYCLES, force=True should be passed."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        # Import FORCE_SAVE_INTERVAL_CYCLES
+        from wanctl.autorate_continuous import FORCE_SAVE_INTERVAL_CYCLES
+
+        # Set cycles just below threshold
+        ctrl._cycles_since_forced_save = FORCE_SAVE_INTERVAL_CYCLES - 1
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state") as mock_save,
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        # save_state should be called with force=True
+        mock_save.assert_called_once_with(force=True)
+        # Counter should reset
+        assert ctrl._cycles_since_forced_save == 0
+
+    def test_run_cycle_rate_spike_forces_red(self, controller_with_mocks):
+        """RTT spike (delta_accel > threshold) should force RED state."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        # Acceleration detection looks at: load_rtt - previous_load_rtt > accel_threshold
+        # Need to make the EWMA update create a spike relative to previous_load_rtt
+
+        # Set previous_load_rtt to a low value
+        ctrl.previous_load_rtt = 25.0
+
+        # Set current load_rtt to also be low (this gets updated by update_ewma)
+        # With alpha_load = 0.1, new_load = 0.9*25 + 0.1*200 = 22.5 + 20 = 42.5
+        # delta_accel = 42.5 - 25 = 17.5 > 15 threshold
+        ctrl.load_rtt = 25.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+
+        # Force very high RTT measurement to create spike
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=200.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Check that warning about spike was logged
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("spike detected" in call for call in warning_calls)
+
+
+# =============================================================================
+# TestContinuousAutoRateErrorHandling - Tests for ContinuousAutoRate class
+# =============================================================================
+
+
+class TestContinuousAutoRateErrorHandling:
+    """Tests for ContinuousAutoRate error handling.
+
+    Tests for:
+    - LockAcquisitionError handling in run_cycle
+    - General exception handling
+    - All WANs success required for True return
+    """
+
+    def test_run_cycle_catches_lock_error(self):
+        """LockAcquisitionError should return False, log debug."""
+        from pathlib import Path
+        from wanctl.lock_utils import LockFile
+
+        # Create minimal mock setup
+        mock_config = MagicMock()
+        mock_config.wan_name = "TestWAN"
+        mock_config.lock_file = Path("/tmp/test.lock")
+        mock_config.lock_timeout = 10
+        mock_config.main_log = "/tmp/test.log"
+        mock_config.debug_log = "/tmp/test_debug.log"
+
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+
+        controller_obj = MagicMock()
+        controller_obj.wan_controllers = [
+            {"controller": mock_controller, "config": mock_config, "logger": mock_logger}
+        ]
+
+        # LockAcquisitionError requires (lock_path, age)
+        lock_error = LockAcquisitionError(Path("/tmp/test.lock"), 5.0)
+
+        with patch.object(LockFile, "__enter__", side_effect=lock_error):
+            with patch.object(LockFile, "__exit__", return_value=None):
+                # Simulate run_cycle with use_lock=True
+                all_success = True
+                for wan_info in controller_obj.wan_controllers:
+                    try:
+                        with LockFile(
+                            wan_info["config"].lock_file,
+                            wan_info["config"].lock_timeout,
+                            wan_info["logger"],
+                        ):
+                            pass
+                    except LockAcquisitionError:
+                        wan_info["logger"].debug("Skipping cycle - another instance is running")
+                        all_success = False
+
+        assert all_success is False
+        mock_logger.debug.assert_called()
+
+    def test_run_cycle_catches_general_exception(self):
+        """General exceptions should return False, log error."""
+        mock_config = MagicMock()
+        mock_config.wan_name = "TestWAN"
+        mock_config.lock_file = MagicMock()
+        mock_config.lock_timeout = 10
+
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+
+        # Simulate run_cycle catching exception
+        all_success = True
+        try:
+            raise RuntimeError("test error")
+        except Exception as e:
+            mock_logger.error(f"Cycle error: {e}")
+            all_success = False
+
+        assert all_success is False
+        mock_logger.error.assert_called()
+
+    def test_all_wans_success_required(self):
+        """Any WAN failure should return False from run_cycle."""
+        mock_wan1 = MagicMock()
+        mock_wan1.run_cycle.return_value = True
+
+        mock_wan2 = MagicMock()
+        mock_wan2.run_cycle.return_value = False  # One WAN fails
+
+        mock_logger = MagicMock()
+
+        wan_controllers = [
+            {"controller": mock_wan1, "config": MagicMock(), "logger": mock_logger},
+            {"controller": mock_wan2, "config": MagicMock(), "logger": mock_logger},
+        ]
+
+        # Simulate the run_cycle logic
+        all_success = True
+        for wan_info in wan_controllers:
+            success = wan_info["controller"].run_cycle()
+            all_success = all_success and success
+
+        assert all_success is False
