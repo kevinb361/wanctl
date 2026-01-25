@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest
+          pip install pytest pytest-cov
           pip install pyyaml paramiko requests pexpect
 
       - name: Run tests
