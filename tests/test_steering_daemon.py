@@ -1848,3 +1848,505 @@ class TestRouterOSController:
         mock_logger.error.assert_any_call(
             "Steering rule disable verification failed after retries"
         )
+
+
+class TestBaselineLoader:
+    """Tests for BaselineLoader class.
+
+    Tests baseline RTT loading from autorate state file:
+    - File not found returns None
+    - Valid baseline within bounds returns float
+    - Baseline below min bound returns None
+    - Baseline above max bound returns None
+    - Missing 'ewma' key returns None
+    - Missing 'baseline_rtt' in ewma returns None
+    - JSON parse error returns None
+    - Non-numeric baseline_rtt returns None
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for BaselineLoader."""
+        config = MagicMock()
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        return config
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    # =========================================================================
+    # File not found tests
+    # =========================================================================
+
+    def test_file_not_found_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None when file not found."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        mock_config.primary_state_file = tmp_path / "nonexistent_state.json"
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "not found" in str(mock_logger.warning.call_args)
+
+    # =========================================================================
+    # Valid baseline tests
+    # =========================================================================
+
+    def test_valid_baseline_within_bounds(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns float for valid baseline within bounds."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result == 25.0
+        mock_logger.debug.assert_called()
+
+    def test_baseline_at_min_bound(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt accepts baseline exactly at min bound."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 10.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result == 10.0
+
+    def test_baseline_at_max_bound(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt accepts baseline exactly at max bound."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 60.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result == 60.0
+
+    # =========================================================================
+    # Out of bounds tests
+    # =========================================================================
+
+    def test_baseline_below_min_bound_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None when baseline below min bound."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 5.0}}')  # Below 10.0
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "out of bounds" in str(mock_logger.warning.call_args)
+        assert "possible autorate compromise" in str(mock_logger.warning.call_args)
+
+    def test_baseline_above_max_bound_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None when baseline above max bound."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 100.0}}')  # Above 60.0
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "out of bounds" in str(mock_logger.warning.call_args)
+
+    # =========================================================================
+    # Missing keys tests
+    # =========================================================================
+
+    def test_missing_ewma_key_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None when 'ewma' key missing."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"other_key": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "not found in autorate state file" in str(mock_logger.warning.call_args)
+
+    def test_missing_baseline_rtt_in_ewma_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None when 'baseline_rtt' missing in ewma."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"other_value": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+
+    # =========================================================================
+    # Error handling tests
+    # =========================================================================
+
+    def test_json_parse_error_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None on JSON parse error."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": invalid json}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+        assert "Failed to load baseline RTT" in str(mock_logger.error.call_args)
+
+    def test_non_numeric_baseline_returns_none(self, tmp_path, mock_config, mock_logger):
+        """Test load_baseline_rtt returns None on non-numeric baseline_rtt."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": "not a number"}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+
+
+class TestSteeringConfig:
+    """Tests for SteeringConfig class.
+
+    Tests configuration loading and validation:
+    - Valid YAML config loads successfully
+    - State names derived from primary_wan
+    - Default threshold values applied
+    - Legacy support for cake_state_sources.spectrum
+    - Confidence config validation
+    """
+
+    @pytest.fixture
+    def valid_config_dict(self):
+        """Create a valid config dict for testing."""
+        return {
+            "wan_name": "steering",
+            "router": {
+                "transport": "ssh",
+                "host": "10.10.99.1",
+                "user": "admin",
+                "ssh_key": "/path/to/key",
+            },
+            "topology": {
+                "primary_wan": "spectrum",
+                "primary_wan_config": "/etc/wanctl/spectrum.yaml",
+                "alternate_wan": "att",
+            },
+            "mangle_rule": {"comment": "ADAPTIVE-STEER"},
+            "measurement": {
+                "interval_seconds": 0.5,
+                "ping_host": "1.1.1.1",
+                "ping_count": 3,
+            },
+            "state": {
+                "file": "/var/lib/wanctl/steering_state.json",
+                "history_size": 240,
+            },
+            "logging": {
+                "main_log": "/var/log/wanctl/steering.log",
+                "debug_log": "/var/log/wanctl/steering_debug.log",
+            },
+            "lock_file": "/run/wanctl/steering.lock",
+            "lock_timeout": 60,
+            "thresholds": {
+                "bad_threshold_ms": 25.0,
+                "recovery_threshold_ms": 12.0,
+            },
+        }
+
+    # =========================================================================
+    # Valid config loading tests
+    # =========================================================================
+
+    def test_valid_config_loads_successfully(self, tmp_path, valid_config_dict):
+        """Test SteeringConfig loads valid YAML successfully."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.primary_wan == "spectrum"
+        assert config.alternate_wan == "att"
+        assert config.measurement_interval == 0.5
+
+    def test_state_names_derived_from_primary_wan(self, tmp_path, valid_config_dict):
+        """Test state names (GOOD/DEGRADED) derived from primary_wan."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.state_good == "SPECTRUM_GOOD"
+        assert config.state_degraded == "SPECTRUM_DEGRADED"
+
+    def test_state_names_for_different_wan(self, tmp_path, valid_config_dict):
+        """Test state names derived correctly for different WAN name."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["topology"]["primary_wan"] = "fiber"
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.state_good == "FIBER_GOOD"
+        assert config.state_degraded == "FIBER_DEGRADED"
+
+    # =========================================================================
+    # Default values tests
+    # =========================================================================
+
+    def test_default_threshold_values_applied(self, tmp_path, valid_config_dict):
+        """Test default threshold values applied when not specified."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        # Remove optional thresholds to test defaults
+        valid_config_dict["thresholds"] = {}
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        # Check defaults are applied
+        assert config.bad_threshold_ms == 25.0  # DEFAULT_BAD_THRESHOLD_MS
+        assert config.recovery_threshold_ms == 12.0  # DEFAULT_RECOVERY_THRESHOLD_MS
+        assert config.green_rtt_ms == 5.0  # DEFAULT_GREEN_RTT_MS
+        assert config.rtt_ewma_alpha == 0.3  # DEFAULT_RTT_EWMA_ALPHA
+        assert config.queue_ewma_alpha == 0.4  # DEFAULT_QUEUE_EWMA_ALPHA
+
+    def test_default_baseline_bounds_applied(self, tmp_path, valid_config_dict):
+        """Test default baseline RTT bounds applied."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.baseline_rtt_min == 10.0  # MIN_SANE_BASELINE_RTT
+        assert config.baseline_rtt_max == 60.0  # MAX_SANE_BASELINE_RTT
+
+    def test_default_cake_aware_mode(self, tmp_path, valid_config_dict):
+        """Test CAKE-aware mode defaults to True."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.cake_aware is True
+
+    # =========================================================================
+    # Legacy support tests
+    # =========================================================================
+
+    def test_legacy_cake_state_sources_spectrum(self, tmp_path, valid_config_dict):
+        """Test legacy cake_state_sources.spectrum maps to primary."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_state_sources"] = {
+            "spectrum": "/run/wanctl/legacy_spectrum_state.json"
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert str(config.primary_state_file) == "/run/wanctl/legacy_spectrum_state.json"
+
+    def test_primary_state_file_takes_precedence(self, tmp_path, valid_config_dict):
+        """Test cake_state_sources.primary takes precedence over spectrum."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_state_sources"] = {
+            "primary": "/run/wanctl/primary_state.json",
+            "spectrum": "/run/wanctl/spectrum_state.json",
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert str(config.primary_state_file) == "/run/wanctl/primary_state.json"
+
+    # =========================================================================
+    # Confidence config tests
+    # =========================================================================
+
+    def test_confidence_config_disabled_by_default(self, tmp_path, valid_config_dict):
+        """Test confidence_config is None when use_confidence_scoring=False."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.use_confidence_scoring is False
+        assert config.confidence_config is None
+
+    def test_confidence_config_enabled(self, tmp_path, valid_config_dict):
+        """Test confidence_config loaded when enabled."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["mode"] = {"use_confidence_scoring": True}
+        valid_config_dict["confidence"] = {
+            "steer_threshold": 55,
+            "recovery_threshold": 20,
+            "dry_run": True,
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.use_confidence_scoring is True
+        assert config.confidence_config is not None
+        assert config.confidence_config["confidence"]["steer_threshold"] == 55
+        assert config.confidence_config["dry_run"]["enabled"] is True
+
+    def test_confidence_steer_threshold_out_of_range(self, tmp_path, valid_config_dict):
+        """Test error when steer_threshold not in 0-100 range."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["mode"] = {"use_confidence_scoring": True}
+        valid_config_dict["confidence"] = {"steer_threshold": 150}
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with pytest.raises(ValueError) as exc_info:
+            SteeringConfig(str(config_file))
+
+        assert "steer_threshold" in str(exc_info.value)
+        assert "0-100" in str(exc_info.value)
+
+    def test_confidence_recovery_threshold_out_of_range(self, tmp_path, valid_config_dict):
+        """Test error when recovery_threshold not in 0-100 range."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["mode"] = {"use_confidence_scoring": True}
+        valid_config_dict["confidence"] = {"steer_threshold": 55, "recovery_threshold": -10}
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with pytest.raises(ValueError) as exc_info:
+            SteeringConfig(str(config_file))
+
+        assert "recovery_threshold" in str(exc_info.value)
+        assert "0-100" in str(exc_info.value)
+
+    def test_confidence_recovery_must_be_less_than_steer(self, tmp_path, valid_config_dict):
+        """Test error when recovery_threshold >= steer_threshold."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["mode"] = {"use_confidence_scoring": True}
+        valid_config_dict["confidence"] = {"steer_threshold": 50, "recovery_threshold": 60}
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with pytest.raises(ValueError) as exc_info:
+            SteeringConfig(str(config_file))
+
+        assert "must be less than" in str(exc_info.value)
+
+    # =========================================================================
+    # Router transport tests
+    # =========================================================================
+
+    def test_router_transport_defaults_to_ssh(self, tmp_path, valid_config_dict):
+        """Test router transport defaults to SSH."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        del valid_config_dict["router"]["transport"]
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.router_transport == "ssh"
+
+    def test_router_rest_transport(self, tmp_path, valid_config_dict):
+        """Test REST transport with password and port."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["router"]["transport"] = "rest"
+        valid_config_dict["router"]["password"] = "secret"
+        valid_config_dict["router"]["port"] = 8443
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.router_transport == "rest"
+        assert config.router_password == "secret"
+        assert config.router_port == 8443
