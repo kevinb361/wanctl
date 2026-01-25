@@ -781,3 +781,201 @@ class TestHysteresisCounters:
         assert controller1.red_streak == 0
         assert controller2.green_streak == 0
         assert controller2.red_streak == 2
+
+
+# =============================================================================
+# STATE TRANSITION SEQUENCE TESTS
+# =============================================================================
+
+
+class TestStateTransitionSequences:
+    """Integration-style tests for full state transition sequences.
+
+    Tests realistic scenarios of zone transitions with rate adjustments:
+    - Degradation sequences (GREEN -> YELLOW -> RED)
+    - Recovery sequences (RED -> YELLOW -> GREEN)
+    - SOFT_RED specific transitions
+    """
+
+    def test_green_to_yellow_to_red_to_recovery(self):
+        """Full degradation and recovery sequence."""
+        controller = QueueController(
+            name="TestController",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+
+        baseline = 25.0
+        sequence = []
+
+        # Phase 1: Start in GREEN (steady state)
+        for _ in range(3):
+            zone, rate = controller.adjust(
+                baseline_rtt=baseline,
+                load_rtt=baseline + 10.0,  # delta=10ms -> GREEN
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+            sequence.append((zone, rate))
+        assert all(z == "GREEN" for z, _ in sequence)
+
+        # Phase 2: Transition to YELLOW (congestion building)
+        zone, rate = controller.adjust(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 30.0,  # delta=30ms -> YELLOW
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "YELLOW"
+        assert controller.green_streak == 0
+
+        # Phase 3: Transition to RED (severe congestion)
+        zone, rate = controller.adjust(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 50.0,  # delta=50ms -> RED
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "RED"
+
+        # Phase 4: Recovery back to GREEN
+        for _ in range(5):
+            zone, rate = controller.adjust(
+                baseline_rtt=baseline,
+                load_rtt=baseline + 5.0,  # delta=5ms -> GREEN
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+            sequence.append((zone, rate))
+
+        # Last 5 should be GREEN
+        assert all(z == "GREEN" for z, _ in sequence[-5:])
+
+    def test_red_recovery_requires_sustained_green(self):
+        """After RED, must sustain GREEN for step-up."""
+        controller = QueueController(
+            name="TestController",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        controller.current_rate = 35_000_000  # Start below ceiling
+
+        baseline = 25.0
+
+        # Trigger RED
+        zone, rate = controller.adjust(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 50.0,  # RED
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        assert zone == "RED"
+        rate_after_red = rate
+
+        # 4 GREEN cycles - should hold, not step up
+        for i in range(4):
+            zone, rate = controller.adjust(
+                baseline_rtt=baseline,
+                load_rtt=baseline + 5.0,  # GREEN
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+            assert zone == "GREEN"
+            # Rate should hold (not step up yet)
+            assert rate == rate_after_red, f"Cycle {i+1}: should hold rate"
+
+        # 5th GREEN cycle - NOW step up
+        zone, rate = controller.adjust(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 5.0,  # GREEN
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        assert zone == "GREEN"
+        assert rate == rate_after_red + 1_000_000  # Step up
+
+    def test_soft_red_to_red_transition(self, controller_4state):
+        """SOFT_RED -> RED if delta exceeds hard_red_threshold."""
+        baseline = 25.0
+        sequence = []
+
+        # Start with SOFT_RED
+        zone, rate = controller_4state.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 60.0,  # delta=60ms -> SOFT_RED
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "SOFT_RED"
+
+        # Transition to RED (delta exceeds 80ms)
+        zone, rate = controller_4state.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 100.0,  # delta=100ms -> RED
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "RED"
+        # soft_red_streak should reset
+        assert controller_4state.soft_red_streak == 0
+
+    def test_soft_red_recovery_to_yellow_to_green(self, controller_4state):
+        """Recovery path from SOFT_RED."""
+        baseline = 25.0
+        sequence = []
+
+        # Start with SOFT_RED
+        zone, rate = controller_4state.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 60.0,  # delta=60ms -> SOFT_RED
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "SOFT_RED"
+
+        # Transition to YELLOW (improvement)
+        zone, rate = controller_4state.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 30.0,  # delta=30ms -> YELLOW
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "YELLOW"
+        # soft_red_streak should reset
+        assert controller_4state.soft_red_streak == 0
+
+        # Transition to GREEN (recovery)
+        zone, rate = controller_4state.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=baseline + 5.0,  # delta=5ms -> GREEN
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        sequence.append((zone, rate))
+        assert zone == "GREEN"
+        assert controller_4state.green_streak == 1
