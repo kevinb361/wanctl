@@ -840,7 +840,11 @@ class TestDaemonControlLoop:
         ]
 
         # Run 5 cycles then shutdown
-        shutdown_sequence = [False, False, False, False, False, True, True]
+        call_count = [0]
+
+        def is_shutdown_after_five():
+            call_count[0] += 1
+            return call_count[0] > 5
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
@@ -851,9 +855,10 @@ class TestDaemonControlLoop:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=shutdown_sequence,
+                side_effect=is_shutdown_after_five,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -884,6 +889,13 @@ class TestDaemonControlLoop:
             }
         ]
 
+        # Run 3 failed cycles then shutdown
+        call_count = [0]
+
+        def is_shutdown_after_three():
+            call_count[0] += 1
+            return call_count[0] > 3
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -893,11 +905,12 @@ class TestDaemonControlLoop:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=[False, False, False, True, True],
+                side_effect=is_shutdown_after_three,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.notify_watchdog"),
             patch("wanctl.autorate_continuous.notify_degraded"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -928,6 +941,13 @@ class TestDaemonControlLoop:
             }
         ]
 
+        # Run 2 successful cycles then shutdown
+        call_count = [0]
+
+        def is_shutdown_after_two():
+            call_count[0] += 1
+            return call_count[0] > 2
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -937,10 +957,11 @@ class TestDaemonControlLoop:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=[False, False, True, True],
+                side_effect=is_shutdown_after_two,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.notify_watchdog") as mock_watchdog,
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -970,6 +991,23 @@ class TestDaemonControlLoop:
             }
         ]
 
+        # Need 3+ failed cycles to trigger degraded
+        # is_shutdown_requested is called multiple times per cycle (while + sleep check)
+        # Use a cycle counter instead of call counter
+        cycle_count = [0]
+
+        def is_shutdown_after_cycles():
+            # Track cycles via run_cycle mock being called
+            # Just return False until we've run enough cycles
+            return cycle_count[0] >= 4
+
+        # Track cycles when run_cycle is called
+        def failing_cycle(*args, **kwargs):
+            cycle_count[0] += 1
+            return False
+
+        mock_controller.run_cycle.side_effect = failing_cycle
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -979,11 +1017,12 @@ class TestDaemonControlLoop:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=[False, False, False, False, True, True],
+                side_effect=is_shutdown_after_cycles,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.notify_watchdog"),
             patch("wanctl.autorate_continuous.notify_degraded") as mock_degraded,
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -1012,6 +1051,16 @@ class TestDaemonControlLoop:
             }
         ]
 
+        # Run 2 cycles then shutdown
+        call_count = [0]
+
+        def is_shutdown_after_two():
+            call_count[0] += 1
+            return call_count[0] > 2
+
+        # Provide enough monotonic values for multiple calls in the loop
+        monotonic_values = iter([0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -1021,10 +1070,14 @@ class TestDaemonControlLoop:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=[False, False, True, True],
+                side_effect=is_shutdown_after_two,
             ),
             patch("wanctl.autorate_continuous.time.sleep") as mock_sleep,
-            patch("wanctl.autorate_continuous.time.monotonic", side_effect=[0, 0.01, 0.02, 0.03]),
+            patch(
+                "wanctl.autorate_continuous.time.monotonic",
+                side_effect=lambda: next(monotonic_values),
+            ),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -1104,13 +1157,11 @@ class TestSignalIntegration:
         ]
 
         call_count = [0]
-        original_side_effect = [False, False, False, True, True]
 
         def counting_is_shutdown():
             call_count[0] += 1
-            if call_count[0] <= len(original_side_effect):
-                return original_side_effect[call_count[0] - 1]
-            return True
+            # Return False for first 3 calls, then True
+            return call_count[0] > 3
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
@@ -1124,6 +1175,7 @@ class TestSignalIntegration:
                 side_effect=counting_is_shutdown,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
