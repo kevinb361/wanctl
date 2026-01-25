@@ -55,6 +55,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 35-05-PLAN.md - Connectivity fallback, load/save state (gap closure)
   - [x] 35-06-PLAN.md - ContinuousAutoRate init, daemon handlers (gap closure)
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
+  - [ ] 36-01-PLAN.md - RouterOSController, BaselineLoader, SteeringConfig tests
+  - [ ] 36-02-PLAN.md - run_cycle, main entry point, confidence integration tests
 - [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
 
 See [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) for full details.
