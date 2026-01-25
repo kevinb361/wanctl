@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 37 of 37 (CLI Tool Tests) - IN PROGRESS
-Plan: 2 of 3 in phase (COMPLETE)
-Status: Plan 37-02 complete (perf_profiler.py 98.7% coverage)
-Last activity: 2026-01-25 - Completed 37-02-PLAN.md
+Plan: 2 of 3 in phase (37-01 and 37-02 COMPLETE)
+Status: Plan 37-01 complete (calibrate.py 97.5% coverage)
+Last activity: 2026-01-25 - Completed 37-01-PLAN.md
 
 Progress: [██████████████████████████████] 7/7 phases (100%)
 
@@ -65,6 +65,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Use call counter to simulate is_shutdown_requested sequence for exception-during-shutdown tests (36-02)
 - Test percentile calculation with 100 samples for clearer index verification (37-02)
 - Verify exception handling logs timing before exception propagates (37-02)
+- Test step helpers directly rather than through integration tests for higher coverage (37-01)
+- Use mock side_effect for interrupt sequence tests (37-01)
+- Accept source file naming issue (test*ssh_connectivity, test_netperf_server) - production functions with test* prefix (37-01)
 
 ### Deferred Issues
 
@@ -104,10 +107,10 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 37-02-PLAN.md (perf_profiler tests)
+Stopped at: Completed 37-01-PLAN.md (calibrate.py tests)
 Resume file: None
 
 ## Next Steps
 
-1. Execute 37-03-PLAN.md (remaining CLI tool tests)
+1. Execute 37-03-PLAN.md (remaining CLI tool tests if any)
 2. Complete v1.6 milestone and verify 90% coverage
