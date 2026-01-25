@@ -2350,3 +2350,638 @@ class TestSteeringConfig:
         assert config.router_transport == "rest"
         assert config.router_password == "secret"
         assert config.router_port == 8443
+
+
+class TestRunCycle:
+    """Tests for SteeringDaemon.run_cycle() method.
+
+    Tests the main cycle execution including:
+    - Full cycle success (baseline loads, RTT measured, EWMA updated, state machine runs)
+    - CAKE-aware mode vs legacy mode logging differences
+    - Failure paths (baseline RTT unavailable, RTT measurement fails)
+    - Metrics integration
+    """
+
+    @pytest.fixture
+    def mock_config_cake(self):
+        """Create a mock config for CAKE-aware mode."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 3
+        config.rtt_ewma_alpha = 0.3
+        config.queue_ewma_alpha = 0.4
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.ping_host = "8.8.8.8"
+        config.ping_count = 1
+        return config
+
+    @pytest.fixture
+    def mock_config_legacy(self):
+        """Create a mock config for legacy mode."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = False
+        config.bad_threshold_ms = 25.0
+        config.recovery_threshold_ms = 12.0
+        config.bad_samples = 2
+        config.good_samples = 3
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.ping_host = "8.8.8.8"
+        config.ping_count = 1
+        return config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+            "cake_state_history": [],
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.enable_steering.return_value = True
+        router.disable_steering.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def daemon_for_run_cycle(
+        self, mock_config_cake, mock_state_mgr, mock_router, mock_logger
+    ):
+        """Create a SteeringDaemon with mocked dependencies for run_cycle testing."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config_cake,
+                state=mock_state_mgr,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
+
+        # Mock the methods called during run_cycle
+        daemon.update_baseline_rtt = MagicMock(return_value=True)
+        daemon.collect_cake_stats = MagicMock(return_value=(5, 20))
+        daemon._measure_current_rtt_with_retry = MagicMock(return_value=30.0)
+        daemon.update_ewma_smoothing = MagicMock(return_value=(5.0, 20.0))
+        daemon.update_state_machine = MagicMock(return_value=False)
+
+        return daemon
+
+    # =========================================================================
+    # Success path tests
+    # =========================================================================
+
+    def test_run_cycle_full_success(self, daemon_for_run_cycle, mock_state_mgr):
+        """Test full cycle: baseline loads, RTT measured, EWMA updated, state machine runs."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is True
+        daemon_for_run_cycle.update_baseline_rtt.assert_called_once()
+        daemon_for_run_cycle.collect_cake_stats.assert_called_once()
+        daemon_for_run_cycle._measure_current_rtt_with_retry.assert_called_once()
+        daemon_for_run_cycle.update_ewma_smoothing.assert_called_once()
+        daemon_for_run_cycle.update_state_machine.assert_called_once()
+        mock_state_mgr.add_measurement.assert_called_once()
+        mock_state_mgr.save.assert_called_once()
+
+    def test_run_cycle_cake_aware_mode_logs_congestion_state(
+        self, daemon_for_run_cycle, mock_state_mgr, mock_logger
+    ):
+        """Test CAKE-aware mode logs include congestion state."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["congestion_state"] = "YELLOW"
+
+        daemon_for_run_cycle.run_cycle()
+
+        # Verify logger.info was called with congestion state
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("congestion=YELLOW" in c for c in info_calls)
+
+    def test_run_cycle_legacy_mode_logs_bad_good_counts(
+        self, mock_config_legacy, mock_state_mgr, mock_router, mock_logger
+    ):
+        """Test legacy mode logs include bad_count/good_count."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["bad_count"] = 1
+        mock_state_mgr.state["good_count"] = 2
+
+        daemon = SteeringDaemon(
+            config=mock_config_legacy,
+            state=mock_state_mgr,
+            router=mock_router,
+            rtt_measurement=MagicMock(),
+            baseline_loader=MagicMock(),
+            logger=mock_logger,
+        )
+        daemon.update_baseline_rtt = MagicMock(return_value=True)
+        daemon._measure_current_rtt_with_retry = MagicMock(return_value=30.0)
+        daemon.update_state_machine = MagicMock(return_value=False)
+
+        daemon.run_cycle()
+
+        # Verify logger.info was called with bad_count/good_count
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("bad_count=" in c for c in info_calls)
+        assert any("good_count=" in c for c in info_calls)
+
+    def test_run_cycle_state_change_triggers_transition_log(
+        self, daemon_for_run_cycle, mock_state_mgr, mock_logger
+    ):
+        """Test state change triggers transition log message."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+        mock_state_mgr.state["last_transition_time"] = "2026-01-25T12:00:00Z"
+
+        # Mock state machine to return state changed
+        daemon_for_run_cycle.update_state_machine.return_value = True
+
+        daemon_for_run_cycle.run_cycle()
+
+        # Verify transition log was made
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("State transition" in c for c in info_calls)
+
+    # =========================================================================
+    # Failure path tests
+    # =========================================================================
+
+    def test_run_cycle_baseline_unavailable_returns_false(
+        self, daemon_for_run_cycle, mock_logger
+    ):
+        """Test baseline RTT unavailable returns False."""
+        daemon_for_run_cycle.update_baseline_rtt.return_value = False
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is False
+        mock_logger.error.assert_called()
+        assert "Cannot proceed without baseline RTT" in str(mock_logger.error.call_args)
+
+    def test_run_cycle_rtt_measurement_fails_returns_false(
+        self, daemon_for_run_cycle, mock_state_mgr, mock_logger
+    ):
+        """Test RTT measurement failure returns False."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        daemon_for_run_cycle._measure_current_rtt_with_retry.return_value = None
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is False
+        mock_logger.warning.assert_called()
+        assert "Ping failed after retries" in str(mock_logger.warning.call_args)
+
+    def test_run_cycle_state_machine_failure_still_saves_state(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test state machine failure doesn't prevent state save."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+
+        # Even if update_state_machine fails (returns False for no change),
+        # state should still be saved
+        daemon_for_run_cycle.update_state_machine.return_value = False
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is True  # Cycle completes successfully
+        mock_state_mgr.save.assert_called_once()
+
+    # =========================================================================
+    # Metrics integration tests
+    # =========================================================================
+
+    def test_run_cycle_metrics_enabled_records_steering_state(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test record_steering_state called when metrics_enabled=True."""
+        daemon_for_run_cycle.config.metrics_enabled = True
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+        mock_state_mgr.state["congestion_state"] = "GREEN"
+
+        with patch("wanctl.steering.daemon.record_steering_state") as mock_record:
+            daemon_for_run_cycle.run_cycle()
+
+            mock_record.assert_called_once_with(
+                primary_wan="spectrum",
+                steering_enabled=False,  # SPECTRUM_GOOD means steering disabled
+                congestion_state="GREEN",
+            )
+
+    def test_run_cycle_metrics_disabled_no_recording(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test metrics not called when metrics_enabled=False."""
+        daemon_for_run_cycle.config.metrics_enabled = False
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+
+        with patch("wanctl.steering.daemon.record_steering_state") as mock_record:
+            daemon_for_run_cycle.run_cycle()
+
+            mock_record.assert_not_called()
+
+    # =========================================================================
+    # CAKE state history tests
+    # =========================================================================
+
+    def test_run_cycle_updates_cake_state_history(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test cake_state_history is updated on successful cycle."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["congestion_state"] = "YELLOW"
+        mock_state_mgr.state["cake_state_history"] = ["GREEN", "GREEN"]
+
+        daemon_for_run_cycle.run_cycle()
+
+        # YELLOW should be appended
+        assert "YELLOW" in mock_state_mgr.state["cake_state_history"]
+
+    def test_run_cycle_trims_cake_state_history_to_10(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test cake_state_history is trimmed to last 10 samples."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        mock_state_mgr.state["congestion_state"] = "GREEN"
+        mock_state_mgr.state["cake_state_history"] = ["GREEN"] * 15  # More than 10
+
+        daemon_for_run_cycle.run_cycle()
+
+        # Should be trimmed to 10 (last 9 plus new one)
+        assert len(mock_state_mgr.state["cake_state_history"]) == 10
+
+
+class TestConfidenceIntegration:
+    """Tests for confidence controller integration in steering daemon.
+
+    Tests dry-run and live mode paths, _apply_confidence_decision(),
+    and integration with update_state_machine().
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config with confidence scoring enabled."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 3
+        config.rtt_ewma_alpha = 0.3
+        config.queue_ewma_alpha = 0.4
+        config.metrics_enabled = False
+        config.use_confidence_scoring = True
+        config.confidence_config = {
+            "dry_run": {"enabled": True},
+            "confidence": {"steer_threshold": 55, "recovery_threshold": 20},
+        }
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        return config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+            "cake_state_history": [],
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.enable_steering.return_value = True
+        router.disable_steering.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def daemon_with_confidence(
+        self, mock_config, mock_state_mgr, mock_router, mock_logger
+    ):
+        """Create a SteeringDaemon with confidence controller."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            with patch("wanctl.steering.daemon.ConfidenceController") as mock_ctrl:
+                # Create a mock confidence controller
+                mock_ctrl.return_value = MagicMock()
+                daemon = SteeringDaemon(
+                    config=mock_config,
+                    state=mock_state_mgr,
+                    router=mock_router,
+                    rtt_measurement=MagicMock(),
+                    baseline_loader=MagicMock(),
+                    logger=mock_logger,
+                )
+
+        return daemon
+
+    # =========================================================================
+    # Dry-run mode tests (production default)
+    # =========================================================================
+
+    def test_confidence_dry_run_mode_evaluates_but_falls_through(
+        self, daemon_with_confidence, mock_state_mgr
+    ):
+        """Test dry-run mode: evaluates confidence but falls through to hysteresis."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        # Configure dry-run mode
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = True
+        daemon_with_confidence.confidence_controller.evaluate.return_value = (
+            "ENABLE_STEERING"
+        )
+
+        signals = CongestionSignals(
+            rtt_delta=5.0,
+            rtt_delta_ewma=5.0,
+            cake_drops=0,
+            queued_packets=0,
+            baseline_rtt=25.0,
+        )
+
+        with patch.object(
+            daemon_with_confidence, "_update_state_machine_unified", return_value=False
+        ) as mock_unified:
+            result = daemon_with_confidence.update_state_machine(signals)
+
+        # Should have evaluated confidence
+        daemon_with_confidence.confidence_controller.evaluate.assert_called_once()
+        # Should have fallen through to unified state machine
+        mock_unified.assert_called_once_with(signals)
+        # Router should NOT have been called (dry-run mode)
+        daemon_with_confidence.router.enable_steering.assert_not_called()
+
+    def test_confidence_dry_run_logs_decision_for_observability(
+        self, daemon_with_confidence, mock_logger
+    ):
+        """Test dry-run mode logs confidence decisions for observability."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = True
+        # Confidence controller's evaluate method logs internally when dry_run=True
+        daemon_with_confidence.confidence_controller.evaluate.return_value = None
+
+        signals = CongestionSignals(
+            rtt_delta=50.0,
+            rtt_delta_ewma=50.0,
+            cake_drops=10,
+            queued_packets=100,
+            baseline_rtt=25.0,
+        )
+
+        with patch.object(
+            daemon_with_confidence, "_update_state_machine_unified", return_value=False
+        ):
+            daemon_with_confidence.update_state_machine(signals)
+
+        # Verify evaluate was called - ConfidenceController handles logging internally
+        daemon_with_confidence.confidence_controller.evaluate.assert_called_once()
+
+    # =========================================================================
+    # Live mode tests (dry_run=False)
+    # =========================================================================
+
+    def test_confidence_live_mode_enable_steering_decision(
+        self, daemon_with_confidence, mock_state_mgr, mock_router
+    ):
+        """Test live mode: ENABLE_STEERING decision enables routing."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = False
+        daemon_with_confidence.confidence_controller.evaluate.return_value = (
+            "ENABLE_STEERING"
+        )
+        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+
+        signals = CongestionSignals(
+            rtt_delta=50.0,
+            rtt_delta_ewma=50.0,
+            cake_drops=10,
+            queued_packets=100,
+            baseline_rtt=25.0,
+        )
+
+        result = daemon_with_confidence.update_state_machine(signals)
+
+        assert result is True
+        mock_router.enable_steering.assert_called_once()
+        assert mock_state_mgr.state["current_state"] == "SPECTRUM_DEGRADED"
+
+    def test_confidence_live_mode_disable_steering_decision(
+        self, daemon_with_confidence, mock_state_mgr, mock_router
+    ):
+        """Test live mode: DISABLE_STEERING decision disables routing."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = False
+        daemon_with_confidence.confidence_controller.evaluate.return_value = (
+            "DISABLE_STEERING"
+        )
+        mock_state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+
+        signals = CongestionSignals(
+            rtt_delta=2.0,
+            rtt_delta_ewma=2.0,
+            cake_drops=0,
+            queued_packets=0,
+            baseline_rtt=25.0,
+        )
+
+        result = daemon_with_confidence.update_state_machine(signals)
+
+        assert result is True
+        mock_router.disable_steering.assert_called_once()
+        assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
+
+    def test_confidence_live_mode_none_decision_falls_through(
+        self, daemon_with_confidence, mock_state_mgr
+    ):
+        """Test live mode: None decision falls through to hysteresis."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = False
+        daemon_with_confidence.confidence_controller.evaluate.return_value = None
+
+        signals = CongestionSignals(
+            rtt_delta=10.0,
+            rtt_delta_ewma=10.0,
+            cake_drops=0,
+            queued_packets=20,
+            baseline_rtt=25.0,
+        )
+
+        with patch.object(
+            daemon_with_confidence, "_update_state_machine_unified", return_value=False
+        ) as mock_unified:
+            result = daemon_with_confidence.update_state_machine(signals)
+
+        # Should have fallen through to unified state machine
+        mock_unified.assert_called_once_with(signals)
+
+    # =========================================================================
+    # _apply_confidence_decision tests
+    # =========================================================================
+
+    def test_apply_confidence_decision_enable_steering(
+        self, daemon_with_confidence, mock_state_mgr, mock_router
+    ):
+        """Test _apply_confidence_decision ENABLE_STEERING transitions correctly."""
+        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+
+        result = daemon_with_confidence._apply_confidence_decision("ENABLE_STEERING")
+
+        assert result is True
+        mock_router.enable_steering.assert_called_once()
+        assert mock_state_mgr.state["current_state"] == "SPECTRUM_DEGRADED"
+
+    def test_apply_confidence_decision_disable_steering(
+        self, daemon_with_confidence, mock_state_mgr, mock_router
+    ):
+        """Test _apply_confidence_decision DISABLE_STEERING transitions correctly."""
+        mock_state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+
+        result = daemon_with_confidence._apply_confidence_decision("DISABLE_STEERING")
+
+        assert result is True
+        mock_router.disable_steering.assert_called_once()
+        assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
+
+    def test_apply_confidence_decision_invalid_returns_false(
+        self, daemon_with_confidence, mock_router
+    ):
+        """Test _apply_confidence_decision invalid decision returns False."""
+        result = daemon_with_confidence._apply_confidence_decision("INVALID_DECISION")
+
+        assert result is False
+        mock_router.enable_steering.assert_not_called()
+        mock_router.disable_steering.assert_not_called()
+
+    def test_apply_confidence_decision_router_failure_returns_false(
+        self, daemon_with_confidence, mock_state_mgr, mock_router
+    ):
+        """Test _apply_confidence_decision returns False on router failure."""
+        mock_router.enable_steering.return_value = False
+        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
+
+        result = daemon_with_confidence._apply_confidence_decision("ENABLE_STEERING")
+
+        assert result is False
+        # State unchanged on router failure
+        assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
+
+    # =========================================================================
+    # ConfidenceSignals construction tests
+    # =========================================================================
+
+    def test_confidence_signals_constructed_correctly(
+        self, daemon_with_confidence, mock_state_mgr
+    ):
+        """Test ConfidenceSignals are constructed with correct values."""
+        from wanctl.steering.cake_stats import CongestionSignals
+
+        daemon_with_confidence.config.confidence_config["dry_run"]["enabled"] = True
+        mock_state_mgr.state["congestion_state"] = "YELLOW"
+        mock_state_mgr.state["cake_state_history"] = ["GREEN", "GREEN", "YELLOW"]
+        mock_state_mgr.state["cake_drops_history"] = [0, 0, 5]
+        mock_state_mgr.state["queue_depth_history"] = [10, 15, 30]
+
+        signals = CongestionSignals(
+            rtt_delta=15.0,
+            rtt_delta_ewma=12.0,
+            cake_drops=5,
+            queued_packets=30,
+            baseline_rtt=25.0,
+        )
+
+        with patch.object(
+            daemon_with_confidence, "_update_state_machine_unified", return_value=False
+        ):
+            daemon_with_confidence.update_state_machine(signals)
+
+        # Verify evaluate was called with correctly constructed ConfidenceSignals
+        call_args = daemon_with_confidence.confidence_controller.evaluate.call_args
+        confidence_signals = call_args[0][0]
+
+        assert confidence_signals.cake_state == "YELLOW"
+        assert confidence_signals.rtt_delta_ms == 15.0
+        assert confidence_signals.drops_per_sec == 5.0
+        assert confidence_signals.queue_depth_pct == 30.0
+        assert confidence_signals.cake_state_history == ["GREEN", "GREEN", "YELLOW"]
