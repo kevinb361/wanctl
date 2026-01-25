@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 40 of 41 (CLI Tool)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-01-25 - Completed 40-01-PLAN.md
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-01-25 - Completed 40-02-PLAN.md
 
-Progress: [████████ ] 62% (2.5/4 phases, 5/7 plans)
+Progress: [█████████ ] 75% (3/4 phases, 6/7 plans)
 
 ## Performance Metrics
 
@@ -54,6 +54,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Read-only connection mode (?mode=ro) for query operations
 - Use statistics.quantiles() from stdlib for percentile calculation
 - Granularity auto-selection: raw<6h<1m<24h<5m<7d<1h
+- CLI default time range: --last 1h when no args
+- State metrics show percentage distribution in summary
+- Empty results exit 0 with informational message
 
 ### Deferred Issues
 
@@ -67,7 +70,7 @@ None.
 
 4 todos remaining in `.planning/todos/pending/`:
 
-- Add metrics history feature (observability) - IN PROGRESS (Phase 39-40)
+- Add metrics history feature (observability) - COMPLETE (Phase 39-40)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
@@ -94,10 +97,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 40-01-PLAN.md
+Stopped at: Completed 40-02-PLAN.md
 Resume file: None
 
 ## Next Steps
 
-1. Complete Phase 40 Plan 02 (CLI Tool implementation)
-2. Continue through Phase 41 (Cleanup)
+1. Continue through Phase 41 (Cleanup)
