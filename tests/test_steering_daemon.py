@@ -2985,3 +2985,355 @@ class TestConfidenceIntegration:
         assert confidence_signals.drops_per_sec == 5.0
         assert confidence_signals.queue_depth_pct == 30.0
         assert confidence_signals.cake_state_history == ["GREEN", "GREEN", "YELLOW"]
+
+
+class TestMainEntryPoint:
+    """Tests for main() entry point function.
+
+    Tests the main steering daemon entry point including:
+    - Argument parsing (--config, --reset, --debug)
+    - Config loading (valid, invalid, missing)
+    - Lock handling (acquired, conflict)
+    - Health server lifecycle
+    - Shutdown handling (early shutdown, KeyboardInterrupt, exceptions)
+    - Reset mode
+    """
+
+    @pytest.fixture
+    def valid_config_yaml(self):
+        """Return valid minimal config YAML."""
+        return """
+wan_name: steering
+router:
+  transport: ssh
+  host: "10.10.99.1"
+  user: admin
+  ssh_key: /path/to/key
+topology:
+  primary_wan: spectrum
+  primary_wan_config: /etc/wanctl/spectrum.yaml
+  alternate_wan: att
+mangle_rule:
+  comment: ADAPTIVE-STEER
+measurement:
+  interval_seconds: 0.5
+  ping_host: "1.1.1.1"
+  ping_count: 1
+state:
+  file: /tmp/test_steering_state.json
+  history_size: 100
+logging:
+  main_log: /tmp/test_steering.log
+  debug_log: /tmp/test_steering_debug.log
+lock_file: /tmp/test_steering.lock
+lock_timeout: 60
+thresholds: {}
+"""
+
+    @pytest.fixture
+    def valid_config_file(self, tmp_path, valid_config_yaml):
+        """Create a valid config file."""
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(valid_config_yaml)
+        return config_file
+
+    # =========================================================================
+    # Argument parsing tests
+    # =========================================================================
+
+    def test_main_missing_config_exits_with_error(self, capsys):
+        """Test main() exits with error when --config not provided."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon"]):
+            # argparse calls sys.exit(2) when required argument is missing
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+        # argparse exits with code 2 for missing required arguments
+        assert exc_info.value.code == 2
+
+    def test_main_debug_flag_enables_debug_logging(self, valid_config_file):
+        """Test --debug flag enables debug logging."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file), "--debug"]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", return_value=True):
+                        main()
+
+                    # Verify setup_logging was called with debug=True
+                    call_args = mock_logging.call_args
+                    assert call_args[0][2] is True  # Third arg is debug flag
+
+    # =========================================================================
+    # Config loading tests
+    # =========================================================================
+
+    def test_main_valid_config_loads_successfully(self, valid_config_file):
+        """Test main() loads valid config successfully."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", return_value=True):
+                        result = main()
+
+        assert result == 0
+
+    def test_main_invalid_yaml_returns_1(self, tmp_path):
+        """Test main() returns 1 for invalid YAML config."""
+        from wanctl.steering.daemon import main
+
+        bad_config = tmp_path / "bad.yaml"
+        bad_config.write_text("invalid: yaml: [")
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(bad_config)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                result = main()
+
+        assert result == 1
+
+    def test_main_missing_config_file_returns_1(self, tmp_path):
+        """Test main() returns 1 for missing config file."""
+        from wanctl.steering.daemon import main
+
+        missing_config = tmp_path / "nonexistent.yaml"
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(missing_config)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                result = main()
+
+        assert result == 1
+
+    # =========================================================================
+    # Lock handling tests
+    # =========================================================================
+
+    def test_main_lock_acquired_successfully(self, valid_config_file):
+        """Test main() acquires lock and starts daemon."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, True]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0):
+                                        result = main()
+
+        assert result == 0
+
+    def test_main_lock_conflict_returns_1(self, valid_config_file):
+        """Test main() returns 1 when another instance holds lock."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=False):
+                            result = main()
+
+        assert result == 1
+
+    # =========================================================================
+    # Health server lifecycle tests
+    # =========================================================================
+
+    def test_main_health_server_starts_before_daemon_loop(self, valid_config_file):
+        """Test health server starts before daemon loop."""
+        from wanctl.steering.daemon import main
+
+        call_order = []
+
+        def track_health_start(*args, **kwargs):
+            call_order.append("health_start")
+            return MagicMock()
+
+        def track_daemon_loop(*args, **kwargs):
+            call_order.append("daemon_loop")
+            return 0
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, True]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server", side_effect=track_health_start):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", side_effect=track_daemon_loop):
+                                        main()
+
+        assert call_order == ["health_start", "daemon_loop"]
+
+    def test_main_health_server_shuts_down_in_finally(self, valid_config_file):
+        """Test health server shuts down in finally block."""
+        from wanctl.steering.daemon import main
+
+        mock_server = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, True]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server", return_value=mock_server):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0):
+                                        main()
+
+        mock_server.shutdown.assert_called_once()
+
+    def test_main_health_server_failure_doesnt_prevent_daemon_start(self, valid_config_file):
+        """Test health server failure doesn't prevent daemon from starting."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logger = MagicMock()
+                    mock_logging.return_value = mock_logger
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, True]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server", side_effect=Exception("Port in use")):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0) as mock_loop:
+                                        result = main()
+
+        # Daemon loop should still be called despite health server failure
+        mock_loop.assert_called_once()
+        assert result == 0
+
+    # =========================================================================
+    # Shutdown handling tests
+    # =========================================================================
+
+    def test_main_early_shutdown_returns_0(self, valid_config_file):
+        """Test early shutdown (signal during startup) returns 0."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", return_value=True):
+                        result = main()
+
+        assert result == 0
+
+    def test_main_keyboard_interrupt_returns_130(self, valid_config_file):
+        """Test KeyboardInterrupt returns 130."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, True]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", side_effect=KeyboardInterrupt):
+                                        result = main()
+
+        assert result == 130
+
+    def test_main_unhandled_exception_returns_1(self, valid_config_file):
+        """Test unhandled exception returns 1."""
+        from wanctl.steering.daemon import main
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False, False]):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", side_effect=RuntimeError("Test error")):
+                                        result = main()
+
+        assert result == 1
+
+    def test_main_exception_during_shutdown_returns_0(self, valid_config_file):
+        """Test exception during shutdown (when is_shutdown_requested=True) returns 0."""
+        from wanctl.steering.daemon import main
+
+        # Simulate: False (early), False (before lock), RuntimeError in run_daemon_loop, True (in except block)
+        call_count = [0]
+
+        def shutdown_requested_sequence():
+            call_count[0] += 1
+            # First 2 calls: False (not shutdown)
+            # Third+ calls: True (shutdown requested - so exception during shutdown returns 0)
+            return call_count[0] > 2
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", side_effect=shutdown_requested_sequence):
+                        with patch("wanctl.steering.daemon.validate_and_acquire_lock", return_value=True):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch("wanctl.steering.daemon.run_daemon_loop", side_effect=RuntimeError("Error during run")):
+                                        result = main()
+
+        # Should return 0 because is_shutdown_requested returns True in except block
+        assert result == 0
+
+    # =========================================================================
+    # Reset mode tests
+    # =========================================================================
+
+    def test_main_reset_mode_resets_state_and_disables_steering(self, valid_config_file):
+        """Test --reset mode calls reset() and disable_steering()."""
+        from wanctl.steering.daemon import main
+
+        mock_state_mgr = MagicMock()
+        mock_router = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file), "--reset"]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", return_value=False):
+                        with patch("wanctl.steering.daemon.SteeringStateManager", return_value=mock_state_mgr):
+                            with patch("wanctl.steering.daemon.RouterOSController", return_value=mock_router):
+                                result = main()
+
+        assert result == 0
+        mock_state_mgr.reset.assert_called_once()
+        mock_router.disable_steering.assert_called_once()
+
+    def test_main_reset_mode_skips_daemon_loop(self, valid_config_file):
+        """Test --reset mode exits without starting daemon loop."""
+        from wanctl.steering.daemon import main
+
+        mock_state_mgr = MagicMock()
+        mock_router = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file), "--reset"]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch("wanctl.steering.daemon.is_shutdown_requested", return_value=False):
+                        with patch("wanctl.steering.daemon.SteeringStateManager", return_value=mock_state_mgr):
+                            with patch("wanctl.steering.daemon.RouterOSController", return_value=mock_router):
+                                with patch("wanctl.steering.daemon.run_daemon_loop") as mock_loop:
+                                    result = main()
+
+        # Daemon loop should NOT be called in reset mode
+        mock_loop.assert_not_called()
+        assert result == 0
