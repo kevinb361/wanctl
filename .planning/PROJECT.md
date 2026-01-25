@@ -8,26 +8,29 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.6 Test Coverage 90%
+## Current Milestone: v1.7 Metrics History
 
-**Goal:** Increase test coverage from 45.7% to 90%+ with CI enforcement
+**Goal:** Historical metrics storage with downsampling for debugging, trend analysis, and Claude-assisted config tuning
 
 **Target features:**
 
-- Unit tests for all modules including CLI tools and backends
-- Coverage threshold enforcement (fail CI below 90%)
-- Complete the COV-04 requirement deferred from v1.5
+- SQLite storage with time-based downsampling (1s → 1m → 5m → 1h)
+- Rich context for Claude analysis (state transitions, reasons, config snapshots)
+- CLI tool for queries (`wanctl-history --last 1h`)
+- JSON API endpoint (`/metrics/history`)
+- Configurable retention (default 7 days)
+- Prometheus-compatible metric naming (future-ready)
 
-## Current State (v1.5)
+## Current State (v1.6)
 
-- **Version:** v1.5 Quality & Hygiene (shipped 2026-01-24)
+- **Version:** v1.6 Test Coverage 90% (shipped 2026-01-25)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 747 passing
-- **Coverage:** 45.7% (statement), 72% (branch)
+- **Tests:** 1,490 passing
+- **Coverage:** 90.08% (CI enforced)
 - **LOC:** ~13,273 Python (src/)
-- **Status:** Production stable, quality tooling complete
+- **Status:** Production stable, comprehensive test coverage
 
-**Previous:** v1.4 Observability — steering health endpoint on port 9102
+**Previous:** v1.5 Quality & Hygiene — security audit, documentation verification
 
 ## Requirements
 
@@ -86,6 +89,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Documentation verified to v1.4.0 (6 files updated, 14 issues fixed) — v1.5
 - ✓ Security audit (zero CVEs, 4 tools, `make security` target) — v1.5
 
+**v1.6 Test Coverage 90%:**
+
+- ✓ 90%+ statement coverage (90.08% achieved) — v1.6
+- ✓ CI enforcement via fail_under=90 in pyproject.toml — v1.6
+- ✓ 743 new tests added (747 → 1,490 total) — v1.6
+- ✓ All major modules tested: backends, state, metrics, controllers, CLI tools — v1.6
+
 ### Active
 
 **Ongoing:**
@@ -100,7 +110,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 ### Out of Scope
 
 - Machine learning-based bandwidth prediction — unnecessary complexity
-- Prometheus/Grafana integration — not core to functionality
+- Full Prometheus/Grafana stack — designing compatible naming, but not requiring external deps
 - Breaking changes to configuration format — maintain compatibility
 - Support for non-RouterOS devices — focused on existing integration
 
@@ -161,9 +171,17 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Documentation verified to v1.4.0 (14 issues fixed)
 - Security audit (zero CVEs, `make security` target)
 
+**v1.6 Test Coverage 90% (2026-01-25):**
+
+- 7 phases of comprehensive testing (Phases 31-37)
+- Coverage increased from 45.7% to 90.08%
+- 743 new tests added (747 → 1,490 total)
+- CI enforcement via fail_under=90
+- All major modules tested: backends, state, metrics, controllers, CLI tools
+
 **Next Steps:**
 
-- Execute v1.6 Test Coverage 90% milestone
+- Execute v1.7 Metrics History milestone
 
 ## Constraints
 
@@ -194,4 +212,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-24 after v1.6 milestone started_
+_Last updated: 2026-01-25 after v1.7 milestone started_

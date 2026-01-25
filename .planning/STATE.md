@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-24)
+See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 shipped - ready for next milestone
+**Current focus:** v1.7 Metrics History
 
 ## Current Position
 
-Phase: None (milestone planning needed)
-Plan: None
-Status: v1.6 Test Coverage 90% milestone complete
-Last activity: 2026-01-25 - Shipped v1.6 milestone
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-25 — Milestone v1.7 started
 
-Progress: Ready for v1.7 milestone planning
+Progress: Ready for requirements and roadmap
 
 ## Performance Metrics
 
@@ -37,12 +37,17 @@ Progress: Ready for v1.7 milestone planning
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
-See `.planning/milestones/v1.6-ROADMAP.md` for v1.6 decisions.
+**v1.7 Metrics History:**
+
+- SQLite for storage (simple, no external deps, good for time-series)
+- Downsampling strategy: 1s → 1m → 5m → 1h as data ages
+- Rich context for Claude analysis (transitions, reasons, not just numbers)
+- Prometheus-compatible naming (future-ready, not required)
+- Configurable retention (default 7 days)
 
 ### Deferred Issues
 
-- steering_confidence.py at 42.1% (confidence-based steering in dry-run mode)
-- test_* prefix in calibrate.py source functions (cosmetic naming issue)
+- steering_confidence.py at 42.1% coverage (confidence-based steering in dry-run mode)
 
 ### Blockers/Concerns
 
@@ -52,7 +57,7 @@ None.
 
 4 todos remaining in `.planning/todos/pending/`:
 
-- Add metrics history feature (observability)
+- Add metrics history feature (observability) — NOW BEING ADDRESSED
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
@@ -79,11 +84,11 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Shipped v1.6 milestone
+Stopped at: Defining v1.7 requirements
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:new-milestone` - Start v1.7 milestone planning
-2. Check pending todos for candidates
-3. Review deferred issues for prioritization
+1. Define v1.7 requirements
+2. Create v1.7 roadmap
+3. `/gsd:plan-phase 38` — Start first phase
