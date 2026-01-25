@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - Phase 35 gap closure complete
+**Current focus:** v1.6 Test Coverage 90% - Phase 35 complete
 
 ## Current Position
 
-Phase: 35 of 37 (Core Controller Tests)
-Plan: 4 of 4 in gap closure (COMPLETE)
-Status: Phase 35 gap closure complete
-Last activity: 2026-01-25 - Completed 35-04-PLAN.md
+Phase: 35 of 37 (Core Controller Tests) - COMPLETE
+Plan: 6 of 6 in phase (COMPLETE)
+Status: Phase 35 complete, verified (98.3% coverage achieved)
+Last activity: 2026-01-25 - Completed phase 35 execution
 
-Progress: [██████░░░░░░░░░░░░░░░░░░░░░░░░] 5/7 phases (71%)
+Progress: [████████████░░░░░░░░░░░░░░░░░░] 6/7 phases (86%)
 
 ## Performance Metrics
 
@@ -50,7 +50,7 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Baseline freeze tests use WANController directly (not QueueController) to test update_ewma integration (35-02)
 - Use controller_with_mocks fixture pattern returning tuple (ctrl, config, logger) for flexible test setup (35-03)
 - LockAcquisitionError requires (lock_path, age) positional arguments (35-03)
-- Mock ContinuousAutoRate.__new__ for isolated instance testing (35-06)
+- Mock ContinuousAutoRate.**new** for isolated instance testing (35-06)
 - Test entry point via source inspection rather than runpy.run_module (35-06)
 - Use side_effect function for time.monotonic to avoid StopIteration in TCP tests (35-05)
 - Replace real state_manager with mock after controller creation for load/save tests (35-05)
@@ -96,11 +96,11 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 35-04-PLAN.md (config alpha fallbacks, median-of-three RTT, baseline bounds)
+Stopped at: Completed phase 35 execution (6/6 plans, 98.3% coverage)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:plan-phase 36` - Plan steering tests phase
-2. Execute Phase 36
-3. Continue through Phase 37 to reach 90% coverage
+1. `/gsd:discuss-phase 36` - Gather context for steering daemon tests
+2. `/gsd:plan-phase 36` - Plan steering tests phase
+3. Execute Phase 36-37 to complete v1.6 milestone

@@ -47,13 +47,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement ✓
   - [x] 34-01-PLAN.md - Metrics and CAKE stats test coverage (metrics.py, cake_stats.py)
   - [x] 34-02-PLAN.md - RTT measurement edge case tests (rtt_measurement.py)
-- [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
+- [x] **Phase 35: Core Controller Tests** - Main autorate control loop coverage ✓
   - [x] 35-01-PLAN.md - Entry points, config, signal handlers
   - [x] 35-02-PLAN.md - QueueController state transitions
   - [x] 35-03-PLAN.md - Error recovery paths
-  - [ ] 35-04-PLAN.md - Config alpha fallbacks, median RTT, baseline bounds (gap closure)
-  - [ ] 35-05-PLAN.md - Connectivity fallback, load/save state (gap closure)
-  - [ ] 35-06-PLAN.md - ContinuousAutoRate init, daemon handlers (gap closure)
+  - [x] 35-04-PLAN.md - Config alpha fallbacks, median RTT, baseline bounds (gap closure)
+  - [x] 35-05-PLAN.md - Connectivity fallback, load/save state (gap closure)
+  - [x] 35-06-PLAN.md - ContinuousAutoRate init, daemon handlers (gap closure)
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
 - [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
 
@@ -256,7 +256,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.6 Phase 34 complete (2 plans)**
+**Current: v1.6 Phase 35 complete (6 plans)**
 
 ### Completed Milestones
 
@@ -279,7 +279,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
 | 33. State & Infrastructure Tests | 2/2            | Complete    | 2026-01-25 |
 | 34. Metrics & Measurement Tests  | 2/2            | Complete    | 2026-01-25 |
-| 35. Core Controller Tests        | 3/6            | In progress | -          |
+| 35. Core Controller Tests        | 6/6            | Complete    | 2026-01-25 |
 | 36. Steering Daemon Tests        | 0/2            | Not started | -          |
 | 37. CLI Tool Tests               | 0/2            | Not started | -          |
 
