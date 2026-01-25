@@ -37,21 +37,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Add historical metrics storage with SQLite, automatic downsampling, and querying via CLI and API.
 
-- [ ] Phase 38: Storage Foundation - SQLite schema, writer, downsampling, retention
+- [x] Phase 38: Storage Foundation - SQLite schema, writer, downsampling, retention
 - [ ] Phase 39: Data Recording - Hook daemons to record metrics each cycle
 - [ ] Phase 40: CLI Tool - `wanctl-history` command for querying
 - [ ] Phase 41: API Endpoint - `/metrics/history` on health server
 
-### Phase 38: Storage Foundation
+### Phase 38: Storage Foundation ✓
 
 **Goal**: Establish metrics storage layer with SQLite, downsampling, and retention management
 **Depends on**: Nothing (first phase of v1.7)
 **Requirements**: STOR-01, STOR-02, STOR-03, STOR-04, DATA-05
 **Plans**: 2 plans
+**Status**: Complete
+**Completed**: 2026-01-25
 
 Plans:
-- [ ] 38-01-PLAN.md — SQLite schema and MetricsWriter singleton
-- [ ] 38-02-PLAN.md — Downsampling, retention cleanup, config integration
+
+- [x] 38-01-PLAN.md — SQLite schema and MetricsWriter singleton
+- [x] 38-02-PLAN.md — Downsampling, retention cleanup, config integration
+
+**Key Results:** Storage module with thread-safe MetricsWriter (WAL mode), retention cleanup with batch processing, downsampling (raw→1m→5m→1h), config integration. 92 new tests, 94.1% coverage.
 
 See [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) for full details.
 
@@ -271,7 +276,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** v1.7 Metrics History (Phase 38 of 41)
+**Current:** v1.7 Metrics History (Phase 39 of 41)
 
 ### Completed Milestones
 
@@ -285,5 +290,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 37 phases complete, 77 plans across 7 milestones
-**v1.7:** 4 phases (38-41), 7 plans planned
+**Total:** 38 phases complete, 79 plans across 7 milestones
+**v1.7:** 4 phases (38-41), 1 phase complete (38)
