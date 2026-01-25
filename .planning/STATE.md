@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - MILESTONE COMPLETE
+**Current focus:** v1.6 shipped - ready for next milestone
 
 ## Current Position
 
-Phase: 37 of 37 (CLI Tool Tests) - COMPLETE
-Plan: 2 of 2 in phase (COMPLETE)
-Status: Phase 37 verified (calibrate.py 97.5%, perf_profiler.py 98.7%)
-Last activity: 2026-01-25 - Completed phase 37, v1.6 milestone complete
+Phase: None (milestone planning needed)
+Plan: None
+Status: v1.6 Test Coverage 90% milestone complete
+Last activity: 2026-01-25 - Shipped v1.6 milestone
 
-Progress: [██████████████████████████████] 7/7 phases (100%)
+Progress: Ready for v1.7 milestone planning
 
 ## Performance Metrics
 
@@ -28,7 +28,8 @@ Progress: [███████████████████████
 | v1.3      | 4      | 5     | 1 day    |
 | v1.4      | 2      | 4     | 1 day    |
 | v1.5      | 4      | 8     | 1 day    |
-| **Total** | 30     | 60    | 6 days   |
+| v1.6      | 7      | 17    | 2 days   |
+| **Total** | 37     | 77    | 8 days   |
 
 ## Accumulated Context
 
@@ -36,46 +37,16 @@ Progress: [███████████████████████
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
-**v1.6 Coverage Infrastructure:**
-
-- Keep `test` target fast for dev, `coverage-check` for CI enforcement (31-01)
-- Abstract base class coverage accepted at 80.6% (abstract methods are inherently uncoverable) (32-02)
-- Test error_handling decorator with both method and standalone function patterns (33-02)
-- Use reset_shutdown_state() in setup/teardown for signal test isolation (33-02)
-- Use tmp_path for real file I/O; mock fcntl.flock for lock tests (33-01)
-- Accept 96.9% coverage for rtt_measurement.py - remaining 3.1% is defensive unreachable code (34-02)
-- Use pytest.approx() for floating-point comparisons in RTT delta tests (34-01)
-- queued-packets regex matches before packets in certain text formats - adjust test data order (34-01)
-- Test SOFT_RED sustain with both default (soft_red_required=1) and custom higher values (35-02)
-- Baseline freeze tests use WANController directly (not QueueController) to test update_ewma integration (35-02)
-- Use controller_with_mocks fixture pattern returning tuple (ctrl, config, logger) for flexible test setup (35-03)
-- LockAcquisitionError requires (lock_path, age) positional arguments (35-03)
-- Mock ContinuousAutoRate.**new** for isolated instance testing (35-06)
-- Test entry point via source inspection rather than runpy.run_module (35-06)
-- Use side_effect function for time.monotonic to avoid StopIteration in TCP tests (35-05)
-- Replace real state_manager with mock after controller creation for load/save tests (35-05)
-- Use caplog fixture to test alpha_load slow warning message (35-04)
-- Calculate measured_rtt values mathematically to test bounds rejection (35-04)
-- Test boundary conditions (exact min/max) to ensure inclusive bounds (35-04)
-- Use tmp_path for BaselineLoader file I/O tests (36-01)
-- Create valid_config_dict fixture as base for SteeringConfig test variations (36-01)
-- Test X flag position variations (" X ", "\tX\t", "\tX ", " X\t") for MikroTik parsing (36-01)
-- Dry-run mode is production default for confidence controller - tests verify observability without side effects (36-02)
-- Use pytest.raises(SystemExit) for argparse errors since they call sys.exit directly (36-02)
-- Use call counter to simulate is_shutdown_requested sequence for exception-during-shutdown tests (36-02)
-- Test percentile calculation with 100 samples for clearer index verification (37-02)
-- Verify exception handling logs timing before exception propagates (37-02)
-- Test step helpers directly rather than through integration tests for higher coverage (37-01)
-- Use mock side_effect for interrupt sequence tests (37-01)
-- Accept source file naming issue (test*ssh_connectivity, test_netperf_server) - production functions with test* prefix (37-01)
+See `.planning/milestones/v1.6-ROADMAP.md` for v1.6 decisions.
 
 ### Deferred Issues
 
-None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
+- steering_confidence.py at 42.1% (confidence-based steering in dry-run mode)
+- test_* prefix in calibrate.py source functions (cosmetic naming issue)
 
 ### Blockers/Concerns
 
-- `make ci` will fail until coverage reaches 90% (expected, by design)
+None.
 
 ### Pending Todos
 
@@ -103,16 +74,16 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 - **v1.3 Reliability & Hardening** (2026-01-21): Safety invariant tests, deployment validation
 - **v1.4 Observability** (2026-01-24): Steering daemon health endpoint on port 9102
 - **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
-- **v1.6 Test Coverage 90%** (2026-01-25): 111 new tests, 90%+ coverage enforced in CI
+- **v1.6 Test Coverage 90%** (2026-01-25): 743 new tests, 90%+ coverage enforced in CI
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 37 and v1.6 milestone
+Stopped at: Shipped v1.6 milestone
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:audit-milestone` - Audit v1.6 milestone completion
-2. `/gsd:complete-milestone` - Archive v1.6 and update documentation
-3. Plan v1.7 milestone (if applicable)
+1. `/gsd:new-milestone` - Start v1.7 milestone planning
+2. Check pending todos for candidates
+3. Review deferred issues for prioritization

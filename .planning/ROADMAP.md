@@ -12,10 +12,11 @@ None
 
 ### Current
 
-- **v1.6 Test Coverage 90%** (Phases 31-37) - COMPLETE
+None - milestone planning needed
 
 ### Completed
 
+- [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
 - [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
 - [v1.4 Observability](milestones/v1.4-ROADMAP.md) (Phases 25-26) - SHIPPED 2026-01-24
 - [v1.3 Reliability & Hardening](milestones/v1.3-ROADMAP.md) (Phases 21-24) - SHIPPED 2026-01-21
@@ -32,36 +33,24 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.6 Test Coverage 90% (Phases 31-37) - COMPLETE
+<details>
+<summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
 
 **Milestone Goal:** Increase test coverage from 45.7% to 90%+ with CI enforcement.
 
-- [x] **Phase 31: Coverage Infrastructure** - Threshold enforcement and CI integration ✓
-  - [x] 31-01-PLAN.md - Configure coverage threshold and CI enforcement
-- [x] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage ✓
-  - [x] 32-01-PLAN.md - REST client test coverage (routeros_rest.py)
-  - [x] 32-02-PLAN.md - SSH client and base class test coverage
-- [x] **Phase 33: State & Infrastructure Tests** - State manager and utility modules ✓
-  - [x] 33-01-PLAN.md - State manager test coverage (state_manager.py)
-  - [x] 33-02-PLAN.md - Infrastructure utilities test coverage (error_handling, signal, systemd, path)
-- [x] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement ✓
-  - [x] 34-01-PLAN.md - Metrics and CAKE stats test coverage (metrics.py, cake_stats.py)
-  - [x] 34-02-PLAN.md - RTT measurement edge case tests (rtt_measurement.py)
-- [x] **Phase 35: Core Controller Tests** - Main autorate control loop coverage ✓
-  - [x] 35-01-PLAN.md - Entry points, config, signal handlers
-  - [x] 35-02-PLAN.md - QueueController state transitions
-  - [x] 35-03-PLAN.md - Error recovery paths
-  - [x] 35-04-PLAN.md - Config alpha fallbacks, median RTT, baseline bounds (gap closure)
-  - [x] 35-05-PLAN.md - Connectivity fallback, load/save state (gap closure)
-  - [x] 35-06-PLAN.md - ContinuousAutoRate init, daemon handlers (gap closure)
-- [x] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic ✓
-  - [x] 36-01-PLAN.md - RouterOSController, BaselineLoader, SteeringConfig tests
-  - [x] 36-02-PLAN.md - run_cycle, main entry point, confidence integration tests
-- [x] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools ✓
-  - [x] 37-01-PLAN.md - Calibrate tool test coverage (calibrate.py)
-  - [x] 37-02-PLAN.md - Performance profiler test coverage (perf_profiler.py)
+- [x] Phase 31: Coverage Infrastructure - Threshold enforcement and CI integration
+- [x] Phase 32: Backend Client Tests - RouterOS REST/SSH client coverage
+- [x] Phase 33: State & Infrastructure Tests - State manager and utility modules
+- [x] Phase 34: Metrics & Measurement Tests - Metrics, CAKE stats, RTT measurement
+- [x] Phase 35: Core Controller Tests - Main autorate control loop coverage (6 plans)
+- [x] Phase 36: Steering Daemon Tests - Steering daemon lifecycle and logic
+- [x] Phase 37: CLI Tool Tests - Calibrate and profiler tools
+
+**Key Results:** +743 tests (747 to 1,490), 90.08% coverage (target: 90%), CI enforcement active.
 
 See [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) for full details.
+
+</details>
 
 <details>
 <summary>v1.5 Quality & Hygiene (Phases 27-30) - SHIPPED 2026-01-24</summary>
@@ -260,12 +249,13 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.6 Phase 37 complete (2 plans) - MILESTONE COMPLETE**
+**Current:** No active milestone - ready for v1.7 planning
 
 ### Completed Milestones
 
 | Milestone                     | Phases | Plans | Status   | Shipped    |
 | ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
 | v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability            | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening  | 21-24  | 5     | Complete | 2026-01-21 |
@@ -273,18 +263,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 30 phases, 60 plans across 6 milestones
-
-### v1.6 Progress
-
-| Phase                            | Plans Complete | Status   | Completed  |
-| -------------------------------- | -------------- | -------- | ---------- |
-| 31. Coverage Infrastructure      | 1/1            | Complete | 2026-01-24 |
-| 32. Backend Client Tests         | 2/2            | Complete | 2026-01-25 |
-| 33. State & Infrastructure Tests | 2/2            | Complete | 2026-01-25 |
-| 34. Metrics & Measurement Tests  | 2/2            | Complete | 2026-01-25 |
-| 35. Core Controller Tests        | 6/6            | Complete | 2026-01-25 |
-| 36. Steering Daemon Tests        | 2/2            | Complete | 2026-01-25 |
-| 37. CLI Tool Tests               | 2/2            | Complete | 2026-01-25 |
-
-**v1.6 Total:** 7 phases, 17 plans
+**Total:** 37 phases, 77 plans across 7 milestones
