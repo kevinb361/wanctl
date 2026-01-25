@@ -44,9 +44,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 33: State & Infrastructure Tests** - State manager and utility modules ✓
   - [x] 33-01-PLAN.md - State manager test coverage (state_manager.py)
   - [x] 33-02-PLAN.md - Infrastructure utilities test coverage (error_handling, signal, systemd, path)
-- [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
-  - [ ] 34-01-PLAN.md - Metrics and CAKE stats test coverage (metrics.py, cake_stats.py)
-  - [ ] 34-02-PLAN.md - RTT measurement edge case tests (rtt_measurement.py)
+- [x] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement ✓
+  - [x] 34-01-PLAN.md - Metrics and CAKE stats test coverage (metrics.py, cake_stats.py)
+  - [x] 34-02-PLAN.md - RTT measurement edge case tests (rtt_measurement.py)
 - [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
 - [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
@@ -250,7 +250,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current: v1.6 Phase 34 planned (2 plans)**
+**Current: v1.6 Phase 34 complete (2 plans)**
 
 ### Completed Milestones
 
@@ -272,7 +272,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | 31. Coverage Infrastructure      | 1/1            | Complete    | 2026-01-24 |
 | 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
 | 33. State & Infrastructure Tests | 2/2            | Complete    | 2026-01-25 |
-| 34. Metrics & Measurement Tests  | 0/2            | Planned     | -          |
+| 34. Metrics & Measurement Tests  | 2/2            | Complete    | 2026-01-25 |
 | 35. Core Controller Tests        | 0/3            | Not started | -          |
 | 36. Steering Daemon Tests        | 0/2            | Not started | -          |
 | 37. CLI Tool Tests               | 0/2            | Not started | -          |
