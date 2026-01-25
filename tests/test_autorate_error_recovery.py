@@ -394,3 +394,173 @@ class TestMeasurementFailureRecovery:
             should_continue, rtt = ctrl.handle_icmp_failure()
         assert should_continue is False
         assert rtt is None
+
+
+# =============================================================================
+# TestIcmpTcpFallbackAndRecovery - TCP RTT fallback and ICMP recovery tests
+# =============================================================================
+
+
+class TestIcmpTcpFallbackAndRecovery:
+    """Tests for TCP RTT fallback and ICMP recovery (v1.1.0 ICMP blackout fix).
+
+    When ICMP fails but TCP connectivity exists:
+    - TCP RTT should be used for EWMA updates
+    - TCP RTT bypasses graceful_degradation cycle limits
+    - Warning logged about using TCP RTT
+
+    When ICMP recovers after failures:
+    - Counter resets to 0
+    - Info message logged about recovery
+    - Normal EWMA updates resume
+
+    When both ICMP and TCP fail (total connectivity loss):
+    - run_cycle returns False
+    - Warning logged about total loss
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_config, mock_logger
+
+    # =========================================================================
+    # TCP RTT fallback tests (v1.1.0 fix)
+    # =========================================================================
+
+    def test_tcp_rtt_used_in_run_cycle(self, controller_with_mocks):
+        """TCP RTT should flow through to update_ewma when ICMP fails."""
+        ctrl, mock_config, _ = controller_with_mocks
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5  # Should NOT be used
+        tcp_rtt = 25.5  # TCP RTT should be used instead
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, tcp_rtt)),
+            patch.object(ctrl, "update_ewma") as mock_update,
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        # update_ewma should be called with TCP RTT
+        mock_update.assert_called_once_with(tcp_rtt)
+
+    def test_tcp_rtt_bypasses_graceful_degradation(self, controller_with_mocks):
+        """TCP RTT should work even at cycle 10 in graceful_degradation mode."""
+        ctrl, mock_config, _ = controller_with_mocks
+        mock_config.fallback_mode = "graceful_degradation"
+        mock_config.fallback_max_cycles = 3
+        ctrl.icmp_unavailable_cycles = 10  # Would normally trigger failure
+        ctrl.load_rtt = 28.5
+        tcp_rtt = 30.2
+
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, tcp_rtt)):
+            should_continue, measured_rtt = ctrl.handle_icmp_failure()
+
+        assert should_continue is True
+        assert measured_rtt == tcp_rtt
+
+    def test_tcp_rtt_fallback_logs_warning(self, controller_with_mocks):
+        """Warning should be logged when using TCP RTT as fallback."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5
+        tcp_rtt = 25.5
+
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, tcp_rtt)):
+            ctrl.handle_icmp_failure()
+
+        # Check for warning about TCP RTT
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("TCP RTT" in call for call in warning_calls)
+
+    # =========================================================================
+    # ICMP recovery tests
+    # =========================================================================
+
+    def test_icmp_recovery_resets_counter(self, controller_with_mocks):
+        """ICMP success after failures should reset icmp_unavailable_cycles to 0."""
+        ctrl, _, _ = controller_with_mocks
+        ctrl.icmp_unavailable_cycles = 5
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        assert ctrl.icmp_unavailable_cycles == 0
+
+    def test_icmp_recovery_logs_info(self, controller_with_mocks):
+        """Info message should be logged when ICMP recovers."""
+        ctrl, _, mock_logger = controller_with_mocks
+        ctrl.icmp_unavailable_cycles = 3
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Check for recovery message
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("ICMP recovered" in call for call in info_calls)
+
+    def test_icmp_recovery_resumes_normal_operation(self, controller_with_mocks):
+        """Normal EWMA updates should resume after ICMP recovery."""
+        ctrl, _, _ = controller_with_mocks
+        ctrl.icmp_unavailable_cycles = 5
+        ctrl.load_rtt = 30.0
+        measured_rtt = 25.0
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=measured_rtt),
+            patch.object(ctrl, "update_ewma") as mock_update,
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        # update_ewma should be called with the actual measured RTT
+        mock_update.assert_called_once_with(measured_rtt)
+
+    # =========================================================================
+    # Total connectivity loss tests
+    # =========================================================================
+
+    def test_total_loss_returns_false(self, controller_with_mocks):
+        """Both ICMP and TCP fail should return (False, None)."""
+        ctrl, mock_config, _ = controller_with_mocks
+        mock_config.fallback_mode = "graceful_degradation"
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5
+
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(False, None)):
+            should_continue, measured_rtt = ctrl.handle_icmp_failure()
+
+        assert should_continue is False
+        assert measured_rtt is None
+
+    def test_total_loss_logs_warning(self, controller_with_mocks):
+        """Warning should be logged about total connectivity loss."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+        mock_config.fallback_mode = "graceful_degradation"
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5
+
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(False, None)):
+            ctrl.handle_icmp_failure()
+
+        # Check for warning about total loss
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("connectivity loss" in call for call in warning_calls)
