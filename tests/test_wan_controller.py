@@ -1329,3 +1329,115 @@ class TestRunCycleMetrics:
 
         assert result is True
         mock_record.assert_not_called()
+
+
+class TestVerifyLocalConnectivity:
+    """Tests for WANController.verify_local_connectivity() method.
+
+    Covers lines 978-989:
+    - Gateway check disabled returns False immediately
+    - Gateway reachable returns True with warning
+    - Gateway unreachable returns False
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl, config, logger
+
+    def test_gateway_check_disabled_returns_false(self, controller_with_mocks):
+        """When fallback_check_gateway=False, returns False immediately."""
+        ctrl, config, _ = controller_with_mocks
+        config.fallback_check_gateway = False
+
+        result = ctrl.verify_local_connectivity()
+
+        assert result is False
+        # ping_host should NOT have been called
+        ctrl.rtt_measurement.ping_host.assert_not_called()
+
+    def test_gateway_reachable_returns_true_with_warning(self, controller_with_mocks):
+        """When gateway is reachable, returns True and logs warning."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_check_gateway = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        ctrl.rtt_measurement.ping_host.return_value = 5.0  # Success
+
+        result = ctrl.verify_local_connectivity()
+
+        assert result is True
+        ctrl.rtt_measurement.ping_host.assert_called_once_with("10.0.0.1", count=1)
+        # Verify warning logged
+        logger.warning.assert_called_once()
+        warning_msg = logger.warning.call_args[0][0]
+        assert "gateway" in warning_msg.lower()
+        assert "10.0.0.1" in warning_msg
+        assert "reachable" in warning_msg.lower()
+
+    def test_gateway_unreachable_returns_false(self, controller_with_mocks):
+        """When gateway is unreachable, returns False."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_check_gateway = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        ctrl.rtt_measurement.ping_host.return_value = None  # Failure
+
+        result = ctrl.verify_local_connectivity()
+
+        assert result is False
+        ctrl.rtt_measurement.ping_host.assert_called_once()
+        # No warning should be logged for unreachable
+        logger.warning.assert_not_called()
