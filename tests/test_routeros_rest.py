@@ -236,3 +236,233 @@ class TestFromConfig:
             client = RouterOSREST.from_config(config, mock_logger)
 
         assert client.timeout == 45
+
+
+# =============================================================================
+# TestRouterOSRESTRunCmd - run_cmd Method Tests
+# =============================================================================
+
+
+class TestRouterOSRESTRunCmd:
+    """Tests for RouterOSREST.run_cmd method."""
+
+    def test_run_cmd_success_returns_json(self, rest_client, mock_session):
+        """Successful response returns (0, json_string, '')."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd('/queue tree print where name="WAN-Download"')
+
+        assert rc == 0
+        assert '"name": "WAN-Download"' in stdout
+        assert stderr == ""
+
+    def test_run_cmd_network_error_in_handler(self, rest_client, mock_session):
+        """RequestException in handler returns (1, '', 'Command failed')."""
+        # When RequestException occurs inside a handler, it catches it and returns None,
+        # which results in "Command failed" from run_cmd
+        mock_session.get.side_effect = requests.RequestException("Connection refused")
+
+        rc, stdout, stderr = rest_client.run_cmd('/queue tree print where name="WAN-Download"')
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_run_cmd_network_error_propagated(self, rest_client):
+        """RequestException propagating to run_cmd returns (1, '', error_message)."""
+        # Mock _execute_command to raise exception directly
+        with patch.object(
+            rest_client, "_execute_command", side_effect=requests.RequestException("Connection refused")
+        ):
+            rc, stdout, stderr = rest_client.run_cmd("/queue tree print")
+
+        assert rc == 1
+        assert stdout == ""
+        assert "Connection refused" in stderr
+
+    def test_run_cmd_unexpected_error(self, rest_client, mock_session):
+        """Generic exception returns (1, '', error_message)."""
+        mock_session.get.side_effect = ValueError("Unexpected error")
+
+        rc, stdout, stderr = rest_client.run_cmd('/queue tree print where name="WAN-Download"')
+
+        assert rc == 1
+        assert stdout == ""
+        assert "Unexpected error" in stderr
+
+    def test_run_cmd_uses_custom_timeout(self, rest_client, mock_session):
+        """Timeout parameter passed to _execute_command."""
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = []
+        mock_session.get.return_value = response
+
+        rest_client.run_cmd('/queue tree print where name="test"', timeout=30)
+
+        # Check that the GET request used the custom timeout
+        mock_session.get.assert_called_once()
+        call_kwargs = mock_session.get.call_args[1]
+        assert call_kwargs["timeout"] == 30
+
+    def test_run_cmd_unsupported_command(self, rest_client):
+        """Unsupported commands return (1, '', 'Command failed')."""
+        rc, stdout, stderr = rest_client.run_cmd("/system reboot")
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_run_cmd_batched_commands(self, rest_client, mock_session):
+        """Commands with semicolons execute in sequence."""
+        # Mock the queue ID lookup and PATCH for queue tree set commands
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/queue tree set [find name="WAN-Download"] max-limit=100; /queue tree set [find name="WAN-Download"] max-limit=200'
+        rc, stdout, stderr = rest_client.run_cmd(cmd)
+
+        assert rc == 0
+        # PATCH should have been called twice (once for each command)
+        assert mock_session.patch.call_count == 2
+
+
+# =============================================================================
+# TestParsing - Parsing Helper Tests
+# =============================================================================
+
+
+class TestParsing:
+    """Tests for command parsing helper methods."""
+
+    def test_parse_find_name_extracts_name(self, rest_client):
+        """'[find name="WAN-Download"]' -> 'WAN-Download'."""
+        cmd = '/queue tree set [find name="WAN-Download"] max-limit=500000000'
+        result = rest_client._parse_find_name(cmd)
+        assert result == "WAN-Download"
+
+    def test_parse_find_name_no_match(self, rest_client):
+        """Returns None when pattern not found."""
+        cmd = "/queue tree print"
+        result = rest_client._parse_find_name(cmd)
+        assert result is None
+
+    def test_parse_find_comment_extracts_comment(self, rest_client):
+        """'[find comment="steering"]' -> 'steering'."""
+        cmd = '/ip firewall mangle enable [find comment="steering"]'
+        result = rest_client._parse_find_comment(cmd)
+        assert result == "steering"
+
+    def test_parse_find_comment_no_match(self, rest_client):
+        """Returns None when pattern not found."""
+        cmd = "/ip firewall mangle print"
+        result = rest_client._parse_find_comment(cmd)
+        assert result is None
+
+    def test_parse_parameters_extracts_queue(self, rest_client):
+        """'queue=cake-down' extracted."""
+        cmd = '/queue tree set [find name="WAN"] queue=cake-down'
+        result = rest_client._parse_parameters(cmd)
+        assert result.get("queue") == "cake-down"
+
+    def test_parse_parameters_extracts_max_limit(self, rest_client):
+        """'max-limit=500000000' extracted."""
+        cmd = '/queue tree set [find name="WAN"] max-limit=500000000'
+        result = rest_client._parse_parameters(cmd)
+        assert result.get("max-limit") == "500000000"
+
+    def test_parse_parameters_extracts_both(self, rest_client):
+        """Multiple params extracted."""
+        cmd = '/queue tree set [find name="WAN"] queue=cake-down max-limit=500000000'
+        result = rest_client._parse_parameters(cmd)
+        assert result.get("queue") == "cake-down"
+        assert result.get("max-limit") == "500000000"
+
+    def test_parse_parameters_empty_cmd(self, rest_client):
+        """Returns empty dict for commands without parameters."""
+        cmd = "/queue tree print"
+        result = rest_client._parse_parameters(cmd)
+        assert result == {}
+
+
+# =============================================================================
+# TestQueueTreeSet - Queue Tree Set Handler Tests
+# =============================================================================
+
+
+class TestQueueTreeSet:
+    """Tests for _handle_queue_tree_set method."""
+
+    def test_handle_queue_tree_set_success(self, rest_client, mock_session):
+        """Updates queue with PATCH."""
+        # Mock queue ID lookup
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        # Mock PATCH response
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/queue tree set [find name="WAN-Download"] max-limit=500000000'
+        result = rest_client._handle_queue_tree_set(cmd)
+
+        assert result is not None
+        assert result["status"] == "ok"
+        assert result["queue"] == "WAN-Download"
+        mock_session.patch.assert_called_once()
+
+    def test_handle_queue_tree_set_no_name(self, rest_client):
+        """Returns None when name missing."""
+        cmd = "/queue tree set max-limit=500000000"
+        result = rest_client._handle_queue_tree_set(cmd)
+        assert result is None
+
+    def test_handle_queue_tree_set_no_params(self, rest_client):
+        """Returns None when no params."""
+        cmd = '/queue tree set [find name="WAN-Download"]'
+        result = rest_client._handle_queue_tree_set(cmd)
+        assert result is None
+
+    def test_handle_queue_tree_set_queue_not_found(self, rest_client, mock_session):
+        """Returns None when queue doesn't exist."""
+        # Mock queue ID lookup returning empty
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = []
+        mock_session.get.return_value = get_response
+
+        cmd = '/queue tree set [find name="NonExistent"] max-limit=500000000'
+        result = rest_client._handle_queue_tree_set(cmd)
+
+        assert result is None
+
+    def test_handle_queue_tree_set_patch_failure(self, rest_client, mock_session):
+        """Returns None on HTTP error."""
+        # Mock queue ID lookup success
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"name": "WAN-Download", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        # Mock PATCH failure
+        patch_response = MagicMock()
+        patch_response.ok = False
+        patch_response.status_code = 400
+        patch_response.text = "Bad Request"
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/queue tree set [find name="WAN-Download"] max-limit=500000000'
+        result = rest_client._handle_queue_tree_set(cmd)
+
+        assert result is None
