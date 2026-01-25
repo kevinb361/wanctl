@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - Phase 32
+**Current focus:** v1.6 Test Coverage 90% - Phase 33
 
 ## Current Position
 
-Phase: 32 of 37 (Backend Client Tests)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase 32 complete, ready for Phase 33
-Last activity: 2026-01-25 — Completed 32-02-PLAN.md
+Phase: 33 of 37 (State Infrastructure Tests)
+Plan: 2 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-25 - Completed 33-02-PLAN.md
 
-Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 2/7 phases (29%)
+Progress: [███░░░░░░░░░░░░░░░░░░░░░░░░░░░] 4/14 plans (29%)
 
 ## Performance Metrics
 
@@ -40,6 +40,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
 - Keep `test` target fast for dev, `coverage-check` for CI enforcement (31-01)
 - Abstract base class coverage accepted at 80.6% (abstract methods are inherently uncoverable) (32-02)
+- Test error_handling decorator with both method and standalone function patterns (33-02)
+- Use reset_shutdown_state() in setup/teardown for signal test isolation (33-02)
 
 ### Deferred Issues
 
@@ -79,11 +81,11 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 32-01-PLAN.md and 32-02-PLAN.md
+Stopped at: Completed 33-02-PLAN.md (infrastructure utilities tests)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:plan-phase 33` - Plan state & infrastructure tests phase
-2. Execute Phase 33
+1. Execute 33-03-PLAN.md (connectivity state tests)
+2. Execute 33-04-PLAN.md (cycle state tests)
 3. Continue through Phases 34-37 to reach 90% coverage
