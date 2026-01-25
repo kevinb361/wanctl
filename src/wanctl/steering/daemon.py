@@ -30,7 +30,7 @@ import time
 import traceback
 from pathlib import Path
 
-from ..config_base import BaseConfig
+from ..config_base import BaseConfig, get_storage_config
 from ..config_validation_utils import validate_alpha
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
@@ -44,6 +44,7 @@ from ..signal_utils import (
     register_signal_handlers,
 )
 from ..state_manager import StateSchema, SteeringStateManager
+from ..storage import MetricsWriter
 from ..systemd_utils import (
     is_systemd_available,
     notify_degraded,
@@ -641,6 +642,13 @@ class SteeringDaemon:
             self.thresholds = None
             self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
 
+        # Metrics history storage (optional)
+        storage_config = get_storage_config(config.data)
+        self._metrics_writer: MetricsWriter | None = None
+        if storage_config.get("db_path"):
+            self._metrics_writer = MetricsWriter(Path(storage_config["db_path"]))
+            self.logger.info(f"Metrics storage enabled: {storage_config['db_path']}")
+
         # Confidence-based steering controller (if enabled)
         self.confidence_controller: ConfidenceController | None = None
         if self.config.use_confidence_scoring and self.config.confidence_config:
@@ -734,9 +742,22 @@ class SteeringDaemon:
         self.state_mgr.log_transition(from_state, to_state)
         self.state_mgr.state["current_state"] = to_state
 
-        # Record metrics if enabled
+        # Record metrics if enabled (Prometheus)
         if self.config.metrics_enabled:
             record_steering_transition(self.config.primary_wan, from_state, to_state)
+
+        # Record transition to SQLite history (if storage enabled)
+        if self._metrics_writer is not None:
+            ts = int(time.time())
+            reason = f"Transitioned from {from_state} to {to_state}"
+            self._metrics_writer.write_metric(
+                timestamp=ts,
+                wan_name=self.config.primary_wan,
+                metric_name="wanctl_steering_transition",
+                value=1.0 if enable_steering else 0.0,
+                labels={"reason": reason, "from_state": from_state, "to_state": to_state},
+                granularity="raw",
+            )
 
         return True
 
@@ -1223,7 +1244,7 @@ class SteeringDaemon:
         # Save state
         self.state_mgr.save()
 
-        # Record steering metrics if enabled
+        # Record steering metrics if enabled (Prometheus)
         if self.config.metrics_enabled:
             steering_enabled = state["current_state"] == self.config.state_degraded
             congestion_state = state.get("congestion_state", "GREEN")
@@ -1232,6 +1253,23 @@ class SteeringDaemon:
                 steering_enabled=steering_enabled,
                 congestion_state=congestion_state,
             )
+
+        # Record to SQLite history (if storage enabled)
+        if self._metrics_writer is not None:
+            ts = int(time.time())
+            steering_enabled_val = 1.0 if state["current_state"] == self.config.state_degraded else 0.0
+            state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
+                state.get("congestion_state", "GREEN"), 0
+            )
+
+            metrics_batch = [
+                (ts, self.config.primary_wan, "wanctl_rtt_ms", current_rtt, None, "raw"),
+                (ts, self.config.primary_wan, "wanctl_rtt_baseline_ms", baseline_rtt, None, "raw"),
+                (ts, self.config.primary_wan, "wanctl_rtt_delta_ms", delta, None, "raw"),
+                (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw"),
+                (ts, self.config.primary_wan, "wanctl_state", float(state_val), {"source": "steering"}, "raw"),
+            ]
+            self._metrics_writer.write_metrics_batch(metrics_batch)
 
         return True
 
