@@ -14,13 +14,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.autorate_continuous import (
-    Config,
-    ContinuousAutoRate,
     RouterOS,
     WANController,
 )
 from wanctl.lock_utils import LockAcquisitionError
-
 
 # =============================================================================
 # SHARED FIXTURES
@@ -692,6 +689,7 @@ class TestContinuousAutoRateErrorHandling:
     def test_run_cycle_catches_lock_error(self):
         """LockAcquisitionError should return False, log debug."""
         from pathlib import Path
+
         from wanctl.lock_utils import LockFile
 
         # Create minimal mock setup
@@ -740,7 +738,7 @@ class TestContinuousAutoRateErrorHandling:
         mock_config.lock_timeout = 10
 
         mock_logger = MagicMock()
-        mock_controller = MagicMock()
+        MagicMock()
 
         # Simulate run_cycle catching exception
         all_success = True

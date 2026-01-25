@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.config_base import ConfigValidationError
 from wanctl.steering.cake_stats import CakeStats, CakeStatsReader, CongestionSignals
 
 

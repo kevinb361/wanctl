@@ -20,7 +20,6 @@ import pytest
 
 from wanctl.routeros_ssh import RouterOSSSH
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -262,7 +261,7 @@ class TestGetKnownHostsPath:
 
         # Patch Path.home() to return our temp directory
         with patch.object(Path, "home", return_value=tmp_path):
-            result = client._get_known_hosts_path()
+            client._get_known_hosts_path()
 
             ssh_dir = tmp_path / ".ssh"
             assert ssh_dir.exists()
@@ -598,7 +597,7 @@ class TestRunCmd:
         stdout = MagicMock()
         stderr = MagicMock()
         # Unicode characters in output
-        stdout.read.return_value = "test \u2713 pass".encode("utf-8")
+        stdout.read.return_value = "test \u2713 pass".encode()
         stderr.read.return_value = b""
         stdout.channel.recv_exit_status.return_value = 0
         mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)

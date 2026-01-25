@@ -21,7 +21,6 @@ from wanctl.calibrate import (
     test_ssh_connectivity,
 )
 
-
 # =============================================================================
 # TEST HELPERS
 # =============================================================================
@@ -1441,6 +1440,7 @@ class TestStepSaveResults:
     def test_step_save_results_json_content(self, tmp_path):
         """Test _step_save_results writes correct JSON content."""
         import json
+
         from wanctl.calibrate import _step_save_results
 
         result = CalibrationResult(

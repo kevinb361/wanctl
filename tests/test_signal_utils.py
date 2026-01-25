@@ -1,7 +1,7 @@
 """Unit tests for signal handling utilities."""
 
 import signal
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from wanctl.signal_utils import (
     _shutdown_event,

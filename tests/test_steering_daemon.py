@@ -1785,7 +1785,7 @@ class TestRouterOSController:
 
         with patch(
             "wanctl.steering.daemon.verify_with_retry", return_value=True
-        ) as mock_verify:
+        ):
             result = controller.enable_steering()
 
         assert result is True
@@ -2780,7 +2780,7 @@ class TestConfidenceIntegration:
         with patch.object(
             daemon_with_confidence, "_update_state_machine_unified", return_value=False
         ) as mock_unified:
-            result = daemon_with_confidence.update_state_machine(signals)
+            daemon_with_confidence.update_state_machine(signals)
 
         # Should have evaluated confidence
         daemon_with_confidence.confidence_controller.evaluate.assert_called_once()
@@ -2891,7 +2891,7 @@ class TestConfidenceIntegration:
         with patch.object(
             daemon_with_confidence, "_update_state_machine_unified", return_value=False
         ) as mock_unified:
-            result = daemon_with_confidence.update_state_machine(signals)
+            daemon_with_confidence.update_state_machine(signals)
 
         # Should have fallen through to unified state machine
         mock_unified.assert_called_once_with(signals)

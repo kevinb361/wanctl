@@ -9,14 +9,12 @@ Coverage targets:
 """
 
 import logging
-from abc import ABC
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from wanctl.backends.base import RouterBackend
 from wanctl.backends.routeros import RouterOSBackend
-
 
 # =============================================================================
 # Concrete implementation for testing abstract base
@@ -164,7 +162,7 @@ class TestRouterOSBackendInit:
         }
 
         with patch("wanctl.backends.routeros.RouterOSSSH") as mock_ssh_class:
-            backend = RouterOSBackend.from_config(config)
+            RouterOSBackend.from_config(config)
 
             call_kwargs = mock_ssh_class.call_args[1]
             assert call_kwargs["timeout"] == 15
@@ -180,7 +178,7 @@ class TestRouterOSBackendInit:
         config.timeouts = {"ssh_command": 45}
 
         with patch("wanctl.backends.routeros.RouterOSSSH") as mock_ssh_class:
-            backend = RouterOSBackend.from_config(config)
+            RouterOSBackend.from_config(config)
 
             call_kwargs = mock_ssh_class.call_args[1]
             assert call_kwargs["timeout"] == 45
