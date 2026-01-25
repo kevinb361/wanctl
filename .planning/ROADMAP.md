@@ -12,9 +12,11 @@ None
 
 ### Current
 
-- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-41) - In Progress
+None - all milestones shipped
 
 ### Completed
+
+- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-41) - SHIPPED 2026-01-25
 
 - [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
 - [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
@@ -33,14 +35,14 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.7 Metrics History (Phases 38-41) - In Progress
+### v1.7 Metrics History (Phases 38-41) - SHIPPED 2026-01-25
 
 **Milestone Goal:** Add historical metrics storage with SQLite, automatic downsampling, and querying via CLI and API.
 
 - [x] Phase 38: Storage Foundation - SQLite schema, writer, downsampling, retention
 - [x] Phase 39: Data Recording - Hook daemons to record metrics each cycle
 - [x] Phase 40: CLI Tool - `wanctl-history` command for querying
-- [ ] Phase 41: API Endpoint - `/metrics/history` on health server
+- [x] Phase 41: API Endpoint - `/metrics/history` on health server
 
 ### Phase 38: Storage Foundation ✓
 
@@ -92,17 +94,20 @@ Plans:
 
 **Key Results:** `wanctl-history` CLI with --last/--from/--to time queries, --metrics filter, table/JSON/summary output modes. MetricsReader module with query_metrics(), compute_summary(), select_granularity(). 82 new tests (35 reader + 47 CLI).
 
-### Phase 41: API Endpoint
+### Phase 41: API Endpoint ✓
 
 **Goal**: `/metrics/history` endpoint on autorate health server (port 9101) for programmatic access
 **Depends on**: Phase 40
 **Requirements**: API-01, API-02, API-03, API-04
 **Plans**: 1 plan
-**Status**: Ready for execution
+**Status**: Complete
+**Completed**: 2026-01-25
 
 Plans:
 
-- [ ] 41-01-PLAN.md — /metrics/history endpoint with query params, pagination, and tests
+- [x] 41-01-PLAN.md — /metrics/history endpoint with query params, pagination, and tests
+
+**Key Results:** HTTP API endpoint for programmatic metrics access. Query params: range, from, to, metrics, wan, limit, offset. ISO 8601 timestamps, auto-granularity selection, pagination with metadata. 30 new tests (520 lines).
 
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
@@ -320,12 +325,13 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** v1.7 Metrics History (Phase 41 of 41)
+**Current:** None - all milestones shipped
 
 ### Completed Milestones
 
 | Milestone                     | Phases | Plans | Status   | Shipped    |
 | ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.7 Metrics History          | 38-41  | 7     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
 | v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability            | 25-26  | 4     | Complete | 2026-01-24 |
@@ -334,5 +340,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 40 phases complete, 83 plans across 7 milestones
-**v1.7:** 4 phases (38-41), 3 phases complete (38-40)
+**Total:** 41 phases complete, 84 plans across 8 milestones
+**v1.7:** 4 phases (38-41), 4 phases complete — MILESTONE SHIPPED

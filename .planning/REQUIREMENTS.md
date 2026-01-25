@@ -32,10 +32,10 @@ Requirements for Metrics History milestone. Each maps to roadmap phases.
 
 ### API Endpoint
 
-- [ ] **API-01**: `/metrics/history` endpoint on autorate health server (port 9101)
-- [ ] **API-02**: Query params: `range`, `from`, `to`, `metrics`, `wan`
-- [ ] **API-03**: JSON response with timestamps, values, and metadata
-- [ ] **API-04**: Pagination support (`limit`, `offset` params)
+- [x] **API-01**: `/metrics/history` endpoint on autorate health server (port 9101)
+- [x] **API-02**: Query params: `range`, `from`, `to`, `metrics`, `wan`
+- [x] **API-03**: JSON response with timestamps, values, and metadata
+- [x] **API-04**: Pagination support (`limit`, `offset` params)
 
 ### Integration
 
@@ -76,10 +76,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-03      | 40    | Complete |
 | CLI-04      | 40    | Complete |
 | CLI-05      | 40    | Complete |
-| API-01      | 41    | Pending  |
-| API-02      | 41    | Pending  |
-| API-03      | 41    | Pending  |
-| API-04      | 41    | Pending  |
+| API-01      | 41    | Complete |
+| API-02      | 41    | Complete |
+| API-03      | 41    | Complete |
+| API-04      | 41    | Complete |
 | INTG-01     | 39    | Complete |
 | INTG-02     | 39    | Complete |
 | INTG-03     | 39    | Complete |
@@ -93,4 +93,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-25_
-_Last updated: 2026-01-25 after Phase 40 completion_
+_Last updated: 2026-01-25 after Phase 41 completion — v1.7 MILESTONE COMPLETE_
