@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 34 of 37 (Metrics & Measurement Tests)
-Plan: 2 of 4 in current phase
-Status: In progress
-Last activity: 2026-01-25 - Completed 34-02-PLAN.md (RTT measurement tests)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase 34 complete
+Last activity: 2026-01-25 - Completed 34-01-PLAN.md and 34-02-PLAN.md
 
-Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 3/7 phases (43%)
+Progress: [█████░░░░░░░░░░░░░░░░░░░░░░░░░] 4/7 phases (57%)
 
 ## Performance Metrics
 
@@ -44,6 +44,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Use reset_shutdown_state() in setup/teardown for signal test isolation (33-02)
 - Use tmp_path for real file I/O; mock fcntl.flock for lock tests (33-01)
 - Accept 96.9% coverage for rtt_measurement.py - remaining 3.1% is defensive unreachable code (34-02)
+- Use pytest.approx() for floating-point comparisons in RTT delta tests (34-01)
+- queued-packets regex matches before packets in certain text formats - adjust test data order (34-01)
 
 ### Deferred Issues
 
@@ -83,11 +85,11 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 34-02-PLAN.md (RTT measurement tests)
+Stopped at: Completed phase 34 (34-01 and 34-02)
 Resume file: None
 
 ## Next Steps
 
-1. Execute 34-03-PLAN.md (congestion module tests)
-2. Execute 34-04-PLAN.md (health module tests)
-3. Continue through Phases 35-37 to reach 90% coverage
+1. `/gsd:plan-phase 35` - Plan config & controller tests phase
+2. Execute Phase 35
+3. Continue through Phases 36-37 to reach 90% coverage
