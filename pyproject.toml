@@ -16,6 +16,7 @@ dependencies = [
 wanctl = "wanctl.autorate_continuous:main"
 wanctl-calibrate = "wanctl.calibrate:main"
 wanctl-steering = "wanctl.steering.daemon:main"
+wanctl-history = "wanctl.history:main"
 
 [tool.uv]
 package = true
