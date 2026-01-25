@@ -471,3 +471,119 @@ class TestAdjust4StateZoneClassification:
 
         assert zone == "RED"
         assert controller_4state.red_streak == 1
+
+
+# =============================================================================
+# 4-STATE RATE ADJUSTMENT TESTS
+# =============================================================================
+
+
+class TestAdjust4StateRateAdjustments:
+    """Tests for QueueController.adjust_4state() rate adjustment behavior.
+
+    Rate adjustment rules (4-state):
+    - RED: Immediate decay using factor_down (0.85), floor_red_bps
+    - SOFT_RED: Clamp to floor_soft_red_bps and HOLD (no repeated decay)
+    - YELLOW: Gentle decay using factor_down_yellow (0.96), floor_yellow_bps
+    - GREEN: Step up after green_required cycles, floor_green_bps
+    """
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_red_immediate_decay(self, controller_4state):
+        """RED applies factor_down immediately."""
+        initial_rate = controller_4state.current_rate  # 920M (ceiling)
+        expected_rate = int(initial_rate * 0.85)  # 782M
+
+        zone, new_rate = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 100.0,  # delta=100ms -> RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == "RED"
+        assert new_rate == expected_rate
+
+    def test_soft_red_clamps_to_floor_and_holds(self, controller_4state):
+        """SOFT_RED sets floor, no repeated decay.
+
+        SOFT_RED behavior: Clamp rate to floor_soft_red_bps but don't decay further.
+        This is the 'hold' behavior - rate can't go below floor but doesn't decay.
+        """
+        # Set rate above soft_red floor but below ceiling
+        controller_4state.current_rate = 600_000_000  # 600M
+
+        # First SOFT_RED cycle
+        zone, new_rate = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 60.0,  # delta=60ms -> SOFT_RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        # Rate should be enforced at floor_soft_red (500M) or above
+        # Since 600M > 500M, it should hold at 600M
+        assert zone == "SOFT_RED"
+        assert new_rate == 600_000_000  # Held, not decayed
+
+    def test_soft_red_no_decay_on_subsequent_cycles(self, controller_4state):
+        """Multiple SOFT_RED cycles don't decay further."""
+        controller_4state.current_rate = 600_000_000  # 600M
+
+        # Run multiple SOFT_RED cycles
+        rates = []
+        for _ in range(5):
+            zone, new_rate = controller_4state.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 60.0,  # delta=60ms -> SOFT_RED
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            rates.append(new_rate)
+
+        # All rates should be the same (no decay in SOFT_RED)
+        assert all(r == 600_000_000 for r in rates)
+
+    def test_yellow_uses_state_appropriate_floor(self, controller_4state):
+        """YELLOW uses floor_yellow_bps."""
+        # Set rate near floor_yellow (600M)
+        controller_4state.current_rate = 610_000_000  # 610M
+
+        zone, new_rate = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 30.0,  # delta=30ms -> YELLOW
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == "YELLOW"
+        # 610M * 0.96 = 585.6M, but floor_yellow is 600M
+        assert new_rate == 600_000_000  # Clamped at floor_yellow
+
+    def test_green_uses_floor_green(self, controller_4state):
+        """GREEN uses floor_green_bps for floor enforcement."""
+        # Set rate below floor_green (800M) - this shouldn't happen in practice
+        # but tests floor enforcement
+        controller_4state.current_rate = 780_000_000  # 780M
+        controller_4state.green_streak = 4  # Next GREEN triggers step up
+
+        zone, new_rate = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == "GREEN"
+        # 780M + 10M step = 790M, still below floor_green (800M)
+        # Floor should enforce 800M
+        assert new_rate == 800_000_000  # Enforced at floor_green
