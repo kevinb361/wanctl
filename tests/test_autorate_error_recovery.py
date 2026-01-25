@@ -775,3 +775,103 @@ class TestContinuousAutoRateErrorHandling:
             all_success = all_success and success
 
         assert all_success is False
+
+
+# =============================================================================
+# TestRateLimitBranch - Tests for rate limit throttling in apply_rate_changes_if_needed
+# =============================================================================
+
+
+class TestRateLimitBranch:
+    """Tests for rate limit branch in WANController.apply_rate_changes_if_needed().
+
+    Covers lines 1119-1132:
+    - Rate limit active throttles update, returns True
+    - Rate limit logged flag prevents duplicate logs
+    - run_cycle returns False when handle_icmp_failure returns (False, None)
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_config, mock_logger
+
+    def test_rate_limit_active_throttles_update(self, controller_with_mocks):
+        """Rate limit active: throttles update, logs debug, saves state, returns True."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+
+        # Set rates that would trigger an update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+        ctrl._rate_limit_logged = False
+
+        # Mock rate limiter to deny change
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = False
+        mock_rate_limiter.time_until_available.return_value = 5.0
+        ctrl.rate_limiter = mock_rate_limiter
+
+        with patch.object(ctrl, "save_state") as mock_save:
+            result = ctrl.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        # Should return True (throttled but successful)
+        assert result is True
+        # save_state should be called
+        mock_save.assert_called_once()
+        # Debug should be logged
+        mock_logger.debug.assert_called()
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("Rate limit active" in call for call in debug_calls)
+        # _rate_limit_logged should be True
+        assert ctrl._rate_limit_logged is True
+        # Router should NOT have been called
+        ctrl.router.set_limits.assert_not_called()
+
+    def test_rate_limit_already_logged_no_duplicate(self, controller_with_mocks):
+        """Rate limit already logged: no duplicate debug log."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+
+        # Set rates that would trigger an update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+        ctrl._rate_limit_logged = True  # Already logged
+
+        # Mock rate limiter to deny change
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.can_change.return_value = False
+        mock_rate_limiter.time_until_available.return_value = 5.0
+        ctrl.rate_limiter = mock_rate_limiter
+
+        with patch.object(ctrl, "save_state"):
+            # Reset debug mock
+            mock_logger.debug.reset_mock()
+            result = ctrl.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        # Should return True
+        assert result is True
+        # Debug should NOT be called again (already logged)
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert not any("Rate limit active" in call for call in debug_calls)
+
+    def test_run_cycle_returns_false_on_icmp_failure_failure(self, controller_with_mocks):
+        """run_cycle returns False when handle_icmp_failure returns (False, None)."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+
+        # Mock measure_rtt to return None (ICMP failure)
+        # Mock handle_icmp_failure to return (False, None) - total failure
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "handle_icmp_failure", return_value=(False, None)),
+        ):
+            result = ctrl.run_cycle()
+
+        # Should return False when handle_icmp_failure fails
+        assert result is False
