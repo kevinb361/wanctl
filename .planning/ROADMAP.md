@@ -48,6 +48,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 34-01-PLAN.md - Metrics and CAKE stats test coverage (metrics.py, cake_stats.py)
   - [x] 34-02-PLAN.md - RTT measurement edge case tests (rtt_measurement.py)
 - [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
+  - [x] 35-01-PLAN.md - Entry points, config, signal handlers
+  - [x] 35-02-PLAN.md - QueueController state transitions
+  - [x] 35-03-PLAN.md - Error recovery paths
+  - [ ] 35-04-PLAN.md - Config alpha fallbacks, median RTT, baseline bounds (gap closure)
+  - [ ] 35-05-PLAN.md - Connectivity fallback, load/save state (gap closure)
+  - [ ] 35-06-PLAN.md - ContinuousAutoRate init, daemon handlers (gap closure)
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
 - [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
 
@@ -273,8 +279,8 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
 | 33. State & Infrastructure Tests | 2/2            | Complete    | 2026-01-25 |
 | 34. Metrics & Measurement Tests  | 2/2            | Complete    | 2026-01-25 |
-| 35. Core Controller Tests        | 0/3            | Not started | -          |
+| 35. Core Controller Tests        | 3/6            | In progress | -          |
 | 36. Steering Daemon Tests        | 0/2            | Not started | -          |
 | 37. CLI Tool Tests               | 0/2            | Not started | -          |
 
-**v1.6 Total:** 7 phases, 14 plans
+**v1.6 Total:** 7 phases, 17 plans
