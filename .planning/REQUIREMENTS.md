@@ -24,11 +24,11 @@ Requirements for Metrics History milestone. Each maps to roadmap phases.
 
 ### CLI Tool
 
-- [ ] **CLI-01**: `wanctl-history` command available for querying history
-- [ ] **CLI-02**: Query by time range (`--last 1h`, `--from/--to timestamps`)
-- [ ] **CLI-03**: Filter by metric type (`--metrics rtt,rate,state`)
-- [ ] **CLI-04**: Output formats: human-readable table (default), JSON (`--json`)
-- [ ] **CLI-05**: Summary statistics mode (`--summary` shows min/max/avg/p95)
+- [x] **CLI-01**: `wanctl-history` command available for querying history
+- [x] **CLI-02**: Query by time range (`--last 1h`, `--from/--to timestamps`)
+- [x] **CLI-03**: Filter by metric type (`--metrics rtt,rate,state`)
+- [x] **CLI-04**: Output formats: human-readable table (default), JSON (`--json`)
+- [x] **CLI-05**: Summary statistics mode (`--summary` shows min/max/avg/p95)
 
 ### API Endpoint
 
@@ -71,11 +71,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-03     | 39    | Complete |
 | DATA-04     | 39    | Complete |
 | DATA-05     | 38    | Complete |
-| CLI-01      | 40    | Pending  |
-| CLI-02      | 40    | Pending  |
-| CLI-03      | 40    | Pending  |
-| CLI-04      | 40    | Pending  |
-| CLI-05      | 40    | Pending  |
+| CLI-01      | 40    | Complete |
+| CLI-02      | 40    | Complete |
+| CLI-03      | 40    | Complete |
+| CLI-04      | 40    | Complete |
+| CLI-05      | 40    | Complete |
 | API-01      | 41    | Pending  |
 | API-02      | 41    | Pending  |
 | API-03      | 41    | Pending  |
@@ -93,4 +93,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-25_
-_Last updated: 2026-01-25 after roadmap creation_
+_Last updated: 2026-01-25 after Phase 40 completion_

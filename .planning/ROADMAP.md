@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] Phase 38: Storage Foundation - SQLite schema, writer, downsampling, retention
 - [x] Phase 39: Data Recording - Hook daemons to record metrics each cycle
-- [ ] Phase 40: CLI Tool - `wanctl-history` command for querying
+- [x] Phase 40: CLI Tool - `wanctl-history` command for querying
 - [ ] Phase 41: API Endpoint - `/metrics/history` on health server
 
 ### Phase 38: Storage Foundation ✓
@@ -76,18 +76,21 @@ Plans:
 
 **Key Results:** Both daemons record metrics each cycle with <5ms overhead (~1ms avg). Autorate records 6 metrics (RTT, baseline, delta, rates, state), steering records 5 metrics. State transitions include reason strings. Config snapshots on startup. 32 new tests.
 
-### Phase 40: CLI Tool
+### Phase 40: CLI Tool ✓
 
 **Goal**: `wanctl-history` command provides human and machine access to stored metrics
 **Depends on**: Phase 39
 **Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
 **Plans**: 2 plans
-**Status**: Planned
+**Status**: Complete
+**Completed**: 2026-01-25
 
 Plans:
 
-- [ ] 40-01-PLAN.md — MetricsReader module with query and summary functions
-- [ ] 40-02-PLAN.md — CLI argument parsing, output formatting, entry point
+- [x] 40-01-PLAN.md — MetricsReader module with query and summary functions
+- [x] 40-02-PLAN.md — CLI argument parsing, output formatting, entry point
+
+**Key Results:** `wanctl-history` CLI with --last/--from/--to time queries, --metrics filter, table/JSON/summary output modes. MetricsReader module with query_metrics(), compute_summary(), select_granularity(). 82 new tests (35 reader + 47 CLI).
 
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
@@ -319,5 +322,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 39 phases complete, 81 plans across 7 milestones
-**v1.7:** 4 phases (38-41), 2 phases complete (38-39)
+**Total:** 40 phases complete, 83 plans across 7 milestones
+**v1.7:** 4 phases (38-41), 3 phases complete (38-40)
