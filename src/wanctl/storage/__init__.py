@@ -7,17 +7,40 @@ Supports configurable retention and downsampling for efficient storage.
 Components:
 - schema.py: Database schema and metric definitions
 - writer.py: Thread-safe MetricsWriter singleton
+- retention.py: Cleanup of expired data
+- downsampler.py: Granularity reduction as data ages
 
 Usage:
     from wanctl.storage import MetricsWriter, STORED_METRICS
+    from wanctl.storage import cleanup_old_metrics, downsample_metrics
 """
 
+from wanctl.storage.downsampler import (
+    DOWNSAMPLE_THRESHOLDS,
+    downsample_metrics,
+)
+from wanctl.storage.retention import (
+    BATCH_SIZE,
+    DEFAULT_RETENTION_DAYS,
+    cleanup_old_metrics,
+    vacuum_if_needed,
+)
 from wanctl.storage.schema import METRICS_SCHEMA, STORED_METRICS, create_tables
 from wanctl.storage.writer import MetricsWriter
 
 __all__ = [
+    # Writer
     "MetricsWriter",
+    # Schema
     "METRICS_SCHEMA",
     "STORED_METRICS",
     "create_tables",
+    # Retention
+    "cleanup_old_metrics",
+    "vacuum_if_needed",
+    "DEFAULT_RETENTION_DAYS",
+    "BATCH_SIZE",
+    # Downsampling
+    "downsample_metrics",
+    "DOWNSAMPLE_THRESHOLDS",
 ]

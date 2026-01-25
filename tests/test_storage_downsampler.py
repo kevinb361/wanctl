@@ -176,7 +176,8 @@ class TestDownsampleToGranularity:
     def test_avg_aggregation_for_rtt(self, test_db):
         """Test AVG aggregation for RTT metrics."""
         now = int(time.time())
-        start = now - 7200
+        # Align to minute boundary
+        start = align_to_bucket(now - 7200, 60)
         values = [10.0, 20.0, 30.0]  # AVG = 20.0
         insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", values, start)
 
@@ -191,7 +192,8 @@ class TestDownsampleToGranularity:
     def test_avg_aggregation_for_rate(self, test_db):
         """Test AVG aggregation for rate metrics."""
         now = int(time.time())
-        start = now - 7200
+        # Align to minute boundary
+        start = align_to_bucket(now - 7200, 60)
         values = [100.0, 200.0, 300.0]  # AVG = 200.0
         insert_metrics(test_db, "wanctl_rate_download_mbps", "spectrum", values, start)
 
@@ -206,7 +208,8 @@ class TestDownsampleToGranularity:
     def test_mode_aggregation_for_state(self, test_db):
         """Test MODE aggregation for state metrics."""
         now = int(time.time())
-        start = now - 7200
+        # Align to minute boundary
+        start = align_to_bucket(now - 7200, 60)
         # State values: 0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED
         # 5x GREEN, 3x YELLOW, 2x RED -> MODE = GREEN (0)
         values = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 3.0, 3.0]
@@ -223,7 +226,8 @@ class TestDownsampleToGranularity:
     def test_mode_aggregation_for_steering(self, test_db):
         """Test MODE aggregation for steering_enabled metric."""
         now = int(time.time())
-        start = now - 7200
+        # Align to minute boundary
+        start = align_to_bucket(now - 7200, 60)
         # More enabled (1) than disabled (0)
         values = [1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
         insert_metrics(test_db, "wanctl_steering_enabled", "spectrum", values, start)
