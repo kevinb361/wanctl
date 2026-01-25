@@ -1600,6 +1600,148 @@ class TestVerifyTcpConnectivity:
         assert logger.debug.call_count >= 2
 
 
+class TestVerifyConnectivityFallback:
+    """Tests for WANController.verify_connectivity_fallback() method.
+
+    Covers lines 1043-1077:
+    - Fallback disabled returns (False, None)
+    - TCP succeeds + gateway succeeds (ICMP filtering detected)
+    - TCP succeeds + gateway fails
+    - TCP fails + gateway succeeds (partial connectivity)
+    - Both fail (total connectivity loss)
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl, config, logger
+
+    def test_fallback_disabled_returns_false_none(self, controller_with_mocks):
+        """When fallback_enabled=False, returns (False, None) immediately."""
+        ctrl, config, _ = controller_with_mocks
+        config.fallback_enabled = False
+
+        result = ctrl.verify_connectivity_fallback()
+
+        assert result == (False, None)
+
+    def test_tcp_and_gateway_succeed_icmp_filtering(self, controller_with_mocks):
+        """TCP + gateway succeed indicates ICMP filtering."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_enabled = True
+
+        with (
+            patch.object(ctrl, "verify_local_connectivity", return_value=True),
+            patch.object(ctrl, "verify_tcp_connectivity", return_value=(True, 25.0)),
+        ):
+            result = ctrl.verify_connectivity_fallback()
+
+        assert result == (True, 25.0)
+        # Should warn about ICMP filtering
+        warning_calls = [str(call) for call in logger.warning.call_args_list]
+        assert any("ICMP filtering" in call for call in warning_calls)
+
+    def test_tcp_succeeds_gateway_fails(self, controller_with_mocks):
+        """TCP succeeds + gateway fails returns (True, tcp_rtt)."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_enabled = True
+
+        with (
+            patch.object(ctrl, "verify_local_connectivity", return_value=False),
+            patch.object(ctrl, "verify_tcp_connectivity", return_value=(True, 25.0)),
+        ):
+            result = ctrl.verify_connectivity_fallback()
+
+        assert result == (True, 25.0)
+
+    def test_tcp_fails_gateway_succeeds_partial(self, controller_with_mocks):
+        """TCP fails + gateway succeeds indicates partial connectivity."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_enabled = True
+
+        with (
+            patch.object(ctrl, "verify_local_connectivity", return_value=True),
+            patch.object(ctrl, "verify_tcp_connectivity", return_value=(False, None)),
+        ):
+            result = ctrl.verify_connectivity_fallback()
+
+        assert result == (True, None)
+        # Should warn about partial connectivity
+        warning_calls = [str(call) for call in logger.warning.call_args_list]
+        assert any("gateway reachable" in call for call in warning_calls)
+
+    def test_both_fail_total_connectivity_loss(self, controller_with_mocks):
+        """Both TCP and gateway fail indicates total connectivity loss."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_enabled = True
+
+        with (
+            patch.object(ctrl, "verify_local_connectivity", return_value=False),
+            patch.object(ctrl, "verify_tcp_connectivity", return_value=(False, None)),
+        ):
+            result = ctrl.verify_connectivity_fallback()
+
+        assert result == (False, None)
+        # Should log error about total loss
+        logger.error.assert_called()
+        error_msg = logger.error.call_args[0][0]
+        assert "total connectivity loss" in error_msg.lower()
+
+
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
 
