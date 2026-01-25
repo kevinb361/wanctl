@@ -587,3 +587,197 @@ class TestAdjust4StateRateAdjustments:
         # 780M + 10M step = 790M, still below floor_green (800M)
         # Floor should enforce 800M
         assert new_rate == 800_000_000  # Enforced at floor_green
+
+
+# =============================================================================
+# HYSTERESIS COUNTER TESTS
+# =============================================================================
+
+
+class TestHysteresisCounters:
+    """Tests for QueueController hysteresis counters.
+
+    Counters:
+    - green_streak: Consecutive GREEN cycles (resets on any non-GREEN)
+    - soft_red_streak: Consecutive SOFT_RED delta cycles (resets on any other)
+    - red_streak: Consecutive RED cycles (resets on any non-RED)
+
+    These counters implement hysteresis to prevent oscillation.
+    """
+
+    BASELINE = 25.0
+    TARGET_DELTA = 15.0
+    WARN_DELTA = 45.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_green_streak_increments_in_green(self, controller_3state):
+        """Each GREEN cycle increments counter."""
+        for expected_streak in range(1, 6):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert controller_3state.green_streak == expected_streak
+
+    def test_green_streak_reset_on_zone_change(self, controller_3state):
+        """Any non-GREEN zone resets counter."""
+        # Build up green_streak
+        for _ in range(4):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state.green_streak == 4
+
+        # YELLOW resets
+        controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 30.0,  # YELLOW
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state.green_streak == 0
+
+        # Build again
+        for _ in range(3):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state.green_streak == 3
+
+        # RED resets
+        controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # RED
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state.green_streak == 0
+
+    def test_soft_red_streak_increments_in_soft_red(self, controller_4state):
+        """SOFT_RED delta increments counter."""
+        # soft_red_required=1, so each SOFT_RED delta increments
+        for expected_streak in range(1, 4):
+            controller_4state.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 60.0,  # delta=60ms -> SOFT_RED
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            assert controller_4state.soft_red_streak == expected_streak
+
+    def test_soft_red_streak_reset_on_zone_change(self, controller_4state):
+        """Any other zone resets soft_red_streak."""
+        # Build up soft_red_streak
+        for _ in range(3):
+            controller_4state.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 60.0,  # SOFT_RED
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+        assert controller_4state.soft_red_streak == 3
+
+        # GREEN resets
+        controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # GREEN
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert controller_4state.soft_red_streak == 0
+
+    def test_red_streak_increments_in_red(self, controller_3state):
+        """RED delta increments counter."""
+        for expected_streak in range(1, 4):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 50.0,  # delta=50ms -> RED
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert controller_3state.red_streak == expected_streak
+
+    def test_red_streak_reset_on_zone_change(self, controller_3state):
+        """Any non-RED zone resets counter."""
+        # Build up red_streak
+        for _ in range(3):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 50.0,  # RED
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state.red_streak == 3
+
+        # GREEN resets
+        controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # GREEN
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state.red_streak == 0
+
+    def test_counters_isolated_between_instances(self):
+        """Different controllers have independent counters."""
+        controller1 = QueueController(
+            name="Controller1",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        controller2 = QueueController(
+            name="Controller2",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+
+        # Build green_streak on controller1
+        for _ in range(3):
+            controller1.adjust(
+                baseline_rtt=25.0,
+                load_rtt=30.0,  # GREEN
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+
+        # Build red_streak on controller2
+        for _ in range(2):
+            controller2.adjust(
+                baseline_rtt=25.0,
+                load_rtt=80.0,  # RED
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+
+        # Verify isolation
+        assert controller1.green_streak == 3
+        assert controller1.red_streak == 0
+        assert controller2.green_streak == 0
+        assert controller2.red_streak == 2
