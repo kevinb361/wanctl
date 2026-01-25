@@ -39,6 +39,7 @@ class MetricsWriter:
 
     _instance: "MetricsWriter | None" = None
     _instance_lock: threading.Lock = threading.Lock()
+    _initialized: bool
 
     def __new__(cls, db_path: Path | None = None) -> "MetricsWriter":
         """Return singleton instance, creating if needed.
