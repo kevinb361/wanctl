@@ -15,6 +15,7 @@ Usage:
     from wanctl.storage import cleanup_old_metrics, downsample_metrics
 """
 
+from wanctl.storage.config_snapshot import record_config_snapshot
 from wanctl.storage.downsampler import (
     DOWNSAMPLE_THRESHOLDS,
     downsample_metrics,
@@ -31,6 +32,8 @@ from wanctl.storage.writer import MetricsWriter
 __all__ = [
     # Writer
     "MetricsWriter",
+    # Config snapshot
+    "record_config_snapshot",
     # Schema
     "METRICS_SCHEMA",
     "STORED_METRICS",
