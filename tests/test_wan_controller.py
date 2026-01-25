@@ -1443,6 +1443,163 @@ class TestVerifyLocalConnectivity:
         logger.warning.assert_not_called()
 
 
+class TestVerifyTcpConnectivity:
+    """Tests for WANController.verify_tcp_connectivity() method.
+
+    Covers lines 1004-1028:
+    - TCP check disabled returns (False, None)
+    - All TCP targets succeed returns (True, median_rtt)
+    - Partial TCP success returns (True, single_rtt)
+    - All TCP fail returns (False, None)
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl, config, logger
+
+    def test_tcp_check_disabled_returns_false_none(self, controller_with_mocks):
+        """When fallback_check_tcp=False, returns (False, None) immediately."""
+        ctrl, config, _ = controller_with_mocks
+        config.fallback_check_tcp = False
+
+        result = ctrl.verify_tcp_connectivity()
+
+        assert result == (False, None)
+
+    def test_all_tcp_targets_succeed(self, controller_with_mocks):
+        """When all TCP targets succeed, returns (True, median_rtt)."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_check_tcp = True
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+
+        # Mock socket.create_connection to succeed with timing
+        mock_socket = MagicMock()
+        call_count = [0]
+        times = [0.0, 0.020, 0.020, 0.050]  # start, end1, start2, end2
+
+        def monotonic_side_effect():
+            idx = call_count[0]
+            call_count[0] += 1
+            return times[idx] if idx < len(times) else times[-1]
+
+        with (
+            patch("socket.create_connection", return_value=mock_socket),
+            patch("time.monotonic", side_effect=monotonic_side_effect),
+        ):
+            result = ctrl.verify_tcp_connectivity()
+
+        # Both succeed: RTTs are 20ms and 30ms, median = 25ms
+        assert result[0] is True
+        assert result[1] is not None
+        assert result[1] > 0  # Should have an RTT
+        logger.info.assert_called()  # "TCP connectivity verified" logged
+
+    def test_partial_tcp_success(self, controller_with_mocks):
+        """When 1 of 2 TCP targets succeed, returns (True, single_rtt)."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_check_tcp = True
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+
+        # First connection succeeds, second fails
+        mock_socket = MagicMock()
+        call_count = [0]
+
+        def create_connection_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_socket
+            else:
+                raise TimeoutError("Connection timed out")
+
+        # Use a generator function for time.monotonic that never runs out
+        time_count = [0]
+        times = [0.0, 0.025, 0.025, 0.030]  # Extra values for safety
+
+        def monotonic_side_effect():
+            idx = time_count[0]
+            time_count[0] += 1
+            return times[idx] if idx < len(times) else times[-1]
+
+        with (
+            patch("socket.create_connection", side_effect=create_connection_side_effect),
+            patch("time.monotonic", side_effect=monotonic_side_effect),
+        ):
+            result = ctrl.verify_tcp_connectivity()
+
+        assert result[0] is True
+        assert result[1] is not None  # Single RTT from successful connection
+        logger.info.assert_called()
+
+    def test_all_tcp_fail(self, controller_with_mocks):
+        """When all TCP connections fail, returns (False, None)."""
+        ctrl, config, logger = controller_with_mocks
+        config.fallback_check_tcp = True
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+
+        # All connections fail
+        with patch("socket.create_connection", side_effect=OSError("Connection refused")):
+            result = ctrl.verify_tcp_connectivity()
+
+        assert result == (False, None)
+        # Debug logged for each failure
+        assert logger.debug.call_count >= 2
+
+
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
 
