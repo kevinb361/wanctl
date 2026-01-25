@@ -439,6 +439,22 @@ class TestConnection:
             mock_connect.assert_called_once()
             mock_ssh_client.close.assert_called_once()
 
+    def test_ensure_connected_handles_close_exception(
+        self, ssh_client, mock_ssh_client
+    ) -> None:
+        """_ensure_connected ignores exception during close before reconnect."""
+        ssh_client._client = mock_ssh_client
+        transport = MagicMock()
+        transport.is_active.return_value = False
+        mock_ssh_client.get_transport.return_value = transport
+        # Simulate close() throwing exception
+        mock_ssh_client.close.side_effect = Exception("Close failed")
+
+        with patch.object(ssh_client, "_connect") as mock_connect:
+            # Should not raise despite close() exception
+            ssh_client._ensure_connected()
+            mock_connect.assert_called_once()
+
 
 # =============================================================================
 # TestRunCmd - Command execution tests
@@ -629,6 +645,27 @@ class TestRunCmd:
 
         call_kwargs = mock_ssh_client.exec_command.call_args[1]
         assert call_kwargs["timeout"] == 20
+
+    def test_run_cmd_logs_debug_output(self, ssh_client, mock_ssh_client, mock_logger) -> None:
+        """run_cmd logs stdout at DEBUG level when enabled."""
+        ssh_client._client = mock_ssh_client
+        ssh_client.logger = mock_logger
+        # Enable DEBUG level
+        mock_logger.isEnabledFor.return_value = True
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b"test output"
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        ssh_client.run_cmd("/test", capture=True)
+
+        # Verify debug was called with stdout content
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("test output" in call for call in debug_calls)
 
 
 # =============================================================================
