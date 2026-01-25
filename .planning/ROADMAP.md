@@ -58,6 +58,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 36-01-PLAN.md - RouterOSController, BaselineLoader, SteeringConfig tests
   - [x] 36-02-PLAN.md - run_cycle, main entry point, confidence integration tests
 - [ ] **Phase 37: CLI Tool Tests** - Calibrate and profiler tools
+  - [ ] 37-01-PLAN.md - Calibrate tool test coverage (calibrate.py)
+  - [ ] 37-02-PLAN.md - Performance profiler test coverage (perf_profiler.py)
 
 See [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) for full details.
 
@@ -275,14 +277,14 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ### v1.6 Progress
 
-| Phase                            | Plans Complete | Status      | Completed  |
-| -------------------------------- | -------------- | ----------- | ---------- |
-| 31. Coverage Infrastructure      | 1/1            | Complete    | 2026-01-24 |
-| 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
-| 33. State & Infrastructure Tests | 2/2            | Complete    | 2026-01-25 |
-| 34. Metrics & Measurement Tests  | 2/2            | Complete    | 2026-01-25 |
-| 35. Core Controller Tests        | 6/6            | Complete    | 2026-01-25 |
-| 36. Steering Daemon Tests        | 2/2            | Complete    | 2026-01-25 |
-| 37. CLI Tool Tests               | 0/2            | Not started | -          |
+| Phase                            | Plans Complete | Status   | Completed  |
+| -------------------------------- | -------------- | -------- | ---------- |
+| 31. Coverage Infrastructure      | 1/1            | Complete | 2026-01-24 |
+| 32. Backend Client Tests         | 2/2            | Complete | 2026-01-25 |
+| 33. State & Infrastructure Tests | 2/2            | Complete | 2026-01-25 |
+| 34. Metrics & Measurement Tests  | 2/2            | Complete | 2026-01-25 |
+| 35. Core Controller Tests        | 6/6            | Complete | 2026-01-25 |
+| 36. Steering Daemon Tests        | 2/2            | Complete | 2026-01-25 |
+| 37. CLI Tool Tests               | 0/2            | Planned  | -          |
 
 **v1.6 Total:** 7 phases, 17 plans
