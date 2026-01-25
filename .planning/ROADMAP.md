@@ -42,6 +42,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 32-01-PLAN.md - REST client test coverage (routeros_rest.py)
   - [x] 32-02-PLAN.md - SSH client and base class test coverage
 - [ ] **Phase 33: State & Infrastructure Tests** - State manager and utility modules
+  - [ ] 33-01-PLAN.md - State manager test coverage (state_manager.py)
+  - [ ] 33-02-PLAN.md - Infrastructure utilities test coverage (error_handling, signal, systemd, path)
 - [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
 - [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
 - [ ] **Phase 36: Steering Daemon Tests** - Steering daemon lifecycle and logic
