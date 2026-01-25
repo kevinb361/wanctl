@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 
 ## Current Position
 
-Phase: 35 of 37 (Core Controller Tests) - COMPLETE
-Plan: 6 of 6 in phase (COMPLETE)
-Status: Phase 35 complete, verified (98.3% coverage achieved)
-Last activity: 2026-01-25 - Completed phase 35 execution
+Phase: 36 of 37 (Steering Daemon Tests)
+Plan: 1 of 2 in phase
+Status: In progress
+Last activity: 2026-01-25 - Completed 36-01-PLAN.md
 
 Progress: [████████████░░░░░░░░░░░░░░░░░░] 6/7 phases (86%)
 
@@ -57,6 +57,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Use caplog fixture to test alpha_load slow warning message (35-04)
 - Calculate measured_rtt values mathematically to test bounds rejection (35-04)
 - Test boundary conditions (exact min/max) to ensure inclusive bounds (35-04)
+- Use tmp_path for BaselineLoader file I/O tests (36-01)
+- Create valid_config_dict fixture as base for SteeringConfig test variations (36-01)
+- Test X flag position variations (" X ", "\tX\t", "\tX ", " X\t") for MikroTik parsing (36-01)
 
 ### Deferred Issues
 
@@ -96,11 +99,11 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 35 execution (6/6 plans, 98.3% coverage)
+Stopped at: Completed 36-01-PLAN.md (foundational steering classes tests)
 Resume file: None
 
 ## Next Steps
 
-1. `/gsd:discuss-phase 36` - Gather context for steering daemon tests
-2. `/gsd:plan-phase 36` - Plan steering tests phase
-3. Execute Phase 36-37 to complete v1.6 milestone
+1. Execute 36-02-PLAN.md (SteeringDaemon and run_cycle tests)
+2. Complete Phase 36 verification
+3. Execute Phase 37 to complete v1.6 milestone
