@@ -78,7 +78,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 32-02-PLAN.md
+Stopped at: Completed 32-01-PLAN.md and 32-02-PLAN.md
 Resume file: None
 
 ## Next Steps
