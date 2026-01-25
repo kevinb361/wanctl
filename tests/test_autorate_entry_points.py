@@ -307,6 +307,13 @@ class TestDaemonModeStartup:
             }
         ]
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -316,8 +323,11 @@ class TestDaemonModeStartup:
                 "wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True
             ) as mock_lock,
             patch("wanctl.autorate_continuous.register_signal_handlers"),
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -372,6 +382,13 @@ class TestDaemonModeStartup:
             }
         ]
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -381,8 +398,11 @@ class TestDaemonModeStartup:
             patch(
                 "wanctl.autorate_continuous.register_signal_handlers"
             ) as mock_register_signals,
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -413,6 +433,13 @@ class TestDaemonModeStartup:
 
         mock_metrics_server = MagicMock()
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -424,8 +451,11 @@ class TestDaemonModeStartup:
                 "wanctl.autorate_continuous.start_metrics_server",
                 return_value=mock_metrics_server,
             ) as mock_start_metrics,
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -456,6 +486,13 @@ class TestDaemonModeStartup:
 
         mock_health_server = MagicMock()
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -467,8 +504,11 @@ class TestDaemonModeStartup:
                 "wanctl.autorate_continuous.start_health_server",
                 return_value=mock_health_server,
             ) as mock_start_health,
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -519,6 +559,12 @@ class TestDaemonModeShutdown:
         ]
 
         # Simulate: run 2 cycles, then shutdown requested
+        call_count = [0]
+
+        def is_shutdown_after_two():
+            call_count[0] += 1
+            return call_count[0] > 2
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -528,9 +574,10 @@ class TestDaemonModeShutdown:
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
                 "wanctl.autorate_continuous.is_shutdown_requested",
-                side_effect=[False, False, True, True],
+                side_effect=is_shutdown_after_two,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -562,6 +609,13 @@ class TestDaemonModeShutdown:
             }
         ]
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -569,8 +623,11 @@ class TestDaemonModeShutdown:
             ),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -603,6 +660,13 @@ class TestDaemonModeShutdown:
             }
         ]
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -610,8 +674,11 @@ class TestDaemonModeShutdown:
             ),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -645,6 +712,13 @@ class TestDaemonModeShutdown:
             }
         ]
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -652,8 +726,11 @@ class TestDaemonModeShutdown:
             ),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
@@ -689,6 +766,13 @@ class TestDaemonModeShutdown:
         mock_metrics_server = MagicMock()
         mock_health_server = MagicMock()
 
+        # Create a counter to return False once, then True thereafter
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch(
@@ -704,8 +788,11 @@ class TestDaemonModeShutdown:
                 "wanctl.autorate_continuous.start_health_server",
                 return_value=mock_health_server,
             ),
-            patch("wanctl.autorate_continuous.is_shutdown_requested", side_effect=[False, True]),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
             patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
         ):
             from wanctl.autorate_continuous import main
 
