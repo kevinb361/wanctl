@@ -1726,6 +1726,15 @@ def main() -> int | None:
     # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
 
+    # Record config snapshot on startup (if storage enabled)
+    first_config = controller.wan_controllers[0]["config"]
+    storage_config = get_storage_config(first_config.data)
+    if storage_config.get("db_path"):
+        from wanctl.storage import MetricsWriter, record_config_snapshot
+
+        writer = MetricsWriter(Path(storage_config["db_path"]))
+        record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
+
     # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
         controller.run_cycle(use_lock=True)

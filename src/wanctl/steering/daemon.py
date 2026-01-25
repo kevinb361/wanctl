@@ -1415,6 +1415,15 @@ def main() -> int | None:
     )
     logger.info("=" * 60)
 
+    # Record config snapshot on startup (if storage enabled)
+    storage_config = get_storage_config(config.data)
+    if storage_config.get("db_path"):
+        from wanctl.storage import record_config_snapshot
+
+        writer = MetricsWriter(Path(storage_config["db_path"]))
+        record_config_snapshot(writer, config.primary_wan, config.data, "startup")
+        logger.info(f"Config snapshot recorded to {storage_config['db_path']}")
+
     # Check for early shutdown (signal received during startup)
     if is_shutdown_requested():
         logger.info("Shutdown requested during startup, exiting gracefully")
