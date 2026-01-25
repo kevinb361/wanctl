@@ -1729,10 +1729,12 @@ def main() -> int | None:
     # Record config snapshot on startup (if storage enabled)
     first_config = controller.wan_controllers[0]["config"]
     storage_config = get_storage_config(first_config.data)
-    if storage_config.get("db_path"):
+    db_path = storage_config.get("db_path")
+    # Only record snapshot if db_path is a valid string (not MagicMock in tests)
+    if db_path and isinstance(db_path, str):
         from wanctl.storage import MetricsWriter, record_config_snapshot
 
-        writer = MetricsWriter(Path(storage_config["db_path"]))
+        writer = MetricsWriter(Path(db_path))
         record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
 
     # Oneshot mode for testing - use per-cycle locking
