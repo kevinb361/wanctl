@@ -18,7 +18,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from wanctl.config_base import BaseConfig
+from wanctl.config_base import BaseConfig, get_storage_config
 from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
@@ -41,6 +41,7 @@ from wanctl.signal_utils import (
     is_shutdown_requested,
     register_signal_handlers,
 )
+from wanctl.storage import MetricsWriter
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
@@ -875,6 +876,18 @@ class WANController:
         # Periodic force save counter (safety net against crashes)
         self._cycles_since_forced_save = 0
 
+        # =====================================================================
+        # METRICS HISTORY STORAGE (optional)
+        # =====================================================================
+        # SQLite-based storage for historical metrics analysis.
+        # Disabled if storage.db_path not configured in YAML.
+        # =====================================================================
+        storage_config = get_storage_config(config.data)
+        self._metrics_writer: MetricsWriter | None = None
+        if storage_config.get("db_path"):
+            self._metrics_writer = MetricsWriter(Path(storage_config["db_path"]))
+            self.logger.info(f"{wan_name}: Metrics history enabled, db={storage_config['db_path']}")
+
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
@@ -1296,6 +1309,28 @@ class WANController:
             f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
         )
 
+        # Record metrics to SQLite history (if enabled)
+        if self._metrics_writer is not None:
+            import time as time_module
+
+            ts = int(time_module.time())
+            metrics_batch = [
+                (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
+                (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+                (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
+                (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
+                (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
+                (
+                    ts,
+                    self.wan_name,
+                    "wanctl_state",
+                    float(self._encode_state(dl_zone)),
+                    {"direction": "download"},
+                    "raw",
+                ),
+            ]
+            self._metrics_writer.write_metrics_batch(metrics_batch)
+
         # Apply rate changes (with flash wear + rate limit protection)
         if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
             return False
@@ -1357,6 +1392,14 @@ class WANController:
                 applied = state["last_applied"]
                 self.last_applied_dl_rate = applied.get("dl_rate")
                 self.last_applied_ul_rate = applied.get("ul_rate")
+
+    def _encode_state(self, state: str) -> int:
+        """Encode congestion state to numeric value for storage.
+
+        Matches STORED_METRICS schema: 0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED
+        """
+        state_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+        return state_map.get(state, 0)
 
     @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
     def save_state(self, force: bool = False) -> None:
