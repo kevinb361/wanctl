@@ -12,5 +12,12 @@ Usage:
     from wanctl.storage import MetricsWriter, STORED_METRICS
 """
 
-# Exports populated after implementation
-__all__: list[str] = []
+from wanctl.storage.schema import METRICS_SCHEMA, STORED_METRICS, create_tables
+from wanctl.storage.writer import MetricsWriter
+
+__all__ = [
+    "MetricsWriter",
+    "METRICS_SCHEMA",
+    "STORED_METRICS",
+    "create_tables",
+]
