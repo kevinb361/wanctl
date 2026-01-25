@@ -1441,3 +1441,194 @@ class TestVerifyLocalConnectivity:
         ctrl.rtt_measurement.ping_host.assert_called_once()
         # No warning should be logged for unreachable
         logger.warning.assert_not_called()
+
+
+class TestMeasureRttMedianOfThree:
+    """Tests for WANController.measure_rtt() median-of-three edge cases.
+
+    Covers lines 890-910:
+    - 2 hosts return RTT (partial success)
+    - 1 host returns RTT (minimal success)
+    - All hosts fail (return empty)
+    - Single host ping path (use_median_of_three=False)
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]  # 3 hosts for median
+        config.use_median_of_three = True
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl, config, logger
+
+    def test_median_two_hosts_partial_success(self, controller_with_mocks):
+        """When 2 hosts return RTT, median of 2 values is returned.
+
+        Covers lines 897-902: len(rtts) >= 2 path with 2 values.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = True
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+        ctrl.use_median_of_three = True
+        ctrl.ping_hosts = config.ping_hosts
+
+        # 2 hosts respond
+        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0, 15.0]
+
+        result = ctrl.measure_rtt()
+
+        # Median of [10.0, 15.0] = 12.5
+        assert result == 12.5
+        ctrl.rtt_measurement.ping_hosts_concurrent.assert_called_once()
+
+    def test_median_one_host_minimal_success(self, controller_with_mocks):
+        """When only 1 host returns RTT, that single value is returned.
+
+        Covers lines 903-904: len(rtts) == 1 path.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = True
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+        ctrl.use_median_of_three = True
+        ctrl.ping_hosts = config.ping_hosts
+
+        # Only 1 host responds
+        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0]
+
+        result = ctrl.measure_rtt()
+
+        assert result == 10.0
+
+    def test_median_all_hosts_fail_returns_none(self, controller_with_mocks):
+        """When all hosts fail, None is returned and warning logged.
+
+        Covers lines 905-907: len(rtts) == 0 (empty) path.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = True
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+        ctrl.use_median_of_three = True
+        ctrl.ping_hosts = config.ping_hosts
+
+        # All hosts fail
+        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = []
+
+        result = ctrl.measure_rtt()
+
+        assert result is None
+        # Warning should be logged
+        logger.warning.assert_called_once()
+        warning_msg = logger.warning.call_args[0][0]
+        assert "All pings failed" in warning_msg
+        assert "median-of-three" in warning_msg
+
+    def test_single_host_ping_path(self, controller_with_mocks):
+        """When use_median_of_three=False, ping_host is used instead.
+
+        Covers lines 908-910: else branch for single host ping.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = False
+        config.ping_hosts = ["1.1.1.1"]
+        ctrl.use_median_of_three = False
+        ctrl.ping_hosts = config.ping_hosts
+
+        ctrl.rtt_measurement.ping_host.return_value = 22.5
+
+        result = ctrl.measure_rtt()
+
+        assert result == 22.5
+        # ping_host should be called, not ping_hosts_concurrent
+        ctrl.rtt_measurement.ping_host.assert_called_once_with("1.1.1.1", count=1)
+        ctrl.rtt_measurement.ping_hosts_concurrent.assert_not_called()
+
+    def test_median_three_hosts_all_success(self, controller_with_mocks):
+        """When all 3 hosts return RTT, median of 3 values is returned.
+
+        Validates core median-of-three behavior.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = True
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+        ctrl.use_median_of_three = True
+        ctrl.ping_hosts = config.ping_hosts
+
+        # All 3 hosts respond
+        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0, 20.0, 15.0]
+
+        result = ctrl.measure_rtt()
+
+        # Median of [10.0, 20.0, 15.0] = 15.0
+        assert result == 15.0
+        logger.debug.assert_called()
+
+    def test_median_fewer_than_three_hosts_in_config(self, controller_with_mocks):
+        """When fewer than 3 ping_hosts configured, falls back to single ping.
+
+        Covers line 890: condition check for len(ping_hosts) >= 3.
+        """
+        ctrl, config, logger = controller_with_mocks
+        config.use_median_of_three = True
+        config.ping_hosts = ["1.1.1.1", "8.8.8.8"]  # Only 2 hosts
+        ctrl.use_median_of_three = True
+        ctrl.ping_hosts = config.ping_hosts
+
+        ctrl.rtt_measurement.ping_host.return_value = 18.0
+
+        result = ctrl.measure_rtt()
+
+        # Should fall back to single host ping
+        assert result == 18.0
+        ctrl.rtt_measurement.ping_host.assert_called_once()
+        ctrl.rtt_measurement.ping_hosts_concurrent.assert_not_called()
