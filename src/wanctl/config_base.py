@@ -107,6 +107,51 @@ def validate_field(
     return value
 
 
+# =============================================================================
+# STORAGE CONFIGURATION SCHEMA
+# =============================================================================
+
+# Default storage configuration values
+DEFAULT_STORAGE_DB_PATH = "/var/lib/wanctl/metrics.db"
+DEFAULT_STORAGE_RETENTION_DAYS = 7
+
+# Storage schema - can be included in any daemon's SCHEMA
+STORAGE_SCHEMA: list[dict] = [
+    {
+        "path": "storage.retention_days",
+        "type": int,
+        "required": False,
+        "default": DEFAULT_STORAGE_RETENTION_DAYS,
+        "min": 1,
+        "max": 365,
+    },
+    {
+        "path": "storage.db_path",
+        "type": str,
+        "required": False,
+        "default": DEFAULT_STORAGE_DB_PATH,
+    },
+]
+
+
+def get_storage_config(data: dict) -> dict[str, Any]:
+    """Extract storage configuration from config data with defaults.
+
+    Args:
+        data: Raw config dictionary
+
+    Returns:
+        Dict with keys:
+        - retention_days: int (default 7)
+        - db_path: str (default /var/lib/wanctl/metrics.db)
+    """
+    storage = data.get("storage", {})
+    return {
+        "retention_days": storage.get("retention_days", DEFAULT_STORAGE_RETENTION_DAYS),
+        "db_path": storage.get("db_path", DEFAULT_STORAGE_DB_PATH),
+    }
+
+
 def validate_schema(data: dict, schema: list[dict]) -> dict[str, Any]:
     """Validate config data against a schema definition.
 
