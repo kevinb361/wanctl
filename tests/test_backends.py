@@ -260,6 +260,30 @@ class TestGetBandwidth:
 
         assert result == 0
 
+    def test_get_bandwidth_no_max_limit_field(self, backend, mock_ssh) -> None:
+        """Returns 0 when max-limit field not in output (unlimited)."""
+        mock_ssh.run_cmd.return_value = (
+            0,
+            "name=WAN-Download-1 parent=global",
+            "",
+        )
+
+        result = backend.get_bandwidth("WAN-Download-1")
+
+        assert result == 0
+
+    def test_get_bandwidth_unparseable(self, backend, mock_ssh) -> None:
+        """Returns None when max-limit exists but can't be parsed."""
+        mock_ssh.run_cmd.return_value = (
+            0,
+            "name=WAN-Download-1 max-limit=abc parent=global",
+            "",
+        )
+
+        result = backend.get_bandwidth("WAN-Download-1")
+
+        assert result is None
+
 
 # =============================================================================
 # TestGetQueueStats - get_queue_stats tests
