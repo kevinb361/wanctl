@@ -42,6 +42,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] Phase 40: CLI Tool - `wanctl-history` command for querying
 - [ ] Phase 41: API Endpoint - `/metrics/history` on health server
 
+### Phase 38: Storage Foundation
+
+**Goal**: Establish metrics storage layer with SQLite, downsampling, and retention management
+**Depends on**: Nothing (first phase of v1.7)
+**Requirements**: STOR-01, STOR-02, STOR-03, STOR-04, DATA-05
+**Plans**: 2 plans
+
+Plans:
+- [ ] 38-01-PLAN.md — SQLite schema and MetricsWriter singleton
+- [ ] 38-02-PLAN.md — Downsampling, retention cleanup, config integration
+
 See [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) for full details.
 
 <details>
