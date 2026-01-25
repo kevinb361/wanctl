@@ -7,8 +7,13 @@ Covers:
 - daemon mode shutdown (state save, lock release, connection close, server stop)
 - control loop behavior (cycle execution, failure tracking, watchdog)
 - signal handler integration (SIGTERM, SIGINT, shutdown event)
+- ContinuousAutoRate.__init__ logging paths (lines 1399-1459)
+- ContinuousAutoRate.run_cycle with lock acquisition (lines 1474-1503)
+- main() daemon error handlers (lines 1635-1700, 1758-1802)
+- __main__ entry point (line 1812)
 
-Coverage target: lines 1511-1808 (main() function) and signal integration paths.
+Coverage target: lines 1399-1503 (ContinuousAutoRate class), 1511-1808 (main()),
+and signal integration paths.
 """
 
 import argparse
@@ -1183,3 +1188,125 @@ class TestSignalIntegration:
 
         # is_shutdown_requested should be called multiple times (at least once per iteration)
         assert call_count[0] >= 3
+
+
+# =============================================================================
+# TestContinuousAutoRateInitLogging
+# =============================================================================
+
+
+class TestContinuousAutoRateInitLogging:
+    """Tests for ContinuousAutoRate.__init__ logging paths.
+
+    Covers lines 1399-1459:
+    - All config parameters logged during initialization
+    - WANController creation and wan_controllers list population
+    """
+
+    def test_init_logs_all_config_parameters(self, valid_config_yaml, tmp_path):
+        """ContinuousAutoRate.__init__ should log all config parameters."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        with (
+            patch("wanctl.autorate_continuous.RouterOS") as MockRouterOS,
+            patch("wanctl.autorate_continuous.RTTMeasurement"),
+            patch("wanctl.autorate_continuous.WANController") as MockWANController,
+            patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
+        ):
+            mock_logger = MagicMock()
+            mock_setup_logging.return_value = mock_logger
+            MockRouterOS.return_value = MagicMock()
+            MockWANController.return_value = MagicMock()
+
+            from wanctl.autorate_continuous import ContinuousAutoRate
+
+            controller = ContinuousAutoRate([str(config_file)], debug=True)
+
+            # Verify all expected log messages
+            info_calls = [str(call) for call in mock_logger.info.call_args_list]
+            info_text = " ".join(info_calls)
+
+            # Check for controller banner
+            assert "Continuous CAKE Controller" in info_text
+
+            # Check for download floor logging
+            assert "Download:" in info_text
+            assert "GREEN=" in info_text
+            assert "YELLOW=" in info_text
+            assert "SOFT_RED=" in info_text
+
+            # Check for upload floor logging
+            assert "Upload:" in info_text
+
+            # Check for threshold logging
+            assert "Thresholds" in info_text
+
+            # Check for EWMA logging
+            assert "EWMA:" in info_text
+            assert "baseline_alpha" in info_text
+            assert "load_alpha" in info_text
+
+            # Check for ping host logging
+            assert "Ping:" in info_text
+            assert "hosts=" in info_text
+
+    def test_init_creates_wan_controller(self, valid_config_yaml, tmp_path):
+        """ContinuousAutoRate.__init__ should create WANController and add to list."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        with (
+            patch("wanctl.autorate_continuous.RouterOS") as MockRouterOS,
+            patch("wanctl.autorate_continuous.RTTMeasurement") as MockRTT,
+            patch("wanctl.autorate_continuous.WANController") as MockWANController,
+            patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
+        ):
+            mock_logger = MagicMock()
+            mock_setup_logging.return_value = mock_logger
+            MockRouterOS.return_value = MagicMock()
+            MockRTT.return_value = MagicMock()
+            mock_wan_ctrl = MagicMock()
+            MockWANController.return_value = mock_wan_ctrl
+
+            from wanctl.autorate_continuous import ContinuousAutoRate
+
+            controller = ContinuousAutoRate([str(config_file)], debug=True)
+
+            # Verify wan_controllers list is populated
+            assert len(controller.wan_controllers) == 1
+
+            # Verify the dictionary has expected keys
+            wan_info = controller.wan_controllers[0]
+            assert "controller" in wan_info
+            assert "config" in wan_info
+            assert "logger" in wan_info
+
+            # Verify controller is the WANController instance
+            assert wan_info["controller"] is mock_wan_ctrl
+
+    def test_init_with_debug_flag(self, valid_config_yaml, tmp_path):
+        """ContinuousAutoRate.__init__ should pass debug flag to setup_logging."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        with (
+            patch("wanctl.autorate_continuous.RouterOS"),
+            patch("wanctl.autorate_continuous.RTTMeasurement"),
+            patch("wanctl.autorate_continuous.WANController"),
+            patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
+        ):
+            mock_setup_logging.return_value = MagicMock()
+
+            from wanctl.autorate_continuous import ContinuousAutoRate
+
+            # Test with debug=True
+            ContinuousAutoRate([str(config_file)], debug=True)
+            call_args = mock_setup_logging.call_args
+            assert call_args[0][2] is True  # debug parameter
+
+            # Test with debug=False
+            mock_setup_logging.reset_mock()
+            ContinuousAutoRate([str(config_file)], debug=False)
+            call_args = mock_setup_logging.call_args
+            assert call_args[0][2] is False
