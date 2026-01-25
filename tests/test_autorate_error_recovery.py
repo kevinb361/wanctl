@@ -192,3 +192,205 @@ class TestRouterOS:
             mock_logger.error.assert_called()
             error_msg = mock_logger.error.call_args[0][0]
             assert "Failed to set queue limits" in error_msg
+
+
+# =============================================================================
+# TestRouterFailureRecovery - Tests for router failure handling in run_cycle
+# =============================================================================
+
+
+class TestRouterFailureRecovery:
+    """Tests for router failure recovery paths in WANController.
+
+    When router.set_limits returns False, the controller should:
+    - Return False from run_cycle
+    - NOT update last_applied tracking (flash wear protection integrity)
+    - Log the error
+    - NOT call save_state
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_router, mock_logger
+
+    def test_router_failure_returns_false(self, controller_with_mocks):
+        """run_cycle should return False when router.set_limits fails."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        # Mock measure_rtt to return valid RTT (not None)
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is False
+
+    def test_router_failure_does_not_update_tracking(self, controller_with_mocks):
+        """last_applied rates should remain unchanged on router failure."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        # Set initial tracking values
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Tracking should NOT have changed
+        assert ctrl.last_applied_dl_rate == 100_000_000
+        assert ctrl.last_applied_ul_rate == 20_000_000
+
+    def test_router_failure_logs_error(self, controller_with_mocks):
+        """logger.error should be called when router fails."""
+        ctrl, mock_router, mock_logger = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Error should be logged
+        mock_logger.error.assert_called()
+        error_calls = [str(call) for call in mock_logger.error.call_args_list]
+        assert any("Failed to apply limits" in call for call in error_calls)
+
+    def test_router_failure_does_not_save_state(self, controller_with_mocks):
+        """save_state should NOT be called after router failure."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state") as mock_save,
+        ):
+            ctrl.run_cycle()
+
+        # save_state should NOT be called because run_cycle returns early on failure
+        mock_save.assert_not_called()
+
+
+# =============================================================================
+# TestMeasurementFailureRecovery - Tests for ICMP/measurement failure handling
+# =============================================================================
+
+
+class TestMeasurementFailureRecovery:
+    """Tests for measurement failure recovery in WANController.
+
+    When measure_rtt returns None, the controller should invoke
+    handle_icmp_failure which applies fallback_mode behavior:
+    - freeze: always freeze rates
+    - use_last_rtt: always use last known RTT
+    - graceful_degradation: cycle-based strategy
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_config, mock_logger
+
+    def test_measurement_failure_invokes_fallback(self, controller_with_mocks):
+        """handle_icmp_failure should be called when measure_rtt returns None."""
+        ctrl, _, _ = controller_with_mocks
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "handle_icmp_failure", return_value=(True, None)) as mock_fallback,
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        mock_fallback.assert_called_once()
+
+    def test_measurement_failure_freeze_mode_saves_state(self, controller_with_mocks):
+        """freeze mode should return True and save state."""
+        ctrl, mock_config, _ = controller_with_mocks
+        mock_config.fallback_mode = "freeze"
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 28.5
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)),
+            patch.object(ctrl, "save_state") as mock_save,
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        mock_save.assert_called()
+
+    def test_measurement_failure_use_last_rtt_continues(self, controller_with_mocks):
+        """use_last_rtt mode should use load_rtt and continue cycle."""
+        ctrl, mock_config, mock_logger = controller_with_mocks
+        mock_config.fallback_mode = "use_last_rtt"
+        ctrl.icmp_unavailable_cycles = 0
+        ctrl.load_rtt = 32.7
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=None),
+            patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)),
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        # Verify warning was logged about using last RTT
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("last RTT" in call for call in warning_calls)
+
+    def test_measurement_failure_graceful_degradation_sequence(self, controller_with_mocks):
+        """graceful_degradation: cycle 1=last_rtt, 2-3=freeze, 4+=fail."""
+        ctrl, mock_config, _ = controller_with_mocks
+        mock_config.fallback_mode = "graceful_degradation"
+        mock_config.fallback_max_cycles = 3
+        ctrl.load_rtt = 28.5
+
+        # Test cycle 1: use last RTT
+        ctrl.icmp_unavailable_cycles = 0
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, rtt = ctrl.handle_icmp_failure()
+        assert should_continue is True
+        assert rtt == 28.5  # Uses last RTT
+
+        # Test cycle 2: freeze
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, rtt = ctrl.handle_icmp_failure()
+        assert should_continue is True
+        assert rtt is None  # Freeze mode
+
+        # Test cycle 3: freeze
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, rtt = ctrl.handle_icmp_failure()
+        assert should_continue is True
+        assert rtt is None  # Freeze mode
+
+        # Test cycle 4: fail (exceeded max)
+        with patch.object(ctrl, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, rtt = ctrl.handle_icmp_failure()
+        assert should_continue is False
+        assert rtt is None
