@@ -382,3 +382,283 @@ class TestConfigCeilingAndSteps:
 
         assert config.download_green_required == 5
         assert config.upload_green_required == 5
+
+
+# =============================================================================
+# TestConfigAlphaFallback
+# =============================================================================
+
+
+class TestConfigAlphaFallback:
+    """Tests for Config alpha parameter fallback paths.
+
+    Covers lines 364-386: alpha_baseline and alpha_load fallback logic.
+    """
+
+    def test_alpha_baseline_raw_value(self, tmp_path):
+        """Test alpha_baseline uses raw value when no time_constant provided.
+
+        Covers lines 364-365: elif "alpha_baseline" in thresh.
+        """
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    alpha_baseline: 0.0005
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        # Raw alpha_baseline should be used directly
+        assert config.alpha_baseline == 0.0005
+
+    def test_alpha_load_raw_value_with_slow_warning(self, tmp_path, caplog):
+        """Test alpha_load raw value logs warning for slow time constant.
+
+        Covers lines 376-384: alpha_load fallback with warning for slow TC.
+        """
+        import logging
+
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    alpha_load: 0.001
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        # Enable logging capture
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_continuous"):
+            config = Config(str(config_file))
+
+        # Raw alpha_load should be used directly
+        assert config.alpha_load == 0.001
+
+        # Should log warning about slow time constant (0.05/0.001 = 50s > 5s)
+        assert any("alpha_load" in msg and "time constant" in msg for msg in caplog.messages)
+
+    def test_alpha_load_raw_value_no_warning_for_fast(self, tmp_path, caplog):
+        """Test alpha_load raw value does NOT warn for fast time constant.
+
+        A fast alpha (giving TC < 5s) should not trigger warning.
+        """
+        import logging
+
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    alpha_load: 0.1
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        # Enable logging capture
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_continuous"):
+            config = Config(str(config_file))
+
+        # Raw alpha_load should be used directly
+        assert config.alpha_load == 0.1
+
+        # Should NOT warn - 0.05/0.1 = 0.5s which is < 5s
+        assert not any("alpha_load" in msg and "time constant" in msg for msg in caplog.messages)
+
+    def test_missing_alpha_baseline_raises_valueerror(self, tmp_path):
+        """Test missing both alpha_baseline and baseline_time_constant_sec raises ValueError.
+
+        Covers lines 367-369: raise ValueError for missing alpha_baseline config.
+        """
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        with pytest.raises(ValueError, match="must specify either baseline_time_constant_sec or alpha_baseline"):
+            Config(str(config_file))
+
+    def test_missing_alpha_load_raises_valueerror(self, tmp_path):
+        """Test missing both alpha_load and load_time_constant_sec raises ValueError.
+
+        Covers lines 385-386: raise ValueError for missing alpha_load config.
+        """
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        with pytest.raises(ValueError, match="must specify either load_time_constant_sec or alpha_load"):
+            Config(str(config_file))
