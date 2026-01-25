@@ -76,6 +76,7 @@ STEERING_MODULE_FILES=(
     "src/wanctl/steering/cake_stats.py"
     "src/wanctl/steering/congestion_assessment.py"
     "src/wanctl/steering/steering_confidence.py"
+    "src/wanctl/steering/health.py"
 )
 
 # Legacy steering files removed in v1.1 (consolidated into steering/ module)
