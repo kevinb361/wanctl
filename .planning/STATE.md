@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - Phase 36 complete
+**Current focus:** v1.6 Test Coverage 90% - MILESTONE COMPLETE
 
 ## Current Position
 
-Phase: 37 of 37 (CLI Tool Tests) - IN PROGRESS
-Plan: 2 of 3 in phase (37-01 and 37-02 COMPLETE)
-Status: Plan 37-01 complete (calibrate.py 97.5% coverage)
-Last activity: 2026-01-25 - Completed 37-01-PLAN.md
+Phase: 37 of 37 (CLI Tool Tests) - COMPLETE
+Plan: 2 of 2 in phase (COMPLETE)
+Status: Phase 37 verified (calibrate.py 97.5%, perf_profiler.py 98.7%)
+Last activity: 2026-01-25 - Completed phase 37, v1.6 milestone complete
 
 Progress: [██████████████████████████████] 7/7 phases (100%)
 
@@ -103,14 +103,16 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 - **v1.3 Reliability & Hardening** (2026-01-21): Safety invariant tests, deployment validation
 - **v1.4 Observability** (2026-01-24): Steering daemon health endpoint on port 9102
 - **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
+- **v1.6 Test Coverage 90%** (2026-01-25): 111 new tests, 90%+ coverage enforced in CI
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 37-01-PLAN.md (calibrate.py tests)
+Stopped at: Completed phase 37 and v1.6 milestone
 Resume file: None
 
 ## Next Steps
 
-1. Execute 37-03-PLAN.md (remaining CLI tool tests if any)
-2. Complete v1.6 milestone and verify 90% coverage
+1. `/gsd:audit-milestone` - Audit v1.6 milestone completion
+2. `/gsd:complete-milestone` - Archive v1.6 and update documentation
+3. Plan v1.7 milestone (if applicable)

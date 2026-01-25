@@ -31,10 +31,10 @@ Requirements for Test Coverage 90% milestone. Each maps to roadmap phases.
 
 ### CLI Tool Tests
 
-- [ ] **CLI-01**: calibrate.py coverage >=90% (currently 0%)
-- [ ] **CLI-02**: Calibration workflow tested end-to-end
-- [ ] **CLI-03**: perf_profiler.py coverage >=90% (currently 0%)
-- [ ] **CLI-04**: CLI argument parsing tested
+- [x] **CLI-01**: calibrate.py coverage >=90% (97.5%) ✓
+- [x] **CLI-02**: Calibration workflow tested end-to-end ✓
+- [x] **CLI-03**: perf_profiler.py coverage >=90% (98.7%) ✓
+- [x] **CLI-04**: CLI argument parsing tested ✓
 
 ### Backend Client Tests
 
@@ -100,10 +100,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STEER-03    | Phase 36 | Complete |
 | STEER-04    | Phase 36 | Complete |
 | STEER-05    | Phase 36 | Complete |
-| CLI-01      | Phase 37 | Pending  |
-| CLI-02      | Phase 37 | Pending  |
-| CLI-03      | Phase 37 | Pending  |
-| CLI-04      | Phase 37 | Pending  |
+| CLI-01      | Phase 37 | Complete |
+| CLI-02      | Phase 37 | Complete |
+| CLI-03      | Phase 37 | Complete |
+| CLI-04      | Phase 37 | Complete |
 | BACK-01     | Phase 32 | Complete |
 | BACK-02     | Phase 32 | Complete |
 | BACK-03     | Phase 32 | Complete |
