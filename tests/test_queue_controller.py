@@ -127,3 +127,198 @@ class TestAdjust3StateZoneClassification:
         )
 
         assert zone == "GREEN"
+
+
+# =============================================================================
+# 3-STATE RATE ADJUSTMENT TESTS
+# =============================================================================
+
+
+class TestAdjust3StateRateAdjustments:
+    """Tests for QueueController.adjust() rate adjustment behavior.
+
+    Rate adjustment rules:
+    - RED: Immediate decay using factor_down (0.85 = 15% decay)
+    - YELLOW: Gentle decay using factor_down_yellow (0.96 = 4% decay)
+    - GREEN: Step up after green_required consecutive cycles (default 5)
+
+    Floor/ceiling enforcement:
+    - Rate never below floor_red_bps
+    - Rate never above ceiling_bps
+    """
+
+    BASELINE = 25.0
+    TARGET_DELTA = 15.0
+    WARN_DELTA = 45.0
+
+    def test_red_immediate_decay(self, controller_3state):
+        """Single RED sample applies factor_down immediately."""
+        initial_rate = controller_3state.current_rate  # 40M (ceiling)
+        expected_rate = int(initial_rate * 0.85)  # 34M
+
+        zone, new_rate = controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms -> RED
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+
+        assert zone == "RED"
+        assert new_rate == expected_rate
+        assert controller_3state.red_streak == 1
+
+    def test_green_requires_sustained_cycles(self, controller_3state):
+        """4 GREEN cycles = hold, 5th cycle = step up."""
+        initial_rate = controller_3state.current_rate  # 40M (ceiling)
+
+        # First 4 GREEN cycles should hold rate (green_required=5)
+        for i in range(4):
+            zone, new_rate = controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN"
+            assert new_rate == initial_rate, f"Cycle {i+1}: should hold rate"
+            assert controller_3state.green_streak == i + 1
+
+        # 5th GREEN cycle should step up
+        zone, new_rate = controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "GREEN"
+        # Note: ceiling enforces max, so if already at ceiling, stays at ceiling
+        assert new_rate == initial_rate  # Already at ceiling, clamped
+
+    def test_green_step_up_below_ceiling(self):
+        """GREEN step up when rate is below ceiling."""
+        controller = QueueController(
+            name="TestUpload",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        # Set rate below ceiling
+        controller.current_rate = 35_000_000
+
+        # Run 5 GREEN cycles to trigger step up
+        for _ in range(5):
+            zone, new_rate = controller.adjust(
+                baseline_rtt=25.0,
+                load_rtt=30.0,  # delta=5ms -> GREEN
+                target_delta=15.0,
+                warn_delta=45.0,
+            )
+
+        assert zone == "GREEN"
+        assert new_rate == 36_000_000  # 35M + 1M step up
+
+    def test_yellow_applies_gentle_decay(self, controller_3state):
+        """YELLOW applies factor_down_yellow (4% decay)."""
+        initial_rate = controller_3state.current_rate  # 40M
+        expected_rate = int(initial_rate * 0.96)  # ~38.4M
+
+        zone, new_rate = controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 30.0,  # delta=30ms -> YELLOW
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+
+        assert zone == "YELLOW"
+        assert new_rate == expected_rate
+
+    def test_rate_clamped_at_floor(self):
+        """Rate never below floor_red_bps."""
+        controller = QueueController(
+            name="TestUpload",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        # Set rate near floor
+        controller.current_rate = 26_000_000
+
+        # RED decay should clamp at floor
+        zone, new_rate = controller.adjust(
+            baseline_rtt=25.0,
+            load_rtt=75.0,  # delta=50ms -> RED
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+
+        assert zone == "RED"
+        assert new_rate == 25_000_000  # Clamped at floor
+
+    def test_rate_clamped_at_ceiling(self, controller_3state):
+        """Rate never above ceiling_bps."""
+        # Already at ceiling (40M), try to step up
+        controller_3state.green_streak = 4  # Next GREEN will trigger step up
+
+        zone, new_rate = controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+
+        assert zone == "GREEN"
+        assert new_rate == 40_000_000  # Clamped at ceiling
+
+    def test_green_streak_reset_by_yellow(self, controller_3state):
+        """YELLOW resets green_streak to 0."""
+        # Build up green_streak
+        for _ in range(3):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state.green_streak == 3
+
+        # YELLOW should reset green_streak
+        controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 30.0,  # YELLOW
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state.green_streak == 0
+
+    def test_green_streak_reset_by_red(self, controller_3state):
+        """RED resets green_streak to 0."""
+        # Build up green_streak
+        for _ in range(3):
+            controller_3state.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 5.0,  # GREEN
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state.green_streak == 3
+
+        # RED should reset green_streak
+        controller_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # RED
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state.green_streak == 0
