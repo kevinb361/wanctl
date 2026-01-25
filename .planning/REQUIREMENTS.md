@@ -15,11 +15,11 @@ Requirements for Test Coverage 90% milestone. Each maps to roadmap phases.
 
 ### Core Controller Tests
 
-- [ ] **CORE-01**: autorate_continuous.py coverage >=90% (currently 33%)
-- [ ] **CORE-02**: All main() entry point paths tested
-- [ ] **CORE-03**: Signal handlers (SIGTERM, SIGHUP) tested
-- [ ] **CORE-04**: Control loop state transitions tested
-- [ ] **CORE-05**: Error recovery paths tested
+- [x] **CORE-01**: autorate_continuous.py coverage >=90% (98.3%) ✓
+- [x] **CORE-02**: All main() entry point paths tested ✓
+- [x] **CORE-03**: Signal handlers (SIGTERM, SIGHUP) tested ✓
+- [x] **CORE-04**: Control loop state transitions tested ✓
+- [x] **CORE-05**: Error recovery paths tested ✓
 
 ### Steering Daemon Tests
 
@@ -47,27 +47,27 @@ Requirements for Test Coverage 90% milestone. Each maps to roadmap phases.
 
 ### State Management Tests
 
-- [ ] **STATE-01**: state_manager.py coverage >=90% (currently 39%)
-- [ ] **STATE-02**: State persistence (save/load) tested
-- [ ] **STATE-03**: Concurrent access and locking tested
-- [ ] **STATE-04**: Corruption recovery tested
+- [x] **STATE-01**: state_manager.py coverage >=90% (93.6%) ✓
+- [x] **STATE-02**: State persistence (save/load) tested ✓
+- [x] **STATE-03**: Concurrent access and locking tested ✓
+- [x] **STATE-04**: Corruption recovery tested ✓
 
 ### Metrics & Measurement Tests
 
-- [ ] **MEAS-01**: metrics.py coverage >=90% (currently 26%)
-- [ ] **MEAS-02**: Metrics collection and reporting tested
-- [ ] **MEAS-03**: steering/cake_stats.py coverage >=90% (currently 24%)
-- [ ] **MEAS-04**: CAKE statistics parsing tested
-- [ ] **MEAS-05**: rtt_measurement.py coverage >=90% (currently 67%)
-- [ ] **MEAS-06**: RTT measurement edge cases tested
+- [x] **MEAS-01**: metrics.py coverage >=90% (98.5%) ✓
+- [x] **MEAS-02**: Metrics collection and reporting tested ✓
+- [x] **MEAS-03**: steering/cake_stats.py coverage >=90% (96.7%) ✓
+- [x] **MEAS-04**: CAKE statistics parsing tested ✓
+- [x] **MEAS-05**: rtt_measurement.py coverage >=90% (96.9%) ✓
+- [x] **MEAS-06**: RTT measurement edge cases tested ✓
 
 ### Infrastructure Tests
 
-- [ ] **INFRA-01**: error_handling.py coverage >=90% (currently 21%)
-- [ ] **INFRA-02**: Error escalation and recovery tested
-- [ ] **INFRA-03**: signal_utils.py coverage >=90% (currently 50%)
-- [ ] **INFRA-04**: systemd_utils.py coverage >=90% (currently 33%)
-- [ ] **INFRA-05**: path_utils.py coverage >=90% (currently 71%)
+- [x] **INFRA-01**: error_handling.py coverage >=90% (99.1%) ✓
+- [x] **INFRA-02**: Error escalation and recovery tested ✓
+- [x] **INFRA-03**: signal_utils.py coverage >=90% (100%) ✓
+- [x] **INFRA-04**: systemd_utils.py coverage >=90% (97.0%) ✓
+- [x] **INFRA-05**: path_utils.py coverage >=90% (100%) ✓
 
 ## Future Requirements
 
@@ -90,11 +90,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COV-01      | Phase 31 | Complete |
 | COV-02      | Phase 31 | Complete |
 | COV-03      | Phase 31 | Complete |
-| CORE-01     | Phase 35 | Pending  |
-| CORE-02     | Phase 35 | Pending  |
-| CORE-03     | Phase 35 | Pending  |
-| CORE-04     | Phase 35 | Pending  |
-| CORE-05     | Phase 35 | Pending  |
+| CORE-01     | Phase 35 | Complete |
+| CORE-02     | Phase 35 | Complete |
+| CORE-03     | Phase 35 | Complete |
+| CORE-04     | Phase 35 | Complete |
+| CORE-05     | Phase 35 | Complete |
 | STEER-01    | Phase 36 | Complete |
 | STEER-02    | Phase 36 | Complete |
 | STEER-03    | Phase 36 | Complete |
@@ -110,21 +110,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-04     | Phase 32 | Complete |
 | BACK-05     | Phase 32 | Complete |
 | BACK-06     | Phase 32 | Complete |
-| STATE-01    | Phase 33 | Pending  |
-| STATE-02    | Phase 33 | Pending  |
-| STATE-03    | Phase 33 | Pending  |
-| STATE-04    | Phase 33 | Pending  |
-| MEAS-01     | Phase 34 | Pending  |
-| MEAS-02     | Phase 34 | Pending  |
-| MEAS-03     | Phase 34 | Pending  |
-| MEAS-04     | Phase 34 | Pending  |
-| MEAS-05     | Phase 34 | Pending  |
-| MEAS-06     | Phase 34 | Pending  |
-| INFRA-01    | Phase 33 | Pending  |
-| INFRA-02    | Phase 33 | Pending  |
-| INFRA-03    | Phase 33 | Pending  |
-| INFRA-04    | Phase 33 | Pending  |
-| INFRA-05    | Phase 33 | Pending  |
+| STATE-01    | Phase 33 | Complete |
+| STATE-02    | Phase 33 | Complete |
+| STATE-03    | Phase 33 | Complete |
+| STATE-04    | Phase 33 | Complete |
+| MEAS-01     | Phase 34 | Complete |
+| MEAS-02     | Phase 34 | Complete |
+| MEAS-03     | Phase 34 | Complete |
+| MEAS-04     | Phase 34 | Complete |
+| MEAS-05     | Phase 34 | Complete |
+| MEAS-06     | Phase 34 | Complete |
+| INFRA-01    | Phase 33 | Complete |
+| INFRA-02    | Phase 33 | Complete |
+| INFRA-03    | Phase 33 | Complete |
+| INFRA-04    | Phase 33 | Complete |
+| INFRA-05    | Phase 33 | Complete |
 
 **Coverage:**
 
@@ -135,4 +135,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-24_
-_Last updated: 2026-01-24 after roadmap creation_
+_Last updated: 2026-01-25 after v1.6 milestone audit_
