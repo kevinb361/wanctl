@@ -260,3 +260,208 @@ Request timeout for icmp_seq 2
 --- 8.8.8.8 ping statistics ---"""
         result = parse_ping_output(output)
         assert result == [10.0, 12.0]
+
+
+class TestAggregationStrategies:
+    """Tests for RTTMeasurement._aggregate_rtts and all 4 strategies (lines 216-228)."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    def test_average_strategy(self, mock_logger):
+        """AVERAGE strategy returns mean of samples (line 219-220)."""
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+        )
+        result = rtt._aggregate_rtts([10.0, 20.0, 30.0])
+        assert result == pytest.approx(20.0)
+
+    def test_median_strategy(self, mock_logger):
+        """MEDIAN strategy returns median of samples (lines 221-222)."""
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            aggregation_strategy=RTTAggregationStrategy.MEDIAN,
+        )
+        result = rtt._aggregate_rtts([10.0, 20.0, 100.0])
+        assert result == pytest.approx(20.0)  # Middle value
+
+    def test_min_strategy(self, mock_logger):
+        """MIN strategy returns smallest value (lines 223-224)."""
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            aggregation_strategy=RTTAggregationStrategy.MIN,
+        )
+        result = rtt._aggregate_rtts([15.0, 5.0, 25.0])
+        assert result == pytest.approx(5.0)
+
+    def test_max_strategy(self, mock_logger):
+        """MAX strategy returns largest value (lines 225-226)."""
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            aggregation_strategy=RTTAggregationStrategy.MAX,
+        )
+        result = rtt._aggregate_rtts([15.0, 5.0, 25.0])
+        assert result == pytest.approx(25.0)
+
+    def test_empty_list_raises_value_error(self, mock_logger):
+        """Empty list raises ValueError (lines 215-216)."""
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+        )
+        with pytest.raises(ValueError, match="Cannot aggregate empty RTT list"):
+            rtt._aggregate_rtts([])
+
+    def test_single_value_all_strategies(self, mock_logger):
+        """All strategies return same result for single value."""
+        for strategy in RTTAggregationStrategy:
+            rtt = RTTMeasurement(
+                logger=mock_logger,
+                aggregation_strategy=strategy,
+            )
+            result = rtt._aggregate_rtts([42.5])
+            assert result == pytest.approx(42.5), f"Strategy {strategy} failed"
+
+
+class TestPingHostEdgeCases:
+    """Tests for ping_host edge cases - lines 155, 175-176, 183, 198-200."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_subprocess(self):
+        """Create a mock for subprocess.run."""
+        with patch("wanctl.rtt_measurement.subprocess.run") as mock:
+            yield mock
+
+    def test_timeout_total_parameter_used(self, mock_logger, mock_subprocess):
+        """When timeout_total set, used as subprocess timeout (lines 154-155)."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = "64 bytes: time=10.0 ms"
+
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            timeout_total=15,  # Explicit total timeout
+        )
+        rtt.ping_host("8.8.8.8", count=3)
+
+        # Verify subprocess was called with our explicit timeout
+        call_kwargs = mock_subprocess.call_args[1]
+        assert call_kwargs["timeout"] == 15
+
+    def test_no_rtt_samples_returns_none_logs_warning(self, mock_logger, mock_subprocess):
+        """Empty RTT list logs warning, returns None (lines 174-176)."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = "PING complete - no timing data"
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("8.8.8.8")
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "No RTT samples" in mock_logger.warning.call_args[0][0]
+
+    def test_log_sample_stats_logs_debug(self, mock_logger, mock_subprocess):
+        """log_sample_stats=True logs min/max/median (lines 182-186)."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = """64 bytes: time=10.0 ms
+64 bytes: time=20.0 ms
+64 bytes: time=30.0 ms"""
+
+        rtt = RTTMeasurement(
+            logger=mock_logger,
+            log_sample_stats=True,
+        )
+        rtt.ping_host("8.8.8.8", count=3)
+
+        # Find the debug call that contains sample stats
+        debug_calls = mock_logger.debug.call_args_list
+        stats_logged = any("min=" in str(call) and "max=" in str(call) for call in debug_calls)
+        assert stats_logged, "Sample stats (min/max) not logged"
+
+    def test_generic_exception_logged(self, mock_logger, mock_subprocess):
+        """Non-timeout exception caught and logged (lines 198-200)."""
+        mock_subprocess.side_effect = OSError("Network unreachable")
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("8.8.8.8")
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+        assert "Ping error" in mock_logger.error.call_args[0][0]
+
+    def test_returncode_nonzero_logs_warning(self, mock_logger, mock_subprocess):
+        """Failed ping (returncode != 0) logs warning (lines 167-169)."""
+        mock_subprocess.return_value.returncode = 1
+        mock_subprocess.return_value.stdout = ""
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("8.8.8.8")
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "failed" in mock_logger.warning.call_args[0][0].lower()
+
+    def test_subprocess_timeout_logs_warning(self, mock_logger, mock_subprocess):
+        """TimeoutExpired caught and logged (lines 195-197)."""
+        mock_subprocess.side_effect = subprocess.TimeoutExpired(cmd="ping", timeout=5)
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("8.8.8.8")
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "timed out" in mock_logger.warning.call_args[0][0]
+
+
+class TestPingHostsConcurrentEdgeCases:
+    """Tests for ping_hosts_concurrent edge cases - lines 275-276."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    def test_concurrent_timeout_logs_debug(self, mock_logger):
+        """concurrent.futures.TimeoutError logged at debug level (lines 275-276)."""
+        import concurrent.futures
+
+        rtt = RTTMeasurement(logger=mock_logger)
+
+        # Mock ping_host to hang indefinitely (simulate slow ping)
+        def slow_ping(*args, **kwargs):
+            import time
+
+            time.sleep(10)  # Will exceed timeout
+            return 10.0
+
+        with patch.object(rtt, "ping_host", side_effect=slow_ping):
+            result = rtt.ping_hosts_concurrent(["8.8.8.8"], timeout=0.01)
+
+        # Should return empty (timeout before any result)
+        assert result == []
+        # Debug message about timeout should be logged
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("timeout" in call.lower() for call in debug_calls)
+
+    def test_none_results_filtered(self, mock_logger):
+        """ping_host returning None excluded from results (line 271)."""
+        rtt = RTTMeasurement(logger=mock_logger)
+
+        # Mock ping_host to return mix of values and None
+        with patch.object(rtt, "ping_host") as mock_ping:
+            mock_ping.side_effect = [10.0, None, 20.0]
+
+            result = rtt.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
+
+        # Only non-None values should be returned
+        assert len(result) == 2
+        assert 10.0 in result
+        assert 20.0 in result
+        assert None not in result
