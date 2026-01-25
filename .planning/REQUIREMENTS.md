@@ -16,10 +16,10 @@ Requirements for Metrics History milestone. Each maps to roadmap phases.
 
 ### Data Capture
 
-- [ ] **DATA-01**: Record RTT metrics (current, baseline, delta) each cycle
-- [ ] **DATA-02**: Record rate metrics (download, upload rates) each cycle
-- [ ] **DATA-03**: Record state transitions with reason (e.g., "RTT delta exceeded threshold")
-- [ ] **DATA-04**: Record config snapshot on startup and config reload
+- [x] **DATA-01**: Record RTT metrics (current, baseline, delta) each cycle
+- [x] **DATA-02**: Record rate metrics (download, upload rates) each cycle
+- [x] **DATA-03**: Record state transitions with reason (e.g., "RTT delta exceeded threshold")
+- [x] **DATA-04**: Record config snapshot on startup and config reload
 - [x] **DATA-05**: Prometheus-compatible metric naming (`wanctl_rtt_ms`, `wanctl_rate_download_mbps`)
 
 ### CLI Tool
@@ -39,9 +39,9 @@ Requirements for Metrics History milestone. Each maps to roadmap phases.
 
 ### Integration
 
-- [ ] **INTG-01**: Autorate daemon records metrics each cycle with minimal overhead
-- [ ] **INTG-02**: Steering daemon records metrics each cycle with minimal overhead
-- [ ] **INTG-03**: Performance impact <5ms overhead per cycle (measured)
+- [x] **INTG-01**: Autorate daemon records metrics each cycle with minimal overhead
+- [x] **INTG-02**: Steering daemon records metrics each cycle with minimal overhead
+- [x] **INTG-03**: Performance impact <5ms overhead per cycle (measured)
 
 ## Future Requirements
 
@@ -66,10 +66,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STOR-02     | 38    | Complete |
 | STOR-03     | 38    | Complete |
 | STOR-04     | 38    | Complete |
-| DATA-01     | 39    | Pending  |
-| DATA-02     | 39    | Pending  |
-| DATA-03     | 39    | Pending  |
-| DATA-04     | 39    | Pending  |
+| DATA-01     | 39    | Complete |
+| DATA-02     | 39    | Complete |
+| DATA-03     | 39    | Complete |
+| DATA-04     | 39    | Complete |
 | DATA-05     | 38    | Complete |
 | CLI-01      | 40    | Pending  |
 | CLI-02      | 40    | Pending  |
@@ -80,9 +80,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02      | 41    | Pending  |
 | API-03      | 41    | Pending  |
 | API-04      | 41    | Pending  |
-| INTG-01     | 39    | Pending  |
-| INTG-02     | 39    | Pending  |
-| INTG-03     | 39    | Pending  |
+| INTG-01     | 39    | Complete |
+| INTG-02     | 39    | Complete |
+| INTG-03     | 39    | Complete |
 
 **Coverage:**
 
