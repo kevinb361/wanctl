@@ -1463,3 +1463,266 @@ class TestContinuousAutoRateRunCycle:
         assert len(paths) == 2
         assert paths[0] == Path("/tmp/wan1.lock")
         assert paths[1] == Path("/tmp/wan2.lock")
+
+
+# =============================================================================
+# TestDaemonErrorHandlers
+# =============================================================================
+
+
+class TestDaemonErrorHandlers:
+    """Tests for main() daemon error handlers.
+
+    Covers lines 1635-1700:
+    - RuntimeError during lock validation
+    - OSError when starting metrics server
+    - OSError when starting health server
+    - is_systemd_available branch
+    """
+
+    def setup_method(self):
+        """Reset shutdown state before each test."""
+        reset_shutdown_state()
+
+    def teardown_method(self):
+        """Reset shutdown state after each test."""
+        reset_shutdown_state()
+
+    def test_daemon_runtime_error_during_lock_validation(self, valid_config_yaml, tmp_path):
+        """RuntimeError during lock validation should return 1."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_logger = MagicMock()
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(lock_timeout=300),
+                "logger": mock_logger,
+            }
+        ]
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch(
+                "wanctl.autorate_continuous.validate_and_acquire_lock",
+                side_effect=RuntimeError("test error"),
+            ),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        assert result == 1
+        # Verify error logged
+        error_calls = [str(call) for call in mock_logger.error.call_args_list]
+        assert any("Failed to validate lock" in call for call in error_calls)
+
+    def test_daemon_metrics_server_oserror(self, valid_config_yaml, tmp_path):
+        """OSError when starting metrics server should warn but continue."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=True,
+                    metrics_host="127.0.0.1",
+                    metrics_port=9100,
+                    health_check_enabled=False,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.start_metrics_server",
+                side_effect=OSError("port in use"),
+            ),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        # Should continue despite metrics server failure
+        assert result is None
+        # Verify warning logged
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("Failed to start metrics server" in call for call in warning_calls)
+
+    def test_daemon_health_server_oserror(self, valid_config_yaml, tmp_path):
+        """OSError when starting health server should warn but continue."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=True,
+                    health_check_host="127.0.0.1",
+                    health_check_port=9101,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.start_health_server",
+                side_effect=OSError("port in use"),
+            ),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            result = main()
+
+        # Should continue despite health server failure
+        assert result is None
+        # Verify warning logged
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("Failed to start health check server" in call for call in warning_calls)
+
+    def test_daemon_systemd_available_branch(self, valid_config_yaml, tmp_path):
+        """is_systemd_available should log info when True."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_logger = MagicMock()
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": mock_logger,
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch("wanctl.autorate_continuous.is_systemd_available", return_value=True),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            main()
+
+        # Verify systemd info logged
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("Systemd watchdog support enabled" in call for call in info_calls)
+
+    def test_daemon_atexit_register_called(self, valid_config_yaml, tmp_path):
+        """atexit.register should be called for emergency cleanup."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_controller = MagicMock()
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": MagicMock(),
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch(
+                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
+            ),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch("wanctl.autorate_continuous.atexit.register") as mock_atexit_register,
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+        ):
+            from wanctl.autorate_continuous import main
+
+            main()
+
+        # Verify atexit.register was called
+        mock_atexit_register.assert_called_once()
