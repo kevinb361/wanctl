@@ -1,14 +1,17 @@
 """Unit tests for path utilities."""
 
 import logging
+import os
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from wanctl.path_utils import (
     ensure_directory_exists,
     ensure_file_directory,
+    get_cake_root,
     safe_file_path,
 )
 
@@ -231,3 +234,154 @@ class TestPathUtilsIntegration:
 
         log_file.write_text("application started")
         assert log_file.exists()
+
+
+class TestGetCakeRoot:
+    """Tests for get_cake_root function."""
+
+    def test_returns_env_path_when_set(self, temp_dir, monkeypatch):
+        """Test returns CAKE_ROOT env path when set."""
+        monkeypatch.setenv("CAKE_ROOT", str(temp_dir))
+        result = get_cake_root()
+        assert result == temp_dir.resolve()
+
+    def test_returns_resolved_path_from_env(self, temp_dir, monkeypatch):
+        """Test returns resolved (absolute) path from CAKE_ROOT."""
+        monkeypatch.setenv("CAKE_ROOT", str(temp_dir))
+        result = get_cake_root()
+        assert result.is_absolute()
+
+    def test_returns_parents2_when_env_not_set(self, monkeypatch):
+        """Test returns parents[2] of module file when CAKE_ROOT not set."""
+        monkeypatch.delenv("CAKE_ROOT", raising=False)
+        result = get_cake_root()
+        # Should return the project root (parents[2] from path_utils.py)
+        # path_utils.py is at src/wanctl/path_utils.py
+        # parents[2] should be project root
+        assert result.is_absolute()
+        assert (result / "src").exists() or (result / "pyproject.toml").exists()
+
+
+class TestEnsureDirectoryExistsErrors:
+    """Tests for ensure_directory_exists error handling."""
+
+    def test_propagates_oserror_on_mkdir_failure(self, temp_dir, logger, caplog):
+        """Test OSError is propagated when mkdir fails."""
+        new_dir = temp_dir / "fail_dir"
+
+        with patch.object(Path, "exists", return_value=False):
+            with patch.object(Path, "mkdir", side_effect=OSError("Permission denied")):
+                with caplog.at_level(logging.ERROR):
+                    with pytest.raises(OSError, match="Permission denied"):
+                        ensure_directory_exists(new_dir, logger=logger)
+
+        assert "Failed to create directory" in caplog.text
+
+    def test_logs_error_before_raising(self, temp_dir, logger, caplog):
+        """Test error is logged before exception propagates."""
+        new_dir = temp_dir / "log_fail_dir"
+
+        with patch.object(Path, "exists", return_value=False):
+            with patch.object(Path, "mkdir", side_effect=OSError("Disk full")):
+                with caplog.at_level(logging.ERROR):
+                    with pytest.raises(OSError):
+                        ensure_directory_exists(new_dir, logger=logger)
+
+        assert "Failed to create directory" in caplog.text
+        assert "Disk full" in caplog.text
+
+
+class TestEnsureFileDirectoryResolve:
+    """Tests for ensure_file_directory with resolve parameter."""
+
+    def test_resolve_true_resolves_symlink(self, temp_dir, logger):
+        """Test resolve=True resolves symlink before creating parent."""
+        # Create actual directory and file
+        actual_dir = temp_dir / "actual"
+        actual_dir.mkdir()
+        actual_file = actual_dir / "file.txt"
+        actual_file.write_text("content")
+
+        # Create symlink to file in different directory
+        symlink_dir = temp_dir / "links"
+        symlink_dir.mkdir()
+        symlink_file = symlink_dir / "link.txt"
+        symlink_file.symlink_to(actual_file)
+
+        # Call with resolve=True
+        result = ensure_file_directory(symlink_file, logger=logger, resolve=True)
+
+        # Should return parent of resolved path (actual_dir)
+        assert result == actual_dir
+
+    def test_resolve_false_uses_symlink_parent(self, temp_dir, logger):
+        """Test resolve=False uses symlink's parent directory."""
+        # Create actual directory and file
+        actual_dir = temp_dir / "actual"
+        actual_dir.mkdir()
+        actual_file = actual_dir / "file.txt"
+        actual_file.write_text("content")
+
+        # Create symlink directory
+        symlink_dir = temp_dir / "links"
+        symlink_dir.mkdir()
+        symlink_file = symlink_dir / "link.txt"
+        symlink_file.symlink_to(actual_file)
+
+        # Call with resolve=False (default)
+        result = ensure_file_directory(symlink_file, logger=logger, resolve=False)
+
+        # Should return parent of symlink (symlink_dir)
+        assert result == symlink_dir
+
+
+class TestSafeFilePathWithoutLogger:
+    """Tests for safe_file_path without explicit logger."""
+
+    def test_works_without_logger_parameter(self, temp_dir):
+        """Test function works when logger parameter not provided."""
+        file_path = temp_dir / "no_logger" / "file.txt"
+
+        # Should not raise, uses module logger internally
+        result = safe_file_path(file_path, create_parent=True)
+
+        assert result == file_path
+        assert file_path.parent.exists()
+
+    def test_default_logger_logs_debug(self, temp_dir, caplog):
+        """Test default module logger logs debug messages."""
+        file_path = temp_dir / "debug_log" / "file.txt"
+
+        with caplog.at_level(logging.DEBUG):
+            safe_file_path(file_path, create_parent=True)
+
+        # Should log file path ready message
+        assert "File path ready" in caplog.text or "Created directory" in caplog.text
+
+
+class TestEnsureDirectoryExistsWithoutLogger:
+    """Tests for ensure_directory_exists without explicit logger."""
+
+    def test_uses_module_logger_when_none_provided(self, temp_dir, caplog):
+        """Test module logger is used when no logger provided."""
+        new_dir = temp_dir / "module_logger_test"
+
+        with caplog.at_level(logging.DEBUG):
+            ensure_directory_exists(new_dir)
+
+        assert new_dir.exists()
+        assert "Created directory" in caplog.text
+
+
+class TestEnsureFileDirectoryWithoutLogger:
+    """Tests for ensure_file_directory without explicit logger."""
+
+    def test_uses_module_logger_when_none_provided(self, temp_dir, caplog):
+        """Test module logger is used when no logger provided."""
+        file_path = temp_dir / "module_log_dir" / "file.txt"
+
+        with caplog.at_level(logging.DEBUG):
+            ensure_file_directory(file_path)
+
+        assert file_path.parent.exists()
+        assert "Created directory" in caplog.text
