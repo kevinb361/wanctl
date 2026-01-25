@@ -979,3 +979,219 @@ class TestStateTransitionSequences:
         sequence.append((zone, rate))
         assert zone == "GREEN"
         assert controller_4state.green_streak == 1
+
+
+# =============================================================================
+# BASELINE FREEZE INVARIANT TESTS
+# =============================================================================
+
+
+class TestBaselineFreezeInvariant:
+    """Tests for baseline freeze invariant - CRITICAL safety requirement.
+
+    Architectural invariant from CLAUDE.md:
+    - Baseline must remain frozen during load (only updates when delta < 3ms)
+    - This prevents baseline drift under load, which would mask bloat detection
+
+    These tests verify WANController._update_baseline_if_idle() behavior
+    via WANController.update_ewma() which calls it.
+    """
+
+    def test_baseline_freeze_under_load(self):
+        """100 cycles with high RTT, baseline unchanged.
+
+        CRITICAL: Under sustained load, baseline must NOT drift toward load RTT.
+        If it did, delta would approach zero and bloat detection would fail.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from wanctl.autorate_continuous import WANController
+
+        # Create mock config with baseline_update_threshold_ms = 3.0
+        mock_config = MagicMock()
+        mock_config.wan_name = "TestWAN"
+        mock_config.baseline_rtt_initial = 25.0
+        mock_config.download_floor_green = 800_000_000
+        mock_config.download_floor_yellow = 600_000_000
+        mock_config.download_floor_soft_red = 500_000_000
+        mock_config.download_floor_red = 400_000_000
+        mock_config.download_ceiling = 920_000_000
+        mock_config.download_step_up = 10_000_000
+        mock_config.download_factor_down = 0.85
+        mock_config.download_factor_down_yellow = 0.96
+        mock_config.download_green_required = 5
+        mock_config.upload_floor_green = 35_000_000
+        mock_config.upload_floor_yellow = 30_000_000
+        mock_config.upload_floor_red = 25_000_000
+        mock_config.upload_ceiling = 40_000_000
+        mock_config.upload_step_up = 1_000_000
+        mock_config.upload_factor_down = 0.85
+        mock_config.upload_factor_down_yellow = 0.96
+        mock_config.upload_green_required = 5
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.hard_red_bloat_ms = 80.0
+        mock_config.alpha_baseline = 0.001  # Very slow update
+        mock_config.alpha_load = 0.1
+        mock_config.baseline_update_threshold_ms = 3.0
+        mock_config.baseline_rtt_min = 10.0
+        mock_config.baseline_rtt_max = 60.0
+        mock_config.accel_threshold_ms = 15.0
+        mock_config.ping_hosts = ["1.1.1.1"]
+        mock_config.use_median_of_three = False
+        mock_config.state_file = MagicMock()
+
+        mock_router = MagicMock()
+        mock_rtt = MagicMock()
+        mock_logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                logger=mock_logger,
+            )
+
+        original_baseline = controller.baseline_rtt  # 25.0
+
+        # Simulate 100 cycles under load (high RTT = 75ms, delta = 50ms)
+        for _ in range(100):
+            controller.update_ewma(75.0)  # High RTT - should freeze baseline
+
+        # Baseline should NOT have drifted significantly
+        # With proper freeze, baseline stays at 25.0
+        assert controller.baseline_rtt == pytest.approx(
+            original_baseline, abs=0.1
+        ), f"Baseline drifted from {original_baseline} to {controller.baseline_rtt}"
+
+    def test_baseline_updates_when_idle(self):
+        """Low delta allows baseline EWMA update."""
+        from unittest.mock import MagicMock, patch
+
+        from wanctl.autorate_continuous import WANController
+
+        # Create mock config
+        mock_config = MagicMock()
+        mock_config.wan_name = "TestWAN"
+        mock_config.baseline_rtt_initial = 25.0
+        mock_config.download_floor_green = 800_000_000
+        mock_config.download_floor_yellow = 600_000_000
+        mock_config.download_floor_soft_red = 500_000_000
+        mock_config.download_floor_red = 400_000_000
+        mock_config.download_ceiling = 920_000_000
+        mock_config.download_step_up = 10_000_000
+        mock_config.download_factor_down = 0.85
+        mock_config.download_factor_down_yellow = 0.96
+        mock_config.download_green_required = 5
+        mock_config.upload_floor_green = 35_000_000
+        mock_config.upload_floor_yellow = 30_000_000
+        mock_config.upload_floor_red = 25_000_000
+        mock_config.upload_ceiling = 40_000_000
+        mock_config.upload_step_up = 1_000_000
+        mock_config.upload_factor_down = 0.85
+        mock_config.upload_factor_down_yellow = 0.96
+        mock_config.upload_green_required = 5
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.hard_red_bloat_ms = 80.0
+        mock_config.alpha_baseline = 0.1  # Fast update for testing
+        mock_config.alpha_load = 0.5      # Fast load EWMA
+        mock_config.baseline_update_threshold_ms = 3.0
+        mock_config.baseline_rtt_min = 10.0
+        mock_config.baseline_rtt_max = 60.0
+        mock_config.accel_threshold_ms = 15.0
+        mock_config.ping_hosts = ["1.1.1.1"]
+        mock_config.use_median_of_three = False
+        mock_config.state_file = MagicMock()
+
+        mock_router = MagicMock()
+        mock_rtt = MagicMock()
+        mock_logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                logger=mock_logger,
+            )
+
+        original_baseline = controller.baseline_rtt  # 25.0
+
+        # Simulate idle conditions with slightly different RTT (26ms)
+        # This keeps delta < 3ms, allowing baseline to update
+        for _ in range(10):
+            controller.update_ewma(26.0)
+
+        # Baseline should have moved toward 26.0
+        assert controller.baseline_rtt > original_baseline
+        assert controller.baseline_rtt < 26.0  # Not fully there yet due to EWMA
+
+    def test_delta_threshold_boundary(self):
+        """Exactly threshold value freezes (>= not >)."""
+        from unittest.mock import MagicMock, patch
+
+        from wanctl.autorate_continuous import WANController
+
+        mock_config = MagicMock()
+        mock_config.wan_name = "TestWAN"
+        mock_config.baseline_rtt_initial = 25.0
+        mock_config.download_floor_green = 800_000_000
+        mock_config.download_floor_yellow = 600_000_000
+        mock_config.download_floor_soft_red = 500_000_000
+        mock_config.download_floor_red = 400_000_000
+        mock_config.download_ceiling = 920_000_000
+        mock_config.download_step_up = 10_000_000
+        mock_config.download_factor_down = 0.85
+        mock_config.download_factor_down_yellow = 0.96
+        mock_config.download_green_required = 5
+        mock_config.upload_floor_green = 35_000_000
+        mock_config.upload_floor_yellow = 30_000_000
+        mock_config.upload_floor_red = 25_000_000
+        mock_config.upload_ceiling = 40_000_000
+        mock_config.upload_step_up = 1_000_000
+        mock_config.upload_factor_down = 0.85
+        mock_config.upload_factor_down_yellow = 0.96
+        mock_config.upload_green_required = 5
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.hard_red_bloat_ms = 80.0
+        mock_config.alpha_baseline = 0.1  # Would update fast if allowed
+        mock_config.alpha_load = 0.9      # Very fast load EWMA
+        mock_config.baseline_update_threshold_ms = 3.0
+        mock_config.baseline_rtt_min = 10.0
+        mock_config.baseline_rtt_max = 60.0
+        mock_config.accel_threshold_ms = 15.0
+        mock_config.ping_hosts = ["1.1.1.1"]
+        mock_config.use_median_of_three = False
+        mock_config.state_file = MagicMock()
+
+        mock_router = MagicMock()
+        mock_rtt = MagicMock()
+        mock_logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                logger=mock_logger,
+            )
+
+        # Set load_rtt to exactly baseline + 3ms (delta = 3ms = threshold)
+        controller.load_rtt = 28.0  # baseline=25, delta=3
+
+        original_baseline = controller.baseline_rtt  # 25.0
+
+        # Call _update_baseline_if_idle directly with delta exactly at threshold
+        controller._update_baseline_if_idle(30.0)
+
+        # delta >= threshold should freeze (not update)
+        assert controller.baseline_rtt == original_baseline, (
+            f"Baseline should freeze at threshold, but moved from "
+            f"{original_baseline} to {controller.baseline_rtt}"
+        )
