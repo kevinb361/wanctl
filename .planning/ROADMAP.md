@@ -38,9 +38,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 31: Coverage Infrastructure** - Threshold enforcement and CI integration ✓
   - [x] 31-01-PLAN.md - Configure coverage threshold and CI enforcement
-- [ ] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage
-  - [ ] 32-01-PLAN.md - REST client test coverage (routeros_rest.py)
-  - [ ] 32-02-PLAN.md - SSH client and base class test coverage
+- [x] **Phase 32: Backend Client Tests** - RouterOS REST/SSH client coverage ✓
+  - [x] 32-01-PLAN.md - REST client test coverage (routeros_rest.py)
+  - [x] 32-02-PLAN.md - SSH client and base class test coverage
 - [ ] **Phase 33: State & Infrastructure Tests** - State manager and utility modules
 - [ ] **Phase 34: Metrics & Measurement Tests** - Metrics, CAKE stats, RTT measurement
 - [ ] **Phase 35: Core Controller Tests** - Main autorate control loop coverage
@@ -266,7 +266,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | Phase                            | Plans Complete | Status      | Completed  |
 | -------------------------------- | -------------- | ----------- | ---------- |
 | 31. Coverage Infrastructure      | 1/1            | Complete    | 2026-01-24 |
-| 32. Backend Client Tests         | 0/2            | Planned     | -          |
+| 32. Backend Client Tests         | 2/2            | Complete    | 2026-01-25 |
 | 33. State & Infrastructure Tests | 0/2            | Not started | -          |
 | 34. Metrics & Measurement Tests  | 0/2            | Not started | -          |
 | 35. Core Controller Tests        | 0/3            | Not started | -          |

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 32 of 37 (Backend Client Tests)
-Plan: 2 of 5 in current phase
-Status: In progress - 32-02-PLAN.md complete
-Last activity: 2026-01-25 - Completed 32-02-PLAN.md
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase 32 complete, ready for Phase 33
+Last activity: 2026-01-25 — Completed 32-02-PLAN.md
 
-Progress: [███░░░░░░░░░░░░░░░░░░░░░░░░░░░] 3/12 plans (25%)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 2/7 phases (29%)
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 **v1.6 Coverage Infrastructure:**
 
 - Keep `test` target fast for dev, `coverage-check` for CI enforcement (31-01)
+- Abstract base class coverage accepted at 80.6% (abstract methods are inherently uncoverable) (32-02)
 
 ### Deferred Issues
 
@@ -83,6 +84,6 @@ Resume file: None
 
 ## Next Steps
 
-1. Execute 32-03-PLAN.md (Transport Selection Tests)
-2. Continue through 32-04, 32-05
-3. Proceed to Phase 33-37 for remaining coverage
+1. `/gsd:plan-phase 33` - Plan state & infrastructure tests phase
+2. Execute Phase 33
+3. Continue through Phases 34-37 to reach 90% coverage
