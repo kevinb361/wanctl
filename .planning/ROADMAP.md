@@ -76,6 +76,19 @@ Plans:
 
 **Key Results:** Both daemons record metrics each cycle with <5ms overhead (~1ms avg). Autorate records 6 metrics (RTT, baseline, delta, rates, state), steering records 5 metrics. State transitions include reason strings. Config snapshots on startup. 32 new tests.
 
+### Phase 40: CLI Tool
+
+**Goal**: `wanctl-history` command provides human and machine access to stored metrics
+**Depends on**: Phase 39
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
+**Plans**: 2 plans
+**Status**: Planned
+
+Plans:
+
+- [ ] 40-01-PLAN.md — MetricsReader module with query and summary functions
+- [ ] 40-02-PLAN.md — CLI argument parsing, output formatting, entry point
+
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
 
@@ -292,7 +305,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** v1.7 Metrics History (Phase 39 of 41)
+**Current:** v1.7 Metrics History (Phase 40 of 41)
 
 ### Completed Milestones
 
