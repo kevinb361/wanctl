@@ -6,13 +6,192 @@ from pathlib import Path
 
 import pytest
 
-from wanctl.state_manager import StateManager, StateSchema
+from wanctl.state_manager import (
+    StateManager,
+    StateSchema,
+    SteeringStateManager,
+    bounded_float,
+    non_negative_float,
+    non_negative_int,
+    optional_positive_float,
+    string_enum,
+)
 
 
 @pytest.fixture
 def logger():
     """Provide a logger for tests."""
     return logging.getLogger("test_state_manager")
+
+
+# =============================================================================
+# VALIDATOR FUNCTION TESTS
+# =============================================================================
+
+
+class TestValidatorFunctions:
+    """Tests for validator functions."""
+
+    # -------------------------------------------------------------------------
+    # non_negative_int tests
+    # -------------------------------------------------------------------------
+
+    def test_non_negative_int_positive_unchanged(self):
+        """Test positive int returns unchanged."""
+        assert non_negative_int(5) == 5
+        assert non_negative_int(100) == 100
+
+    def test_non_negative_int_zero_unchanged(self):
+        """Test zero returns unchanged."""
+        assert non_negative_int(0) == 0
+
+    def test_non_negative_int_negative_returns_zero(self):
+        """Test negative int returns 0."""
+        assert non_negative_int(-3) == 0
+        assert non_negative_int(-100) == 0
+
+    def test_non_negative_int_string_coercion(self):
+        """Test string coercion to int."""
+        assert non_negative_int("10") == 10
+        assert non_negative_int("0") == 0
+
+    def test_non_negative_int_float_coercion(self):
+        """Test float coercion to int (truncation)."""
+        assert non_negative_int(3.7) == 3
+        assert non_negative_int(3.2) == 3
+
+    # -------------------------------------------------------------------------
+    # non_negative_float tests
+    # -------------------------------------------------------------------------
+
+    def test_non_negative_float_positive_unchanged(self):
+        """Test positive float returns unchanged."""
+        assert non_negative_float(3.14) == 3.14
+        assert non_negative_float(100.5) == 100.5
+
+    def test_non_negative_float_zero_unchanged(self):
+        """Test zero returns unchanged."""
+        assert non_negative_float(0.0) == 0.0
+
+    def test_non_negative_float_negative_returns_zero(self):
+        """Test negative float returns 0.0."""
+        assert non_negative_float(-1.5) == 0.0
+        assert non_negative_float(-100.0) == 0.0
+
+    def test_non_negative_float_int_coercion(self):
+        """Test int coercion to float."""
+        result = non_negative_float(5)
+        assert result == 5.0
+        assert isinstance(result, float)
+
+    # -------------------------------------------------------------------------
+    # optional_positive_float tests
+    # -------------------------------------------------------------------------
+
+    def test_optional_positive_float_none_returns_none(self):
+        """Test None returns None."""
+        assert optional_positive_float(None) is None
+
+    def test_optional_positive_float_valid_value(self):
+        """Test valid float in bounds returns float."""
+        result = optional_positive_float(5.0, min_val=0.0, max_val=10.0)
+        assert result == 5.0
+
+    def test_optional_positive_float_at_bounds(self):
+        """Test value exactly at bounds returns unchanged."""
+        assert optional_positive_float(0.0, min_val=0.0, max_val=10.0) == 0.0
+        assert optional_positive_float(10.0, min_val=0.0, max_val=10.0) == 10.0
+
+    def test_optional_positive_float_below_min_raises(self):
+        """Test value below min raises ValueError."""
+        with pytest.raises(ValueError, match="below minimum"):
+            optional_positive_float(-0.1, min_val=0.0)
+
+    def test_optional_positive_float_above_max_raises(self):
+        """Test value above max raises ValueError."""
+        with pytest.raises(ValueError, match="above maximum"):
+            optional_positive_float(10.1, max_val=10.0)
+
+    def test_optional_positive_float_no_bounds(self):
+        """Test value with no bounds specified."""
+        assert optional_positive_float(1000.0) == 1000.0
+        assert optional_positive_float(-1000.0) == -1000.0
+
+    # -------------------------------------------------------------------------
+    # bounded_float tests
+    # -------------------------------------------------------------------------
+
+    def test_bounded_float_with_clamp_above_max(self):
+        """Test bounded_float clamps value above max."""
+        validator = bounded_float(0.0, 1.0, clamp=True)
+        assert validator(1.5) == 1.0
+
+    def test_bounded_float_with_clamp_below_min(self):
+        """Test bounded_float clamps value below min."""
+        validator = bounded_float(0.0, 1.0, clamp=True)
+        assert validator(-0.5) == 0.0
+
+    def test_bounded_float_with_clamp_in_range(self):
+        """Test bounded_float returns unchanged when in range."""
+        validator = bounded_float(0.0, 1.0, clamp=True)
+        assert validator(0.5) == 0.5
+
+    def test_bounded_float_with_clamp_at_bounds(self):
+        """Test bounded_float returns exactly at bounds."""
+        validator = bounded_float(0.0, 1.0, clamp=True)
+        assert validator(0.0) == 0.0
+        assert validator(1.0) == 1.0
+
+    def test_bounded_float_no_clamp_raises_above_max(self):
+        """Test bounded_float raises ValueError above max when clamp=False."""
+        validator = bounded_float(0.0, 1.0, clamp=False)
+        with pytest.raises(ValueError, match="not in range"):
+            validator(1.5)
+
+    def test_bounded_float_no_clamp_raises_below_min(self):
+        """Test bounded_float raises ValueError below min when clamp=False."""
+        validator = bounded_float(0.0, 1.0, clamp=False)
+        with pytest.raises(ValueError, match="not in range"):
+            validator(-0.5)
+
+    def test_bounded_float_no_clamp_valid_returns_unchanged(self):
+        """Test bounded_float returns unchanged when valid and clamp=False."""
+        validator = bounded_float(0.0, 1.0, clamp=False)
+        assert validator(0.5) == 0.5
+        assert validator(0.0) == 0.0
+        assert validator(1.0) == 1.0
+
+    def test_bounded_float_string_coercion(self):
+        """Test bounded_float coerces string to float."""
+        validator = bounded_float(0.0, 10.0, clamp=True)
+        assert validator("5.0") == 5.0
+
+    # -------------------------------------------------------------------------
+    # string_enum tests
+    # -------------------------------------------------------------------------
+
+    def test_string_enum_valid_value(self):
+        """Test string_enum accepts valid values."""
+        validator = string_enum("GREEN", "YELLOW", "RED")
+        assert validator("GREEN") == "GREEN"
+        assert validator("YELLOW") == "YELLOW"
+        assert validator("RED") == "RED"
+
+    def test_string_enum_invalid_value_raises(self):
+        """Test string_enum raises ValueError for invalid value."""
+        validator = string_enum("GREEN", "YELLOW", "RED")
+        with pytest.raises(ValueError, match="not in allowed set"):
+            validator("INVALID")
+
+    def test_string_enum_coerces_to_string(self):
+        """Test string_enum coerces value to string."""
+        validator = string_enum("1", "2", "3")
+        assert validator(1) == "1"
+
+    def test_string_enum_empty_string_when_allowed(self):
+        """Test string_enum accepts empty string if in allowed set."""
+        validator = string_enum("", "value")
+        assert validator("") == ""
 
 
 @pytest.fixture
