@@ -1593,3 +1593,258 @@ class TestUnifiedStateMachine:
         assert result is False
         # State unchanged
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
+
+
+class TestRouterOSController:
+    """Tests for RouterOSController class.
+
+    Tests MikroTik rule parsing and enable/disable operations:
+    - get_rule_status() parsing: enabled, disabled (various X flag positions), not found, error
+    - enable_steering() success and failure paths
+    - disable_steering() success and failure paths
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for RouterOSController."""
+        config = MagicMock()
+        config.mangle_rule_comment = "ADAPTIVE-STEER"
+        config.router_host = "10.10.99.1"
+        config.router_user = "admin"
+        config.ssh_key = "/path/to/key"
+        config.router_transport = "ssh"
+        config.router_password = ""
+        config.router_port = 22
+        config.router_verify_ssl = False
+        return config
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock router client."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_logger, mock_client):
+        """Create a RouterOSController with mocked client."""
+        from wanctl.steering.daemon import RouterOSController
+
+        with patch(
+            "wanctl.steering.daemon.get_router_client_with_failover", return_value=mock_client
+        ):
+            controller = RouterOSController(mock_config, mock_logger)
+        return controller
+
+    # =========================================================================
+    # get_rule_status() - Enabled rule tests
+    # =========================================================================
+
+    def test_get_rule_status_enabled_spaces(self, controller, mock_client):
+        """Test get_rule_status returns True for enabled rule with spaces."""
+        # MikroTik output with enabled rule (no X flag)
+        mock_client.run_cmd.return_value = (
+            0,
+            " 4    ;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is True
+        mock_client.run_cmd.assert_called_once()
+
+    def test_get_rule_status_enabled_tabs(self, controller, mock_client):
+        """Test get_rule_status returns True for enabled rule with tabs."""
+        mock_client.run_cmd.return_value = (
+            0,
+            "\t4\t\t;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is True
+
+    # =========================================================================
+    # get_rule_status() - Disabled rule tests
+    # =========================================================================
+
+    def test_get_rule_status_disabled_space_x_space(self, controller, mock_client):
+        """Test get_rule_status returns False for disabled rule with ' X '."""
+        mock_client.run_cmd.return_value = (
+            0,
+            " 4 X  ;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is False
+
+    def test_get_rule_status_disabled_tab_x_tab(self, controller, mock_client):
+        """Test get_rule_status returns False for disabled rule with tab X tab."""
+        mock_client.run_cmd.return_value = (
+            0,
+            "\t4\tX\t;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is False
+
+    def test_get_rule_status_disabled_tab_x_space(self, controller, mock_client):
+        """Test get_rule_status returns False for disabled rule with tab X space."""
+        mock_client.run_cmd.return_value = (
+            0,
+            " 4\tX ;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is False
+
+    def test_get_rule_status_disabled_space_x_tab(self, controller, mock_client):
+        """Test get_rule_status returns False for disabled rule with space X tab."""
+        mock_client.run_cmd.return_value = (
+            0,
+            " 4 X\t;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is False
+
+    # =========================================================================
+    # get_rule_status() - Error/not found tests
+    # =========================================================================
+
+    def test_get_rule_status_command_failure(self, controller, mock_client, mock_logger):
+        """Test get_rule_status returns None on command failure."""
+        mock_client.run_cmd.return_value = (1, "", "Connection refused")
+
+        result = controller.get_rule_status()
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+        assert "Failed to read mangle rule status" in str(mock_logger.error.call_args)
+
+    def test_get_rule_status_rule_not_found(self, controller, mock_client, mock_logger):
+        """Test get_rule_status returns None when rule not found."""
+        # Output without ADAPTIVE keyword
+        mock_client.run_cmd.return_value = (
+            0,
+            " 4    ;;; OTHER-RULE mark-routing=OTHER",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+        assert "Could not find ADAPTIVE rule" in str(mock_logger.error.call_args)
+
+    def test_get_rule_status_empty_output(self, controller, mock_client, mock_logger):
+        """Test get_rule_status returns None on empty output."""
+        mock_client.run_cmd.return_value = (0, "", "")
+
+        result = controller.get_rule_status()
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+
+    def test_get_rule_status_multiline_with_header(self, controller, mock_client):
+        """Test get_rule_status parses correctly with multiline output including header."""
+        # Real RouterOS output includes flags header
+        mock_client.run_cmd.return_value = (
+            0,
+            "Flags: X - disabled, I - invalid; D - dynamic\n"
+            " #   CHAIN              ACTION        LOG LOG-PREFIX\n"
+            " 4    ;;; ADAPTIVE-STEER mark-routing=LATENCY_SENSITIVE",
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is True
+
+    # =========================================================================
+    # enable_steering() tests
+    # =========================================================================
+
+    def test_enable_steering_success(self, controller, mock_client, mock_logger):
+        """Test enable_steering returns True on success."""
+        # Command succeeds
+        mock_client.run_cmd.return_value = (0, "", "")
+
+        with patch(
+            "wanctl.steering.daemon.verify_with_retry", return_value=True
+        ) as mock_verify:
+            result = controller.enable_steering()
+
+        assert result is True
+        mock_logger.info.assert_any_call("Steering rule enabled and verified")
+
+    def test_enable_steering_command_failure(self, controller, mock_client, mock_logger):
+        """Test enable_steering returns False on command failure."""
+        mock_client.run_cmd.return_value = (1, "", "Error")
+
+        result = controller.enable_steering()
+
+        assert result is False
+        mock_logger.error.assert_called()
+        assert "Failed to enable steering rule" in str(mock_logger.error.call_args)
+
+    def test_enable_steering_verification_failure(self, controller, mock_client, mock_logger):
+        """Test enable_steering returns False when verification fails."""
+        mock_client.run_cmd.return_value = (0, "", "")
+
+        with patch("wanctl.steering.daemon.verify_with_retry", return_value=False):
+            result = controller.enable_steering()
+
+        assert result is False
+        mock_logger.error.assert_any_call(
+            "Steering rule enable verification failed after retries"
+        )
+
+    # =========================================================================
+    # disable_steering() tests
+    # =========================================================================
+
+    def test_disable_steering_success(self, controller, mock_client, mock_logger):
+        """Test disable_steering returns True on success."""
+        mock_client.run_cmd.return_value = (0, "", "")
+
+        with patch("wanctl.steering.daemon.verify_with_retry", return_value=True):
+            result = controller.disable_steering()
+
+        assert result is True
+        mock_logger.info.assert_any_call("Steering rule disabled and verified")
+
+    def test_disable_steering_command_failure(self, controller, mock_client, mock_logger):
+        """Test disable_steering returns False on command failure."""
+        mock_client.run_cmd.return_value = (1, "", "Error")
+
+        result = controller.disable_steering()
+
+        assert result is False
+        mock_logger.error.assert_called()
+        assert "Failed to disable steering rule" in str(mock_logger.error.call_args)
+
+    def test_disable_steering_verification_failure(self, controller, mock_client, mock_logger):
+        """Test disable_steering returns False when verification fails."""
+        mock_client.run_cmd.return_value = (0, "", "")
+
+        with patch("wanctl.steering.daemon.verify_with_retry", return_value=False):
+            result = controller.disable_steering()
+
+        assert result is False
+        mock_logger.error.assert_any_call(
+            "Steering rule disable verification failed after retries"
+        )
