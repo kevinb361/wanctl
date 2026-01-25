@@ -11,7 +11,7 @@ Requirements for Metrics History milestone. Each maps to roadmap phases.
 
 - [ ] **STOR-01**: Metrics stored in SQLite at `/var/lib/wanctl/metrics.db`
 - [ ] **STOR-02**: Configurable retention period via config (default 7 days)
-- [ ] **STOR-03**: Automatic downsampling (1s → 1m → 5m → 1h as data ages)
+- [ ] **STOR-03**: Automatic downsampling (1s -> 1m -> 5m -> 1h as data ages)
 - [ ] **STOR-04**: Automatic cleanup of expired data on daemon startup
 
 ### Data Capture
@@ -62,35 +62,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STOR-01 | TBD | Pending |
-| STOR-02 | TBD | Pending |
-| STOR-03 | TBD | Pending |
-| STOR-04 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
-| DATA-05 | TBD | Pending |
-| CLI-01 | TBD | Pending |
-| CLI-02 | TBD | Pending |
-| CLI-03 | TBD | Pending |
-| CLI-04 | TBD | Pending |
-| CLI-05 | TBD | Pending |
-| API-01 | TBD | Pending |
-| API-02 | TBD | Pending |
-| API-03 | TBD | Pending |
-| API-04 | TBD | Pending |
-| INTG-01 | TBD | Pending |
-| INTG-02 | TBD | Pending |
-| INTG-03 | TBD | Pending |
+| STOR-01 | 38 | Pending |
+| STOR-02 | 38 | Pending |
+| STOR-03 | 38 | Pending |
+| STOR-04 | 38 | Pending |
+| DATA-01 | 39 | Pending |
+| DATA-02 | 39 | Pending |
+| DATA-03 | 39 | Pending |
+| DATA-04 | 39 | Pending |
+| DATA-05 | 38 | Pending |
+| CLI-01 | 40 | Pending |
+| CLI-02 | 40 | Pending |
+| CLI-03 | 40 | Pending |
+| CLI-04 | 40 | Pending |
+| CLI-05 | 40 | Pending |
+| API-01 | 41 | Pending |
+| API-02 | 41 | Pending |
+| API-03 | 41 | Pending |
+| API-04 | 41 | Pending |
+| INTG-01 | 39 | Pending |
+| INTG-02 | 39 | Pending |
+| INTG-03 | 39 | Pending |
 
 **Coverage:**
 
 - v1.7 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 ⚠️
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-01-25_
-_Last updated: 2026-01-25 after initial definition_
+_Last updated: 2026-01-25 after roadmap creation_

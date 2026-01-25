@@ -12,7 +12,7 @@ None
 
 ### Current
 
-None - milestone planning needed
+- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-41) - In Progress
 
 ### Completed
 
@@ -32,6 +32,17 @@ None - milestone planning needed
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.7 Metrics History (Phases 38-41) - In Progress
+
+**Milestone Goal:** Add historical metrics storage with SQLite, automatic downsampling, and querying via CLI and API.
+
+- [ ] Phase 38: Storage Foundation - SQLite schema, writer, downsampling, retention
+- [ ] Phase 39: Data Recording - Hook daemons to record metrics each cycle
+- [ ] Phase 40: CLI Tool - `wanctl-history` command for querying
+- [ ] Phase 41: API Endpoint - `/metrics/history` on health server
+
+See [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) for full details.
 
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
@@ -249,7 +260,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** No active milestone - ready for v1.7 planning
+**Current:** v1.7 Metrics History (Phase 38 of 41)
 
 ### Completed Milestones
 
@@ -263,4 +274,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 37 phases, 77 plans across 7 milestones
+**Total:** 37 phases complete, 77 plans across 7 milestones
+**v1.7:** 4 phases (38-41), 7 plans planned
