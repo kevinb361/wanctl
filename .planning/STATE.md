@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.6 Test Coverage 90% - Phase 35
+**Current focus:** v1.6 Test Coverage 90% - Phase 35 complete
 
 ## Current Position
 
 Phase: 35 of 37 (Core Controller Tests)
-Plan: 2 of 2 in current phase (COMPLETE)
+Plan: 3 of 3 in current phase (COMPLETE)
 Status: Phase 35 complete
-Last activity: 2026-01-25 - Completed 35-02-PLAN.md
+Last activity: 2026-01-25 - Completed 35-03-PLAN.md
 
 Progress: [██████░░░░░░░░░░░░░░░░░░░░░░░░] 5/7 phases (71%)
 
@@ -48,6 +48,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - queued-packets regex matches before packets in certain text formats - adjust test data order (34-01)
 - Test SOFT_RED sustain with both default (soft_red_required=1) and custom higher values (35-02)
 - Baseline freeze tests use WANController directly (not QueueController) to test update_ewma integration (35-02)
+- Use controller_with_mocks fixture pattern returning tuple (ctrl, config, logger) for flexible test setup (35-03)
+- LockAcquisitionError requires (lock_path, age) positional arguments (35-03)
 
 ### Deferred Issues
 
@@ -64,7 +66,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 - Add metrics history feature (observability)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
-- Error recovery scenario testing (reliability)
+- Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
 
 ### Quick Tasks Completed
 
@@ -87,7 +89,7 @@ None. COV-04 from v1.5 is now COV-01/COV-02 in v1.6 scope.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed phase 35 (35-01 entry points/config, 35-02 state transitions)
+Stopped at: Completed phase 35 (35-01 entry points/config, 35-02 state transitions, 35-03 error recovery)
 Resume file: None
 
 ## Next Steps
