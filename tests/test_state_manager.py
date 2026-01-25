@@ -249,6 +249,38 @@ class TestStateSchema:
         assert validated["count"] == 10
         assert validated["name"] == "custom"
 
+    def test_schema_with_tuple_validators(self):
+        """Test schema with tuple validators (default, validator_func)."""
+        schema = StateSchema({"alpha": (0.5, bounded_float(0.0, 1.0))})
+        defaults = schema.get_defaults()
+        assert defaults["alpha"] == 0.5
+
+        # Validator should clamp out-of-range values
+        result = schema.validate_field("alpha", 1.5)
+        assert result == 1.0
+
+    def test_validate_field_type_coercion_failure_returns_default(self):
+        """Test validation returns default when type coercion fails."""
+        schema = StateSchema({"count": 0})
+        # Object that can't be converted to int
+        result = schema.validate_field("count", object())
+        assert result == 0
+
+    def test_validate_state_logs_warning_on_validation_failure(self, caplog):
+        """Test validate_state logs warning on validation failure."""
+        logger = logging.getLogger("test_schema")
+        schema = StateSchema({"alpha": (0.5, bounded_float(0.0, 1.0, clamp=False))})
+
+        # Value out of range with clamp=False will raise ValueError
+        state = {"alpha": 2.0}
+
+        with caplog.at_level(logging.WARNING):
+            validated = schema.validate_state(state, logger=logger)
+
+        # Should use default due to validation failure
+        assert validated["alpha"] == 0.5
+        assert "validation failed" in caplog.text
+
 
 class TestStateManager:
     """Tests for StateManager class."""
@@ -367,6 +399,155 @@ class TestStateManager:
         # Should not raise, just return False
         result = manager.load()
         assert result is False
+
+    def test_get_with_default_from_schema(self, temp_state_file, logger):
+        """Test get uses schema default when no explicit default provided."""
+        schema = StateSchema({"count": 42, "name": "default_name"})
+        manager = StateManager(temp_state_file, schema, logger)
+        # State doesn't have 'count', so should use schema default
+        manager.state = {}
+
+        result = manager.get("count")
+        assert result == 42
+
+    # -------------------------------------------------------------------------
+    # Backup/recovery tests
+    # -------------------------------------------------------------------------
+
+    def test_backup_state_file_creates_backup(self, temp_state_file, logger):
+        """Test _backup_state_file creates .backup file."""
+        schema = StateSchema({"count": 0})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Create and save a state file first
+        temp_state_file.write_text('{"count": 42}')
+
+        result = manager._backup_state_file()
+        assert result is True
+        backup_path = temp_state_file.with_suffix(".json.backup")
+        assert backup_path.exists()
+        assert backup_path.read_text() == '{"count": 42}'
+
+    def test_backup_state_file_nonexistent_returns_false(self, temp_state_file, logger):
+        """Test _backup_state_file returns False when file doesn't exist."""
+        schema = StateSchema({"count": 0})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Don't create the file
+        result = manager._backup_state_file()
+        assert result is False
+
+    def test_backup_state_file_failure_returns_false(self, temp_state_file, logger, caplog):
+        """Test _backup_state_file returns False on copy failure."""
+        from unittest.mock import patch
+
+        schema = StateSchema({"count": 0})
+        manager = StateManager(temp_state_file, schema, logger)
+        temp_state_file.write_text('{"count": 42}')
+
+        with patch("wanctl.state_manager.shutil.copy2") as mock_copy:
+            mock_copy.side_effect = PermissionError("Access denied")
+            with caplog.at_level(logging.ERROR):
+                result = manager._backup_state_file()
+
+        assert result is False
+        assert "Failed to backup state file" in caplog.text
+
+    def test_load_corrupt_primary_valid_backup_recovers(self, temp_state_file, logger, caplog):
+        """Test load recovers from backup when primary is corrupt."""
+        schema = StateSchema({"count": 0, "name": "default"})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Create corrupt primary
+        temp_state_file.write_text("{ invalid json")
+
+        # Create valid backup
+        backup_path = temp_state_file.with_suffix(".json.backup")
+        backup_path.write_text('{"count": 99, "name": "from_backup"}')
+
+        with caplog.at_level(logging.INFO):
+            result = manager.load()
+
+        assert result is True
+        assert manager.state["count"] == 99
+        assert manager.state["name"] == "from_backup"
+        assert "Recovered state from backup" in caplog.text
+
+    def test_load_both_corrupt_uses_defaults(self, temp_state_file, logger, caplog):
+        """Test load uses defaults when both primary and backup are corrupt."""
+        schema = StateSchema({"count": 42, "name": "default"})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Create corrupt primary
+        temp_state_file.write_text("{ invalid json")
+
+        # Create corrupt backup
+        backup_path = temp_state_file.with_suffix(".json.backup")
+        backup_path.write_text("{ also invalid")
+
+        with caplog.at_level(logging.WARNING):
+            result = manager.load()
+
+        assert result is False
+        assert manager.state["count"] == 42
+        assert manager.state["name"] == "default"
+        assert "Failed to parse state file, using defaults" in caplog.text
+
+    def test_load_backup_validation_fails_uses_defaults(self, temp_state_file, logger, caplog):
+        """Test load uses defaults when backup validation fails."""
+        # Create a schema with a validator that will fail
+        schema = StateSchema({"alpha": (0.5, bounded_float(0.0, 1.0, clamp=False))})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Create corrupt primary
+        temp_state_file.write_text("{ invalid")
+
+        # Create backup with value that will fail validation (out of range)
+        backup_path = temp_state_file.with_suffix(".json.backup")
+        backup_path.write_text('{"alpha": 5.0}')
+
+        with caplog.at_level(logging.WARNING):
+            result = manager.load()
+
+        # Should still load - validate_state catches and logs the error
+        # and uses default for the failed field
+        assert result is True
+        assert manager.state["alpha"] == 0.5  # Default used for invalid field
+
+    def test_load_validation_failure_path(self, temp_state_file, logger, caplog):
+        """Test load handles validation exception and uses defaults (lines 390-394)."""
+        from unittest.mock import patch
+
+        schema = StateSchema({"count": 42})
+        manager = StateManager(temp_state_file, schema, logger)
+
+        # Create valid JSON
+        temp_state_file.write_text('{"count": 10}')
+
+        # Mock validate_state to raise an exception
+        with patch.object(schema, "validate_state", side_effect=RuntimeError("Validation exploded")):
+            with caplog.at_level(logging.ERROR):
+                result = manager.load()
+
+        assert result is False
+        assert manager.state["count"] == 42  # Defaults
+        assert "Failed to validate state" in caplog.text
+
+    def test_save_failure_returns_false(self, temp_state_file, logger, caplog):
+        """Test save returns False and logs error on failure."""
+        from unittest.mock import patch
+
+        schema = StateSchema({"count": 0})
+        manager = StateManager(temp_state_file, schema, logger)
+        manager.state = {"count": 42}
+
+        with patch("wanctl.state_manager.atomic_write_json") as mock_write:
+            mock_write.side_effect = OSError("Disk full")
+            with caplog.at_level(logging.ERROR):
+                result = manager.save()
+
+        assert result is False
+        assert "Failed to save state" in caplog.text
 
 
 class TestStateManagerWithNestedData:
