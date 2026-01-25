@@ -1632,3 +1632,203 @@ class TestMeasureRttMedianOfThree:
         assert result == 18.0
         ctrl.rtt_measurement.ping_host.assert_called_once()
         ctrl.rtt_measurement.ping_hosts_concurrent.assert_not_called()
+
+
+class TestBaselineRttBoundsRejection:
+    """Tests for WANController._update_baseline_if_idle() bounds rejection.
+
+    Covers lines 955-960: Security bounds check that rejects corrupted/invalid
+    baseline values outside the [baseline_rtt_min, baseline_rtt_max] range.
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.1  # 10% weight for faster testing
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 5.0  # Minimum sane baseline
+        config.baseline_rtt_max = 100.0  # Maximum sane baseline
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl, config, logger
+
+    def test_baseline_below_min_bound_rejected(self, controller_with_mocks):
+        """Baseline RTT below min bound is rejected with warning.
+
+        Covers lines 955-960: new_baseline < baseline_rtt_min case.
+
+        Formula: new_baseline = (1 - alpha) * baseline + alpha * measured
+        With alpha=0.1, baseline=10.0, we need measured_rtt that gives new < 5.0
+        new = 0.9 * 10 + 0.1 * measured < 5
+        9 + 0.1 * measured < 5
+        0.1 * measured < -4  -> measured < -40
+
+        This test uses a very low measured_rtt to push baseline below min.
+        """
+        ctrl, config, logger = controller_with_mocks
+        ctrl.baseline_rtt = 10.0
+        ctrl.load_rtt = 10.0  # delta = 0, so update will be attempted
+        ctrl.baseline_update_threshold = 3.0
+        ctrl.alpha_baseline = 0.1
+        ctrl.baseline_rtt_min = 5.0
+        ctrl.baseline_rtt_max = 100.0
+
+        original_baseline = ctrl.baseline_rtt
+
+        # measured_rtt = -50 would give new_baseline = 0.9*10 + 0.1*(-50) = 9 - 5 = 4.0 < 5.0
+        ctrl._update_baseline_if_idle(-50.0)
+
+        # Baseline should NOT be updated
+        assert ctrl.baseline_rtt == original_baseline
+
+        # Warning should be logged
+        logger.warning.assert_called_once()
+        warning_msg = logger.warning.call_args[0][0]
+        assert "outside bounds" in warning_msg
+        assert f"[{ctrl.baseline_rtt_min}-{ctrl.baseline_rtt_max}ms]" in warning_msg
+
+    def test_baseline_above_max_bound_rejected(self, controller_with_mocks):
+        """Baseline RTT above max bound is rejected with warning.
+
+        Covers lines 955-960: new_baseline > baseline_rtt_max case.
+
+        Formula: new_baseline = (1 - alpha) * baseline + alpha * measured
+        With alpha=0.1, baseline=90.0, we need measured_rtt that gives new > 100.0
+        new = 0.9 * 90 + 0.1 * measured > 100
+        81 + 0.1 * measured > 100
+        0.1 * measured > 19 -> measured > 190
+        """
+        ctrl, config, logger = controller_with_mocks
+        ctrl.baseline_rtt = 90.0
+        ctrl.load_rtt = 90.0  # delta = 0, so update will be attempted
+        ctrl.baseline_update_threshold = 3.0
+        ctrl.alpha_baseline = 0.1
+        ctrl.baseline_rtt_min = 5.0
+        ctrl.baseline_rtt_max = 100.0
+
+        original_baseline = ctrl.baseline_rtt
+
+        # measured_rtt = 200 would give new_baseline = 0.9*90 + 0.1*200 = 81 + 20 = 101.0 > 100.0
+        ctrl._update_baseline_if_idle(200.0)
+
+        # Baseline should NOT be updated
+        assert ctrl.baseline_rtt == original_baseline
+
+        # Warning should be logged
+        logger.warning.assert_called_once()
+        warning_msg = logger.warning.call_args[0][0]
+        assert "outside bounds" in warning_msg
+
+    def test_baseline_within_bounds_accepted(self, controller_with_mocks):
+        """Baseline RTT within bounds is accepted and updated.
+
+        Validates that normal updates work when new_baseline is within bounds.
+        """
+        ctrl, config, logger = controller_with_mocks
+        ctrl.baseline_rtt = 25.0
+        ctrl.load_rtt = 25.0  # delta = 0, so update will be attempted
+        ctrl.baseline_update_threshold = 3.0
+        ctrl.alpha_baseline = 0.1
+        ctrl.baseline_rtt_min = 5.0
+        ctrl.baseline_rtt_max = 100.0
+
+        # measured_rtt = 30.0 would give new_baseline = 0.9*25 + 0.1*30 = 22.5 + 3 = 25.5
+        ctrl._update_baseline_if_idle(30.0)
+
+        # Baseline SHOULD be updated
+        expected = 0.9 * 25.0 + 0.1 * 30.0  # 25.5
+        assert ctrl.baseline_rtt == pytest.approx(expected, abs=0.01)
+
+        # Debug log should be called (not warning)
+        logger.debug.assert_called()
+        logger.warning.assert_not_called()
+
+    def test_baseline_at_exact_min_bound_accepted(self, controller_with_mocks):
+        """Baseline RTT at exactly min bound is accepted (boundary condition).
+
+        Tests the >= part of: baseline_rtt_min <= new_baseline
+        """
+        ctrl, config, logger = controller_with_mocks
+        ctrl.baseline_rtt = 10.0
+        ctrl.load_rtt = 10.0
+        ctrl.baseline_update_threshold = 3.0
+        ctrl.alpha_baseline = 0.5  # 50% weight to make math simpler
+        ctrl.baseline_rtt_min = 5.0
+        ctrl.baseline_rtt_max = 100.0
+
+        # With alpha=0.5, baseline=10: new = 0.5*10 + 0.5*measured
+        # To get exactly 5.0: 5 + 0.5*measured = 5 -> measured = 0
+        ctrl._update_baseline_if_idle(0.0)
+
+        # new_baseline = 0.5*10 + 0.5*0 = 5.0 which equals min, should be accepted
+        assert ctrl.baseline_rtt == 5.0
+        logger.warning.assert_not_called()
+
+    def test_baseline_at_exact_max_bound_accepted(self, controller_with_mocks):
+        """Baseline RTT at exactly max bound is accepted (boundary condition).
+
+        Tests the <= part of: new_baseline <= baseline_rtt_max
+        """
+        ctrl, config, logger = controller_with_mocks
+        ctrl.baseline_rtt = 50.0
+        ctrl.load_rtt = 50.0
+        ctrl.baseline_update_threshold = 3.0
+        ctrl.alpha_baseline = 0.5  # 50% weight
+        ctrl.baseline_rtt_min = 5.0
+        ctrl.baseline_rtt_max = 100.0
+
+        # With alpha=0.5, baseline=50: new = 0.5*50 + 0.5*measured
+        # To get exactly 100: 25 + 0.5*measured = 100 -> measured = 150
+        ctrl._update_baseline_if_idle(150.0)
+
+        # new_baseline = 0.5*50 + 0.5*150 = 25 + 75 = 100.0 which equals max, should be accepted
+        assert ctrl.baseline_rtt == 100.0
+        logger.warning.assert_not_called()
