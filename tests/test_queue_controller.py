@@ -322,3 +322,152 @@ class TestAdjust3StateRateAdjustments:
             warn_delta=self.WARN_DELTA,
         )
         assert controller_3state.green_streak == 0
+
+
+# =============================================================================
+# 4-STATE ZONE CLASSIFICATION TESTS
+# =============================================================================
+
+
+class TestAdjust4StateZoneClassification:
+    """Tests for QueueController.adjust_4state() zone classification.
+
+    4-state zones (Phase 2A download):
+    - GREEN: delta <= green_threshold (15ms)
+    - YELLOW: green_threshold < delta <= soft_red_threshold (15ms < delta <= 45ms)
+    - SOFT_RED: soft_red_threshold < delta <= hard_red_threshold (45ms < delta <= 80ms)
+    - RED: delta > hard_red_threshold (delta > 80ms)
+
+    Note: SOFT_RED requires sustain (soft_red_required cycles) before confirming.
+    """
+
+    # Standard thresholds for 4-state tests
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0      # GREEN -> YELLOW
+    SOFT_RED_THRESHOLD = 45.0   # YELLOW -> SOFT_RED
+    HARD_RED_THRESHOLD = 80.0   # SOFT_RED -> RED
+
+    @pytest.mark.parametrize(
+        "delta,expected_zone",
+        [
+            (5.0, "GREEN"),     # delta <= 15
+            (15.0, "GREEN"),    # delta == green_threshold (boundary)
+            (20.0, "YELLOW"),   # 15 < delta <= 45
+            (45.0, "YELLOW"),   # delta == soft_red_threshold (boundary)
+            (100.0, "RED"),     # delta > 80
+        ],
+    )
+    def test_4state_zone_classification(self, controller_4state, delta, expected_zone):
+        """Parametrized test for zone classification based on delta."""
+        load_rtt = self.BASELINE + delta
+
+        zone, _ = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=load_rtt,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == expected_zone, f"delta={delta}ms should be {expected_zone}"
+
+    def test_soft_red_requires_sustain(self, controller_4state):
+        """First SOFT_RED delta returns YELLOW (sustain requirement)."""
+        # First cycle with SOFT_RED delta (50ms) should return YELLOW
+        zone, _ = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms -> raw SOFT_RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        # soft_red_required=1 in default config, so first cycle IS sustained
+        # Controller's default soft_red_required is 1 (fast response)
+        assert controller_4state.soft_red_streak == 1
+        # With soft_red_required=1, first SOFT_RED is confirmed immediately
+        assert zone == "SOFT_RED"
+
+    def test_soft_red_sustained_returns_soft_red(self, controller_4state):
+        """After soft_red_required cycles, returns SOFT_RED."""
+        # With soft_red_required=1, first cycle confirms SOFT_RED
+        zone, _ = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms -> SOFT_RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == "SOFT_RED"
+        assert controller_4state.soft_red_streak == 1
+
+    def test_soft_red_with_higher_sustain_requirement(self):
+        """Test SOFT_RED sustain with soft_red_required > 1."""
+        controller = QueueController(
+            name="TestDownload",
+            floor_green=800_000_000,
+            floor_yellow=600_000_000,
+            floor_soft_red=500_000_000,
+            floor_red=400_000_000,
+            ceiling=920_000_000,
+            step_up=10_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        # Manually set higher sustain requirement for testing
+        controller.soft_red_required = 3
+
+        baseline = 25.0
+        delta = 50.0  # SOFT_RED range
+        load_rtt = baseline + delta
+
+        # First 2 cycles should return YELLOW (not sustained)
+        for i in range(2):
+            zone, _ = controller.adjust_4state(
+                baseline_rtt=baseline,
+                load_rtt=load_rtt,
+                green_threshold=15.0,
+                soft_red_threshold=45.0,
+                hard_red_threshold=80.0,
+            )
+            assert zone == "YELLOW", f"Cycle {i+1}: should be YELLOW (not sustained)"
+            assert controller.soft_red_streak == i + 1
+
+        # 3rd cycle should confirm SOFT_RED
+        zone, _ = controller.adjust_4state(
+            baseline_rtt=baseline,
+            load_rtt=load_rtt,
+            green_threshold=15.0,
+            soft_red_threshold=45.0,
+            hard_red_threshold=80.0,
+        )
+        assert zone == "SOFT_RED"
+        assert controller.soft_red_streak == 3
+
+    def test_hard_red_boundary(self, controller_4state):
+        """Delta exactly at hard_red_threshold (80ms) is SOFT_RED."""
+        zone, _ = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 80.0,  # delta=80ms exactly
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        # 80ms is not > 80ms, so it's SOFT_RED (after sustain)
+        assert zone == "SOFT_RED"
+
+    def test_red_immediate_no_sustain(self, controller_4state):
+        """RED is immediate (no sustain required)."""
+        zone, _ = controller_4state.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 100.0,  # delta=100ms -> RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+
+        assert zone == "RED"
+        assert controller_4state.red_streak == 1
