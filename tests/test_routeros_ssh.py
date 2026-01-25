@@ -438,3 +438,248 @@ class TestConnection:
             ssh_client._ensure_connected()
             mock_connect.assert_called_once()
             mock_ssh_client.close.assert_called_once()
+
+
+# =============================================================================
+# TestRunCmd - Command execution tests
+# =============================================================================
+
+
+class TestRunCmd:
+    """Tests for run_cmd method."""
+
+    def test_run_cmd_success(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd returns (0, stdout, stderr) on success."""
+        ssh_client._client = mock_ssh_client
+
+        # Setup mock for exec_command
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b"output data"
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/queue tree print", capture=True)
+
+        assert rc == 0
+        assert out == "output data"
+        assert err == ""
+
+    def test_run_cmd_capture_true(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd returns decoded output when capture=True."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b"test output"
+        stderr.read.return_value = b"test error"
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/test", capture=True)
+
+        assert out == "test output"
+        assert err == "test error"
+
+    def test_run_cmd_capture_false(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd returns empty strings when capture=False but drains channels."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b"ignored output"
+        stderr.read.return_value = b"ignored error"
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/test", capture=False)
+
+        assert rc == 0
+        assert out == ""
+        assert err == ""
+        # Verify channels were still drained
+        stdout.read.assert_called_once()
+        stderr.read.assert_called_once()
+
+    def test_run_cmd_custom_timeout(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd passes timeout to exec_command."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b""
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        ssh_client.run_cmd("/test", timeout=30)
+
+        mock_ssh_client.exec_command.assert_called_once()
+        call_kwargs = mock_ssh_client.exec_command.call_args[1]
+        assert call_kwargs["timeout"] == 30
+
+    def test_run_cmd_nonzero_exit(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd returns non-zero exit status."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b""
+        stderr.read.return_value = b"error: command failed"
+        stdout.channel.recv_exit_status.return_value = 1
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/bad command", capture=True)
+
+        assert rc == 1
+        assert err == "error: command failed"
+
+    def test_run_cmd_ensures_connected(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd calls _ensure_connected before exec."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b""
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        with patch.object(ssh_client, "_ensure_connected") as mock_ensure:
+            ssh_client.run_cmd("/test")
+            mock_ensure.assert_called_once()
+
+    def test_run_cmd_ssh_exception_clears_client(self, ssh_client, mock_ssh_client) -> None:
+        """SSHException during run_cmd sets _client to None."""
+        ssh_client._client = mock_ssh_client
+        mock_ssh_client.exec_command.side_effect = paramiko.SSHException("Connection lost")
+
+        with pytest.raises(paramiko.SSHException):
+            ssh_client.run_cmd("/test")
+
+        assert ssh_client._client is None
+
+    def test_run_cmd_ssh_exception_raises(self, ssh_client, mock_ssh_client) -> None:
+        """SSHException propagates after clearing client."""
+        ssh_client._client = mock_ssh_client
+        mock_ssh_client.exec_command.side_effect = paramiko.SSHException("Connection lost")
+
+        with pytest.raises(paramiko.SSHException, match="Connection lost"):
+            ssh_client.run_cmd("/test")
+
+    def test_run_cmd_decodes_utf8(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd decodes output with utf-8."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        # Unicode characters in output
+        stdout.read.return_value = "test \u2713 pass".encode("utf-8")
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/test", capture=True)
+
+        assert "\u2713" in out
+        assert "pass" in out
+
+    def test_run_cmd_handles_decode_errors(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd uses errors='replace' for bad bytes."""
+        ssh_client._client = mock_ssh_client
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        # Invalid UTF-8 bytes
+        stdout.read.return_value = b"test \xff\xfe output"
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        rc, out, err = ssh_client.run_cmd("/test", capture=True)
+
+        # Should not raise, and should contain replacement characters
+        assert rc == 0
+        assert "test" in out
+        assert "output" in out
+
+    def test_run_cmd_uses_default_timeout(self, ssh_client, mock_ssh_client) -> None:
+        """run_cmd uses self.timeout when timeout param is None."""
+        ssh_client._client = mock_ssh_client
+        ssh_client.timeout = 20  # Set a specific default
+
+        stdin = MagicMock()
+        stdout = MagicMock()
+        stderr = MagicMock()
+        stdout.read.return_value = b""
+        stderr.read.return_value = b""
+        stdout.channel.recv_exit_status.return_value = 0
+        mock_ssh_client.exec_command.return_value = (stdin, stdout, stderr)
+
+        ssh_client.run_cmd("/test")
+
+        call_kwargs = mock_ssh_client.exec_command.call_args[1]
+        assert call_kwargs["timeout"] == 20
+
+
+# =============================================================================
+# TestClose - Resource cleanup tests
+# =============================================================================
+
+
+class TestClose:
+    """Tests for close method."""
+
+    def test_close_closes_client(self, ssh_client, mock_ssh_client) -> None:
+        """close() calls _client.close()."""
+        ssh_client._client = mock_ssh_client
+
+        ssh_client.close()
+
+        mock_ssh_client.close.assert_called_once()
+
+    def test_close_sets_client_none(self, ssh_client, mock_ssh_client) -> None:
+        """close() sets _client to None after closing."""
+        ssh_client._client = mock_ssh_client
+
+        ssh_client.close()
+
+        assert ssh_client._client is None
+
+    def test_close_safe_when_no_client(self, ssh_client) -> None:
+        """close() doesn't raise when _client is None."""
+        ssh_client._client = None
+
+        # Should not raise
+        ssh_client.close()
+
+        assert ssh_client._client is None
+
+    def test_close_safe_on_exception(self, ssh_client, mock_ssh_client) -> None:
+        """close() handles exception during close without raising."""
+        ssh_client._client = mock_ssh_client
+        mock_ssh_client.close.side_effect = Exception("Close failed")
+
+        # Should not raise
+        ssh_client.close()
+
+        # Client should still be set to None
+        assert ssh_client._client is None
+
+    def test_close_logs_debug(self, ssh_client, mock_ssh_client, mock_logger) -> None:
+        """close() logs debug message on successful close."""
+        ssh_client._client = mock_ssh_client
+        ssh_client.logger = mock_logger
+
+        ssh_client.close()
+
+        mock_logger.debug.assert_called()
