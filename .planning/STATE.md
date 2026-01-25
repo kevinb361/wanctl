@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 39 of 41 (Data Recording)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-01-25 — Phase 38 complete
+Plan: 1 of 2
+Status: In progress
+Last activity: 2026-01-25 - Completed 39-01-PLAN.md
 
-Progress: [█████ ] 25% (1/4 phases, 2/7 plans)
+Progress: [██████ ] 43% (2/4 phases, 3/7 plans)
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Batch deletion in 10000-row chunks to avoid blocking daemon
 - MODE aggregation for state metrics, AVG for RTT/rate
 - VACUUM only after 100000+ deletions (expensive operation)
+- Record 6 metrics per cycle (rtt, baseline, delta, dl_rate, ul_rate, state)
+- State transitions stored with reason string in labels
 
 ### Deferred Issues
 
@@ -62,7 +64,7 @@ None.
 
 4 todos remaining in `.planning/todos/pending/`:
 
-- Add metrics history feature (observability) — NOW BEING ADDRESSED
+- Add metrics history feature (observability) - IN PROGRESS
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
@@ -88,11 +90,11 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-25
-Stopped at: Completed 38-02-PLAN.md (Phase 38 complete)
+Last session: 2026-01-25 19:41 UTC
+Stopped at: Completed 39-01-PLAN.md
 Resume file: None
 
 ## Next Steps
 
-1. Proceed to Phase 39 (Data Recording)
+1. Complete Phase 39-02 (Steering Daemon Metrics)
 2. Continue through Phase 40-41 (Query API, Cleanup)
