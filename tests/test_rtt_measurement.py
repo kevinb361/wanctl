@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from wanctl.rtt_measurement import (
+    RTTAggregationStrategy,
+    RTTMeasurement,
+    parse_ping_output,
+)
 
 
 class TestPingHostsConcurrent:
@@ -163,3 +167,96 @@ class TestParsesPingOutput:
 64 bytes from 8.8.8.8: time=11.0 ms
 64 bytes from 8.8.8.8: time=12.0 ms"""
         assert parse_ping_output(output3) == [10.0, 11.0, 12.0]
+
+
+class TestParsePingOutputEdgeCases:
+    """Tests for parse_ping_output edge cases - lines 46, 50, 60-68."""
+
+    # Empty and missing data tests
+
+    def test_empty_string_returns_empty_list(self):
+        """Empty string input returns empty list (line 46)."""
+        assert parse_ping_output("") == []
+
+    def test_whitespace_only_returns_empty(self):
+        """Whitespace-only input returns empty list."""
+        assert parse_ping_output("   \n  ") == []
+        assert parse_ping_output("\t\n\r") == []
+
+    def test_no_time_marker_returns_empty(self):
+        """Lines without 'time=' marker return empty list (line 50)."""
+        # Various ping-like output but no actual RTT
+        output = """PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+--- 8.8.8.8 ping statistics ---
+0 packets transmitted, 0 received, 100% packet loss"""
+        assert parse_ping_output(output) == []
+
+    # Fallback parsing tests (lines 59-68)
+
+    def test_fallback_parsing_no_space_before_ms(self):
+        """Fallback parsing handles 'time=12.3ms' without space (lines 60-64)."""
+        # The regex pattern _RTT_PATTERN = r"time=([0-9.]+)" should match
+        # but if somehow a format breaks regex, fallback kicks in
+        output = "64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=12.3ms"
+        result = parse_ping_output(output)
+        assert len(result) == 1
+        assert result[0] == pytest.approx(12.3)
+
+    def test_fallback_parsing_invalid_value_logs(self):
+        """Invalid float value is logged if logger provided (lines 65-68)."""
+        mock_logger = MagicMock()
+        # Create line with time= but malformed value
+        # Need a line that has "time=" but the regex fails and fallback also fails
+        output = "reply from 8.8.8.8: time=invalid ms"
+        result = parse_ping_output(output, logger_instance=mock_logger)
+        assert result == []
+        mock_logger.debug.assert_called_once()
+        # Verify the error was logged
+        call_args = mock_logger.debug.call_args[0][0]
+        assert "Failed to parse RTT" in call_args
+
+    def test_fallback_parsing_index_error_handled(self):
+        """Malformed 'time=' at end of line handles IndexError (line 65)."""
+        # Line ends with "time=" but no value after it
+        output = "malformed line: time="
+        result = parse_ping_output(output)
+        # Should handle gracefully (IndexError caught)
+        assert result == []
+
+    # Logger integration tests
+
+    def test_parse_with_logger_logs_failures(self):
+        """Logger.debug is called on parse failure (lines 67-68)."""
+        mock_logger = MagicMock()
+        # Create a line that will fail parsing
+        output = "64 bytes: time=not_a_number ms"
+        parse_ping_output(output, logger_instance=mock_logger)
+        mock_logger.debug.assert_called()
+
+    def test_parse_without_logger_no_crash(self):
+        """logger_instance=None works without error (line 67 condition)."""
+        # Parse failure without logger should not crash
+        output = "64 bytes: time=abc"
+        result = parse_ping_output(output, logger_instance=None)
+        assert result == []
+
+    # Multiple samples tests
+
+    def test_parse_multiple_lines_extracts_all(self):
+        """Multi-line output returns all RTTs."""
+        output = """64 bytes from 8.8.8.8: time=10.0 ms
+64 bytes from 8.8.8.8: time=15.5 ms
+64 bytes from 8.8.8.8: time=20.0 ms
+64 bytes from 8.8.8.8: time=12.5 ms"""
+        result = parse_ping_output(output)
+        assert result == [10.0, 15.5, 20.0, 12.5]
+
+    def test_parse_mixed_valid_invalid_lines(self):
+        """Valid lines extracted, invalid lines skipped."""
+        output = """PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: time=10.0 ms
+Request timeout for icmp_seq 2
+64 bytes from 8.8.8.8: time=12.0 ms
+--- 8.8.8.8 ping statistics ---"""
+        result = parse_ping_output(output)
+        assert result == [10.0, 12.0]
