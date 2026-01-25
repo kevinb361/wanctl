@@ -60,6 +60,18 @@ Plans:
 
 See [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) for full details.
 
+### Phase 39: Data Recording
+
+**Goal**: Both daemons capture metrics each cycle with minimal performance impact
+**Depends on**: Phase 38
+**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, INTG-01, INTG-02, INTG-03
+**Plans**: 2 plans
+
+Plans:
+
+- [ ] 39-01-PLAN.md — Autorate daemon metrics recording (RTT, rates, state transitions)
+- [ ] 39-02-PLAN.md — Steering daemon metrics recording and config snapshots
+
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
 
