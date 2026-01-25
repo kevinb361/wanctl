@@ -1742,6 +1742,217 @@ class TestVerifyConnectivityFallback:
         assert "total connectivity loss" in error_msg.lower()
 
 
+class TestStateLoadSave:
+    """Tests for WANController.load_state() and save_state() methods.
+
+    Covers lines 1330-1368:
+    - load_state with full state dict restores all fields
+    - load_state with partial state uses defaults for missing
+    - save_state calls state_manager.save with correct structure
+    - save_state with force=True passes force to state_manager
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self):
+        """Create a WANController with all dependencies accessible."""
+        from wanctl.autorate_continuous import WANController
+
+        config = MagicMock()
+        config.wan_name = "TestWAN"
+        config.baseline_rtt_initial = 25.0
+        config.download_floor_green = 800_000_000
+        config.download_floor_yellow = 600_000_000
+        config.download_floor_soft_red = 500_000_000
+        config.download_floor_red = 400_000_000
+        config.download_ceiling = 920_000_000
+        config.download_step_up = 10_000_000
+        config.download_factor_down = 0.85
+        config.upload_floor_green = 35_000_000
+        config.upload_floor_yellow = 30_000_000
+        config.upload_floor_red = 25_000_000
+        config.upload_ceiling = 40_000_000
+        config.upload_step_up = 1_000_000
+        config.upload_factor_down = 0.85
+        config.target_bloat_ms = 15.0
+        config.warn_bloat_ms = 45.0
+        config.hard_red_bloat_ms = 80.0
+        config.alpha_baseline = 0.001
+        config.alpha_load = 0.1
+        config.baseline_update_threshold_ms = 3.0
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.accel_threshold_ms = 15.0
+        config.download_green_required = 5
+        config.upload_green_required = 5
+        config.ping_hosts = ["1.1.1.1"]
+        config.use_median_of_three = False
+        config.fallback_enabled = True
+        config.fallback_check_gateway = True
+        config.fallback_check_tcp = True
+        config.fallback_gateway_ip = "10.0.0.1"
+        config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+        config.fallback_mode = "graceful_degradation"
+        config.fallback_max_cycles = 3
+        config.metrics_enabled = False
+        config.state_file = MagicMock()
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        # Replace state_manager with a mock for testing
+        mock_state_manager = MagicMock()
+        mock_state_manager.build_controller_state = MagicMock(
+            side_effect=lambda g, s, r, c: {"green_streak": g, "soft_red_streak": s, "red_streak": r, "current_rate": c}
+        )
+        ctrl.state_manager = mock_state_manager
+        return ctrl, config, logger, mock_state_manager
+
+    def test_load_state_full_state_dict(self, controller_with_mocks):
+        """load_state with full state dict restores all fields."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        # Create full state dict
+        full_state = {
+            "download": {
+                "green_streak": 5,
+                "soft_red_streak": 2,
+                "red_streak": 1,
+                "current_rate": 750_000_000,
+            },
+            "upload": {
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 38_000_000,
+            },
+            "ewma": {
+                "baseline_rtt": 22.5,
+                "load_rtt": 28.0,
+            },
+            "last_applied": {
+                "dl_rate": 750_000_000,
+                "ul_rate": 38_000_000,
+            },
+        }
+        mock_state_manager.load.return_value = full_state
+
+        ctrl.load_state()
+
+        # Verify download state restored
+        assert ctrl.download.green_streak == 5
+        assert ctrl.download.soft_red_streak == 2
+        assert ctrl.download.red_streak == 1
+        assert ctrl.download.current_rate == 750_000_000
+
+        # Verify upload state restored
+        assert ctrl.upload.green_streak == 3
+        assert ctrl.upload.soft_red_streak == 0
+        assert ctrl.upload.red_streak == 0
+        assert ctrl.upload.current_rate == 38_000_000
+
+        # Verify EWMA state restored
+        assert ctrl.baseline_rtt == 22.5
+        assert ctrl.load_rtt == 28.0
+
+        # Verify last_applied state restored
+        assert ctrl.last_applied_dl_rate == 750_000_000
+        assert ctrl.last_applied_ul_rate == 38_000_000
+
+    def test_load_state_partial_state_uses_defaults(self, controller_with_mocks):
+        """load_state with partial state uses defaults for missing sections."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        # Set known initial values
+        initial_baseline = ctrl.baseline_rtt
+        initial_load = ctrl.load_rtt
+
+        # Only provide download section
+        partial_state = {
+            "download": {
+                "green_streak": 10,
+                "current_rate": 700_000_000,
+            },
+        }
+        mock_state_manager.load.return_value = partial_state
+
+        ctrl.load_state()
+
+        # Download should be partially restored
+        assert ctrl.download.green_streak == 10
+        assert ctrl.download.current_rate == 700_000_000
+
+        # EWMA should remain at initial values (not in partial state)
+        assert ctrl.baseline_rtt == initial_baseline
+        assert ctrl.load_rtt == initial_load
+
+    def test_load_state_none_state(self, controller_with_mocks):
+        """load_state with None state does nothing."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        # Store initial values
+        initial_baseline = ctrl.baseline_rtt
+        initial_dl_rate = ctrl.download.current_rate
+
+        mock_state_manager.load.return_value = None
+
+        ctrl.load_state()
+
+        # Values should remain unchanged
+        assert ctrl.baseline_rtt == initial_baseline
+        assert ctrl.download.current_rate == initial_dl_rate
+
+    def test_save_state_calls_state_manager(self, controller_with_mocks):
+        """save_state calls state_manager.save with correct structure."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        # Set some values
+        ctrl.download.green_streak = 7
+        ctrl.download.soft_red_streak = 1
+        ctrl.download.red_streak = 0
+        ctrl.download.current_rate = 850_000_000
+        ctrl.upload.green_streak = 4
+        ctrl.upload.soft_red_streak = 0
+        ctrl.upload.red_streak = 0
+        ctrl.upload.current_rate = 39_000_000
+        ctrl.baseline_rtt = 23.0
+        ctrl.load_rtt = 26.0
+        ctrl.last_applied_dl_rate = 850_000_000
+        ctrl.last_applied_ul_rate = 39_000_000
+
+        ctrl.save_state()
+
+        # Verify save was called
+        mock_state_manager.save.assert_called_once()
+        call_kwargs = mock_state_manager.save.call_args.kwargs
+
+        # Verify structure
+        assert "download" in call_kwargs
+        assert "upload" in call_kwargs
+        assert "ewma" in call_kwargs
+        assert "last_applied" in call_kwargs
+        assert call_kwargs["force"] is False
+
+    def test_save_state_with_force_true(self, controller_with_mocks):
+        """save_state with force=True passes force to state_manager."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        ctrl.save_state(force=True)
+
+        mock_state_manager.save.assert_called_once()
+        call_kwargs = mock_state_manager.save.call_args.kwargs
+        assert call_kwargs["force"] is True
+
+
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
 
