@@ -17,6 +17,8 @@ and signal integration paths.
 """
 
 import argparse
+import atexit
+import runpy
 import signal
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
@@ -1310,3 +1312,154 @@ class TestContinuousAutoRateInitLogging:
             ContinuousAutoRate([str(config_file)], debug=False)
             call_args = mock_setup_logging.call_args
             assert call_args[0][2] is False
+
+
+# =============================================================================
+# TestContinuousAutoRateRunCycle
+# =============================================================================
+
+
+class TestContinuousAutoRateRunCycle:
+    """Tests for ContinuousAutoRate.run_cycle with lock acquisition.
+
+    Covers lines 1474-1503:
+    - run_cycle with use_lock=True (acquires LockFile)
+    - run_cycle with use_lock=False (no lock)
+    - LockAcquisitionError handling
+    - Generic exception handling
+    - get_lock_paths()
+    """
+
+    @pytest.fixture
+    def mock_controller_instance(self):
+        """Create a mock ContinuousAutoRate with minimal setup."""
+        controller = MagicMock()
+        mock_wan_ctrl = MagicMock()
+        mock_wan_ctrl.run_cycle.return_value = True
+        mock_logger = MagicMock()
+        mock_config = MagicMock()
+        mock_config.lock_file = Path("/tmp/test.lock")
+        mock_config.lock_timeout = 300
+
+        controller.wan_controllers = [
+            {"controller": mock_wan_ctrl, "config": mock_config, "logger": mock_logger}
+        ]
+        return controller, mock_wan_ctrl, mock_config, mock_logger
+
+    def test_run_cycle_with_use_lock_true(self, mock_controller_instance):
+        """run_cycle(use_lock=True) should acquire LockFile."""
+        _, mock_wan_ctrl, mock_config, mock_logger = mock_controller_instance
+        mock_wan_ctrl.run_cycle.return_value = True
+
+        from wanctl.autorate_continuous import ContinuousAutoRate
+        from wanctl.lock_utils import LockFile
+
+        # Create a real controller with mocks
+        with patch.object(ContinuousAutoRate, "__init__", return_value=None):
+            controller = ContinuousAutoRate.__new__(ContinuousAutoRate)
+            controller.wan_controllers = [
+                {"controller": mock_wan_ctrl, "config": mock_config, "logger": mock_logger}
+            ]
+
+        # Mock LockFile to track enter/exit
+        with patch("wanctl.autorate_continuous.LockFile") as MockLockFile:
+            mock_lock_instance = MagicMock()
+            MockLockFile.return_value.__enter__ = MagicMock(return_value=mock_lock_instance)
+            MockLockFile.return_value.__exit__ = MagicMock(return_value=None)
+
+            result = controller.run_cycle(use_lock=True)
+
+            # Verify LockFile was used
+            MockLockFile.assert_called_once_with(
+                mock_config.lock_file, mock_config.lock_timeout, mock_logger
+            )
+            assert result is True
+
+    def test_run_cycle_with_use_lock_false(self, mock_controller_instance):
+        """run_cycle(use_lock=False) should not use LockFile."""
+        _, mock_wan_ctrl, mock_config, mock_logger = mock_controller_instance
+        mock_wan_ctrl.run_cycle.return_value = True
+
+        from wanctl.autorate_continuous import ContinuousAutoRate
+
+        with patch.object(ContinuousAutoRate, "__init__", return_value=None):
+            controller = ContinuousAutoRate.__new__(ContinuousAutoRate)
+            controller.wan_controllers = [
+                {"controller": mock_wan_ctrl, "config": mock_config, "logger": mock_logger}
+            ]
+
+        with patch("wanctl.autorate_continuous.LockFile") as MockLockFile:
+            result = controller.run_cycle(use_lock=False)
+
+            # Verify LockFile was NOT used
+            MockLockFile.assert_not_called()
+            assert result is True
+            # Verify wan_controller.run_cycle was called
+            mock_wan_ctrl.run_cycle.assert_called_once()
+
+    def test_run_cycle_lock_acquisition_error(self, mock_controller_instance):
+        """LockAcquisitionError should return False and log debug."""
+        _, mock_wan_ctrl, mock_config, mock_logger = mock_controller_instance
+
+        from wanctl.autorate_continuous import ContinuousAutoRate
+        from wanctl.lock_utils import LockAcquisitionError
+
+        with patch.object(ContinuousAutoRate, "__init__", return_value=None):
+            controller = ContinuousAutoRate.__new__(ContinuousAutoRate)
+            controller.wan_controllers = [
+                {"controller": mock_wan_ctrl, "config": mock_config, "logger": mock_logger}
+            ]
+
+        # Mock LockFile to raise LockAcquisitionError
+        with patch("wanctl.autorate_continuous.LockFile") as MockLockFile:
+            lock_error = LockAcquisitionError(Path("/tmp/test.lock"), 10.0)
+            MockLockFile.return_value.__enter__ = MagicMock(side_effect=lock_error)
+
+            result = controller.run_cycle(use_lock=True)
+
+            assert result is False
+            # Verify debug message logged
+            debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+            assert any("Skipping cycle" in call for call in debug_calls)
+
+    def test_run_cycle_generic_exception(self, mock_controller_instance):
+        """Generic exception should return False and log error."""
+        _, mock_wan_ctrl, mock_config, mock_logger = mock_controller_instance
+        mock_wan_ctrl.run_cycle.side_effect = Exception("test error")
+
+        from wanctl.autorate_continuous import ContinuousAutoRate
+
+        with patch.object(ContinuousAutoRate, "__init__", return_value=None):
+            controller = ContinuousAutoRate.__new__(ContinuousAutoRate)
+            controller.wan_controllers = [
+                {"controller": mock_wan_ctrl, "config": mock_config, "logger": mock_logger}
+            ]
+
+        result = controller.run_cycle(use_lock=False)
+
+        assert result is False
+        # Verify error message logged
+        error_calls = [str(call) for call in mock_logger.error.call_args_list]
+        assert any("Cycle error" in call for call in error_calls)
+
+    def test_get_lock_paths(self, mock_controller_instance):
+        """get_lock_paths() should return list of lock file paths."""
+        _, _, mock_config, mock_logger = mock_controller_instance
+        mock_config.lock_file = Path("/tmp/wan1.lock")
+        mock_config2 = MagicMock()
+        mock_config2.lock_file = Path("/tmp/wan2.lock")
+
+        from wanctl.autorate_continuous import ContinuousAutoRate
+
+        with patch.object(ContinuousAutoRate, "__init__", return_value=None):
+            controller = ContinuousAutoRate.__new__(ContinuousAutoRate)
+            controller.wan_controllers = [
+                {"controller": MagicMock(), "config": mock_config, "logger": mock_logger},
+                {"controller": MagicMock(), "config": mock_config2, "logger": mock_logger},
+            ]
+
+        paths = controller.get_lock_paths()
+
+        assert len(paths) == 2
+        assert paths[0] == Path("/tmp/wan1.lock")
+        assert paths[1] == Path("/tmp/wan2.lock")
