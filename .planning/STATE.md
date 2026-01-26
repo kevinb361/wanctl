@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 42 of 42 (Maintenance Scheduling)
-Plan: 0 of 1 (planning)
-Status: Gap closure phase added
-Last activity: 2026-01-25 - Added Phase 42 for tech debt cleanup
+Plan: 1 of 1 (complete)
+Status: Phase complete
+Last activity: 2026-01-25 - Completed 42-01-PLAN.md
 
-Progress: [█████████ ] 87% (4/5 phases, 7/8 plans)
+Progress: [██████████] 100% (5/5 phases, 8/8 plans)
 
 ## Performance Metrics
 
@@ -61,6 +61,12 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - HTTP API on /metrics/history (existing port 9101)
 - Python-side pagination (offset/limit after full query)
 
+**Phase 42 Gap Closure:**
+
+- Maintenance errors logged but don't block daemon startup
+- Summary log only when work is done (not on every startup)
+- Use existing retention_days from storage config with 7-day default
+
 ### Deferred Issues
 
 - steering_confidence.py at 42.1% coverage (confidence-based steering in dry-run mode)
@@ -101,14 +107,22 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 41-01-PLAN.md (v1.7 milestone complete)
+Stopped at: Completed 42-01-PLAN.md (Phase 42 complete)
 Resume file: None
 
 ## Next Steps
 
-v1.7 Metrics History milestone complete. Milestone provides:
+Phase 42 gap closure complete. Startup maintenance now wired:
+
+- run_startup_maintenance() calls cleanup + vacuum + downsample
+- Autorate daemon runs maintenance after config snapshot
+- Steering daemon runs maintenance after config snapshot
+- Database stays bounded, downsampled data available for queries
+
+v1.7 Metrics History milestone fully deployed:
 
 - SQLite storage with downsampling (raw -> 1m -> 5m -> 1h)
 - Autorate + steering metrics recording
 - CLI tool: wanctl-history --last 1h
 - HTTP API: GET /metrics/history?range=1h
+- Startup maintenance keeps DB bounded
