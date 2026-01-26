@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.7 Metrics History
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 42 of 42 (Maintenance Scheduling)
-Plan: 1 of 1 (complete)
-Status: Phase complete
-Last activity: 2026-01-25 - Completed 42-01-PLAN.md
+Phase: — (between milestones)
+Plan: —
+Status: v1.7 shipped, planning next milestone
+Last activity: 2026-01-26 - Archived v1.7 Metrics History
 
-Progress: [██████████] 100% (5/5 phases, 8/8 plans)
+Progress: [██████████] 100% — v1.7 complete
 
 ## Performance Metrics
 
@@ -106,23 +106,12 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-25
-Stopped at: Completed 42-01-PLAN.md (Phase 42 complete)
+Last session: 2026-01-26
+Stopped at: Archived v1.7 milestone
 Resume file: None
 
 ## Next Steps
 
-Phase 42 gap closure complete. Startup maintenance now wired:
+v1.7 Metrics History milestone archived. Ready for next milestone.
 
-- run_startup_maintenance() calls cleanup + vacuum + downsample
-- Autorate daemon runs maintenance after config snapshot
-- Steering daemon runs maintenance after config snapshot
-- Database stays bounded, downsampled data available for queries
-
-v1.7 Metrics History milestone fully deployed:
-
-- SQLite storage with downsampling (raw -> 1m -> 5m -> 1h)
-- Autorate + steering metrics recording
-- CLI tool: wanctl-history --last 1h
-- HTTP API: GET /metrics/history?range=1h
-- Startup maintenance keeps DB bounded
+To start next milestone: `/gsd:new-milestone`

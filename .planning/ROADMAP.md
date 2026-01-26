@@ -12,10 +12,11 @@ None
 
 ### Current
 
-- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - SHIPPED 2026-01-25
+None — planning next milestone
 
 ### Completed
 
+- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - SHIPPED 2026-01-25
 - [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
 - [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
 - [v1.4 Observability](milestones/v1.4-ROADMAP.md) (Phases 25-26) - SHIPPED 2026-01-24
@@ -33,7 +34,8 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.7 Metrics History (Phases 38-42) - SHIPPED 2026-01-25
+<details>
+<summary>v1.7 Metrics History (Phases 38-42) - SHIPPED 2026-01-25</summary>
 
 **Milestone Goal:** Add historical metrics storage with SQLite, automatic downsampling, and querying via CLI and API.
 
@@ -43,85 +45,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] Phase 41: API Endpoint - `/metrics/history` on health server
 - [x] Phase 42: Maintenance Scheduling - Wire cleanup and downsampling to daemon startup
 
-### Phase 38: Storage Foundation ✓
-
-**Goal**: Establish metrics storage layer with SQLite, downsampling, and retention management
-**Depends on**: Nothing (first phase of v1.7)
-**Requirements**: STOR-01, STOR-02, STOR-03, STOR-04, DATA-05
-**Plans**: 2 plans
-**Status**: Complete
-**Completed**: 2026-01-25
-
-Plans:
-
-- [x] 38-01-PLAN.md — SQLite schema and MetricsWriter singleton
-- [x] 38-02-PLAN.md — Downsampling, retention cleanup, config integration
-
-**Key Results:** Storage module with thread-safe MetricsWriter (WAL mode), retention cleanup with batch processing, downsampling (raw→1m→5m→1h), config integration. 92 new tests, 94.1% coverage.
+**Key Results:** SQLite storage layer (8 modules, 1038 lines), both daemons record metrics each cycle (<5ms overhead), `wanctl-history` CLI, `/metrics/history` HTTP API, automatic startup maintenance. 237 new tests.
 
 See [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) for full details.
 
-### Phase 39: Data Recording ✓
-
-**Goal**: Both daemons capture metrics each cycle with minimal performance impact
-**Depends on**: Phase 38
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, INTG-01, INTG-02, INTG-03
-**Plans**: 2 plans
-**Status**: Complete
-**Completed**: 2026-01-25
-
-Plans:
-
-- [x] 39-01-PLAN.md — Autorate daemon metrics recording (RTT, rates, state transitions)
-- [x] 39-02-PLAN.md — Steering daemon metrics recording and config snapshots
-
-**Key Results:** Both daemons record metrics each cycle with <5ms overhead (~1ms avg). Autorate records 6 metrics (RTT, baseline, delta, rates, state), steering records 5 metrics. State transitions include reason strings. Config snapshots on startup. 32 new tests.
-
-### Phase 40: CLI Tool ✓
-
-**Goal**: `wanctl-history` command provides human and machine access to stored metrics
-**Depends on**: Phase 39
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
-**Plans**: 2 plans
-**Status**: Complete
-**Completed**: 2026-01-25
-
-Plans:
-
-- [x] 40-01-PLAN.md — MetricsReader module with query and summary functions
-- [x] 40-02-PLAN.md — CLI argument parsing, output formatting, entry point
-
-**Key Results:** `wanctl-history` CLI with --last/--from/--to time queries, --metrics filter, table/JSON/summary output modes. MetricsReader module with query_metrics(), compute_summary(), select_granularity(). 82 new tests (35 reader + 47 CLI).
-
-### Phase 41: API Endpoint ✓
-
-**Goal**: `/metrics/history` endpoint on autorate health server (port 9101) for programmatic access
-**Depends on**: Phase 40
-**Requirements**: API-01, API-02, API-03, API-04
-**Plans**: 1 plan
-**Status**: Complete
-**Completed**: 2026-01-25
-
-Plans:
-
-- [x] 41-01-PLAN.md — /metrics/history endpoint with query params, pagination, and tests
-
-**Key Results:** HTTP API endpoint for programmatic metrics access. Query params: range, from, to, metrics, wan, limit, offset. ISO 8601 timestamps, auto-granularity selection, pagination with metadata. 30 new tests (520 lines).
-
-### Phase 42: Maintenance Scheduling ✓
-
-**Goal**: Wire cleanup and downsampling functions to daemon startup for automatic maintenance
-**Depends on**: Phase 41
-**Gap Closure**: Addresses tech debt from v1.7 audit (functions implemented but not scheduled)
-**Plans**: 1 plan
-**Status**: Complete
-**Completed**: 2026-01-25
-
-Plans:
-
-- [x] 42-01-PLAN.md — Create run_startup_maintenance() helper and wire to both daemons
-
-**Key Results:** Created `run_startup_maintenance()` orchestration function that calls cleanup_old_metrics() + vacuum_if_needed() + downsample_metrics() at daemon startup. Both autorate and steering daemons now run maintenance automatically when storage is enabled. Errors are logged but don't block startup. 12 new tests.
+</details>
 
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
@@ -339,7 +267,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** v1.7 Metrics History complete
+**Current:** None — planning next milestone
 
 ### Completed Milestones
 
