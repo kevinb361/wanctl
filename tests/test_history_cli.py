@@ -235,10 +235,11 @@ class TestFormatSummary:
 
     def test_state_summary_shows_percentages(self):
         """State metrics show percentage distribution."""
+        # State encoding: 0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED
         results = [
-            {"metric_name": "wanctl_state", "value": 1.0},  # GREEN
-            {"metric_name": "wanctl_state", "value": 1.0},  # GREEN
-            {"metric_name": "wanctl_state", "value": 2.0},  # YELLOW
+            {"metric_name": "wanctl_state", "value": 0.0},  # GREEN
+            {"metric_name": "wanctl_state", "value": 0.0},  # GREEN
+            {"metric_name": "wanctl_state", "value": 1.0},  # YELLOW
         ]
         summary = format_summary(results)
         assert "GREEN" in summary
