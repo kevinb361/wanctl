@@ -69,6 +69,15 @@ class MetricsWriter:
         self._write_lock = threading.Lock()
         self._initialized = True
 
+    @property
+    def connection(self) -> sqlite3.Connection:
+        """Public access to database connection.
+
+        Returns:
+            sqlite3.Connection: Database connection with WAL mode enabled
+        """
+        return self._get_connection()
+
     def _get_connection(self) -> sqlite3.Connection:
         """Get or create database connection.
 

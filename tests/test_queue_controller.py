@@ -96,7 +96,7 @@ class TestAdjust3StateZoneClassification:
         """Parametrized test for zone classification based on delta."""
         load_rtt = self.BASELINE + delta
 
-        zone, _ = controller_3state.adjust(
+        zone, _, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=load_rtt,
             target_delta=self.TARGET_DELTA,
@@ -107,7 +107,7 @@ class TestAdjust3StateZoneClassification:
 
     def test_zero_delta_is_green(self, controller_3state):
         """Zero delta (load == baseline) should be GREEN."""
-        zone, _ = controller_3state.adjust(
+        zone, _, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE,  # delta = 0
             target_delta=self.TARGET_DELTA,
@@ -118,7 +118,7 @@ class TestAdjust3StateZoneClassification:
 
     def test_negative_delta_is_green(self, controller_3state):
         """Negative delta (load < baseline) should be GREEN."""
-        zone, _ = controller_3state.adjust(
+        zone, _, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE - 5.0,  # delta = -5ms
             target_delta=self.TARGET_DELTA,
@@ -155,7 +155,7 @@ class TestAdjust3StateRateAdjustments:
         initial_rate = controller_3state.current_rate  # 40M (ceiling)
         expected_rate = int(initial_rate * 0.85)  # 34M
 
-        zone, new_rate = controller_3state.adjust(
+        zone, new_rate, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 50.0,  # delta=50ms -> RED
             target_delta=self.TARGET_DELTA,
@@ -172,7 +172,7 @@ class TestAdjust3StateRateAdjustments:
 
         # First 4 GREEN cycles should hold rate (green_required=5)
         for i in range(4):
-            zone, new_rate = controller_3state.adjust(
+            zone, new_rate, _ = controller_3state.adjust(
                 baseline_rtt=self.BASELINE,
                 load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
                 target_delta=self.TARGET_DELTA,
@@ -183,7 +183,7 @@ class TestAdjust3StateRateAdjustments:
             assert controller_3state.green_streak == i + 1
 
         # 5th GREEN cycle should step up
-        zone, new_rate = controller_3state.adjust(
+        zone, new_rate, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
             target_delta=self.TARGET_DELTA,
@@ -212,7 +212,7 @@ class TestAdjust3StateRateAdjustments:
 
         # Run 5 GREEN cycles to trigger step up
         for _ in range(5):
-            zone, new_rate = controller.adjust(
+            zone, new_rate, _ = controller.adjust(
                 baseline_rtt=25.0,
                 load_rtt=30.0,  # delta=5ms -> GREEN
                 target_delta=15.0,
@@ -227,7 +227,7 @@ class TestAdjust3StateRateAdjustments:
         initial_rate = controller_3state.current_rate  # 40M
         expected_rate = int(initial_rate * 0.96)  # ~38.4M
 
-        zone, new_rate = controller_3state.adjust(
+        zone, new_rate, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 30.0,  # delta=30ms -> YELLOW
             target_delta=self.TARGET_DELTA,
@@ -255,7 +255,7 @@ class TestAdjust3StateRateAdjustments:
         controller.current_rate = 26_000_000
 
         # RED decay should clamp at floor
-        zone, new_rate = controller.adjust(
+        zone, new_rate, _ = controller.adjust(
             baseline_rtt=25.0,
             load_rtt=75.0,  # delta=50ms -> RED
             target_delta=15.0,
@@ -270,7 +270,7 @@ class TestAdjust3StateRateAdjustments:
         # Already at ceiling (40M), try to step up
         controller_3state.green_streak = 4  # Next GREEN will trigger step up
 
-        zone, new_rate = controller_3state.adjust(
+        zone, new_rate, _ = controller_3state.adjust(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
             target_delta=self.TARGET_DELTA,
@@ -360,7 +360,7 @@ class TestAdjust4StateZoneClassification:
         """Parametrized test for zone classification based on delta."""
         load_rtt = self.BASELINE + delta
 
-        zone, _ = controller_4state.adjust_4state(
+        zone, _, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=load_rtt,
             green_threshold=self.GREEN_THRESHOLD,
@@ -373,7 +373,7 @@ class TestAdjust4StateZoneClassification:
     def test_soft_red_requires_sustain(self, controller_4state):
         """First SOFT_RED delta returns YELLOW (sustain requirement)."""
         # First cycle with SOFT_RED delta (50ms) should return YELLOW
-        zone, _ = controller_4state.adjust_4state(
+        zone, _, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 50.0,  # delta=50ms -> raw SOFT_RED
             green_threshold=self.GREEN_THRESHOLD,
@@ -390,7 +390,7 @@ class TestAdjust4StateZoneClassification:
     def test_soft_red_sustained_returns_soft_red(self, controller_4state):
         """After soft_red_required cycles, returns SOFT_RED."""
         # With soft_red_required=1, first cycle confirms SOFT_RED
-        zone, _ = controller_4state.adjust_4state(
+        zone, _, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 50.0,  # delta=50ms -> SOFT_RED
             green_threshold=self.GREEN_THRESHOLD,
@@ -424,7 +424,7 @@ class TestAdjust4StateZoneClassification:
 
         # First 2 cycles should return YELLOW (not sustained)
         for i in range(2):
-            zone, _ = controller.adjust_4state(
+            zone, _, _ = controller.adjust_4state(
                 baseline_rtt=baseline,
                 load_rtt=load_rtt,
                 green_threshold=15.0,
@@ -435,7 +435,7 @@ class TestAdjust4StateZoneClassification:
             assert controller.soft_red_streak == i + 1
 
         # 3rd cycle should confirm SOFT_RED
-        zone, _ = controller.adjust_4state(
+        zone, _, _ = controller.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=load_rtt,
             green_threshold=15.0,
@@ -447,7 +447,7 @@ class TestAdjust4StateZoneClassification:
 
     def test_hard_red_boundary(self, controller_4state):
         """Delta exactly at hard_red_threshold (80ms) is SOFT_RED."""
-        zone, _ = controller_4state.adjust_4state(
+        zone, _, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 80.0,  # delta=80ms exactly
             green_threshold=self.GREEN_THRESHOLD,
@@ -460,7 +460,7 @@ class TestAdjust4StateZoneClassification:
 
     def test_red_immediate_no_sustain(self, controller_4state):
         """RED is immediate (no sustain required)."""
-        zone, _ = controller_4state.adjust_4state(
+        zone, _, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 100.0,  # delta=100ms -> RED
             green_threshold=self.GREEN_THRESHOLD,
@@ -497,7 +497,7 @@ class TestAdjust4StateRateAdjustments:
         initial_rate = controller_4state.current_rate  # 920M (ceiling)
         expected_rate = int(initial_rate * 0.85)  # 782M
 
-        zone, new_rate = controller_4state.adjust_4state(
+        zone, new_rate, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 100.0,  # delta=100ms -> RED
             green_threshold=self.GREEN_THRESHOLD,
@@ -518,7 +518,7 @@ class TestAdjust4StateRateAdjustments:
         controller_4state.current_rate = 600_000_000  # 600M
 
         # First SOFT_RED cycle
-        zone, new_rate = controller_4state.adjust_4state(
+        zone, new_rate, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 60.0,  # delta=60ms -> SOFT_RED
             green_threshold=self.GREEN_THRESHOLD,
@@ -538,7 +538,7 @@ class TestAdjust4StateRateAdjustments:
         # Run multiple SOFT_RED cycles
         rates = []
         for _ in range(5):
-            zone, new_rate = controller_4state.adjust_4state(
+            zone, new_rate, _ = controller_4state.adjust_4state(
                 baseline_rtt=self.BASELINE,
                 load_rtt=self.BASELINE + 60.0,  # delta=60ms -> SOFT_RED
                 green_threshold=self.GREEN_THRESHOLD,
@@ -555,7 +555,7 @@ class TestAdjust4StateRateAdjustments:
         # Set rate near floor_yellow (600M)
         controller_4state.current_rate = 610_000_000  # 610M
 
-        zone, new_rate = controller_4state.adjust_4state(
+        zone, new_rate, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 30.0,  # delta=30ms -> YELLOW
             green_threshold=self.GREEN_THRESHOLD,
@@ -574,7 +574,7 @@ class TestAdjust4StateRateAdjustments:
         controller_4state.current_rate = 780_000_000  # 780M
         controller_4state.green_streak = 4  # Next GREEN triggers step up
 
-        zone, new_rate = controller_4state.adjust_4state(
+        zone, new_rate, _ = controller_4state.adjust_4state(
             baseline_rtt=self.BASELINE,
             load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
             green_threshold=self.GREEN_THRESHOLD,
@@ -816,7 +816,7 @@ class TestStateTransitionSequences:
 
         # Phase 1: Start in GREEN (steady state)
         for _ in range(3):
-            zone, rate = controller.adjust(
+            zone, rate, _ = controller.adjust(
                 baseline_rtt=baseline,
                 load_rtt=baseline + 10.0,  # delta=10ms -> GREEN
                 target_delta=15.0,
@@ -826,7 +826,7 @@ class TestStateTransitionSequences:
         assert all(z == "GREEN" for z, _ in sequence)
 
         # Phase 2: Transition to YELLOW (congestion building)
-        zone, rate = controller.adjust(
+        zone, rate, _ = controller.adjust(
             baseline_rtt=baseline,
             load_rtt=baseline + 30.0,  # delta=30ms -> YELLOW
             target_delta=15.0,
@@ -837,7 +837,7 @@ class TestStateTransitionSequences:
         assert controller.green_streak == 0
 
         # Phase 3: Transition to RED (severe congestion)
-        zone, rate = controller.adjust(
+        zone, rate, _ = controller.adjust(
             baseline_rtt=baseline,
             load_rtt=baseline + 50.0,  # delta=50ms -> RED
             target_delta=15.0,
@@ -848,7 +848,7 @@ class TestStateTransitionSequences:
 
         # Phase 4: Recovery back to GREEN
         for _ in range(5):
-            zone, rate = controller.adjust(
+            zone, rate, _ = controller.adjust(
                 baseline_rtt=baseline,
                 load_rtt=baseline + 5.0,  # delta=5ms -> GREEN
                 target_delta=15.0,
@@ -878,7 +878,7 @@ class TestStateTransitionSequences:
         baseline = 25.0
 
         # Trigger RED
-        zone, rate = controller.adjust(
+        zone, rate, _ = controller.adjust(
             baseline_rtt=baseline,
             load_rtt=baseline + 50.0,  # RED
             target_delta=15.0,
@@ -889,7 +889,7 @@ class TestStateTransitionSequences:
 
         # 4 GREEN cycles - should hold, not step up
         for i in range(4):
-            zone, rate = controller.adjust(
+            zone, rate, _ = controller.adjust(
                 baseline_rtt=baseline,
                 load_rtt=baseline + 5.0,  # GREEN
                 target_delta=15.0,
@@ -900,7 +900,7 @@ class TestStateTransitionSequences:
             assert rate == rate_after_red, f"Cycle {i+1}: should hold rate"
 
         # 5th GREEN cycle - NOW step up
-        zone, rate = controller.adjust(
+        zone, rate, _ = controller.adjust(
             baseline_rtt=baseline,
             load_rtt=baseline + 5.0,  # GREEN
             target_delta=15.0,
@@ -915,7 +915,7 @@ class TestStateTransitionSequences:
         sequence = []
 
         # Start with SOFT_RED
-        zone, rate = controller_4state.adjust_4state(
+        zone, rate, _ = controller_4state.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=baseline + 60.0,  # delta=60ms -> SOFT_RED
             green_threshold=15.0,
@@ -926,7 +926,7 @@ class TestStateTransitionSequences:
         assert zone == "SOFT_RED"
 
         # Transition to RED (delta exceeds 80ms)
-        zone, rate = controller_4state.adjust_4state(
+        zone, rate, _ = controller_4state.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=baseline + 100.0,  # delta=100ms -> RED
             green_threshold=15.0,
@@ -944,7 +944,7 @@ class TestStateTransitionSequences:
         sequence = []
 
         # Start with SOFT_RED
-        zone, rate = controller_4state.adjust_4state(
+        zone, rate, _ = controller_4state.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=baseline + 60.0,  # delta=60ms -> SOFT_RED
             green_threshold=15.0,
@@ -955,7 +955,7 @@ class TestStateTransitionSequences:
         assert zone == "SOFT_RED"
 
         # Transition to YELLOW (improvement)
-        zone, rate = controller_4state.adjust_4state(
+        zone, rate, _ = controller_4state.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=baseline + 30.0,  # delta=30ms -> YELLOW
             green_threshold=15.0,
@@ -968,7 +968,7 @@ class TestStateTransitionSequences:
         assert controller_4state.soft_red_streak == 0
 
         # Transition to GREEN (recovery)
-        zone, rate = controller_4state.adjust_4state(
+        zone, rate, _ = controller_4state.adjust_4state(
             baseline_rtt=baseline,
             load_rtt=baseline + 5.0,  # delta=5ms -> GREEN
             green_threshold=15.0,
