@@ -114,7 +114,11 @@ Plans:
 **Depends on**: Phase 41
 **Gap Closure**: Addresses tech debt from v1.7 audit (functions implemented but not scheduled)
 **Plans**: 1 plan
-**Status**: Ready for planning
+**Status**: Planning complete
+
+Plans:
+
+- [ ] 42-01-PLAN.md — Create run_startup_maintenance() helper and wire to both daemons
 
 Tech debt addressed:
 
