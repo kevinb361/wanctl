@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.4.0
+**Version:** 1.7.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -117,11 +117,12 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.4.0 (Observability Release)
+**Current:** v1.7.0 (Metrics History Release)
 
-- Steering daemon health endpoint (port 9102)
-- 747 unit tests passing
-- Code quality improvements from v1.5 milestone
+- SQLite metrics storage with automatic downsampling
+- `wanctl-history` CLI for querying historical data
+- `/metrics/history` HTTP API endpoint
+- 1727 unit tests passing, 90%+ coverage
 
 ## Performance Characteristics
 
