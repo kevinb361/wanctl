@@ -1418,10 +1418,20 @@ def main() -> int | None:
     # Record config snapshot on startup (if storage enabled)
     storage_config = get_storage_config(config.data)
     if storage_config.get("db_path"):
-        from wanctl.storage import record_config_snapshot
+        from wanctl.storage import record_config_snapshot, run_startup_maintenance
 
         writer = MetricsWriter(Path(storage_config["db_path"]))
         record_config_snapshot(writer, config.primary_wan, config.data, "startup")
+
+        # Run startup maintenance (cleanup + downsampling)
+        maint_result = run_startup_maintenance(
+            writer.connection,
+            retention_days=storage_config.get("retention_days", 7),
+            log=logger,
+        )
+        if maint_result.get("error"):
+            logger.warning(f"Startup maintenance error: {maint_result['error']}")
+
         logger.info(f"Config snapshot recorded to {storage_config['db_path']}")
 
     # Check for early shutdown (signal received during startup)
