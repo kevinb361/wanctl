@@ -3,11 +3,11 @@
 import pytest
 
 from wanctl.config_base import (
-    BaseConfig,
-    ConfigValidationError,
     DEFAULT_STORAGE_DB_PATH,
     DEFAULT_STORAGE_RETENTION_DAYS,
     STORAGE_SCHEMA,
+    BaseConfig,
+    ConfigValidationError,
     _get_nested,
     _type_name,
     get_storage_config,

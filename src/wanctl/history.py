@@ -25,7 +25,6 @@ from tabulate import tabulate
 from wanctl.storage.reader import compute_summary, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
-
 # =============================================================================
 # DURATION AND TIMESTAMP PARSING
 # =============================================================================

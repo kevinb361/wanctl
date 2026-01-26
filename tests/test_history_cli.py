@@ -5,7 +5,6 @@ import json
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -20,7 +19,6 @@ from wanctl.history import (
     parse_timestamp,
 )
 from wanctl.storage.writer import MetricsWriter
-
 
 # =============================================================================
 # DURATION PARSING TESTS

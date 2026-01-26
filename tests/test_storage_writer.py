@@ -1,6 +1,5 @@
 """Unit tests for storage writer module."""
 
-import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -404,8 +403,7 @@ class TestClose:
     def test_reset_closes_before_clearing(self, reset_singleton, test_db_path):
         """Test _reset_instance closes connection before clearing."""
         writer = MetricsWriter(test_db_path)
-        writer._get_connection()
-        conn = writer._conn
+        writer._get_connection()  # Ensure connection is established
 
         MetricsWriter._reset_instance()
 
