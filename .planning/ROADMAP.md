@@ -12,11 +12,9 @@ None
 
 ### Current
 
-None - all milestones shipped
+- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - In Progress (gap closure)
 
 ### Completed
-
-- [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-41) - SHIPPED 2026-01-25
 
 - [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
 - [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
@@ -35,7 +33,7 @@ None - all milestones shipped
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.7 Metrics History (Phases 38-41) - SHIPPED 2026-01-25
+### v1.7 Metrics History (Phases 38-42) - In Progress (gap closure)
 
 **Milestone Goal:** Add historical metrics storage with SQLite, automatic downsampling, and querying via CLI and API.
 
@@ -43,6 +41,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] Phase 39: Data Recording - Hook daemons to record metrics each cycle
 - [x] Phase 40: CLI Tool - `wanctl-history` command for querying
 - [x] Phase 41: API Endpoint - `/metrics/history` on health server
+- [ ] Phase 42: Maintenance Scheduling - Wire cleanup and downsampling to daemon startup
 
 ### Phase 38: Storage Foundation ✓
 
@@ -108,6 +107,19 @@ Plans:
 - [x] 41-01-PLAN.md — /metrics/history endpoint with query params, pagination, and tests
 
 **Key Results:** HTTP API endpoint for programmatic metrics access. Query params: range, from, to, metrics, wan, limit, offset. ISO 8601 timestamps, auto-granularity selection, pagination with metadata. 30 new tests (520 lines).
+
+### Phase 42: Maintenance Scheduling
+
+**Goal**: Wire cleanup and downsampling functions to daemon startup for automatic maintenance
+**Depends on**: Phase 41
+**Gap Closure**: Addresses tech debt from v1.7 audit (functions implemented but not scheduled)
+**Plans**: 1 plan
+**Status**: Ready for planning
+
+Tech debt addressed:
+
+- `cleanup_old_metrics()` — add to daemon startup to enforce retention policy
+- `downsample_metrics()` — add to daemon startup to aggregate old data
 
 <details>
 <summary>v1.6 Test Coverage 90% (Phases 31-37) - SHIPPED 2026-01-25</summary>
@@ -325,20 +337,20 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** None - all milestones shipped
+**Current:** v1.7 Metrics History gap closure (Phase 42)
 
 ### Completed Milestones
 
-| Milestone                     | Phases | Plans | Status   | Shipped    |
-| ----------------------------- | ------ | ----- | -------- | ---------- |
-| v1.7 Metrics History          | 38-41  | 7     | Complete | 2026-01-25 |
-| v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
-| v1.4 Observability            | 25-26  | 4     | Complete | 2026-01-24 |
-| v1.3 Reliability & Hardening  | 21-24  | 5     | Complete | 2026-01-21 |
-| v1.2 Configuration & Polish   | 16-20  | 5     | Complete | 2026-01-14 |
-| v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
-| v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
+| Milestone                     | Phases | Plans | Status      | Shipped    |
+| ----------------------------- | ------ | ----- | ----------- | ---------- |
+| v1.7 Metrics History          | 38-42  | 8     | Gap closure | —          |
+| v1.6 Test Coverage 90%        | 31-37  | 17    | Complete    | 2026-01-25 |
+| v1.5 Quality & Hygiene        | 27-30  | 8     | Complete    | 2026-01-24 |
+| v1.4 Observability            | 25-26  | 4     | Complete    | 2026-01-24 |
+| v1.3 Reliability & Hardening  | 21-24  | 5     | Complete    | 2026-01-21 |
+| v1.2 Configuration & Polish   | 16-20  | 5     | Complete    | 2026-01-14 |
+| v1.1 Code Quality             | 6-15   | 30    | Complete    | 2026-01-14 |
+| v1.0 Performance Optimization | 1-5    | 8     | Complete    | 2026-01-13 |
 
 **Total:** 41 phases complete, 84 plans across 8 milestones
 **v1.7:** 4 phases (38-41), 4 phases complete — MILESTONE SHIPPED
