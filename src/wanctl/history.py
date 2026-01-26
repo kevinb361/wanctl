@@ -205,13 +205,12 @@ def format_summary(results: list[dict]) -> str:
             # Show state distribution as percentages
             counter = Counter(int(v) for v in values)
             total = len(values)
-            # Map state values to names (matching steering enum: UNKNOWN=0, GREEN=1, etc.)
+            # Map state values to names (matching autorate encoding: GREEN=0, YELLOW=1, etc.)
             state_names = {
-                0: "UNKNOWN",
-                1: "GREEN",
-                2: "YELLOW",
-                3: "SOFT_RED",
-                4: "RED",
+                0: "GREEN",
+                1: "YELLOW",
+                2: "SOFT_RED",
+                3: "RED",
             }
             for state_val, count in sorted(counter.items()):
                 state_name = state_names.get(state_val, f"STATE_{state_val}")
