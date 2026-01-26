@@ -6,7 +6,6 @@ time-series queries.
 """
 
 import sqlite3
-from typing import Any
 
 # Prometheus-compatible metric names and descriptions
 STORED_METRICS: dict[str, str] = {

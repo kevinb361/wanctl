@@ -214,7 +214,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result["limit"] = limit
             except ValueError as e:
                 if "invalid literal" in str(e):
-                    raise ValueError(f"Invalid limit value: '{query_params['limit'][0]}'")
+                    raise ValueError(f"Invalid limit value: '{query_params['limit'][0]}'") from None
                 raise
 
         # Parse 'offset' param (int, default 0)
@@ -226,7 +226,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result["offset"] = offset
             except ValueError as e:
                 if "invalid literal" in str(e):
-                    raise ValueError(f"Invalid offset value: '{query_params['offset'][0]}'")
+                    raise ValueError(f"Invalid offset value: '{query_params['offset'][0]}'") from None
                 raise
 
         return result
@@ -266,7 +266,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             dt = datetime.fromisoformat(value)
             return int(dt.timestamp())
         except ValueError:
-            raise ValueError(f"Invalid timestamp format: '{value}'. Use ISO 8601 format")
+            raise ValueError(f"Invalid timestamp format: '{value}'. Use ISO 8601 format") from None
 
     def _resolve_time_range(
         self,

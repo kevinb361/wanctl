@@ -13,10 +13,9 @@ import pytest
 
 from wanctl.health_check import (
     HealthCheckHandler,
-    HealthCheckServer,
     start_health_server,
 )
-from wanctl.storage.writer import DEFAULT_DB_PATH, MetricsWriter
+from wanctl.storage.writer import MetricsWriter
 
 
 def find_free_port() -> int:

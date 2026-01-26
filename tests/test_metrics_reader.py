@@ -14,7 +14,6 @@ from wanctl.storage.reader import (
     query_metrics,
     select_granularity,
 )
-from wanctl.storage.schema import create_tables
 from wanctl.storage.writer import MetricsWriter
 
 

@@ -10,6 +10,8 @@ import pytest
 from wanctl.calibrate import (
     CalibrationResult,
     binary_search_optimal_rate,
+    check_netperf_server,
+    check_ssh_connectivity,
     generate_config,
     main,
     measure_baseline_rtt,
@@ -17,8 +19,6 @@ from wanctl.calibrate import (
     measure_throughput_upload,
     run_calibration,
     set_cake_limit,
-    check_netperf_server,
-    check_ssh_connectivity,
 )
 
 # =============================================================================
