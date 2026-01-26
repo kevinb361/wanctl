@@ -29,8 +29,8 @@ Progress: [██████████] 100% (5/5 phases, 8/8 plans)
 | v1.4      | 2      | 4     | 1 day    |
 | v1.5      | 4      | 8     | 1 day    |
 | v1.6      | 7      | 17    | 2 days   |
-| v1.7      | 4      | 7     | 1 day    |
-| **Total** | 41     | 84    | 9 days   |
+| v1.7      | 5      | 8     | 1 day    |
+| **Total** | 42     | 85    | 9 days   |
 
 ## Accumulated Context
 
