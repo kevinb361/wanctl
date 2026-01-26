@@ -1732,10 +1732,21 @@ def main() -> int | None:
     db_path = storage_config.get("db_path")
     # Only record snapshot if db_path is a valid string (not MagicMock in tests)
     if db_path and isinstance(db_path, str):
-        from wanctl.storage import MetricsWriter, record_config_snapshot
+        from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
 
         writer = MetricsWriter(Path(db_path))
         record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
+
+        # Run startup maintenance (cleanup + downsampling)
+        maint_result = run_startup_maintenance(
+            writer.connection,
+            retention_days=storage_config.get("retention_days", 7),
+            log=controller.wan_controllers[0]["logger"],
+        )
+        if maint_result.get("error"):
+            controller.wan_controllers[0]["logger"].warning(
+                f"Startup maintenance error: {maint_result['error']}"
+            )
 
     # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
