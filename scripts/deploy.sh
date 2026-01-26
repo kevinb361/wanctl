@@ -60,6 +60,19 @@ CORE_FILES=(
     "src/wanctl/timeouts.py"
     "src/wanctl/baseline_rtt_manager.py"
     "src/wanctl/wan_controller_state.py"
+    "src/wanctl/history.py"
+)
+
+# Storage module files (v1.7 metrics history)
+STORAGE_FILES=(
+    "src/wanctl/storage/__init__.py"
+    "src/wanctl/storage/schema.py"
+    "src/wanctl/storage/writer.py"
+    "src/wanctl/storage/reader.py"
+    "src/wanctl/storage/retention.py"
+    "src/wanctl/storage/downsampler.py"
+    "src/wanctl/storage/config_snapshot.py"
+    "src/wanctl/storage/maintenance.py"
 )
 
 # Backend files (router abstraction)
@@ -203,6 +216,20 @@ deploy_core_files() {
             scp "$file" "$TARGET_HOST:/tmp/$basename"
             ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/backends/$basename && sudo chown root:root $TARGET_CODE_DIR/backends/$basename && sudo chmod 644 $TARGET_CODE_DIR/backends/$basename"
             echo "  -> backends/$basename"
+        else
+            print_warning "File not found: $file"
+        fi
+    done
+
+    # Deploy storage module (v1.7 metrics history)
+    print_step "Deploying storage module..."
+    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR/storage"
+    for file in "${STORAGE_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/storage/$basename && sudo chown root:root $TARGET_CODE_DIR/storage/$basename && sudo chmod 644 $TARGET_CODE_DIR/storage/$basename"
+            echo "  -> storage/$basename"
         else
             print_warning "File not found: $file"
         fi
