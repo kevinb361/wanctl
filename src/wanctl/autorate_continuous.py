@@ -24,6 +24,7 @@ from wanctl.config_validation_utils import (
     validate_threshold_order,
 )
 from wanctl.error_handling import handle_errors
+from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.health_check import start_health_server, update_health_status
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
@@ -833,6 +834,9 @@ class WANController:
         self.rtt_measurement = rtt_measurement
         self.logger = logger
 
+        # Router connectivity tracking for cycle-level failure detection
+        self.router_connectivity = RouterConnectivityState(self.logger)
+
         # Initialize baseline from config (will be measured and updated)
         self.baseline_rtt = config.baseline_rtt_initial
         self.load_rtt = self.baseline_rtt
@@ -1403,7 +1407,26 @@ class WANController:
                 )
 
         # Apply rate changes (with flash wear + rate limit protection)
-        if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
+        # Track router connectivity state for cycle-level failure detection
+        try:
+            if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
+                # Router communication failed - record failure
+                self.router_connectivity.record_failure(
+                    ConnectionError("Failed to apply rate limits to router")
+                )
+                return False
+            # Router communication succeeded - record success
+            self.router_connectivity.record_success()
+        except Exception as e:
+            # Unexpected exception during router communication
+            failure_type = self.router_connectivity.record_failure(e)
+            # Log on first failure, every 3rd failure, or on threshold exceeded
+            failures = self.router_connectivity.consecutive_failures
+            if failures == 1 or failures == 3 or failures % 10 == 0:
+                self.logger.warning(
+                    f"{self.wan_name}: Router communication failed ({failure_type}, "
+                    f"{failures} consecutive)"
+                )
             return False
 
         # Save state with periodic force save (safety net against crashes)
