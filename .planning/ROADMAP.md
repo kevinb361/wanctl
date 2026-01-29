@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Ensure wanctl behaves correctly when things go wrong - router unreachable, connection drops, daemon shutdown, unexpected errors.
 
 - [x] Phase 43: Error Detection & Reconnection - Handle router unreachable and connection drops gracefully
-- [ ] Phase 44: Fail-Safe Behavior - Ensure rate limits persist and watchdog tolerates transient failures
+- [x] Phase 44: Fail-Safe Behavior - Ensure rate limits persist and watchdog tolerates transient failures
 - [ ] Phase 45: Graceful Shutdown - Clean daemon termination with state and connection consistency
 - [ ] Phase 46: Contract Tests - Golden files for RouterOS response formats with drift detection
 
@@ -278,7 +278,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** Phase 43 of 46 (v1.8 Resilience & Robustness)
+**Current:** Phase 44 of 46 (v1.8 Resilience & Robustness)
 
 ### Completed Milestones
 
@@ -293,5 +293,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 42 phases complete, 85 plans across 8 milestones
-**v1.8:** 4 phases (43-46), 0 phases complete — IN PROGRESS
+**Total:** 44 phases complete, 90 plans across 8 milestones
+**v1.8:** 4 phases (43-46), 2 phases complete — IN PROGRESS

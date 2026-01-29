@@ -11,8 +11,8 @@ Requirements for Resilience & Robustness milestone. Each maps to roadmap phases.
 
 - [x] **ERRR-01**: Controller detects and handles router becoming unreachable mid-cycle
 - [x] **ERRR-02**: Controller handles SSH/REST connection drops gracefully with reconnection
-- [ ] **ERRR-03**: Rate limits are never removed on error (fail-safe/fail-closed behavior)
-- [ ] **ERRR-04**: Watchdog doesn't restart daemon during transient failures
+- [x] **ERRR-03**: Rate limits are never removed on error (fail-safe/fail-closed behavior)
+- [x] **ERRR-04**: Watchdog doesn't restart daemon during transient failures
 
 ### Graceful Shutdown
 
@@ -49,8 +49,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ----------- | ----- | -------- |
 | ERRR-01     | 43    | Complete |
 | ERRR-02     | 43    | Complete |
-| ERRR-03     | 44    | Pending  |
-| ERRR-04     | 44    | Pending  |
+| ERRR-03     | 44    | Complete |
+| ERRR-04     | 44    | Complete |
 | SHUT-01     | 45    | Pending  |
 | SHUT-02     | 45    | Pending  |
 | SHUT-03     | 45    | Pending  |
@@ -69,4 +69,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-29_
-_Last updated: 2026-01-29 after roadmap creation_
+_Last updated: 2026-01-29 after Phase 44 completion_
