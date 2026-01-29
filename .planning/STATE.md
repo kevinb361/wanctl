@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: 43 of 46 (Error Detection & Reconnection) ✓ VERIFIED
-Plan: 3/3 complete
-Status: Phase 43 complete, verified
-Last activity: 2026-01-29 — Completed Phase 43 (3 plans, 12 commits, 57 new tests)
+Phase: 44 of 46 (Fail-Safe Behavior)
+Plan: 1/2 complete
+Status: In progress
+Last activity: 2026-01-29 — Completed 44-01-PLAN.md (PendingRateChange + fail-closed integration)
 
-Progress: [███░░░░░░░] 25% — v1.8 phases (1/4 complete)
+Progress: [████░░░░░░] 37% — v1.8 phases (1 complete + 44 plan 1/2)
 
 ## Performance Metrics
 
@@ -49,6 +49,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - EWMA and state machine preserved across reconnection (no reset)
 - Router connectivity aggregated as top-level router_reachable in health endpoints
 - Health degrades when ANY router unreachable (all() aggregation)
+- Fail-closed rate queuing: overwrite-latest, 60s stale threshold, monotonic timestamps
+- Queue check at top of apply_rate_changes_if_needed (before flash wear protection)
+- apply_rate_changes_if_needed returns True when queuing (daemon stays healthy)
 
 ### Deferred Issues
 
@@ -88,10 +91,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-29 16:08 UTC
-Stopped at: Completed 43-03-PLAN.md (Phase 43 complete)
+Last session: 2026-01-29 18:00 UTC
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None
 
 ## Next Steps
 
-Continue with Phase 44 (fail-safe mode).
+Continue with Phase 44 Plan 02 (pending rate application on reconnection).
