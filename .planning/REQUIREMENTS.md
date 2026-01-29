@@ -47,26 +47,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status  |
 | ----------- | ----- | ------- |
-| ERRR-01     | —     | Pending |
-| ERRR-02     | —     | Pending |
-| ERRR-03     | —     | Pending |
-| ERRR-04     | —     | Pending |
-| SHUT-01     | —     | Pending |
-| SHUT-02     | —     | Pending |
-| SHUT-03     | —     | Pending |
-| SHUT-04     | —     | Pending |
-| CNTR-01     | —     | Pending |
-| CNTR-02     | —     | Pending |
-| CNTR-03     | —     | Pending |
-| CNTR-04     | —     | Pending |
+| ERRR-01     | 43    | Pending |
+| ERRR-02     | 43    | Pending |
+| ERRR-03     | 44    | Pending |
+| ERRR-04     | 44    | Pending |
+| SHUT-01     | 45    | Pending |
+| SHUT-02     | 45    | Pending |
+| SHUT-03     | 45    | Pending |
+| SHUT-04     | 45    | Pending |
+| CNTR-01     | 46    | Pending |
+| CNTR-02     | 46    | Pending |
+| CNTR-03     | 46    | Pending |
+| CNTR-04     | 46    | Pending |
 
 **Coverage:**
 
 - v1.8 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-01-29_
-_Last updated: 2026-01-29 after initial definition_
+_Last updated: 2026-01-29 after roadmap creation_

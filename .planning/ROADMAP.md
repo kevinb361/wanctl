@@ -12,7 +12,7 @@ None
 
 ### Current
 
-None — planning next milestone
+- [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - IN PROGRESS
 
 ### Completed
 
@@ -33,6 +33,17 @@ None — planning next milestone
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.8 Resilience & Robustness (Phases 43-46) - IN PROGRESS
+
+**Milestone Goal:** Ensure wanctl behaves correctly when things go wrong - router unreachable, connection drops, daemon shutdown, unexpected errors.
+
+- [ ] Phase 43: Error Detection & Reconnection - Handle router unreachable and connection drops gracefully
+- [ ] Phase 44: Fail-Safe Behavior - Ensure rate limits persist and watchdog tolerates transient failures
+- [ ] Phase 45: Graceful Shutdown - Clean daemon termination with state and connection consistency
+- [ ] Phase 46: Contract Tests - Golden files for RouterOS response formats with drift detection
+
+See [milestones/v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) for full details.
 
 <details>
 <summary>v1.7 Metrics History (Phases 38-42) - SHIPPED 2026-01-25</summary>
@@ -267,7 +278,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** None — planning next milestone
+**Current:** Phase 43 of 46 (v1.8 Resilience & Robustness)
 
 ### Completed Milestones
 
@@ -283,4 +294,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 42 phases complete, 85 plans across 8 milestones
-**v1.7:** 5 phases (38-42), 5 phases complete — MILESTONE SHIPPED
+**v1.8:** 4 phases (43-46), 0 phases complete — IN PROGRESS

@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v1.8
-Last activity: 2026-01-29 — Milestone v1.8 started
+Phase: 43 of 46 (Error Detection & Reconnection)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-29 — Roadmap created for v1.8
 
-Progress: [░░░░░░░░░░] 0% — v1.8 requirements
+Progress: [░░░░░░░░░░] 0% — v1.8 phases
 
 ## Performance Metrics
 
@@ -38,34 +38,11 @@ Progress: [░░░░░░░░░░] 0% — v1.8 requirements
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
-**v1.7 Metrics History:**
+**v1.8 Resilience & Robustness:**
 
-- SQLite for storage (simple, no external deps, good for time-series)
-- Downsampling strategy: 1s -> 1m -> 5m -> 1h as data ages
-- Rich context for Claude analysis (transitions, reasons, not just numbers)
-- Prometheus-compatible naming (future-ready, not required)
-- Configurable retention (default 7 days)
-- Use isolation_level=None for WAL mode (Python 3.12+ compatibility)
-- MetricsWriter singleton with \_reset_instance for test isolation
-- Batch deletion in 10000-row chunks to avoid blocking daemon
-- MODE aggregation for state metrics, AVG for RTT/rate
-- VACUUM only after 100000+ deletions (expensive operation)
-- Steering metrics: 5 per cycle (rtt_ms, baseline, delta, enabled, state)
-- Config snapshot: labeled metric with trigger field on startup
-- Read-only connection mode (?mode=ro) for query operations
-- Use statistics.quantiles() from stdlib for percentile calculation
-- Granularity auto-selection: raw<6h<1m<24h<5m<7d<1h
-- CLI default time range: --last 1h when no args
-- State metrics show percentage distribution in summary
-- Empty results exit 0 with informational message
-- HTTP API on /metrics/history (existing port 9101)
-- Python-side pagination (offset/limit after full query)
-
-**Phase 42 Gap Closure:**
-
-- Maintenance errors logged but don't block daemon startup
-- Summary log only when work is done (not on every startup)
-- Use existing retention_days from storage config with 7-day default
+- Phase grouping: Error recovery split into detection/reconnection (43) and fail-safe (44)
+- Contract tests use golden files (simpler than VCR-style recording)
+- Focus on observable behaviors, not implementation details
 
 ### Deferred Issues
 
@@ -80,8 +57,8 @@ None.
 3 todos remaining in `.planning/todos/pending/`:
 
 - Integration test for router communication (testing)
-- Graceful shutdown behavior review (core)
-- Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
+- Graceful shutdown behavior review (core) - ADDRESSED by Phase 45
+- Error recovery scenario testing (reliability) - ADDRESSED by Phases 43-44
 
 ### Quick Tasks Completed
 
@@ -106,9 +83,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Defining v1.8 requirements
+Stopped at: Roadmap created for v1.8
 Resume file: None
 
 ## Next Steps
 
-v1.8 Resilience & Robustness milestone started. Defining requirements.
+Run `/gsd:plan-phase 43` to plan Error Detection & Reconnection phase.
