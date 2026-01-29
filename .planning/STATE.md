@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 44 of 46 (Fail-Safe Behavior)
-Plan: 1/2 complete
-Status: In progress
-Last activity: 2026-01-29 — Completed 44-01-PLAN.md (PendingRateChange + fail-closed integration)
+Plan: 2/2 complete
+Status: Phase complete
+Last activity: 2026-01-29 — Completed 44-02-PLAN.md (Watchdog tolerance + reconnection recovery)
 
-Progress: [████░░░░░░] 37% — v1.8 phases (1 complete + 44 plan 1/2)
+Progress: [█████░░░░░] 50% — v1.8 phases (2 complete: 43, 44)
 
 ## Performance Metrics
 
@@ -52,6 +52,10 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Fail-closed rate queuing: overwrite-latest, 60s stale threshold, monotonic timestamps
 - Queue check at top of apply_rate_changes_if_needed (before flash wear protection)
 - apply_rate_changes_if_needed returns True when queuing (daemon stays healthy)
+- Watchdog continues on router-only failures (timeout, connection_refused, etc.)
+- Watchdog stops on auth_failure (daemon misconfigured, needs intervention)
+- Stale pending rates (>60s) discarded on reconnection
+- Outage duration tracked via monotonic timestamps, logged on reconnection
 
 ### Deferred Issues
 
@@ -91,10 +95,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-29 18:00 UTC
-Stopped at: Completed 44-01-PLAN.md
+Last session: 2026-01-29 18:15 UTC
+Stopped at: Completed 44-02-PLAN.md (Phase 44 complete)
 Resume file: None
 
 ## Next Steps
 
-Continue with Phase 44 Plan 02 (pending rate application on reconnection).
+Phase 44 (Fail-Safe Behavior) complete. Continue with Phase 45 (Graceful Degradation).
