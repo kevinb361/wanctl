@@ -69,13 +69,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         """Build health status response."""
         uptime = time.monotonic() - self.start_time if self.start_time else 0
 
-        # Determine overall health status
-        # Healthy if consecutive failures < threshold
-        # Controller being None just means no WANs configured yet (still healthy)
-        is_healthy = self.consecutive_failures < 3  # MAX_CONSECUTIVE_FAILURES
+        # Default: assume all routers reachable (startup or no controller)
+        all_routers_reachable = True
 
         health: dict[str, Any] = {
-            "status": "healthy" if is_healthy else "degraded",
+            "status": "healthy",  # Will be updated below
             "uptime_seconds": round(uptime, 1),
             "version": __version__,
             "consecutive_failures": self.consecutive_failures,
@@ -85,6 +83,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Add controller-specific health info
             health["wan_count"] = len(self.controller.wan_controllers)
             health["wans"] = []
+
+            # Check router connectivity across all WANs
+            all_routers_reachable = all(
+                wan_info["controller"].router_connectivity.is_reachable
+                for wan_info in self.controller.wan_controllers
+            )
+
             for wan_info in self.controller.wan_controllers:
                 wan_controller = wan_info["controller"]
                 config = wan_info["config"]
@@ -101,8 +106,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         "current_rate_mbps": round(wan_controller.upload.current_rate / 1e6, 1),
                         "state": _get_current_state(wan_controller.upload),
                     },
+                    "router_connectivity": wan_controller.router_connectivity.to_dict(),
                 }
                 health["wans"].append(wan_health)
+
+        # Top-level router reachability aggregate
+        health["router_reachable"] = all_routers_reachable
+
+        # Determine overall health status
+        # Healthy if consecutive failures < threshold AND all routers reachable
+        is_healthy = self.consecutive_failures < 3 and all_routers_reachable
+        health["status"] = "healthy" if is_healthy else "degraded"
 
         return health
 

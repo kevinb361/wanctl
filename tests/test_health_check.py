@@ -192,6 +192,15 @@ class TestHealthServer:
         mock_wan_controller.upload.green_streak = 5
         mock_wan_controller.upload.green_required = 5
 
+        # Mock router connectivity state
+        mock_wan_controller.router_connectivity.is_reachable = True
+        mock_wan_controller.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
 
