@@ -873,3 +873,193 @@ class TestRateLimitBranch:
 
         # Should return False when handle_icmp_failure fails
         assert result is False
+
+
+# =============================================================================
+# TestRouterConnectivityTracking - Tests for router connectivity state tracking
+# =============================================================================
+
+
+class TestRouterConnectivityTracking:
+    """Tests for RouterConnectivityState integration in WANController.
+
+    Tests for:
+    - WANController has router_connectivity attribute initialized
+    - Success recorded on successful rate application
+    - Failure recorded on router error with type classification
+    - Reconnection logged after failures
+    - EWMA/baseline state preserved across reconnection
+    """
+
+    @pytest.fixture
+    def controller_with_mocks(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with all dependencies accessible."""
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl, mock_router, mock_logger
+
+    def test_wan_controller_has_router_connectivity_state(self, controller_with_mocks):
+        """WANController should have router_connectivity attribute."""
+        ctrl, _, _ = controller_with_mocks
+
+        assert hasattr(ctrl, "router_connectivity")
+        assert ctrl.router_connectivity is not None
+        assert ctrl.router_connectivity.consecutive_failures == 0
+        assert ctrl.router_connectivity.is_reachable is True
+
+    def test_wan_controller_records_success_on_apply_rate(self, controller_with_mocks):
+        """Successful rate application should record connectivity success."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = True
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is True
+        assert ctrl.router_connectivity.consecutive_failures == 0
+        assert ctrl.router_connectivity.is_reachable is True
+
+    def test_wan_controller_records_failure_on_router_error(self, controller_with_mocks):
+        """Router failure should record connectivity failure with type."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            result = ctrl.run_cycle()
+
+        assert result is False
+        assert ctrl.router_connectivity.consecutive_failures == 1
+        assert ctrl.router_connectivity.is_reachable is False
+        assert ctrl.router_connectivity.last_failure_type == "unknown"  # ConnectionError
+
+    def test_wan_controller_logs_reconnection_after_failures(self, controller_with_mocks):
+        """Reconnection after failures should be logged."""
+        ctrl, mock_router, mock_logger = controller_with_mocks
+        mock_router.set_limits.return_value = True
+
+        # Simulate previous failures
+        ctrl.router_connectivity.consecutive_failures = 3
+        ctrl.router_connectivity.is_reachable = False
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Check for reconnection log message
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("reconnected" in call.lower() for call in info_calls)
+        assert ctrl.router_connectivity.consecutive_failures == 0
+
+    def test_wan_controller_preserves_ewma_across_reconnection(self, controller_with_mocks):
+        """EWMA and baseline should be preserved across reconnection."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = True
+
+        # Set initial EWMA values
+        initial_baseline = 30.0
+        initial_load = 35.0
+        ctrl.baseline_rtt = initial_baseline
+        ctrl.load_rtt = initial_load
+
+        # Simulate previous failures
+        ctrl.router_connectivity.consecutive_failures = 3
+        ctrl.router_connectivity.is_reachable = False
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # EWMA values should have been updated by the cycle, not reset
+        # The key is that baseline_rtt should still be close to initial (slow EWMA)
+        # and load_rtt should be smoothly updated (fast EWMA)
+        assert ctrl.baseline_rtt != 0.0  # Not reset
+        assert ctrl.load_rtt != 0.0  # Not reset
+        # Reconnection should have occurred
+        assert ctrl.router_connectivity.consecutive_failures == 0
+
+    def test_wan_controller_consecutive_failures_increment(self, controller_with_mocks):
+        """Multiple router failures should increment consecutive_failures."""
+        ctrl, mock_router, _ = controller_with_mocks
+        mock_router.set_limits.return_value = False
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            # First failure
+            ctrl.run_cycle()
+            assert ctrl.router_connectivity.consecutive_failures == 1
+
+            # Update rates again to force another router call
+            ctrl.last_applied_dl_rate = 100_000_000
+            ctrl.last_applied_ul_rate = 20_000_000
+
+            # Second failure
+            ctrl.run_cycle()
+            assert ctrl.router_connectivity.consecutive_failures == 2
+
+    def test_wan_controller_failure_type_classified(self, controller_with_mocks):
+        """Failure type should be correctly classified based on exception."""
+        ctrl, mock_router, _ = controller_with_mocks
+
+        # Simulate a connection refused error
+        mock_router.set_limits.side_effect = ConnectionRefusedError("Connection refused")
+
+        # Set different rates to trigger router update
+        ctrl.last_applied_dl_rate = 100_000_000
+        ctrl.last_applied_ul_rate = 20_000_000
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=25.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            # Need to patch apply_rate_changes_if_needed to raise the exception
+            original_apply = ctrl.apply_rate_changes_if_needed
+
+            def raising_apply(dl, ul):
+                if mock_router.set_limits.side_effect:
+                    raise mock_router.set_limits.side_effect
+                return original_apply(dl, ul)
+
+            with patch.object(ctrl, "apply_rate_changes_if_needed", side_effect=raising_apply):
+                result = ctrl.run_cycle()
+
+        assert result is False
+        assert ctrl.router_connectivity.consecutive_failures == 1
+        assert ctrl.router_connectivity.last_failure_type == "connection_refused"
