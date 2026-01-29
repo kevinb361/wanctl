@@ -24,7 +24,6 @@ from wanctl.config_validation_utils import (
     validate_threshold_order,
 )
 from wanctl.error_handling import handle_errors
-from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.health_check import start_health_server, update_health_status
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
@@ -35,8 +34,10 @@ from wanctl.metrics import (
     record_router_update,
     start_metrics_server,
 )
+from wanctl.pending_rates import PendingRateChange
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import get_router_client_with_failover
+from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
     is_shutdown_requested,
@@ -837,6 +838,9 @@ class WANController:
         # Router connectivity tracking for cycle-level failure detection
         self.router_connectivity = RouterConnectivityState(self.logger)
 
+        # Pending rate changes for router outage resilience (ERRR-03)
+        self.pending_rates = PendingRateChange()
+
         # Initialize baseline from config (will be measured and updated)
         self.baseline_rtt = config.baseline_rtt_initial
         self.load_rtt = self.baseline_rtt
@@ -1169,6 +1173,18 @@ class WANController:
             - Calls save_state() when rate limited
         """
         # =====================================================================
+        # FAIL-CLOSED: Queue rates when router unreachable (ERRR-03)
+        # Rates are preserved for later application instead of being discarded.
+        # =====================================================================
+        if not self.router_connectivity.is_reachable:
+            self.pending_rates.queue(dl_rate, ul_rate)
+            self.logger.debug(
+                f"{self.wan_name}: Router unreachable, queuing rate change "
+                f"(DL={dl_rate / 1e6:.1f}Mbps, UL={ul_rate / 1e6:.1f}Mbps)"
+            )
+            return True  # Cycle succeeds - rates queued for later
+
+        # =====================================================================
         # PROTECTED: Flash wear protection - only send queue limits when values change.
         # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
         # =====================================================================
@@ -1217,6 +1233,7 @@ class WANController:
         # Update tracking after successful write
         self.last_applied_dl_rate = dl_rate
         self.last_applied_ul_rate = ul_rate
+        self.pending_rates.clear()
         self.logger.debug(f"{self.wan_name}: Applied new limits to router")
         return True
 

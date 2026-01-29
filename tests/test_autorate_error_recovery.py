@@ -1026,6 +1026,10 @@ class TestRouterConnectivityTracking:
             ctrl.run_cycle()
             assert ctrl.router_connectivity.consecutive_failures == 1
 
+            # Reset is_reachable so the second cycle attempts router contact
+            # (fail-closed queuing skips router when is_reachable=False)
+            ctrl.router_connectivity.is_reachable = True
+
             # Update rates again to force another router call
             ctrl.last_applied_dl_rate = 100_000_000
             ctrl.last_applied_ul_rate = 20_000_000
