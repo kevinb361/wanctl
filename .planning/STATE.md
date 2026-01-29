@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 43 of 46 (Error Detection & Reconnection)
-Plan: 02 of TBD complete
-Status: In progress
-Last activity: 2026-01-29 - Completed 43-02-PLAN.md (integration)
+Plan: 03 of 3 complete
+Status: Phase 43 complete
+Last activity: 2026-01-29 - Completed 43-03-PLAN.md (health endpoint connectivity)
 
-Progress: [██░░░░░░░░] 20% - v1.8 phases (estimated)
+Progress: [███░░░░░░░] 25% - v1.8 phases (estimated)
 
 ## Performance Metrics
 
@@ -47,6 +47,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - Monotonic timestamps for failure tracking (not wall clock)
 - Rate-limited logging: first failure, 3rd, every 10th
 - EWMA and state machine preserved across reconnection (no reset)
+- Router connectivity aggregated as top-level router_reachable in health endpoints
+- Health degrades when ANY router unreachable (all() aggregation)
 
 ### Deferred Issues
 
@@ -86,10 +88,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-29 15:59 UTC
-Stopped at: Completed 43-02-PLAN.md
+Last session: 2026-01-29 16:08 UTC
+Stopped at: Completed 43-03-PLAN.md (Phase 43 complete)
 Resume file: None
 
 ## Next Steps
 
-Continue with Phase 43 Plan 03 (if any) or Phase 44 (fail-safe mode).
+Continue with Phase 44 (fail-safe mode).
