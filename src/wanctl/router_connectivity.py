@@ -128,23 +128,32 @@ class RouterConnectivityState:
         self.last_failure_type: str | None = None
         self.last_failure_time: float | None = None
         self.is_reachable: bool = True
+        self.outage_start_time: float | None = None
 
     def record_success(self) -> None:
         """
         Record a successful router communication.
 
-        If recovering from failures, logs the reconnection event.
-        Resets all failure tracking state.
+        If recovering from failures, logs the reconnection event with
+        outage duration. Resets all failure tracking state.
         """
         if self.consecutive_failures > 0:
-            self.logger.info(
-                f"Router reconnected after {self.consecutive_failures} consecutive failures"
-            )
+            outage_duration = self.get_outage_duration()
+            if outage_duration is not None:
+                self.logger.info(
+                    f"Router reconnected after {outage_duration:.1f}s outage "
+                    f"({self.consecutive_failures} failures)"
+                )
+            else:
+                self.logger.info(
+                    f"Router reconnected after {self.consecutive_failures} consecutive failures"
+                )
 
         self.consecutive_failures = 0
         self.last_failure_type = None
         self.last_failure_time = None
         self.is_reachable = True
+        self.outage_start_time = None
 
     def record_failure(self, exception: Exception) -> str:
         """
@@ -161,12 +170,27 @@ class RouterConnectivityState:
         """
         failure_type = classify_failure_type(exception)
 
+        # Set outage start time on FIRST failure only
+        if self.consecutive_failures == 0:
+            self.outage_start_time = time.monotonic()
+
         self.consecutive_failures += 1
         self.last_failure_type = failure_type
         self.last_failure_time = time.monotonic()
         self.is_reachable = False
 
         return failure_type
+
+    def get_outage_duration(self) -> float | None:
+        """
+        Get the duration of the current outage in seconds.
+
+        Returns:
+            Elapsed seconds since outage started, or None if currently reachable.
+        """
+        if self.is_reachable or self.outage_start_time is None:
+            return None
+        return time.monotonic() - self.outage_start_time
 
     def to_dict(self) -> dict[str, bool | int | str | float | None]:
         """
@@ -180,4 +204,5 @@ class RouterConnectivityState:
             "consecutive_failures": self.consecutive_failures,
             "last_failure_type": self.last_failure_type,
             "last_failure_time": self.last_failure_time,
+            "outage_duration_seconds": self.get_outage_duration(),
         }
