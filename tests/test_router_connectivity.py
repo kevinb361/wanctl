@@ -8,8 +8,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
-# Import will fail until module is created - this is expected in RED phase
 from wanctl.router_connectivity import RouterConnectivityState, classify_failure_type
 
 
@@ -23,7 +21,9 @@ class TestClassifyFailureType:
 
     def test_socket_timeout(self) -> None:
         """socket.timeout should classify as 'timeout'."""
-        exc = socket.timeout("timed out")
+        # socket.timeout is an alias for TimeoutError in Python 3.10+
+        # We explicitly test this alias to ensure compatibility
+        exc = TimeoutError("timed out")  # socket.timeout maps to this
         assert classify_failure_type(exc) == "timeout"
 
     def test_subprocess_timeout(self) -> None:
