@@ -37,6 +37,7 @@ from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import get_router_client_with_failover
+from ..router_connectivity import RouterConnectivityState
 from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..signal_utils import (
     get_shutdown_event,
@@ -621,6 +622,9 @@ class SteeringDaemon:
         self.baseline_loader = baseline_loader
         self.logger = logger
 
+        # Router connectivity tracking for cycle-level failure detection
+        self.router_connectivity = RouterConnectivityState(self.logger)
+
         # CAKE-aware components (if enabled)
         self.cake_reader: CakeStatsReader | None
         self.thresholds: StateThresholds | None
@@ -718,7 +722,7 @@ class SteeringDaemon:
         """Execute steering state transition with routing control.
 
         Handles router enable/disable, transition logging, state update,
-        and metrics recording.
+        metrics recording, and router connectivity tracking.
 
         Args:
             from_state: Current state name
@@ -728,15 +732,34 @@ class SteeringDaemon:
         Returns:
             True if transition succeeded, False if routing failed
         """
-        # Execute routing change
-        if enable_steering:
-            if not self.router.enable_steering():
-                self.logger.error(f"Failed to enable steering, staying in {from_state}")
-                return False
-        else:
-            if not self.router.disable_steering():
-                self.logger.error(f"Failed to disable steering, staying in {from_state}")
-                return False
+        # Execute routing change with connectivity tracking
+        try:
+            if enable_steering:
+                if not self.router.enable_steering():
+                    self.router_connectivity.record_failure(
+                        ConnectionError("Failed to enable steering rule")
+                    )
+                    self.logger.error(f"Failed to enable steering, staying in {from_state}")
+                    return False
+            else:
+                if not self.router.disable_steering():
+                    self.router_connectivity.record_failure(
+                        ConnectionError("Failed to disable steering rule")
+                    )
+                    self.logger.error(f"Failed to disable steering, staying in {from_state}")
+                    return False
+            # Successful router operation
+            self.router_connectivity.record_success()
+        except Exception as e:
+            # Unexpected exception during router communication
+            failure_type = self.router_connectivity.record_failure(e)
+            failures = self.router_connectivity.consecutive_failures
+            if failures == 1 or failures == 3 or failures % 10 == 0:
+                self.logger.warning(
+                    f"Router communication failed during steering transition ({failure_type}, "
+                    f"{failures} consecutive)"
+                )
+            return False
 
         # Log transition and update state
         self.state_mgr.log_transition(from_state, to_state)
@@ -1086,7 +1109,7 @@ class SteeringDaemon:
         """Collect CAKE statistics (drops and queued packets).
 
         Handles CAKE-aware mode check, stats reading, history updates,
-        and consecutive failure tracking (W8 fix).
+        consecutive failure tracking (W8 fix), and router connectivity tracking.
 
         Returns:
             tuple[int, int]: (cake_drops, queued_packets)
@@ -1099,13 +1122,29 @@ class SteeringDaemon:
         state = self.state_mgr.state
 
         # Read CAKE statistics (using delta math, no resets needed)
-        stats = self.cake_reader.read_stats(self.config.primary_download_queue)
+        try:
+            stats = self.cake_reader.read_stats(self.config.primary_download_queue)
+        except Exception as e:
+            # Track router connectivity failure
+            failure_type = self.router_connectivity.record_failure(e)
+            failures = self.router_connectivity.consecutive_failures
+            if failures == 1 or failures == 3 or failures % 10 == 0:
+                self.logger.warning(
+                    f"Router communication failed during CAKE stats read ({failure_type}, "
+                    f"{failures} consecutive)"
+                )
+            state["cake_read_failures"] += 1
+            return (0, 0)
+
         if stats:
             cake_drops = stats.dropped
             queued_packets = stats.queued_packets
 
             # Reset failure counter on successful read
             state["cake_read_failures"] = 0
+
+            # Track router connectivity success
+            self.router_connectivity.record_success()
 
             # Update history (W4 fix: deques handle automatic eviction)
             state["cake_drops_history"].append(cake_drops)
@@ -1114,7 +1153,8 @@ class SteeringDaemon:
 
             return (cake_drops, queued_packets)
         else:
-            # W8 fix: Track consecutive CAKE read failures
+            # W8 fix: Track consecutive CAKE read failures (stats returned None)
+            # Note: This is a soft failure, not a router connectivity failure
             state["cake_read_failures"] += 1
             if state["cake_read_failures"] == 1:
                 # First failure - log warning
