@@ -232,6 +232,249 @@ class TestHealthServer:
             server.shutdown()
 
 
+class TestRouterConnectivityReporting:
+    """Tests for router connectivity reporting in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_controller(self):
+        """Create a mock WAN controller with router connectivity."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        return wan
+
+    def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
+        """Test that each WAN includes router_connectivity section."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "wans" in data
+            assert len(data["wans"]) == 1
+            assert "router_connectivity" in data["wans"][0]
+            conn = data["wans"][0]["router_connectivity"]
+            assert conn["is_reachable"] is True
+            assert conn["consecutive_failures"] == 0
+            assert conn["last_failure_type"] is None
+        finally:
+            server.shutdown()
+
+    def test_health_includes_router_reachable_aggregate(self, mock_wan_controller):
+        """Test that top-level router_reachable field exists."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "router_reachable" in data
+            assert data["router_reachable"] is True
+        finally:
+            server.shutdown()
+
+    def test_health_degrades_when_router_unreachable(self, mock_wan_controller):
+        """Test that health degrades (503) when router is unreachable."""
+        # Set router as unreachable
+        mock_wan_controller.router_connectivity.is_reachable = False
+        mock_wan_controller.router_connectivity.to_dict.return_value = {
+            "is_reachable": False,
+            "consecutive_failures": 3,
+            "last_failure_type": "timeout",
+            "last_failure_time": 12345.0,
+        }
+
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                urllib.request.urlopen(url, timeout=5)
+
+            assert exc_info.value.code == 503
+            data = json.loads(exc_info.value.read().decode())
+            assert data["status"] == "degraded"
+            assert data["router_reachable"] is False
+            exc_info.value.close()
+        finally:
+            server.shutdown()
+
+    def test_health_healthy_when_router_reachable(self, mock_wan_controller):
+        """Test that health is healthy (200) when router is reachable."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                assert response.status == 200
+                data = json.loads(response.read().decode())
+
+            assert data["status"] == "healthy"
+            assert data["router_reachable"] is True
+        finally:
+            server.shutdown()
+
+    def test_health_router_reachable_without_controller(self):
+        """Test that router_reachable defaults to True when no controller."""
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            # No controller, but should still have router_reachable = True
+            assert "router_reachable" in data
+            assert data["router_reachable"] is True
+            assert data["status"] == "healthy"
+        finally:
+            server.shutdown()
+
+    def test_health_degrades_with_any_wan_unreachable(self):
+        """Test that health degrades if ANY WAN has unreachable router."""
+        # WAN 1: reachable
+        wan1 = MagicMock()
+        wan1.baseline_rtt = 20.0
+        wan1.load_rtt = 22.0
+        wan1.download.current_rate = 500_000_000
+        wan1.download.red_streak = 0
+        wan1.download.soft_red_streak = 0
+        wan1.download.soft_red_required = 3
+        wan1.download.green_streak = 5
+        wan1.download.green_required = 5
+        wan1.upload.current_rate = 20_000_000
+        wan1.upload.red_streak = 0
+        wan1.upload.soft_red_streak = 0
+        wan1.upload.soft_red_required = 3
+        wan1.upload.green_streak = 5
+        wan1.upload.green_required = 5
+        wan1.router_connectivity.is_reachable = True
+        wan1.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+
+        # WAN 2: unreachable
+        wan2 = MagicMock()
+        wan2.baseline_rtt = 25.0
+        wan2.load_rtt = 30.0
+        wan2.download.current_rate = 100_000_000
+        wan2.download.red_streak = 0
+        wan2.download.soft_red_streak = 0
+        wan2.download.soft_red_required = 3
+        wan2.download.green_streak = 5
+        wan2.download.green_required = 5
+        wan2.upload.current_rate = 10_000_000
+        wan2.upload.red_streak = 0
+        wan2.upload.soft_red_streak = 0
+        wan2.upload.soft_red_required = 3
+        wan2.upload.green_streak = 5
+        wan2.upload.green_required = 5
+        wan2.router_connectivity.is_reachable = False
+        wan2.router_connectivity.to_dict.return_value = {
+            "is_reachable": False,
+            "consecutive_failures": 5,
+            "last_failure_type": "connection_refused",
+            "last_failure_time": 98765.0,
+        }
+
+        mock_controller = MagicMock()
+        config1 = MagicMock()
+        config1.wan_name = "spectrum"
+        config2 = MagicMock()
+        config2.wan_name = "att"
+        mock_controller.wan_controllers = [
+            {"controller": wan1, "config": config1, "logger": MagicMock()},
+            {"controller": wan2, "config": config2, "logger": MagicMock()},
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                urllib.request.urlopen(url, timeout=5)
+
+            assert exc_info.value.code == 503
+            data = json.loads(exc_info.value.read().decode())
+            assert data["status"] == "degraded"
+            assert data["router_reachable"] is False
+            # Both WANs should still be in response
+            assert len(data["wans"]) == 2
+            exc_info.value.close()
+        finally:
+            server.shutdown()
+
+
 class TestUpdateHealthStatus:
     """Tests for update_health_status function."""
 

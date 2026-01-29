@@ -689,3 +689,144 @@ class TestSteeringHealthLifecycle:
 
         finally:
             server.shutdown()
+
+
+class TestSteeringRouterConnectivityReporting:
+    """Tests for router connectivity reporting in steering health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_daemon(self):
+        """Create a mock SteeringDaemon with realistic state."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        return daemon
+
+    def test_steering_health_includes_router_connectivity(self, mock_daemon):
+        """Test that steering health includes router_connectivity section."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "router_connectivity" in data
+            conn = data["router_connectivity"]
+            assert conn["is_reachable"] is True
+            assert conn["consecutive_failures"] == 0
+            assert conn["last_failure_type"] is None
+        finally:
+            server.shutdown()
+
+    def test_steering_health_includes_router_reachable(self, mock_daemon):
+        """Test that steering health includes top-level router_reachable field."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "router_reachable" in data
+            assert data["router_reachable"] is True
+        finally:
+            server.shutdown()
+
+    def test_steering_health_degrades_when_router_unreachable(self, mock_daemon):
+        """Test that steering health degrades (503) when router is unreachable."""
+        # Set router as unreachable
+        mock_daemon.router_connectivity.is_reachable = False
+        mock_daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": False,
+            "consecutive_failures": 3,
+            "last_failure_type": "timeout",
+            "last_failure_time": 12345.0,
+        }
+
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                urllib.request.urlopen(url, timeout=5)
+
+            assert exc_info.value.code == 503
+            data = json.loads(exc_info.value.read().decode())
+            assert data["status"] == "degraded"
+            assert data["router_reachable"] is False
+            conn = data["router_connectivity"]
+            assert conn["is_reachable"] is False
+            assert conn["consecutive_failures"] == 3
+            assert conn["last_failure_type"] == "timeout"
+        finally:
+            server.shutdown()
+
+    def test_steering_health_healthy_when_router_reachable(self, mock_daemon):
+        """Test that steering health is healthy (200) when router is reachable."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                assert response.status == 200
+                data = json.loads(response.read().decode())
+
+            assert data["status"] == "healthy"
+            assert data["router_reachable"] is True
+        finally:
+            server.shutdown()
+
+    def test_steering_health_router_reachable_defaults_true_without_daemon(self):
+        """Test that router_reachable defaults to True when no daemon."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            # No daemon, should still have router_reachable = True
+            assert "router_reachable" in data
+            assert data["router_reachable"] is True
+            assert data["status"] == "healthy"
+        finally:
+            server.shutdown()
