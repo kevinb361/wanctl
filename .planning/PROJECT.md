@@ -8,29 +8,26 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.7 Metrics History
+## Current Milestone: v1.8 Resilience & Robustness
 
-**Goal:** Historical metrics storage with downsampling for debugging, trend analysis, and Claude-assisted config tuning
+**Goal:** Ensure wanctl behaves correctly when things go wrong — router unreachable, connections drop, daemon shutdown, unexpected errors.
 
 **Target features:**
 
-- SQLite storage with time-based downsampling (1s → 1m → 5m → 1h)
-- Rich context for Claude analysis (state transitions, reasons, config snapshots)
-- CLI tool for queries (`wanctl-history --last 1h`)
-- JSON API endpoint (`/metrics/history`)
-- Configurable retention (default 7 days)
-- Prometheus-compatible metric naming (future-ready)
+- Error recovery scenarios (router unreachable, connection drops, failsafe behavior)
+- Graceful shutdown (SIGTERM handling, in-flight commands, state consistency)
+- Contract tests (verify mocks match real RouterOS response format)
 
-## Current State (v1.6)
+## Current State (v1.7)
 
-- **Version:** v1.6 Test Coverage 90% (shipped 2026-01-25)
+- **Version:** v1.7 Metrics History (shipped 2026-01-25)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 1,490 passing
-- **Coverage:** 90.08% (CI enforced)
+- **Tests:** 1,727 passing
+- **Coverage:** 90%+ (CI enforced)
 - **LOC:** ~13,273 Python (src/)
-- **Status:** Production stable, comprehensive test coverage
+- **Status:** Production stable, comprehensive test coverage, metrics history
 
-**Previous:** v1.5 Quality & Hygiene — security audit, documentation verification
+**Previous:** v1.6 Test Coverage 90% — 743 new tests, CI enforcement
 
 ## Requirements
 
@@ -179,9 +176,17 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - CI enforcement via fail_under=90
 - All major modules tested: backends, state, metrics, controllers, CLI tools
 
+**v1.7 Metrics History (2026-01-25):**
+
+- 5 phases of metrics infrastructure (Phases 38-42)
+- SQLite storage with automatic downsampling
+- `wanctl-history` CLI tool for queries
+- `/metrics/history` HTTP API endpoint
+- 237 new tests (1,490 → 1,727 total)
+
 **Next Steps:**
 
-- Execute v1.7 Metrics History milestone
+- Execute v1.8 Resilience & Robustness milestone
 
 ## Constraints
 
@@ -212,4 +217,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-25 after v1.7 milestone started_
+_Last updated: 2026-01-29 after v1.8 milestone started_

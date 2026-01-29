@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-25)
+See: .planning/PROJECT.md (updated 2026-01-29)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.8 Resilience & Robustness
 
 ## Current Position
 
-Phase: — (between milestones)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v1.7 shipped, planning next milestone
-Last activity: 2026-01-26 - Archived v1.7 Metrics History
+Status: Defining requirements for v1.8
+Last activity: 2026-01-29 — Milestone v1.8 started
 
-Progress: [██████████] 100% — v1.7 complete
+Progress: [░░░░░░░░░░] 0% — v1.8 requirements
 
 ## Performance Metrics
 
@@ -105,12 +105,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-26
-Stopped at: Archived v1.7 milestone
+Last session: 2026-01-29
+Stopped at: Defining v1.8 requirements
 Resume file: None
 
 ## Next Steps
 
-v1.7 Metrics History milestone archived. Ready for next milestone.
-
-To start next milestone: `/gsd:new-milestone`
+v1.8 Resilience & Robustness milestone started. Defining requirements.
