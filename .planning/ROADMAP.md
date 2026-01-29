@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Ensure wanctl behaves correctly when things go wrong - router unreachable, connection drops, daemon shutdown, unexpected errors.
 
-- [ ] Phase 43: Error Detection & Reconnection - Handle router unreachable and connection drops gracefully
+- [x] Phase 43: Error Detection & Reconnection - Handle router unreachable and connection drops gracefully
 - [ ] Phase 44: Fail-Safe Behavior - Ensure rate limits persist and watchdog tolerates transient failures
 - [ ] Phase 45: Graceful Shutdown - Clean daemon termination with state and connection consistency
 - [ ] Phase 46: Contract Tests - Golden files for RouterOS response formats with drift detection

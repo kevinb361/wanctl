@@ -9,8 +9,8 @@ Requirements for Resilience & Robustness milestone. Each maps to roadmap phases.
 
 ### Error Recovery
 
-- [ ] **ERRR-01**: Controller detects and handles router becoming unreachable mid-cycle
-- [ ] **ERRR-02**: Controller handles SSH/REST connection drops gracefully with reconnection
+- [x] **ERRR-01**: Controller detects and handles router becoming unreachable mid-cycle
+- [x] **ERRR-02**: Controller handles SSH/REST connection drops gracefully with reconnection
 - [ ] **ERRR-03**: Rate limits are never removed on error (fail-safe/fail-closed behavior)
 - [ ] **ERRR-04**: Watchdog doesn't restart daemon during transient failures
 
@@ -34,31 +34,31 @@ None currently.
 
 ## Out of Scope
 
-| Feature                  | Reason                                                     |
-| ------------------------ | ---------------------------------------------------------- |
-| Chaos engineering        | Manual fault injection sufficient for this scale           |
-| Circuit breaker patterns | Existing failover client is sufficient                     |
+| Feature                  | Reason                                                       |
+| ------------------------ | ------------------------------------------------------------ |
+| Chaos engineering        | Manual fault injection sufficient for this scale             |
+| Circuit breaker patterns | Existing failover client is sufficient                       |
 | RouterOS CHR container   | Contract tests provide coverage without heavy infrastructure |
-| VCR-style recording      | Golden files are simpler and more maintainable             |
+| VCR-style recording      | Golden files are simpler and more maintainable               |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| ERRR-01     | 43    | Pending |
-| ERRR-02     | 43    | Pending |
-| ERRR-03     | 44    | Pending |
-| ERRR-04     | 44    | Pending |
-| SHUT-01     | 45    | Pending |
-| SHUT-02     | 45    | Pending |
-| SHUT-03     | 45    | Pending |
-| SHUT-04     | 45    | Pending |
-| CNTR-01     | 46    | Pending |
-| CNTR-02     | 46    | Pending |
-| CNTR-03     | 46    | Pending |
-| CNTR-04     | 46    | Pending |
+| Requirement | Phase | Status   |
+| ----------- | ----- | -------- |
+| ERRR-01     | 43    | Complete |
+| ERRR-02     | 43    | Complete |
+| ERRR-03     | 44    | Pending  |
+| ERRR-04     | 44    | Pending  |
+| SHUT-01     | 45    | Pending  |
+| SHUT-02     | 45    | Pending  |
+| SHUT-03     | 45    | Pending  |
+| SHUT-04     | 45    | Pending  |
+| CNTR-01     | 46    | Pending  |
+| CNTR-02     | 46    | Pending  |
+| CNTR-03     | 46    | Pending  |
+| CNTR-04     | 46    | Pending  |
 
 **Coverage:**
 
