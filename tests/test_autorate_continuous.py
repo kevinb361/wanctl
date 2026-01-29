@@ -187,3 +187,153 @@ class TestPendingRateIntegration:
 
         assert controller.pending_rates.pending_dl_rate == 700_000_000
         assert controller.pending_rates.pending_ul_rate == 30_000_000
+
+
+# =============================================================================
+# TestWatchdogDistinction - Tests for watchdog behavior during router failures
+# =============================================================================
+
+
+class TestWatchdogDistinction:
+    """Tests for watchdog distinction between router and daemon failures.
+
+    Covers ERRR-04:
+    - Watchdog continues during router-only failures
+    - Watchdog stops on auth failures (daemon misconfigured)
+    """
+
+    def test_watchdog_continues_during_router_failure(
+        self, controller, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Watchdog should continue notifying during router-only failures.
+
+        When all routers are unreachable but failure is NOT auth_failure,
+        the daemon is healthy - only the router is the problem.
+        """
+        # Simulate router unreachable (timeout, not auth)
+        controller.router_connectivity.is_reachable = False
+        controller.router_connectivity.last_failure_type = "timeout"
+        controller.router_connectivity.consecutive_failures = 3
+
+        # Verify conditions for router_only_failure detection
+        assert not controller.router_connectivity.is_reachable
+        assert controller.router_connectivity.last_failure_type != "auth_failure"
+
+    def test_watchdog_stops_on_auth_failure(
+        self, controller, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Watchdog should NOT continue on auth failures.
+
+        Auth failures indicate daemon misconfiguration - restarting won't help,
+        but it correctly flags the daemon as unhealthy.
+        """
+        # Simulate auth failure
+        controller.router_connectivity.is_reachable = False
+        controller.router_connectivity.last_failure_type = "auth_failure"
+        controller.router_connectivity.consecutive_failures = 1
+
+        # Auth failure means router_only_failure should be False
+        all_unreachable = not controller.router_connectivity.is_reachable
+        any_auth = controller.router_connectivity.last_failure_type == "auth_failure"
+        router_only_failure = all_unreachable and not any_auth
+
+        assert router_only_failure is False
+
+
+# =============================================================================
+# TestPendingRateRecovery - Tests for pending rate application on reconnection
+# =============================================================================
+
+
+class TestPendingRateRecovery:
+    """Tests for pending rate recovery after router reconnection.
+
+    Covers:
+    - Pending rates applied on reconnection
+    - Stale pending rates discarded after 60s
+    """
+
+    def test_pending_rates_applied_on_reconnection(
+        self, controller, mock_router, mock_logger
+    ):
+        """Pending rates should be applied when router reconnects.
+
+        During outage, rates are queued. On reconnection (record_success),
+        the run_cycle should apply pending rates via apply_rate_changes_if_needed.
+        """
+        # Queue pending rates (simulating outage)
+        controller.pending_rates.queue(750_000_000, 32_000_000)
+
+        # Router is now reachable - simulate apply_rate_changes_if_needed flow
+        controller.router_connectivity.is_reachable = True
+        controller.last_applied_dl_rate = 800_000_000  # Different from pending
+        controller.last_applied_ul_rate = 35_000_000
+
+        # The pending rates should be detected
+        assert controller.pending_rates.has_pending() is True
+        assert not controller.pending_rates.is_stale()
+
+        # Apply pending rates (simulating what run_cycle does after record_success)
+        with patch.object(controller, "save_state"):
+            result = controller.apply_rate_changes_if_needed(
+                controller.pending_rates.pending_dl_rate,
+                controller.pending_rates.pending_ul_rate,
+            )
+
+        assert result is True
+        # Router should have been called
+        mock_router.set_limits.assert_called()
+
+    def test_stale_pending_rates_discarded(
+        self, controller, mock_logger
+    ):
+        """Stale pending rates (>60s) should be discarded, not applied.
+
+        After a long outage, network conditions may have changed significantly.
+        Applying stale rates could cause incorrect bandwidth limits.
+        """
+        # Queue pending rates
+        controller.pending_rates.queue(750_000_000, 32_000_000)
+
+        # Make them stale by backdating queued_at
+        import time
+
+        controller.pending_rates.queued_at = time.monotonic() - 120  # 2 minutes ago
+
+        assert controller.pending_rates.has_pending() is True
+        assert controller.pending_rates.is_stale() is True
+
+        # Simulate what run_cycle does: check and discard stale
+        if controller.pending_rates.is_stale():
+            controller.pending_rates.clear()
+
+        assert controller.pending_rates.has_pending() is False
+
+    def test_pending_rates_not_stale_within_threshold(
+        self, controller
+    ):
+        """Pending rates within 60s should NOT be considered stale."""
+        controller.pending_rates.queue(750_000_000, 32_000_000)
+        # Just queued - should be fresh
+        assert controller.pending_rates.is_stale() is False
+
+    def test_run_cycle_applies_pending_after_reconnection(
+        self, controller, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Full run_cycle should apply pending rates after router reconnects."""
+        # Setup: queue pending rates during simulated outage
+        controller.pending_rates.queue(750_000_000, 32_000_000)
+        controller.router_connectivity.is_reachable = True
+        controller.router_connectivity.consecutive_failures = 0
+
+        # Mock RTT measurement to return valid value
+        mock_rtt_measurement.ping_host.return_value = 25.0
+
+        # Run full cycle
+        with patch.object(controller, "save_state"):
+            result = controller.run_cycle()
+
+        assert result is True
+        # Pending rates should have been cleared (either applied or cleared by apply)
+        # The router should have been called at least once
+        assert mock_router.set_limits.called

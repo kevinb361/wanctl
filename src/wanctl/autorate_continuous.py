@@ -1434,6 +1434,25 @@ class WANController:
                 return False
             # Router communication succeeded - record success
             self.router_connectivity.record_success()
+
+            # Apply pending rates on reconnection (ERRR-04)
+            if self.pending_rates.has_pending():
+                if self.pending_rates.is_stale():
+                    self.logger.info(
+                        f"{self.wan_name}: Discarding stale pending rates "
+                        f"(queued >{60}s ago)"
+                    )
+                    self.pending_rates.clear()
+                else:
+                    pending_dl = self.pending_rates.pending_dl_rate
+                    pending_ul = self.pending_rates.pending_ul_rate
+                    if pending_dl is not None and pending_ul is not None:
+                        self.logger.info(
+                            f"{self.wan_name}: Applying pending rates after reconnection "
+                            f"(DL={pending_dl / 1e6:.1f}Mbps, "
+                            f"UL={pending_ul / 1e6:.1f}Mbps)"
+                        )
+                        self.apply_rate_changes_if_needed(pending_dl, pending_ul)
         except Exception as e:
             # Unexpected exception during router communication
             failure_type = self.router_connectivity.record_failure(e)
@@ -1908,9 +1927,30 @@ def main() -> int | None:
             # Update health check endpoint with current failure count
             update_health_status(consecutive_failures)
 
-            # Notify systemd watchdog ONLY if healthy
+            # Determine if failure is router-only (daemon healthy, router down)
+            router_only_failure = False
+            if not cycle_success:
+                all_routers_unreachable = all(
+                    not wan_info["controller"].router_connectivity.is_reachable
+                    for wan_info in controller.wan_controllers
+                )
+                any_auth_failure = any(
+                    wan_info["controller"].router_connectivity.last_failure_type
+                    == "auth_failure"
+                    for wan_info in controller.wan_controllers
+                )
+                router_only_failure = all_routers_unreachable and not any_auth_failure
+
+            # Notify systemd watchdog with router failure distinction (ERRR-04)
             if watchdog_enabled and cycle_success:
                 notify_watchdog()
+            elif watchdog_enabled and router_only_failure:
+                notify_watchdog()
+                for wan_info in controller.wan_controllers:
+                    wan_info["logger"].info(
+                        f"Router unreachable ({consecutive_failures} cycles), "
+                        f"watchdog continues"
+                    )
             elif not watchdog_enabled:
                 notify_degraded(f"{consecutive_failures} consecutive failures")
 
