@@ -3337,3 +3337,250 @@ thresholds: {}
         # Daemon loop should NOT be called in reset mode
         mock_loop.assert_not_called()
         assert result == 0
+
+
+# =============================================================================
+# TestRouterConnectivityTracking - Tests for router connectivity state tracking
+# =============================================================================
+
+
+class TestRouterConnectivityTrackingSteeringDaemon:
+    """Tests for RouterConnectivityState integration in SteeringDaemon.
+
+    Tests for:
+    - SteeringDaemon has router_connectivity attribute initialized
+    - Success recorded on successful CAKE stats collection
+    - Failure recorded on router error with type classification
+    - Success recorded on successful steering transitions
+    - State machine preserved across reconnection
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for SteeringDaemon."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 15
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.data = {}
+        return config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager with dict-based state."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.enable_steering.return_value = True
+        router.disable_steering.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_cake_reader(self):
+        """Create a mock CAKE stats reader."""
+        reader = MagicMock()
+        stats = MagicMock()
+        stats.dropped = 5
+        stats.queued_packets = 20
+        reader.read_stats.return_value = stats
+        return reader
+
+    @pytest.fixture
+    def daemon(self, mock_config, mock_state_mgr, mock_router, mock_logger, mock_cake_reader):
+        """Create a SteeringDaemon with mocked dependencies."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader") as mock_reader_class:
+            mock_reader_class.return_value = mock_cake_reader
+            with patch("wanctl.steering.daemon.get_storage_config", return_value={}):
+                daemon = SteeringDaemon(
+                    config=mock_config,
+                    state=mock_state_mgr,
+                    router=mock_router,
+                    rtt_measurement=MagicMock(),
+                    baseline_loader=MagicMock(),
+                    logger=mock_logger,
+                )
+        return daemon
+
+    # =========================================================================
+    # Initialization tests
+    # =========================================================================
+
+    def test_steering_daemon_has_router_connectivity_state(self, daemon):
+        """SteeringDaemon should have router_connectivity attribute."""
+        assert hasattr(daemon, "router_connectivity")
+        assert daemon.router_connectivity is not None
+        assert daemon.router_connectivity.consecutive_failures == 0
+        assert daemon.router_connectivity.is_reachable is True
+
+    # =========================================================================
+    # CAKE stats collection tests
+    # =========================================================================
+
+    def test_steering_daemon_records_success_on_cake_stats(
+        self, daemon, mock_cake_reader
+    ):
+        """Successful CAKE stats read should record connectivity success."""
+        mock_cake_reader.read_stats.return_value.dropped = 10
+        mock_cake_reader.read_stats.return_value.queued_packets = 50
+
+        daemon.collect_cake_stats()
+
+        assert daemon.router_connectivity.consecutive_failures == 0
+        assert daemon.router_connectivity.is_reachable is True
+
+    def test_steering_daemon_records_failure_on_cake_stats_exception(
+        self, daemon, mock_cake_reader, mock_logger
+    ):
+        """Exception during CAKE stats read should record connectivity failure."""
+        mock_cake_reader.read_stats.side_effect = ConnectionRefusedError("refused")
+
+        daemon.collect_cake_stats()
+
+        assert daemon.router_connectivity.consecutive_failures == 1
+        assert daemon.router_connectivity.is_reachable is False
+        assert daemon.router_connectivity.last_failure_type == "connection_refused"
+
+    def test_steering_daemon_logs_on_first_cake_stats_failure(
+        self, daemon, mock_cake_reader, mock_logger
+    ):
+        """First CAKE stats failure should log warning."""
+        mock_cake_reader.read_stats.side_effect = TimeoutError("timed out")
+
+        daemon.collect_cake_stats()
+
+        # Check for warning about router communication failure
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("Router communication failed" in call for call in warning_calls)
+
+    # =========================================================================
+    # Steering transition tests
+    # =========================================================================
+
+    def test_steering_daemon_records_success_on_transition(self, daemon, mock_router):
+        """Successful steering transition should record connectivity success."""
+        mock_router.enable_steering.return_value = True
+
+        result = daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        assert result is True
+        assert daemon.router_connectivity.consecutive_failures == 0
+        assert daemon.router_connectivity.is_reachable is True
+
+    def test_steering_daemon_records_failure_on_transition_error(
+        self, daemon, mock_router
+    ):
+        """Failed steering transition should record connectivity failure."""
+        mock_router.enable_steering.return_value = False
+
+        result = daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        assert result is False
+        assert daemon.router_connectivity.consecutive_failures == 1
+        assert daemon.router_connectivity.is_reachable is False
+
+    def test_steering_daemon_records_failure_on_transition_exception(
+        self, daemon, mock_router, mock_logger
+    ):
+        """Exception during steering transition should record connectivity failure."""
+        mock_router.enable_steering.side_effect = ConnectionRefusedError("refused")
+
+        result = daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        assert result is False
+        assert daemon.router_connectivity.consecutive_failures == 1
+        assert daemon.router_connectivity.last_failure_type == "connection_refused"
+
+    # =========================================================================
+    # State preservation tests
+    # =========================================================================
+
+    def test_steering_daemon_preserves_state_across_reconnection(
+        self, daemon, mock_router, mock_state_mgr
+    ):
+        """State machine values should be preserved across reconnection."""
+        # Set initial state values
+        mock_state_mgr.state["rtt_delta_ewma"] = 10.5
+        mock_state_mgr.state["queue_ewma"] = 25.0
+        mock_state_mgr.state["red_count"] = 1
+
+        # Simulate previous failures
+        daemon.router_connectivity.consecutive_failures = 3
+        daemon.router_connectivity.is_reachable = False
+
+        # Successful transition (reconnection)
+        mock_router.enable_steering.return_value = True
+        daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        # State values should NOT have been reset
+        assert mock_state_mgr.state["rtt_delta_ewma"] == 10.5
+        assert mock_state_mgr.state["queue_ewma"] == 25.0
+        # Reconnection should have occurred
+        assert daemon.router_connectivity.consecutive_failures == 0
+
+    def test_steering_daemon_reconnection_logged(
+        self, daemon, mock_router, mock_logger, mock_cake_reader
+    ):
+        """Reconnection after failures should be logged."""
+        # Simulate previous failures
+        daemon.router_connectivity.consecutive_failures = 3
+        daemon.router_connectivity.is_reachable = False
+
+        # Successful CAKE read (reconnection)
+        mock_cake_reader.read_stats.return_value.dropped = 5
+        mock_cake_reader.read_stats.return_value.queued_packets = 20
+        daemon.collect_cake_stats()
+
+        # Check for reconnection log message
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("reconnected" in call.lower() for call in info_calls)
+        assert daemon.router_connectivity.consecutive_failures == 0
