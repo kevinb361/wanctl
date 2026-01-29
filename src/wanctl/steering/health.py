@@ -111,16 +111,16 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         - confidence: primary (when enabled)
         - errors: consecutive_failures, cake_read_failures
         - thresholds: config values
+        - router_connectivity: router reachability state
         - pid: process ID
         """
         uptime = time.monotonic() - self.start_time if self.start_time else 0
 
-        # Determine overall health status
-        # Healthy if consecutive failures < threshold
-        is_healthy = self.consecutive_failures < 3
+        # Default: assume router reachable (startup or no daemon)
+        router_reachable = True
 
         health: dict[str, Any] = {
-            "status": "healthy" if is_healthy else "degraded",
+            "status": "healthy",  # Will be updated below
             "uptime_seconds": round(uptime, 1),
             "version": __version__,
         }
@@ -205,8 +205,20 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 "green_samples_required": self.daemon.config.green_samples_required,
             }
 
+            # Router connectivity state
+            router_reachable = self.daemon.router_connectivity.is_reachable
+            health["router_connectivity"] = self.daemon.router_connectivity.to_dict()
+
             # System info
             health["pid"] = os.getpid()
+
+        # Top-level router reachability
+        health["router_reachable"] = router_reachable
+
+        # Determine overall health status
+        # Healthy if consecutive failures < threshold AND router reachable
+        is_healthy = self.consecutive_failures < 3 and router_reachable
+        health["status"] = "healthy" if is_healthy else "degraded"
 
         return health
 

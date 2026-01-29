@@ -256,6 +256,14 @@ class TestSteeringHealthResponseFields:
             "cake_read_failures": 0,
             "last_transition_time": time.monotonic() - 60,  # 60s ago
         }
+        # Router connectivity state
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
         return daemon
 
     def test_steering_enabled_false_when_good(self, mock_daemon):
@@ -505,6 +513,14 @@ class TestSteeringHealthLifecycle:
             "good_count": 5,
             "cake_read_failures": 0,
             "last_transition_time": time.monotonic() - 60,
+        }
+        # Router connectivity state
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
         }
         return daemon
 
