@@ -77,9 +77,8 @@ None.
 
 ### Pending Todos
 
-4 todos remaining in `.planning/todos/pending/`:
+3 todos remaining in `.planning/todos/pending/`:
 
-- Add metrics history feature (observability) - COMPLETE (Phase 38-41)
 - Integration test for router communication (testing)
 - Graceful shutdown behavior review (core)
 - Error recovery scenario testing (reliability) - PARTIALLY ADDRESSED by 35-03
