@@ -16,19 +16,11 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-# Support both package install and flat deployment
-try:
-    from wanctl.storage.downsampler import downsample_metrics
-    from wanctl.storage.retention import (
-        DEFAULT_RETENTION_DAYS,
-        cleanup_old_metrics,
-    )
-except ImportError:
-    from storage.downsampler import downsample_metrics
-    from storage.retention import (
-        DEFAULT_RETENTION_DAYS,
-        cleanup_old_metrics,
-    )
+from wanctl.storage.downsampler import downsample_metrics
+from wanctl.storage.retention import (
+    DEFAULT_RETENTION_DAYS,
+    cleanup_old_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
