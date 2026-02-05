@@ -3,6 +3,10 @@ Description=wanctl Adaptive CAKE Autorate Daemon - %i
 Documentation=https://github.com/kevinb361/wanctl
 After=network-online.target
 Wants=network-online.target
+# Circuit breaker: stop restarting after 5 failures in 5 minutes
+# Manual recovery: systemctl reset-failed wanctl@<instance> && systemctl start wanctl@<instance>
+StartLimitBurst=5
+StartLimitIntervalSec=300
 
 [Service]
 Type=simple
@@ -18,10 +22,6 @@ Restart=on-failure
 RestartSec=5s
 # Watchdog: daemon pings every cycle, 30s timeout
 WatchdogSec=30s
-# Circuit breaker: stop restarting after 5 failures in 5 minutes
-# Manual recovery: systemctl reset-failed wanctl@<instance> && systemctl start wanctl@<instance>
-StartLimitBurst=5
-StartLimitIntervalSec=300
 
 # Environment
 Environment=PYTHONPATH=/opt

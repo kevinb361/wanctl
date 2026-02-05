@@ -61,6 +61,8 @@ CORE_FILES=(
     "src/wanctl/baseline_rtt_manager.py"
     "src/wanctl/wan_controller_state.py"
     "src/wanctl/history.py"
+    "src/wanctl/pending_rates.py"
+    "src/wanctl/router_connectivity.py"
 )
 
 # Storage module files (v1.7 metrics history)
@@ -600,6 +602,18 @@ if [[ -f "$PROJECT_ROOT/scripts/validate-deployment.sh" ]]; then
     print_success "Validation script deployed"
 else
     print_warning "Validation script not found: scripts/validate-deployment.sh"
+fi
+
+# Deploy wanctl-history CLI tool
+print_step "Deploying wanctl-history CLI..."
+if [[ -f "$PROJECT_ROOT/scripts/wanctl-history" ]]; then
+    scp "$PROJECT_ROOT/scripts/wanctl-history" "$TARGET_HOST:/tmp/wanctl-history"
+    ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-history $TARGET_CODE_DIR/scripts/wanctl-history && sudo chmod 755 $TARGET_CODE_DIR/scripts/wanctl-history"
+    # Create symlink in /usr/local/bin for easy access
+    ssh "$TARGET_HOST" "sudo ln -sf $TARGET_CODE_DIR/scripts/wanctl-history /usr/local/bin/wanctl-history"
+    print_success "wanctl-history CLI deployed (available as 'wanctl-history' command)"
+else
+    print_warning "wanctl-history not found: scripts/wanctl-history"
 fi
 
 # Run pre-startup validation
