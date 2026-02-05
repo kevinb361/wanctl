@@ -78,6 +78,9 @@ DEFAULT_BASELINE_UPDATE_THRESHOLD_MS = 3.0
 # takes ~80 cycles = 4 seconds
 CYCLE_INTERVAL_SECONDS = 0.05
 
+# Periodic maintenance interval (seconds) - cleanup/downsample/vacuum every hour
+MAINTENANCE_INTERVAL = 3600
+
 # Default bloat thresholds (milliseconds)
 DEFAULT_HARD_RED_BLOAT_MS = 80  # SOFT_RED -> RED transition threshold
 
@@ -1789,18 +1792,24 @@ def main() -> int | None:
     first_config = controller.wan_controllers[0]["config"]
     storage_config = get_storage_config(first_config.data)
     db_path = storage_config.get("db_path")
+    maintenance_conn = None  # Set if storage enabled, used for periodic maintenance
+    maintenance_retention_days = storage_config.get("retention_days", 7)
     # Only record snapshot if db_path is a valid string (not MagicMock in tests)
     if db_path and isinstance(db_path, str):
         from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
 
         writer = MetricsWriter(Path(db_path))
+        maintenance_conn = writer.connection
         record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
 
         # Run startup maintenance (cleanup + downsampling)
+        # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
         maint_result = run_startup_maintenance(
-            writer.connection,
-            retention_days=storage_config.get("retention_days", 7),
+            maintenance_conn,
+            retention_days=maintenance_retention_days,
             log=controller.wan_controllers[0]["logger"],
+            watchdog_fn=notify_watchdog,
+            max_seconds=20,
         )
         if maint_result.get("error"):
             controller.wan_controllers[0]["logger"].warning(
@@ -1855,6 +1864,7 @@ def main() -> int | None:
     watchdog_enabled = True
     health_server = None
     metrics_server = None
+    last_maintenance = time.monotonic()
 
     # Start metrics server if enabled (use first WAN's config for settings)
     first_config = controller.wan_controllers[0]["config"]
@@ -1953,6 +1963,41 @@ def main() -> int | None:
                     )
             elif not watchdog_enabled:
                 notify_degraded(f"{consecutive_failures} consecutive failures")
+
+            # Periodic maintenance: cleanup + downsample + vacuum every hour
+            if maintenance_conn is not None:
+                now = time.monotonic()
+                if now - last_maintenance >= MAINTENANCE_INTERVAL:
+                    maint_logger = controller.wan_controllers[0]["logger"]
+                    try:
+                        from wanctl.storage.downsampler import downsample_metrics
+                        from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
+
+                        deleted = cleanup_old_metrics(
+                            maintenance_conn,
+                            maintenance_retention_days,
+                            watchdog_fn=notify_watchdog,
+                        )
+                        notify_watchdog()
+
+                        downsampled = downsample_metrics(maintenance_conn)
+                        notify_watchdog()
+
+                        vacuumed = vacuum_if_needed(maintenance_conn, deleted)
+                        notify_watchdog()
+
+                        total_ds = sum(downsampled.values())
+                        if deleted > 0 or total_ds > 0 or vacuumed:
+                            maint_logger.info(
+                                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s",
+                                deleted,
+                                total_ds,
+                                vacuumed,
+                            )
+                    except Exception as e:
+                        maint_logger.error("Periodic maintenance failed: %s", e)
+
+                    last_maintenance = now
 
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)

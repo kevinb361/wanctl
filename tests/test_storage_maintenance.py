@@ -78,19 +78,18 @@ class TestRunStartupMaintenance:
         assert "downsampling" in result
         assert result["downsampling"].get("raw->1m", 0) >= 1
 
-    def test_calls_vacuum_when_needed(self, test_db):
-        """Test that vacuum_if_needed is called with deleted count."""
-        with patch("wanctl.storage.maintenance.vacuum_if_needed") as mock_vacuum:
-            mock_vacuum.return_value = True
-            # Insert old data
-            insert_test_metrics(test_db, 100, days_old=10)
+    def test_vacuum_skipped_at_startup(self, test_db):
+        """Test that VACUUM is not called at startup (deferred to periodic)."""
+        # Insert old data to trigger cleanup
+        insert_test_metrics(test_db, 100, days_old=10)
 
-            run_startup_maintenance(test_db, retention_days=7)
+        # VACUUM is intentionally skipped at startup because it's
+        # uninterruptible and can exceed the watchdog timeout
+        with patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=200000):
+            result = run_startup_maintenance(test_db, retention_days=7)
 
-            # vacuum_if_needed should have been called with deleted count
-            mock_vacuum.assert_called_once()
-            args = mock_vacuum.call_args[0]
-            assert args[1] == 100  # deleted count
+        # No 'vacuumed' key in result (VACUUM deferred to periodic maintenance)
+        assert "vacuumed" not in result
 
     def test_returns_result_dict(self, test_db):
         """Test return dict structure."""
@@ -98,11 +97,9 @@ class TestRunStartupMaintenance:
 
         assert "cleanup_deleted" in result
         assert "downsampling" in result
-        assert "vacuumed" in result
         assert "error" in result
         assert isinstance(result["cleanup_deleted"], int)
         assert isinstance(result["downsampling"], dict)
-        assert isinstance(result["vacuumed"], bool)
 
     def test_handles_errors_gracefully(self, test_db):
         """Test errors are logged but not raised."""
@@ -207,6 +204,65 @@ class TestMaintenanceIntegration:
         result = run_startup_maintenance(test_db)
 
         assert result["cleanup_deleted"] == 0
-        assert result["vacuumed"] is False
         assert result["error"] is None
         assert all(v == 0 for v in result["downsampling"].values())
+
+
+class TestStartupMaintenanceWatchdog:
+    """Tests for watchdog-aware startup maintenance."""
+
+    def test_watchdog_fn_called_between_steps(self, test_db):
+        """Test watchdog callback is called between cleanup and downsample."""
+        watchdog = MagicMock()
+        # Insert old data to trigger cleanup
+        insert_test_metrics(test_db, 100, days_old=10)
+
+        result = run_startup_maintenance(
+            test_db, retention_days=7, watchdog_fn=watchdog
+        )
+
+        assert result["cleanup_deleted"] == 100
+        # Called: between batches in cleanup + after cleanup + after downsample
+        assert watchdog.call_count >= 2
+
+    def test_watchdog_fn_called_even_with_no_work(self, test_db):
+        """Test watchdog is called even when no cleanup/downsample needed."""
+        watchdog = MagicMock()
+
+        result = run_startup_maintenance(test_db, watchdog_fn=watchdog)
+
+        assert result["error"] is None
+        # Still called after cleanup step and after downsample step
+        assert watchdog.call_count >= 2
+
+    def test_max_seconds_passed_to_cleanup(self, test_db):
+        """Test time budget is forwarded to cleanup_old_metrics."""
+        with patch("wanctl.storage.maintenance.cleanup_old_metrics") as mock_cleanup:
+            mock_cleanup.return_value = 0
+
+            run_startup_maintenance(test_db, max_seconds=15)
+
+            mock_cleanup.assert_called_once()
+            _, kwargs = mock_cleanup.call_args
+            assert kwargs.get("max_seconds") == 15
+
+    def test_watchdog_fn_passed_to_cleanup(self, test_db):
+        """Test watchdog callback is forwarded to cleanup_old_metrics."""
+        watchdog = MagicMock()
+        with patch("wanctl.storage.maintenance.cleanup_old_metrics") as mock_cleanup:
+            mock_cleanup.return_value = 0
+
+            run_startup_maintenance(test_db, watchdog_fn=watchdog)
+
+            mock_cleanup.assert_called_once()
+            _, kwargs = mock_cleanup.call_args
+            assert kwargs.get("watchdog_fn") is watchdog
+
+    def test_watchdog_fn_none_is_safe(self, test_db):
+        """Test that watchdog_fn=None (default) doesn't cause errors."""
+        insert_test_metrics(test_db, 50, days_old=10)
+
+        result = run_startup_maintenance(test_db, retention_days=7, watchdog_fn=None)
+
+        assert result["error"] is None
+        assert result["cleanup_deleted"] == 50

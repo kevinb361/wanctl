@@ -3,6 +3,7 @@
 import sqlite3
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -249,3 +250,81 @@ class TestRetentionIntegration:
         # Third cycle - no old data
         deleted3 = cleanup_old_metrics(test_db, retention_days=7)
         assert deleted3 == 0
+
+
+class TestCleanupWatchdogSupport:
+    """Tests for watchdog callback and time budget in cleanup_old_metrics."""
+
+    def test_watchdog_fn_called_between_batches(self, test_db):
+        """Test watchdog callback is called between batch deletions."""
+        watchdog = MagicMock()
+        # Insert enough rows for 3 batches of 50
+        insert_test_metrics(test_db, 150, days_old=10)
+
+        deleted = cleanup_old_metrics(
+            test_db, retention_days=7, batch_size=50, watchdog_fn=watchdog
+        )
+
+        assert deleted == 150
+        # Called after each batch (3 full batches + 1 final empty batch)
+        assert watchdog.call_count == 4
+
+    def test_watchdog_fn_called_even_for_empty_db(self, test_db):
+        """Test watchdog is called once even when no rows to delete."""
+        watchdog = MagicMock()
+
+        deleted = cleanup_old_metrics(test_db, retention_days=7, watchdog_fn=watchdog)
+
+        assert deleted == 0
+        # One batch attempt (empty), still pings watchdog
+        assert watchdog.call_count == 1
+
+    def test_watchdog_fn_none_is_safe(self, test_db):
+        """Test that watchdog_fn=None (default) doesn't cause errors."""
+        insert_test_metrics(test_db, 100, days_old=10)
+
+        deleted = cleanup_old_metrics(test_db, retention_days=7, watchdog_fn=None)
+
+        assert deleted == 100
+
+    def test_max_seconds_causes_early_bailout(self, test_db):
+        """Test that cleanup bails out when time budget is exceeded."""
+        # Insert many rows
+        insert_test_metrics(test_db, 500, days_old=10)
+
+        # Use an already-expired budget (0 seconds)
+        deleted = cleanup_old_metrics(
+            test_db, retention_days=7, batch_size=50, max_seconds=0
+        )
+
+        # Should bail immediately without deleting anything
+        assert deleted == 0
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics")
+        assert cursor.fetchone()[0] == 500
+
+    def test_max_seconds_none_runs_to_completion(self, test_db):
+        """Test that max_seconds=None (default) runs full cleanup."""
+        insert_test_metrics(test_db, 200, days_old=10)
+
+        deleted = cleanup_old_metrics(
+            test_db, retention_days=7, batch_size=50, max_seconds=None
+        )
+
+        assert deleted == 200
+
+    def test_watchdog_and_budget_together(self, test_db):
+        """Test watchdog callback works alongside time budget."""
+        watchdog = MagicMock()
+        insert_test_metrics(test_db, 100, days_old=10)
+
+        # Large budget so it completes
+        deleted = cleanup_old_metrics(
+            test_db,
+            retention_days=7,
+            batch_size=50,
+            watchdog_fn=watchdog,
+            max_seconds=60,
+        )
+
+        assert deleted == 100
+        assert watchdog.call_count >= 2  # At least 2 batches + final
