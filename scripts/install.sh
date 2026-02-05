@@ -268,6 +268,7 @@ install_dependencies() {
 
     # Check for required system tools
     local missing_sys=()
+    command -v rsync &>/dev/null || missing_sys+=("rsync")
     command -v bc &>/dev/null || missing_sys+=("bc")
 
     # Install missing packages

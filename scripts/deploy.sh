@@ -29,73 +29,8 @@ TARGET_CODE_DIR="/opt/wanctl"
 TARGET_CONFIG_DIR="/etc/wanctl"
 TARGET_SYSTEMD_DIR="/etc/systemd/system"
 
-# Core files to deploy (always needed)
-# Updated for v1.1: removed consolidated modules (lockfile, ping_utils, rate_limiter)
-# Added new v1.1 modules (signal_utils, systemd_utils, wan_controller_state)
-CORE_FILES=(
-    "src/wanctl/__init__.py"
-    "src/wanctl/autorate_continuous.py"
-    "src/wanctl/calibrate.py"
-    "src/wanctl/config_base.py"
-    "src/wanctl/config_validation_utils.py"
-    "src/wanctl/error_handling.py"
-    "src/wanctl/health_check.py"
-    "src/wanctl/lock_utils.py"
-    "src/wanctl/logging_utils.py"
-    "src/wanctl/metrics.py"
-    "src/wanctl/path_utils.py"
-    "src/wanctl/perf_profiler.py"
-    "src/wanctl/rate_utils.py"
-    "src/wanctl/retry_utils.py"
-    "src/wanctl/router_client.py"
-    "src/wanctl/router_command_utils.py"
-    "src/wanctl/routeros_ssh.py"
-    "src/wanctl/routeros_rest.py"
-    "src/wanctl/rtt_measurement.py"
-    "src/wanctl/signal_utils.py"
-    "src/wanctl/state_manager.py"
-    "src/wanctl/state_utils.py"
-    "src/wanctl/steering_logger.py"
-    "src/wanctl/systemd_utils.py"
-    "src/wanctl/timeouts.py"
-    "src/wanctl/baseline_rtt_manager.py"
-    "src/wanctl/wan_controller_state.py"
-    "src/wanctl/history.py"
-    "src/wanctl/pending_rates.py"
-    "src/wanctl/router_connectivity.py"
-)
-
-# Storage module files (v1.7 metrics history)
-STORAGE_FILES=(
-    "src/wanctl/storage/__init__.py"
-    "src/wanctl/storage/schema.py"
-    "src/wanctl/storage/writer.py"
-    "src/wanctl/storage/reader.py"
-    "src/wanctl/storage/retention.py"
-    "src/wanctl/storage/downsampler.py"
-    "src/wanctl/storage/config_snapshot.py"
-    "src/wanctl/storage/maintenance.py"
-)
-
-# Backend files (router abstraction)
-BACKEND_FILES=(
-    "src/wanctl/backends/__init__.py"
-    "src/wanctl/backends/base.py"
-    "src/wanctl/backends/routeros.py"
-)
-
-# Steering module files (optional - for multi-WAN setups)
-STEERING_MODULE_FILES=(
-    "src/wanctl/steering/__init__.py"
-    "src/wanctl/steering/daemon.py"
-    "src/wanctl/steering/cake_stats.py"
-    "src/wanctl/steering/congestion_assessment.py"
-    "src/wanctl/steering/steering_confidence.py"
-    "src/wanctl/steering/health.py"
-)
-
-# Legacy steering files removed in v1.1 (consolidated into steering/ module)
-STEERING_FILES=()
+# NOTE: Python code deployment uses rsync (see deploy_code function).
+# No file lists needed — rsync syncs the entire src/wanctl/ tree.
 
 # Profiling and analysis scripts (optional, for data collection and analysis)
 PROFILING_SCRIPTS=(
@@ -169,10 +104,22 @@ check_prerequisites() {
         exit 1
     fi
 
+    # Check rsync is available locally
+    if ! command -v rsync &>/dev/null; then
+        print_error "rsync not found locally — install with: sudo apt-get install rsync"
+        exit 1
+    fi
+
     # Check SSH connectivity
     if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$TARGET_HOST" 'echo ok' &>/dev/null; then
         print_error "Cannot connect to $TARGET_HOST via SSH"
         print_warning "Ensure SSH key authentication is configured"
+        exit 1
+    fi
+
+    # Check rsync is available on target
+    if ! ssh "$TARGET_HOST" 'command -v rsync' &>/dev/null; then
+        print_error "rsync not found on $TARGET_HOST — install with: sudo apt-get install rsync"
         exit 1
     fi
 
@@ -191,87 +138,31 @@ run_remote_install() {
     print_success "Remote installation complete"
 }
 
-deploy_core_files() {
-    print_step "Deploying core files to $TARGET_HOST..."
+deploy_code() {
+    print_step "Deploying wanctl code to $TARGET_HOST..."
 
     cd "$PROJECT_ROOT"
 
-    # Deploy main Python files
-    for file in "${CORE_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-            local basename=$(basename "$file")
-            ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR"
-            scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/$basename && sudo chown root:root $TARGET_CODE_DIR/$basename && sudo chmod 644 $TARGET_CODE_DIR/$basename"
-            echo "  -> $basename"
-        else
-            print_warning "File not found: $file"
-        fi
-    done
+    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR"
 
-    # Deploy backends module
-    print_step "Deploying backends module..."
-    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR/backends"
-    for file in "${BACKEND_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-            local basename=$(basename "$file")
-            scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/backends/$basename && sudo chown root:root $TARGET_CODE_DIR/backends/$basename && sudo chmod 644 $TARGET_CODE_DIR/backends/$basename"
-            echo "  -> backends/$basename"
-        else
-            print_warning "File not found: $file"
-        fi
-    done
+    local rsync_opts="-av --delete"
+    rsync_opts+=" --exclude=__pycache__ --exclude=*.pyc"
+    rsync_opts+=" --rsync-path='sudo rsync'"
+    rsync_opts+=" --chmod=F644,D755 --chown=root:root"
 
-    # Deploy storage module (v1.7 metrics history)
-    print_step "Deploying storage module..."
-    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR/storage"
-    for file in "${STORAGE_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-            local basename=$(basename "$file")
-            scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/storage/$basename && sudo chown root:root $TARGET_CODE_DIR/storage/$basename && sudo chmod 644 $TARGET_CODE_DIR/storage/$basename"
-            echo "  -> storage/$basename"
-        else
-            print_warning "File not found: $file"
-        fi
-    done
+    if [[ "$DRY_RUN" == "true" ]]; then
+        rsync_opts+=" -n"
+    fi
 
-    print_success "Core files deployed"
-}
+    eval rsync $rsync_opts "src/wanctl/" "$TARGET_HOST:$TARGET_CODE_DIR/"
 
-deploy_steering_files() {
-    print_step "Deploying steering module..."
-
-    cd "$PROJECT_ROOT"
-
-    # Create steering module directory
-    ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR/steering"
-
-    # Deploy new modular steering files
-    for file in "${STEERING_MODULE_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-            local basename=$(basename "$file")
-            scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/steering/$basename && sudo chown root:root $TARGET_CODE_DIR/steering/$basename"
-            echo "  -> steering/$basename"
-        else
-            print_warning "File not found: $file"
-        fi
-    done
-
-    # Also deploy legacy steering files for backward compatibility
-    print_step "Deploying legacy steering files (backward compat)..."
-    for file in "${STEERING_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-            local basename=$(basename "$file")
-            scp "$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_CODE_DIR/$basename && sudo chown root:root $TARGET_CODE_DIR/$basename"
-            echo "  -> $basename"
-        fi
-    done
-
-    print_success "Steering module deployed"
+    local file_count
+    file_count=$(find src/wanctl -name '*.py' | wc -l)
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_success "Dry run complete ($file_count Python files in source)"
+    else
+        print_success "Code deployed ($file_count Python files)"
+    fi
 }
 
 deploy_config() {
@@ -401,7 +292,20 @@ verify_deployment() {
 
     local errors=0
 
-    # Check core files
+    # Compare Python file counts (source vs deployed)
+    local source_count
+    source_count=$(find "$PROJECT_ROOT/src/wanctl" -name '*.py' | wc -l)
+    local deployed_count
+    deployed_count=$(ssh "$TARGET_HOST" "find $TARGET_CODE_DIR -name '*.py' | wc -l")
+
+    if [[ "$source_count" -eq "$deployed_count" ]]; then
+        print_success "File count matches: $deployed_count Python files"
+    else
+        print_error "File count mismatch: $source_count source vs $deployed_count deployed"
+        ((errors++))
+    fi
+
+    # Check core entry point exists
     if ssh "$TARGET_HOST" "test -f $TARGET_CODE_DIR/autorate_continuous.py"; then
         print_success "Core script present"
     else
@@ -565,30 +469,31 @@ echo ""
 if [[ "$DRY_RUN" == "true" ]]; then
     print_warning "DRY RUN - no changes will be made"
     echo ""
-    echo "Would deploy:"
-    echo "  - Core files to $TARGET_CODE_DIR/"
-    echo "  - Config to $TARGET_CONFIG_DIR/${WAN_NAME}.yaml"
-    echo "  - Systemd templates to $TARGET_SYSTEMD_DIR/"
-    [[ "$WITH_STEERING" == "true" ]] && echo "  - Steering daemon and config"
-    exit 0
 fi
 
 check_prerequisites
 
-# Check if install.sh has been run
-if ! ssh "$TARGET_HOST" "id wanctl" &>/dev/null; then
-    print_warning "wanctl user not found on target - running install.sh first"
-    run_remote_install
+# Check if install.sh has been run (skip for dry-run)
+if [[ "$DRY_RUN" != "true" ]]; then
+    if ! ssh "$TARGET_HOST" "id wanctl" &>/dev/null; then
+        print_warning "wanctl user not found on target - running install.sh first"
+        run_remote_install
+    fi
 fi
 
-deploy_core_files
+deploy_code
+
+# Dry-run only exercises rsync — skip the rest
+if [[ "$DRY_RUN" == "true" ]]; then
+    exit 0
+fi
+
 deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_docs
 deploy_systemd
 
 if [[ "$WITH_STEERING" == "true" ]]; then
-    deploy_steering_files
     deploy_steering_systemd
 fi
 
