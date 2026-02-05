@@ -117,12 +117,16 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.7.0 (Metrics History Release)
+**Current:** v1.8.0 (Watchdog-Safe Startup & Periodic Maintenance)
 
-- SQLite metrics storage with automatic downsampling
-- `wanctl-history` CLI for querying historical data
-- `/metrics/history` HTTP API endpoint
+- Watchdog-safe startup maintenance (time budget, VACUUM deferred)
+- Hourly periodic maintenance (cleanup, downsample, VACUUM)
+- systemd circuit breaker (StartLimitBurst=5, StartLimitIntervalSec=300s)
 - 1727 unit tests passing, 90%+ coverage
+
+## Circuit Breaker Policy
+
+**Startup failure recovery:** If wanctl fails 5 times in 5 minutes, systemd stops auto-restart. Manual recovery required: `systemctl reset-failed wanctl@spectrum && systemctl start wanctl@spectrum`
 
 ## Performance Characteristics
 
@@ -130,6 +134,8 @@ None currently. See `CHANGELOG.md` for resolved issues.
 **Congestion Response:** 50-100ms detection time (sub-second)
 **Router Impact:** 0% CPU at idle, 45% peak under load (MikroTik RB5009)
 **Utilization:** 60-80% (30-40ms execution per 50ms cycle)
+**Startup Maintenance:** <20s (watchdog-safe, time-budgeted cleanup + downsampling)
+**Periodic Maintenance:** Hourly (cleanup + downsample + VACUUM), respects watchdog
 
 See `docs/PRODUCTION_INTERVAL.md` for complete performance analysis, validation results, and rollback procedures.
 

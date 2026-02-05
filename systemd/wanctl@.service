@@ -16,8 +16,12 @@ ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanc
 # Daemon lifecycle
 Restart=on-failure
 RestartSec=5s
-# Watchdog: daemon pings every 2s cycle, 30s timeout gives 15x margin
+# Watchdog: daemon pings every cycle, 30s timeout
 WatchdogSec=30s
+# Circuit breaker: stop restarting after 5 failures in 5 minutes
+# Manual recovery: systemctl reset-failed wanctl@<instance> && systemctl start wanctl@<instance>
+StartLimitBurst=5
+StartLimitIntervalSec=300
 
 # Environment
 Environment=PYTHONPATH=/opt

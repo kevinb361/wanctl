@@ -8,6 +8,7 @@ optional VACUUM for space reclamation after large deletions.
 import logging
 import sqlite3
 import time
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ def cleanup_old_metrics(
     conn: sqlite3.Connection,
     retention_days: int = DEFAULT_RETENTION_DAYS,
     batch_size: int = BATCH_SIZE,
+    watchdog_fn: Callable[[], None] | None = None,
+    max_seconds: float | None = None,
 ) -> int:
     """Delete metrics older than retention period in batches.
 
@@ -32,21 +35,30 @@ def cleanup_old_metrics(
         conn: SQLite database connection
         retention_days: Number of days to retain data (default 7)
         batch_size: Rows to delete per transaction (default 10000)
+        watchdog_fn: Optional callback to ping between batches (e.g. systemd watchdog)
+        max_seconds: Optional time budget; bail out early if exceeded
 
     Returns:
-        Total number of rows deleted
-
-    Example:
-        >>> conn = sqlite3.connect("metrics.db")
-        >>> deleted = cleanup_old_metrics(conn, retention_days=7)
-        >>> print(f"Deleted {deleted} old metrics")
+        Total number of rows deleted (may be partial if max_seconds exceeded)
     """
     # Calculate cutoff timestamp (seconds since epoch)
     cutoff = int(time.time()) - (retention_days * 86400)
 
     total_deleted = 0
+    start_time = time.monotonic()
 
     while True:
+        # Check time budget before starting next batch
+        if max_seconds is not None:
+            elapsed = time.monotonic() - start_time
+            if elapsed >= max_seconds:
+                logger.info(
+                    "Retention cleanup: time budget %.1fs exceeded after %d rows, deferring rest",
+                    max_seconds,
+                    total_deleted,
+                )
+                break
+
         # Delete a batch using subquery with LIMIT
         # Using rowid for efficient deletion
         cursor = conn.execute(
@@ -67,6 +79,10 @@ def cleanup_old_metrics(
 
         if rows_deleted > 0:
             logger.debug("Deleted batch of %d old metrics", rows_deleted)
+
+        # Ping watchdog between batches to prevent timeout
+        if watchdog_fn is not None:
+            watchdog_fn()
 
         # If we deleted less than batch_size, we're done
         if rows_deleted < batch_size:
