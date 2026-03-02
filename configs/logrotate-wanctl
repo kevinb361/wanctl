@@ -1,0 +1,18 @@
+# Logrotate configuration for wanctl
+# Deploy to: /etc/logrotate.d/wanctl on cake-att and cake-spectrum
+#
+# Key choices:
+#   copytruncate - Python holds FDs open; rename-based rotation causes
+#                  the service to keep writing to the renamed (.1) file
+#   maxsize 200M - cap growth between daily rotations (debug logs at
+#                  50ms cycle can produce hundreds of MB/day)
+#   no delaycompress - compress immediately to save disk on small containers
+/var/log/wanctl/*.log {
+    daily
+    maxsize 200M
+    rotate 7
+    compress
+    copytruncate
+    missingok
+    notifempty
+}
