@@ -1980,7 +1980,7 @@ def main() -> int | None:
                         )
                         notify_watchdog()
 
-                        downsampled = downsample_metrics(maintenance_conn)
+                        downsampled = downsample_metrics(maintenance_conn, watchdog_fn=notify_watchdog)
                         notify_watchdog()
 
                         vacuumed = vacuum_if_needed(maintenance_conn, deleted)

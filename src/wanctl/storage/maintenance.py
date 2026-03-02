@@ -79,7 +79,7 @@ def run_startup_maintenance(
         # Deferred to periodic maintenance where pings continue between steps.
 
         # 3. Downsample metrics at each level
-        downsampling = downsample_metrics(conn)
+        downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
         result["downsampling"] = downsampling
 
         if watchdog_fn is not None:

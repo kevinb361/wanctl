@@ -3,6 +3,7 @@
 import sqlite3
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -401,3 +402,50 @@ class TestModeAggregationMetrics:
         """Test rate metrics are not in MODE set (use AVG)."""
         assert "wanctl_rate_download_mbps" not in MODE_AGGREGATION_METRICS
         assert "wanctl_rate_upload_mbps" not in MODE_AGGREGATION_METRICS
+
+
+class TestDownsampleWatchdogSupport:
+    """Tests for watchdog callback support in downsampler functions."""
+
+    def test_watchdog_fn_called_between_combinations(self, test_db):
+        """Test watchdog callback fires after each metric/wan combination."""
+        watchdog = MagicMock()
+        now = int(time.time())
+        start = align_to_bucket(now - 7200, 60)
+
+        # Insert data for 2 WANs x 1 metric = 2 combinations
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [10.0] * 60, start)
+        insert_metrics(test_db, "wanctl_rtt_ms", "att", [20.0] * 60, start)
+
+        cutoff = now - 3600
+        downsample_to_granularity(test_db, "raw", "1m", 60, cutoff, watchdog_fn=watchdog)
+
+        assert watchdog.call_count == 2  # Once per metric/wan combination
+
+    def test_watchdog_fn_called_between_levels(self, test_db):
+        """Test watchdog callback fires after each aggregation level."""
+        watchdog = MagicMock()
+        now = int(time.time())
+
+        # Insert raw data old enough to trigger raw->1m
+        start = align_to_bucket(now - 7200, 60)
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
+
+        downsample_metrics(test_db, watchdog_fn=watchdog)
+
+        # 3 levels (raw->1m, 1m->5m, 5m->1h) = 3 between-level pings
+        # Plus 1 within-level ping for the raw->1m combination
+        assert watchdog.call_count >= 3
+
+    def test_watchdog_fn_none_is_safe(self, test_db):
+        """Test that watchdog_fn=None (default) doesn't cause errors."""
+        now = int(time.time())
+        start = align_to_bucket(now - 7200, 60)
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
+
+        # Should not raise with watchdog_fn=None (default)
+        rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
+        assert rows == 1
+
+        results = downsample_metrics(test_db)
+        assert isinstance(results, dict)

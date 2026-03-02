@@ -12,6 +12,7 @@ preserving appropriate detail for different time ranges:
 import logging
 import sqlite3
 import time
+from collections.abc import Callable
 from typing import Literal
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ def downsample_to_granularity(
     to_granularity: str,
     bucket_seconds: int,
     cutoff: int,
+    watchdog_fn: Callable[[], None] | None = None,
 ) -> int:
     """Downsample data from one granularity level to another.
 
@@ -132,6 +134,7 @@ def downsample_to_granularity(
         to_granularity: Target granularity (e.g., "1m")
         bucket_seconds: Time bucket size in seconds
         cutoff: Unix timestamp - data older than this will be downsampled
+        watchdog_fn: Optional callback to ping between metric/wan combinations
 
     Returns:
         Number of aggregated rows created
@@ -211,6 +214,9 @@ def downsample_to_granularity(
             (metric_name, wan_name, from_granularity, cutoff),
         )
 
+        if watchdog_fn is not None:
+            watchdog_fn()
+
     conn.commit()
 
     if rows_created > 0:
@@ -224,13 +230,17 @@ def downsample_to_granularity(
     return rows_created
 
 
-def downsample_metrics(conn: sqlite3.Connection) -> dict[str, int]:
+def downsample_metrics(
+    conn: sqlite3.Connection,
+    watchdog_fn: Callable[[], None] | None = None,
+) -> dict[str, int]:
     """Run all applicable downsampling based on current time.
 
     Processes each downsampling level in order (raw->1m->5m->1h).
 
     Args:
         conn: Database connection
+        watchdog_fn: Optional callback to ping between aggregation levels
 
     Returns:
         Dict mapping downsampling level to rows created, e.g.:
@@ -247,9 +257,13 @@ def downsample_metrics(conn: sqlite3.Connection) -> dict[str, int]:
             str(config["to_granularity"]),
             int(config["bucket_seconds"]),
             cutoff,
+            watchdog_fn=watchdog_fn,
         )
         # Convert name format from "raw_to_1m" to "raw->1m"
         key = name.replace("_to_", "->")
         results[key] = rows
+
+        if watchdog_fn is not None:
+            watchdog_fn()
 
     return results
