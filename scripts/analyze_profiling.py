@@ -49,14 +49,16 @@ def calculate_statistics(samples: List[float]) -> Dict[str, float]:
     sorted_samples = sorted(samples)
     count = len(sorted_samples)
 
+    p50_idx = int((50 / 100) * (count - 1))
     p95_idx = int((95 / 100) * (count - 1))
     p99_idx = int((99 / 100) * (count - 1))
 
     return {
         "count": count,
         "min_ms": min(sorted_samples),
-        "max_ms": max(sorted_samples),
+        "p50_ms": sorted_samples[p50_idx],
         "avg_ms": sum(sorted_samples) / count,
+        "max_ms": max(sorted_samples),
         "p95_ms": sorted_samples[p95_idx],
         "p99_ms": sorted_samples[p99_idx],
     }
@@ -109,13 +111,16 @@ def calculate_percentages(stats: Dict[str, Dict]) -> Dict[str, float]:
     return percentages
 
 
-def generate_markdown_report(stats: Dict[str, Dict], log_file: Path) -> str:
+def generate_markdown_report(
+    stats: Dict[str, Dict], log_file: Path, budget_ms: float = 50.0
+) -> str:
     """
     Generate markdown analysis report.
 
     Args:
         stats: Statistics dictionary
         log_file: Path to log file analyzed
+        budget_ms: Cycle budget in milliseconds for utilization calculations
 
     Returns:
         Markdown formatted report
@@ -126,35 +131,54 @@ def generate_markdown_report(stats: Dict[str, Dict], log_file: Path) -> str:
     lines.append("# Profiling Analysis Report\n")
     lines.append(f"**Generated:** {datetime.now().isoformat()}\n")
     lines.append(f"**Log file:** `{log_file}`\n")
+    lines.append(f"**Cycle budget:** {budget_ms:.1f}ms\n")
     lines.append(f"**Total subsystems profiled:** {len(stats)}\n")
 
     # Summary section
     lines.append("\n## Summary Statistics\n")
-    lines.append("| Subsystem | Count | Min (ms) | Avg (ms) | Max (ms) | P95 (ms) | P99 (ms) |")
-    lines.append("|-----------|-------|----------|----------|----------|----------|----------|")
+    lines.append(
+        "| Subsystem | Count | Min (ms) | P50 (ms) | Avg (ms) | Max (ms) "
+        "| P95 (ms) | P99 (ms) |"
+    )
+    lines.append(
+        "|-----------|-------|----------|----------|----------|----------|"
+        "----------|----------|"
+    )
 
     for label in sorted(stats.keys()):
         s = stats[label]
         lines.append(
             f"| `{label}` | {s['count']} | "
-            f"{s['min_ms']:.2f} | {s['avg_ms']:.2f} | {s['max_ms']:.2f} | "
-            f"{s['p95_ms']:.2f} | {s['p99_ms']:.2f} |"
+            f"{s['min_ms']:.2f} | {s['p50_ms']:.2f} | {s['avg_ms']:.2f} | "
+            f"{s['max_ms']:.2f} | {s['p95_ms']:.2f} | {s['p99_ms']:.2f} |"
         )
 
     # Cycle totals section
     steering_total, autorate_total = identify_cycle_totals(stats)
 
-    if steering_total:
-        lines.append("\n## Steering Cycle (2-second intervals)\n")
-        s = stats[steering_total]
-        lines.append(f"**Cycle Time:** {s['avg_ms']:.1f}ms average (min: {s['min_ms']:.1f}ms, max: {s['max_ms']:.1f}ms)")
-        lines.append(f"**Headroom:** {(2000 - s['avg_ms']):.0f}ms per cycle (assuming 2-second target)")
+    for cycle_label, section_name in [
+        (steering_total, "Steering"),
+        (autorate_total, "Autorate"),
+    ]:
+        if not cycle_label:
+            continue
+        s = stats[cycle_label]
+        utilization = (s["avg_ms"] / budget_ms) * 100
+        headroom = budget_ms - s["avg_ms"]
 
-    if autorate_total:
-        lines.append("\n## Autorate Cycle (10-minute intervals by default)\n")
-        s = stats[autorate_total]
-        lines.append(f"**Cycle Time:** {s['avg_ms']:.1f}ms average")
-        lines.append(f"**Note:** Timing less critical for autorate (runs every 10 minutes)")
+        lines.append(f"\n## {section_name} Cycle ({budget_ms:.0f}ms intervals)\n")
+        lines.append(
+            f"**Cycle Time:** {s['avg_ms']:.1f}ms average "
+            f"(min: {s['min_ms']:.1f}ms, max: {s['max_ms']:.1f}ms)"
+        )
+        lines.append(f"**Utilization:** {utilization:.1f}% of {budget_ms:.0f}ms budget")
+        lines.append(f"**Headroom:** {headroom:.1f}ms per cycle")
+
+        if s["p99_ms"] > budget_ms:
+            lines.append(
+                f"**WARNING:** P99 ({s['p99_ms']:.1f}ms) exceeds "
+                f"{budget_ms:.0f}ms budget -- cycle overruns likely"
+            )
 
     # Bottleneck analysis
     lines.append("\n## Bottleneck Analysis\n")
@@ -181,16 +205,23 @@ def generate_markdown_report(stats: Dict[str, Dict], log_file: Path) -> str:
         lines.append(f"   - P99 peak: {stats[label]['p99_ms']:.1f}ms")
 
         if pct > 20:
-            lines.append(f"   - **Priority: HIGH** - More than 20% of cycle time")
+            lines.append("   - **Priority: HIGH** - More than 20% of cycle time")
         elif pct > 10:
-            lines.append(f"   - **Priority: MEDIUM** - 10-20% of cycle time")
+            lines.append("   - **Priority: MEDIUM** - 10-20% of cycle time")
         else:
-            lines.append(f"   - **Priority: LOW** - Less than 10% of cycle time")
+            lines.append("   - **Priority: LOW** - Less than 10% of cycle time")
 
     # Notes
     lines.append("\n## Notes\n")
-    lines.append("- Percentages calculated relative to cycle total (steering_cycle_total or autorate_cycle_total)")
-    lines.append("- P95/P99 values identify occasional spikes requiring investigation")
+    lines.append(
+        "- Percentages calculated relative to cycle total "
+        "(steering_cycle_total or autorate_cycle_total)"
+    )
+    lines.append(
+        f"- Utilization calculated against {budget_ms:.0f}ms cycle budget "
+        "(use --budget to override)"
+    )
+    lines.append("- P50/P95/P99 values identify typical and tail latency")
     lines.append("- Consider re-profiling after optimizations to measure improvement")
 
     return "\n".join(lines)
@@ -231,6 +262,12 @@ Examples:
         default=None
     )
     parser.add_argument(
+        "--budget",
+        type=float,
+        default=50.0,
+        help="Cycle budget in ms for utilization calculations (default: 50.0)"
+    )
+    parser.add_argument(
         "--time-series",
         action="store_true",
         help="Include time-series data in report (placeholder for future enhancement)"
@@ -263,7 +300,7 @@ Examples:
         stats[label] = calculate_statistics(samples)
 
     # Generate report
-    report = generate_markdown_report(stats, log_path)
+    report = generate_markdown_report(stats, log_path, budget_ms=args.budget)
 
     # Output report
     if args.output:
