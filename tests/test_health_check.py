@@ -11,10 +11,12 @@ import pytest
 from wanctl.health_check import (
     HealthCheckHandler,
     HealthCheckServer,
+    _build_cycle_budget,
     _get_current_state,
     start_health_server,
     update_health_status,
 )
+from wanctl.perf_profiler import OperationProfiler
 
 
 def find_free_port() -> int:
@@ -487,3 +489,198 @@ class TestUpdateHealthStatus:
 
         update_health_status(0)
         assert HealthCheckHandler.consecutive_failures == 0
+
+
+class TestBuildCycleBudget:
+    """Unit tests for _build_cycle_budget helper function."""
+
+    def test_returns_none_when_profiler_has_no_data(self):
+        """Cold start: profiler has no samples, should return None (D9)."""
+        profiler = OperationProfiler(max_samples=1200)
+        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        assert result is None
+
+    def test_returns_correct_dict_when_profiler_has_data(self):
+        """Populated profiler returns dict with cycle_time_ms, utilization_pct, overrun_count."""
+        profiler = OperationProfiler(max_samples=1200)
+        # Record some sample data
+        for val in [37.0, 38.0, 39.0, 40.0, 41.0]:
+            profiler.record("autorate_cycle_total", val)
+
+        result = _build_cycle_budget(profiler, overrun_count=5, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        assert result is not None
+        assert "cycle_time_ms" in result
+        assert "utilization_pct" in result
+        assert "overrun_count" in result
+        assert result["overrun_count"] == 5
+        assert "avg" in result["cycle_time_ms"]
+        assert "p95" in result["cycle_time_ms"]
+        assert "p99" in result["cycle_time_ms"]
+
+    def test_utilization_pct_calculation(self):
+        """utilization_pct = (avg_ms / cycle_interval_ms) * 100, rounded to 1 decimal."""
+        profiler = OperationProfiler(max_samples=1200)
+        # All same value = avg is exactly 37.6
+        profiler.record("autorate_cycle_total", 37.6)
+        profiler.record("autorate_cycle_total", 37.6)
+
+        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        assert result is not None
+        # (37.6 / 50.0) * 100 = 75.2
+        assert result["utilization_pct"] == 75.2
+
+    def test_cycle_time_values_rounded_to_1_decimal(self):
+        """cycle_time_ms values should be rounded to 1 decimal place."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 37.654)
+        profiler.record("autorate_cycle_total", 38.123)
+
+        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        assert result is not None
+        # Check all values are rounded to 1 decimal
+        for key in ("avg", "p95", "p99"):
+            value = result["cycle_time_ms"][key]
+            # Multiply by 10 -- should be an integer (i.e., 1 decimal place)
+            assert value == round(value, 1), f"{key} not rounded to 1 decimal: {value}"
+
+
+class TestCycleBudgetInHealthEndpoint:
+    """Integration tests for cycle_budget in autorate health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    def _make_mock_wan_controller(self, with_profiler_data=True, overrun_count=5):
+        """Create a mock WAN controller with profiler attributes."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+
+        # Set profiler attributes (from Plan 01)
+        wan._profiler = OperationProfiler(max_samples=1200)
+        wan._overrun_count = overrun_count
+        wan._cycle_interval_ms = 50.0
+
+        if with_profiler_data:
+            for val in [37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0]:
+                wan._profiler.record("autorate_cycle_total", val)
+
+        return wan
+
+    def test_cycle_budget_present_when_profiler_has_data(self):
+        """Health response includes cycle_budget inside each WAN when profiler has data."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True, overrun_count=5)
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wan_data = data["wans"][0]
+            assert "cycle_budget" in wan_data
+            cb = wan_data["cycle_budget"]
+            assert "cycle_time_ms" in cb
+            assert "avg" in cb["cycle_time_ms"]
+            assert "p95" in cb["cycle_time_ms"]
+            assert "p99" in cb["cycle_time_ms"]
+            assert "utilization_pct" in cb
+            assert "overrun_count" in cb
+            assert cb["overrun_count"] == 5
+        finally:
+            server.shutdown()
+
+    def test_cycle_budget_omitted_when_profiler_empty(self):
+        """Health response omits cycle_budget from WAN when profiler has no data (cold start)."""
+        wan = self._make_mock_wan_controller(with_profiler_data=False)
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wan_data = data["wans"][0]
+            assert "cycle_budget" not in wan_data
+        finally:
+            server.shutdown()
+
+    def test_existing_health_fields_unchanged_with_cycle_budget(self):
+        """Adding cycle_budget does not remove or change any existing health fields."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True)
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            # Top-level fields
+            assert "status" in data
+            assert "uptime_seconds" in data
+            assert "version" in data
+            assert "wan_count" in data
+            assert "router_reachable" in data
+            assert "consecutive_failures" in data
+
+            # WAN fields
+            wan_data = data["wans"][0]
+            assert "name" in wan_data
+            assert "baseline_rtt_ms" in wan_data
+            assert "load_rtt_ms" in wan_data
+            assert "download" in wan_data
+            assert "upload" in wan_data
+            assert "router_connectivity" in wan_data
+        finally:
+            server.shutdown()
