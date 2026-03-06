@@ -5,18 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-29)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.8 Resilience & Robustness
+**Current focus:** v1.9 Performance & Efficiency
 
 ## Current Position
 
-Phase: 44 of 46 (Fail-Safe Behavior)
-Plan: 2/2 complete
-Status: Phase complete — project paused since 2026-02-05
-Last activity: 2026-02-05 — Quick 005 (watchdog-safe startup maintenance) deployed to production
-
-Progress: [█████░░░░░] 50% — v1.8 phases (2 complete: 43, 44)
-
-**Production status (2026-02-24):** v1.7.0 running 19+ days, 0 restarts, all GREEN
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-06 — Milestone v1.9 started
 
 ## Performance Metrics
 
@@ -32,7 +28,8 @@ Progress: [█████░░░░░] 50% — v1.8 phases (2 complete: 43, 
 | v1.5      | 4      | 8     | 1 day    |
 | v1.6      | 7      | 17    | 2 days   |
 | v1.7      | 5      | 8     | 1 day    |
-| **Total** | 42     | 85    | 9 days   |
+| v1.8      | 4      | 4     | ~1 month |
+| **Total** | 46     | 89    | —        |
 
 ## Accumulated Context
 
@@ -95,14 +92,14 @@ None.
 - **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
 - **v1.6 Test Coverage 90%** (2026-01-25): 743 new tests, 90%+ coverage enforced in CI
 - **v1.7 Metrics History** (2026-01-25): SQLite storage, CLI tool, HTTP API for metrics access
+- **v1.8 Resilience & Robustness** (2026-03-06): Error recovery, fail-safe, graceful shutdown
 
 ## Session Continuity
 
-Last session: 2026-02-24 (housekeeping)
-Previous session: 2026-02-05 — Quick 005 deployed (watchdog-safe startup maintenance)
+Last session: 2026-03-06 (v1.9 milestone kickoff)
+Previous session: 2026-02-24 — Housekeeping
 Resume file: None
 
 ## Next Steps
 
-Phase 44 (Fail-Safe Behavior) complete. Continue with Phase 45 (Graceful Degradation).
-Note: v1.8 milestone is 50% complete (phases 43-44 done, 45-46 remaining).
+Define v1.9 requirements, create roadmap, then begin Phase 47.

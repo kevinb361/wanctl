@@ -8,26 +8,27 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.8 Resilience & Robustness
+## Current Milestone: v1.9 Performance & Efficiency
 
-**Goal:** Ensure wanctl behaves correctly when things go wrong — router unreachable, connections drop, daemon shutdown, unexpected errors.
+**Goal:** Reduce cycle utilization from 60-80% to ~40% at 50ms intervals through profiling-driven optimization, giving the controller more headroom for reliability under real-world jitter.
 
 **Target features:**
 
-- Error recovery scenarios (router unreachable, connection drops, failsafe behavior)
-- Graceful shutdown (SIGTERM handling, in-flight commands, state consistency)
-- Contract tests (verify mocks match real RouterOS response format)
+- Re-profile at 50ms intervals (understand current cycle budget breakdown)
+- Optimize hot paths identified by profiling (RTT measurement, router communication, CAKE stats)
+- Reduce MikroTik CPU impact under sustained load
+- Add cycle budget telemetry for ongoing monitoring
 
-## Current State (v1.8)
+## Current State (v1.9)
 
-- **Version:** v1.8.0 Resilience & Robustness (in progress)
+- **Version:** v1.9.0 Performance & Efficiency (starting)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 1,873 passing
+- **Tests:** 1,881 passing
 - **Coverage:** 91%+ (CI enforced)
 - **LOC:** ~15,753 Python (src/)
-- **Status:** Production stable, error recovery (phases 43-44) complete, graceful shutdown next
+- **Status:** Production stable, starting performance milestone
 
-**Previous:** v1.7 Metrics History — SQLite storage, downsampling, wanctl-history CLI
+**Previous:** v1.8 Resilience & Robustness — error recovery, fail-safe, graceful shutdown
 
 ## Requirements
 
@@ -184,17 +185,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - `/metrics/history` HTTP API endpoint
 - 237 new tests (1,490 → 1,727 total)
 
-**v1.8 Resilience & Robustness (2026-01-29, in progress):**
+**v1.8 Resilience & Robustness (2026-01-29 → 2026-03-06):**
 
 - Phase 43: Error detection & reconnection (RouterConnectivityState, classify_failure_type)
 - Phase 44: Fail-safe behavior (PendingRateChange, watchdog distinction)
 - Phase 44.1: Codebase health & coverage recovery (test pollution fix, 91%+ coverage)
-- 146 new tests (1,727 → 1,873 total)
+- Phase 45: Graceful shutdown (cleanup parity, deadline tracking)
+- Phase 46: Contract tests — deferred (mocks accurate, no drift observed)
+- 154 new tests (1,727 → 1,881 total)
 
 **Next Steps:**
 
-- Phase 45: Graceful shutdown (SIGTERM handling, state consistency)
-- Phase 46: Contract tests (golden files for RouterOS response formats)
+- v1.9 Performance & Efficiency milestone
 
 ## Constraints
 
@@ -225,4 +227,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-06 after Phase 44.1 codebase health_
+_Last updated: 2026-03-06 — v1.9 Performance & Efficiency milestone started_
