@@ -36,7 +36,7 @@ Requirements for Performance & Efficiency milestone. Target: reduce cycle utiliz
 
 - [x] **PROF-01**: Operator can collect cycle-level profiling data at 50ms production interval for both autorate and steering daemons
 - [x] **PROF-02**: Each cycle phase (RTT measurement, router communication, CAKE stats, state management) is individually timed with monotonic timestamps
-- [ ] **PROF-03**: Cycle budget utilization (% used, overrun count, slow cycle count) is exposed via health endpoint
+- [x] **PROF-03**: Cycle budget utilization (% used, overrun count, slow cycle count) is exposed via health endpoint
 
 ### Optimization
 
@@ -48,7 +48,7 @@ Requirements for Performance & Efficiency milestone. Target: reduce cycle utiliz
 ### Telemetry
 
 - [x] **TELM-01**: Per-subsystem timing data is available in structured logs for production analysis
-- [ ] **TELM-02**: Cycle budget metrics are queryable via the existing health endpoint JSON response
+- [x] **TELM-02**: Cycle budget metrics are queryable via the existing health endpoint JSON response
 
 ## Future Requirements
 
@@ -84,21 +84,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CNTR-04     | 46    | Deferred |
 | PROF-01     | 47    | Complete |
 | PROF-02     | 47    | Complete |
-| PROF-03     | 49    | Pending  |
+| PROF-03     | 49    | Complete |
 | OPTM-01     | 48    | Complete |
 | OPTM-02     | 48    | Complete |
 | OPTM-03     | 48    | Complete |
 | OPTM-04     | 48    | Complete |
 | TELM-01     | 49    | Complete |
-| TELM-02     | 49    | Pending  |
+| TELM-02     | 49    | Complete |
 
 **Coverage:**
 
 - v1.8 requirements: 12 total (8 complete, 4 deferred)
-- v1.9 requirements: 9 total, mapped to 3 phases
+- v1.9 requirements: 9 total (9 complete), mapped to 3 phases
 - Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-01-29_
-_Last updated: 2026-03-06 — OPTM-01/02/03/04 complete (Phase 48)_
+_Last updated: 2026-03-06 — PROF-03/TELM-02 complete (Phase 49), v1.9 requirements complete_
