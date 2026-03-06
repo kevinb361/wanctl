@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance & Efficiency
 status: executing
-last_updated: "2026-03-06T18:18:36.375Z"
-last_activity: 2026-03-06 — Phase 47 Plan 02 complete (analysis scripts + docs for 50ms budget)
+last_updated: "2026-03-06T22:09:19Z"
+last_activity: 2026-03-06 — Phase 48 Plan 01 complete (icmplib replaces subprocess in RTT hot path)
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -23,10 +23,10 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: 47-cycle-profiling-infrastructure
-Plan: 02 complete (phase complete)
+Phase: 48-hot-path-optimization
+Plan: 01 complete
 Status: Executing v1.9
-Last activity: 2026-03-06 — Phase 47 Plan 02 complete (analysis scripts + docs for 50ms budget)
+Last activity: 2026-03-06 — Phase 48 Plan 01 complete (icmplib replaces subprocess in RTT hot path)
 
 ## Performance Metrics
 
@@ -58,6 +58,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - PROFILE_REPORT_INTERVAL = 1200 cycles (60s at 50ms) for periodic profiling reports
 - P50 percentile placed between min and avg in stats dict for natural ordering
 - Budget defaults to 50.0ms in analyze_profiling.py; overridable via --budget
+- icmplib.ping() with privileged=True and interval=0 replaces subprocess.run(["ping"]) in hot path
+- subprocess import retained with noqa for test verification; parse_ping_output() kept for calibrate.py
+- timeout_total parameter kept for API compat but unused by icmplib path
 
 **v1.8 Resilience & Robustness:**
 
@@ -118,10 +121,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06 (Phase 47-02 execution)
-Previous session: 2026-03-06 — Phase 47-01 execution
+Last session: 2026-03-06 (Phase 48-01 execution)
+Previous session: 2026-03-06 — Phase 47-02 execution
 Resume file: None
 
 ## Next Steps
 
-Phase 47 complete (2/2 plans). Next: Phase 48 (Hot Path Optimization) -- depends on production profiling data collection.
+Phase 48 Plan 01 complete. Next: remaining Phase 48 plans (if any) or Phase 49 (Telemetry & Monitoring).

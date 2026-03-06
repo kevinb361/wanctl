@@ -40,7 +40,7 @@ Requirements for Performance & Efficiency milestone. Target: reduce cycle utiliz
 
 ### Optimization
 
-- [ ] **OPTM-01**: RTT measurement hot path is optimized to reduce its contribution to cycle time
+- [x] **OPTM-01**: RTT measurement hot path is optimized to reduce its contribution to cycle time
 - [ ] **OPTM-02**: Router communication path is optimized (batched REST calls, reduced payload, connection reuse)
 - [ ] **OPTM-03**: CAKE stats collection is optimized if profiling shows it as a significant contributor
 - [ ] **OPTM-04**: MikroTik router CPU impact under sustained load is reduced from 45% peak
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROF-01     | 47    | Complete |
 | PROF-02     | 47    | Complete |
 | PROF-03     | 49    | Pending  |
-| OPTM-01     | 48    | Pending  |
+| OPTM-01     | 48    | Complete |
 | OPTM-02     | 48    | Pending  |
 | OPTM-03     | 48    | Pending  |
 | OPTM-04     | 48    | Pending  |
