@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.config_base import BaseConfig, get_storage_config
-from wanctl.perf_profiler import OperationProfiler, PerfTimer
 from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
@@ -36,6 +35,7 @@ from wanctl.metrics import (
     start_metrics_server,
 )
 from wanctl.pending_rates import PendingRateChange
+from wanctl.perf_profiler import OperationProfiler, PerfTimer
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
@@ -1388,6 +1388,7 @@ class WANController:
             return rtt_early_return
 
         # === State Management (subsystem 2) ===
+        assert measured_rtt is not None  # guaranteed by rtt_early_return check above
         with PerfTimer("autorate_state_management", self.logger) as state_timer:
             # At this point, measured_rtt is valid (either from ICMP or last known value)
             self.update_ewma(measured_rtt)
@@ -1471,28 +1472,6 @@ class WANController:
                         granularity="raw",
                     )
 
-            # Save state with periodic force save (safety net against crashes)
-            self._cycles_since_forced_save += 1
-            if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
-                self.save_state(force=True)
-                self._cycles_since_forced_save = 0
-            else:
-                self.save_state()
-
-            # Record metrics if enabled
-            if self.config.metrics_enabled:
-                cycle_duration = time.perf_counter() - cycle_start
-                record_autorate_cycle(
-                    wan_name=self.wan_name,
-                    dl_rate_mbps=dl_rate / 1e6,
-                    ul_rate_mbps=ul_rate / 1e6,
-                    baseline_rtt=self.baseline_rtt,
-                    load_rtt=self.load_rtt,
-                    dl_state=dl_zone,
-                    ul_state=ul_zone,
-                    cycle_duration=cycle_duration,
-                )
-
         # === Router Communication (subsystem 3) ===
         router_failed = False
         with PerfTimer("autorate_router_communication", self.logger) as router_timer:
@@ -1545,6 +1524,30 @@ class WANController:
         )
         if router_failed:
             return False
+
+        # Save state with periodic force save (safety net against crashes)
+        # Only after successful router communication
+        self._cycles_since_forced_save += 1
+        if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
+            self.save_state(force=True)
+            self._cycles_since_forced_save = 0
+        else:
+            self.save_state()
+
+        # Record metrics if enabled
+        if self.config.metrics_enabled:
+            cycle_duration = time.perf_counter() - cycle_start
+            record_autorate_cycle(
+                wan_name=self.wan_name,
+                dl_rate_mbps=dl_rate / 1e6,
+                ul_rate_mbps=ul_rate / 1e6,
+                baseline_rtt=self.baseline_rtt,
+                load_rtt=self.load_rtt,
+                dl_state=dl_zone,
+                ul_state=ul_zone,
+                cycle_duration=cycle_duration,
+            )
+
         return True
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")

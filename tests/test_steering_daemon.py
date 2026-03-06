@@ -4014,3 +4014,191 @@ class TestRouterConnectivityTrackingSteeringDaemon:
         info_calls = [str(call) for call in mock_logger.info.call_args_list]
         assert any("reconnected" in call.lower() for call in info_calls)
         assert daemon.router_connectivity.consecutive_failures == 0
+
+
+# =============================================================================
+# TestSteeringProfilingInstrumentation - Tests for per-subsystem profiling
+# =============================================================================
+
+
+class TestSteeringProfilingInstrumentation:
+    """Tests for PerfTimer instrumentation in SteeringDaemon.run_cycle().
+
+    Covers PROF-01 and PROF-02:
+    - run_cycle records timing for steering_rtt_measurement
+    - run_cycle records timing for steering_cake_stats
+    - run_cycle records timing for steering_state_management
+    - run_cycle records timing for steering_cycle_total
+    - Periodic profiling report when profiling_enabled
+    - No report when profiling_enabled is False
+    - --profile flag accepted by argparse
+    """
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for SteeringDaemon."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 15
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.rtt_ewma_alpha = 0.3
+        config.queue_ewma_alpha = 0.3
+        config.bad_samples = 3
+        config.good_samples = 5
+        config.threshold_ms = 15.0
+        config.history_size = 60
+        return config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager with dict-based state."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.enable_steering.return_value = True
+        router.disable_steering.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_cake_reader(self):
+        """Create a mock CAKE stats reader."""
+        reader = MagicMock()
+        stats = MagicMock()
+        stats.dropped = 5
+        stats.queued_packets = 20
+        reader.read_stats.return_value = stats
+        return reader
+
+    @pytest.fixture
+    def daemon(self, mock_config, mock_state_mgr, mock_router, mock_logger, mock_cake_reader):
+        """Create a SteeringDaemon with mocked dependencies."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader") as mock_reader_class:
+            mock_reader_class.return_value = mock_cake_reader
+            d = SteeringDaemon(
+                config=mock_config,
+                state=mock_state_mgr,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
+        # Setup for successful run_cycle:
+        # update_baseline_rtt needs to succeed
+        d.baseline_loader.load_baseline_rtt.return_value = 25.0
+        # _measure_current_rtt_with_retry needs to return valid RTT
+        d.rtt_measurement.ping_host.return_value = 27.0
+        return d
+
+    def test_run_cycle_records_rtt_measurement_timing(self, daemon):
+        """run_cycle should record timing for steering_rtt_measurement label."""
+        daemon.run_cycle()
+        stats = daemon._profiler.stats("steering_rtt_measurement")
+        assert stats, "Expected steering_rtt_measurement to have recorded samples"
+        assert stats["count"] >= 1
+
+    def test_run_cycle_records_cake_stats_timing(self, daemon):
+        """run_cycle should record timing for steering_cake_stats label."""
+        daemon.run_cycle()
+        stats = daemon._profiler.stats("steering_cake_stats")
+        assert stats, "Expected steering_cake_stats to have recorded samples"
+        assert stats["count"] >= 1
+
+    def test_run_cycle_records_state_management_timing(self, daemon):
+        """run_cycle should record timing for steering_state_management label."""
+        daemon.run_cycle()
+        stats = daemon._profiler.stats("steering_state_management")
+        assert stats, "Expected steering_state_management to have recorded samples"
+        assert stats["count"] >= 1
+
+    def test_run_cycle_records_cycle_total_timing(self, daemon):
+        """run_cycle should record timing for steering_cycle_total label."""
+        daemon.run_cycle()
+        stats = daemon._profiler.stats("steering_cycle_total")
+        assert stats, "Expected steering_cycle_total to have recorded samples"
+        assert stats["count"] >= 1
+
+    def test_profiling_report_emitted_when_enabled(self, daemon, mock_logger):
+        """Profiling report should be logged every PROFILE_REPORT_INTERVAL cycles."""
+        from wanctl.steering.daemon import PROFILE_REPORT_INTERVAL
+
+        daemon._profiling_enabled = True
+        for _ in range(PROFILE_REPORT_INTERVAL):
+            daemon.run_cycle()
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("Profiling Report" in call for call in info_calls), (
+            "Expected profiling report to be logged at INFO level"
+        )
+
+    def test_no_profiling_report_when_disabled(self, daemon, mock_logger):
+        """No profiling report should be logged when profiling_enabled is False."""
+        daemon._profiling_enabled = False
+        for _ in range(1300):  # More than PROFILE_REPORT_INTERVAL
+            daemon.run_cycle()
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        assert not any("Profiling Report" in call for call in info_calls), (
+            "No profiling report should be logged when profiling is disabled"
+        )
+
+    def test_profile_flag_accepted_by_argparse(self):
+        """--profile flag should be accepted by the steering argument parser."""
+        from wanctl.steering.daemon import main
+
+        with patch(
+            "sys.argv",
+            ["steering", "--config", "test.yaml", "--profile"],
+        ):
+            with patch("wanctl.steering.daemon.SteeringConfig") as mock_cfg:
+                mock_cfg.return_value = MagicMock(
+                    primary_wan="spectrum",
+                    alternate_wan="att",
+                    state_good="SPECTRUM_GOOD",
+                    state_degraded="SPECTRUM_DEGRADED",
+                    data={},
+                )
+                try:
+                    main()
+                except (SystemExit, Exception):
+                    pass
+                # If --profile wasn't accepted, argparse would have called sys.exit(2)

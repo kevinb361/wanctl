@@ -35,6 +35,7 @@ from ..config_validation_utils import validate_alpha
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
+from ..perf_profiler import OperationProfiler, PerfTimer
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
@@ -114,6 +115,9 @@ BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than thi
 # (routing hiccup, severe packet loss), not a usable congestion signal.
 # With baseline ~23ms, this allows absolute RTT up to ~523ms before rejection.
 MAX_SANE_RTT_DELTA_MS = 500.0
+
+# Profiling report interval (cycles between reports at 50ms = 60 seconds)
+PROFILE_REPORT_INTERVAL = 1200
 
 
 # =============================================================================
@@ -673,6 +677,18 @@ class SteeringDaemon:
             dry_run_status = self.config.confidence_config["dry_run"]["enabled"]
             self.logger.info(f"[CONFIDENCE] Confidence scoring enabled (dry_run={dry_run_status})")
 
+        # =====================================================================
+        # PROFILING INSTRUMENTATION
+        # =====================================================================
+        # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
+        # PerfTimer always runs at DEBUG level (negligible overhead ~0.05ms).
+        # OperationProfiler always accumulates (deque append, negligible).
+        # Periodic report only emitted when --profile flag is set.
+        # =====================================================================
+        self._profiler = OperationProfiler(max_samples=1200)
+        self._profile_cycle_count = 0
+        self._profiling_enabled = False
+
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
 
@@ -1212,12 +1228,32 @@ class SteeringDaemon:
 
         return rtt_delta_ewma, queue_ewma
 
+    def _record_profiling(
+        self,
+        cake_ms: float,
+        rtt_ms: float,
+        state_ms: float,
+        cycle_start: float,
+    ) -> None:
+        """Record subsystem timing to profiler and emit periodic report."""
+        total_ms = (time.perf_counter() - cycle_start) * 1000.0
+        self._profiler.record("steering_cake_stats", cake_ms)
+        self._profiler.record("steering_rtt_measurement", rtt_ms)
+        self._profiler.record("steering_state_management", state_ms)
+        self._profiler.record("steering_cycle_total", total_ms)
+        self._profile_cycle_count += 1
+        if self._profiling_enabled and self._profile_cycle_count >= PROFILE_REPORT_INTERVAL:
+            self._profiler.report(self.logger)
+            self._profiler.clear()
+            self._profile_cycle_count = 0
+
     def run_cycle(self) -> bool:
         """
         Execute one steering cycle
         Returns True on success, False on failure
         """
         state = self.state_mgr.state
+        cycle_start = time.perf_counter()
 
         # Update baseline RTT from autorate state
         if not self.update_baseline_rtt():
@@ -1226,126 +1262,164 @@ class SteeringDaemon:
 
         baseline_rtt = state["baseline_rtt"]
 
-        # === CAKE Stats Collection (if enabled) ===
-        cake_drops, queued_packets = self.collect_cake_stats()
+        # === CAKE Stats Collection (subsystem 1) ===
+        with PerfTimer("steering_cake_stats", self.logger) as cake_timer:
+            cake_drops, queued_packets = self.collect_cake_stats()
 
-        # === RTT Measurement ===
-        # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
-        current_rtt = self._measure_current_rtt_with_retry()
+        # === RTT Measurement (subsystem 2) ===
+        with PerfTimer("steering_rtt_measurement", self.logger) as rtt_timer:
+            # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
+            current_rtt = self._measure_current_rtt_with_retry()
+
         if current_rtt is None:
             self.logger.warning(
                 "Ping failed after retries and no fallback available, skipping cycle"
             )
-            return False
-
-        # Calculate delta
-        delta = self.calculate_delta(current_rtt)
-
-        # Pre-filter: reject extreme RTT deltas as network anomalies
-        # (routing hiccups, severe packet loss producing 1000-3000ms pings)
-        if delta > MAX_SANE_RTT_DELTA_MS:
-            self.logger.warning(
-                f"RTT delta {delta:.1f}ms exceeds ceiling {MAX_SANE_RTT_DELTA_MS:.0f}ms "
-                f"(rtt={current_rtt:.1f}ms), treating as anomaly — skipping cycle"
+            self._record_profiling(
+                cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start
             )
             return False
 
-        # === EWMA Smoothing (if CAKE-aware) ===
-        # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
-        if self.config.cake_aware:
-            rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
-        else:
-            rtt_delta_ewma = delta
+        # === State Management (subsystem 3) ===
+        anomaly_detected = False
+        with PerfTimer("steering_state_management", self.logger) as state_timer:
+            # Calculate delta
+            delta = self.calculate_delta(current_rtt)
 
-        # Add to history
-        self.state_mgr.add_measurement(current_rtt, delta)
+            # Pre-filter: reject extreme RTT deltas as network anomalies
+            # (routing hiccups, severe packet loss producing 1000-3000ms pings)
+            if delta > MAX_SANE_RTT_DELTA_MS:
+                self.logger.warning(
+                    f"RTT delta {delta:.1f}ms exceeds ceiling "
+                    f"{MAX_SANE_RTT_DELTA_MS:.0f}ms "
+                    f"(rtt={current_rtt:.1f}ms), treating as anomaly — skipping cycle"
+                )
+                anomaly_detected = True
+            else:
+                # === EWMA Smoothing (if CAKE-aware) ===
+                # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
+                if self.config.cake_aware:
+                    rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
+                else:
+                    rtt_delta_ewma = delta
 
-        # === Build Congestion Signals ===
-        signals = CongestionSignals(
-            rtt_delta=delta,
-            rtt_delta_ewma=rtt_delta_ewma,
-            cake_drops=cake_drops,
-            queued_packets=queued_packets,
-            baseline_rtt=baseline_rtt,
+                # Add to history
+                self.state_mgr.add_measurement(current_rtt, delta)
+
+                # === Build Congestion Signals ===
+                signals = CongestionSignals(
+                    rtt_delta=delta,
+                    rtt_delta_ewma=rtt_delta_ewma,
+                    cake_drops=cake_drops,
+                    queued_packets=queued_packets,
+                    baseline_rtt=baseline_rtt,
+                )
+
+                # === Log Measurement ===
+                wan_name = self.config.primary_wan.upper()
+                if self.config.cake_aware:
+                    self.logger.info(
+                        f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
+                        f"{signals} | "
+                        f"congestion={state.get('congestion_state', 'N/A')}"
+                    )
+                else:
+                    self.logger.info(
+                        f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
+                        f"RTT={current_rtt:.1f}ms, baseline={baseline_rtt:.1f}ms, "
+                        f"delta={delta:.1f}ms | "
+                        f"bad_count={state['bad_count']}/{self.config.bad_samples}, "
+                        f"good_count={state['good_count']}/{self.config.good_samples}"
+                    )
+
+                # === Update State Machine ===
+                state_changed = self.update_state_machine(signals)
+
+                # Track cake_state_history for confidence-based steering
+                if self.config.cake_aware and "congestion_state" in state:
+                    cake_state_history = state.get("cake_state_history", [])
+                    cake_state_history.append(state["congestion_state"])
+                    # Keep last 10 samples (sufficient for sustained detection)
+                    state["cake_state_history"] = cake_state_history[-10:]
+
+                if state_changed:
+                    self.logger.info(
+                        f"State transition: {state['current_state']} "
+                        f"(last transition: {state.get('last_transition_time', 'never')})"
+                    )
+
+                # Save state
+                self.state_mgr.save()
+
+                # Record steering metrics if enabled (Prometheus)
+                if self.config.metrics_enabled:
+                    steering_enabled = state["current_state"] == self.config.state_degraded
+                    congestion_state = state.get("congestion_state", "GREEN")
+                    record_steering_state(
+                        primary_wan=self.config.primary_wan,
+                        steering_enabled=steering_enabled,
+                        congestion_state=congestion_state,
+                    )
+
+                # Record to SQLite history (if storage enabled)
+                if self._metrics_writer is not None:
+                    ts = int(time.time())
+                    steering_enabled_val = (
+                        1.0 if state["current_state"] == self.config.state_degraded else 0.0
+                    )
+                    state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
+                        state.get("congestion_state", "GREEN"), 0
+                    )
+
+                    metrics_batch = [
+                        (
+                            ts,
+                            self.config.primary_wan,
+                            "wanctl_rtt_ms",
+                            current_rtt,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.config.primary_wan,
+                            "wanctl_rtt_baseline_ms",
+                            baseline_rtt,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.config.primary_wan,
+                            "wanctl_rtt_delta_ms",
+                            delta,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.config.primary_wan,
+                            "wanctl_steering_enabled",
+                            steering_enabled_val,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.config.primary_wan,
+                            "wanctl_state",
+                            float(state_val),
+                            {"source": "steering"},
+                            "raw",
+                        ),
+                    ]
+                    self._metrics_writer.write_metrics_batch(metrics_batch)
+
+        self._record_profiling(
+            cake_timer.elapsed_ms, rtt_timer.elapsed_ms, state_timer.elapsed_ms, cycle_start
         )
-
-        # === Log Measurement ===
-        wan_name = self.config.primary_wan.upper()
-        if self.config.cake_aware:
-            self.logger.info(
-                f"[{wan_name}_{state['current_state'].split('_')[-1]}] {signals} | "
-                f"congestion={state.get('congestion_state', 'N/A')}"
-            )
-        else:
-            self.logger.info(
-                f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
-                f"RTT={current_rtt:.1f}ms, baseline={baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-                f"bad_count={state['bad_count']}/{self.config.bad_samples}, "
-                f"good_count={state['good_count']}/{self.config.good_samples}"
-            )
-
-        # === Update State Machine ===
-        state_changed = self.update_state_machine(signals)
-
-        # Track cake_state_history for confidence-based steering
-        if self.config.cake_aware and "congestion_state" in state:
-            cake_state_history = state.get("cake_state_history", [])
-            cake_state_history.append(state["congestion_state"])
-            # Keep last 10 samples (sufficient for sustained detection)
-            state["cake_state_history"] = cake_state_history[-10:]
-
-        if state_changed:
-            self.logger.info(
-                f"State transition: {state['current_state']} "
-                f"(last transition: {state.get('last_transition_time', 'never')})"
-            )
-
-        # Save state
-        self.state_mgr.save()
-
-        # Record steering metrics if enabled (Prometheus)
-        if self.config.metrics_enabled:
-            steering_enabled = state["current_state"] == self.config.state_degraded
-            congestion_state = state.get("congestion_state", "GREEN")
-            record_steering_state(
-                primary_wan=self.config.primary_wan,
-                steering_enabled=steering_enabled,
-                congestion_state=congestion_state,
-            )
-
-        # Record to SQLite history (if storage enabled)
-        if self._metrics_writer is not None:
-            ts = int(time.time())
-            steering_enabled_val = (
-                1.0 if state["current_state"] == self.config.state_degraded else 0.0
-            )
-            state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
-                state.get("congestion_state", "GREEN"), 0
-            )
-
-            metrics_batch = [
-                (ts, self.config.primary_wan, "wanctl_rtt_ms", current_rtt, None, "raw"),
-                (ts, self.config.primary_wan, "wanctl_rtt_baseline_ms", baseline_rtt, None, "raw"),
-                (ts, self.config.primary_wan, "wanctl_rtt_delta_ms", delta, None, "raw"),
-                (
-                    ts,
-                    self.config.primary_wan,
-                    "wanctl_steering_enabled",
-                    steering_enabled_val,
-                    None,
-                    "raw",
-                ),
-                (
-                    ts,
-                    self.config.primary_wan,
-                    "wanctl_state",
-                    float(state_val),
-                    {"source": "steering"},
-                    "raw",
-                ),
-            ]
-            self._metrics_writer.write_metrics_batch(metrics_batch)
-
+        if anomaly_detected:
+            return False
         return True
 
 
@@ -1468,6 +1542,11 @@ def main() -> int | None:
     parser.add_argument("--config", required=True, help="Path to config YAML file")
     parser.add_argument("--reset", action="store_true", help="Reset state and disable steering")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable periodic profiling reports (INFO level)",
+    )
     args = parser.parse_args()
 
     # Register signal handlers early (W5: Graceful Shutdown)
@@ -1563,6 +1642,10 @@ def main() -> int | None:
 
     # Create daemon
     daemon = SteeringDaemon(config, state_mgr, router, rtt_measurement, baseline_loader, logger)
+
+    # Enable profiling if --profile flag set
+    if args.profile:
+        daemon._profiling_enabled = True
 
     # Start health server (INTG-01)
     health_server = None
