@@ -3,6 +3,7 @@
 import subprocess
 from unittest.mock import MagicMock, Mock, patch
 
+import icmplib
 import pytest
 
 from wanctl.rtt_measurement import (
@@ -10,6 +11,22 @@ from wanctl.rtt_measurement import (
     RTTMeasurement,
     parse_ping_output,
 )
+
+
+def make_host_result(address="8.8.8.8", rtts=None, is_alive=True):
+    """Build a mock icmplib Host object for testing."""
+    host = MagicMock()
+    host.address = address
+    host.rtts = rtts or [12.3]
+    host.min_rtt = min(host.rtts) if host.rtts else 0.0
+    host.avg_rtt = sum(host.rtts) / len(host.rtts) if host.rtts else 0.0
+    host.max_rtt = max(host.rtts) if host.rtts else 0.0
+    host.packets_sent = len(host.rtts) if is_alive else 1
+    host.packets_received = len(host.rtts) if is_alive else 0
+    host.packet_loss = 0.0 if is_alive else 1.0
+    host.is_alive = is_alive
+    host.jitter = 0.0
+    return host
 
 
 class TestPingHostsConcurrent:
@@ -30,15 +47,14 @@ class TestPingHostsConcurrent:
         )
 
     @pytest.fixture
-    def mock_subprocess(self):
-        """Create a mock for subprocess.run."""
-        with patch("wanctl.rtt_measurement.subprocess.run") as mock:
+    def mock_icmplib_ping(self):
+        """Create a mock for icmplib.ping."""
+        with patch("wanctl.rtt_measurement.icmplib.ping") as mock:
             yield mock
 
-    def test_returns_list_of_rtts(self, rtt_measurement, mock_subprocess):
+    def test_returns_list_of_rtts(self, rtt_measurement, mock_icmplib_ping):
         """Should return list of successful RTT values."""
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = "64 bytes from 8.8.8.8: time=12.3 ms"
+        mock_icmplib_ping.return_value = make_host_result(rtts=[12.3])
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1"])
 
@@ -50,12 +66,12 @@ class TestPingHostsConcurrent:
         result = rtt_measurement.ping_hosts_concurrent([])
         assert result == []
 
-    def test_partial_failures_return_successful_only(self, rtt_measurement, mock_subprocess):
+    def test_partial_failures_return_successful_only(self, rtt_measurement, mock_icmplib_ping):
         """Should return only successful pings when some fail."""
         # First ping succeeds, second fails
-        mock_subprocess.side_effect = [
-            Mock(returncode=0, stdout="64 bytes from 8.8.8.8: time=12.3 ms"),
-            Mock(returncode=1, stdout=""),
+        mock_icmplib_ping.side_effect = [
+            make_host_result(rtts=[12.3]),
+            make_host_result(is_alive=False),
         ]
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1"])
@@ -63,39 +79,37 @@ class TestPingHostsConcurrent:
         assert len(rtts) == 1
         assert rtts[0] == pytest.approx(12.3)
 
-    def test_all_failures_return_empty_list(self, rtt_measurement, mock_subprocess):
+    def test_all_failures_return_empty_list(self, rtt_measurement, mock_icmplib_ping):
         """Should return empty list when all pings fail."""
-        mock_subprocess.return_value.returncode = 1
-        mock_subprocess.return_value.stdout = ""
+        mock_icmplib_ping.return_value = make_host_result(is_alive=False)
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1"])
 
         assert rtts == []
 
-    def test_timeout_handled_gracefully(self, rtt_measurement, mock_subprocess):
-        """Should handle subprocess timeout without crashing."""
-        mock_subprocess.side_effect = subprocess.TimeoutExpired(cmd="ping", timeout=3)
+    def test_timeout_handled_gracefully(self, rtt_measurement, mock_icmplib_ping):
+        """Should handle icmplib timeout without crashing."""
+        mock_icmplib_ping.side_effect = icmplib.ICMPLibError
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"], timeout=0.1)
 
         assert rtts == []
 
-    def test_single_host_works(self, rtt_measurement, mock_subprocess):
+    def test_single_host_works(self, rtt_measurement, mock_icmplib_ping):
         """Should work with a single host."""
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = "64 bytes from 8.8.8.8: time=15.7 ms"
+        mock_icmplib_ping.return_value = make_host_result(rtts=[15.7])
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"])
 
         assert len(rtts) == 1
         assert rtts[0] == pytest.approx(15.7)
 
-    def test_three_hosts_for_median_of_three(self, rtt_measurement, mock_subprocess):
+    def test_three_hosts_for_median_of_three(self, rtt_measurement, mock_icmplib_ping):
         """Should work with three hosts (median-of-three scenario)."""
-        mock_subprocess.side_effect = [
-            Mock(returncode=0, stdout="64 bytes from 8.8.8.8: time=10.0 ms"),
-            Mock(returncode=0, stdout="64 bytes from 1.1.1.1: time=12.0 ms"),
-            Mock(returncode=0, stdout="64 bytes from 9.9.9.9: time=14.0 ms"),
+        mock_icmplib_ping.side_effect = [
+            make_host_result(rtts=[10.0]),
+            make_host_result(rtts=[12.0]),
+            make_host_result(rtts=[14.0]),
         ]
 
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
@@ -327,7 +341,7 @@ class TestAggregationStrategies:
 
 
 class TestPingHostEdgeCases:
-    """Tests for ping_host edge cases - lines 155, 175-176, 183, 198-200."""
+    """Tests for ping_host edge cases using icmplib."""
 
     @pytest.fixture
     def mock_logger(self):
@@ -335,30 +349,34 @@ class TestPingHostEdgeCases:
         return MagicMock()
 
     @pytest.fixture
-    def mock_subprocess(self):
-        """Create a mock for subprocess.run."""
-        with patch("wanctl.rtt_measurement.subprocess.run") as mock:
+    def mock_icmplib_ping(self):
+        """Create a mock for icmplib.ping."""
+        with patch("wanctl.rtt_measurement.icmplib.ping") as mock:
             yield mock
 
-    def test_timeout_total_parameter_used(self, mock_logger, mock_subprocess):
-        """When timeout_total set, used as subprocess timeout (lines 154-155)."""
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = "64 bytes: time=10.0 ms"
+    def test_icmplib_ping_called_with_correct_params(self, mock_logger, mock_icmplib_ping):
+        """Verify icmplib.ping is called with correct parameters."""
+        mock_icmplib_ping.return_value = make_host_result(rtts=[10.0])
 
         rtt = RTTMeasurement(
             logger=mock_logger,
-            timeout_total=15,  # Explicit total timeout
+            timeout_ping=2,
         )
         rtt.ping_host("8.8.8.8", count=3)
 
-        # Verify subprocess was called with our explicit timeout
-        call_kwargs = mock_subprocess.call_args[1]
-        assert call_kwargs["timeout"] == 15
+        mock_icmplib_ping.assert_called_once_with(
+            address="8.8.8.8",
+            count=3,
+            interval=0,
+            timeout=2,
+            privileged=True,
+        )
 
-    def test_no_rtt_samples_returns_none_logs_warning(self, mock_logger, mock_subprocess):
-        """Empty RTT list logs warning, returns None (lines 174-176)."""
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = "PING complete - no timing data"
+    def test_no_rtt_samples_returns_none_logs_warning(self, mock_logger, mock_icmplib_ping):
+        """Empty RTT list logs warning, returns None."""
+        mock_icmplib_ping.return_value = make_host_result(rtts=[], is_alive=True)
+        # Override is_alive since make_host_result sets packets_received=0 for empty rtts
+        mock_icmplib_ping.return_value.is_alive = True
 
         rtt = RTTMeasurement(logger=mock_logger)
         result = rtt.ping_host("8.8.8.8")
@@ -367,12 +385,9 @@ class TestPingHostEdgeCases:
         mock_logger.warning.assert_called_once()
         assert "No RTT samples" in mock_logger.warning.call_args[0][0]
 
-    def test_log_sample_stats_logs_debug(self, mock_logger, mock_subprocess):
-        """log_sample_stats=True logs min/max/median (lines 182-186)."""
-        mock_subprocess.return_value.returncode = 0
-        mock_subprocess.return_value.stdout = """64 bytes: time=10.0 ms
-64 bytes: time=20.0 ms
-64 bytes: time=30.0 ms"""
+    def test_log_sample_stats_logs_debug(self, mock_logger, mock_icmplib_ping):
+        """log_sample_stats=True logs min/max/count."""
+        mock_icmplib_ping.return_value = make_host_result(rtts=[10.0, 20.0, 30.0])
 
         rtt = RTTMeasurement(
             logger=mock_logger,
@@ -385,9 +400,9 @@ class TestPingHostEdgeCases:
         stats_logged = any("min=" in str(call) and "max=" in str(call) for call in debug_calls)
         assert stats_logged, "Sample stats (min/max) not logged"
 
-    def test_generic_exception_logged(self, mock_logger, mock_subprocess):
-        """Non-timeout exception caught and logged (lines 198-200)."""
-        mock_subprocess.side_effect = OSError("Network unreachable")
+    def test_generic_exception_logged(self, mock_logger, mock_icmplib_ping):
+        """Non-icmplib exception caught and logged."""
+        mock_icmplib_ping.side_effect = OSError("Network unreachable")
 
         rtt = RTTMeasurement(logger=mock_logger)
         result = rtt.ping_host("8.8.8.8")
@@ -396,10 +411,9 @@ class TestPingHostEdgeCases:
         mock_logger.error.assert_called_once()
         assert "Ping error" in mock_logger.error.call_args[0][0]
 
-    def test_returncode_nonzero_logs_warning(self, mock_logger, mock_subprocess):
-        """Failed ping (returncode != 0) logs warning (lines 167-169)."""
-        mock_subprocess.return_value.returncode = 1
-        mock_subprocess.return_value.stdout = ""
+    def test_not_alive_logs_warning(self, mock_logger, mock_icmplib_ping):
+        """Host not alive (no response) logs warning."""
+        mock_icmplib_ping.return_value = make_host_result(is_alive=False)
 
         rtt = RTTMeasurement(logger=mock_logger)
         result = rtt.ping_host("8.8.8.8")
@@ -408,16 +422,85 @@ class TestPingHostEdgeCases:
         mock_logger.warning.assert_called_once()
         assert "failed" in mock_logger.warning.call_args[0][0].lower()
 
-    def test_subprocess_timeout_logs_warning(self, mock_logger, mock_subprocess):
-        """TimeoutExpired caught and logged (lines 195-197)."""
-        mock_subprocess.side_effect = subprocess.TimeoutExpired(cmd="ping", timeout=5)
+    def test_icmplib_name_lookup_error(self, mock_logger, mock_icmplib_ping):
+        """NameLookupError caught and logged as warning."""
+        mock_icmplib_ping.side_effect = icmplib.NameLookupError("nonexistent.host")
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("nonexistent.host")
+
+        assert result is None
+        mock_logger.warning.assert_called_once()
+        assert "DNS" in mock_logger.warning.call_args[0][0]
+
+
+class TestIcmplibErrorHandling:
+    """Tests for icmplib-specific error handling in ping_host."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_icmplib_ping(self):
+        """Create a mock for icmplib.ping."""
+        with patch("wanctl.rtt_measurement.icmplib.ping") as mock:
+            yield mock
+
+    def test_socket_permission_error_logs_error(self, mock_logger, mock_icmplib_ping):
+        """SocketPermissionError logs error about CAP_NET_RAW."""
+        mock_icmplib_ping.side_effect = icmplib.SocketPermissionError
 
         rtt = RTTMeasurement(logger=mock_logger)
         result = rtt.ping_host("8.8.8.8")
 
         assert result is None
+        mock_logger.error.assert_called_once()
+        assert "CAP_NET_RAW" in mock_logger.error.call_args[0][0]
+
+    def test_icmplib_error_logs_error(self, mock_logger, mock_icmplib_ping):
+        """ICMPLibError logs error."""
+        mock_icmplib_ping.side_effect = icmplib.ICMPLibError
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("8.8.8.8")
+
+        assert result is None
+        mock_logger.error.assert_called_once()
+        assert "Ping error" in mock_logger.error.call_args[0][0]
+
+    def test_name_lookup_error_logs_warning(self, mock_logger, mock_icmplib_ping):
+        """NameLookupError logs warning about DNS."""
+        mock_icmplib_ping.side_effect = icmplib.NameLookupError("bad.host")
+
+        rtt = RTTMeasurement(logger=mock_logger)
+        result = rtt.ping_host("bad.host")
+
+        assert result is None
         mock_logger.warning.assert_called_once()
-        assert "timed out" in mock_logger.warning.call_args[0][0]
+        assert "DNS" in mock_logger.warning.call_args[0][0]
+
+
+class TestNoSubprocessInHotPath:
+    """Test that ping_host does NOT call subprocess.run."""
+
+    def test_no_subprocess_in_hot_path(self):
+        """Verify that ping_host does NOT call subprocess.run (uses icmplib)."""
+        mock_logger = MagicMock()
+        rtt = RTTMeasurement(logger=mock_logger)
+
+        with (
+            patch("wanctl.rtt_measurement.icmplib.ping") as mock_icmplib,
+            patch("wanctl.rtt_measurement.subprocess.run") as mock_subprocess,
+        ):
+            mock_icmplib.return_value = make_host_result(rtts=[10.0])
+            rtt.ping_host("8.8.8.8")
+
+            # icmplib should be called
+            mock_icmplib.assert_called_once()
+            # subprocess should NOT be called
+            mock_subprocess.assert_not_called()
 
 
 class TestPingHostsConcurrentEdgeCases:
