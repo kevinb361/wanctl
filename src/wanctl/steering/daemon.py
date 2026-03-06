@@ -1578,7 +1578,17 @@ def main() -> int | None:
         logger.error(traceback.format_exc())
         return 1
     finally:
-        # Shutdown health server (INTG-02)
+        # CLEANUP PRIORITY: state > health > connections > metrics > locks
+        logger.info("Shutting down daemon...")
+
+        # 0. Force save state (preserve EWMA/counters on shutdown)
+        try:
+            daemon.state_mgr.save()
+            logger.debug("State saved on shutdown")
+        except Exception as e:
+            logger.warning(f"Error saving state on shutdown: {e}")
+
+        # 1. Shutdown health server (INTG-02)
         if health_server is not None:
             try:
                 health_server.shutdown()
@@ -1586,8 +1596,22 @@ def main() -> int | None:
             except Exception as e:
                 logger.warning(f"Error shutting down health server: {e}")
 
-        # Cleanup: release lock file
-        logger.info("Shutting down daemon...")
+        # 2. Close router connection
+        try:
+            daemon.router.client.close()
+            logger.debug("Router connection closed")
+        except Exception as e:
+            logger.warning(f"Error closing router connection: {e}")
+
+        # 3. Close MetricsWriter (SQLite connection)
+        try:
+            if MetricsWriter._instance is not None:
+                MetricsWriter._instance.close()
+                logger.debug("MetricsWriter connection closed")
+        except Exception as e:
+            logger.warning(f"Error closing MetricsWriter: {e}")
+
+        # 4. Release lock file
         if config.lock_file.exists():
             config.lock_file.unlink()
             logger.debug(f"Lock released: {config.lock_file}")
