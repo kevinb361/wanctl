@@ -1,126 +1,178 @@
-# Profiling Guide: Measuring Measurement Cycle Latency
+# Profiling Guide: Cycle Latency Analysis
 
 This guide explains how to collect and analyze profiling data from wanctl measurement cycles to identify performance bottlenecks.
 
 ## Overview
 
-wanctl performs three types of measurements in each cycle:
+wanctl runs two daemons, each executing a control loop every 50ms (20Hz):
 
-1. **RouterOS Communication** - Sending commands to update queue limits via REST API or SSH
-2. **ICMP Measurement** - Ping-based RTT measurement to assess congestion
-3. **CAKE Stats Collection** - Reading queue statistics from the router
+1. **Autorate Daemon** - Measures RTT, manages congestion state, sends rate updates to router
+2. **Steering Daemon** - Measures RTT, reads CAKE queue stats, manages steering state
 
-Each measurement takes time, and the sum must stay under 2 seconds per cycle to maintain responsive congestion control.
+Each cycle must complete within 50ms. Current utilization is 60-80% (30-40ms per cycle), leaving 10-20ms headroom. The goal of Phase 48 (Hot Path Optimization) is to reduce utilization to ~40%.
 
 ### Why Profiling Matters
 
 By measuring actual cycle times, we can:
 
 - Identify which subsystems consume the most time
-- Detect occasional spikes (p95/p99 percentiles)
-- Compare transport methods (REST API vs SSH)
+- Detect occasional spikes (P50/P95/P99 percentiles)
+- Calculate utilization percentage against the 50ms budget
 - Measure improvement after optimizations
-- Plan Phase 2+ work based on impact analysis
+- Plan Phase 48 work based on impact analysis
+
+## Using the --profile Flag
+
+Both daemons accept a `--profile` flag to enable periodic profiling reports.
+
+### How It Works
+
+- **Timing collection:** Every cycle, each subsystem block is wrapped with `PerfTimer` context managers (<0.1ms overhead per timer)
+- **Accumulation:** Timings are stored in `OperationProfiler(max_samples=1200)` -- a ring buffer holding 60 seconds of data at 50ms intervals
+- **Periodic reports:** Every 1200 cycles (60 seconds), an aggregate report is emitted at INFO level
+- **Per-cycle detail:** Individual cycle timings are visible at DEBUG level (with `--debug`)
+
+### Report Format
+
+The profiling report appears in logs as:
+
+```
+=== Profiling Report ===
+autorate_cycle_total: count=1200, min=28.5ms, avg=35.2ms, max=72.1ms, p95=45.3ms, p99=62.8ms
+autorate_rtt_measurement: count=1200, min=20.1ms, avg=30.5ms, max=55.2ms, p95=40.1ms, p99=50.3ms
+autorate_router_communication: count=1200, min=0.0ms, avg=2.1ms, max=25.0ms, p95=18.2ms, p99=22.5ms
+autorate_state_management: count=1200, min=0.1ms, avg=0.3ms, max=1.2ms, p95=0.8ms, p99=1.0ms
+```
+
+### Production Usage
+
+To collect profiling data in production:
+
+1. **Enable profiling** -- edit the systemd service to add `--profile`:
+
+   ```bash
+   sudo systemctl edit wanctl@spectrum
+   ```
+
+   Add:
+
+   ```ini
+   [Service]
+   ExecStart=
+   ExecStart=/opt/wanctl/.venv/bin/python -m wanctl.autorate_continuous --profile /etc/wanctl/spectrum.yaml
+   ```
+
+2. **Restart the daemon:**
+
+   ```bash
+   sudo systemctl restart wanctl@spectrum
+   ```
+
+3. **Collect data** for 1-24 hours (see Data Collection below)
+
+4. **Remove the flag** -- revert the override and restart:
+
+   ```bash
+   sudo systemctl revert wanctl@spectrum
+   sudo systemctl restart wanctl@spectrum
+   ```
 
 ## Prerequisites
 
-### 1. Verify Plan 01-01 Instrumentation is Deployed
+### 1. Verify Profiling Instrumentation is Deployed
 
-Check that your wanctl installation includes the profiling hooks:
+Check that your wanctl installation includes the profiling module and `--profile` flag:
 
 ```bash
 # Check that perf_profiler.py exists
-test -f src/wanctl/perf_profiler.py && echo "✓ Profiler module found"
+test -f /opt/wanctl/src/wanctl/perf_profiler.py && echo "OK: Profiler module found"
 
-# Check that daemon logs include timing output
-grep -q "ms$" /var/log/wanctl/wan1.log && echo "✓ Timing logs present"
+# Verify --profile flag is available
+/opt/wanctl/.venv/bin/python -m wanctl.autorate_continuous --help | grep -q profile && echo "OK: --profile flag available"
 ```
 
-The log output should show lines like:
+### 2. Subsystem Labels
 
-```
-steering_rtt_measurement: 45.2ms
-steering_cake_stats_read: 67.8ms
-autorate_cycle_total: 126.5ms
-```
+With `--profile` enabled, the following subsystem labels are profiled:
 
-### 2. Python Environment
+**Autorate daemon:**
+- `autorate_rtt_measurement` -- ICMP/TCP RTT measurement
+- `autorate_router_communication` -- Sending rate updates to router
+- `autorate_state_management` -- EWMA, state machine, congestion logic
+- `autorate_cycle_total` -- Full cycle end-to-end
 
-Ensure Python 3.6+ is available:
+**Steering daemon:**
+- `steering_rtt_measurement` -- ICMP/TCP RTT measurement
+- `steering_cake_stats` -- Reading CAKE queue statistics from router
+- `steering_state_management` -- Steering decision logic
+- `steering_cycle_total` -- Full cycle end-to-end
+
+### 3. Python Environment
+
+Ensure Python 3.11+ is available:
 
 ```bash
 python3 --version
 ```
 
-No external dependencies required (uses only Python stdlib).
+No external dependencies required (analysis scripts use only Python stdlib).
 
 ## Data Collection Procedure
 
 ### Collection Period
 
-**Minimum:** 7 days (captures multiple network conditions)
-**Recommended:** 14 days (better statistical confidence)
-**Maximum:** 30 days (captures weekly patterns)
+**Minimum:** 1 hour (72,000 cycles at 50ms = statistically significant)
+**Recommended:** 4-24 hours (captures load variation and peak/off-peak patterns)
+**Maximum:** 7 days (captures weekly patterns, but generates large log files)
 
-Longer collection periods improve statistical significance and capture transient congestion events.
+At 50ms intervals, even 1 hour provides 72,000 samples per subsystem -- far more than needed for reliable percentile calculations.
 
 ### How to Collect
 
-The instrumentation automatically logs timing data. Logs are written to:
+1. Enable the `--profile` flag on the target daemon (see Production Usage above)
+2. Wait for the desired collection period
+3. Copy the logs for analysis:
 
-- Steering daemon: Configured in `configs/steering.yaml` (typically `/var/log/wanctl/steering.log`)
-- Autorate daemon: Configured in `configs/wan1.yaml` (typically `/var/log/wanctl/wan1.log`)
-
-**No additional setup required** - timing is logged automatically.
+```bash
+mkdir -p profiling_data
+# Copy from container or local system
+scp cake-spectrum:/var/log/wanctl/spectrum.log profiling_data/spectrum_baseline.log
+```
 
 ### Monitoring Collection Progress
 
-Check that timing data is being collected:
+Check that profiling data is being collected:
 
 ```bash
-# Monitor steering logs in real-time
-tail -f /var/log/wanctl/steering.log | grep "ms$"
+# Look for profiling reports (emitted every 60 seconds)
+ssh cake-spectrum 'journalctl -u wanctl@spectrum --since "1 min ago" | grep "Profiling Report"'
 
-# Check autorate logs
-tail -f /var/log/wanctl/wan1.log | grep "ms$"
+# Count profiling report sections
+grep -c "=== Profiling Report ===" profiling_data/spectrum_baseline.log
 
-# Count measurements collected so far
-grep "ms$" /var/log/wanctl/wan1.log | wc -l
-```
-
-### Testing with Different Transports
-
-If your deployment supports both REST and SSH transports:
-
-```bash
-# Collect baseline with REST API (recommended)
-# (logs show rest_latency in measurements)
-
-# Separately test SSH performance
-# (logs show ssh_latency for comparison)
-
-# Compare results in analysis reports
+# Monitor in real-time
+ssh cake-spectrum 'journalctl -u wanctl@spectrum -f' | grep -A10 "Profiling Report"
 ```
 
 ## Expected Baseline Latencies
 
-Based on architecture design and testing:
+Based on production measurements at 50ms intervals:
 
-| Subsystem             | Transport | Typical Latency | Note                   |
-| --------------------- | --------- | --------------- | ---------------------- |
-| RouterOS command      | REST API  | ~50ms           | Recommended            |
-| RouterOS command      | SSH       | ~150-200ms      | Fallback               |
-| ICMP ping (3 samples) | Any       | ~100-150ms      | Network RTT dependent  |
-| CAKE stats read       | REST API  | ~50-100ms       | RouterOS query latency |
-| Steering cycle total  | REST      | ~200-250ms      | Excellent headroom     |
-| Steering cycle total  | SSH       | ~300-350ms      | Still acceptable       |
-| Autorate cycle total  | Any       | ~150-250ms      | Less timing-critical   |
+| Subsystem | Typical | % of 50ms |
+|-----------|---------|-----------|
+| autorate_rtt_measurement | 20-40ms | 40-80% |
+| autorate_router_communication | 0ms / 15-25ms | 0% / 30-50% |
+| autorate_state_management | <1ms | <2% |
+| autorate_cycle_total | 30-45ms | 60-90% |
+| steering_rtt_measurement | 20-40ms | 40-80% |
+| steering_cake_stats | 15-25ms | 30-50% |
+| steering_state_management | <1ms | <2% |
+| steering_cycle_total | 30-50ms | 60-100% |
 
-### Interpreting Baseline vs Actual
-
-- **Baseline expected:** Your actual measurements should be within 20% of expected values
-- **Higher than expected:** Indicates network congestion or router load
-- **Spikes (p99 > 2x avg):** Occasional network delays or router CPU events
+**Notes:**
+- `autorate_router_communication` shows 0ms most cycles due to flash wear protection (only sends updates when rates change)
+- RTT measurement dominates both daemons (primary optimization target for Phase 48)
+- Values >50ms indicate cycle overruns where the daemon cannot keep up with the 50ms interval
 
 ## Analysis Procedure
 
@@ -130,8 +182,8 @@ Copy logs to a working directory:
 
 ```bash
 mkdir -p profiling_data
-cp /var/log/wanctl/wan1.log profiling_data/wan1_baseline.log
-cp /var/log/wanctl/steering.log profiling_data/steering_baseline.log
+scp cake-spectrum:/var/log/wanctl/spectrum.log profiling_data/spectrum_baseline.log
+scp cake-att:/var/log/wanctl/att.log profiling_data/att_baseline.log
 ```
 
 ### Step 2: Extract Statistics
@@ -139,136 +191,148 @@ cp /var/log/wanctl/steering.log profiling_data/steering_baseline.log
 Extract measurements for all subsystems:
 
 ```bash
-python3 scripts/profiling_collector.py profiling_data/wan1_baseline.log --all
+python3 scripts/profiling_collector.py profiling_data/spectrum_baseline.log --all
 ```
 
 Extract specific subsystem:
 
 ```bash
-python3 scripts/profiling_collector.py profiling_data/wan1_baseline.log \
+python3 scripts/profiling_collector.py profiling_data/spectrum_baseline.log \
     --subsystem steering_rtt_measurement
 ```
 
 Export as JSON for further analysis:
 
 ```bash
-python3 scripts/profiling_collector.py profiling_data/wan1_baseline.log \
-    --all --output json > profiling_data/wan1_stats.json
+python3 scripts/profiling_collector.py profiling_data/spectrum_baseline.log \
+    --all --output json > profiling_data/spectrum_stats.json
+```
+
+Export as CSV:
+
+```bash
+python3 scripts/profiling_collector.py profiling_data/spectrum_baseline.log \
+    --all --output csv > profiling_data/spectrum_stats.csv
 ```
 
 ### Step 3: Generate Analysis Report
 
-Generate markdown report for human review:
+Generate markdown report with utilization analysis:
 
 ```bash
 python3 scripts/analyze_profiling.py \
-    --log-file profiling_data/wan1_baseline.log \
-    --output reports/wan1_baseline.md
+    --log-file profiling_data/spectrum_baseline.log \
+    --output reports/spectrum_baseline.md
 ```
 
-View the report:
+Use a custom budget (default is 50ms):
 
 ```bash
-cat reports/wan1_baseline.md
+python3 scripts/analyze_profiling.py \
+    --log-file profiling_data/spectrum_baseline.log \
+    --budget 50.0 \
+    --output reports/spectrum_baseline.md
 ```
 
-### Step 4: Review Bottleneck Identification
+### Step 4: Review Report
 
 The analysis report includes:
 
-1. **Summary Statistics Table** - All subsystems with min/max/avg/p95/p99
-2. **Cycle Time Analysis** - Total cycle latency vs 2-second target
-3. **Bottleneck Analysis** - Which subsystems dominate
-4. **Recommendations** - Priority ranking for optimizations
+1. **Summary Statistics Table** - All subsystems with min/P50/avg/max/P95/P99
+2. **Cycle Utilization** - Average, utilization %, and headroom against 50ms budget
+3. **P99 Budget Warning** - Flagged if P99 exceeds the cycle budget
+4. **Bottleneck Analysis** - Which subsystems dominate cycle time
+5. **Recommendations** - Priority ranking for optimizations
 
 Focus on:
 
 - Which subsystem takes the most time?
-- How much headroom before 2-second limit?
-- Are spikes (p99) significant?
+- What is the utilization percentage against the 50ms budget?
+- Does P99 exceed 50ms (indicating cycle overruns)?
+- How much headroom remains for optimization?
 
 ## Interpreting Results
 
 ### Key Questions
 
+**Q: What is the cycle utilization?**
+
+- Look at the "Utilization" line in cycle sections
+- Example: "84.5% of 50ms budget" means 42.2ms average cycle time
+- Target: reduce to ~40% utilization (Phase 48 goal)
+
 **Q: Which subsystem dominates total time?**
 
 - Look at percentages in "Bottleneck Analysis"
-- Example: If RTT measurement = 60% of cycle, prioritize ICMP optimization
+- Example: If RTT measurement = 77% of cycle, prioritize RTT optimization
 
-**Q: Are there spikes (p99 >> avg)?**
+**Q: Are there spikes (P99 >> avg)?**
 
 - Spikes indicate occasional delays
 - P99 > 2x average suggests transient congestion or router issues
-- May need retry logic or adaptive timeouts in Phase 2+
+- P99 exceeding 50ms means cycle overruns are occurring
 
-**Q: Does one transport outperform the other?**
+**Q: Is cycle time consistently under 50ms?**
 
-- Compare REST vs SSH in separate profiling runs
-- REST is typically 2-3x faster
-- SSH spikes may exceed 2-second limit during congestion
-
-**Q: Is cycle time consistently < 2 seconds?**
-
-- Check max_ms values
-- p99 should be well under 2000ms
-- Average should have 500+ ms headroom
+- Check P99 and max values
+- P99 should be under 50ms for reliable 20Hz operation
+- If P99 > 50ms, optimization is needed (Phase 48)
+- Utilization >80% means optimization needed to maintain headroom
 
 ## Common Findings
 
-### Typical Spectrum Cable Baseline (REST API)
+### Typical Autorate Profile (50ms budget)
 
 ```
-Steering cycle total: 125ms avg (123-128ms range)
-  ├─ RTT measurement: 45ms (40-50ms)
-  ├─ CAKE stats: 68ms (65-70ms)
-  └─ RouterOS update: 12ms (10-15ms)
+autorate_cycle_total: 35ms avg (60-90% range)
+  +-- rtt_measurement: 25ms (50% of cycle)
+  +-- router_communication: 8ms (16% of cycle, when active)
+  +-- state_management: 0.5ms (<2% of cycle)
 
-Autorate cycle total: 127ms avg (125-130ms)
-  ├─ RTT measurement: 78ms
-  ├─ Router update: 45ms
-  └─ EWMA calculation: <1ms
+Utilization: 70% of 50ms budget
+Headroom: 15ms
 ```
 
-This leaves ~1.9 seconds headroom per cycle (excellent).
-
-### Typical DSL Baseline (SSH)
+### Typical Steering Profile (50ms budget)
 
 ```
-Steering cycle total: 320ms avg (300-350ms range)
-  ├─ RTT measurement: 95ms
-  ├─ CAKE stats: 150ms
-  └─ RouterOS update: 75ms
+steering_cycle_total: 40ms avg (80-100% range)
+  +-- rtt_measurement: 20ms (40% of cycle)
+  +-- cake_stats: 18ms (36% of cycle)
+  +-- state_management: 0.5ms (<2% of cycle)
 
-Headroom: ~1.7 seconds (acceptable, but less margin for spikes)
+Utilization: 80% of 50ms budget
+Headroom: 10ms
+```
+
+### Cycle Overrun Pattern
+
+```
+steering_cycle_total: P99=62ms (EXCEEDS 50ms budget)
+  +-- rtt_measurement: P99=45ms (network spike)
+  +-- cake_stats: P99=28ms (router load)
+
+WARNING: ~1% of cycles exceed 50ms budget
 ```
 
 ## Next Steps
 
 ### After Initial Profiling
 
-1. **Identify primary bottleneck** - Which subsystem will you optimize first?
-2. **Plan optimization** - Phase 2 targets identified bottleneck
-3. **Implement optimization** - Apply Phase 2 changes
-4. **Re-profile** - Measure improvement
-5. **Iterate** - Move to next bottleneck
+1. **Collect baseline** - Run --profile for 4-24 hours
+2. **Identify primary bottleneck** - Which subsystem dominates?
+3. **Phase 48: Hot Path Optimization** - Apply targeted optimizations
+4. **Re-profile** - Measure improvement against baseline
+5. **Iterate** - Move to next bottleneck until utilization ~40%
 
-### Optimization Priorities by Phase
+### Phase 48 Optimization Targets
 
-| Phase   | Focus                                                 | Expected Improvement |
-| ------- | ----------------------------------------------------- | -------------------- |
-| Phase 2 | RouterOS communication (REST API, connection pooling) | 30-50% reduction     |
-| Phase 3 | ICMP measurement (caching, parallel collection)       | 20-40% reduction     |
-| Phase 4 | State I/O (batching, async writes)                    | 5-15% reduction      |
-
-### Continuing Measurement
-
-Re-collect profiling data:
-
-- After major optimizations
-- Quarterly to detect changes in network behavior
-- If complaints about responsiveness emerge
-- To validate production performance
+| Requirement | Focus | Expected Improvement |
+|-------------|-------|---------------------|
+| OPTM-01 | RTT measurement (primary bottleneck) | Reduce RTT overhead |
+| OPTM-02 | Router communication batching | Reduce per-update cost |
+| OPTM-03 | State management optimization | Reduce computation |
+| OPTM-04 | Overall cycle optimization | Target ~40% utilization |
 
 ## Troubleshooting
 
@@ -278,107 +342,109 @@ Re-collect profiling data:
 
 **Causes:**
 
-1. Log file path incorrect
-2. Profiling hooks not deployed (Plan 01-01 not applied)
+1. The `--profile` flag is not enabled on the daemon
+2. Log file path incorrect
 3. Daemons not running
 
 **Solution:**
 
-- Verify log file exists: `ls -l /var/log/wanctl/wan1.log`
-- Check for timing output: `grep "ms$" /var/log/wanctl/wan1.log | head`
-- Ensure daemons running: `systemctl status wanctl@*`
+- Verify `--profile` flag is in service config: check systemd override
+- Verify log file exists: `ls -l /var/log/wanctl/`
+- Check for profiling output: `grep "=== Profiling Report ===" /var/log/wanctl/spectrum.log`
+- Ensure daemons running: `systemctl status wanctl@spectrum`
 
-### "Available subsystems: [empty list]"
+### No profiling reports appearing
 
-**Symptom:** Script runs but shows no subsystems found
-
-**Cause:** Log file exists but contains no timing lines
-
-**Solution:**
-
-- Wait for at least one cycle to complete (autorate: 10 min, steering: 2 sec)
-- Verify profiler module deployed: `test -f src/wanctl/perf_profiler.py`
-
-### Report shows high p99 values
-
-**Symptom:** P99 >> average (e.g., avg 50ms, p99 200ms)
+**Symptom:** Daemon is running with `--profile` but no reports in logs
 
 **Causes:**
 
-1. Network congestion during collection period
-2. Router CPU load
-3. SSH connection timeouts
+1. Daemon hasn't completed 1200 cycles yet (wait 60 seconds for first report)
+2. Log level set too high (reports are at INFO level)
 
 **Solution:**
 
-- Collect longer period (1-2 weeks vs 7 days)
-- Check router CPU during problem times: `ssh admin@router 'system resource print'`
-- If SSH, consider switching to REST API (Phase 2)
+- Wait 60 seconds for the first profiling report to be emitted
+- Verify log level: `journalctl -u wanctl@spectrum --since "2 min ago" | grep -i profil`
 
-## References
+### Report shows P99 exceeding 50ms
 
-- **Plan 01-01 Summary:** `.planning/phases/01-measurement-infrastructure-profiling/01-01-SUMMARY.md`
-- **Profiling Module:** `src/wanctl/perf_profiler.py`
-- **Collection Tool:** `scripts/profiling_collector.py`
-- **Analysis Tool:** `scripts/analyze_profiling.py`
+**Symptom:** P99 significantly exceeds the 50ms budget
+
+**Causes:**
+
+1. Network congestion during collection period (RTT spikes)
+2. Router CPU load (slow REST API responses)
+3. System load on container host
+
+**Solution:**
+
+- Check if spikes correlate with network congestion (compare with RTT baselines)
+- Check router CPU: `ssh admin@router 'system resource print'`
+- This is the expected finding that motivates Phase 48 optimization
 
 ## Scripts Reference
 
 ### profiling_collector.py
 
-Extract and aggregate timing measurements from a single log file.
+Extract and aggregate timing measurements from log files. Outputs P50/P95/P99 percentiles.
 
 ```bash
-# All subsystems, text format
-python3 scripts/profiling_collector.py /var/log/wanctl/wan1.log --all
+# All subsystems, text format (includes P50)
+python3 scripts/profiling_collector.py /var/log/wanctl/spectrum.log --all
 
 # Specific subsystem
-python3 scripts/profiling_collector.py /var/log/wanctl/wan1.log \
+python3 scripts/profiling_collector.py /var/log/wanctl/spectrum.log \
     --subsystem steering_rtt_measurement
 
 # JSON export
-python3 scripts/profiling_collector.py /var/log/wanctl/wan1.log \
+python3 scripts/profiling_collector.py /var/log/wanctl/spectrum.log \
     --all --output json
 
-# CSV export
-python3 scripts/profiling_collector.py /var/log/wanctl/wan1.log \
+# CSV export (includes p50_ms column)
+python3 scripts/profiling_collector.py /var/log/wanctl/spectrum.log \
     --all --output csv
 ```
 
 ### analyze_profiling.py
 
-Generate human-readable markdown analysis report.
+Generate markdown analysis report with utilization calculations against cycle budget.
 
 ```bash
-# Generate report to stdout
-python3 scripts/analyze_profiling.py --log-file profiling_data/wan1.log
+# Generate report with default 50ms budget
+python3 scripts/analyze_profiling.py --log-file profiling_data/spectrum.log
+
+# Custom budget (e.g., for testing at different intervals)
+python3 scripts/analyze_profiling.py --log-file profiling_data/spectrum.log --budget 100.0
 
 # Save report to file
-python3 scripts/analyze_profiling.py --log-file profiling_data/wan1.log \
+python3 scripts/analyze_profiling.py --log-file profiling_data/spectrum.log \
     --output reports/analysis.md
-
-# Include time-series data (reserved for future enhancement)
-python3 scripts/analyze_profiling.py --log-file profiling_data/wan1.log \
-    --time-series
 ```
+
+**Output includes:** Summary table with P50, cycle utilization %, headroom, P99 budget warnings, bottleneck analysis, and optimization recommendations.
 
 ## Appendix: Statistical Methods
 
 ### Percentile Calculation
 
-- **P95:** 95% of samples fall below this value
-- **P99:** 99% of samples fall below this value
+- **P50 (median):** 50% of samples fall below this value -- represents typical experience
+- **P95:** 95% of samples fall below this value -- identifies common spikes
+- **P99:** 99% of samples fall below this value -- identifies worst-case behavior
 
 Using index method: `index = (percentile/100) * (count - 1)`
 
-Useful for identifying outliers:
+### Interpreting Percentiles
 
-- If `p99 < 1.5x avg`: Consistent performance, no outliers
-- If `p99 > 3x avg`: Significant outliers, investigate cause
+- If `P99 < 50ms`: All cycles completing within budget
+- If `P99 > 50ms`: ~1% of cycles overrunning budget (optimization needed)
+- If `P50 > 40ms`: Typical cycles using >80% of budget (tight)
+- If `P50 < 25ms`: Comfortable headroom for most cycles
 
-### Average vs Median
+## References
 
-- **Average (mean):** Affected by outliers, useful for total time budget
-- **Median (p50):** Resistant to outliers, typical experience
-
-Both values shown in reports for context.
+- **Profiling Module:** `src/wanctl/perf_profiler.py`
+- **Collection Tool:** `scripts/profiling_collector.py`
+- **Analysis Tool:** `scripts/analyze_profiling.py`
+- **Phase 47 Plan 01 Summary:** `.planning/phases/47-cycle-profiling-infrastructure/47-01-SUMMARY.md`
+- **Production Interval Guide:** `docs/PRODUCTION_INTERVAL.md`
