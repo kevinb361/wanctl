@@ -23,9 +23,7 @@ class TestMetricsRecordingIntegration:
         yield db_path, writer
         MetricsWriter._reset_instance()
 
-    def test_metrics_written_each_cycle(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_metrics_written_each_cycle(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify RTT and rate metrics written to database."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -50,9 +48,7 @@ class TestMetricsRecordingIntegration:
         assert metrics["wanctl_rtt_ms"] == 25.5
         assert metrics["wanctl_rate_download_mbps"] == 850.0
 
-    def test_state_recorded_each_cycle(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_state_recorded_each_cycle(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify congestion state recorded with direction label."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -78,9 +74,7 @@ class TestMetricsRecordingIntegration:
         labels = json.loads(row[1])
         assert labels["direction"] == "download"
 
-    def test_state_transition_with_reason(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_state_transition_with_reason(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify state transitions include reason labels."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -100,18 +94,14 @@ class TestMetricsRecordingIntegration:
 
         # Verify labels stored
         conn = sqlite3.connect(db_path)
-        row = conn.execute(
-            "SELECT labels FROM metrics WHERE metric_name='wanctl_state'"
-        ).fetchone()
+        row = conn.execute("SELECT labels FROM metrics WHERE metric_name='wanctl_state'").fetchone()
         conn.close()
 
         labels = json.loads(row[0])
         assert labels["reason"].startswith("RTT delta")
         assert "soft_red" in labels["reason"]
 
-    def test_full_cycle_metrics_batch(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_full_cycle_metrics_batch(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify all 6 metrics written in a single batch."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -282,9 +272,7 @@ class TestTransitionReasonRecording:
         yield db_path, writer
         MetricsWriter._reset_instance()
 
-    def test_transition_to_red_reason(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_transition_to_red_reason(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify RED transition reason format."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -309,9 +297,7 @@ class TestTransitionReasonRecording:
         assert "hard_red" in labels["reason"]
         assert "80ms" in labels["reason"]
 
-    def test_transition_to_green_reason(
-        self, temp_db: tuple[Path, MetricsWriter]
-    ) -> None:
+    def test_transition_to_green_reason(self, temp_db: tuple[Path, MetricsWriter]) -> None:
         """Verify GREEN transition reason format."""
         db_path, writer = temp_db
         ts = int(time.time())
@@ -390,9 +376,7 @@ class TestQueueControllerTransitionTracking:
         target_delta = 15.0
         warn_delta = 45.0
 
-        zone, rate, reason = controller.adjust(
-            baseline_rtt, load_rtt_red, target_delta, warn_delta
-        )
+        zone, rate, reason = controller.adjust(baseline_rtt, load_rtt_red, target_delta, warn_delta)
 
         assert zone == "RED"
         assert reason is not None
@@ -423,13 +407,9 @@ class TestQueueControllerTransitionTracking:
         warn_delta = 45.0
 
         # First call sets state
-        zone1, rate1, reason1 = controller.adjust(
-            baseline_rtt, load_rtt, target_delta, warn_delta
-        )
+        zone1, rate1, reason1 = controller.adjust(baseline_rtt, load_rtt, target_delta, warn_delta)
         # Second call should return None reason (no change)
-        zone2, rate2, reason2 = controller.adjust(
-            baseline_rtt, load_rtt, target_delta, warn_delta
-        )
+        zone2, rate2, reason2 = controller.adjust(baseline_rtt, load_rtt, target_delta, warn_delta)
 
         assert zone1 == "GREEN"
         assert zone2 == "GREEN"

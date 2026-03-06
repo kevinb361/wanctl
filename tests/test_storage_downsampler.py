@@ -82,9 +82,7 @@ class TestDownsampleToGranularity:
         assert rows == 1  # One minute bucket
 
         # Verify aggregated row exists
-        cursor = test_db.execute(
-            "SELECT value, granularity FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT value, granularity FROM metrics WHERE granularity = '1m'")
         row = cursor.fetchone()
         assert row is not None
         # AVG of 10.0 to 15.9 = 12.95
@@ -92,9 +90,7 @@ class TestDownsampleToGranularity:
         assert row[1] == "1m"
 
         # Verify raw data was deleted
-        cursor = test_db.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'"
-        )
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'")
         assert cursor.fetchone()[0] == 0
 
     def test_raw_to_1m_multiple_buckets(self, test_db):
@@ -111,9 +107,7 @@ class TestDownsampleToGranularity:
         assert rows == 3  # Three minute buckets
 
         # Verify 3 aggregated rows
-        cursor = test_db.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 3
 
     def test_1m_to_5m(self, test_db):
@@ -122,16 +116,16 @@ class TestDownsampleToGranularity:
         # Align to 5-minute boundary for predictable bucket count
         start = align_to_bucket(now - (2 * 86400), 300)
         values = [10.0, 20.0, 30.0, 40.0, 50.0]
-        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", values, start, interval=60, granularity="1m")
+        insert_metrics(
+            test_db, "wanctl_rtt_ms", "spectrum", values, start, interval=60, granularity="1m"
+        )
 
         cutoff = now - 86400  # 1 day ago
         rows = downsample_to_granularity(test_db, "1m", "5m", 300, cutoff)
 
         assert rows == 1  # One 5-minute bucket
 
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '5m'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '5m'")
         row = cursor.fetchone()
         assert row is not None
         # AVG of 10, 20, 30, 40, 50 = 30
@@ -143,16 +137,16 @@ class TestDownsampleToGranularity:
         # Align to hour boundary for predictable bucket count
         start = align_to_bucket(now - (8 * 86400), 3600)
         values = [100.0] * 12  # 12 x 5min = 1 hour
-        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", values, start, interval=300, granularity="5m")
+        insert_metrics(
+            test_db, "wanctl_rtt_ms", "spectrum", values, start, interval=300, granularity="5m"
+        )
 
         cutoff = now - (7 * 86400)  # 7 days ago
         rows = downsample_to_granularity(test_db, "5m", "1h", 3600, cutoff)
 
         assert rows == 1
 
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '1h'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1h'")
         assert cursor.fetchone()[0] == 100.0
 
     def test_preserves_recent_data(self, test_db):
@@ -169,9 +163,7 @@ class TestDownsampleToGranularity:
         assert rows == 0  # Nothing to downsample
 
         # Raw data should still exist
-        cursor = test_db.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'"
-        )
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'")
         assert cursor.fetchone()[0] == 60
 
     def test_avg_aggregation_for_rtt(self, test_db):
@@ -185,9 +177,7 @@ class TestDownsampleToGranularity:
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
         assert rows == 1
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 20.0
 
     def test_avg_aggregation_for_rate(self, test_db):
@@ -201,9 +191,7 @@ class TestDownsampleToGranularity:
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
         assert rows == 1
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 200.0
 
     def test_mode_aggregation_for_state(self, test_db):
@@ -219,9 +207,7 @@ class TestDownsampleToGranularity:
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
         assert rows == 1
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 0.0  # Most common: GREEN
 
     def test_mode_aggregation_for_steering(self, test_db):
@@ -236,9 +222,7 @@ class TestDownsampleToGranularity:
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
         assert rows == 1
-        cursor = test_db.execute(
-            "SELECT value FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 1.0  # Most common: enabled
 
     def test_multiple_wans(self, test_db):
@@ -303,9 +287,7 @@ class TestDownsampleMetrics:
         results = downsample_metrics(test_db)
 
         assert results["raw->1m"] == 1
-        cursor = test_db.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity = '1m'"
-        )
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 1
 
     def test_preserves_recent_raw_data(self, test_db):
@@ -318,9 +300,7 @@ class TestDownsampleMetrics:
         results = downsample_metrics(test_db)
 
         assert results["raw->1m"] == 0
-        cursor = test_db.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'"
-        )
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'")
         assert cursor.fetchone()[0] == 60
 
     def test_cascade_downsampling(self, test_db):
@@ -330,15 +310,25 @@ class TestDownsampleMetrics:
         # Insert 1m data 2 days ago, aligned to 5-minute boundary
         start_1m = align_to_bucket(now - (2 * 86400), 300)
         insert_metrics(
-            test_db, "wanctl_rtt_ms", "spectrum",
-            [15.0] * 5, start_1m, interval=60, granularity="1m"
+            test_db,
+            "wanctl_rtt_ms",
+            "spectrum",
+            [15.0] * 5,
+            start_1m,
+            interval=60,
+            granularity="1m",
         )
 
         # Insert 5m data 8 days ago, aligned to hour boundary
         start_5m = align_to_bucket(now - (8 * 86400), 3600)
         insert_metrics(
-            test_db, "wanctl_rtt_ms", "spectrum",
-            [20.0] * 12, start_5m, interval=300, granularity="5m"
+            test_db,
+            "wanctl_rtt_ms",
+            "spectrum",
+            [20.0] * 12,
+            start_5m,
+            interval=300,
+            granularity="5m",
         )
 
         results = downsample_metrics(test_db)

@@ -127,56 +127,44 @@ class TestArgumentParsing:
 
     def test_user_override(self):
         """Test that --user override works."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--user", "custom_user"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--user", "custom_user"]
+        )
         assert args.user == "custom_user"
 
     def test_ssh_key_accepts_path(self):
         """Test that --ssh-key accepts a path."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--ssh-key", "/path/to/key"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--ssh-key", "/path/to/key"]
+        )
         assert args.ssh_key == "/path/to/key"
 
     def test_download_queue_override(self):
         """Test that --download-queue sets custom queue name."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--download-queue", "custom-dl-queue"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--download-queue", "custom-dl-queue"]
+        )
         assert args.download_queue == "custom-dl-queue"
 
     def test_upload_queue_override(self):
         """Test that --upload-queue sets custom queue name."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--upload-queue", "custom-ul-queue"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--upload-queue", "custom-ul-queue"]
+        )
         assert args.upload_queue == "custom-ul-queue"
 
     def test_target_bloat_accepts_float(self):
         """Test that --target-bloat accepts float value."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--target-bloat", "15.5"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--target-bloat", "15.5"]
+        )
         assert args.target_bloat == 15.5
 
     def test_skip_binary_search_sets_flag(self):
         """Test that --skip-binary-search sets flag True."""
-        args = parse_args_safely([
-            "--wan-name", "wan1",
-            "--router", "192.168.1.1",
-            "--skip-binary-search"
-        ])
+        args = parse_args_safely(
+            ["--wan-name", "wan1", "--router", "192.168.1.1", "--skip-binary-search"]
+        )
         assert args.skip_binary_search is True
 
     def test_skip_binary_search_default_false(self):
@@ -186,19 +174,31 @@ class TestArgumentParsing:
 
     def test_all_optional_args_combined(self):
         """Test all optional arguments together."""
-        args = parse_args_safely([
-            "--wan-name", "cable",
-            "--router", "10.0.0.1",
-            "--user", "root",
-            "--ssh-key", "/root/.ssh/id_ed25519",
-            "--netperf-host", "custom.netperf.server",
-            "--ping-host", "8.8.8.8",
-            "--download-queue", "DL-Cable",
-            "--upload-queue", "UL-Cable",
-            "--target-bloat", "8.0",
-            "--output-dir", "/tmp/wanctl",
-            "--skip-binary-search"
-        ])
+        args = parse_args_safely(
+            [
+                "--wan-name",
+                "cable",
+                "--router",
+                "10.0.0.1",
+                "--user",
+                "root",
+                "--ssh-key",
+                "/root/.ssh/id_ed25519",
+                "--netperf-host",
+                "custom.netperf.server",
+                "--ping-host",
+                "8.8.8.8",
+                "--download-queue",
+                "DL-Cable",
+                "--upload-queue",
+                "UL-Cable",
+                "--target-bloat",
+                "8.0",
+                "--output-dir",
+                "/tmp/wanctl",
+                "--skip-binary-search",
+            ]
+        )
         assert args.wan_name == "cable"
         assert args.router == "10.0.0.1"
         assert args.user == "root"
@@ -300,12 +300,20 @@ class TestCalibrationResult:
 
         d = result.to_dict()
         expected_keys = {
-            "wan_name", "router_host", "router_user",
-            "baseline_rtt_ms", "raw_download_mbps", "raw_upload_mbps",
-            "optimal_download_mbps", "optimal_upload_mbps",
-            "download_bloat_ms", "upload_bloat_ms",
-            "floor_download_mbps", "floor_upload_mbps",
-            "timestamp", "target_bloat_ms"
+            "wan_name",
+            "router_host",
+            "router_user",
+            "baseline_rtt_ms",
+            "raw_download_mbps",
+            "raw_upload_mbps",
+            "optimal_download_mbps",
+            "optimal_upload_mbps",
+            "download_bloat_ms",
+            "upload_bloat_ms",
+            "floor_download_mbps",
+            "floor_upload_mbps",
+            "timestamp",
+            "target_bloat_ms",
         }
         assert set(d.keys()) == expected_keys
 
@@ -427,9 +435,7 @@ class TestMeasurement:
     @patch("wanctl.calibrate.subprocess.run")
     def test_measure_baseline_rtt_success(self, mock_run):
         """Test baseline RTT measurement returns float on success."""
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
         result = measure_baseline_rtt("1.1.1.1")
         # Should return minimum RTT (11.8 from sample)
         assert result is not None
@@ -453,9 +459,7 @@ class TestMeasurement:
     @patch("wanctl.calibrate.subprocess.run")
     def test_measure_baseline_rtt_no_samples(self, mock_run):
         """Test baseline RTT measurement returns None when no RTT values parsed."""
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_NO_RTT, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_NO_RTT, stderr="")
         result = measure_baseline_rtt("1.1.1.1")
         assert result is None
 
@@ -477,9 +481,7 @@ class TestMeasurement:
         mock_popen.return_value = mock_proc
 
         # Mock ping result
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
 
         throughput, bloat = measure_throughput_download(
             "netperf.bufferbloat.net", "1.1.1.1", baseline_rtt=10.0
@@ -503,9 +505,7 @@ class TestMeasurement:
         mock_popen.return_value = mock_proc
 
         # Mock ping result
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
 
         throughput, bloat = measure_throughput_upload(
             "netperf.bufferbloat.net", "1.1.1.1", baseline_rtt=10.0
@@ -553,9 +553,7 @@ class TestMeasurement:
         mock_popen.return_value = mock_proc
 
         # Mock ping result with no RTT values
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_NO_RTT, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_NO_RTT, stderr="")
 
         throughput, bloat = measure_throughput_download(
             "netperf.bufferbloat.net", "1.1.1.1", baseline_rtt=10.0
@@ -575,9 +573,7 @@ class TestMeasurement:
         mock_popen.return_value = mock_proc
 
         # Mock ping result
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
 
         throughput, bloat = measure_throughput_download(
             "netperf.bufferbloat.net", "1.1.1.1", baseline_rtt=10.0
@@ -598,27 +594,21 @@ class TestBinarySearch:
     def test_set_cake_limit_success(self, mock_run):
         """Test set_cake_limit returns True on success."""
         mock_run.return_value = MagicMock(returncode=0)
-        result = set_cake_limit(
-            "192.168.1.1", "admin", "WAN-Download", 100_000_000
-        )
+        result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is True
 
     @patch("wanctl.calibrate.subprocess.run")
     def test_set_cake_limit_failure(self, mock_run):
         """Test set_cake_limit returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1)
-        result = set_cake_limit(
-            "192.168.1.1", "admin", "WAN-Download", 100_000_000
-        )
+        result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
     def test_set_cake_limit_exception(self, mock_run):
         """Test set_cake_limit returns False on exception."""
         mock_run.side_effect = OSError("SSH failed")
-        result = set_cake_limit(
-            "192.168.1.1", "admin", "WAN-Download", 100_000_000
-        )
+        result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is False
 
     @patch("wanctl.calibrate.subprocess.run")
@@ -626,8 +616,7 @@ class TestBinarySearch:
         """Test set_cake_limit includes -i flag with SSH key."""
         mock_run.return_value = MagicMock(returncode=0)
         result = set_cake_limit(
-            "192.168.1.1", "admin", "WAN-Download", 100_000_000,
-            ssh_key="/path/to/key"
+            "192.168.1.1", "admin", "WAN-Download", 100_000_000, ssh_key="/path/to/key"
         )
         assert result is True
         call_args = mock_run.call_args[0][0]
@@ -776,6 +765,7 @@ class TestConfigGeneration:
         assert output_path.exists()
 
         import yaml
+
         with open(output_path) as f:
             content = f.read()
             # Skip header comments and parse YAML
@@ -811,6 +801,7 @@ class TestConfigGeneration:
         generate_config(result, output_path)
 
         import yaml
+
         with open(output_path) as f:
             content = f.read()
             yaml_start = content.find("wan_name:")
@@ -842,6 +833,7 @@ class TestConfigGeneration:
         generate_config(result, output_path)
 
         import yaml
+
         with open(output_path) as f:
             content = f.read()
             yaml_start = content.find("wan_name:")
@@ -873,6 +865,7 @@ class TestConfigGeneration:
         generate_config(result, output_path)
 
         import yaml
+
         with open(output_path) as f:
             content = f.read()
             yaml_start = content.find("wan_name:")
@@ -987,15 +980,23 @@ class TestMain:
         main()
         mock_signals.assert_called_once_with(include_sigterm=False)
 
-    @patch("sys.argv", [
-        "calibrate",
-        "--wan-name", "cable",
-        "--router", "10.0.0.1",
-        "--user", "root",
-        "--ssh-key", "/path/to/key",
-        "--target-bloat", "15.0",
-        "--skip-binary-search"
-    ])
+    @patch(
+        "sys.argv",
+        [
+            "calibrate",
+            "--wan-name",
+            "cable",
+            "--router",
+            "10.0.0.1",
+            "--user",
+            "root",
+            "--ssh-key",
+            "/path/to/key",
+            "--target-bloat",
+            "15.0",
+            "--skip-binary-search",
+        ],
+    )
     @patch("wanctl.calibrate.register_signal_handlers")
     @patch("wanctl.calibrate.run_calibration")
     def test_main_passes_args_to_run_calibration(self, mock_run_cal, mock_signals):
@@ -1105,16 +1106,16 @@ class TestStepHelpers:
         """Test _step_raw_throughput returns defaults when skip_throughput=True."""
         from wanctl.calibrate import _step_raw_throughput
 
-        result = _step_raw_throughput(
-            "netperf.test", "1.1.1.1", 10.0, skip_throughput=True
-        )
+        result = _step_raw_throughput("netperf.test", "1.1.1.1", 10.0, skip_throughput=True)
         assert result == (100.0, 20.0, 0.0, 0.0)
 
     @patch("wanctl.calibrate.measure_throughput_download")
     @patch("wanctl.calibrate.measure_throughput_upload")
     @patch("wanctl.calibrate.is_shutdown_requested")
     @patch("wanctl.calibrate.time.sleep")
-    def test_step_raw_throughput_success(self, mock_sleep, mock_shutdown, mock_upload, mock_download):
+    def test_step_raw_throughput_success(
+        self, mock_sleep, mock_shutdown, mock_upload, mock_download
+    ):
         """Test _step_raw_throughput returns measured values."""
         from wanctl.calibrate import _step_raw_throughput
 
@@ -1122,9 +1123,7 @@ class TestStepHelpers:
         mock_upload.return_value = (50.0, 10.0)
         mock_shutdown.return_value = False
 
-        result = _step_raw_throughput(
-            "netperf.test", "1.1.1.1", 10.0, skip_throughput=False
-        )
+        result = _step_raw_throughput("netperf.test", "1.1.1.1", 10.0, skip_throughput=False)
         assert result == (500.0, 50.0, 15.0, 10.0)
 
     @patch("wanctl.calibrate.measure_throughput_download")
@@ -1136,9 +1135,7 @@ class TestStepHelpers:
         mock_download.return_value = (500.0, 15.0)
         mock_shutdown.return_value = True  # Interrupted after download
 
-        result = _step_raw_throughput(
-            "netperf.test", "1.1.1.1", 10.0, skip_throughput=False
-        )
+        result = _step_raw_throughput("netperf.test", "1.1.1.1", 10.0, skip_throughput=False)
         assert result is None
 
 
@@ -1316,7 +1313,7 @@ class TestStepBinarySearch:
         # Return different values for download and upload
         mock_binary_search.side_effect = [
             (450.0, 8.0),  # Download result
-            (45.0, 7.0),   # Upload result
+            (45.0, 7.0),  # Upload result
         ]
 
         result = _step_binary_search(
@@ -1547,9 +1544,7 @@ class TestRawThroughputInterruptPaths:
         # First call returns False (after download), second call returns True (after upload)
         mock_shutdown.side_effect = [False, True]
 
-        result = _step_raw_throughput(
-            "netperf.test", "1.1.1.1", 10.0, skip_throughput=False
-        )
+        result = _step_raw_throughput("netperf.test", "1.1.1.1", 10.0, skip_throughput=False)
 
         assert result is None
 
@@ -1568,9 +1563,7 @@ class TestUploadThroughputFallbackPattern:
         mock_popen.return_value = mock_proc
 
         # Mock ping result
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
 
         throughput, bloat = measure_throughput_upload(
             "netperf.bufferbloat.net", "1.1.1.1", baseline_rtt=10.0

@@ -403,9 +403,7 @@ class TestConnection:
 
         assert ssh_client._is_connected() is True
 
-    def test_ensure_connected_connects_when_disconnected(
-        self, ssh_client, mock_ssh_client
-    ) -> None:
+    def test_ensure_connected_connects_when_disconnected(self, ssh_client, mock_ssh_client) -> None:
         """_ensure_connected calls _connect when not connected."""
         ssh_client._client = None
 
@@ -438,9 +436,7 @@ class TestConnection:
             mock_connect.assert_called_once()
             mock_ssh_client.close.assert_called_once()
 
-    def test_ensure_connected_handles_close_exception(
-        self, ssh_client, mock_ssh_client
-    ) -> None:
+    def test_ensure_connected_handles_close_exception(self, ssh_client, mock_ssh_client) -> None:
         """_ensure_connected ignores exception during close before reconnect."""
         ssh_client._client = mock_ssh_client
         transport = MagicMock()

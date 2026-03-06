@@ -946,9 +946,10 @@ class WANController:
         # =====================================================================
         storage_config = get_storage_config(config.data)
         self._metrics_writer: MetricsWriter | None = None
-        if storage_config.get("db_path"):
-            self._metrics_writer = MetricsWriter(Path(storage_config["db_path"]))
-            self.logger.info(f"{wan_name}: Metrics history enabled, db={storage_config['db_path']}")
+        db_path = storage_config.get("db_path")
+        if db_path and isinstance(db_path, str):
+            self._metrics_writer = MetricsWriter(Path(db_path))
+            self.logger.info(f"{wan_name}: Metrics history enabled, db={db_path}")
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -1442,8 +1443,7 @@ class WANController:
             if self.pending_rates.has_pending():
                 if self.pending_rates.is_stale():
                     self.logger.info(
-                        f"{self.wan_name}: Discarding stale pending rates "
-                        f"(queued >{60}s ago)"
+                        f"{self.wan_name}: Discarding stale pending rates (queued >{60}s ago)"
                     )
                     self.pending_rates.clear()
                 else:
@@ -1945,8 +1945,7 @@ def main() -> int | None:
                     for wan_info in controller.wan_controllers
                 )
                 any_auth_failure = any(
-                    wan_info["controller"].router_connectivity.last_failure_type
-                    == "auth_failure"
+                    wan_info["controller"].router_connectivity.last_failure_type == "auth_failure"
                     for wan_info in controller.wan_controllers
                 )
                 router_only_failure = all_routers_unreachable and not any_auth_failure
@@ -1958,8 +1957,7 @@ def main() -> int | None:
                 notify_watchdog()
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].info(
-                        f"Router unreachable ({consecutive_failures} cycles), "
-                        f"watchdog continues"
+                        f"Router unreachable ({consecutive_failures} cycles), watchdog continues"
                     )
             elif not watchdog_enabled:
                 notify_degraded(f"{consecutive_failures} consecutive failures")
@@ -1980,7 +1978,9 @@ def main() -> int | None:
                         )
                         notify_watchdog()
 
-                        downsampled = downsample_metrics(maintenance_conn, watchdog_fn=notify_watchdog)
+                        downsampled = downsample_metrics(
+                            maintenance_conn, watchdog_fn=notify_watchdog
+                        )
                         notify_watchdog()
 
                         vacuumed = vacuum_if_needed(maintenance_conn, deleted)

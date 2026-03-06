@@ -257,7 +257,9 @@ class TestHandleIcmpFailure:
             controller.config.fallback_mode = mode
             controller.icmp_unavailable_cycles = 0
 
-            with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+            with patch.object(
+                controller, "verify_connectivity_fallback", return_value=(False, None)
+            ):
                 should_continue, measured_rtt = controller.handle_icmp_failure()
 
             assert should_continue is False, f"Mode {mode} should fail on total loss"
@@ -1812,7 +1814,12 @@ class TestStateLoadSave:
         # Replace state_manager with a mock for testing
         mock_state_manager = MagicMock()
         mock_state_manager.build_controller_state = MagicMock(
-            side_effect=lambda g, s, r, c: {"green_streak": g, "soft_red_streak": s, "red_streak": r, "current_rate": c}
+            side_effect=lambda g, s, r, c: {
+                "green_streak": g,
+                "soft_red_streak": s,
+                "red_streak": r,
+                "current_rate": c,
+            }
         )
         ctrl.state_manager = mock_state_manager
         return ctrl, config, logger, mock_state_manager

@@ -88,9 +88,7 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
         raise ValueError(f"Unsupported router transport: {transport}")
 
 
-def _create_transport(
-    transport: str, config: Any, logger: logging.Logger
-) -> RouterClient:
+def _create_transport(transport: str, config: Any, logger: logging.Logger) -> RouterClient:
     """Create transport client by name.
 
     Internal helper for FailoverRouterClient.

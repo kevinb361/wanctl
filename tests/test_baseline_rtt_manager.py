@@ -389,9 +389,9 @@ class TestBaselineFreezeInvariant:
         manager.update_baseline_ewma(measured_rtt=50.0, load_rtt=45.0)
 
         # Check for expected log message
-        assert any(
-            "frozen (under load)" in record.message for record in caplog.records
-        ), "Expected 'frozen (under load)' debug log not found"
+        assert any("frozen (under load)" in record.message for record in caplog.records), (
+            "Expected 'frozen (under load)' debug log not found"
+        )
 
     def test_baseline_updates_only_when_idle(self, logger):
         """Verify baseline updates resume when delta < threshold (idle state)."""
@@ -437,10 +437,10 @@ class TestBaselineFreezeInvariant:
 
         # Varying load intensities, all above threshold
         load_scenarios = [
-            (30.0, 25.0),   # delta = 5ms (light load)
+            (30.0, 25.0),  # delta = 5ms (light load)
             (100.0, 90.0),  # delta = 70ms (heavy load)
-            (200.0, 180.0), # delta = 160ms (extreme load)
-            (25.0, 23.5),   # delta = 3.5ms (just above threshold)
+            (200.0, 180.0),  # delta = 160ms (extreme load)
+            (25.0, 23.5),  # delta = 3.5ms (just above threshold)
         ]
 
         for measured, load in load_scenarios:

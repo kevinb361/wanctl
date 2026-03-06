@@ -76,7 +76,11 @@ class TestHandleErrorsDecorator:
             obj.method_that_fails()
 
         # Verify the custom logger received the message
-        assert any("method_that_fails failed" in r.message for r in caplog.records if r.name == "test.custom")
+        assert any(
+            "method_that_fails failed" in r.message
+            for r in caplog.records
+            if r.name == "test.custom"
+        )
 
     def test_fallback_to_module_logger_when_no_self_logger(self, caplog):
         """Test fallback to module logger when object has no logger."""
@@ -108,7 +112,11 @@ class TestHandleErrorsDecorator:
         with caplog.at_level(logging.WARNING, logger="test.log_attr"):
             obj.method_that_fails()
 
-        assert any("method_that_fails failed" in r.message for r in caplog.records if r.name == "test.log_attr")
+        assert any(
+            "method_that_fails failed" in r.message
+            for r in caplog.records
+            if r.name == "test.log_attr"
+        )
 
     def test_custom_error_msg_used(self, caplog):
         """Test that custom error_msg is used when provided."""
@@ -381,7 +389,11 @@ class TestSafeCallFunction:
         with caplog.at_level(logging.WARNING, logger="test.custom_safe_call"):
             safe_call(failing, logger=custom_logger)
 
-        assert any("failing failed" in r.message for r in caplog.records if r.name == "test.custom_safe_call")
+        assert any(
+            "failing failed" in r.message
+            for r in caplog.records
+            if r.name == "test.custom_safe_call"
+        )
 
     def test_log_traceback_logs_at_debug(self, caplog):
         """Test log_traceback logs traceback at DEBUG."""

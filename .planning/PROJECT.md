@@ -18,16 +18,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Graceful shutdown (SIGTERM handling, in-flight commands, state consistency)
 - Contract tests (verify mocks match real RouterOS response format)
 
-## Current State (v1.7)
+## Current State (v1.8)
 
-- **Version:** v1.7 Metrics History (shipped 2026-01-25)
+- **Version:** v1.8.0 Resilience & Robustness (in progress)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 1,727 passing
-- **Coverage:** 90%+ (CI enforced)
-- **LOC:** ~13,273 Python (src/)
-- **Status:** Production stable, comprehensive test coverage, metrics history
+- **Tests:** 1,873 passing
+- **Coverage:** 91%+ (CI enforced)
+- **LOC:** ~15,753 Python (src/)
+- **Status:** Production stable, error recovery (phases 43-44) complete, graceful shutdown next
 
-**Previous:** v1.6 Test Coverage 90% — 743 new tests, CI enforcement
+**Previous:** v1.7 Metrics History — SQLite storage, downsampling, wanctl-history CLI
 
 ## Requirements
 
@@ -184,9 +184,17 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - `/metrics/history` HTTP API endpoint
 - 237 new tests (1,490 → 1,727 total)
 
+**v1.8 Resilience & Robustness (2026-01-29, in progress):**
+
+- Phase 43: Error detection & reconnection (RouterConnectivityState, classify_failure_type)
+- Phase 44: Fail-safe behavior (PendingRateChange, watchdog distinction)
+- Phase 44.1: Codebase health & coverage recovery (test pollution fix, 91%+ coverage)
+- 146 new tests (1,727 → 1,873 total)
+
 **Next Steps:**
 
-- Execute v1.8 Resilience & Robustness milestone
+- Phase 45: Graceful shutdown (SIGTERM handling, state consistency)
+- Phase 46: Contract tests (golden files for RouterOS response formats)
 
 ## Constraints
 
@@ -217,4 +225,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-01-29 after v1.8 milestone started_
+_Last updated: 2026-03-06 after Phase 44.1 codebase health_

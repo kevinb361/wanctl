@@ -288,7 +288,14 @@ class TestThreadSafety:
 
         def write_batch(thread_id: int):
             metrics = [
-                (1706200000 + thread_id * 1000 + i, f"wan_{thread_id}", "wanctl_rtt_ms", float(i), None, "raw")
+                (
+                    1706200000 + thread_id * 1000 + i,
+                    f"wan_{thread_id}",
+                    "wanctl_rtt_ms",
+                    float(i),
+                    None,
+                    "raw",
+                )
                 for i in range(metrics_per_batch)
             ]
             writer.write_metrics_batch(metrics)

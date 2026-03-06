@@ -240,7 +240,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result["offset"] = offset
             except ValueError as e:
                 if "invalid literal" in str(e):
-                    raise ValueError(f"Invalid offset value: '{query_params['offset'][0]}'") from None
+                    raise ValueError(
+                        f"Invalid offset value: '{query_params['offset'][0]}'"
+                    ) from None
                 raise
 
         return result
@@ -261,7 +263,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         units = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
         match = re.match(r"^(\d+)([smhdw])$", value.lower())
         if not match:
-            raise ValueError(f"Invalid duration format: '{value}'. Use format like '1h', '30m', '7d'")
+            raise ValueError(
+                f"Invalid duration format: '{value}'. Use format like '1h', '30m', '7d'"
+            )
         return timedelta(seconds=int(match.group(1)) * units[match.group(2)])
 
     def _parse_iso_timestamp(self, value: str) -> int:

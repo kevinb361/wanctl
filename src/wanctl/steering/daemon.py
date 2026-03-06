@@ -649,9 +649,10 @@ class SteeringDaemon:
         # Metrics history storage (optional)
         storage_config = get_storage_config(config.data)
         self._metrics_writer: MetricsWriter | None = None
-        if storage_config.get("db_path"):
-            self._metrics_writer = MetricsWriter(Path(storage_config["db_path"]))
-            self.logger.info(f"Metrics storage enabled: {storage_config['db_path']}")
+        db_path = storage_config.get("db_path")
+        if db_path and isinstance(db_path, str):
+            self._metrics_writer = MetricsWriter(Path(db_path))
+            self.logger.info(f"Metrics storage enabled: {db_path}")
 
         # Confidence-based steering controller (if enabled)
         self.confidence_controller: ConfidenceController | None = None
@@ -1297,7 +1298,9 @@ class SteeringDaemon:
         # Record to SQLite history (if storage enabled)
         if self._metrics_writer is not None:
             ts = int(time.time())
-            steering_enabled_val = 1.0 if state["current_state"] == self.config.state_degraded else 0.0
+            steering_enabled_val = (
+                1.0 if state["current_state"] == self.config.state_degraded else 0.0
+            )
             state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
                 state.get("congestion_state", "GREEN"), 0
             )
@@ -1306,8 +1309,22 @@ class SteeringDaemon:
                 (ts, self.config.primary_wan, "wanctl_rtt_ms", current_rtt, None, "raw"),
                 (ts, self.config.primary_wan, "wanctl_rtt_baseline_ms", baseline_rtt, None, "raw"),
                 (ts, self.config.primary_wan, "wanctl_rtt_delta_ms", delta, None, "raw"),
-                (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw"),
-                (ts, self.config.primary_wan, "wanctl_state", float(state_val), {"source": "steering"}, "raw"),
+                (
+                    ts,
+                    self.config.primary_wan,
+                    "wanctl_steering_enabled",
+                    steering_enabled_val,
+                    None,
+                    "raw",
+                ),
+                (
+                    ts,
+                    self.config.primary_wan,
+                    "wanctl_state",
+                    float(state_val),
+                    {"source": "steering"},
+                    "raw",
+                ),
             ]
             self._metrics_writer.write_metrics_batch(metrics_batch)
 
@@ -1457,10 +1474,11 @@ def main() -> int | None:
 
     # Record config snapshot on startup (if storage enabled)
     storage_config = get_storage_config(config.data)
-    if storage_config.get("db_path"):
+    db_path = storage_config.get("db_path")
+    if db_path and isinstance(db_path, str):
         from wanctl.storage import record_config_snapshot, run_startup_maintenance
 
-        writer = MetricsWriter(Path(storage_config["db_path"]))
+        writer = MetricsWriter(Path(db_path))
         record_config_snapshot(writer, config.primary_wan, config.data, "startup")
 
         # Run startup maintenance (cleanup + downsampling)
@@ -1472,7 +1490,7 @@ def main() -> int | None:
         if maint_result.get("error"):
             logger.warning(f"Startup maintenance error: {maint_result['error']}")
 
-        logger.info(f"Config snapshot recorded to {storage_config['db_path']}")
+        logger.info(f"Config snapshot recorded to {db_path}")
 
     # Check for early shutdown (signal received during startup)
     if is_shutdown_requested():

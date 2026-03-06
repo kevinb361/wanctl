@@ -230,9 +230,7 @@ class TestOneshotMode:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file), "--oneshot"]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
         ):
             from wanctl.autorate_continuous import main
 
@@ -250,9 +248,7 @@ class TestOneshotMode:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file), "--oneshot"]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
         ):
             from wanctl.autorate_continuous import main
 
@@ -319,15 +315,14 @@ class TestDaemonModeStartup:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch(
                 "wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True
             ) as mock_lock,
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -355,9 +350,7 @@ class TestDaemonModeStartup:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=False),
         ):
             from wanctl.autorate_continuous import main
@@ -394,15 +387,12 @@ class TestDaemonModeStartup:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers") as mock_register_signals,
             patch(
-                "wanctl.autorate_continuous.register_signal_handlers"
-            ) as mock_register_signals,
-            patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -445,9 +435,7 @@ class TestDaemonModeStartup:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -455,7 +443,8 @@ class TestDaemonModeStartup:
                 return_value=mock_metrics_server,
             ) as mock_start_metrics,
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -498,9 +487,7 @@ class TestDaemonModeStartup:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -508,7 +495,8 @@ class TestDaemonModeStartup:
                 return_value=mock_health_server,
             ) as mock_start_health,
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -570,9 +558,7 @@ class TestDaemonModeShutdown:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -621,13 +607,12 @@ class TestDaemonModeShutdown:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -672,13 +657,12 @@ class TestDaemonModeShutdown:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -724,13 +708,12 @@ class TestDaemonModeShutdown:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -778,9 +761,7 @@ class TestDaemonModeShutdown:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -792,7 +773,8 @@ class TestDaemonModeShutdown:
                 return_value=mock_health_server,
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -851,9 +833,7 @@ class TestDaemonControlLoop:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -901,9 +881,7 @@ class TestDaemonControlLoop:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -953,9 +931,7 @@ class TestDaemonControlLoop:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1013,9 +989,7 @@ class TestDaemonControlLoop:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1066,9 +1040,7 @@ class TestDaemonControlLoop:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1168,9 +1140,7 @@ class TestSignalIntegration:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1501,9 +1471,7 @@ class TestDaemonErrorHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch(
                 "wanctl.autorate_continuous.validate_and_acquire_lock",
                 side_effect=RuntimeError("test error"),
@@ -1548,9 +1516,7 @@ class TestDaemonErrorHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1558,7 +1524,8 @@ class TestDaemonErrorHandlers:
                 side_effect=OSError("port in use"),
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1603,9 +1570,7 @@ class TestDaemonErrorHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1613,7 +1578,8 @@ class TestDaemonErrorHandlers:
                 side_effect=OSError("port in use"),
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1656,14 +1622,13 @@ class TestDaemonErrorHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch("wanctl.autorate_continuous.is_systemd_available", return_value=True),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1703,14 +1668,13 @@ class TestDaemonErrorHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch("wanctl.autorate_continuous.atexit.register") as mock_atexit_register,
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1777,13 +1741,12 @@ class TestDaemonCleanupHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1825,9 +1788,7 @@ class TestDaemonCleanupHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch("wanctl.autorate_continuous.atexit.register"),
@@ -1836,7 +1797,8 @@ class TestDaemonCleanupHandlers:
                 side_effect=Exception("unregister failed"),
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1881,13 +1843,12 @@ class TestDaemonCleanupHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1933,9 +1894,7 @@ class TestDaemonCleanupHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1943,7 +1902,8 @@ class TestDaemonCleanupHandlers:
                 return_value=mock_metrics_server,
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),
@@ -1989,9 +1949,7 @@ class TestDaemonCleanupHandlers:
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
-            patch(
-                "wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller
-            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
             patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
             patch("wanctl.autorate_continuous.register_signal_handlers"),
             patch(
@@ -1999,7 +1957,8 @@ class TestDaemonCleanupHandlers:
                 return_value=mock_health_server,
             ),
             patch(
-                "wanctl.autorate_continuous.is_shutdown_requested", side_effect=is_shutdown_after_one
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
             ),
             patch("wanctl.autorate_continuous.time.sleep"),
             patch("wanctl.autorate_continuous.update_health_status"),

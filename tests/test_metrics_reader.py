@@ -272,7 +272,14 @@ class TestQueryMetricsResultFormat:
 
         # Check first row has all columns
         row = result[0]
-        expected_columns = {"timestamp", "wan_name", "metric_name", "value", "labels", "granularity"}
+        expected_columns = {
+            "timestamp",
+            "wan_name",
+            "metric_name",
+            "value",
+            "labels",
+            "granularity",
+        }
         assert set(row.keys()) == expected_columns
 
     def test_query_labels_are_json_strings(self, populated_db):

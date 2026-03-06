@@ -274,7 +274,9 @@ class TestRouterOSRESTRunCmd:
         """RequestException propagating to run_cmd returns (1, '', error_message)."""
         # Mock _execute_command to raise exception directly
         with patch.object(
-            rest_client, "_execute_command", side_effect=requests.RequestException("Connection refused")
+            rest_client,
+            "_execute_command",
+            side_effect=requests.RequestException("Connection refused"),
         ):
             rc, stdout, stderr = rest_client.run_cmd("/queue tree print")
 
