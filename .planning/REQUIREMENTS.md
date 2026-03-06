@@ -34,8 +34,8 @@ Requirements for Performance & Efficiency milestone. Target: reduce cycle utiliz
 
 ### Profiling & Measurement
 
-- [ ] **PROF-01**: Operator can collect cycle-level profiling data at 50ms production interval for both autorate and steering daemons
-- [ ] **PROF-02**: Each cycle phase (RTT measurement, router communication, CAKE stats, state management) is individually timed with monotonic timestamps
+- [x] **PROF-01**: Operator can collect cycle-level profiling data at 50ms production interval for both autorate and steering daemons
+- [x] **PROF-02**: Each cycle phase (RTT measurement, router communication, CAKE stats, state management) is individually timed with monotonic timestamps
 - [ ] **PROF-03**: Cycle budget utilization (% used, overrun count, slow cycle count) is exposed via health endpoint
 
 ### Optimization
@@ -82,8 +82,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CNTR-02     | 46    | Deferred |
 | CNTR-03     | 46    | Deferred |
 | CNTR-04     | 46    | Deferred |
-| PROF-01     | 47    | Pending  |
-| PROF-02     | 47    | Pending  |
+| PROF-01     | 47    | Complete |
+| PROF-02     | 47    | Complete |
 | PROF-03     | 49    | Pending  |
 | OPTM-01     | 48    | Pending  |
 | OPTM-02     | 48    | Pending  |
@@ -101,4 +101,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-01-29_
-_Last updated: 2026-03-06 — v1.9 requirements added_
+_Last updated: 2026-03-06 — PROF-01, PROF-02 complete (Phase 47 Plan 01)_

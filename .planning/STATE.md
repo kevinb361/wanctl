@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-06 — Milestone v1.9 started
+Phase: 47-cycle-profiling-infrastructure
+Plan: 01 complete
+Status: Executing v1.9
+Last activity: 2026-03-06 — Phase 47 Plan 01 complete (cycle profiling instrumentation)
 
 ## Performance Metrics
 
@@ -36,6 +36,12 @@ Last activity: 2026-03-06 — Milestone v1.9 started
 ### Decisions
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
+
+**v1.9 Performance & Efficiency:**
+
+- save_state() stays AFTER router communication (not inside state_management timer) to preserve error-path behavior
+- Flag-based early returns from PerfTimer blocks to ensure elapsed_ms accuracy
+- PROFILE_REPORT_INTERVAL = 1200 cycles (60s at 50ms) for periodic profiling reports
 
 **v1.8 Resilience & Robustness:**
 
@@ -96,10 +102,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06 (v1.9 milestone kickoff)
-Previous session: 2026-02-24 — Housekeeping
+Last session: 2026-03-06 (Phase 47-01 execution)
+Previous session: 2026-03-06 — v1.9 milestone kickoff
 Resume file: None
 
 ## Next Steps
 
-Phase 47 (Cycle Profiling Infrastructure) — discuss or plan, then execute.
+Phase 47 Plan 01 complete. Next: Phase 48 (Hot Path Optimization) or additional Phase 47 plans if any.
