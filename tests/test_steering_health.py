@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from wanctl import __version__
+from wanctl.perf_profiler import OperationProfiler
 from wanctl.steering.health import (
     SteeringHealthHandler,
     SteeringHealthServer,
@@ -828,5 +829,161 @@ class TestSteeringRouterConnectivityReporting:
             assert "router_reachable" in data
             assert data["router_reachable"] is True
             assert data["status"] == "healthy"
+        finally:
+            server.shutdown()
+
+
+class TestSteeringCycleBudget:
+    """Tests for cycle_budget in steering health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    def _make_mock_daemon(self, with_profiler_data=True, overrun_count=2):
+        """Create a mock SteeringDaemon with profiler attributes."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+
+        # Set profiler attributes (from Plan 01)
+        daemon._profiler = OperationProfiler(max_samples=1200)
+        daemon._overrun_count = overrun_count
+        daemon._cycle_interval_ms = 50.0
+
+        if with_profiler_data:
+            for val in [29.0, 30.0, 31.0, 32.0, 33.0, 28.0, 27.0, 31.5, 30.5, 29.5]:
+                daemon._profiler.record("steering_cycle_total", val)
+
+        return daemon
+
+    def test_cycle_budget_present_at_top_level(self):
+        """Steering health includes cycle_budget at top level when profiler has data."""
+        daemon = self._make_mock_daemon(with_profiler_data=True, overrun_count=2)
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "cycle_budget" in data
+            cb = data["cycle_budget"]
+            assert "cycle_time_ms" in cb
+            assert "avg" in cb["cycle_time_ms"]
+            assert "p95" in cb["cycle_time_ms"]
+            assert "p99" in cb["cycle_time_ms"]
+            assert "utilization_pct" in cb
+            assert "overrun_count" in cb
+            assert cb["overrun_count"] == 2
+        finally:
+            server.shutdown()
+
+    def test_cycle_budget_omitted_when_profiler_empty(self):
+        """Steering health omits cycle_budget when profiler has no data (cold start)."""
+        daemon = self._make_mock_daemon(with_profiler_data=False)
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "cycle_budget" not in data
+        finally:
+            server.shutdown()
+
+    def test_cycle_budget_structure_matches_autorate(self):
+        """cycle_budget structure has same keys as autorate (cycle_time_ms, utilization_pct, overrun_count)."""
+        daemon = self._make_mock_daemon(with_profiler_data=True)
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            cb = data["cycle_budget"]
+            # Exact same top-level keys as autorate format
+            assert set(cb.keys()) == {"cycle_time_ms", "utilization_pct", "overrun_count"}
+            # cycle_time_ms has avg, p95, p99
+            assert set(cb["cycle_time_ms"].keys()) == {"avg", "p95", "p99"}
+        finally:
+            server.shutdown()
+
+    def test_existing_steering_fields_unchanged(self):
+        """Adding cycle_budget does not remove or change existing steering health fields."""
+        daemon = self._make_mock_daemon(with_profiler_data=True)
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            # All existing fields still present
+            assert "status" in data
+            assert "uptime_seconds" in data
+            assert "version" in data
+            assert "steering" in data
+            assert "congestion" in data
+            assert "decision" in data
+            assert "counters" in data
+            assert "thresholds" in data
+            assert "pid" in data
+            assert "router_reachable" in data
+            assert "router_connectivity" in data
+            assert "errors" in data
+        finally:
+            server.shutdown()
+
+    def test_cold_start_no_cycle_budget(self):
+        """Cold start (daemon state empty) returns 'starting' without cycle_budget."""
+        daemon = self._make_mock_daemon(with_profiler_data=False)
+        # Empty state to trigger cold start path
+        daemon.state_mgr.state = {}
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert data["status"] == "starting"
+            assert "cycle_budget" not in data
         finally:
             server.shutdown()
