@@ -123,9 +123,7 @@ class TestRouterOS:
 
     def test_routeros_init_calls_get_client_with_failover(self, mock_config, mock_logger):
         """Verifies get_router_client_with_failover is called during init."""
-        with patch(
-            "wanctl.autorate_continuous.get_router_client_with_failover"
-        ) as mock_get_client:
+        with patch("wanctl.autorate_continuous.get_router_client_with_failover") as mock_get_client:
             mock_get_client.return_value = MagicMock()
             router = RouterOS(mock_config, mock_logger)
 

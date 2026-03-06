@@ -113,9 +113,7 @@ class TestCakeStatsReaderInit:
 
     def test_init_creates_router_client(self, mock_config, logger):
         """Test __init__ calls get_router_client_with_failover."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_client = MagicMock()
             mock_factory.return_value = mock_client
 
@@ -126,9 +124,7 @@ class TestCakeStatsReaderInit:
 
     def test_init_empty_previous_stats(self, mock_config, logger):
         """Test previous_stats dict initialized empty."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_factory.return_value = MagicMock()
 
             reader = CakeStatsReader(mock_config, logger)
@@ -147,9 +143,7 @@ class TestParseJsonResponse:
     @pytest.fixture
     def reader(self, mock_config, logger):
         """Provide a CakeStatsReader instance."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_factory.return_value = MagicMock()
             return CakeStatsReader(mock_config, logger)
 
@@ -261,9 +255,7 @@ class TestParseTextResponse:
     @pytest.fixture
     def reader(self, mock_config, logger):
         """Provide a CakeStatsReader instance."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_factory.return_value = MagicMock()
             return CakeStatsReader(mock_config, logger)
 
@@ -347,9 +339,7 @@ class TestCalculateStatsDelta:
     @pytest.fixture
     def reader(self, mock_config, logger):
         """Provide a CakeStatsReader instance."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_factory.return_value = MagicMock()
             return CakeStatsReader(mock_config, logger)
 
@@ -453,20 +443,14 @@ class TestCalculateStatsDelta:
     def test_delta_multiple_queues(self, reader):
         """Test delta calculation tracks multiple queues independently."""
         # First reads for both queues
-        reader._calculate_stats_delta(
-            CakeStats(packets=100, bytes=10000), "WAN-Download-1"
-        )
-        reader._calculate_stats_delta(
-            CakeStats(packets=50, bytes=5000), "WAN-Upload-1"
-        )
+        reader._calculate_stats_delta(CakeStats(packets=100, bytes=10000), "WAN-Download-1")
+        reader._calculate_stats_delta(CakeStats(packets=50, bytes=5000), "WAN-Upload-1")
 
         # Second reads
         result_dl = reader._calculate_stats_delta(
             CakeStats(packets=150, bytes=15000), "WAN-Download-1"
         )
-        result_ul = reader._calculate_stats_delta(
-            CakeStats(packets=80, bytes=8000), "WAN-Upload-1"
-        )
+        result_ul = reader._calculate_stats_delta(CakeStats(packets=80, bytes=8000), "WAN-Upload-1")
 
         # Verify independent tracking
         assert result_dl.packets == 50  # 150 - 100
@@ -484,9 +468,7 @@ class TestReadStats:
     @pytest.fixture
     def reader_with_client(self, mock_config, logger, mock_router_client):
         """Provide a CakeStatsReader with mocked router client."""
-        with patch(
-            "wanctl.steering.cake_stats.get_router_client_with_failover"
-        ) as mock_factory:
+        with patch("wanctl.steering.cake_stats.get_router_client_with_failover") as mock_factory:
             mock_factory.return_value = mock_router_client
             reader = CakeStatsReader(mock_config, logger)
             return reader, mock_router_client
@@ -586,7 +568,7 @@ class TestReadStats:
     def test_read_stats_text_detection(self, reader_with_client):
         """Test text response detected when not starting with [ or {."""
         reader, client = reader_with_client
-        text_response = " 0 name=\"WAN-Download-1\" packets=100 bytes=1000"
+        text_response = ' 0 name="WAN-Download-1" packets=100 bytes=1000'
         client.run_cmd.return_value = (0, text_response, "")
 
         result = reader.read_stats("WAN-Download-1")

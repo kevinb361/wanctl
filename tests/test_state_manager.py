@@ -525,7 +525,9 @@ class TestStateManager:
         temp_state_file.write_text('{"count": 10}')
 
         # Mock validate_state to raise an exception
-        with patch.object(schema, "validate_state", side_effect=RuntimeError("Validation exploded")):
+        with patch.object(
+            schema, "validate_state", side_effect=RuntimeError("Validation exploded")
+        ):
             with caplog.at_level(logging.ERROR):
                 result = manager.load()
 
@@ -621,9 +623,7 @@ class TestSteeringStateManager:
 
     def test_custom_history_maxlen(self, temp_state_file, steering_schema, logger):
         """Test custom history_maxlen is passed through."""
-        manager = SteeringStateManager(
-            temp_state_file, steering_schema, logger, history_maxlen=100
-        )
+        manager = SteeringStateManager(temp_state_file, steering_schema, logger, history_maxlen=100)
         assert manager.history_maxlen == 100
 
     # -------------------------------------------------------------------------
@@ -669,9 +669,7 @@ class TestSteeringStateManager:
         }
         temp_state_file.write_text(json.dumps(state_data))
 
-        manager = SteeringStateManager(
-            temp_state_file, steering_schema, logger, history_maxlen=10
-        )
+        manager = SteeringStateManager(temp_state_file, steering_schema, logger, history_maxlen=10)
         result = manager.load()
 
         assert result is True
@@ -702,7 +700,9 @@ class TestSteeringStateManager:
         assert len(manager.state["history_rtt"]) == 0
         assert len(manager.state["history_delta"]) == 0
 
-    def test_load_backup_recovery_with_deques(self, temp_state_file, steering_schema, logger, caplog):
+    def test_load_backup_recovery_with_deques(
+        self, temp_state_file, steering_schema, logger, caplog
+    ):
         """Test backup recovery works with deque conversion."""
         from collections import deque
 
@@ -773,7 +773,6 @@ class TestSteeringStateManager:
         lock_calls = []
 
         def track_flock(fd, operation):
-
             lock_calls.append(operation)
 
         with patch("wanctl.state_manager.fcntl.flock", side_effect=track_flock):
@@ -786,7 +785,9 @@ class TestSteeringStateManager:
         assert fcntl.LOCK_EX | fcntl.LOCK_NB in lock_calls
         assert fcntl.LOCK_UN in lock_calls
 
-    def test_save_blocking_io_error_returns_false(self, temp_state_file, steering_schema, logger, caplog):
+    def test_save_blocking_io_error_returns_false(
+        self, temp_state_file, steering_schema, logger, caplog
+    ):
         """Test save returns False when BlockingIOError (lock held by another)."""
         from unittest.mock import patch
 
@@ -801,7 +802,9 @@ class TestSteeringStateManager:
         assert result is False
         assert "locked by another process" in caplog.text
 
-    def test_save_other_lock_exception_returns_false(self, temp_state_file, steering_schema, logger, caplog):
+    def test_save_other_lock_exception_returns_false(
+        self, temp_state_file, steering_schema, logger, caplog
+    ):
         """Test save returns False and logs error on other lock exceptions."""
         from unittest.mock import patch
 
@@ -816,7 +819,9 @@ class TestSteeringStateManager:
         assert result is False
         assert "Failed to acquire state file lock" in caplog.text
 
-    def test_save_general_exception_returns_false(self, temp_state_file, steering_schema, logger, caplog):
+    def test_save_general_exception_returns_false(
+        self, temp_state_file, steering_schema, logger, caplog
+    ):
         """Test save returns False on general exception."""
         from unittest.mock import patch
 
@@ -835,7 +840,9 @@ class TestSteeringStateManager:
     # Deque to list conversion tests (roundtrip)
     # -------------------------------------------------------------------------
 
-    def test_save_deque_to_list_conversion_roundtrip(self, temp_state_file, steering_schema, logger):
+    def test_save_deque_to_list_conversion_roundtrip(
+        self, temp_state_file, steering_schema, logger
+    ):
         """Test deques are serialized as lists in JSON, restored as deques on load."""
         from collections import deque
 
@@ -875,7 +882,9 @@ class TestSteeringStateManager:
         assert list(manager.state["history_rtt"]) == [15.0, 16.0]
         assert list(manager.state["history_delta"]) == [3.0, 4.0]
 
-    def test_add_measurement_handles_missing_deque_keys(self, temp_state_file, steering_schema, logger):
+    def test_add_measurement_handles_missing_deque_keys(
+        self, temp_state_file, steering_schema, logger
+    ):
         """Test add_measurement handles missing deque keys gracefully."""
         manager = SteeringStateManager(temp_state_file, steering_schema, logger)
         # Remove the deque keys
@@ -885,7 +894,9 @@ class TestSteeringStateManager:
         # Should not raise
         manager.add_measurement(current_rtt=15.0, delta=3.0)
 
-    def test_add_measurement_handles_non_deque_values(self, temp_state_file, steering_schema, logger):
+    def test_add_measurement_handles_non_deque_values(
+        self, temp_state_file, steering_schema, logger
+    ):
         """Test add_measurement skips non-deque values."""
         manager = SteeringStateManager(temp_state_file, steering_schema, logger)
         # Set non-deque values
@@ -935,14 +946,12 @@ class TestSteeringStateManager:
 
     def test_log_transition_trims_to_history_maxlen(self, temp_state_file, steering_schema, logger):
         """Test log_transition trims to history_maxlen."""
-        manager = SteeringStateManager(
-            temp_state_file, steering_schema, logger, history_maxlen=3
-        )
+        manager = SteeringStateManager(temp_state_file, steering_schema, logger, history_maxlen=3)
         manager.state["transitions"] = []
 
         # Log more transitions than maxlen
         for i in range(5):
-            manager.log_transition(f"STATE_{i}", f"STATE_{i+1}")
+            manager.log_transition(f"STATE_{i}", f"STATE_{i + 1}")
 
         # Should only keep last 3
         assert len(manager.state["transitions"]) == 3
@@ -950,7 +959,9 @@ class TestSteeringStateManager:
         assert manager.state["transitions"][1]["from"] == "STATE_3"
         assert manager.state["transitions"][2]["from"] == "STATE_4"
 
-    def test_log_transition_handles_missing_transitions_key(self, temp_state_file, steering_schema, logger):
+    def test_log_transition_handles_missing_transitions_key(
+        self, temp_state_file, steering_schema, logger
+    ):
         """Test log_transition handles missing transitions key."""
         manager = SteeringStateManager(temp_state_file, steering_schema, logger)
         # Remove transitions key

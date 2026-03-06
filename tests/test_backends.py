@@ -349,7 +349,10 @@ class TestEnableRule:
         backend.enable_rule("ADAPTIVE: Steer to secondary")
 
         call_args = mock_ssh.run_cmd.call_args[0]
-        assert '/ip/firewall/mangle/enable [find comment="ADAPTIVE: Steer to secondary"]' in call_args[0]
+        assert (
+            '/ip/firewall/mangle/enable [find comment="ADAPTIVE: Steer to secondary"]'
+            in call_args[0]
+        )
 
 
 # =============================================================================
@@ -383,7 +386,10 @@ class TestDisableRule:
         backend.disable_rule("ADAPTIVE: Steer to secondary")
 
         call_args = mock_ssh.run_cmd.call_args[0]
-        assert '/ip/firewall/mangle/disable [find comment="ADAPTIVE: Steer to secondary"]' in call_args[0]
+        assert (
+            '/ip/firewall/mangle/disable [find comment="ADAPTIVE: Steer to secondary"]'
+            in call_args[0]
+        )
 
 
 # =============================================================================

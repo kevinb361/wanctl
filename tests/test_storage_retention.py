@@ -293,9 +293,7 @@ class TestCleanupWatchdogSupport:
         insert_test_metrics(test_db, 500, days_old=10)
 
         # Use an already-expired budget (0 seconds)
-        deleted = cleanup_old_metrics(
-            test_db, retention_days=7, batch_size=50, max_seconds=0
-        )
+        deleted = cleanup_old_metrics(test_db, retention_days=7, batch_size=50, max_seconds=0)
 
         # Should bail immediately without deleting anything
         assert deleted == 0
@@ -306,9 +304,7 @@ class TestCleanupWatchdogSupport:
         """Test that max_seconds=None (default) runs full cleanup."""
         insert_test_metrics(test_db, 200, days_old=10)
 
-        deleted = cleanup_old_metrics(
-            test_db, retention_days=7, batch_size=50, max_seconds=None
-        )
+        deleted = cleanup_old_metrics(test_db, retention_days=7, batch_size=50, max_seconds=None)
 
         assert deleted == 200
 

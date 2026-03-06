@@ -288,7 +288,7 @@ class TestRapidRestartBehavior:
 
         # Record exactly 10 changes (at limit)
         for i in range(10):
-            assert limiter.can_change() is True, f"Change {i+1} should be allowed"
+            assert limiter.can_change() is True, f"Change {i + 1} should be allowed"
             limiter.record_change()
 
         # Verify at limit

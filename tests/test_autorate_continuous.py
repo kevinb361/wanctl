@@ -253,9 +253,7 @@ class TestPendingRateRecovery:
     - Stale pending rates discarded after 60s
     """
 
-    def test_pending_rates_applied_on_reconnection(
-        self, controller, mock_router, mock_logger
-    ):
+    def test_pending_rates_applied_on_reconnection(self, controller, mock_router, mock_logger):
         """Pending rates should be applied when router reconnects.
 
         During outage, rates are queued. On reconnection (record_success),
@@ -284,9 +282,7 @@ class TestPendingRateRecovery:
         # Router should have been called
         mock_router.set_limits.assert_called()
 
-    def test_stale_pending_rates_discarded(
-        self, controller, mock_logger
-    ):
+    def test_stale_pending_rates_discarded(self, controller, mock_logger):
         """Stale pending rates (>60s) should be discarded, not applied.
 
         After a long outage, network conditions may have changed significantly.
@@ -309,9 +305,7 @@ class TestPendingRateRecovery:
 
         assert controller.pending_rates.has_pending() is False
 
-    def test_pending_rates_not_stale_within_threshold(
-        self, controller
-    ):
+    def test_pending_rates_not_stale_within_threshold(self, controller):
         """Pending rates within 60s should NOT be considered stale."""
         controller.pending_rates.queue(750_000_000, 32_000_000)
         # Just queued - should be fresh

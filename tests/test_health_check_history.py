@@ -226,7 +226,10 @@ class TestMetricsHistoryEndpoint:
                 # Offset should skip first 5
                 assert data_offset["metadata"]["offset"] == 5
                 if data_all["metadata"]["total_count"] > 5:
-                    assert data_offset["metadata"]["returned_count"] == data_all["metadata"]["total_count"] - 5
+                    assert (
+                        data_offset["metadata"]["returned_count"]
+                        == data_all["metadata"]["total_count"] - 5
+                    )
             finally:
                 server.shutdown()
 

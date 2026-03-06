@@ -610,7 +610,9 @@ lock_timeout: 300
         config_file = tmp_path / "config.yaml"
         config_file.write_text(config_yaml)
 
-        with pytest.raises(ValueError, match="must specify either baseline_time_constant_sec or alpha_baseline"):
+        with pytest.raises(
+            ValueError, match="must specify either baseline_time_constant_sec or alpha_baseline"
+        ):
             Config(str(config_file))
 
     def test_missing_alpha_load_raises_valueerror(self, tmp_path):
@@ -659,5 +661,7 @@ lock_timeout: 300
         config_file = tmp_path / "config.yaml"
         config_file.write_text(config_yaml)
 
-        with pytest.raises(ValueError, match="must specify either load_time_constant_sec or alpha_load"):
+        with pytest.raises(
+            ValueError, match="must specify either load_time_constant_sec or alpha_load"
+        ):
             Config(str(config_file))

@@ -219,9 +219,7 @@ class TestFailoverRouterClient:
         # Should not raise
         client.close()
 
-    def test_failover_logs_warning(
-        self, mock_config: MagicMock, mock_logger: MagicMock
-    ) -> None:
+    def test_failover_logs_warning(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
         """Failover should log warning with transport names."""
         mock_rest = MagicMock()
         mock_rest.run_cmd.side_effect = ConnectionError("REST failed")
@@ -237,14 +235,9 @@ class TestFailoverRouterClient:
 
             # Verify warning mentions both transports
             warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
-            assert any(
-                "rest" in call.lower() and "ssh" in call.lower()
-                for call in warning_calls
-            )
+            assert any("rest" in call.lower() and "ssh" in call.lower() for call in warning_calls)
 
-    def test_custom_transport_order(
-        self, mock_config: MagicMock, mock_logger: MagicMock
-    ) -> None:
+    def test_custom_transport_order(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
         """Can specify SSH as primary and REST as fallback."""
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.side_effect = ConnectionError("SSH down")

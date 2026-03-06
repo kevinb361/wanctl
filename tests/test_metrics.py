@@ -467,13 +467,21 @@ class TestRecordAutorateCycle:
         )
 
         # Check bandwidth gauges
-        assert metrics.get_gauge(METRIC_BANDWIDTH_MBPS, {"wan": "spectrum", "direction": "download"}) == 750.5
-        assert metrics.get_gauge(METRIC_BANDWIDTH_MBPS, {"wan": "spectrum", "direction": "upload"}) == 35.2
+        assert (
+            metrics.get_gauge(METRIC_BANDWIDTH_MBPS, {"wan": "spectrum", "direction": "download"})
+            == 750.5
+        )
+        assert (
+            metrics.get_gauge(METRIC_BANDWIDTH_MBPS, {"wan": "spectrum", "direction": "upload"})
+            == 35.2
+        )
 
         # Check RTT gauges
         assert metrics.get_gauge(METRIC_RTT_BASELINE_MS, {"wan": "spectrum"}) == 24.5
         assert metrics.get_gauge(METRIC_RTT_LOAD_MS, {"wan": "spectrum"}) == 28.3
-        assert metrics.get_gauge(METRIC_RTT_DELTA_MS, {"wan": "spectrum"}) == pytest.approx(3.8)  # 28.3 - 24.5
+        assert metrics.get_gauge(METRIC_RTT_DELTA_MS, {"wan": "spectrum"}) == pytest.approx(
+            3.8
+        )  # 28.3 - 24.5
 
         # Check state gauges (1=GREEN, 2=YELLOW)
         assert metrics.get_gauge(METRIC_STATE, {"wan": "spectrum", "direction": "download"}) == 1
@@ -515,7 +523,9 @@ class TestRecordAutorateCycle:
         )
 
         assert metrics.get_gauge(METRIC_STATE, {"wan": "test", "direction": "download"}) == 4  # RED
-        assert metrics.get_gauge(METRIC_STATE, {"wan": "test", "direction": "upload"}) == 3  # SOFT_RED
+        assert (
+            metrics.get_gauge(METRIC_STATE, {"wan": "test", "direction": "upload"}) == 3
+        )  # SOFT_RED
 
     def test_record_autorate_cycle_unknown_state(self):
         """Test unknown state maps to 0."""
@@ -615,11 +625,15 @@ class TestRecordSteeringTransition:
         record_steering_transition("Spectrum", "YELLOW", "RED")
         record_steering_transition("Spectrum", "GREEN", "YELLOW")
 
-        assert metrics.get_counter(
-            METRIC_STEERING_TRANSITIONS,
-            {"wan": "spectrum", "from": "green", "to": "yellow"}
-        ) == 2
-        assert metrics.get_counter(
-            METRIC_STEERING_TRANSITIONS,
-            {"wan": "spectrum", "from": "yellow", "to": "red"}
-        ) == 1
+        assert (
+            metrics.get_counter(
+                METRIC_STEERING_TRANSITIONS, {"wan": "spectrum", "from": "green", "to": "yellow"}
+            )
+            == 2
+        )
+        assert (
+            metrics.get_counter(
+                METRIC_STEERING_TRANSITIONS, {"wan": "spectrum", "from": "yellow", "to": "red"}
+            )
+            == 1
+        )

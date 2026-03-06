@@ -188,9 +188,7 @@ class TestRouterConnectivityState:
         assert state.last_failure_time is not None
         assert before <= state.last_failure_time <= after
 
-    def test_record_success_after_failures_logs_reconnect(
-        self, mock_logger: MagicMock
-    ) -> None:
+    def test_record_success_after_failures_logs_reconnect(self, mock_logger: MagicMock) -> None:
         """record_success() after failures should log reconnection."""
         state = RouterConnectivityState(mock_logger)
         state.record_failure(TimeoutError("timeout"))
@@ -257,9 +255,7 @@ class TestRouterConnectivityState:
         result = state.record_failure(socket.gaierror(8, "dns failed"))
         assert result == "dns_failure"
 
-    def test_different_failure_types_update_last_type(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_different_failure_types_update_last_type(self, logger: logging.Logger) -> None:
         """Consecutive different failure types should update last_failure_type."""
         state = RouterConnectivityState(logger)
 
@@ -284,9 +280,7 @@ class TestOutageDurationTracking:
         """Create a mock logger for verifying log calls."""
         return MagicMock(spec=logging.Logger)
 
-    def test_outage_start_time_set_on_first_failure(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_outage_start_time_set_on_first_failure(self, logger: logging.Logger) -> None:
         """outage_start_time should be set on the first failure."""
         state = RouterConnectivityState(logger)
         assert state.outage_start_time is None
@@ -313,16 +307,12 @@ class TestOutageDurationTracking:
 
         assert state.outage_start_time == first_start
 
-    def test_get_outage_duration_none_when_reachable(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_get_outage_duration_none_when_reachable(self, logger: logging.Logger) -> None:
         """get_outage_duration() should return None when router is reachable."""
         state = RouterConnectivityState(logger)
         assert state.get_outage_duration() is None
 
-    def test_get_outage_duration_returns_elapsed_time(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_get_outage_duration_returns_elapsed_time(self, logger: logging.Logger) -> None:
         """get_outage_duration() should return elapsed seconds during outage."""
         state = RouterConnectivityState(logger)
         state.record_failure(TimeoutError("timeout"))
@@ -334,9 +324,7 @@ class TestOutageDurationTracking:
         assert duration is not None
         assert duration >= 0.02
 
-    def test_record_success_logs_outage_duration(
-        self, mock_logger: MagicMock
-    ) -> None:
+    def test_record_success_logs_outage_duration(self, mock_logger: MagicMock) -> None:
         """record_success() after failures should log outage duration."""
         state = RouterConnectivityState(mock_logger)
         state.record_failure(TimeoutError("timeout"))
@@ -352,9 +340,7 @@ class TestOutageDurationTracking:
         assert "outage" in call_args.lower()
         assert "2 failures" in call_args
 
-    def test_record_success_resets_outage_start_time(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_record_success_resets_outage_start_time(self, logger: logging.Logger) -> None:
         """record_success() should reset outage_start_time to None."""
         state = RouterConnectivityState(logger)
         state.record_failure(TimeoutError("timeout"))
@@ -363,9 +349,7 @@ class TestOutageDurationTracking:
         state.record_success()
         assert state.outage_start_time is None
 
-    def test_outage_duration_in_to_dict(
-        self, logger: logging.Logger
-    ) -> None:
+    def test_outage_duration_in_to_dict(self, logger: logging.Logger) -> None:
         """to_dict() should include outage_duration_seconds."""
         state = RouterConnectivityState(logger)
 

@@ -59,10 +59,7 @@ class TestRunStartupMaintenance:
         now = int(time.time())
         # Insert raw data older than 1 hour (gets downsampled)
         start = ((now - 7200) // 60) * 60  # Align to minute boundary
-        rows = [
-            (start + i, "spectrum", "wanctl_rtt_ms", 15.0, None, "raw")
-            for i in range(60)
-        ]
+        rows = [(start + i, "spectrum", "wanctl_rtt_ms", 15.0, None, "raw") for i in range(60)]
         test_db.executemany(
             """
             INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
@@ -171,10 +168,7 @@ class TestMaintenanceIntegration:
 
         # Insert data to downsample (2 hours ago, aligned to minute)
         start = ((now - 7200) // 60) * 60
-        rows = [
-            (start + i, "new", "wanctl_rtt_ms", 20.0, None, "raw")
-            for i in range(60)
-        ]
+        rows = [(start + i, "new", "wanctl_rtt_ms", 20.0, None, "raw") for i in range(60)]
         test_db.executemany(
             """
             INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
@@ -217,9 +211,7 @@ class TestStartupMaintenanceWatchdog:
         # Insert old data to trigger cleanup
         insert_test_metrics(test_db, 100, days_old=10)
 
-        result = run_startup_maintenance(
-            test_db, retention_days=7, watchdog_fn=watchdog
-        )
+        result = run_startup_maintenance(test_db, retention_days=7, watchdog_fn=watchdog)
 
         assert result["cleanup_deleted"] == 100
         # Called: between batches in cleanup + after cleanup + after downsample

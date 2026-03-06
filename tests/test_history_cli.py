@@ -284,10 +284,7 @@ class TestArgumentParser:
     def test_from_to_arguments_parsed(self):
         """--from and --to arguments are parsed as timestamps."""
         parser = create_parser()
-        args = parser.parse_args([
-            "--from", "2026-01-25 14:00",
-            "--to", "2026-01-25 15:00"
-        ])
+        args = parser.parse_args(["--from", "2026-01-25 14:00", "--to", "2026-01-25 15:00"])
         assert args.from_ts is not None
         assert args.to_ts is not None
 
@@ -393,10 +390,15 @@ class TestIntegration:
         """Query with --metrics filter returns only specified metrics."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
-                "--metrics", "wanctl_rtt_ms",
-                "--db", str(temp_db),
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
+                "--metrics",
+                "wanctl_rtt_ms",
+                "--db",
+                str(temp_db),
             ],
             capture_output=True,
             text=True,
@@ -409,10 +411,15 @@ class TestIntegration:
         """Query with --wan filter returns only specified WAN."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
-                "--wan", "att",
-                "--db", str(temp_db),
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
+                "--wan",
+                "att",
+                "--db",
+                str(temp_db),
                 "-v",  # Need verbose to see WAN column
             ],
             capture_output=True,
@@ -431,10 +438,14 @@ class TestIntegration:
         """JSON output is valid JSON."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
                 "--json",
-                "--db", str(temp_db),
+                "--db",
+                str(temp_db),
             ],
             capture_output=True,
             text=True,
@@ -451,10 +462,14 @@ class TestIntegration:
         """Summary output shows statistics."""
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
                 "--summary",
-                "--db", str(temp_db),
+                "--db",
+                str(temp_db),
             ],
             capture_output=True,
             text=True,
@@ -472,10 +487,15 @@ class TestIntegration:
 
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--from", from_time,
-                "--to", to_time,
-                "--db", str(temp_db),
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--from",
+                from_time,
+                "--to",
+                to_time,
+                "--db",
+                str(temp_db),
             ],
             capture_output=True,
             text=True,
@@ -497,9 +517,13 @@ class TestErrorHandling:
         db_path = tmp_path / "nonexistent.db"
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
-                "--db", str(db_path),
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
+                "--db",
+                str(db_path),
             ],
             capture_output=True,
             text=True,
@@ -537,9 +561,13 @@ class TestErrorHandling:
 
         result = subprocess.run(
             [
-                sys.executable, "-m", "wanctl.history",
-                "--last", "1h",
-                "--db", str(db_path),
+                sys.executable,
+                "-m",
+                "wanctl.history",
+                "--last",
+                "1h",
+                "--db",
+                str(db_path),
             ],
             capture_output=True,
             text=True,
@@ -558,24 +586,18 @@ class TestMain:
 
     def test_main_with_temp_db(self, temp_db, monkeypatch):
         """main() returns 0 with valid database."""
-        monkeypatch.setattr(sys, "argv", [
-            "wanctl-history", "--last", "1h", "--db", str(temp_db)
-        ])
+        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--last", "1h", "--db", str(temp_db)])
         assert main() == 0
 
     def test_main_missing_db_returns_1(self, tmp_path, monkeypatch):
         """main() returns 1 when database is missing."""
         db_path = tmp_path / "nonexistent.db"
-        monkeypatch.setattr(sys, "argv", [
-            "wanctl-history", "--last", "1h", "--db", str(db_path)
-        ])
+        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--last", "1h", "--db", str(db_path)])
         assert main() == 1
 
     def test_main_default_time_range(self, temp_db, monkeypatch, capsys):
         """main() uses default 1h time range when no args."""
-        monkeypatch.setattr(sys, "argv", [
-            "wanctl-history", "--db", str(temp_db)
-        ])
+        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--db", str(temp_db)])
         result = main()
         assert result == 0
         captured = capsys.readouterr()

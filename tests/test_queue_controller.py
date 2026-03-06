@@ -26,15 +26,15 @@ def controller_3state():
     """
     return QueueController(
         name="TestUpload",
-        floor_green=35_000_000,      # 35 Mbps
-        floor_yellow=30_000_000,     # 30 Mbps
-        floor_soft_red=25_000_000,   # 25 Mbps (not used in 3-state)
-        floor_red=25_000_000,        # 25 Mbps
-        ceiling=40_000_000,          # 40 Mbps
-        step_up=1_000_000,           # 1 Mbps
-        factor_down=0.85,            # 15% decay on RED
-        factor_down_yellow=0.96,     # 4% decay on YELLOW
-        green_required=5,            # 5 consecutive GREEN cycles before step up
+        floor_green=35_000_000,  # 35 Mbps
+        floor_yellow=30_000_000,  # 30 Mbps
+        floor_soft_red=25_000_000,  # 25 Mbps (not used in 3-state)
+        floor_red=25_000_000,  # 25 Mbps
+        ceiling=40_000_000,  # 40 Mbps
+        step_up=1_000_000,  # 1 Mbps
+        factor_down=0.85,  # 15% decay on RED
+        factor_down_yellow=0.96,  # 4% decay on YELLOW
+        green_required=5,  # 5 consecutive GREEN cycles before step up
     )
 
 
@@ -50,15 +50,15 @@ def controller_4state():
     """
     return QueueController(
         name="TestDownload",
-        floor_green=800_000_000,     # 800 Mbps
-        floor_yellow=600_000_000,    # 600 Mbps
+        floor_green=800_000_000,  # 800 Mbps
+        floor_yellow=600_000_000,  # 600 Mbps
         floor_soft_red=500_000_000,  # 500 Mbps
-        floor_red=400_000_000,       # 400 Mbps
-        ceiling=920_000_000,         # 920 Mbps
-        step_up=10_000_000,          # 10 Mbps
-        factor_down=0.85,            # 15% decay on RED
-        factor_down_yellow=0.96,     # 4% decay on YELLOW
-        green_required=5,            # 5 consecutive GREEN cycles before step up
+        floor_red=400_000_000,  # 400 Mbps
+        ceiling=920_000_000,  # 920 Mbps
+        step_up=10_000_000,  # 10 Mbps
+        factor_down=0.85,  # 15% decay on RED
+        factor_down_yellow=0.96,  # 4% decay on YELLOW
+        green_required=5,  # 5 consecutive GREEN cycles before step up
     )
 
 
@@ -79,17 +79,17 @@ class TestAdjust3StateZoneClassification:
     # Standard thresholds for 3-state tests
     BASELINE = 25.0
     TARGET_DELTA = 15.0  # GREEN threshold
-    WARN_DELTA = 45.0    # RED threshold
+    WARN_DELTA = 45.0  # RED threshold
 
     @pytest.mark.parametrize(
         "delta,expected_zone",
         [
-            (5.0, "GREEN"),    # delta <= 15 (well below target)
-            (15.0, "GREEN"),   # delta == target (boundary)
+            (5.0, "GREEN"),  # delta <= 15 (well below target)
+            (15.0, "GREEN"),  # delta == target (boundary)
             (20.0, "YELLOW"),  # 15 < delta <= 45
             (45.0, "YELLOW"),  # delta == warn (boundary)
-            (50.0, "RED"),     # delta > 45
-            (100.0, "RED"),    # delta >> warn
+            (50.0, "RED"),  # delta > 45
+            (100.0, "RED"),  # delta >> warn
         ],
     )
     def test_zone_classification(self, controller_3state, delta, expected_zone):
@@ -179,7 +179,7 @@ class TestAdjust3StateRateAdjustments:
                 warn_delta=self.WARN_DELTA,
             )
             assert zone == "GREEN"
-            assert new_rate == initial_rate, f"Cycle {i+1}: should hold rate"
+            assert new_rate == initial_rate, f"Cycle {i + 1}: should hold rate"
             assert controller_3state.green_streak == i + 1
 
         # 5th GREEN cycle should step up
@@ -342,18 +342,18 @@ class TestAdjust4StateZoneClassification:
 
     # Standard thresholds for 4-state tests
     BASELINE = 25.0
-    GREEN_THRESHOLD = 15.0      # GREEN -> YELLOW
-    SOFT_RED_THRESHOLD = 45.0   # YELLOW -> SOFT_RED
-    HARD_RED_THRESHOLD = 80.0   # SOFT_RED -> RED
+    GREEN_THRESHOLD = 15.0  # GREEN -> YELLOW
+    SOFT_RED_THRESHOLD = 45.0  # YELLOW -> SOFT_RED
+    HARD_RED_THRESHOLD = 80.0  # SOFT_RED -> RED
 
     @pytest.mark.parametrize(
         "delta,expected_zone",
         [
-            (5.0, "GREEN"),     # delta <= 15
-            (15.0, "GREEN"),    # delta == green_threshold (boundary)
-            (20.0, "YELLOW"),   # 15 < delta <= 45
-            (45.0, "YELLOW"),   # delta == soft_red_threshold (boundary)
-            (100.0, "RED"),     # delta > 80
+            (5.0, "GREEN"),  # delta <= 15
+            (15.0, "GREEN"),  # delta == green_threshold (boundary)
+            (20.0, "YELLOW"),  # 15 < delta <= 45
+            (45.0, "YELLOW"),  # delta == soft_red_threshold (boundary)
+            (100.0, "RED"),  # delta > 80
         ],
     )
     def test_4state_zone_classification(self, controller_4state, delta, expected_zone):
@@ -431,7 +431,7 @@ class TestAdjust4StateZoneClassification:
                 soft_red_threshold=45.0,
                 hard_red_threshold=80.0,
             )
-            assert zone == "YELLOW", f"Cycle {i+1}: should be YELLOW (not sustained)"
+            assert zone == "YELLOW", f"Cycle {i + 1}: should be YELLOW (not sustained)"
             assert controller.soft_red_streak == i + 1
 
         # 3rd cycle should confirm SOFT_RED
@@ -897,7 +897,7 @@ class TestStateTransitionSequences:
             )
             assert zone == "GREEN"
             # Rate should hold (not step up yet)
-            assert rate == rate_after_red, f"Cycle {i+1}: should hold rate"
+            assert rate == rate_after_red, f"Cycle {i + 1}: should hold rate"
 
         # 5th GREEN cycle - NOW step up
         zone, rate, _ = controller.adjust(
@@ -1061,9 +1061,9 @@ class TestBaselineFreezeInvariant:
 
         # Baseline should NOT have drifted significantly
         # With proper freeze, baseline stays at 25.0
-        assert controller.baseline_rtt == pytest.approx(
-            original_baseline, abs=0.1
-        ), f"Baseline drifted from {original_baseline} to {controller.baseline_rtt}"
+        assert controller.baseline_rtt == pytest.approx(original_baseline, abs=0.1), (
+            f"Baseline drifted from {original_baseline} to {controller.baseline_rtt}"
+        )
 
     def test_baseline_updates_when_idle(self):
         """Low delta allows baseline EWMA update."""
@@ -1096,7 +1096,7 @@ class TestBaselineFreezeInvariant:
         mock_config.warn_bloat_ms = 45.0
         mock_config.hard_red_bloat_ms = 80.0
         mock_config.alpha_baseline = 0.1  # Fast update for testing
-        mock_config.alpha_load = 0.5      # Fast load EWMA
+        mock_config.alpha_load = 0.5  # Fast load EWMA
         mock_config.baseline_update_threshold_ms = 3.0
         mock_config.baseline_rtt_min = 10.0
         mock_config.baseline_rtt_max = 60.0
@@ -1159,7 +1159,7 @@ class TestBaselineFreezeInvariant:
         mock_config.warn_bloat_ms = 45.0
         mock_config.hard_red_bloat_ms = 80.0
         mock_config.alpha_baseline = 0.1  # Would update fast if allowed
-        mock_config.alpha_load = 0.9      # Very fast load EWMA
+        mock_config.alpha_load = 0.9  # Very fast load EWMA
         mock_config.baseline_update_threshold_ms = 3.0
         mock_config.baseline_rtt_min = 10.0
         mock_config.baseline_rtt_max = 60.0
