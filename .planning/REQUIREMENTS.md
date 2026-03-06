@@ -16,30 +16,53 @@ Requirements for Resilience & Robustness milestone. Each maps to roadmap phases.
 
 ### Graceful Shutdown
 
-- [ ] **SHUT-01**: SIGTERM handlers work correctly for clean daemon termination
-- [ ] **SHUT-02**: In-flight router commands complete or abort cleanly without partial state
-- [ ] **SHUT-03**: State files are never corrupted during shutdown
-- [ ] **SHUT-04**: All router connections are closed on shutdown (no orphaned connections)
+- [x] **SHUT-01**: SIGTERM handlers work correctly for clean daemon termination
+- [x] **SHUT-02**: In-flight router commands complete or abort cleanly without partial state
+- [x] **SHUT-03**: State files are never corrupted during shutdown
+- [x] **SHUT-04**: All router connections are closed on shutdown (no orphaned connections)
 
-### Contract Tests
+### Contract Tests (Deferred)
 
 - [ ] **CNTR-01**: Document expected RouterOS REST API response format (golden files)
 - [ ] **CNTR-02**: Document expected RouterOS SSH command output format (golden files)
 - [ ] **CNTR-03**: Tests fail if mocks drift from documented golden file format
 - [ ] **CNTR-04**: Track response format changes across RouterOS versions
 
+## v1.9 Requirements
+
+Requirements for Performance & Efficiency milestone. Target: reduce cycle utilization from 60-80% to ~40%.
+
+### Profiling & Measurement
+
+- [ ] **PROF-01**: Operator can collect cycle-level profiling data at 50ms production interval for both autorate and steering daemons
+- [ ] **PROF-02**: Each cycle phase (RTT measurement, router communication, CAKE stats, state management) is individually timed with monotonic timestamps
+- [ ] **PROF-03**: Cycle budget utilization (% used, overrun count, slow cycle count) is exposed via health endpoint
+
+### Optimization
+
+- [ ] **OPTM-01**: RTT measurement hot path is optimized to reduce its contribution to cycle time
+- [ ] **OPTM-02**: Router communication path is optimized (batched REST calls, reduced payload, connection reuse)
+- [ ] **OPTM-03**: CAKE stats collection is optimized if profiling shows it as a significant contributor
+- [ ] **OPTM-04**: MikroTik router CPU impact under sustained load is reduced from 45% peak
+
+### Telemetry
+
+- [ ] **TELM-01**: Per-subsystem timing data is available in structured logs for production analysis
+- [ ] **TELM-02**: Cycle budget metrics are queryable via the existing health endpoint JSON response
+
 ## Future Requirements
 
-None currently.
+- [ ] CNTR-01 through CNTR-04 (Contract Tests — deferred from v1.8, no observed mock drift)
 
 ## Out of Scope
 
-| Feature                  | Reason                                                       |
-| ------------------------ | ------------------------------------------------------------ |
-| Chaos engineering        | Manual fault injection sufficient for this scale             |
-| Circuit breaker patterns | Existing failover client is sufficient                       |
-| RouterOS CHR container   | Contract tests provide coverage without heavy infrastructure |
-| VCR-style recording      | Golden files are simpler and more maintainable               |
+| Feature                  | Reason                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| Async I/O rewrite        | Too invasive for marginal gain; subprocess pings are the bottleneck, not Python event loop |
+| 25ms cycle interval      | Target ~40% at 50ms first; 25ms can be a future milestone if needed                        |
+| Chaos engineering        | Manual fault injection sufficient for this scale                                           |
+| Circuit breaker patterns | Existing failover client is sufficient                                                     |
+| VCR-style recording      | Golden files are simpler and more maintainable                                             |
 
 ## Traceability
 
@@ -51,22 +74,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ERRR-02     | 43    | Complete |
 | ERRR-03     | 44    | Complete |
 | ERRR-04     | 44    | Complete |
-| SHUT-01     | 45    | Pending  |
-| SHUT-02     | 45    | Pending  |
-| SHUT-03     | 45    | Pending  |
-| SHUT-04     | 45    | Pending  |
-| CNTR-01     | 46    | Pending  |
-| CNTR-02     | 46    | Pending  |
-| CNTR-03     | 46    | Pending  |
-| CNTR-04     | 46    | Pending  |
+| SHUT-01     | 45    | Complete |
+| SHUT-02     | 45    | Complete |
+| SHUT-03     | 45    | Complete |
+| SHUT-04     | 45    | Complete |
+| CNTR-01     | 46    | Deferred |
+| CNTR-02     | 46    | Deferred |
+| CNTR-03     | 46    | Deferred |
+| CNTR-04     | 46    | Deferred |
+| PROF-01     | TBD   | Pending  |
+| PROF-02     | TBD   | Pending  |
+| PROF-03     | TBD   | Pending  |
+| OPTM-01     | TBD   | Pending  |
+| OPTM-02     | TBD   | Pending  |
+| OPTM-03     | TBD   | Pending  |
+| OPTM-04     | TBD   | Pending  |
+| TELM-01     | TBD   | Pending  |
+| TELM-02     | TBD   | Pending  |
 
 **Coverage:**
 
-- v1.8 requirements: 12 total
-- Mapped to phases: 12
-- Unmapped: 0
+- v1.8 requirements: 12 total (8 complete, 4 deferred)
+- v1.9 requirements: 9 total (0 complete, 9 pending)
+- Unmapped: 9 (pending roadmap)
 
 ---
 
 _Requirements defined: 2026-01-29_
-_Last updated: 2026-01-29 after Phase 44 completion_
+_Last updated: 2026-03-06 — v1.9 requirements added_
