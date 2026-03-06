@@ -9,7 +9,7 @@ Tests for WANController._record_profiling() telemetry:
 """
 
 import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

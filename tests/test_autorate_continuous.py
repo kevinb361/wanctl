@@ -427,9 +427,6 @@ class TestProfilingInstrumentation:
         """--profile flag should be accepted by the argument parser."""
         from wanctl.autorate_continuous import main
 
-        # Test argparse accepts --profile by checking it doesn't raise
-        import argparse
-
         # We need to extract the parser. Since main() creates it internally,
         # we test by patching sys.argv and checking args.profile exists
         with patch(
