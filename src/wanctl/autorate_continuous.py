@@ -2062,6 +2062,16 @@ def main() -> int | None:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down health server: {e}")
 
+        # 5. Close MetricsWriter (SQLite connection)
+        try:
+            if MetricsWriter._instance is not None:
+                MetricsWriter._instance.close()
+                for wan_info in controller.wan_controllers:
+                    wan_info["logger"].debug("MetricsWriter connection closed")
+        except Exception as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].debug(f"Error closing MetricsWriter: {e}")
+
         # Log clean shutdown
         for wan_info in controller.wan_controllers:
             wan_info["logger"].info("Daemon shutdown complete")

@@ -3343,6 +3343,136 @@ thresholds: {}
         assert result == 0
 
     # =========================================================================
+    # Shutdown cleanup tests (Plan 45-01: parity with autorate_continuous)
+    # =========================================================================
+
+    def test_main_shutdown_saves_state(self, valid_config_file):
+        """Test state_mgr.save() is called during shutdown cleanup."""
+        from wanctl.steering.daemon import main
+
+        mock_daemon = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch(
+                                "wanctl.steering.daemon.SteeringDaemon",
+                                return_value=mock_daemon,
+                            ):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        main()
+
+        mock_daemon.state_mgr.save.assert_called_once()
+
+    def test_main_shutdown_closes_router_connection(self, valid_config_file):
+        """Test router.client.close() is called during shutdown cleanup."""
+        from wanctl.steering.daemon import main
+
+        mock_daemon = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch(
+                                "wanctl.steering.daemon.SteeringDaemon",
+                                return_value=mock_daemon,
+                            ):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        main()
+
+        mock_daemon.router.client.close.assert_called_once()
+
+    def test_main_shutdown_closes_metrics_writer(self, valid_config_file):
+        """Test MetricsWriter._instance.close() is called during shutdown cleanup."""
+        from wanctl.steering.daemon import main
+
+        mock_writer = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch("wanctl.steering.daemon.SteeringDaemon"):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        with patch(
+                                            "wanctl.steering.daemon.MetricsWriter"
+                                        ) as mock_mw_cls:
+                                            mock_mw_cls._instance = mock_writer
+                                            main()
+
+        mock_writer.close.assert_called_once()
+
+    def test_main_cleanup_continues_on_router_close_error(self, valid_config_file):
+        """Test cleanup continues even if router.client.close() raises."""
+        from wanctl.steering.daemon import main
+
+        mock_daemon = MagicMock()
+        mock_daemon.router.client.close.side_effect = RuntimeError("Connection lost")
+        mock_writer = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logging.return_value = MagicMock()
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch(
+                                "wanctl.steering.daemon.SteeringDaemon",
+                                return_value=mock_daemon,
+                            ):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        with patch(
+                                            "wanctl.steering.daemon.MetricsWriter"
+                                        ) as mock_mw_cls:
+                                            mock_mw_cls._instance = mock_writer
+                                            result = main()
+
+        # Despite router close error, MetricsWriter and state save should still be called
+        assert result == 0
+        mock_daemon.state_mgr.save.assert_called_once()
+        mock_writer.close.assert_called_once()
+
+    # =========================================================================
     # Reset mode tests
     # =========================================================================
 
