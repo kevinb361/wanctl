@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 47-cycle-profiling-infrastructure
-Plan: 01 complete
+Plan: 02 complete (phase complete)
 Status: Executing v1.9
-Last activity: 2026-03-06 — Phase 47 Plan 01 complete (cycle profiling instrumentation)
+Last activity: 2026-03-06 — Phase 47 Plan 02 complete (analysis scripts + docs for 50ms budget)
 
 ## Performance Metrics
 
@@ -42,6 +42,8 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - save_state() stays AFTER router communication (not inside state_management timer) to preserve error-path behavior
 - Flag-based early returns from PerfTimer blocks to ensure elapsed_ms accuracy
 - PROFILE_REPORT_INTERVAL = 1200 cycles (60s at 50ms) for periodic profiling reports
+- P50 percentile placed between min and avg in stats dict for natural ordering
+- Budget defaults to 50.0ms in analyze_profiling.py; overridable via --budget
 
 **v1.8 Resilience & Robustness:**
 
@@ -102,10 +104,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06 (Phase 47-01 execution)
-Previous session: 2026-03-06 — v1.9 milestone kickoff
+Last session: 2026-03-06 (Phase 47-02 execution)
+Previous session: 2026-03-06 — Phase 47-01 execution
 Resume file: None
 
 ## Next Steps
 
-Phase 47 Plan 01 complete. Next: Phase 48 (Hot Path Optimization) or additional Phase 47 plans if any.
+Phase 47 complete (2/2 plans). Next: Phase 48 (Hot Path Optimization) -- depends on production profiling data collection.
