@@ -980,10 +980,14 @@ class TestSteeringCycleBudget:
 
         try:
             url = f"http://127.0.0.1:{port}/health"
-            with urllib.request.urlopen(url, timeout=5) as response:
-                data = json.loads(response.read().decode())
+            # "starting" status returns 503
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                urllib.request.urlopen(url, timeout=5)
 
+            assert exc_info.value.code == 503
+            data = json.loads(exc_info.value.read().decode())
             assert data["status"] == "starting"
             assert "cycle_budget" not in data
+            exc_info.value.close()
         finally:
             server.shutdown()

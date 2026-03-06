@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
 
 from wanctl import __version__
+from wanctl.health_check import _build_cycle_budget
 
 if TYPE_CHECKING:
     from wanctl.steering.daemon import SteeringDaemon
@@ -211,6 +212,16 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
             # System info
             health["pid"] = os.getpid()
+
+            # Add cycle budget telemetry if profiler has data
+            cycle_budget = _build_cycle_budget(
+                self.daemon._profiler,
+                self.daemon._overrun_count,
+                self.daemon._cycle_interval_ms,
+                "steering_cycle_total",
+            )
+            if cycle_budget is not None:
+                health["cycle_budget"] = cycle_budget
 
         # Top-level router reachability
         health["router_reachable"] = router_reachable
