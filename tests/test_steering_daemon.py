@@ -3472,6 +3472,89 @@ thresholds: {}
         mock_daemon.state_mgr.save.assert_called_once()
         mock_writer.close.assert_called_once()
 
+    def test_main_shutdown_logs_total_elapsed_time(self, valid_config_file):
+        """Test shutdown logs total cleanup elapsed time."""
+        from wanctl.steering.daemon import main
+
+        mock_daemon = MagicMock()
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logger = MagicMock()
+                    mock_logging.return_value = mock_logger
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch(
+                                "wanctl.steering.daemon.SteeringDaemon",
+                                return_value=mock_daemon,
+                            ):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        main()
+
+        # Verify "Shutdown complete" with timing was logged
+        info_messages = [str(call) for call in mock_logger.info.call_args_list]
+        assert any("Shutdown complete" in msg for msg in info_messages)
+
+    def test_main_shutdown_warns_on_slow_cleanup_step(self, valid_config_file):
+        """Test shutdown logs warning when a cleanup step takes >5s."""
+        import time as time_mod
+
+        from wanctl.steering.daemon import main
+
+        mock_daemon = MagicMock()
+
+        # Make state_mgr.save() simulate a slow operation by advancing monotonic clock
+        real_monotonic = time_mod.monotonic
+        call_count = [0]
+
+        def mock_monotonic():
+            call_count[0] += 1
+            t = real_monotonic()
+            # After the cleanup_start call (1st), the t0 call (2nd), and during
+            # _check_deadline (3rd+), add 6s to simulate slow save
+            if call_count[0] >= 3 and call_count[0] <= 4:
+                return t + 6.0
+            return t
+
+        with patch("sys.argv", ["steering-daemon", "--config", str(valid_config_file)]):
+            with patch("wanctl.steering.daemon.register_signal_handlers"):
+                with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
+                    mock_logger = MagicMock()
+                    mock_logging.return_value = mock_logger
+                    with patch(
+                        "wanctl.steering.daemon.is_shutdown_requested",
+                        side_effect=[False, False, True],
+                    ):
+                        with patch(
+                            "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
+                        ):
+                            with patch(
+                                "wanctl.steering.daemon.SteeringDaemon",
+                                return_value=mock_daemon,
+                            ):
+                                with patch("wanctl.steering.daemon.start_steering_health_server"):
+                                    with patch(
+                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                                    ):
+                                        with patch(
+                                            "wanctl.steering.daemon.time"
+                                        ) as mock_time:
+                                            mock_time.monotonic = mock_monotonic
+                                            main()
+
+        # Verify slow step warning was logged
+        warning_messages = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("Slow cleanup step" in msg for msg in warning_messages)
+
     # =========================================================================
     # Reset mode tests
     # =========================================================================

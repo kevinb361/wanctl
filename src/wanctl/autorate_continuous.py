@@ -40,6 +40,7 @@ from wanctl.router_client import get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
+    SHUTDOWN_TIMEOUT_SECONDS,
     is_shutdown_requested,
     register_signal_handlers,
 )
@@ -2010,14 +2011,30 @@ def main() -> int | None:
                 wan_info["logger"].info("Shutdown requested, exiting gracefully...")
 
     finally:
-        # CLEANUP PRIORITY: state > locks > connections > servers
+        # CLEANUP PRIORITY: state > locks > connections > servers > metrics
+        cleanup_start = time.monotonic()
+        deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
+        _cleanup_log = logging.getLogger(__name__)
+        _cleanup_log.info("Shutting down daemon...")
+
+        def _check_deadline(step_name: str, step_start: float) -> None:
+            elapsed = time.monotonic() - step_start
+            if elapsed > 5.0:
+                _cleanup_log.warning(f"Slow cleanup step: {step_name} took {elapsed:.1f}s")
+            if time.monotonic() > deadline:
+                _cleanup_log.error(
+                    f"Cleanup deadline exceeded ({SHUTDOWN_TIMEOUT_SECONDS}s) "
+                    f"after {step_name}"
+                )
 
         # 0. Force save state for all WANs (preserve EWMA/counters on shutdown)
+        t0 = time.monotonic()
         for wan_info in controller.wan_controllers:
             try:
                 wan_info["controller"].save_state(force=True)
             except Exception:
                 pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
+        _check_deadline("state_save", t0)
 
         # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:
@@ -2035,6 +2052,7 @@ def main() -> int | None:
             pass  # nosec B110 - Not critical if this fails during shutdown
 
         # 2. Clean up SSH/REST connections
+        t0 = time.monotonic()
         for wan_info in controller.wan_controllers:
             try:
                 router = wan_info["controller"].router
@@ -2045,36 +2063,42 @@ def main() -> int | None:
                     router.close()
             except Exception as e:
                 wan_info["logger"].debug(f"Error closing router connection: {e}")
+        _check_deadline("router_close", t0)
 
         # 3. Shut down metrics server
+        t0 = time.monotonic()
         if metrics_server:
             try:
                 metrics_server.stop()
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
+        _check_deadline("metrics_server", t0)
 
         # 4. Shut down health check server
+        t0 = time.monotonic()
         if health_server:
             try:
                 health_server.shutdown()
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down health server: {e}")
+        _check_deadline("health_server", t0)
 
         # 5. Close MetricsWriter (SQLite connection)
+        t0 = time.monotonic()
         try:
             if MetricsWriter._instance is not None:
                 MetricsWriter._instance.close()
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].debug("MetricsWriter connection closed")
+                _cleanup_log.debug("MetricsWriter connection closed")
         except Exception as e:
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].debug(f"Error closing MetricsWriter: {e}")
+            _cleanup_log.debug(f"Error closing MetricsWriter: {e}")
+        _check_deadline("metrics_writer", t0)
 
         # Log clean shutdown
+        total = time.monotonic() - cleanup_start
         for wan_info in controller.wan_controllers:
-            wan_info["logger"].info("Daemon shutdown complete")
+            wan_info["logger"].info(f"Daemon shutdown complete ({total:.1f}s)")
 
     return None
 

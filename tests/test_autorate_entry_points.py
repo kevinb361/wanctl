@@ -1035,8 +1035,11 @@ class TestDaemonControlLoop:
             call_count[0] += 1
             return call_count[0] > 2
 
-        # Provide enough monotonic values for multiple calls in the loop
-        monotonic_values = iter([0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09])
+        # Provide enough monotonic values for loop + cleanup deadline tracking
+        monotonic_values = iter(
+            [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+            + [0.1 + i * 0.01 for i in range(20)]
+        )
 
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),

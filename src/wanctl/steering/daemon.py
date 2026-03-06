@@ -40,6 +40,7 @@ from ..router_client import get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
 from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..signal_utils import (
+    SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
     is_shutdown_requested,
     register_signal_handlers,
@@ -1579,43 +1580,65 @@ def main() -> int | None:
         return 1
     finally:
         # CLEANUP PRIORITY: state > health > connections > metrics > locks
+        cleanup_start = time.monotonic()
+        deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
         logger.info("Shutting down daemon...")
 
+        def _check_deadline(step_name: str, step_start: float) -> None:
+            elapsed = time.monotonic() - step_start
+            if elapsed > 5.0:
+                logger.warning(f"Slow cleanup step: {step_name} took {elapsed:.1f}s")
+            if time.monotonic() > deadline:
+                logger.error(
+                    f"Cleanup deadline exceeded ({SHUTDOWN_TIMEOUT_SECONDS}s) "
+                    f"after {step_name}"
+                )
+
         # 0. Force save state (preserve EWMA/counters on shutdown)
+        t0 = time.monotonic()
         try:
             daemon.state_mgr.save()
             logger.debug("State saved on shutdown")
         except Exception as e:
             logger.warning(f"Error saving state on shutdown: {e}")
+        _check_deadline("state_save", t0)
 
         # 1. Shutdown health server (INTG-02)
         if health_server is not None:
+            t0 = time.monotonic()
             try:
                 health_server.shutdown()
                 logger.debug("Health server stopped")
             except Exception as e:
                 logger.warning(f"Error shutting down health server: {e}")
+            _check_deadline("health_server", t0)
 
         # 2. Close router connection
+        t0 = time.monotonic()
         try:
             daemon.router.client.close()
             logger.debug("Router connection closed")
         except Exception as e:
             logger.warning(f"Error closing router connection: {e}")
+        _check_deadline("router_close", t0)
 
         # 3. Close MetricsWriter (SQLite connection)
+        t0 = time.monotonic()
         try:
             if MetricsWriter._instance is not None:
                 MetricsWriter._instance.close()
                 logger.debug("MetricsWriter connection closed")
         except Exception as e:
             logger.warning(f"Error closing MetricsWriter: {e}")
+        _check_deadline("metrics_writer", t0)
 
         # 4. Release lock file
         if config.lock_file.exists():
             config.lock_file.unlink()
             logger.debug(f"Lock released: {config.lock_file}")
-        logger.info("Shutdown complete")
+
+        total = time.monotonic() - cleanup_start
+        logger.info(f"Shutdown complete ({total:.1f}s)")
 
 
 if __name__ == "__main__":
