@@ -142,12 +142,13 @@ def _create_formatter(log_format: str, wan_name: str) -> logging.Formatter:
 def setup_logging(
     config: Any, logger_prefix: str, debug: bool = False, log_format: str | None = None
 ) -> logging.Logger:
-    """Setup logging with file and optional console output.
+    """Setup logging with file and console output.
 
     Creates a logger with:
     - INFO-level file handler (main_log)
+    - INFO-level console handler (for systemd journal visibility)
     - DEBUG-level file handler (debug_log, if debug=True)
-    - DEBUG-level console handler (if debug=True)
+    - DEBUG-level console handler (if debug=True, upgrades from INFO)
 
     Log format can be controlled via:
     1. The `log_format` parameter (takes precedence)
@@ -197,16 +198,22 @@ def setup_logging(
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    # Debug log and console - DEBUG level
+    # Console handler - always present for journal visibility
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+
     if debug and hasattr(config, "debug_log"):
+        # Debug mode: debug file + DEBUG-level console
         dfh = logging.FileHandler(config.debug_log)
         dfh.setLevel(logging.DEBUG)
         dfh.setFormatter(formatter)
         logger.addHandler(dfh)
 
-        ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
+    else:
+        # Normal mode: INFO-level console only (for journal)
+        ch.setLevel(logging.INFO)
+
+    logger.addHandler(ch)
 
     return logger
