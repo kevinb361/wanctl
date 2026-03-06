@@ -688,6 +688,8 @@ class SteeringDaemon:
         self._profiler = OperationProfiler(max_samples=1200)
         self._profile_cycle_count = 0
         self._profiling_enabled = False
+        self._overrun_count = 0
+        self._cycle_interval_ms = ASSESSMENT_INTERVAL_SECONDS * 1000.0
 
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
@@ -1235,16 +1237,41 @@ class SteeringDaemon:
         state_ms: float,
         cycle_start: float,
     ) -> None:
-        """Record subsystem timing to profiler and emit periodic report."""
+        """Record subsystem timing to profiler, emit structured log, and detect overruns."""
         total_ms = (time.perf_counter() - cycle_start) * 1000.0
         self._profiler.record("steering_cake_stats", cake_ms)
         self._profiler.record("steering_rtt_measurement", rtt_ms)
         self._profiler.record("steering_state_management", state_ms)
         self._profiler.record("steering_cycle_total", total_ms)
+
+        # Overrun detection
+        is_overrun = total_ms > self._cycle_interval_ms
+        if is_overrun:
+            self._overrun_count += 1
+            # Rate-limited WARNING: 1st, 3rd, every 10th
+            count = self._overrun_count
+            if count == 1 or count == 3 or count % 10 == 0:
+                self.logger.warning(
+                    f"Steering cycle overrun: {total_ms:.1f}ms > "
+                    f"{self._cycle_interval_ms:.0f}ms (total: {self._overrun_count})"
+                )
+
+        # Structured DEBUG log every cycle
+        self.logger.debug(
+            "Cycle timing",
+            extra={
+                "cycle_total_ms": round(total_ms, 1),
+                "rtt_measurement_ms": round(rtt_ms, 1),
+                "cake_stats_ms": round(cake_ms, 1),
+                "state_management_ms": round(state_ms, 1),
+                "overrun": is_overrun,
+            },
+        )
+
+        # Periodic profiling report (deque maxlen handles eviction, no clear needed)
         self._profile_cycle_count += 1
         if self._profiling_enabled and self._profile_cycle_count >= PROFILE_REPORT_INTERVAL:
             self._profiler.report(self.logger)
-            self._profiler.clear()
             self._profile_cycle_count = 0
 
     def run_cycle(self) -> bool:
