@@ -110,6 +110,11 @@ MIN_SANE_BASELINE_RTT = 10.0
 MAX_SANE_BASELINE_RTT = 60.0
 BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than this
 
+# Maximum sane RTT delta (ms) — anything above this is a network anomaly
+# (routing hiccup, severe packet loss), not a usable congestion signal.
+# With baseline ~23ms, this allows absolute RTT up to ~523ms before rejection.
+MAX_SANE_RTT_DELTA_MS = 500.0
+
 
 # =============================================================================
 # CONFIGURATION
@@ -1191,7 +1196,9 @@ class SteeringDaemon:
         """
         state = self.state_mgr.state
 
-        rtt_delta_ewma = ewma_update(state["rtt_delta_ewma"], delta, self.config.rtt_ewma_alpha)
+        rtt_delta_ewma = ewma_update(
+            state["rtt_delta_ewma"], delta, self.config.rtt_ewma_alpha, logger=self.logger
+        )
         state["rtt_delta_ewma"] = rtt_delta_ewma
 
         queue_ewma = ewma_update(
@@ -1199,6 +1206,7 @@ class SteeringDaemon:
             float(queued_packets),
             self.config.queue_ewma_alpha,
             max_value=10000.0,  # Queue depth can exceed 1000 packets under heavy load
+            logger=self.logger,
         )
         state["queue_ewma"] = queue_ewma
 
@@ -1232,6 +1240,15 @@ class SteeringDaemon:
 
         # Calculate delta
         delta = self.calculate_delta(current_rtt)
+
+        # Pre-filter: reject extreme RTT deltas as network anomalies
+        # (routing hiccups, severe packet loss producing 1000-3000ms pings)
+        if delta > MAX_SANE_RTT_DELTA_MS:
+            self.logger.warning(
+                f"RTT delta {delta:.1f}ms exceeds ceiling {MAX_SANE_RTT_DELTA_MS:.0f}ms "
+                f"(rtt={current_rtt:.1f}ms), treating as anomaly — skipping cycle"
+            )
+            return False
 
         # === EWMA Smoothing (if CAKE-aware) ===
         # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.

@@ -870,6 +870,96 @@ class TestExecuteSteeringTransition:
         # Caller should NOT reset counters
 
 
+class TestEwmaUpdateBoundsHandling:
+    """Tests for ewma_update() bounds clamping behavior.
+
+    Verifies that extreme values are clamped (not crashed on),
+    while NaN/Inf and invalid alpha still raise ValueError.
+    """
+
+    def test_value_within_bounds_passes(self):
+        """Normal value within bounds should work normally."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        result = ewma_update(10.0, 20.0, 0.3)
+        assert result == pytest.approx(13.0, abs=0.001)
+
+    def test_value_exceeding_bounds_is_clamped(self):
+        """Value exceeding max_value should be clamped, not raise."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        # 1500 exceeds default max_value=1000, should clamp to 1000
+        result = ewma_update(10.0, 1500.0, 0.3)
+        # EWMA: 0.7*10 + 0.3*1000 = 307.0
+        assert result == pytest.approx(307.0, abs=0.001)
+
+    def test_negative_value_exceeding_bounds_is_clamped(self):
+        """Negative value below -max_value should be clamped."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        result = ewma_update(10.0, -1500.0, 0.3)
+        # EWMA: 0.7*10 + 0.3*(-1000) = 7.0 - 300.0 = -293.0
+        assert result == pytest.approx(-293.0, abs=0.001)
+
+    def test_clamp_logs_warning_when_logger_provided(self):
+        """Clamping should log a warning when logger is provided."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        logger = MagicMock()
+        ewma_update(10.0, 2000.0, 0.3, logger=logger)
+
+        logger.warning.assert_called_once()
+        warning_msg = str(logger.warning.call_args)
+        assert "2000.0" in warning_msg
+        assert "clamped" in warning_msg
+
+    def test_clamp_silent_when_no_logger(self):
+        """Clamping should work silently when no logger is provided."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        # Should not raise
+        result = ewma_update(10.0, 5000.0, 0.3)
+        assert result == pytest.approx(307.0, abs=0.001)
+
+    def test_nan_still_raises(self):
+        """NaN input should still raise ValueError (programming error)."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        with pytest.raises(ValueError, match="not finite"):
+            ewma_update(10.0, float("nan"), 0.3)
+
+    def test_inf_still_raises(self):
+        """Inf input should still raise ValueError (programming error)."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        with pytest.raises(ValueError, match="not finite"):
+            ewma_update(10.0, float("inf"), 0.3)
+
+    def test_invalid_alpha_still_raises(self):
+        """Invalid alpha should still raise ValueError (config error)."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        with pytest.raises(ValueError, match="alpha must be"):
+            ewma_update(10.0, 20.0, 1.5)
+
+    def test_custom_max_value_respected(self):
+        """Custom max_value should be used for clamping."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        # max_value=50, value=100 should clamp to 50
+        result = ewma_update(10.0, 100.0, 0.3, max_value=50.0)
+        # EWMA: 0.7*10 + 0.3*50 = 7.0 + 15.0 = 22.0
+        assert result == pytest.approx(22.0, abs=0.001)
+
+    def test_first_measurement_clamped(self):
+        """First measurement (current=0) with extreme value should clamp."""
+        from wanctl.steering.congestion_assessment import ewma_update
+
+        # First measurement initializes to new_value (which gets clamped)
+        result = ewma_update(0.0, 5000.0, 0.3, max_value=1000.0)
+        assert result == 1000.0
+
+
 class TestUpdateEwmaSmoothing:
     """Tests for SteeringDaemon.update_ewma_smoothing() method.
 
@@ -1115,6 +1205,36 @@ class TestUpdateEwmaSmoothing:
         assert len(result) == 2
         assert isinstance(result[0], float)
         assert isinstance(result[1], float)
+
+    # =========================================================================
+    # Bounds clamping tests (defense-in-depth for extreme values)
+    # =========================================================================
+
+    def test_extreme_delta_clamped_not_crashed(self, daemon, mock_state_mgr):
+        """Extreme RTT delta should be clamped to max_value, not crash.
+
+        Previously, ewma_update raised ValueError on bounds violation,
+        crashing the entire daemon. Now it clamps to ±max_value.
+        """
+        mock_state_mgr.state["rtt_delta_ewma"] = 10.0
+        mock_state_mgr.state["queue_ewma"] = 0.0
+
+        # Should NOT raise — delta of 1500 gets clamped to 1000
+        rtt_ewma, _ = daemon.update_ewma_smoothing(delta=1500.0, queued_packets=0)
+
+        # EWMA: 0.7*10.0 + 0.3*1000.0 = 7.0 + 300.0 = 307.0
+        assert rtt_ewma == pytest.approx(307.0, abs=0.001)
+
+    def test_ewma_clamp_logs_warning(self, daemon, mock_state_mgr):
+        """Clamped EWMA input should log a warning via the logger."""
+        mock_state_mgr.state["rtt_delta_ewma"] = 10.0
+        mock_state_mgr.state["queue_ewma"] = 0.0
+
+        daemon.update_ewma_smoothing(delta=2000.0, queued_packets=0)
+
+        warning_calls = [str(c) for c in daemon.logger.warning.call_args_list]
+        assert any("exceeds bounds" in c for c in warning_calls)
+        assert any("clamped" in c for c in warning_calls)
 
 
 class TestUnifiedStateMachine:
@@ -2583,6 +2703,46 @@ class TestRunCycle:
 
         assert result is True  # Cycle completes successfully
         mock_state_mgr.save.assert_called_once()
+
+    def test_run_cycle_extreme_rtt_delta_skips_cycle(
+        self, daemon_for_run_cycle, mock_state_mgr, mock_logger
+    ):
+        """Test RTT delta above MAX_SANE_RTT_DELTA_MS causes cycle skip.
+
+        Extreme RTT deltas (>500ms) indicate network anomalies (routing hiccups,
+        severe packet loss), not congestion signals. The daemon should skip the
+        cycle rather than crash or feed garbage into the EWMA.
+        """
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        # Simulate ping returning 1525ms (delta = 1525 - 25 = 1500ms)
+        daemon_for_run_cycle._measure_current_rtt_with_retry.return_value = 1525.0
+        # Need real calculate_delta for this test
+        daemon_for_run_cycle.calculate_delta = lambda rtt: max(0.0, rtt - 25.0)
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is False
+        # Should NOT reach EWMA or state machine
+        daemon_for_run_cycle.update_ewma_smoothing.assert_not_called()
+        daemon_for_run_cycle.update_state_machine.assert_not_called()
+        # Should log warning about anomaly
+        warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+        assert any("exceeds ceiling" in c for c in warning_calls)
+        assert any("anomaly" in c for c in warning_calls)
+
+    def test_run_cycle_rtt_delta_at_ceiling_passes(
+        self, daemon_for_run_cycle, mock_state_mgr
+    ):
+        """Test RTT delta exactly at MAX_SANE_RTT_DELTA_MS is accepted."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        # delta = 525 - 25 = 500ms (exactly at ceiling)
+        daemon_for_run_cycle._measure_current_rtt_with_retry.return_value = 525.0
+        daemon_for_run_cycle.calculate_delta = lambda rtt: max(0.0, rtt - 25.0)
+
+        result = daemon_for_run_cycle.run_cycle()
+
+        assert result is True
+        daemon_for_run_cycle.update_ewma_smoothing.assert_called_once()
 
     # =========================================================================
     # Metrics integration tests

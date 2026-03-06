@@ -97,7 +97,13 @@ def assess_congestion_state(
         return CongestionState.GREEN
 
 
-def ewma_update(current: float, new_value: float, alpha: float, max_value: float = 1000.0) -> float:
+def ewma_update(
+    current: float,
+    new_value: float,
+    alpha: float,
+    max_value: float = 1000.0,
+    logger: logging.Logger | None = None,
+) -> float:
     """
     Exponentially Weighted Moving Average update with bounds checking.
 
@@ -106,13 +112,14 @@ def ewma_update(current: float, new_value: float, alpha: float, max_value: float
         new_value: New measurement
         alpha: Smoothing factor (0-1, higher = less smoothing)
         max_value: Maximum allowed absolute value (default: 1000.0 for RTT in ms)
+        logger: Optional logger for bounds clamping warnings
 
     Returns:
         Updated EWMA value
 
     Raises:
         ValueError: If alpha is not in [0, 1] (C5 fix: prevents erratic behavior)
-        ValueError: If new_value exceeds bounds or is not finite
+        ValueError: If new_value is not finite (NaN/Inf indicates a programming error)
         ValueError: If result is not finite (indicates numeric instability)
     """
     # C5 fix: Validate alpha bounds to prevent erratic smoothing behavior
@@ -123,9 +130,17 @@ def ewma_update(current: float, new_value: float, alpha: float, max_value: float
     if math.isnan(new_value) or math.isinf(new_value):
         raise ValueError(f"EWMA input is not finite: {new_value}")
 
-    # Bounds checking to prevent extreme values from poisoning state
+    # Bounds clamping to prevent extreme values from poisoning state
+    # Clamp instead of crash — transient spikes (e.g. 2700ms ping) are noise,
+    # not fatal errors. The EWMA will naturally recover.
     if not (-max_value <= new_value <= max_value):
-        raise ValueError(f"EWMA input {new_value} exceeds bounds ±{max_value}")
+        clamped = max(-max_value, min(max_value, new_value))
+        if logger:
+            logger.warning(
+                f"EWMA input {new_value:.1f} exceeds bounds ±{max_value:.0f}, "
+                f"clamped to {clamped:.1f}"
+            )
+        new_value = clamped
 
     if current == 0.0:
         # First measurement - initialize with new value
