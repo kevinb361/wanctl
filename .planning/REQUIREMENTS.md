@@ -47,7 +47,7 @@ Requirements for Performance & Efficiency milestone. Target: reduce cycle utiliz
 
 ### Telemetry
 
-- [ ] **TELM-01**: Per-subsystem timing data is available in structured logs for production analysis
+- [x] **TELM-01**: Per-subsystem timing data is available in structured logs for production analysis
 - [ ] **TELM-02**: Cycle budget metrics are queryable via the existing health endpoint JSON response
 
 ## Future Requirements
@@ -89,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPTM-02     | 48    | Complete |
 | OPTM-03     | 48    | Complete |
 | OPTM-04     | 48    | Complete |
-| TELM-01     | 49    | Pending  |
+| TELM-01     | 49    | Complete |
 | TELM-02     | 49    | Pending  |
 
 **Coverage:**

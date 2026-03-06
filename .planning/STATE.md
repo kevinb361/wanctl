@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance & Efficiency
 status: executing
-last_updated: "2026-03-06T22:35:45.865Z"
-last_activity: 2026-03-06 — Phase 48 complete (OPTM-01 via icmplib, OPTM-02/03 by evidence, OPTM-04 deferred)
+last_updated: "2026-03-06T23:22:00.000Z"
+last_activity: 2026-03-06 — Phase 49 Plan 01 complete (TELM-01 structured logging and overrun detection)
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -23,10 +23,10 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: 48-hot-path-optimization
-Plan: 02 complete (phase complete)
+Phase: 49-telemetry-monitoring
+Plan: 01 of 2 complete
 Status: Executing v1.9
-Last activity: 2026-03-06 — Phase 48 complete (OPTM-01 via icmplib, OPTM-02/03 by evidence, OPTM-04 deferred)
+Last activity: 2026-03-06 — Phase 49 Plan 01 complete (TELM-01 structured logging and overrun detection)
 
 ## Performance Metrics
 
@@ -65,6 +65,9 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - OPTM-03 not applicable: CAKE stats at 2s steering interval, not part of 50ms hot path
 - OPTM-04 router CPU deferred as future work: RRUL measurement not captured post-icmplib (D5 decision)
 - Production-verified: Spectrum -3.4ms (8.3%), ATT -2.1ms (6.8%) avg cycle reduction with icmplib
+- Overrun rate limiting: 1st, 3rd, every 10th (matches v1.8 failure logging pattern)
+- Overrun detection uses strict > (not >=) to avoid false positives on exact-interval cycles
+- \_profiler.clear() removed; deque maxlen=1200 handles sample eviction automatically
 
 **v1.8 Resilience & Robustness:**
 
@@ -125,10 +128,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06 (Phase 48-02 execution, phase complete)
-Previous session: 2026-03-06 — Phase 48-01 execution
+Last session: 2026-03-06 (Phase 49-01 execution, TELM-01 complete)
+Previous session: 2026-03-06 — Phase 48-02 execution, phase complete
 Resume file: None
 
 ## Next Steps
 
-Phase 48 complete. Next: Phase 49 (Telemetry & Monitoring) -- PROF-03, TELM-01, TELM-02.
+Phase 49 Plan 01 complete. Next: Phase 49 Plan 02 (health endpoint with overrun/timing fields).
