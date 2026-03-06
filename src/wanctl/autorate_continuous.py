@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.config_base import BaseConfig, get_storage_config
+from wanctl.perf_profiler import OperationProfiler, PerfTimer
 from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
@@ -95,6 +96,7 @@ MAX_SANE_BASELINE_RTT = 60.0
 DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
+PROFILE_REPORT_INTERVAL = 1200  # Profiling report every 60s (1200 * 50ms)
 
 # Conversion factors
 MBPS_TO_BPS = 1_000_000
@@ -952,6 +954,18 @@ class WANController:
             self._metrics_writer = MetricsWriter(Path(db_path))
             self.logger.info(f"{wan_name}: Metrics history enabled, db={db_path}")
 
+        # =====================================================================
+        # PROFILING INSTRUMENTATION
+        # =====================================================================
+        # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
+        # PerfTimer always runs at DEBUG level (negligible overhead ~0.05ms).
+        # OperationProfiler always accumulates (deque append, negligible).
+        # Periodic report only emitted when --profile flag is set.
+        # =====================================================================
+        self._profiler = OperationProfiler(max_samples=1200)
+        self._profile_cycle_count = 0
+        self._profiling_enabled = False
+
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
@@ -1323,174 +1337,214 @@ class WANController:
             self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
             return (False, None)
 
+    def _record_profiling(
+        self,
+        rtt_ms: float,
+        state_ms: float,
+        router_ms: float,
+        cycle_start: float,
+    ) -> None:
+        """Record subsystem timing to profiler and emit periodic report."""
+        total_ms = (time.perf_counter() - cycle_start) * 1000.0
+        self._profiler.record("autorate_rtt_measurement", rtt_ms)
+        self._profiler.record("autorate_state_management", state_ms)
+        self._profiler.record("autorate_router_communication", router_ms)
+        self._profiler.record("autorate_cycle_total", total_ms)
+        self._profile_cycle_count += 1
+        if self._profiling_enabled and self._profile_cycle_count >= PROFILE_REPORT_INTERVAL:
+            self._profiler.report(self.logger)
+            self._profiler.clear()
+            self._profile_cycle_count = 0
+
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
-        cycle_start = time.monotonic()
+        cycle_start = time.perf_counter()
 
-        measured_rtt = self.measure_rtt()
+        # === RTT Measurement (subsystem 1) ===
+        rtt_early_return: bool | None = None  # None=continue, True/False=return value
+        with PerfTimer("autorate_rtt_measurement", self.logger) as rtt_timer:
+            measured_rtt = self.measure_rtt()
 
-        # Handle ICMP failure with fallback connectivity checks
-        if measured_rtt is None:
-            should_continue, measured_rtt = self.handle_icmp_failure()
-            if not should_continue:
-                return False
+            # Handle ICMP failure with fallback connectivity checks
             if measured_rtt is None:
-                # Freeze mode - save state and return success
-                self.save_state()
-                return True
-        else:
-            # ICMP succeeded - reset fallback counter if it was set
-            if self.icmp_unavailable_cycles > 0:
-                self.logger.info(
-                    f"{self.wan_name}: ICMP recovered after {self.icmp_unavailable_cycles} cycles"
-                )
-                self.icmp_unavailable_cycles = 0
-
-        # At this point, measured_rtt is valid (either from ICMP or last known value)
-        self.update_ewma(measured_rtt)
-
-        # Rate-of-change (acceleration) detection for sudden RTT spikes
-        # Catches spikes that EWMA smooths over, triggers immediate RED
-        delta_accel = self.load_rtt - self.previous_load_rtt
-        if delta_accel > self.accel_threshold:
-            self.logger.warning(
-                f"{self.wan_name}: RTT spike detected! delta_accel={delta_accel:.1f}ms "
-                f"(threshold={self.accel_threshold}ms) - forcing RED"
-            )
-            # Force RED by setting streak counter (bypasses hysteresis)
-            self.download.red_streak = 1
-            self.download.green_streak = 0
-            self.download.soft_red_streak = 0
-        self.previous_load_rtt = self.load_rtt
-
-        # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
-        dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
-            self.baseline_rtt,
-            self.load_rtt,
-            self.green_threshold,
-            self.soft_red_threshold,
-            self.hard_red_threshold,
-        )
-
-        # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
-        ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
-            self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
-        )
-
-        # Log decision
-        delta = self.load_rtt - self.baseline_rtt
-        self.logger.info(
-            f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
-            f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
-            f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-            f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
-        )
-
-        # Record metrics to SQLite history (if enabled)
-        if self._metrics_writer is not None:
-            import time as time_module
-
-            ts = int(time_module.time())
-            metrics_batch = [
-                (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
-                (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
-                (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
-                (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
-                (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
-                (
-                    ts,
-                    self.wan_name,
-                    "wanctl_state",
-                    float(self._encode_state(dl_zone)),
-                    {"direction": "download"},
-                    "raw",
-                ),
-            ]
-            self._metrics_writer.write_metrics_batch(metrics_batch)
-
-            # Record state transition if occurred (with reason in labels)
-            if dl_transition_reason:
-                self._metrics_writer.write_metric(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=float(self._encode_state(dl_zone)),
-                    labels={"direction": "download", "reason": dl_transition_reason},
-                    granularity="raw",
-                )
-            if ul_transition_reason:
-                self._metrics_writer.write_metric(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=float(self._encode_state(ul_zone)),
-                    labels={"direction": "upload", "reason": ul_transition_reason},
-                    granularity="raw",
-                )
-
-        # Apply rate changes (with flash wear + rate limit protection)
-        # Track router connectivity state for cycle-level failure detection
-        try:
-            if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
-                # Router communication failed - record failure
-                self.router_connectivity.record_failure(
-                    ConnectionError("Failed to apply rate limits to router")
-                )
-                return False
-            # Router communication succeeded - record success
-            self.router_connectivity.record_success()
-
-            # Apply pending rates on reconnection (ERRR-04)
-            if self.pending_rates.has_pending():
-                if self.pending_rates.is_stale():
+                should_continue, measured_rtt = self.handle_icmp_failure()
+                if not should_continue:
+                    rtt_early_return = False
+                elif measured_rtt is None:
+                    # Freeze mode - save state and return success
+                    self.save_state()
+                    rtt_early_return = True
+            else:
+                # ICMP succeeded - reset fallback counter if it was set
+                if self.icmp_unavailable_cycles > 0:
                     self.logger.info(
-                        f"{self.wan_name}: Discarding stale pending rates (queued >{60}s ago)"
+                        f"{self.wan_name}: ICMP recovered after "
+                        f"{self.icmp_unavailable_cycles} cycles"
                     )
-                    self.pending_rates.clear()
-                else:
-                    pending_dl = self.pending_rates.pending_dl_rate
-                    pending_ul = self.pending_rates.pending_ul_rate
-                    if pending_dl is not None and pending_ul is not None:
-                        self.logger.info(
-                            f"{self.wan_name}: Applying pending rates after reconnection "
-                            f"(DL={pending_dl / 1e6:.1f}Mbps, "
-                            f"UL={pending_ul / 1e6:.1f}Mbps)"
-                        )
-                        self.apply_rate_changes_if_needed(pending_dl, pending_ul)
-        except Exception as e:
-            # Unexpected exception during router communication
-            failure_type = self.router_connectivity.record_failure(e)
-            # Log on first failure, every 3rd failure, or on threshold exceeded
-            failures = self.router_connectivity.consecutive_failures
-            if failures == 1 or failures == 3 or failures % 10 == 0:
+                    self.icmp_unavailable_cycles = 0
+
+        if rtt_early_return is not None:
+            self._record_profiling(rtt_timer.elapsed_ms, 0.0, 0.0, cycle_start)
+            return rtt_early_return
+
+        # === State Management (subsystem 2) ===
+        with PerfTimer("autorate_state_management", self.logger) as state_timer:
+            # At this point, measured_rtt is valid (either from ICMP or last known value)
+            self.update_ewma(measured_rtt)
+
+            # Rate-of-change (acceleration) detection for sudden RTT spikes
+            # Catches spikes that EWMA smooths over, triggers immediate RED
+            delta_accel = self.load_rtt - self.previous_load_rtt
+            if delta_accel > self.accel_threshold:
                 self.logger.warning(
-                    f"{self.wan_name}: Router communication failed ({failure_type}, "
-                    f"{failures} consecutive)"
+                    f"{self.wan_name}: RTT spike detected! delta_accel={delta_accel:.1f}ms "
+                    f"(threshold={self.accel_threshold}ms) - forcing RED"
                 )
-            return False
+                # Force RED by setting streak counter (bypasses hysteresis)
+                self.download.red_streak = 1
+                self.download.green_streak = 0
+                self.download.soft_red_streak = 0
+            self.previous_load_rtt = self.load_rtt
 
-        # Save state with periodic force save (safety net against crashes)
-        self._cycles_since_forced_save += 1
-        if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
-            self.save_state(force=True)
-            self._cycles_since_forced_save = 0
-        else:
-            self.save_state()
-
-        # Record metrics if enabled
-        if self.config.metrics_enabled:
-            cycle_duration = time.monotonic() - cycle_start
-            record_autorate_cycle(
-                wan_name=self.wan_name,
-                dl_rate_mbps=dl_rate / 1e6,
-                ul_rate_mbps=ul_rate / 1e6,
-                baseline_rtt=self.baseline_rtt,
-                load_rtt=self.load_rtt,
-                dl_state=dl_zone,
-                ul_state=ul_zone,
-                cycle_duration=cycle_duration,
+            # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
+            dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
+                self.baseline_rtt,
+                self.load_rtt,
+                self.green_threshold,
+                self.soft_red_threshold,
+                self.hard_red_threshold,
             )
 
+            # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
+            ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
+                self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
+            )
+
+            # Log decision
+            delta = self.load_rtt - self.baseline_rtt
+            self.logger.info(
+                f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
+                f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
+                f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
+                f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
+            )
+
+            # Record metrics to SQLite history (if enabled)
+            if self._metrics_writer is not None:
+                import time as time_module
+
+                ts = int(time_module.time())
+                metrics_batch = [
+                    (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_state",
+                        float(self._encode_state(dl_zone)),
+                        {"direction": "download"},
+                        "raw",
+                    ),
+                ]
+                self._metrics_writer.write_metrics_batch(metrics_batch)
+
+                # Record state transition if occurred (with reason in labels)
+                if dl_transition_reason:
+                    self._metrics_writer.write_metric(
+                        timestamp=ts,
+                        wan_name=self.wan_name,
+                        metric_name="wanctl_state",
+                        value=float(self._encode_state(dl_zone)),
+                        labels={"direction": "download", "reason": dl_transition_reason},
+                        granularity="raw",
+                    )
+                if ul_transition_reason:
+                    self._metrics_writer.write_metric(
+                        timestamp=ts,
+                        wan_name=self.wan_name,
+                        metric_name="wanctl_state",
+                        value=float(self._encode_state(ul_zone)),
+                        labels={"direction": "upload", "reason": ul_transition_reason},
+                        granularity="raw",
+                    )
+
+            # Save state with periodic force save (safety net against crashes)
+            self._cycles_since_forced_save += 1
+            if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
+                self.save_state(force=True)
+                self._cycles_since_forced_save = 0
+            else:
+                self.save_state()
+
+            # Record metrics if enabled
+            if self.config.metrics_enabled:
+                cycle_duration = time.perf_counter() - cycle_start
+                record_autorate_cycle(
+                    wan_name=self.wan_name,
+                    dl_rate_mbps=dl_rate / 1e6,
+                    ul_rate_mbps=ul_rate / 1e6,
+                    baseline_rtt=self.baseline_rtt,
+                    load_rtt=self.load_rtt,
+                    dl_state=dl_zone,
+                    ul_state=ul_zone,
+                    cycle_duration=cycle_duration,
+                )
+
+        # === Router Communication (subsystem 3) ===
+        router_failed = False
+        with PerfTimer("autorate_router_communication", self.logger) as router_timer:
+            # Apply rate changes (with flash wear + rate limit protection)
+            # Track router connectivity state for cycle-level failure detection
+            try:
+                if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
+                    # Router communication failed - record failure
+                    self.router_connectivity.record_failure(
+                        ConnectionError("Failed to apply rate limits to router")
+                    )
+                    router_failed = True
+                else:
+                    # Router communication succeeded - record success
+                    self.router_connectivity.record_success()
+
+                    # Apply pending rates on reconnection (ERRR-04)
+                    if self.pending_rates.has_pending():
+                        if self.pending_rates.is_stale():
+                            self.logger.info(
+                                f"{self.wan_name}: Discarding stale pending rates "
+                                f"(queued >{60}s ago)"
+                            )
+                            self.pending_rates.clear()
+                        else:
+                            pending_dl = self.pending_rates.pending_dl_rate
+                            pending_ul = self.pending_rates.pending_ul_rate
+                            if pending_dl is not None and pending_ul is not None:
+                                self.logger.info(
+                                    f"{self.wan_name}: Applying pending rates after "
+                                    f"reconnection "
+                                    f"(DL={pending_dl / 1e6:.1f}Mbps, "
+                                    f"UL={pending_ul / 1e6:.1f}Mbps)"
+                                )
+                                self.apply_rate_changes_if_needed(pending_dl, pending_ul)
+            except Exception as e:
+                # Unexpected exception during router communication
+                failure_type = self.router_connectivity.record_failure(e)
+                # Log on first failure, every 3rd failure, or on threshold exceeded
+                failures = self.router_connectivity.consecutive_failures
+                if failures == 1 or failures == 3 or failures % 10 == 0:
+                    self.logger.warning(
+                        f"{self.wan_name}: Router communication failed ({failure_type}, "
+                        f"{failures} consecutive)"
+                    )
+                router_failed = True
+
+        self._record_profiling(
+            rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start
+        )
+        if router_failed:
+            return False
         return True
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
@@ -1744,6 +1798,11 @@ def main() -> int | None:
         action="store_true",
         help="Validate configuration and exit (dry-run mode for CI/CD)",
     )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable periodic profiling reports (INFO level)",
+    )
 
     args = parser.parse_args()
 
@@ -1788,6 +1847,11 @@ def main() -> int | None:
 
     # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
+
+    # Enable profiling on all WAN controllers if --profile flag set
+    if args.profile:
+        for wan_info in controller.wan_controllers:
+            wan_info["controller"]._profiling_enabled = True
 
     # Record config snapshot on startup (if storage enabled)
     first_config = controller.wan_controllers[0]["config"]
