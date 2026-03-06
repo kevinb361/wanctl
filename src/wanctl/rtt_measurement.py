@@ -10,8 +10,10 @@ import concurrent.futures
 import logging
 import re
 import statistics
-import subprocess  # nosec B404 - required for ping RTT measurement
+import subprocess  # noqa: F401 - retained for calibrate.py backward compatibility
 from enum import Enum
+
+import icmplib
 
 # Pre-compiled regex for RTT parsing (avoids per-call compilation overhead)
 _RTT_PATTERN = re.compile(r"time=([0-9.]+)")
@@ -23,6 +25,9 @@ def parse_ping_output(text: str, logger_instance: logging.Logger | None = None) 
 
     Handles standard ping output format: "time=<rtt>ms"
     Extracts all RTT values from lines containing "time=" marker.
+
+    Note: This function is retained for calibrate.py backward compatibility.
+    The hot-path RTT measurement uses icmplib directly and does not call this.
 
     Args:
         text: Raw output from ping command
@@ -81,14 +86,14 @@ class RTTAggregationStrategy(Enum):
 
 class RTTMeasurement:
     """
-    Unified RTT measurement via ping.
+    Unified RTT measurement via icmplib raw ICMP sockets.
 
     Consolidates RTT measurement logic from autorate_continuous.py and
     steering/daemon.py into a single configurable class.
 
     Handles:
-    - Subprocess ping command execution with timeouts
-    - RTT sample collection and parsing
+    - icmplib raw ICMP socket ping (no subprocess fork/exec overhead)
+    - RTT sample collection
     - Multiple aggregation strategies (average, median, min, max)
     - Comprehensive error handling and logging
     """
@@ -106,9 +111,9 @@ class RTTMeasurement:
 
         Args:
             logger: Logger instance for error/debug messages
-            timeout_ping: Ping -W parameter (per-packet timeout) in seconds
-            timeout_total: Total subprocess timeout in seconds. If None, calculated as count + 2.
-                          This allows flexibility for different timing models.
+            timeout_ping: Per-packet timeout in seconds (passed to icmplib.ping timeout)
+            timeout_total: Retained for API compatibility. Not used by icmplib path
+                          (icmplib timeout is per-packet). Previously was subprocess timeout.
             aggregation_strategy: How to aggregate multiple RTT samples (AVERAGE, MEDIAN, MIN, MAX)
             log_sample_stats: If True, log min/max/median for debugging (only with AVERAGE strategy)
 
@@ -121,6 +126,7 @@ class RTTMeasurement:
         """
         self.logger = logger
         self.timeout_ping = timeout_ping
+        # timeout_total retained for API compatibility but unused by icmplib path
         self.timeout_total = timeout_total
         self.aggregation_strategy = aggregation_strategy
         self.log_sample_stats = log_sample_stats
@@ -128,6 +134,9 @@ class RTTMeasurement:
     def ping_host(self, host: str, count: int = 1) -> float | None:
         """
         Ping host and return aggregated RTT in milliseconds.
+
+        Uses icmplib raw ICMP sockets (no subprocess fork/exec overhead).
+        Requires CAP_NET_RAW capability (containers provide this).
 
         Args:
             host: Hostname or IP address to ping
@@ -147,53 +156,49 @@ class RTTMeasurement:
             >>> median
             10.2
         """
-        cmd = ["ping", "-c", str(count), "-W", str(self.timeout_ping), host]
-
         try:
-            # Calculate subprocess timeout
-            if self.timeout_total is not None:
-                subprocess_timeout = self.timeout_total
-            else:
-                # Default: count packets + 2 seconds overhead
-                subprocess_timeout = count + 2
-
-            result = subprocess.run(  # nosec B603 - cmd is hardcoded ping
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=subprocess_timeout,
+            result = icmplib.ping(
+                address=host,
+                count=count,
+                interval=0,
+                timeout=self.timeout_ping,
+                privileged=True,
             )
 
-            if result.returncode != 0:
-                self.logger.warning(f"Ping to {host} failed (returncode {result.returncode})")
+            if not result.is_alive:
+                self.logger.warning(f"Ping to {host} failed (no response)")
                 return None
 
-            # Parse RTT values using unified parser
-            rtts = parse_ping_output(result.stdout, self.logger)
-
-            if not rtts:
+            if not result.rtts:
                 self.logger.warning(f"No RTT samples from {host}")
                 return None
 
             # Aggregate RTT samples based on strategy
-            aggregated_rtt = self._aggregate_rtts(rtts)
+            aggregated_rtt = self._aggregate_rtts(result.rtts)
 
             # Log result with sample statistics if requested
-            if self.log_sample_stats and len(rtts) > 1:
+            if self.log_sample_stats and len(result.rtts) > 1:
                 self.logger.debug(
                     f"Ping {host}: {aggregated_rtt:.2f}ms ({self.aggregation_strategy.value}) "
-                    f"(min={min(rtts):.2f}, max={max(rtts):.2f}, count={len(rtts)})"
+                    f"(min={min(result.rtts):.2f}, max={max(result.rtts):.2f}, "
+                    f"count={len(result.rtts)})"
                 )
             else:
                 self.logger.debug(
                     f"Ping {host}: {aggregated_rtt:.2f}ms ({self.aggregation_strategy.value}, "
-                    f"count={len(rtts)})"
+                    f"count={len(result.rtts)})"
                 )
 
             return aggregated_rtt
 
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"Ping to {host} timed out (timeout={subprocess_timeout}s)")
+        except icmplib.NameLookupError:
+            self.logger.warning(f"DNS lookup failed for {host}")
+            return None
+        except icmplib.SocketPermissionError:
+            self.logger.error("Insufficient privileges for ICMP (need CAP_NET_RAW)")
+            return None
+        except icmplib.ICMPLibError as e:
+            self.logger.error(f"Ping error to {host}: {e}")
             return None
         except Exception as e:
             self.logger.error(f"Ping error to {host}: {e}")

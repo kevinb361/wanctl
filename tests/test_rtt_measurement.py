@@ -1,7 +1,6 @@
 """Tests for RTTMeasurement class in rtt_measurement module."""
 
-import subprocess
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import icmplib
 import pytest
@@ -17,12 +16,14 @@ def make_host_result(address="8.8.8.8", rtts=None, is_alive=True):
     """Build a mock icmplib Host object for testing."""
     host = MagicMock()
     host.address = address
-    host.rtts = rtts or [12.3]
-    host.min_rtt = min(host.rtts) if host.rtts else 0.0
-    host.avg_rtt = sum(host.rtts) / len(host.rtts) if host.rtts else 0.0
-    host.max_rtt = max(host.rtts) if host.rtts else 0.0
-    host.packets_sent = len(host.rtts) if is_alive else 1
-    host.packets_received = len(host.rtts) if is_alive else 0
+    if rtts is None:
+        rtts = [12.3]
+    host.rtts = rtts
+    host.min_rtt = min(rtts) if rtts else 0.0
+    host.avg_rtt = sum(rtts) / len(rtts) if rtts else 0.0
+    host.max_rtt = max(rtts) if rtts else 0.0
+    host.packets_sent = len(rtts) if is_alive else 1
+    host.packets_received = len(rtts) if is_alive else 0
     host.packet_loss = 0.0 if is_alive else 1.0
     host.is_alive = is_alive
     host.jitter = 0.0
@@ -450,7 +451,7 @@ class TestIcmplibErrorHandling:
 
     def test_socket_permission_error_logs_error(self, mock_logger, mock_icmplib_ping):
         """SocketPermissionError logs error about CAP_NET_RAW."""
-        mock_icmplib_ping.side_effect = icmplib.SocketPermissionError
+        mock_icmplib_ping.side_effect = icmplib.SocketPermissionError(privileged=True)
 
         rtt = RTTMeasurement(logger=mock_logger)
         result = rtt.ping_host("8.8.8.8")
