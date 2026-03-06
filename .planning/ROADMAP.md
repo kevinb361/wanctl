@@ -41,7 +41,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Reduce cycle utilization from 60-80% to ~40% at 50ms intervals through profiling-driven optimization.
 
 - [x] Phase 47: Cycle Profiling Infrastructure - Instrument both daemons with per-subsystem timing and collect production data (completed 2026-03-06)
-- [ ] Phase 48: Hot Path Optimization - Optimize subsystems identified by profiling (RTT, router, CAKE stats)
+- [x] Phase 48: Hot Path Optimization - Optimize subsystems identified by profiling (RTT, router, CAKE stats) (completed 2026-03-06)
 - [ ] Phase 49: Telemetry & Monitoring - Expose cycle budget metrics via health endpoints and structured logs
 
 See [milestones/v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) for full details.
@@ -296,7 +296,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** Phase 47 of 49 (v1.9 Performance & Efficiency)
+**Current:** Phase 48 of 49 (v1.9 Performance & Efficiency)
 
 ### Completed Milestones
 
@@ -313,4 +313,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 46 phases complete, 97 plans across 9 milestones
-**v1.9:** 3 phases (47-49), 0 phases complete — IN PROGRESS
+**v1.9:** 3 phases (47-49), 2 phases complete — IN PROGRESS

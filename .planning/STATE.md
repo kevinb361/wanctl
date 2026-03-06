@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance & Efficiency
 status: executing
-last_updated: "2026-03-06T22:09:19Z"
-last_activity: 2026-03-06 — Phase 48 Plan 01 complete (icmplib replaces subprocess in RTT hot path)
+last_updated: "2026-03-06T22:28:42Z"
+last_activity: 2026-03-06 — Phase 48 complete (OPTM-01 via icmplib, OPTM-02/03 by evidence, OPTM-04 deferred)
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 48-hot-path-optimization
-Plan: 01 complete
+Plan: 02 complete (phase complete)
 Status: Executing v1.9
-Last activity: 2026-03-06 — Phase 48 Plan 01 complete (icmplib replaces subprocess in RTT hot path)
+Last activity: 2026-03-06 — Phase 48 complete (OPTM-01 via icmplib, OPTM-02/03 by evidence, OPTM-04 deferred)
 
 ## Performance Metrics
 
@@ -61,6 +61,10 @@ All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 - icmplib.ping() with privileged=True and interval=0 replaces subprocess.run(["ping"]) in hot path
 - subprocess import retained with noqa for test verification; parse_ping_output() kept for calibrate.py
 - timeout_total parameter kept for API compat but unused by icmplib path
+- OPTM-02 satisfied by profiling evidence: router communication 0.0-0.2ms, no code change needed
+- OPTM-03 not applicable: CAKE stats at 2s steering interval, not part of 50ms hot path
+- OPTM-04 router CPU deferred as future work: RRUL measurement not captured post-icmplib (D5 decision)
+- Production-verified: Spectrum -3.4ms (8.3%), ATT -2.1ms (6.8%) avg cycle reduction with icmplib
 
 **v1.8 Resilience & Robustness:**
 
@@ -121,10 +125,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06 (Phase 48-01 execution)
-Previous session: 2026-03-06 — Phase 47-02 execution
+Last session: 2026-03-06 (Phase 48-02 execution, phase complete)
+Previous session: 2026-03-06 — Phase 48-01 execution
 Resume file: None
 
 ## Next Steps
 
-Phase 48 Plan 01 complete. Next: remaining Phase 48 plans (if any) or Phase 49 (Telemetry & Monitoring).
+Phase 48 complete. Next: Phase 49 (Telemetry & Monitoring) -- PROF-03, TELM-01, TELM-02.
