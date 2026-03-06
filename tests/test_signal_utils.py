@@ -4,6 +4,7 @@ import signal
 from unittest.mock import patch
 
 from wanctl.signal_utils import (
+    SHUTDOWN_TIMEOUT_SECONDS,
     _shutdown_event,
     _signal_handler,
     get_shutdown_event,
@@ -150,3 +151,12 @@ class TestSignalUtils:
         event.set()
 
         assert is_shutdown_requested()
+
+    def test_shutdown_timeout_constant_exists(self):
+        """Test SHUTDOWN_TIMEOUT_SECONDS is defined and positive."""
+        assert isinstance(SHUTDOWN_TIMEOUT_SECONDS, int)
+        assert SHUTDOWN_TIMEOUT_SECONDS > 0
+
+    def test_shutdown_timeout_less_than_systemd_default(self):
+        """Test timeout is well under systemd's 90s SIGKILL threshold."""
+        assert SHUTDOWN_TIMEOUT_SECONDS < 90

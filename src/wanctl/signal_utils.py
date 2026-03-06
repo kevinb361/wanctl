@@ -33,6 +33,9 @@ import signal
 import threading
 import types
 
+# Shutdown timeout budget (must be < systemd TimeoutStopSec=90s)
+SHUTDOWN_TIMEOUT_SECONDS: int = 30
+
 # Module-level shutdown event (thread-safe)
 _shutdown_event = threading.Event()
 
