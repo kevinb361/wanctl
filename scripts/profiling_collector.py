@@ -65,14 +65,16 @@ def calculate_statistics(samples: List[float]) -> Dict[str, float]:
     count = len(sorted_samples)
 
     # Calculate percentiles using index method
+    p50_idx = int((50 / 100) * (count - 1))
     p95_idx = int((95 / 100) * (count - 1))
     p99_idx = int((99 / 100) * (count - 1))
 
     return {
         "count": count,
         "min_ms": min(sorted_samples),
-        "max_ms": max(sorted_samples),
+        "p50_ms": sorted_samples[p50_idx],
         "avg_ms": sum(sorted_samples) / count,
+        "max_ms": max(sorted_samples),
         "p95_ms": sorted_samples[p95_idx],
         "p99_ms": sorted_samples[p99_idx],
     }
@@ -97,6 +99,7 @@ def format_text_output(stats: Dict[str, Dict], subsystem: Optional[str] = None) 
             lines.append(f"{subsystem}:")
             lines.append(f"  Count:   {s['count']} samples")
             lines.append(f"  Min:     {s['min_ms']:.2f}ms")
+            lines.append(f"  P50:     {s['p50_ms']:.2f}ms")
             lines.append(f"  Avg:     {s['avg_ms']:.2f}ms")
             lines.append(f"  Max:     {s['max_ms']:.2f}ms")
             lines.append(f"  P95:     {s['p95_ms']:.2f}ms")
@@ -108,8 +111,9 @@ def format_text_output(stats: Dict[str, Dict], subsystem: Optional[str] = None) 
             s = stats[label]
             lines.append(f"{label}:")
             lines.append(f"  Count: {s['count']:5d}  Min: {s['min_ms']:7.2f}ms  "
-                        f"Avg: {s['avg_ms']:7.2f}ms  Max: {s['max_ms']:7.2f}ms  "
-                        f"P95: {s['p95_ms']:7.2f}ms  P99: {s['p99_ms']:7.2f}ms")
+                        f"P50: {s['p50_ms']:7.2f}ms  Avg: {s['avg_ms']:7.2f}ms  "
+                        f"Max: {s['max_ms']:7.2f}ms  P95: {s['p95_ms']:7.2f}ms  "
+                        f"P99: {s['p99_ms']:7.2f}ms")
 
     return "\n".join(lines)
 
@@ -124,13 +128,13 @@ def format_csv_output(stats: Dict[str, Dict]) -> str:
     Returns:
         CSV formatted output
     """
-    lines = ["subsystem,count,min_ms,avg_ms,max_ms,p95_ms,p99_ms"]
+    lines = ["subsystem,count,min_ms,p50_ms,avg_ms,max_ms,p95_ms,p99_ms"]
 
     for label in sorted(stats.keys()):
         s = stats[label]
         lines.append(
-            f"{label},{s['count']},{s['min_ms']:.2f},{s['avg_ms']:.2f},"
-            f"{s['max_ms']:.2f},{s['p95_ms']:.2f},{s['p99_ms']:.2f}"
+            f"{label},{s['count']},{s['min_ms']:.2f},{s['p50_ms']:.2f},"
+            f"{s['avg_ms']:.2f},{s['max_ms']:.2f},{s['p95_ms']:.2f},{s['p99_ms']:.2f}"
         )
 
     return "\n".join(lines)
