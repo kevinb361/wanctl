@@ -12,9 +12,11 @@ None
 
 ### Current
 
-- [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - IN PROGRESS
+- [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - IN PROGRESS
 
 ### Completed
+
+- [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - SHIPPED 2026-03-06
 
 - [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - SHIPPED 2026-01-25
 - [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
@@ -34,16 +36,32 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.8 Resilience & Robustness (Phases 43-46) - IN PROGRESS
+### v1.9 Performance & Efficiency (Phases 47-49) - IN PROGRESS
+
+**Milestone Goal:** Reduce cycle utilization from 60-80% to ~40% at 50ms intervals through profiling-driven optimization.
+
+- [x] Phase 47: Cycle Profiling Infrastructure - Instrument both daemons with per-subsystem timing and collect production data (completed 2026-03-06)
+- [ ] Phase 48: Hot Path Optimization - Optimize subsystems identified by profiling (RTT, router, CAKE stats)
+- [ ] Phase 49: Telemetry & Monitoring - Expose cycle budget metrics via health endpoints and structured logs
+
+See [milestones/v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) for full details.
+
+<details>
+<summary>v1.8 Resilience & Robustness (Phases 43-46) - SHIPPED 2026-03-06</summary>
 
 **Milestone Goal:** Ensure wanctl behaves correctly when things go wrong - router unreachable, connection drops, daemon shutdown, unexpected errors.
 
 - [x] Phase 43: Error Detection & Reconnection - Handle router unreachable and connection drops gracefully
 - [x] Phase 44: Fail-Safe Behavior - Ensure rate limits persist and watchdog tolerates transient failures
-- [ ] Phase 45: Graceful Shutdown - Clean daemon termination with state and connection consistency
-- [ ] Phase 46: Contract Tests - Golden files for RouterOS response formats with drift detection
+- [x] Phase 44.1: Codebase Health & Coverage Recovery - Fix test pollution, recover 90%+ coverage
+- [x] Phase 45: Graceful Shutdown - Clean daemon termination with state and connection consistency
+- [ ] Phase 46: Contract Tests - Deferred (no observed mock drift)
+
+**Key Results:** Router error recovery (6 failure types), fail-closed rate queuing, graceful shutdown with bounded cleanup, 1,881 tests passing.
 
 See [milestones/v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) for full details.
+
+</details>
 
 <details>
 <summary>v1.7 Metrics History (Phases 38-42) - SHIPPED 2026-01-25</summary>
@@ -278,12 +296,13 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** Phase 44 of 46 (v1.8 Resilience & Robustness)
+**Current:** Phase 47 of 49 (v1.9 Performance & Efficiency)
 
 ### Completed Milestones
 
 | Milestone                     | Phases | Plans | Status   | Shipped    |
 | ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.8 Resilience & Robustness  | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History          | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
 | v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
@@ -293,5 +312,5 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 44 phases complete, 90 plans across 8 milestones
-**v1.8:** 4 phases (43-46), 2 phases complete — IN PROGRESS
+**Total:** 46 phases complete, 97 plans across 9 milestones
+**v1.9:** 3 phases (47-49), 0 phases complete — IN PROGRESS
