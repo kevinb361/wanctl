@@ -102,4 +102,4 @@ Resume file: None
 
 ## Next Steps
 
-Define v1.9 requirements, create roadmap, then begin Phase 47.
+Phase 47 (Cycle Profiling Infrastructure) — discuss or plan, then execute.

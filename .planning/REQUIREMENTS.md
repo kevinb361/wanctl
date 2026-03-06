@@ -82,21 +82,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CNTR-02     | 46    | Deferred |
 | CNTR-03     | 46    | Deferred |
 | CNTR-04     | 46    | Deferred |
-| PROF-01     | TBD   | Pending  |
-| PROF-02     | TBD   | Pending  |
-| PROF-03     | TBD   | Pending  |
-| OPTM-01     | TBD   | Pending  |
-| OPTM-02     | TBD   | Pending  |
-| OPTM-03     | TBD   | Pending  |
-| OPTM-04     | TBD   | Pending  |
-| TELM-01     | TBD   | Pending  |
-| TELM-02     | TBD   | Pending  |
+| PROF-01     | 47    | Pending  |
+| PROF-02     | 47    | Pending  |
+| PROF-03     | 49    | Pending  |
+| OPTM-01     | 48    | Pending  |
+| OPTM-02     | 48    | Pending  |
+| OPTM-03     | 48    | Pending  |
+| OPTM-04     | 48    | Pending  |
+| TELM-01     | 49    | Pending  |
+| TELM-02     | 49    | Pending  |
 
 **Coverage:**
 
 - v1.8 requirements: 12 total (8 complete, 4 deferred)
-- v1.9 requirements: 9 total (0 complete, 9 pending)
-- Unmapped: 9 (pending roadmap)
+- v1.9 requirements: 9 total, mapped to 3 phases
+- Unmapped: 0
 
 ---
 
