@@ -27,8 +27,43 @@ from wanctl.storage.writer import DEFAULT_DB_PATH
 
 if TYPE_CHECKING:
     from wanctl.autorate_continuous import ContinuousAutoRate
+    from wanctl.perf_profiler import OperationProfiler
 
 logger = logging.getLogger(__name__)
+
+
+def _build_cycle_budget(
+    profiler: "OperationProfiler",
+    overrun_count: int,
+    cycle_interval_ms: float,
+    total_label: str,
+) -> dict[str, Any] | None:
+    """Build cycle budget telemetry dict from profiler stats.
+
+    Returns None when the profiler has no data (cold start, D9).
+
+    Args:
+        profiler: OperationProfiler with accumulated cycle timing samples
+        overrun_count: Cumulative overrun counter since startup
+        cycle_interval_ms: Configured cycle interval in milliseconds
+        total_label: Profiler label for total cycle time (e.g. "autorate_cycle_total")
+
+    Returns:
+        Dict with cycle_time_ms, utilization_pct, overrun_count or None if no data
+    """
+    stats = profiler.stats(total_label)
+    if not isinstance(stats, dict) or "avg_ms" not in stats:
+        return None
+
+    return {
+        "cycle_time_ms": {
+            "avg": round(stats["avg_ms"], 1),
+            "p95": round(stats["p95_ms"], 1),
+            "p99": round(stats["p99_ms"], 1),
+        },
+        "utilization_pct": round((stats["avg_ms"] / cycle_interval_ms) * 100, 1),
+        "overrun_count": overrun_count,
+    }
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -108,6 +143,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     },
                     "router_connectivity": wan_controller.router_connectivity.to_dict(),
                 }
+
+                # Add cycle budget telemetry if profiler has data
+                cycle_budget = _build_cycle_budget(
+                    wan_controller._profiler,
+                    wan_controller._overrun_count,
+                    wan_controller._cycle_interval_ms,
+                    "autorate_cycle_total",
+                )
+                if cycle_budget is not None:
+                    wan_health["cycle_budget"] = cycle_budget
+
                 health["wans"].append(wan_health)
 
         # Top-level router reachability aggregate
