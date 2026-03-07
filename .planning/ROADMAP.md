@@ -59,7 +59,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
       **Plans:** 2 plans
       Plans:
-  - [ ] 53-01-PLAN.md -- Rename self.ssh to self.client, update stale docstrings, remove hot-loop import alias, extract validate_config_mode (2/2 tasks)
+  - [x] 53-01-PLAN.md -- Rename self.ssh to self.client, update stale docstrings, remove hot-loop import alias, extract validate_config_mode (2/2 tasks)
   - [ ] 53-02-PLAN.md -- Scope InsecureRequestWarning to REST session, fix ruff violations (1/1 tasks)
 - [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
 - [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests

@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
-current_phase: Phase 52 - Operational Resilience
-current_plan: Phase 52, Plan 02
-status: completed
-last_updated: "2026-03-07T12:31:40.573Z"
-last_activity: 2026-03-07 -- Plan 52-02 executed (SQLite integrity check + disk space monitoring)
+current_phase: Phase 53 - Code Cleanup
+current_plan: Phase 53, Plan 01
+status: in_progress
+last_updated: "2026-03-07T15:59:26Z"
+last_activity: 2026-03-07 -- Plan 53-01 executed (rename self.ssh, update docstrings, extract validate_config_mode)
 progress:
-  total_phases: 3
+  total_phases: 6
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 9
+  completed_plans: 8
+  percent: 89
 ---
 
 # Session State
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.10 Architectural Review Fixes
-**Current phase:** Phase 52 - Operational Resilience
-**Current plan:** Phase 52, Plan 02
-**Status:** Milestone complete
-**Last activity:** 2026-03-07 -- Plan 52-02 executed (SQLite integrity check + disk space monitoring)
+**Current phase:** Phase 53 - Code Cleanup
+**Current plan:** Phase 53, Plan 01
+**Status:** In progress
+**Last activity:** 2026-03-07 -- Plan 53-01 executed (rename self.ssh, update docstrings, extract validate_config_mode)
 
-**Progress:** [██████████] 100%
+**Progress:** [████████░░] 89%
 
 ## Phase Summary
 
@@ -38,7 +38,7 @@ See: .planning/PROJECT.md
 | 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | COMPLETE    |
 | 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | COMPLETE    |
 | 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | COMPLETE    |
-| 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | Not started |
+| 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | IN PROGRESS |
 | 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | Not started |
 | 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | Not started |
 
@@ -67,6 +67,7 @@ See: .planning/PROJECT.md
 - [52-02] \_get_disk_space_status is shared helper in health_check.py, imported by steering/health.py
 - [52-02] 100MB disk space warning threshold as module constant (\_DISK_SPACE_WARNING_BYTES), no config change needed
 - [52-02] "unknown" disk space (OSError) does not degrade health -- only "warning" does
+- [53-01] Left self.ssh_key unchanged -- refers to SSH key file path, not the renamed client connection object
 
 ### Known Issues
 
@@ -92,3 +93,4 @@ None.
 - 2026-03-07: Plan 52-01 executed -- SSL verify_ssl=True default, CVE-2026-26007 patch, YAML error line numbers (3 tasks, TDD, 1966 tests pass)
 - 2026-03-07: Plan 52-02 executed -- SQLite integrity check + disk space monitoring (2 tasks, TDD, 2037 tests pass)
 - 2026-03-07: Phase 52 COMPLETE -- all 2 plans done, ready for Phase 53
+- 2026-03-07: Plan 53-01 executed -- rename self.ssh->self.client, update stale docstrings, remove import alias, extract validate_config_mode (2 tasks, 2037 tests pass)
