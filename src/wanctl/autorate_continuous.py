@@ -1768,6 +1768,53 @@ class ContinuousAutoRate:
 # =============================================================================
 
 
+def validate_config_mode(config_files: list[str]) -> int:
+    """Validate configuration files and print details.
+
+    Args:
+        config_files: List of config file paths to validate.
+
+    Returns:
+        0 if all configs valid, 1 if any invalid.
+    """
+    all_valid = True
+    for config_file in config_files:
+        try:
+            config = Config(config_file)
+            print(f"Configuration valid: {config_file}")
+            print(f"  WAN: {config.wan_name}")
+            print(f"  Transport: {config.router_transport}")
+            print(f"  Router: {config.router_host}:{config.router_user}")
+            dl_min = config.download_floor_red / 1e6
+            dl_max = config.download_ceiling / 1e6
+            print(f"  Download: {dl_min:.0f}M - {dl_max:.0f}M")
+            print(
+                f"    Floors: GREEN={config.download_floor_green / 1e6:.0f}M, "
+                f"YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
+                f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, "
+                f"RED={config.download_floor_red / 1e6:.0f}M"
+            )
+            ul_min = config.upload_floor_red / 1e6
+            ul_max = config.upload_ceiling / 1e6
+            print(f"  Upload: {ul_min:.0f}M - {ul_max:.0f}M")
+            print(
+                f"    Floors: GREEN={config.upload_floor_green / 1e6:.0f}M, "
+                f"YELLOW={config.upload_floor_yellow / 1e6:.0f}M, "
+                f"RED={config.upload_floor_red / 1e6:.0f}M"
+            )
+            print(
+                f"  Thresholds: GREEN<={config.target_bloat_ms}ms, "
+                f"SOFT_RED<={config.warn_bloat_ms}ms, RED>{config.hard_red_bloat_ms}ms"
+            )
+            print(f"  Ping hosts: {config.ping_hosts}")
+            print(f"  Queue names: {config.queue_down}, {config.queue_up}")
+        except Exception as e:
+            print(f"Configuration INVALID: {config_file}")
+            print(f"  Error: {e}")
+            all_valid = False
+    return 0 if all_valid else 1
+
+
 def main() -> int | None:
     """Main entry point for continuous CAKE auto-tuning daemon.
 
@@ -1837,42 +1884,7 @@ def main() -> int | None:
 
     # Validate-config mode: check configuration and exit
     if args.validate_config:
-        all_valid = True
-        for config_file in args.config:
-            try:
-                config = Config(config_file)
-                print(f"Configuration valid: {config_file}")
-                print(f"  WAN: {config.wan_name}")
-                print(f"  Transport: {config.router_transport}")
-                print(f"  Router: {config.router_host}:{config.router_user}")
-                dl_min = config.download_floor_red / 1e6
-                dl_max = config.download_ceiling / 1e6
-                print(f"  Download: {dl_min:.0f}M - {dl_max:.0f}M")
-                print(
-                    f"    Floors: GREEN={config.download_floor_green / 1e6:.0f}M, "
-                    f"YELLOW={config.download_floor_yellow / 1e6:.0f}M, "
-                    f"SOFT_RED={config.download_floor_soft_red / 1e6:.0f}M, "
-                    f"RED={config.download_floor_red / 1e6:.0f}M"
-                )
-                ul_min = config.upload_floor_red / 1e6
-                ul_max = config.upload_ceiling / 1e6
-                print(f"  Upload: {ul_min:.0f}M - {ul_max:.0f}M")
-                print(
-                    f"    Floors: GREEN={config.upload_floor_green / 1e6:.0f}M, "
-                    f"YELLOW={config.upload_floor_yellow / 1e6:.0f}M, "
-                    f"RED={config.upload_floor_red / 1e6:.0f}M"
-                )
-                print(
-                    f"  Thresholds: GREEN<={config.target_bloat_ms}ms, "
-                    f"SOFT_RED<={config.warn_bloat_ms}ms, RED>{config.hard_red_bloat_ms}ms"
-                )
-                print(f"  Ping hosts: {config.ping_hosts}")
-                print(f"  Queue names: {config.queue_down}, {config.queue_up}")
-            except Exception as e:
-                print(f"Configuration INVALID: {config_file}")
-                print(f"  Error: {e}")
-                all_valid = False
-        return 0 if all_valid else 1
+        return validate_config_mode(args.config)
 
     # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
