@@ -10,8 +10,7 @@ import concurrent.futures
 import logging
 import re
 import statistics
-import subprocess  # retained for test_rtt_measurement patching; noqa doesn't work with pyflakes
-subprocess  # reference to suppress pyflakes F401
+import subprocess  # noqa: F401 -- retained for test patching (tests mock wanctl.rtt_measurement.subprocess)
 from enum import Enum
 
 import icmplib
