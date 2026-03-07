@@ -10,7 +10,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 ### Hot-Loop & Transport Safety
 
 - [x] **LOOP-01**: Retry decorator in hot loop uses sub-cycle delays (max 50ms initial, 1 retry) instead of 1s+2s blocking delays
-- [ ] **LOOP-02**: `get_router_client_with_failover()` honors `config.router_transport` setting for primary transport selection
+- [x] **LOOP-02**: `get_router_client_with_failover()` honors `config.router_transport` setting for primary transport selection
 - [ ] **LOOP-03**: Failover client periodically re-probes primary transport after fallback, restoring REST when available
 - [x] **LOOP-04**: Main autorate loop uses `shutdown_event.wait()` instead of `time.sleep()` for consistent signal responsiveness
 
@@ -34,7 +34,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 - [ ] **CLEAN-01**: Rename `self.ssh` to `self.client` in autorate (holds `FailoverRouterClient`, not SSH)
 - [ ] **CLEAN-02**: Update stale docstrings referencing "2-second control loop" to 50ms
 - [ ] **CLEAN-03**: Remove `import time as time_module` inside hot loop, use module-level `time` import
-- [ ] **CLEAN-04**: Resolve contradictory defaults between config (`ssh`) and factory (`rest`) for `router_transport`
+- [x] **CLEAN-04**: Resolve contradictory defaults between config (`ssh`) and factory (`rest`) for `router_transport`
 - [ ] **CLEAN-05**: Scope `disable_warnings(InsecureRequestWarning)` to REST session instead of process-global
 - [ ] **CLEAN-06**: Fix 10 ruff violations (import ordering, unused loop variables)
 - [ ] **CLEAN-07**: Extract `validate_config_mode()` from `main()` to reduce complexity
@@ -74,7 +74,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | Requirement | Phase    | Status   |
 | ----------- | -------- | -------- |
 | LOOP-01     | Phase 50 | Complete |
-| LOOP-02     | Phase 50 | Pending  |
+| LOOP-02     | Phase 50 | Complete |
 | LOOP-03     | Phase 50 | Pending  |
 | LOOP-04     | Phase 50 | Complete |
 | STEER-01    | Phase 51 | Pending  |
@@ -89,7 +89,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | CLEAN-01    | Phase 53 | Pending  |
 | CLEAN-02    | Phase 53 | Pending  |
 | CLEAN-03    | Phase 53 | Pending  |
-| CLEAN-04    | Phase 50 | Pending  |
+| CLEAN-04    | Phase 50 | Complete |
 | CLEAN-05    | Phase 53 | Pending  |
 | CLEAN-06    | Phase 53 | Pending  |
 | CLEAN-07    | Phase 53 | Pending  |
@@ -110,4 +110,4 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 ---
 
 _Requirements defined: 2026-03-07_
-_Last updated: 2026-03-07 after roadmap creation_
+_Last updated: 2026-03-07 after plan 50-02 completion_

@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
       **Plans:** 3 plans
       Plans:
   - [x] 50-01-PLAN.md -- Sub-cycle retry delays on run_cmd + shutdown_event.wait in main loop (1/1 tasks)
-  - [ ] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection
+  - [x] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection (1/1 tasks)
   - [ ] 50-03-PLAN.md -- Add periodic re-probe of primary transport after failover
 - [ ] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety
 - [ ] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages
