@@ -22,7 +22,7 @@ Usage:
         user="admin",
         password="password",  # pragma: allowlist secret
         port=443,
-        verify_ssl=False,
+        verify_ssl=True,  # Default: SSL verification enabled
         timeout=15,
         logger=logger
     )
@@ -62,7 +62,7 @@ class RouterOSREST:
         user: API username
         password: API password
         port: REST API port (default 443 for HTTPS)
-        verify_ssl: Whether to verify SSL certificates (default False)
+        verify_ssl: Whether to verify SSL certificates (default True)
         timeout: Request timeout in seconds
         logger: Logger instance for debug/error messages
     """
@@ -73,7 +73,7 @@ class RouterOSREST:
         user: str,
         password: str,
         port: int = 443,
-        verify_ssl: bool = False,
+        verify_ssl: bool = True,
         timeout: int = 15,
         logger: logging.Logger | None = None,
     ):
@@ -84,7 +84,8 @@ class RouterOSREST:
             user: API username for authentication
             password: API password for authentication
             port: REST API port (default 443 for HTTPS, use 80 for HTTP)
-            verify_ssl: Whether to verify SSL certificates (default False)
+            verify_ssl: Whether to verify SSL certificates (default True).
+                Set to False for routers using self-signed certificates.
             timeout: Request timeout in seconds (default: 15)
             logger: Logger instance (optional, creates null logger if not provided)
         """
@@ -121,7 +122,7 @@ class RouterOSREST:
         - router_user: str
         - router_password: str (or from environment variable)
         - router_port: int (optional, defaults to 443)
-        - router_verify_ssl: bool (optional, defaults to False)
+        - router_verify_ssl: bool (optional, defaults to True)
         - timeout_ssh_command: int (optional, defaults to 15)
 
         Args:
@@ -144,7 +145,7 @@ class RouterOSREST:
             user=config.router_user,
             password=password,
             port=getattr(config, "router_port", 443),
-            verify_ssl=getattr(config, "router_verify_ssl", False),
+            verify_ssl=getattr(config, "router_verify_ssl", True),
             timeout=getattr(config, "timeout_ssh_command", 15),
             logger=logger,
         )
