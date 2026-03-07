@@ -1,103 +1,31 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Performance & Efficiency
-status: complete
-last_updated: "2026-03-07T00:45:00.000Z"
-last_activity: 2026-03-07 — v1.9 milestone archived and tagged
+milestone: v1.10
+milestone_name: Architectural Review Fixes
+current_phase: (determining...)
+status: Defining requirements
+last_updated: "2026-03-07"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
-# Project State
+# Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07)
+See: .planning/PROJECT.md
 
-**Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+## Position
 
-## Current Position
+**Milestone:** v1.10 Architectural Review Fixes
+**Current phase:** Not started (defining requirements)
+**Status:** Defining requirements
+**Last activity:** 2026-03-07 — Milestone v1.10 started
 
-Phase: v1.9 complete
-Plan: All plans complete
-Status: Milestone archived
-Last activity: 2026-03-07 — v1.9 milestone archived and tagged
+## Session Log
 
-## Performance Metrics
-
-**Milestone Velocity:**
-
-| Milestone | Phases | Plans | Duration |
-| --------- | ------ | ----- | -------- |
-| v1.0      | 5      | 8     | 1 day    |
-| v1.1      | 10     | 30    | 1 day    |
-| v1.2      | 5      | 5     | 1 day    |
-| v1.3      | 4      | 5     | 1 day    |
-| v1.4      | 2      | 4     | 1 day    |
-| v1.5      | 4      | 8     | 1 day    |
-| v1.6      | 7      | 17    | 2 days   |
-| v1.7      | 5      | 8     | 1 day    |
-| v1.8      | 4      | 4     | ~1 month |
-| v1.9      | 3      | 6     | 1 day    |
-| **Total** | 49     | 105   | —        |
-
-## Accumulated Context
-
-### Decisions
-
-All decisions logged in PROJECT.md Key Decisions table and milestone archives.
-
-### Deferred Issues
-
-- steering_confidence.py at 42.1% coverage (confidence-based steering in dry-run mode)
-- Contract tests (CNTR-01 through CNTR-04) — deferred from v1.8, no observed mock drift
-
-### Blockers/Concerns
-
-None.
-
-### Pending Todos
-
-3 todos remaining in `.planning/todos/pending/`:
-
-- Integration test for router communication (testing)
-- Graceful shutdown behavior review (core) - ADDRESSED by Phase 45
-- Error recovery scenario testing (reliability) - ADDRESSED by Phases 43-44
-
-### Quick Tasks Completed
-
-| #   | Description                                  | Date       | Commit  | Directory                                                                                             |
-| --- | -------------------------------------------- | ---------- | ------- | ----------------------------------------------------------------------------------------------------- |
-| 001 | Rename Phase2B to confidence-based steering  | 2026-01-24 | ed77d74 | [001-rename-phase2b-to-confidence-based-steer](./quick/001-rename-phase2b-to-confidence-based-steer/) |
-| 002 | Fix health endpoint version number           | 2026-01-24 | 7168896 | [002-fix-health-version](./quick/002-fix-health-version/)                                             |
-| 003 | Remove deprecated sample params              | 2026-01-24 | ed10708 | [003-remove-deprecated-sample-params](./quick/003-remove-deprecated-sample-params/)                   |
-| 004 | Fix socket ResourceWarning in health tests   | 2026-01-24 | b648ddb | [004-fix-socket-warnings](./quick/004-fix-socket-warnings/)                                           |
-| 005 | Watchdog-safe startup & periodic maintenance | 2026-02-05 | f579369 | [005-fix-watchdog-safe-startup-maintenance](./quick/005-fix-watchdog-safe-startup-maintenance/)       |
-
-### Shipped Milestones
-
-- **v1.0 Performance Optimization** (2026-01-13): 40x speed improvement (2s to 50ms)
-- **v1.1 Code Quality** (2026-01-14): 120 new tests, systematic refactoring
-- **v1.2 Configuration & Polish** (2026-01-14): Confidence-based steering rollout, config improvements
-- **v1.3 Reliability & Hardening** (2026-01-21): Safety invariant tests, deployment validation
-- **v1.4 Observability** (2026-01-24): Steering daemon health endpoint on port 9102
-- **v1.5 Quality & Hygiene** (2026-01-24): Test coverage, documentation verification, security audit
-- **v1.6 Test Coverage 90%** (2026-01-25): 743 new tests, 90%+ coverage enforced in CI
-- **v1.7 Metrics History** (2026-01-25): SQLite storage, CLI tool, HTTP API for metrics access
-- **v1.8 Resilience & Robustness** (2026-03-06): Error recovery, fail-safe, graceful shutdown
-- **v1.9 Performance & Efficiency** (2026-03-07): icmplib optimization, profiling telemetry, cycle budget visibility
-
-## Session Continuity
-
-Last session: 2026-03-07 (v1.9 milestone completion)
-Previous session: 2026-03-06 — Phase 49-02 execution, PROF-03/TELM-02 complete
-Resume file: None
-
-## Next Steps
-
-Run `/gsd:new-milestone` to start the next milestone cycle.
+- 2026-03-07: Milestone v1.10 started from senior architectural review findings
+- 2026-03-07: STATE.md regenerated by /gsd:health --repair
