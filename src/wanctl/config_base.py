@@ -250,11 +250,22 @@ class BaseConfig:
 
         Raises:
             FileNotFoundError: If config file doesn't exist
-            yaml.YAMLError: If config file has invalid YAML syntax
-            ConfigValidationError: If required config keys are missing or invalid
+            ConfigValidationError: If YAML syntax is invalid (includes line number)
+                or if required config keys are missing or invalid
         """
         with open(config_path) as f:
-            self.data = yaml.safe_load(f)
+            try:
+                self.data = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                if hasattr(e, "problem_mark") and e.problem_mark is not None:
+                    mark = e.problem_mark
+                    raise ConfigValidationError(
+                        f"YAML parse error in {config_path} at line {mark.line + 1}, "
+                        f"column {mark.column + 1}: {e.problem}"
+                    ) from e
+                raise ConfigValidationError(
+                    f"YAML parse error in {config_path}: {e}"
+                ) from e
 
         # Validate schema version (defaults to 1.0 for legacy configs)
         self._validate_schema_version()
