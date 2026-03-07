@@ -46,9 +46,6 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from wanctl.retry_utils import retry_with_backoff
 
-# Disable SSL warnings for self-signed certificates (common on routers)
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
 
 class RouterOSREST:
     """REST API client for executing commands on RouterOS devices.
@@ -105,6 +102,12 @@ class RouterOSREST:
         self._session = requests.Session()
         self._session.auth = (user, password)
         self._session.verify = verify_ssl
+
+        # Suppress InsecureRequestWarning only when SSL verification is disabled
+        if not verify_ssl:
+            import urllib3
+
+            urllib3.disable_warnings(InsecureRequestWarning)
 
         # Cache for queue/rule IDs to reduce API calls
         # Key: queue_name or rule_comment, Value: RouterOS ID (e.g., "*1")
