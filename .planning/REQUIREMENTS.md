@@ -9,10 +9,10 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 ### Hot-Loop & Transport Safety
 
-- [ ] **LOOP-01**: Retry decorator in hot loop uses sub-cycle delays (max 50ms initial, 1 retry) instead of 1s+2s blocking delays
+- [x] **LOOP-01**: Retry decorator in hot loop uses sub-cycle delays (max 50ms initial, 1 retry) instead of 1s+2s blocking delays
 - [ ] **LOOP-02**: `get_router_client_with_failover()` honors `config.router_transport` setting for primary transport selection
 - [ ] **LOOP-03**: Failover client periodically re-probes primary transport after fallback, restoring REST when available
-- [ ] **LOOP-04**: Main autorate loop uses `shutdown_event.wait()` instead of `time.sleep()` for consistent signal responsiveness
+- [x] **LOOP-04**: Main autorate loop uses `shutdown_event.wait()` instead of `time.sleep()` for consistent signal responsiveness
 
 ### Steering Reliability
 
@@ -61,51 +61,53 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Core algorithm changes | Architectural spine — read-only per CLAUDE.md |
-| Threshold/timing modifications | Protected zones — requires explicit approval |
-| New user-facing features | This milestone is hardening only |
-| Prometheus/Grafana integration | Keep self-contained per constraints |
-| Breaking config changes | Backward compatibility required |
+| Feature                        | Reason                                        |
+| ------------------------------ | --------------------------------------------- |
+| Core algorithm changes         | Architectural spine — read-only per CLAUDE.md |
+| Threshold/timing modifications | Protected zones — requires explicit approval  |
+| New user-facing features       | This milestone is hardening only              |
+| Prometheus/Grafana integration | Keep self-contained per constraints           |
+| Breaking config changes        | Backward compatibility required               |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| LOOP-01 | Phase 50 | Pending |
-| LOOP-02 | Phase 50 | Pending |
-| LOOP-03 | Phase 50 | Pending |
-| LOOP-04 | Phase 50 | Pending |
-| STEER-01 | Phase 51 | Pending |
-| STEER-02 | Phase 51 | Pending |
-| STEER-03 | Phase 51 | Pending |
-| STEER-04 | Phase 51 | Pending |
-| OPS-01 | Phase 52 | Pending |
-| OPS-02 | Phase 52 | Pending |
-| OPS-03 | Phase 52 | Pending |
-| OPS-04 | Phase 52 | Pending |
-| OPS-05 | Phase 52 | Pending |
-| CLEAN-01 | Phase 53 | Pending |
-| CLEAN-02 | Phase 53 | Pending |
-| CLEAN-03 | Phase 53 | Pending |
-| CLEAN-04 | Phase 50 | Pending |
-| CLEAN-05 | Phase 53 | Pending |
-| CLEAN-06 | Phase 53 | Pending |
-| CLEAN-07 | Phase 53 | Pending |
-| AUDIT-01 | Phase 54 | Pending |
-| AUDIT-02 | Phase 54 | Pending |
-| AUDIT-03 | Phase 54 | Pending |
-| TEST-01 | Phase 55 | Pending |
-| TEST-02 | Phase 55 | Pending |
-| TEST-03 | Phase 55 | Pending |
-| TEST-04 | Phase 55 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| LOOP-01     | Phase 50 | Complete |
+| LOOP-02     | Phase 50 | Pending  |
+| LOOP-03     | Phase 50 | Pending  |
+| LOOP-04     | Phase 50 | Complete |
+| STEER-01    | Phase 51 | Pending  |
+| STEER-02    | Phase 51 | Pending  |
+| STEER-03    | Phase 51 | Pending  |
+| STEER-04    | Phase 51 | Pending  |
+| OPS-01      | Phase 52 | Pending  |
+| OPS-02      | Phase 52 | Pending  |
+| OPS-03      | Phase 52 | Pending  |
+| OPS-04      | Phase 52 | Pending  |
+| OPS-05      | Phase 52 | Pending  |
+| CLEAN-01    | Phase 53 | Pending  |
+| CLEAN-02    | Phase 53 | Pending  |
+| CLEAN-03    | Phase 53 | Pending  |
+| CLEAN-04    | Phase 50 | Pending  |
+| CLEAN-05    | Phase 53 | Pending  |
+| CLEAN-06    | Phase 53 | Pending  |
+| CLEAN-07    | Phase 53 | Pending  |
+| AUDIT-01    | Phase 54 | Pending  |
+| AUDIT-02    | Phase 54 | Pending  |
+| AUDIT-03    | Phase 54 | Pending  |
+| TEST-01     | Phase 55 | Pending  |
+| TEST-02     | Phase 55 | Pending  |
+| TEST-03     | Phase 55 | Pending  |
+| TEST-04     | Phase 55 | Pending  |
 
 **Coverage:**
+
 - v1.10 requirements: 27 total
 - Mapped to phases: 27
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after roadmap creation*
+
+_Requirements defined: 2026-03-07_
+_Last updated: 2026-03-07 after roadmap creation_
