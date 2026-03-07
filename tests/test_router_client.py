@@ -237,8 +237,15 @@ class TestFailoverRouterClient:
             warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
             assert any("rest" in call.lower() and "ssh" in call.lower() for call in warning_calls)
 
-    def test_custom_transport_order(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
-        """Can specify SSH as primary and REST as fallback."""
+    def test_custom_transport_order_via_config(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Config.router_transport="ssh" uses SSH as primary, REST as fallback.
+
+        LOOP-02/CLEAN-04: config.router_transport is authoritative for
+        transport selection. The factory reads it instead of hardcoded defaults.
+        """
+        mock_config.router_transport = "ssh"
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.side_effect = ConnectionError("SSH down")
 
@@ -248,10 +255,8 @@ class TestFailoverRouterClient:
         with patch("wanctl.router_client._create_transport") as mock_create:
             mock_create.side_effect = [mock_ssh, mock_rest]
 
-            # SSH as primary, REST as fallback
-            client = get_router_client_with_failover(
-                mock_config, mock_logger, primary="ssh", fallback="rest"
-            )
+            # Factory reads config.router_transport="ssh" -> SSH primary, REST fallback
+            client = get_router_client_with_failover(mock_config, mock_logger)
             rc, stdout, stderr = client.run_cmd("/test")
 
             assert rc == 0
@@ -322,3 +327,59 @@ class TestFailoverRouterClientInit:
         assert client._primary_client is None
         assert client._fallback_client is None
         assert client._using_fallback is False
+
+
+class TestFactoryConfigDriven:
+    """Tests for get_router_client_with_failover reading config.router_transport.
+
+    LOOP-02/CLEAN-04: The factory must read config.router_transport to determine
+    primary transport. Fallback is automatically the opposite transport.
+    """
+
+    @pytest.fixture
+    def mock_logger(self) -> MagicMock:
+        """Create mock logger for tests."""
+        return MagicMock(spec=logging.Logger)
+
+    def test_factory_reads_config_transport_rest(self, mock_logger: MagicMock) -> None:
+        """config.router_transport="rest" -> primary="rest", fallback="ssh"."""
+        config = MagicMock()
+        config.router_transport = "rest"
+
+        client = get_router_client_with_failover(config, mock_logger)
+
+        assert client.primary_transport == "rest"
+        assert client.fallback_transport == "ssh"
+
+    def test_factory_reads_config_transport_ssh(self, mock_logger: MagicMock) -> None:
+        """config.router_transport="ssh" -> primary="ssh", fallback="rest"."""
+        config = MagicMock()
+        config.router_transport = "ssh"
+
+        client = get_router_client_with_failover(config, mock_logger)
+
+        assert client.primary_transport == "ssh"
+        assert client.fallback_transport == "rest"
+
+    def test_factory_no_transport_attr_defaults_rest(self, mock_logger: MagicMock) -> None:
+        """Config without router_transport attr defaults to primary="rest"."""
+        # Use a plain object without router_transport attribute
+        config = type("Config", (), {})()
+
+        client = get_router_client_with_failover(config, mock_logger)
+
+        assert client.primary_transport == "rest"
+        assert client.fallback_transport == "ssh"
+
+    def test_factory_no_primary_fallback_params(self, mock_logger: MagicMock) -> None:
+        """Factory no longer accepts primary/fallback params -- config is authoritative."""
+        config = MagicMock()
+        config.router_transport = "rest"
+
+        # Factory should only accept (config, logger) -- no primary/fallback kwargs
+        import inspect
+
+        sig = inspect.signature(get_router_client_with_failover)
+        param_names = list(sig.parameters.keys())
+        assert "primary" not in param_names, "Factory should not accept 'primary' param"
+        assert "fallback" not in param_names, "Factory should not accept 'fallback' param"
