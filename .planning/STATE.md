@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
-current_phase: 50
-status: Executing Phase 50 plans
+current_phase: 51
+status: Phase 50 complete, ready for Phase 51
 last_updated: "2026-03-07"
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Session State
@@ -21,23 +21,23 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.10 Architectural Review Fixes
-**Current phase:** Phase 50 - Critical Hot-Loop & Transport Fixes
-**Current plan:** Phase 50, Plan 03 (next)
-**Status:** Phase 50 in progress -- Plans 01-02 complete
-**Last activity:** 2026-03-07 -- Plan 50-02 executed (config-driven transport selection)
+**Current phase:** Phase 51 - Steering Reliability (next)
+**Current plan:** Phase 51, Plan 01 (next)
+**Status:** Phase 50 complete -- all 3 plans done, ready for Phase 51
+**Last activity:** 2026-03-07 -- Plan 50-03 executed (periodic re-probe of primary transport)
 
-**Progress:** [##____] 2/3 plans in Phase 50
+**Progress:** [###___] 3/3 plans in Phase 50 (phase complete)
 
 ## Phase Summary
 
-| Phase | Name                                | Requirements                                               | Status           |
-| ----- | ----------------------------------- | ---------------------------------------------------------- | ---------------- |
-| 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | Plans 01-02 done |
-| 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | Not started      |
-| 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | Not started      |
-| 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | Not started      |
-| 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | Not started      |
-| 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | Not started      |
+| Phase | Name                                | Requirements                                               | Status      |
+| ----- | ----------------------------------- | ---------------------------------------------------------- | ----------- |
+| 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | COMPLETE    |
+| 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | Not started |
+| 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | Not started |
+| 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | Not started |
+| 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | Not started |
+| 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | Not started |
 
 ## Accumulated Context
 
@@ -50,6 +50,9 @@ See: .planning/PROJECT.md
 - [50-01] shutdown_event.wait matches existing steering daemon pattern (daemon.py:1524)
 - [50-02] Removed primary/fallback params from factory -- config is single source of truth
 - [50-02] Fallback auto-derived as opposite of primary (rest->ssh, ssh->rest)
+- [50-03] Re-probe uses actual run_cmd command opportunistically (no separate probe command)
+- [50-03] Stale primary client closed/recreated on each probe attempt (fresh connection)
+- [50-03] Backoff: 30->60->120->240->300 (capped at 5min)
 
 ### Known Issues
 
@@ -67,3 +70,5 @@ None.
 - 2026-03-07: Phase 50 context gathered -- requirements prescriptive, all implementation at Claude's discretion
 - 2026-03-07: Plan 50-01 executed -- sub-cycle retry params on run_cmd + shutdown_event.wait in main loop (1 task, TDD, 1991 tests pass)
 - 2026-03-07: Plan 50-02 executed -- config.router_transport authoritative, defaults aligned to REST (1 task, TDD, 270 related tests pass)
+- 2026-03-07: Plan 50-03 executed -- periodic re-probe of primary transport after failover with backoff (1 task, TDD, 2000 tests pass)
+- 2026-03-07: Phase 50 COMPLETE -- all 3 plans done, ready for Phase 51

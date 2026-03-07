@@ -11,7 +11,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 - [x] **LOOP-01**: Retry decorator in hot loop uses sub-cycle delays (max 50ms initial, 1 retry) instead of 1s+2s blocking delays
 - [x] **LOOP-02**: `get_router_client_with_failover()` honors `config.router_transport` setting for primary transport selection
-- [ ] **LOOP-03**: Failover client periodically re-probes primary transport after fallback, restoring REST when available
+- [x] **LOOP-03**: Failover client periodically re-probes primary transport after fallback, restoring REST when available
 - [x] **LOOP-04**: Main autorate loop uses `shutdown_event.wait()` instead of `time.sleep()` for consistent signal responsiveness
 
 ### Steering Reliability
@@ -75,7 +75,7 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | ----------- | -------- | -------- |
 | LOOP-01     | Phase 50 | Complete |
 | LOOP-02     | Phase 50 | Complete |
-| LOOP-03     | Phase 50 | Pending  |
+| LOOP-03     | Phase 50 | Complete |
 | LOOP-04     | Phase 50 | Complete |
 | STEER-01    | Phase 51 | Pending  |
 | STEER-02    | Phase 51 | Pending  |
@@ -110,4 +110,4 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 ---
 
 _Requirements defined: 2026-03-07_
-_Last updated: 2026-03-07 after plan 50-02 completion_
+_Last updated: 2026-03-07 after plan 50-03 completion (Phase 50 complete)_
