@@ -10,6 +10,10 @@ None
 
 ## Milestones
 
+### Active
+
+- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-55) - IN PROGRESS
+
 ### Completed
 
 - [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - SHIPPED 2026-03-07
@@ -31,6 +35,19 @@ None
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.10 Architectural Review Fixes (Phases 50-55)
+
+**Milestone Goal:** Address findings from senior architectural review -- fix critical hot-loop and config bugs, improve operational resilience, and strengthen test quality.
+
+- [ ] **Phase 50: Critical Hot-Loop & Transport Fixes** - Fix blocking delays in hot loop, transport config contradictions, and failover re-probe
+- [ ] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety
+- [ ] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages
+- [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
+- [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
+- [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests
+
+See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
 <details>
 <summary>v1.9 Performance & Efficiency (Phases 47-49) - SHIPPED 2026-03-07</summary>
@@ -121,108 +138,13 @@ See [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) for full details.
 
 **Milestone Goal:** Reduce measurement and control latency to under 2 seconds per cycle. **Achieved:** 50ms cycle interval (40x faster than original 2s baseline).
 
-- [x] **Phase 1: Measurement Infrastructure Profiling** - Establish baseline performance metrics and identify bottleneck sources
-- [x] **Phase 2: Interval Optimization** - Progressive cycle interval reduction for faster congestion response (250ms to 100ms to 50ms)
-- [x] **Phase 3: Production Finalization** - Finalize optimal interval configuration and remove profiling artifacts
-- [x] **Phase 4: RouterOS Communication Optimization** - (ALREADY IMPLEMENTED) REST API and connection pooling already in production code
-- [x] **Phase 5: Measurement Layer Optimization** - (PARTIALLY IMPLEMENTED) Parallel pings optimal, CAKE caching not needed
+- [x] Phase 1: Measurement Infrastructure Profiling - 7-day profiling (352,730 samples), bottleneck analysis
+- [x] Phase 2: Interval Optimization - Progressive reduction 500ms to 250ms to 50ms
+- [x] Phase 3: Production Finalization - 50ms deployed as production standard
+- [x] Phase 4: RouterOS Communication Optimization - Already implemented (REST API, connection pooling)
+- [x] Phase 5: Measurement Layer Optimization - Partially implemented (parallel pings done, CAKE caching not needed)
 
-## Phase Details
-
-### Phase 1: Measurement Infrastructure Profiling
-
-**Goal**: Establish baseline performance metrics and identify bottleneck sources (RouterOS, ICMP, CAKE stats)
-**Depends on**: Nothing (first phase)
-**Research**: Unlikely (internal profiling, established patterns)
-**Plans**: 3 plans
-
-Plans:
-
-- [x] 01-01: Profile current measurement cycle and document latency breakdown
-- [x] 01-02: Establish performance test harness with timing instrumentation
-- [x] 01-03: Identify and prioritize optimization targets (PROFILING-ANALYSIS.md)
-
-**Phase 1 Complete:** 7-day profiling (352,730 samples), analysis complete, optimizations implemented (event loop + 500ms cycle)
-
-### Phase 2: Interval Optimization
-
-**Goal**: Progressively reduce cycle interval from 500ms to optimal rate (250ms/100ms/50ms) for faster congestion response
-**Depends on**: Phase 1 (profiling showed 30-41ms execution, enabling faster cycles)
-**Research**: None (mathematical approach established in FASTER_RESPONSE_INTERVAL.md)
-**Plans**: 3 plans
-
-Plans:
-
-- [x] 02-01: Test 250ms interval (2x faster response, 4s detection maintained) - Complete
-- [~] 02-02: Test 100ms interval (5x faster response, aggressive tuning) - SKIPPED (fail-fast)
-- [x] 02-03: Test 50ms interval (20x faster response, theoretical limit) - Complete
-
-**Rationale**: Phase 1 profiling revealed 30-41ms cycle execution (2-4% of budget). Instead of optimizing already-fast code (low ROI), use the headroom for faster congestion response.
-
-**Status:** Phase 2 complete. Both 250ms (conservative) and 50ms (extreme) intervals proven stable. Performance limits identified: 50ms = 60-80% utilization (practical limit). Router CPU: 0% at 20Hz. Ready for Phase 3 production interval selection.
-
-### Phase 3: Production Finalization
-
-**Goal**: Finalize production configuration at optimal interval and clean up profiling artifacts
-**Depends on**: Phase 2 (interval testing complete)
-**Research**: None
-**Plans**: 2 plans
-**Status**: Complete
-**Completed**: 2026-01-13
-
-Plans:
-
-- [x] 03-01: Select and deploy final production interval based on Phase 2 results
-- [x] 03-02: Update documentation and mark optimization milestone complete
-
-**Accomplishments**: 50ms finalized as production standard, comprehensive documentation created (PRODUCTION_INTERVAL.md), configuration verified, time-constant preservation methodology documented. Optimization milestone complete: 40x speed improvement (2s to 50ms) achieved.
-
-### Phase 4: RouterOS Communication Optimization (ALREADY IMPLEMENTED)
-
-**Goal**: Reduce router interaction latency through REST API optimization and connection pooling
-**Depends on**: Phase 3
-**Status**: ALREADY IMPLEMENTED - All optimizations already in production code
-**Research**: None needed
-
-**Already implemented optimizations:**
-
-1. **REST API transport** (routeros_rest.py)
-   - 2x faster than SSH (194ms vs 404ms peak RTT under load)
-   - Lower latency (~50ms vs ~200ms for subprocess SSH)
-   - Documented in TRANSPORT_COMPARISON.md
-
-2. **Connection pooling**
-   - REST: requests.Session() maintains persistent HTTP connections
-   - SSH: paramiko persistent connections (~30-50ms vs ~200ms subprocess)
-
-3. **Queue/rule ID caching**
-   - REST client caches queue and mangle rule IDs
-   - Reduces redundant API lookups
-
-**Performance achieved**: CAKE stats read in ~68ms (REST), total autorate cycle 30-41ms. No further optimization needed.
-
-### Phase 5: Measurement Layer Optimization (PARTIALLY IMPLEMENTED)
-
-**Goal**: Reduce measurement collection latency through caching and parallel data collection
-**Depends on**: Phase 4
-**Status**: PARTIALLY IMPLEMENTED - Parallel pings done, CAKE caching not needed
-**Research**: None needed
-
-**Already implemented optimizations:**
-
-1. **Parallel ICMP measurement** (autorate_continuous.py:589-623)
-   - ThreadPoolExecutor with max_workers=3
-   - Concurrent pings to 3 hosts when use_median_of_three enabled
-   - Takes median to handle reflector variation
-   - Implementation already optimal
-
-2. **CAKE stats caching** - NOT IMPLEMENTED (and not needed)
-   - Current CAKE stats read: ~68ms (acceptable within 30-41ms cycle budget)
-   - Caching would add complexity: cache invalidation, stale data risks
-   - CAKE stats change every cycle (queue limits, bytes/packets), poor cache hit rate
-   - **Decision**: Skip implementation - current performance sufficient
-
-**Performance achieved**: Parallel pings optimal, CAKE stats acceptable. No further optimization needed for measurement layer.
+**Key Results:** 40x speed improvement (2s to 50ms cycle), REST API 2x faster than SSH, parallel ICMP measurement, comprehensive docs (PRODUCTION_INTERVAL.md). See `milestones/v1.0-phases/` for archived phase details.
 
 </details>
 
@@ -297,7 +219,13 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Status:** All milestones through v1.9 complete. Next milestone not yet planned.
+**Status:** v1.10 Architectural Review Fixes in progress.
+
+### Active Milestone
+
+| Milestone                          | Phases | Plans | Status      |
+| ---------------------------------- | ------ | ----- | ----------- |
+| v1.10 Architectural Review Fixes   | 50-55  | TBD   | Not started |
 
 ### Completed Milestones
 
@@ -314,4 +242,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 49 phases complete, 105 plans across 10 milestones
+**Total:** 49 phases complete, 105 plans across 10 milestones + 6 new phases planned

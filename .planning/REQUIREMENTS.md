@@ -73,39 +73,39 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LOOP-01 | TBD | Pending |
-| LOOP-02 | TBD | Pending |
-| LOOP-03 | TBD | Pending |
-| LOOP-04 | TBD | Pending |
-| STEER-01 | TBD | Pending |
-| STEER-02 | TBD | Pending |
-| STEER-03 | TBD | Pending |
-| STEER-04 | TBD | Pending |
-| OPS-01 | TBD | Pending |
-| OPS-02 | TBD | Pending |
-| OPS-03 | TBD | Pending |
-| OPS-04 | TBD | Pending |
-| OPS-05 | TBD | Pending |
-| CLEAN-01 | TBD | Pending |
-| CLEAN-02 | TBD | Pending |
-| CLEAN-03 | TBD | Pending |
-| CLEAN-04 | TBD | Pending |
-| CLEAN-05 | TBD | Pending |
-| CLEAN-06 | TBD | Pending |
-| CLEAN-07 | TBD | Pending |
-| AUDIT-01 | TBD | Pending |
-| AUDIT-02 | TBD | Pending |
-| AUDIT-03 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| TEST-04 | TBD | Pending |
+| LOOP-01 | Phase 50 | Pending |
+| LOOP-02 | Phase 50 | Pending |
+| LOOP-03 | Phase 50 | Pending |
+| LOOP-04 | Phase 50 | Pending |
+| STEER-01 | Phase 51 | Pending |
+| STEER-02 | Phase 51 | Pending |
+| STEER-03 | Phase 51 | Pending |
+| STEER-04 | Phase 51 | Pending |
+| OPS-01 | Phase 52 | Pending |
+| OPS-02 | Phase 52 | Pending |
+| OPS-03 | Phase 52 | Pending |
+| OPS-04 | Phase 52 | Pending |
+| OPS-05 | Phase 52 | Pending |
+| CLEAN-01 | Phase 53 | Pending |
+| CLEAN-02 | Phase 53 | Pending |
+| CLEAN-03 | Phase 53 | Pending |
+| CLEAN-04 | Phase 50 | Pending |
+| CLEAN-05 | Phase 53 | Pending |
+| CLEAN-06 | Phase 53 | Pending |
+| CLEAN-07 | Phase 53 | Pending |
+| AUDIT-01 | Phase 54 | Pending |
+| AUDIT-02 | Phase 54 | Pending |
+| AUDIT-03 | Phase 54 | Pending |
+| TEST-01 | Phase 55 | Pending |
+| TEST-02 | Phase 55 | Pending |
+| TEST-03 | Phase 55 | Pending |
+| TEST-04 | Phase 55 | Pending |
 
 **Coverage:**
 - v1.10 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 (roadmap pending)
+- Mapped to phases: 27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after initial definition*
+*Last updated: 2026-03-07 after roadmap creation*
