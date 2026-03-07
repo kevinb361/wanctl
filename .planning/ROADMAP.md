@@ -47,6 +47,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection (1/1 tasks)
   - [x] 50-03-PLAN.md -- Add periodic re-probe of primary transport after failover (1/1 tasks)
 - [ ] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety
+      **Plans:** 2 plans
+      Plans:
+  - [ ] 51-01-PLAN.md -- Legacy state warning logging + anomaly cycle-skip semantics (1/1 tasks)
+  - [ ] 51-02-PLAN.md -- Safe JSON loading + stale baseline detection in BaselineLoader (1/1 tasks)
 - [ ] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages
 - [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
 - [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
@@ -59,9 +63,9 @@ See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
 **Milestone Goal:** Reduce cycle utilization from 60-80% to ~55-65% through profiling-driven optimization.
 
-- [x] Phase 47: Cycle Profiling Infrastructure (2/2 plans) — completed 2026-03-06
-- [x] Phase 48: Hot Path Optimization (2/2 plans) — completed 2026-03-06
-- [x] Phase 49: Telemetry & Monitoring (2/2 plans) — completed 2026-03-06
+- [x] Phase 47: Cycle Profiling Infrastructure (2/2 plans) -- completed 2026-03-06
+- [x] Phase 48: Hot Path Optimization (2/2 plans) -- completed 2026-03-06
+- [x] Phase 49: Telemetry & Monitoring (2/2 plans) -- completed 2026-03-06
 
 **Key Results:** icmplib raw ICMP sockets (-3.4ms avg cycle), per-subsystem profiling in both daemons, cycle budget telemetry in health endpoints, structured DEBUG logging, 97 new tests (1,881 to 1,978).
 
@@ -230,7 +234,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                        | Phases | Plans | Status      |
 | -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-55  | 3+TBD | In progress |
+| v1.10 Architectural Review Fixes | 50-55  | 5+TBD | In progress |
 
 ### Completed Milestones
 
