@@ -35,8 +35,8 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 - [x] **CLEAN-02**: Update stale docstrings referencing "2-second control loop" to 50ms
 - [x] **CLEAN-03**: Remove `import time as time_module` inside hot loop, use module-level `time` import
 - [x] **CLEAN-04**: Resolve contradictory defaults between config (`ssh`) and factory (`rest`) for `router_transport`
-- [ ] **CLEAN-05**: Scope `disable_warnings(InsecureRequestWarning)` to REST session instead of process-global
-- [ ] **CLEAN-06**: Fix 10 ruff violations (import ordering, unused loop variables)
+- [x] **CLEAN-05**: Scope `disable_warnings(InsecureRequestWarning)` to REST session instead of process-global
+- [x] **CLEAN-06**: Fix 10 ruff violations (import ordering, unused loop variables)
 - [x] **CLEAN-07**: Extract `validate_config_mode()` from `main()` to reduce complexity
 
 ### Codebase Audit
@@ -90,8 +90,8 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | CLEAN-02    | Phase 53 | Complete |
 | CLEAN-03    | Phase 53 | Complete |
 | CLEAN-04    | Phase 50 | Complete |
-| CLEAN-05    | Phase 53 | Pending  |
-| CLEAN-06    | Phase 53 | Pending  |
+| CLEAN-05    | Phase 53 | Complete |
+| CLEAN-06    | Phase 53 | Complete |
 | CLEAN-07    | Phase 53 | Complete |
 | AUDIT-01    | Phase 54 | Pending  |
 | AUDIT-02    | Phase 54 | Pending  |
@@ -110,4 +110,4 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 ---
 
 _Requirements defined: 2026-03-07_
-_Last updated: 2026-03-07 after plan 53-01 completion (CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-07 complete)_
+_Last updated: 2026-03-07 after plan 53-02 completion (all CLEAN requirements complete)_
