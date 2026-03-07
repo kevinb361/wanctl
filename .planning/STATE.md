@@ -2,31 +2,31 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance & Efficiency
-status: executing
-last_updated: "2026-03-07T00:13:06.338Z"
-last_activity: 2026-03-06 — Phase 49 Plan 02 complete (PROF-03/TELM-02 health endpoint cycle budget)
+status: complete
+last_updated: "2026-03-07T00:45:00.000Z"
+last_activity: 2026-03-07 — v1.9 milestone archived and tagged
 progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-29)
+See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.9 Performance & Efficiency
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 49-telemetry-monitoring
-Plan: 02 of 2 complete (PHASE COMPLETE)
-Status: Executing v1.9
-Last activity: 2026-03-06 — Phase 49 Plan 02 complete (PROF-03/TELM-02 health endpoint cycle budget)
+Phase: v1.9 complete
+Plan: All plans complete
+Status: Milestone archived
+Last activity: 2026-03-07 — v1.9 milestone archived and tagged
 
 ## Performance Metrics
 
@@ -43,7 +43,8 @@ Last activity: 2026-03-06 — Phase 49 Plan 02 complete (PROF-03/TELM-02 health 
 | v1.6      | 7      | 17    | 2 days   |
 | v1.7      | 5      | 8     | 1 day    |
 | v1.8      | 4      | 4     | ~1 month |
-| **Total** | 46     | 89    | —        |
+| v1.9      | 3      | 6     | 1 day    |
+| **Total** | 49     | 105   | —        |
 
 ## Accumulated Context
 
@@ -51,49 +52,10 @@ Last activity: 2026-03-06 — Phase 49 Plan 02 complete (PROF-03/TELM-02 health 
 
 All decisions logged in PROJECT.md Key Decisions table and milestone archives.
 
-**v1.9 Performance & Efficiency:**
-
-- save_state() stays AFTER router communication (not inside state_management timer) to preserve error-path behavior
-- Flag-based early returns from PerfTimer blocks to ensure elapsed_ms accuracy
-- PROFILE_REPORT_INTERVAL = 1200 cycles (60s at 50ms) for periodic profiling reports
-- P50 percentile placed between min and avg in stats dict for natural ordering
-- Budget defaults to 50.0ms in analyze_profiling.py; overridable via --budget
-- icmplib.ping() with privileged=True and interval=0 replaces subprocess.run(["ping"]) in hot path
-- subprocess import retained with noqa for test verification; parse_ping_output() kept for calibrate.py
-- timeout_total parameter kept for API compat but unused by icmplib path
-- OPTM-02 satisfied by profiling evidence: router communication 0.0-0.2ms, no code change needed
-- OPTM-03 not applicable: CAKE stats at 2s steering interval, not part of 50ms hot path
-- OPTM-04 router CPU deferred as future work: RRUL measurement not captured post-icmplib (D5 decision)
-- Production-verified: Spectrum -3.4ms (8.3%), ATT -2.1ms (6.8%) avg cycle reduction with icmplib
-- Overrun rate limiting: 1st, 3rd, every 10th (matches v1.8 failure logging pattern)
-- Overrun detection uses strict > (not >=) to avoid false positives on exact-interval cycles
-- \_profiler.clear() removed; deque maxlen=1200 handles sample eviction automatically
-- isinstance(stats, dict) guard in \_build_cycle_budget for MagicMock safety in existing tests
-- \_build_cycle_budget shared helper in health_check.py, imported by steering/health.py
-- cycle_budget omitted entirely on cold start (D9), not null or empty dict
-
-**v1.8 Resilience & Robustness:**
-
-- Phase grouping: Error recovery split into detection/reconnection (43) and fail-safe (44)
-- Contract tests use golden files (simpler than VCR-style recording)
-- Focus on observable behaviors, not implementation details
-- 6 failure categories for classify_failure_type(): timeout, connection_refused, network_unreachable, dns_failure, auth_failure, unknown
-- Monotonic timestamps for failure tracking (not wall clock)
-- Rate-limited logging: first failure, 3rd, every 10th
-- EWMA and state machine preserved across reconnection (no reset)
-- Router connectivity aggregated as top-level router_reachable in health endpoints
-- Health degrades when ANY router unreachable (all() aggregation)
-- Fail-closed rate queuing: overwrite-latest, 60s stale threshold, monotonic timestamps
-- Queue check at top of apply_rate_changes_if_needed (before flash wear protection)
-- apply_rate_changes_if_needed returns True when queuing (daemon stays healthy)
-- Watchdog continues on router-only failures (timeout, connection_refused, etc.)
-- Watchdog stops on auth_failure (daemon misconfigured, needs intervention)
-- Stale pending rates (>60s) discarded on reconnection
-- Outage duration tracked via monotonic timestamps, logged on reconnection
-
 ### Deferred Issues
 
 - steering_confidence.py at 42.1% coverage (confidence-based steering in dry-run mode)
+- Contract tests (CNTR-01 through CNTR-04) — deferred from v1.8, no observed mock drift
 
 ### Blockers/Concerns
 
@@ -128,13 +90,14 @@ None.
 - **v1.6 Test Coverage 90%** (2026-01-25): 743 new tests, 90%+ coverage enforced in CI
 - **v1.7 Metrics History** (2026-01-25): SQLite storage, CLI tool, HTTP API for metrics access
 - **v1.8 Resilience & Robustness** (2026-03-06): Error recovery, fail-safe, graceful shutdown
+- **v1.9 Performance & Efficiency** (2026-03-07): icmplib optimization, profiling telemetry, cycle budget visibility
 
 ## Session Continuity
 
-Last session: 2026-03-06 (Phase 49-02 execution, PROF-03/TELM-02 complete)
-Previous session: 2026-03-06 — Phase 49-01 execution, TELM-01 complete
+Last session: 2026-03-07 (v1.9 milestone completion)
+Previous session: 2026-03-06 — Phase 49-02 execution, PROF-03/TELM-02 complete
 Resume file: None
 
 ## Next Steps
 
-Phase 49 complete (2/2 plans). v1.9 milestone: Phase 49 was last phase. All requirements delivered.
+Run `/gsd:new-milestone` to start the next milestone cycle.

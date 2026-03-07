@@ -8,25 +8,15 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.9 Performance & Efficiency
+## Current State (v1.9 shipped)
 
-**Goal:** Reduce cycle utilization from 60-80% to ~40% at 50ms intervals through profiling-driven optimization, giving the controller more headroom for reliability under real-world jitter.
-
-**Target features:**
-
-- Re-profile at 50ms intervals (understand current cycle budget breakdown)
-- Optimize hot paths identified by profiling (RTT measurement, router communication, CAKE stats)
-- Reduce MikroTik CPU impact under sustained load
-- Add cycle budget telemetry for ongoing monitoring
-
-## Current State (v1.9)
-
-- **Version:** v1.9.0 Performance & Efficiency (starting)
+- **Version:** v1.9.0 Performance & Efficiency (complete)
 - **Cycle Interval:** 50ms (40x faster than original 2s baseline)
-- **Tests:** 1,881 passing
+- **Tests:** 1,978 passing
 - **Coverage:** 91%+ (CI enforced)
-- **LOC:** ~15,753 Python (src/)
-- **Status:** Production stable, starting performance milestone
+- **LOC:** ~16,136 Python (src/)
+- **Status:** Production stable, all milestones through v1.9 complete
+- **Next:** Planning next milestone (/gsd:new-milestone)
 
 **Previous:** v1.8 Resilience & Robustness — error recovery, fail-safe, graceful shutdown
 
@@ -93,6 +83,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ CI enforcement via fail_under=90 in pyproject.toml — v1.6
 - ✓ 743 new tests added (747 → 1,490 total) — v1.6
 - ✓ All major modules tested: backends, state, metrics, controllers, CLI tools — v1.6
+
+**v1.9 Performance & Efficiency:**
+
+- ✓ Per-subsystem cycle profiling with PerfTimer and OperationProfiler — v1.9
+- ✓ --profile CLI flag for production profiling data collection — v1.9
+- ✓ icmplib raw ICMP sockets replacing subprocess ping (-3.4ms avg) — v1.9
+- ✓ Structured DEBUG logs with per-subsystem timing every cycle — v1.9
+- ✓ Cycle budget telemetry in both health endpoints — v1.9
+- ✓ Profiling analysis pipeline with 50ms budget context — v1.9
 
 ### Active
 
@@ -194,9 +193,12 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 46: Contract tests — deferred (mocks accurate, no drift observed)
 - 154 new tests (1,727 → 1,881 total)
 
-**Next Steps:**
+**v1.9 Performance & Efficiency (2026-03-06 → 2026-03-07):**
 
-- v1.9 Performance & Efficiency milestone
+- Phase 47: Cycle profiling infrastructure (PerfTimer, OperationProfiler, --profile flag)
+- Phase 48: Hot path optimization (icmplib raw ICMP sockets, -3.4ms avg cycle)
+- Phase 49: Telemetry & monitoring (structured logs, health endpoint cycle budget)
+- 97 new tests (1,881 → 1,978 total)
 
 ## Constraints
 
@@ -224,7 +226,10 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 | Advisory coverage threshold (no fail_under) | Measure first before enforcing | ✓ Baseline at 72% | 2026-01-24 |
 | 4-tool security scanning (`make security`) | Comprehensive coverage: deps, code, secrets, licenses | ✓ All scans pass | 2026-01-24 |
+| icmplib replaces subprocess ping | Eliminate fork/exec overhead in RTT hot path | ✓ -3.4ms avg (8.3%) | 2026-03-06 |
+| OPTM-02/03 closed by profiling evidence | Router comm 0.0-0.2ms, CAKE stats at 2s interval | ✓ No code change needed | 2026-03-06 |
+| Shared \_build_cycle_budget() helper | Single source of truth for health endpoint telemetry | ✓ Both endpoints consistent | 2026-03-06 |
 
 ---
 
-_Last updated: 2026-03-06 — v1.9 Performance & Efficiency milestone started_
+_Last updated: 2026-03-07 after v1.9 milestone_

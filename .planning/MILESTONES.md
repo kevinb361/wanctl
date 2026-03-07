@@ -1,5 +1,111 @@
 # Project Milestones: wanctl
 
+## v1.9 Performance & Efficiency (Shipped: 2026-03-07)
+
+**Delivered:** Profiling-driven cycle optimization with icmplib raw ICMP sockets, per-subsystem telemetry, and health endpoint cycle budget visibility.
+
+**Phases completed:** 47-49 (6 plans total)
+
+**Key accomplishments:**
+
+- Instrumented both daemons with per-subsystem PerfTimer hooks and OperationProfiler accumulation (8 labeled timers)
+- Replaced subprocess.run(["ping"]) with icmplib raw ICMP sockets, reducing Spectrum avg cycle by 3.4ms (8.3%) and ATT by 2.1ms (6.8%)
+- Added structured DEBUG logging with per-subsystem timing and rate-limited overrun detection
+- Exposed cycle_budget telemetry (avg/P95/P99, utilization %, overrun count) in both health endpoints via shared \_build_cycle_budget() helper
+- Updated profiling analysis pipeline for 50ms budget context with P50 percentile and --budget CLI flag
+
+**Stats:**
+
+- 16 files modified
+- +2,532 / -538 lines changed
+- 3 phases, 6 plans, 39 commits
+- 97 new tests (1,881 to 1,978)
+- 16,136 LOC Python (src/)
+- 1 day (2026-03-06)
+
+**Git range:** `feat(47-01)` → `docs(phase-49)`
+
+**What's next:** Next milestone planning.
+
+---
+
+## v1.8 Resilience & Robustness (Shipped: 2026-03-06)
+
+**Delivered:** Error recovery, fail-safe behavior, and graceful shutdown for production reliability.
+
+**Phases completed:** 43-46 (8 plans total, Phase 46 deferred)
+
+**Key accomplishments:**
+
+- Router error detection and reconnection with 6 failure categories and rate-limited logging
+- Fail-closed rate queuing with 60s stale threshold and monotonic timestamps
+- Watchdog continues on router failures, stops on auth failures
+- Graceful shutdown with bounded cleanup deadlines and state persistence
+- Coverage recovery to 91%+ after test pollution fix
+
+**Stats:**
+
+- 4 phases (including 44.1 inserted), 8 plans
+- 154 new tests (1,727 to 1,881)
+- ~1 month (2026-01-29 to 2026-03-06)
+
+**Git range:** `feat(43-01)` → `docs(phase-45)`
+
+**What's next:** v1.9 Performance & Efficiency milestone.
+
+---
+
+## v1.7 Metrics History (Shipped: 2026-01-25)
+
+**Delivered:** SQLite metrics storage with automatic downsampling, CLI tool, and HTTP API for historical metrics access.
+
+**Phases completed:** 38-42 (8 plans total)
+
+**Key accomplishments:**
+
+- SQLite storage layer (8 modules, 1,038 lines) with schema versioning
+- Both daemons record metrics each cycle (<5ms overhead)
+- `wanctl-history` CLI tool for querying metrics
+- `/metrics/history` HTTP API endpoint
+- Automatic startup maintenance (cleanup, downsample)
+
+**Stats:**
+
+- 5 phases, 8 plans
+- 237 new tests (1,490 to 1,727)
+- 1 day (2026-01-25)
+
+**Git range:** `feat(38-01)` → `docs(42)`
+
+**What's next:** v1.8 Resilience & Robustness milestone.
+
+---
+
+## v1.6 Test Coverage 90% (Shipped: 2026-01-25)
+
+**Delivered:** Comprehensive test coverage from 45.7% to 90.08% with CI enforcement.
+
+**Phases completed:** 31-37 (17 plans total)
+
+**Key accomplishments:**
+
+- Coverage increased from 45.7% to 90.08% (target: 90%)
+- 743 new tests added (747 to 1,490 total)
+- CI enforcement via fail_under=90 in pyproject.toml
+- All major modules tested: backends, state, metrics, controllers, CLI tools
+
+**Stats:**
+
+- 7 phases, 17 plans
+- 743 new tests
+- 2 days (2026-01-25)
+
+**Git range:** `feat(31-01)` → `docs(37)`
+
+**What's next:** v1.7 Metrics History milestone.
+
+---
+
 ## v1.5 Quality & Hygiene (Shipped: 2026-01-24)
 
 **Delivered:** Code quality infrastructure with test coverage measurement, security scanning, and documentation verification.

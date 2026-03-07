@@ -10,14 +10,10 @@ None
 
 ## Milestones
 
-### Current
-
-- [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - IN PROGRESS
-
 ### Completed
 
+- [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - SHIPPED 2026-03-07
 - [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - SHIPPED 2026-03-06
-
 - [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - SHIPPED 2026-01-25
 - [v1.6 Test Coverage 90%](milestones/v1.6-ROADMAP.md) (Phases 31-37) - SHIPPED 2026-01-25
 - [v1.5 Quality & Hygiene](milestones/v1.5-ROADMAP.md) (Phases 27-30) - SHIPPED 2026-01-24
@@ -36,15 +32,20 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.9 Performance & Efficiency (Phases 47-49) - IN PROGRESS
+<details>
+<summary>v1.9 Performance & Efficiency (Phases 47-49) - SHIPPED 2026-03-07</summary>
 
-**Milestone Goal:** Reduce cycle utilization from 60-80% to ~40% at 50ms intervals through profiling-driven optimization.
+**Milestone Goal:** Reduce cycle utilization from 60-80% to ~55-65% through profiling-driven optimization.
 
-- [x] Phase 47: Cycle Profiling Infrastructure - Instrument both daemons with per-subsystem timing and collect production data (completed 2026-03-06)
-- [x] Phase 48: Hot Path Optimization - Optimize subsystems identified by profiling (RTT, router, CAKE stats) (completed 2026-03-06)
-- [x] Phase 49: Telemetry & Monitoring - Expose cycle budget metrics via health endpoints and structured logs (completed 2026-03-06)
+- [x] Phase 47: Cycle Profiling Infrastructure (2/2 plans) — completed 2026-03-06
+- [x] Phase 48: Hot Path Optimization (2/2 plans) — completed 2026-03-06
+- [x] Phase 49: Telemetry & Monitoring (2/2 plans) — completed 2026-03-06
+
+**Key Results:** icmplib raw ICMP sockets (-3.4ms avg cycle), per-subsystem profiling in both daemons, cycle budget telemetry in health endpoints, structured DEBUG logging, 97 new tests (1,881 to 1,978).
 
 See [milestones/v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) for full details.
+
+</details>
 
 <details>
 <summary>v1.8 Resilience & Robustness (Phases 43-46) - SHIPPED 2026-03-06</summary>
@@ -296,12 +297,13 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Current:** Phase 49 of 49 (v1.9 Performance & Efficiency) - ALL PHASES COMPLETE
+**Status:** All milestones through v1.9 complete. Next milestone not yet planned.
 
 ### Completed Milestones
 
 | Milestone                     | Phases | Plans | Status   | Shipped    |
 | ----------------------------- | ------ | ----- | -------- | ---------- |
+| v1.9 Performance & Efficiency | 47-49  | 6     | Complete | 2026-03-07 |
 | v1.8 Resilience & Robustness  | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History          | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
@@ -312,5 +314,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 49 phases complete, 99 plans across 9 milestones
-**v1.9:** 3 phases (47-49), 3 phases complete — COMPLETE
+**Total:** 49 phases complete, 105 plans across 10 milestones
