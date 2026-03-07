@@ -51,11 +51,11 @@ Decimal phases appear between their surrounding integers in numeric order.
       Plans:
   - [ ] 51-01-PLAN.md -- Legacy state warning logging + anomaly cycle-skip semantics (1/1 tasks)
   - [ ] 51-02-PLAN.md -- Safe JSON loading + stale baseline detection in BaselineLoader (1/1 tasks)
-- [ ] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages
-      **Plans:** 2 plans
+- [x] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages (completed 2026-03-07)
+      **Plans:** 2 plans (2/2 complete)
       Plans:
-  - [ ] 52-01-PLAN.md -- SSL verify_ssl=True default + YAML line number errors + cryptography CVE pin (3 tasks)
-  - [ ] 52-02-PLAN.md -- SQLite integrity check with auto-rebuild + disk space in health endpoints (2 tasks)
+  - [x] 52-01-PLAN.md -- SSL verify_ssl=True default + YAML line number errors + cryptography CVE pin (3/3 tasks)
+  - [x] 52-02-PLAN.md -- SQLite integrity check with auto-rebuild + disk space in health endpoints (2/2 tasks)
 - [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
 - [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
 - [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests

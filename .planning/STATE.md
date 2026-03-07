@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
 current_phase: Phase 52 - Operational Resilience
-current_plan: Phase 52, Plan 01
+current_plan: Phase 52, Plan 02
 status: completed
-last_updated: "2026-03-07T11:58:51.260Z"
-last_activity: 2026-03-07 -- Plan 51-02 executed (safe baseline loading + staleness detection)
+last_updated: "2026-03-07T12:25:28Z"
+last_activity: 2026-03-07 -- Plan 52-02 executed (SQLite integrity check + disk space monitoring)
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 7
   percent: 100
 ---
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.10 Architectural Review Fixes
 **Current phase:** Phase 52 - Operational Resilience
-**Current plan:** Phase 52, Plan 01
-**Status:** Milestone complete
-**Last activity:** 2026-03-07 -- Plan 51-02 executed (safe baseline loading + staleness detection)
+**Current plan:** Phase 52, Plan 02
+**Status:** Phase 52 complete
+**Last activity:** 2026-03-07 -- Plan 52-02 executed (SQLite integrity check + disk space monitoring)
 
 **Progress:** [██████████] 100%
 
@@ -37,7 +37,7 @@ See: .planning/PROJECT.md
 | ----- | ----------------------------------- | ---------------------------------------------------------- | ----------- |
 | 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | COMPLETE    |
 | 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | COMPLETE    |
-| 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | Not started |
+| 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | COMPLETE    |
 | 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | Not started |
 | 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | Not started |
 | 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | Not started |
@@ -61,6 +61,10 @@ See: .planning/PROJECT.md
 - [51-02] Removed import json from daemon.py -- only usage was in BaselineLoader, replaced by safe_json_load_file
 - [51-02] Staleness check after safe_json_load_file succeeds -- no point checking mtime if file is unreadable
 - [51-02] STALE_BASELINE_THRESHOLD_SECONDS = 300 as module-level constant for easy tuning
+- [52-02] Extract \_open_connection/\_rebuild_database/\_connect_and_validate helpers in MetricsWriter for testability
+- [52-02] \_get_disk_space_status is shared helper in health_check.py, imported by steering/health.py
+- [52-02] 100MB disk space warning threshold as module constant (\_DISK_SPACE_WARNING_BYTES), no config change needed
+- [52-02] "unknown" disk space (OSError) does not degrade health -- only "warning" does
 
 ### Known Issues
 
@@ -83,3 +87,5 @@ None.
 - 2026-03-07: Plan 51-01 executed -- legacy state warning + anomaly cycle-skip (1 task, TDD, 2010 tests pass)
 - 2026-03-07: Plan 51-02 executed -- safe baseline loading + staleness detection (1 task, TDD, 2016 tests pass)
 - 2026-03-07: Phase 51 COMPLETE -- all 2 plans done, ready for Phase 52
+- 2026-03-07: Plan 52-02 executed -- SQLite integrity check + disk space monitoring (2 tasks, TDD, 2037 tests pass)
+- 2026-03-07: Phase 52 COMPLETE -- all 2 plans done, ready for Phase 53
