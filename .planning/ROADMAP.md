@@ -57,6 +57,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 52-01-PLAN.md -- SSL verify_ssl=True default + YAML line number errors + cryptography CVE pin (3/3 tasks)
   - [x] 52-02-PLAN.md -- SQLite integrity check with auto-rebuild + disk space in health endpoints (2/2 tasks)
 - [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
+      **Plans:** 2 plans
+      Plans:
+  - [ ] 53-01-PLAN.md -- Rename self.ssh to self.client, update stale docstrings, remove hot-loop import alias, extract validate_config_mode (2/2 tasks)
+  - [ ] 53-02-PLAN.md -- Scope InsecureRequestWarning to REST session, fix ruff violations (1/1 tasks)
 - [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
 - [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests
 
@@ -238,7 +242,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                        | Phases | Plans | Status      |
 | -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-55  | 7+TBD | In progress |
+| v1.10 Architectural Review Fixes | 50-55  | 9+TBD | In progress |
 
 ### Completed Milestones
 
