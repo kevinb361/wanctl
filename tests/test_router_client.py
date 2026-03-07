@@ -8,7 +8,7 @@ temporarily unavailable.
 """
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -385,3 +385,361 @@ class TestFactoryConfigDriven:
         param_names = list(sig.parameters.keys())
         assert "primary" not in param_names, "Factory should not accept 'primary' param"
         assert "fallback" not in param_names, "Factory should not accept 'fallback' param"
+
+
+class TestFailoverReprobe:
+    """Tests for periodic re-probe of primary transport after failover.
+
+    LOOP-03: After failover to SSH, client periodically re-probes REST.
+    When REST recovers, client transparently restores it as primary.
+    Re-probe uses backoff: 30s initial, 2x factor, 300s max.
+    """
+
+    @pytest.fixture
+    def mock_config(self) -> MagicMock:
+        """Create mock config for tests."""
+        config = MagicMock()
+        config.router_transport = "rest"
+        return config
+
+    @pytest.fixture
+    def mock_logger(self) -> MagicMock:
+        """Create mock logger for tests."""
+        return MagicMock(spec=logging.Logger)
+
+    def _create_failover_client_in_fallback(
+        self,
+        mock_config: MagicMock,
+        mock_logger: MagicMock,
+        mock_create: MagicMock,
+        primary_client: MagicMock,
+        fallback_client: MagicMock,
+    ) -> FailoverRouterClient:
+        """Helper: create client and trigger failover to put it in fallback mode."""
+        mock_create.side_effect = [primary_client, fallback_client]
+        client = get_router_client_with_failover(mock_config, mock_logger)
+        # Trigger failover
+        client.run_cmd("/trigger-failover")
+        return client
+
+    def test_reprobe_after_interval(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """After 30s in fallback mode, run_cmd re-probes primary transport.
+
+        Uses time.monotonic to track interval. After interval elapses,
+        the next run_cmd should attempt primary before falling back.
+        """
+        mock_rest = MagicMock()
+        # First call fails (triggers failover), re-probe also fails
+        mock_rest.run_cmd.side_effect = [
+            ConnectionError("REST down"),
+            ConnectionError("REST still down"),
+        ]
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            # Time sequence: failover at t=100, then run_cmd at t=131 (31s later, > 30s interval)
+            mock_time.monotonic.side_effect = [
+                100.0,  # failover: self._last_probe_time = 100.0
+                131.0,  # run_cmd: check interval -> 131 - 100 = 31 > 30, probe
+                131.0,  # _try_restore_primary: self._last_probe_time = now
+            ]
+
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            # Reset call counts after failover setup
+            mock_rest.run_cmd.reset_mock()
+            mock_rest.run_cmd.side_effect = ConnectionError("REST still down")
+
+            # Create a fresh primary client for re-probe
+            reprobe_primary = MagicMock()
+            reprobe_primary.run_cmd.side_effect = ConnectionError("REST still down")
+            mock_create.side_effect = [reprobe_primary]
+
+            # This call should attempt re-probe (31s > 30s interval)
+            rc, stdout, stderr = client.run_cmd("/test-reprobe")
+
+            assert rc == 0
+            assert stdout == "ssh ok"
+            # Primary was re-probed (new client created and tried)
+            reprobe_primary.run_cmd.assert_called_once()
+
+    def test_reprobe_restores_primary(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Successful re-probe restores primary, subsequent calls use primary.
+
+        When primary succeeds on re-probe, _using_fallback is set to False
+        and future calls go through primary without re-probing.
+        """
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            mock_time.monotonic.side_effect = [
+                100.0,  # failover timestamp
+                131.0,  # run_cmd check -> 31s elapsed > 30s
+                131.0,  # _try_restore_primary timestamp update
+            ]
+
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            # Re-probe primary succeeds
+            reprobe_primary = MagicMock()
+            reprobe_primary.run_cmd.return_value = (0, "rest restored", "")
+            mock_create.side_effect = [reprobe_primary]
+
+            rc, stdout, stderr = client.run_cmd("/test-restore")
+
+            assert rc == 0
+            assert stdout == "rest restored"
+            assert client._using_fallback is False
+
+            # Subsequent call uses primary (no re-probe needed)
+            reprobe_primary.run_cmd.return_value = (0, "rest again", "")
+            rc2, stdout2, _ = client.run_cmd("/next-cmd")
+            assert stdout2 == "rest again"
+
+    def test_reprobe_failure_stays_on_fallback(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Failed re-probe stays on fallback, command succeeds via SSH.
+
+        When re-probe fails, the actual command still executes on fallback.
+        No exception propagated to caller.
+        """
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            mock_time.monotonic.side_effect = [
+                100.0,  # failover
+                131.0,  # run_cmd check -> probe due
+                131.0,  # _try_restore_primary timestamp
+            ]
+
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            # Re-probe fails
+            reprobe_primary = MagicMock()
+            reprobe_primary.run_cmd.side_effect = ConnectionError("REST still down")
+            mock_create.side_effect = [reprobe_primary]
+
+            rc, stdout, stderr = client.run_cmd("/test-stays-fallback")
+
+            assert rc == 0
+            assert stdout == "ssh ok"
+            assert client._using_fallback is True
+
+    def test_reprobe_backoff(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """After failed probe, interval doubles: 30 -> 60 -> 120 -> 240 -> 300 (cap).
+
+        Backoff prevents hammering a broken REST API.
+        """
+        from wanctl.router_client import (
+            _REPROBE_INITIAL_INTERVAL,
+            _REPROBE_MAX_INTERVAL,
+        )
+
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            # Failover
+            mock_time.monotonic.return_value = 100.0
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            assert client._probe_interval == _REPROBE_INITIAL_INTERVAL  # 30
+
+            # First failed re-probe: 30 -> 60
+            mock_time.monotonic.return_value = 200.0  # way past interval
+            reprobe1 = MagicMock()
+            reprobe1.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe1]
+            client.run_cmd("/probe1")
+            assert client._probe_interval == 60.0
+
+            # Second failed re-probe: 60 -> 120
+            mock_time.monotonic.return_value = 300.0
+            reprobe2 = MagicMock()
+            reprobe2.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe2]
+            client.run_cmd("/probe2")
+            assert client._probe_interval == 120.0
+
+            # Third: 120 -> 240
+            mock_time.monotonic.return_value = 500.0
+            reprobe3 = MagicMock()
+            reprobe3.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe3]
+            client.run_cmd("/probe3")
+            assert client._probe_interval == 240.0
+
+            # Fourth: 240 -> 300 (capped)
+            mock_time.monotonic.return_value = 800.0
+            reprobe4 = MagicMock()
+            reprobe4.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe4]
+            client.run_cmd("/probe4")
+            assert client._probe_interval == _REPROBE_MAX_INTERVAL  # 300
+
+            # Fifth: stays at 300 (already capped)
+            mock_time.monotonic.return_value = 1200.0
+            reprobe5 = MagicMock()
+            reprobe5.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe5]
+            client.run_cmd("/probe5")
+            assert client._probe_interval == 300.0
+
+    def test_reprobe_success_resets_backoff(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """After restoration, probe interval resets to initial 30s.
+
+        If primary fails again later, backoff starts fresh.
+        """
+        from wanctl.router_client import _REPROBE_INITIAL_INTERVAL
+
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            # Failover
+            mock_time.monotonic.return_value = 100.0
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            # Failed re-probe to increase interval
+            mock_time.monotonic.return_value = 200.0
+            reprobe_fail = MagicMock()
+            reprobe_fail.run_cmd.side_effect = ConnectionError("fail")
+            mock_create.side_effect = [reprobe_fail]
+            client.run_cmd("/fail-probe")
+            assert client._probe_interval == 60.0  # backed off
+
+            # Successful re-probe restores primary and resets interval
+            mock_time.monotonic.return_value = 300.0
+            reprobe_ok = MagicMock()
+            reprobe_ok.run_cmd.return_value = (0, "rest back", "")
+            mock_create.side_effect = [reprobe_ok]
+            client.run_cmd("/success-probe")
+
+            assert client._using_fallback is False
+            assert client._probe_interval == _REPROBE_INITIAL_INTERVAL  # reset to 30
+
+    def test_no_reprobe_before_interval(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Within interval window, primary is NOT retried -- fallback used directly.
+
+        This prevents unnecessary probing on every single run_cmd call.
+        """
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            # Failover at t=100
+            mock_time.monotonic.return_value = 100.0
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            mock_ssh.run_cmd.reset_mock()
+            create_call_count_after_failover = mock_create.call_count
+
+            # Call at t=110 (10s later, < 30s interval) -- should NOT re-probe
+            mock_time.monotonic.return_value = 110.0
+            rc, stdout, stderr = client.run_cmd("/within-interval")
+
+            assert rc == 0
+            assert stdout == "ssh ok"
+            # No new transport created (no re-probe attempt)
+            assert mock_create.call_count == create_call_count_after_failover
+            mock_ssh.run_cmd.assert_called_once()
+
+    def test_reprobe_does_not_disrupt_command(
+        self, mock_config: MagicMock, mock_logger: MagicMock
+    ) -> None:
+        """Even if probe fails, the actual command succeeds via fallback.
+
+        No exception propagated to caller from failed re-probe.
+        The command result comes from fallback, not the failed probe.
+        """
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "fallback result", "")
+
+        with (
+            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            mock_time.monotonic.return_value = 100.0
+            client = self._create_failover_client_in_fallback(
+                mock_config, mock_logger, mock_create, mock_rest, mock_ssh
+            )
+
+            mock_ssh.run_cmd.reset_mock()
+
+            # Re-probe fails with various error types
+            mock_time.monotonic.return_value = 200.0
+            reprobe = MagicMock()
+            reprobe.run_cmd.side_effect = TimeoutError("REST timeout")
+            mock_create.side_effect = [reprobe]
+
+            # Command still succeeds via fallback
+            rc, stdout, stderr = client.run_cmd("/important-cmd")
+
+            assert rc == 0
+            assert stdout == "fallback result"
+            mock_ssh.run_cmd.assert_called_once_with(
+                "/important-cmd", capture=False, timeout=None
+            )
