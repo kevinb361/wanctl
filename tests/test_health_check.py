@@ -4,7 +4,7 @@ import json
 import socket
 import time
 import urllib.request
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,6 +13,7 @@ from wanctl.health_check import (
     HealthCheckServer,
     _build_cycle_budget,
     _get_current_state,
+    _get_disk_space_status,
     start_health_server,
     update_health_status,
 )
@@ -682,5 +683,117 @@ class TestCycleBudgetInHealthEndpoint:
             assert "download" in wan_data
             assert "upload" in wan_data
             assert "router_connectivity" in wan_data
+        finally:
+            server.shutdown()
+
+
+class TestDiskSpaceStatus:
+    """Tests for _get_disk_space_status helper function."""
+
+    def test_disk_space_returns_required_keys(self):
+        """Test that disk space response includes all required keys."""
+        result = _get_disk_space_status(path="/tmp")
+        assert "path" in result
+        assert "free_bytes" in result
+        assert "total_bytes" in result
+        assert "free_pct" in result
+        assert "status" in result
+
+    def test_disk_space_ok_when_plenty_of_space(self):
+        """Test that status is 'ok' when free space > threshold."""
+        # Mock disk_usage to return plenty of space (1GB free)
+        mock_usage = MagicMock()
+        mock_usage.free = 1_000_000_000  # 1GB
+        mock_usage.total = 10_000_000_000  # 10GB
+
+        with patch("wanctl.health_check.shutil.disk_usage", return_value=mock_usage):
+            result = _get_disk_space_status()
+
+        assert result["status"] == "ok"
+        assert result["free_bytes"] == 1_000_000_000
+        assert result["total_bytes"] == 10_000_000_000
+        assert result["free_pct"] == 10.0
+
+    def test_disk_space_warning_when_low(self):
+        """Test that status is 'warning' when free space < 100MB."""
+        mock_usage = MagicMock()
+        mock_usage.free = 50_000_000  # 50MB (below 100MB threshold)
+        mock_usage.total = 10_000_000_000
+
+        with patch("wanctl.health_check.shutil.disk_usage", return_value=mock_usage):
+            result = _get_disk_space_status()
+
+        assert result["status"] == "warning"
+        assert result["free_bytes"] == 50_000_000
+
+    def test_disk_space_unknown_on_oserror(self):
+        """Test that status is 'unknown' when disk_usage raises OSError."""
+        with patch(
+            "wanctl.health_check.shutil.disk_usage",
+            side_effect=OSError("path not found"),
+        ):
+            result = _get_disk_space_status(path="/nonexistent/path")
+
+        assert result["status"] == "unknown"
+        assert result["free_bytes"] == 0
+        assert result["total_bytes"] == 0
+        assert result["free_pct"] == 0.0
+        assert result["path"] == "/nonexistent/path"
+
+
+class TestDiskSpaceInHealthEndpoint:
+    """Tests for disk_space field in autorate health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    def test_health_response_includes_disk_space(self):
+        """Test that health response includes disk_space field."""
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "disk_space" in data
+            ds = data["disk_space"]
+            assert "path" in ds
+            assert "free_bytes" in ds
+            assert "total_bytes" in ds
+            assert "free_pct" in ds
+            assert "status" in ds
+        finally:
+            server.shutdown()
+
+    def test_health_degrades_on_disk_space_warning(self):
+        """Test that health status degrades when disk space is low."""
+        mock_usage = MagicMock()
+        mock_usage.free = 50_000_000  # 50MB, below threshold
+        mock_usage.total = 10_000_000_000
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=None)
+
+        try:
+            with patch("wanctl.health_check.shutil.disk_usage", return_value=mock_usage):
+                url = f"http://127.0.0.1:{port}/health"
+                with pytest.raises(urllib.error.HTTPError) as exc_info:
+                    urllib.request.urlopen(url, timeout=5)
+
+                assert exc_info.value.code == 503
+                data = json.loads(exc_info.value.read().decode())
+                assert data["status"] == "degraded"
+                assert data["disk_space"]["status"] == "warning"
+                exc_info.value.close()
         finally:
             server.shutdown()
