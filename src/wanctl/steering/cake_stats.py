@@ -61,7 +61,7 @@ class CakeStatsReader:
         #   - Correctly handles counter overflow at 2^64 (Python handles subtraction correctly)
         # Why not counter resets?:
         #   - Reset → read window creates measurement gap (some drops could be missed)
-        #   - Extra RouterOS command adds latency during 2-second steering cycles
+        #   - Extra RouterOS command adds latency during steering cycles
         #   - Less accurate (captures cumulative state instead of exact interval)
         self.previous_stats: dict[str, CakeStats] = {}  # queue_name -> CakeStats
 

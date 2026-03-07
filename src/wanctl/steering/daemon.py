@@ -16,7 +16,7 @@ Decision logic:
   delta = current_rtt - baseline_rtt
   Hysteresis prevents flapping (asymmetric streak counting)
 
-Designed to run every 2 seconds via systemd timer (one-shot execution).
+Runs as a persistent daemon with configurable cycle interval.
 Colocated with autorate_continuous on primary WAN controller.
 """
 

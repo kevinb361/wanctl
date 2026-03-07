@@ -10,12 +10,12 @@ Design Rationale
 
 SSH Timeout Values (per component):
 
-- Autorate (15s): Runs every ~2 seconds in continuous monitoring mode. Needs
+- Autorate (15s): Runs every 50ms (20Hz) in continuous monitoring mode. Needs
   responsiveness to detect congestion quickly, but 15s allows for occasional
   RouterOS slowdowns under load. Too short risks false failures during router
   CPU spikes; too long delays congestion response.
 
-- Steering (30s): Operates on a 2-second assessment cycle but makes routing
+- Steering (30s): Operates on a configurable assessment cycle but makes routing
   changes infrequently. Longer timeout prioritizes reliability over speed since
   a missed steering decision is less critical than a false positive. The daemon
   can tolerate occasional slow responses without degrading user experience.
