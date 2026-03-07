@@ -4,8 +4,8 @@ This module provides a unified interface for selecting the appropriate
 router communication method based on configuration.
 
 Supported transports:
-- ssh: SSH via paramiko (default) - uses SSH keys
-- rest: REST API via HTTPS - uses password authentication
+- rest: REST API via HTTPS (default) - uses password authentication, 2x faster
+- ssh: SSH via paramiko - uses SSH keys
 
 Usage:
     from wanctl.router_client import get_router_client
@@ -217,23 +217,26 @@ class FailoverRouterClient:
 def get_router_client_with_failover(
     config: Any,
     logger: logging.Logger,
-    primary: str = "rest",
-    fallback: str = "ssh",
 ) -> FailoverRouterClient:
     """Factory for router client with automatic failover.
 
-    Creates a FailoverRouterClient that wraps the primary transport and
-    automatically switches to the fallback transport on connection failures.
+    Creates a FailoverRouterClient that reads config.router_transport to
+    determine the primary transport. Fallback is automatically the opposite.
+
+    Config.router_transport controls transport selection:
+    - "rest" (default): REST primary, SSH fallback
+    - "ssh": SSH primary, REST fallback
 
     Args:
-        config: Configuration object with router settings
+        config: Configuration object with router_transport attribute
+                (defaults to "rest" if attribute missing)
         logger: Logger instance
-        primary: Primary transport ("rest" or "ssh"), default "rest"
-        fallback: Fallback transport ("rest" or "ssh"), default "ssh"
 
     Returns:
         FailoverRouterClient with automatic failover capability
     """
+    primary = getattr(config, "router_transport", "rest")
+    fallback = "ssh" if primary == "rest" else "rest"
     return FailoverRouterClient(config, logger, primary, fallback)
 
 

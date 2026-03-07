@@ -65,7 +65,9 @@ class TestFailoverRouterClient:
     @pytest.fixture
     def mock_config(self) -> MagicMock:
         """Create mock config for tests."""
-        return MagicMock()
+        config = MagicMock()
+        config.router_transport = "rest"
+        return config
 
     @pytest.fixture
     def mock_logger(self) -> MagicMock:
