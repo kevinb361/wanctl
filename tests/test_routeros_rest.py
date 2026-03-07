@@ -97,28 +97,30 @@ class TestRouterOSRESTInit:
             )
         assert mock_session.auth == ("admin", "secret123")
 
-    def test_session_verify_ssl_false_default(self):
-        """verify=False by default."""
+    def test_session_verify_ssl_true_default(self):
+        """verify=True by default (secure default)."""
         mock_session = MagicMock()
         with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
-            RouterOSREST(
+            client = RouterOSREST(
                 host="192.168.1.1",
                 user="admin",
                 password="test",  # pragma: allowlist secret
             )
-        assert mock_session.verify is False
-
-    def test_session_verify_ssl_true(self):
-        """verify=True when configured."""
-        mock_session = MagicMock()
-        with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
-            RouterOSREST(
-                host="192.168.1.1",
-                user="admin",
-                password="test",  # pragma: allowlist secret
-                verify_ssl=True,
-            )
+        assert client.verify_ssl is True
         assert mock_session.verify is True
+
+    def test_session_verify_ssl_explicit_false(self):
+        """verify_ssl=False explicitly disables verification."""
+        mock_session = MagicMock()
+        with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=False,
+            )
+        assert client.verify_ssl is False
+        assert mock_session.verify is False
 
     def test_custom_timeout(self):
         """Custom timeout stored correctly."""
@@ -220,6 +222,33 @@ class TestFromConfig:
             client = RouterOSREST.from_config(config, mock_logger)
 
         assert client.port == 443
+
+    def test_from_config_verify_ssl_defaults_true(self, mock_logger):
+        """from_config defaults to verify_ssl=True when not set."""
+        config = MagicMock(spec=[])
+        config.router_host = "10.0.0.1"
+        config.router_user = "admin"
+        config.router_password = "pass"  # pragma: allowlist secret
+
+        with patch("wanctl.routeros_rest.requests.Session"):
+            client = RouterOSREST.from_config(config, mock_logger)
+
+        assert client.verify_ssl is True
+
+    def test_from_config_verify_ssl_explicit_false(self, mock_logger):
+        """from_config respects verify_ssl=False when explicitly set."""
+        config = MagicMock()
+        config.router_host = "10.0.0.1"
+        config.router_user = "admin"
+        config.router_password = "pass"  # pragma: allowlist secret
+        config.router_port = 443
+        config.router_verify_ssl = False
+        config.timeout_ssh_command = 15
+
+        with patch("wanctl.routeros_rest.requests.Session"):
+            client = RouterOSREST.from_config(config, mock_logger)
+
+        assert client.verify_ssl is False
 
     def test_from_config_custom_timeout(self, mock_logger):
         """Uses timeout_ssh_command from config."""
