@@ -22,7 +22,6 @@ Colocated with autorate_continuous on primary WAN controller.
 
 import argparse
 import atexit
-import json
 import logging
 import sys
 import threading
@@ -47,6 +46,7 @@ from ..signal_utils import (
     register_signal_handlers,
 )
 from ..state_manager import StateSchema, SteeringStateManager
+from ..state_utils import safe_json_load_file
 from ..storage import MetricsWriter
 from ..systemd_utils import (
     is_systemd_available,
@@ -556,6 +556,8 @@ class RouterOSController:
 # BASELINE RTT LOADER
 # =============================================================================
 
+STALE_BASELINE_THRESHOLD_SECONDS = 300
+
 
 class BaselineLoader:
     """Load baseline RTT from autorate state file"""
@@ -563,49 +565,71 @@ class BaselineLoader:
     def __init__(self, config: SteeringConfig, logger: logging.Logger):
         self.config = config
         self.logger = logger
+        self._stale_baseline_warned = False
 
     def load_baseline_rtt(self) -> float | None:
         """
         Load baseline RTT from primary WAN autorate state file
         Reads ewma.baseline_rtt from autorate_continuous state
         Returns None if unavailable (daemon will use config fallback)
+        Warns (rate-limited) if state file is stale (>5 minutes old)
         """
-        if not self.config.primary_state_file.exists():
-            self.logger.warning(
-                f"Primary WAN state file not found: {self.config.primary_state_file}"
-            )
+        state = safe_json_load_file(
+            self.config.primary_state_file,
+            logger=self.logger,
+            error_context="autorate state",
+        )
+
+        if state is None:
             return None
 
-        try:
-            with open(self.config.primary_state_file) as f:
-                state = json.load(f)
+        # STEER-03: Check file staleness before parsing
+        self._check_staleness()
 
-            # autorate_continuous format: state['ewma']['baseline_rtt']
-            if "ewma" in state and "baseline_rtt" in state["ewma"]:
+        # autorate_continuous format: state['ewma']['baseline_rtt']
+        if "ewma" in state and "baseline_rtt" in state["ewma"]:
+            try:
                 baseline_rtt = float(state["ewma"]["baseline_rtt"])
-
-                # PROTECTED: Security fix C4 - bounds baseline to 10-60ms to prevent malicious state file attacks.
-                # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
-                # Default range: 10-60ms (typical home ISP latencies)
-                if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
-                    self.logger.debug(
-                        f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms"
-                    )
-                    return baseline_rtt
-                else:
-                    self.logger.warning(
-                        f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
-                        f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
-                    )
-                    return None
-            else:
-                self.logger.warning("Baseline RTT not found in autorate state file")
+            except (ValueError, TypeError) as e:
+                self.logger.error(f"Invalid baseline_rtt value: {e}")
                 return None
 
-        except Exception as e:
-            self.logger.error(f"Failed to load baseline RTT: {e}")
-            self.logger.debug(traceback.format_exc())
+            # PROTECTED: Security fix C4 - bounds baseline to 10-60ms to prevent malicious state file attacks.
+            # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
+            # Default range: 10-60ms (typical home ISP latencies)
+            if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
+                self.logger.debug(
+                    f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms"
+                )
+                return baseline_rtt
+            else:
+                self.logger.warning(
+                    f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
+                    f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
+                )
+                return None
+        else:
+            self.logger.warning("Baseline RTT not found in autorate state file")
             return None
+
+    def _check_staleness(self) -> None:
+        """Check if autorate state file is stale and warn (rate-limited)."""
+        try:
+            file_age = time.time() - self.config.primary_state_file.stat().st_mtime
+        except OSError:
+            return
+
+        if file_age > STALE_BASELINE_THRESHOLD_SECONDS:
+            if not self._stale_baseline_warned:
+                self.logger.warning(
+                    f"Autorate state file is {file_age:.0f}s old "
+                    f"(threshold: {STALE_BASELINE_THRESHOLD_SECONDS}s), "
+                    f"baseline RTT may be stale"
+                )
+                self._stale_baseline_warned = True
+        else:
+            # File is fresh -- reset the warning flag
+            self._stale_baseline_warned = False
 
 
 # =============================================================================
