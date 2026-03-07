@@ -1,8 +1,10 @@
 """Unit tests for storage writer module."""
 
+import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -427,3 +429,96 @@ class TestClose:
         conn2 = writer2._get_connection()
         cursor = conn2.execute("SELECT COUNT(*) FROM metrics")
         assert cursor.fetchone()[0] == 1
+
+
+class TestIntegrityCheck:
+    """Tests for SQLite integrity check and auto-rebuild on corruption."""
+
+    def test_healthy_db_succeeds_without_rebuild(self, reset_singleton, test_db_path):
+        """Test that _get_connection on healthy DB succeeds without rebuild."""
+        writer = MetricsWriter(test_db_path)
+        conn = writer._get_connection()
+
+        # DB should work normally
+        assert conn is not None
+        # Schema should exist
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='metrics'"
+        )
+        assert cursor.fetchone() is not None
+        # No .corrupt file should exist
+        corrupt_path = test_db_path.with_suffix(".db.corrupt")
+        assert not corrupt_path.exists()
+
+    def test_corrupt_db_detected_and_rebuilt(self, reset_singleton, test_db_path):
+        """Test that corrupted DB is detected, renamed, and fresh DB created."""
+        # Create a valid DB first, then corrupt it
+        test_db_path.parent.mkdir(parents=True, exist_ok=True)
+        test_db_path.write_bytes(b"This is not a valid SQLite database file at all!")
+
+        writer = MetricsWriter(test_db_path)
+        conn = writer._get_connection()
+
+        # Connection should succeed (rebuilt)
+        assert conn is not None
+        # Corrupt file should be renamed
+        corrupt_path = test_db_path.with_suffix(".db.corrupt")
+        assert corrupt_path.exists()
+        # Fresh DB should have schema
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='metrics'"
+        )
+        assert cursor.fetchone() is not None
+
+    def test_write_metric_succeeds_after_rebuild(self, reset_singleton, test_db_path):
+        """Test that write_metric succeeds on fresh DB after auto-rebuild."""
+        # Create corrupt DB
+        test_db_path.parent.mkdir(parents=True, exist_ok=True)
+        test_db_path.write_bytes(b"CORRUPT DATA GARBAGE BYTES HERE")
+
+        writer = MetricsWriter(test_db_path)
+        # Should be able to write after rebuild
+        writer.write_metric(
+            timestamp=1706200000,
+            wan_name="spectrum",
+            metric_name="wanctl_rtt_ms",
+            value=15.5,
+        )
+
+        # Verify write
+        conn = writer._get_connection()
+        cursor = conn.execute("SELECT COUNT(*) FROM metrics")
+        assert cursor.fetchone()[0] == 1
+
+    def test_integrity_check_error_logs_warning_and_proceeds(
+        self, reset_singleton, test_db_path
+    ):
+        """Test that if integrity_check itself throws, log warning and proceed."""
+        writer = MetricsWriter(test_db_path)
+
+        # Mock the connection's execute to raise on integrity_check
+        with patch.object(
+            sqlite3.Connection,
+            "execute",
+            wraps=None,
+        ) as mock_execute:
+            # We need a more targeted approach: patch only the integrity check call
+            original_connect = sqlite3.connect
+
+            def patched_connect(*args, **kwargs):
+                conn = original_connect(*args, **kwargs)
+                original_execute = conn.execute
+
+                def selective_execute(sql, *a, **kw):
+                    if "integrity_check" in str(sql):
+                        raise sqlite3.OperationalError("database is locked")
+                    return original_execute(sql, *a, **kw)
+
+                conn.execute = selective_execute
+                return conn
+
+            with patch("wanctl.storage.writer.sqlite3.connect", side_effect=patched_connect):
+                conn = writer._get_connection()
+
+            # Should have succeeded despite integrity check error
+            assert conn is not None
