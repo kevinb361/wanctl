@@ -18,8 +18,8 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 - [x] **STEER-01**: Legacy state name normalization in `_is_current_state_good()` logs a warning when triggered
 - [x] **STEER-02**: Anomaly detection returns cycle-skip (True) instead of cycle-failure (False) to prevent spurious failure accumulation
-- [ ] **STEER-03**: `BaselineLoader` checks autorate state file timestamp and warns/degrades when baseline is stale (>5 minutes)
-- [ ] **STEER-04**: `BaselineLoader` uses `safe_json_load_file()` instead of raw `open()`/`json.load()`
+- [x] **STEER-03**: `BaselineLoader` checks autorate state file timestamp and warns/degrades when baseline is stale (>5 minutes)
+- [x] **STEER-04**: `BaselineLoader` uses `safe_json_load_file()` instead of raw `open()`/`json.load()`
 
 ### Operational Resilience
 
@@ -79,8 +79,8 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | LOOP-04     | Phase 50 | Complete |
 | STEER-01    | Phase 51 | Complete |
 | STEER-02    | Phase 51 | Complete |
-| STEER-03    | Phase 51 | Pending  |
-| STEER-04    | Phase 51 | Pending  |
+| STEER-03    | Phase 51 | Complete |
+| STEER-04    | Phase 51 | Complete |
 | OPS-01      | Phase 52 | Pending  |
 | OPS-02      | Phase 52 | Pending  |
 | OPS-03      | Phase 52 | Pending  |

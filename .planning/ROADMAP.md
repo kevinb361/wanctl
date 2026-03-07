@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 50-01-PLAN.md -- Sub-cycle retry delays on run_cmd + shutdown_event.wait in main loop (1/1 tasks)
   - [x] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection (1/1 tasks)
   - [x] 50-03-PLAN.md -- Add periodic re-probe of primary transport after failover (1/1 tasks)
-- [ ] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety
+- [x] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety (completed 2026-03-07)
       **Plans:** 2 plans
       Plans:
   - [ ] 51-01-PLAN.md -- Legacy state warning logging + anomaly cycle-skip semantics (1/1 tasks)
