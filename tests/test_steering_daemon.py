@@ -1996,7 +1996,10 @@ class TestBaselineLoader:
     # =========================================================================
 
     def test_file_not_found_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when file not found."""
+        """Test load_baseline_rtt returns None when file not found.
+
+        safe_json_load_file handles missing files by returning None (default).
+        """
         from wanctl.steering.daemon import BaselineLoader
 
         mock_config.primary_state_file = tmp_path / "nonexistent_state.json"
@@ -2005,8 +2008,6 @@ class TestBaselineLoader:
         result = loader.load_baseline_rtt()
 
         assert result is None
-        mock_logger.warning.assert_called_once()
-        assert "not found" in str(mock_logger.warning.call_args)
 
     # =========================================================================
     # Valid baseline tests
@@ -2125,7 +2126,10 @@ class TestBaselineLoader:
     # =========================================================================
 
     def test_json_parse_error_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None on JSON parse error."""
+        """Test load_baseline_rtt returns None on JSON parse error.
+
+        safe_json_load_file handles JSONDecodeError and logs via error_context.
+        """
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2137,7 +2141,7 @@ class TestBaselineLoader:
 
         assert result is None
         mock_logger.error.assert_called_once()
-        assert "Failed to load baseline RTT" in str(mock_logger.error.call_args)
+        assert "autorate state" in str(mock_logger.error.call_args)
 
     def test_non_numeric_baseline_returns_none(self, tmp_path, mock_config, mock_logger):
         """Test load_baseline_rtt returns None on non-numeric baseline_rtt."""
@@ -2152,6 +2156,7 @@ class TestBaselineLoader:
 
         assert result is None
         mock_logger.error.assert_called_once()
+        assert "Invalid baseline_rtt value" in str(mock_logger.error.call_args)
 
     # =========================================================================
     # STEER-04: safe_json_load_file usage verification
