@@ -2153,6 +2153,192 @@ class TestBaselineLoader:
         assert result is None
         mock_logger.error.assert_called_once()
 
+    # =========================================================================
+    # STEER-04: safe_json_load_file usage verification
+    # =========================================================================
+
+    def test_uses_safe_json_load_file_not_raw_open(self):
+        """STEER-04: BaselineLoader must use safe_json_load_file, not raw open/json.load."""
+        import inspect
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        source = inspect.getsource(BaselineLoader.load_baseline_rtt)
+        # Must NOT contain raw open() or json.load()
+        assert "open(" not in source, "BaselineLoader still uses raw open()"
+        assert "json.load(" not in source, "BaselineLoader still uses json.load()"
+        # Must contain safe_json_load_file
+        assert "safe_json_load_file" in source, "BaselineLoader must use safe_json_load_file"
+
+    def test_corrupted_json_returns_none_via_safe_load(self, tmp_path, mock_config, mock_logger):
+        """STEER-04: Corrupted JSON handled by safe_json_load_file returns None."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text("{corrupted: not valid json!!!")
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+
+    def test_missing_file_returns_none_via_safe_load(self, tmp_path, mock_config, mock_logger):
+        """STEER-04: Missing file handled by safe_json_load_file returns None."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        mock_config.primary_state_file = tmp_path / "does_not_exist.json"
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result is None
+
+    # =========================================================================
+    # STEER-03: Stale baseline detection tests
+    # =========================================================================
+
+    def test_fresh_state_file_no_staleness_warning(self, tmp_path, mock_config, mock_logger):
+        """STEER-03: State file younger than 5 minutes should not produce staleness warning."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+        # File was just written, so mtime is within seconds of now
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        assert result == 25.0
+        # No staleness warning should be logged
+        for call in mock_logger.warning.call_args_list:
+            assert "stale" not in str(call).lower(), "Should not warn about staleness for fresh file"
+
+    def test_stale_state_file_logs_warning_with_age(self, tmp_path, mock_config, mock_logger):
+        """STEER-03: State file older than 5 minutes should log staleness warning with age."""
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        # Set mtime to 10 minutes ago
+        old_time = time.time() - 600
+        os.utime(state_file, (old_time, old_time))
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        # Should still return the value (graceful degradation)
+        assert result == 25.0
+        # Should have logged a staleness warning
+        staleness_warnings = [
+            call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
+        ]
+        assert len(staleness_warnings) == 1, "Should log exactly one staleness warning"
+        # Warning should include the age
+        warning_text = str(staleness_warnings[0])
+        assert "600" in warning_text or "60" in warning_text, "Warning should include file age"
+
+    def test_stale_baseline_still_returns_value(self, tmp_path, mock_config, mock_logger):
+        """STEER-03: Stale baseline degrades gracefully - returns value, not None."""
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 30.0}}')
+        mock_config.primary_state_file = state_file
+
+        # Set mtime to 20 minutes ago
+        old_time = time.time() - 1200
+        os.utime(state_file, (old_time, old_time))
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        result = loader.load_baseline_rtt()
+
+        # Must return the value, not None
+        assert result == 30.0, "Stale baseline must still return the RTT value"
+
+    def test_staleness_warning_rate_limited(self, tmp_path, mock_config, mock_logger):
+        """STEER-03: Staleness warning logged once, not on every call."""
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        # Set mtime to 10 minutes ago
+        old_time = time.time() - 600
+        os.utime(state_file, (old_time, old_time))
+
+        loader = BaselineLoader(mock_config, mock_logger)
+
+        # Call multiple times
+        loader.load_baseline_rtt()
+        loader.load_baseline_rtt()
+        loader.load_baseline_rtt()
+
+        # Should only warn once (rate-limited)
+        staleness_warnings = [
+            call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
+        ]
+        assert len(staleness_warnings) == 1, (
+            f"Should log staleness warning only once, got {len(staleness_warnings)}"
+        )
+
+    def test_stale_warned_resets_when_file_becomes_fresh(self, tmp_path, mock_config, mock_logger):
+        """STEER-03: _stale_warned resets when file becomes fresh, allowing re-warning."""
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+
+        # Make file stale (10 minutes old)
+        old_time = time.time() - 600
+        os.utime(state_file, (old_time, old_time))
+        loader.load_baseline_rtt()
+
+        # Should have warned once
+        staleness_warnings_1 = [
+            call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
+        ]
+        assert len(staleness_warnings_1) == 1
+
+        # Make file fresh again (rewrite it = fresh mtime)
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        loader.load_baseline_rtt()
+
+        # No additional staleness warning for fresh file
+        staleness_warnings_2 = [
+            call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
+        ]
+        assert len(staleness_warnings_2) == 1, "No new warning while file is fresh"
+
+        # Verify _stale_baseline_warned has been reset
+        assert loader._stale_baseline_warned is False, "_stale_warned should reset when file is fresh"
+
+        # Make file stale again
+        old_time = time.time() - 600
+        os.utime(state_file, (old_time, old_time))
+        loader.load_baseline_rtt()
+
+        # Should warn again since flag was reset
+        staleness_warnings_3 = [
+            call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
+        ]
+        assert len(staleness_warnings_3) == 2, "Should warn again after stale->fresh->stale cycle"
+
 
 class TestSteeringConfig:
     """Tests for SteeringConfig class.
