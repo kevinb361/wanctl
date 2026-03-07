@@ -14,6 +14,7 @@ Usage:
 import json
 import logging
 import re
+import shutil
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -24,6 +25,39 @@ from urllib.parse import parse_qs, urlparse
 from wanctl import __version__
 from wanctl.storage.reader import query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
+
+# Default: warn when less than 100MB free on data partition
+_DISK_SPACE_WARNING_BYTES = 100 * 1024 * 1024  # 100 MB
+
+
+def _get_disk_space_status(
+    path: str = "/var/lib/wanctl",
+    threshold_bytes: int = _DISK_SPACE_WARNING_BYTES,
+) -> dict[str, Any]:
+    """Check disk space for the given path.
+
+    Returns dict with path, free_bytes, total_bytes, free_pct, status.
+    Status is "ok", "warning", or "unknown" (if path inaccessible).
+    """
+    try:
+        usage = shutil.disk_usage(path)
+        free_pct = round((usage.free / usage.total) * 100, 1) if usage.total > 0 else 0.0
+        status = "ok" if usage.free >= threshold_bytes else "warning"
+        return {
+            "path": path,
+            "free_bytes": usage.free,
+            "total_bytes": usage.total,
+            "free_pct": free_pct,
+            "status": status,
+        }
+    except OSError:
+        return {
+            "path": path,
+            "free_bytes": 0,
+            "total_bytes": 0,
+            "free_pct": 0.0,
+            "status": "unknown",
+        }
 
 if TYPE_CHECKING:
     from wanctl.autorate_continuous import ContinuousAutoRate
@@ -159,9 +193,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         # Top-level router reachability aggregate
         health["router_reachable"] = all_routers_reachable
 
+        # Disk space status
+        health["disk_space"] = _get_disk_space_status()
+
         # Determine overall health status
         # Healthy if consecutive failures < threshold AND all routers reachable
-        is_healthy = self.consecutive_failures < 3 and all_routers_reachable
+        # AND disk space is not in warning state
+        disk_warning = health["disk_space"]["status"] == "warning"
+        is_healthy = self.consecutive_failures < 3 and all_routers_reachable and not disk_warning
         health["status"] = "healthy" if is_healthy else "degraded"
 
         return health

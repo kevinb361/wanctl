@@ -21,7 +21,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
 
 from wanctl import __version__
-from wanctl.health_check import _build_cycle_budget
+from wanctl.health_check import _build_cycle_budget, _get_disk_space_status
 
 if TYPE_CHECKING:
     from wanctl.steering.daemon import SteeringDaemon
@@ -226,9 +226,14 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         # Top-level router reachability
         health["router_reachable"] = router_reachable
 
+        # Disk space status
+        health["disk_space"] = _get_disk_space_status()
+
         # Determine overall health status
         # Healthy if consecutive failures < threshold AND router reachable
-        is_healthy = self.consecutive_failures < 3 and router_reachable
+        # AND disk space is not in warning state
+        disk_warning = health["disk_space"]["status"] == "warning"
+        is_healthy = self.consecutive_failures < 3 and router_reachable and not disk_warning
         health["status"] = "healthy" if is_healthy else "degraded"
 
         return health
