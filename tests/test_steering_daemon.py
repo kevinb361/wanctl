@@ -4202,3 +4202,255 @@ class TestSteeringProfilingInstrumentation:
                 except (SystemExit, Exception):
                     pass
                 # If --profile wasn't accepted, argparse would have called sys.exit(2)
+
+
+class TestLegacyStateWarning:
+    """Tests for STEER-01: legacy state name warning in _is_current_state_good.
+
+    When legacy state names (SPECTRUM_GOOD, WAN1_GOOD, WAN2_GOOD) are recognized,
+    a warning should be logged identifying the legacy name and its normalized form.
+    Warnings should be rate-limited (once per name per daemon lifetime).
+    """
+
+    @pytest.fixture
+    def daemon_with_logger(self):
+        """Create a SteeringDaemon with mocked dependencies for _is_current_state_good testing."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = False
+        config.bad_threshold_ms = 25.0
+        config.recovery_threshold_ms = 12.0
+        config.bad_samples = 2
+        config.good_samples = 3
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.data = {}
+
+        mock_logger = MagicMock()
+
+        daemon = SteeringDaemon(
+            config=config,
+            state=MagicMock(),
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            baseline_loader=MagicMock(),
+            logger=mock_logger,
+        )
+        return daemon, mock_logger
+
+    def test_legacy_state_spectrum_good_returns_true_and_warns(self, daemon_with_logger):
+        """_is_current_state_good('SPECTRUM_GOOD') returns True AND logs warning when it is a legacy name."""
+        daemon, mock_logger = daemon_with_logger
+        # Set state_good to something different so SPECTRUM_GOOD is truly legacy
+        daemon.config.state_good = "PRIMARY_GOOD"
+
+        result = daemon._is_current_state_good("SPECTRUM_GOOD")
+
+        assert result is True
+        # Must log a warning containing the legacy name and normalized form
+        mock_logger.warning.assert_called()
+        warning_msg = str(mock_logger.warning.call_args)
+        assert "SPECTRUM_GOOD" in warning_msg
+        assert "PRIMARY_GOOD" in warning_msg
+
+    def test_legacy_state_wan1_good_returns_true_and_warns(self, daemon_with_logger):
+        """_is_current_state_good('WAN1_GOOD') returns True AND logs warning."""
+        daemon, mock_logger = daemon_with_logger
+        daemon.config.state_good = "PRIMARY_GOOD"
+
+        result = daemon._is_current_state_good("WAN1_GOOD")
+
+        assert result is True
+        mock_logger.warning.assert_called()
+        warning_msg = str(mock_logger.warning.call_args)
+        assert "WAN1_GOOD" in warning_msg
+
+    def test_legacy_state_wan2_good_returns_true_and_warns(self, daemon_with_logger):
+        """_is_current_state_good('WAN2_GOOD') returns True AND logs warning."""
+        daemon, mock_logger = daemon_with_logger
+        daemon.config.state_good = "PRIMARY_GOOD"
+
+        result = daemon._is_current_state_good("WAN2_GOOD")
+
+        assert result is True
+        mock_logger.warning.assert_called()
+        warning_msg = str(mock_logger.warning.call_args)
+        assert "WAN2_GOOD" in warning_msg
+
+    def test_config_state_good_returns_true_no_warning(self, daemon_with_logger):
+        """_is_current_state_good(config.state_good) returns True with NO warning (not legacy)."""
+        daemon, mock_logger = daemon_with_logger
+        # Reset any init-time warnings
+        mock_logger.warning.reset_mock()
+
+        result = daemon._is_current_state_good(daemon.config.state_good)
+
+        assert result is True
+        mock_logger.warning.assert_not_called()
+
+    def test_unknown_state_returns_false_no_warning(self, daemon_with_logger):
+        """_is_current_state_good('SOMETHING_ELSE') returns False with NO warning."""
+        daemon, mock_logger = daemon_with_logger
+        mock_logger.warning.reset_mock()
+
+        result = daemon._is_current_state_good("SOMETHING_ELSE")
+
+        assert result is False
+        mock_logger.warning.assert_not_called()
+
+    def test_legacy_warning_rate_limited_once_per_name(self, daemon_with_logger):
+        """Same legacy name called 100 times produces only 1 warning (log-once pattern)."""
+        daemon, mock_logger = daemon_with_logger
+        daemon.config.state_good = "PRIMARY_GOOD"
+        mock_logger.warning.reset_mock()
+
+        for _ in range(100):
+            daemon._is_current_state_good("WAN1_GOOD")
+
+        # Should have exactly 1 warning for WAN1_GOOD
+        legacy_warnings = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "WAN1_GOOD" in str(call)
+        ]
+        assert len(legacy_warnings) == 1
+
+
+class TestAnomalyCycleSkip:
+    """Tests for STEER-02: anomaly detection returns True (cycle-skip, not failure).
+
+    When RTT delta exceeds MAX_SANE_RTT_DELTA_MS, run_cycle should return True
+    (cycle-skip) so that consecutive_failures does NOT increment in the daemon loop.
+    """
+
+    @pytest.fixture
+    def mock_config_cake(self):
+        """Create a mock config for CAKE-aware mode."""
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 3
+        config.rtt_ewma_alpha = 0.3
+        config.queue_ewma_alpha = 0.4
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.ping_host = "8.8.8.8"
+        config.ping_count = 1
+        return config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+            "cake_state_history": [],
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_logger(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def daemon_for_anomaly(self, mock_config_cake, mock_state_mgr, mock_logger):
+        """Create a SteeringDaemon for anomaly testing."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config_cake,
+                state=mock_state_mgr,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
+
+        daemon.update_baseline_rtt = MagicMock(return_value=True)
+        daemon.collect_cake_stats = MagicMock(return_value=(5, 20))
+        daemon._measure_current_rtt_with_retry = MagicMock(return_value=30.0)
+        daemon.update_ewma_smoothing = MagicMock(return_value=(5.0, 20.0))
+        daemon.update_state_machine = MagicMock(return_value=False)
+
+        return daemon
+
+    def test_anomaly_returns_true_cycle_skip(
+        self, daemon_for_anomaly, mock_state_mgr, mock_logger
+    ):
+        """run_cycle returns True when delta > MAX_SANE_RTT_DELTA_MS (anomaly = cycle-skip)."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        # Simulate extreme RTT: delta = 1525 - 25 = 1500ms >> 500ms ceiling
+        daemon_for_anomaly._measure_current_rtt_with_retry.return_value = 1525.0
+        daemon_for_anomaly.calculate_delta = lambda rtt: max(0.0, rtt - 25.0)
+
+        result = daemon_for_anomaly.run_cycle()
+
+        assert result is True  # cycle-skip, NOT failure
+
+    def test_ping_failure_still_returns_false(
+        self, daemon_for_anomaly, mock_state_mgr
+    ):
+        """run_cycle returns False when current_rtt is None (real failure, not anomaly)."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        daemon_for_anomaly._measure_current_rtt_with_retry.return_value = None
+
+        result = daemon_for_anomaly.run_cycle()
+
+        assert result is False  # Real failure
+
+    def test_normal_cycle_returns_true(
+        self, daemon_for_anomaly, mock_state_mgr
+    ):
+        """run_cycle returns True on normal successful cycle."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        daemon_for_anomaly._measure_current_rtt_with_retry.return_value = 30.0
+
+        result = daemon_for_anomaly.run_cycle()
+
+        assert result is True
+
+    def test_anomaly_does_not_update_state_machine(
+        self, daemon_for_anomaly, mock_state_mgr
+    ):
+        """Anomaly path does NOT update state machine or record metrics."""
+        mock_state_mgr.state["baseline_rtt"] = 25.0
+        daemon_for_anomaly._measure_current_rtt_with_retry.return_value = 1525.0
+        daemon_for_anomaly.calculate_delta = lambda rtt: max(0.0, rtt - 25.0)
+
+        daemon_for_anomaly.run_cycle()
+
+        daemon_for_anomaly.update_ewma_smoothing.assert_not_called()
+        daemon_for_anomaly.update_state_machine.assert_not_called()
