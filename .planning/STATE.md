@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
-current_phase: Phase 51 - Steering Reliability (next)
-current_plan: Phase 51, Plan 01 (next)
-status: completed
-last_updated: "2026-03-07T07:04:18.683Z"
-last_activity: 2026-03-07 -- Plan 50-03 executed (periodic re-probe of primary transport)
+current_phase: Phase 51 - Steering Reliability
+current_plan: Phase 51, Plan 02
+status: in-progress
+last_updated: "2026-03-07T11:24:41.931Z"
+last_activity: 2026-03-07 -- Plan 51-01 executed (legacy state warning + anomaly cycle-skip)
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
+  percent: 80
 ---
 
 # Session State
@@ -23,19 +24,19 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.10 Architectural Review Fixes
-**Current phase:** Phase 51 - Steering Reliability (next)
-**Current plan:** Phase 51, Plan 01 (next)
-**Status:** Milestone complete
-**Last activity:** 2026-03-07 -- Plan 50-03 executed (periodic re-probe of primary transport)
+**Current phase:** Phase 51 - Steering Reliability
+**Current plan:** Phase 51, Plan 02
+**Status:** In progress
+**Last activity:** 2026-03-07 -- Plan 51-01 executed (legacy state warning + anomaly cycle-skip)
 
-**Progress:** [###___] 3/3 plans in Phase 50 (phase complete)
+**Progress:** [████████░░] 80%
 
 ## Phase Summary
 
 | Phase | Name                                | Requirements                                               | Status      |
 | ----- | ----------------------------------- | ---------------------------------------------------------- | ----------- |
 | 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | COMPLETE    |
-| 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | Not started |
+| 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | In progress |
 | 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | Not started |
 | 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | Not started |
 | 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | Not started |
@@ -55,6 +56,8 @@ See: .planning/PROJECT.md
 - [50-03] Re-probe uses actual run_cmd command opportunistically (no separate probe command)
 - [50-03] Stale primary client closed/recreated on each probe attempt (fresh connection)
 - [50-03] Backoff: 30->60->120->240->300 (capped at 5min)
+- [51-01] Log-once pattern via set for legacy state warnings -- simpler than counter, zero overhead after first warning
+- [51-01] Anomaly cycle-skip returns True (same as normal success) -- daemon loop only needs success/failure distinction
 
 ### Known Issues
 
@@ -74,3 +77,4 @@ None.
 - 2026-03-07: Plan 50-02 executed -- config.router_transport authoritative, defaults aligned to REST (1 task, TDD, 270 related tests pass)
 - 2026-03-07: Plan 50-03 executed -- periodic re-probe of primary transport after failover with backoff (1 task, TDD, 2000 tests pass)
 - 2026-03-07: Phase 50 COMPLETE -- all 3 plans done, ready for Phase 51
+- 2026-03-07: Plan 51-01 executed -- legacy state warning + anomaly cycle-skip (1 task, TDD, 2010 tests pass)
