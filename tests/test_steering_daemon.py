@@ -2433,8 +2433,8 @@ class TestSteeringConfig:
     # Router transport tests
     # =========================================================================
 
-    def test_router_transport_defaults_to_ssh(self, tmp_path, valid_config_dict):
-        """Test router transport defaults to SSH."""
+    def test_router_transport_defaults_to_rest(self, tmp_path, valid_config_dict):
+        """Test router transport defaults to REST (2x faster than SSH)."""
         import yaml
 
         from wanctl.steering.daemon import SteeringConfig
@@ -2445,7 +2445,7 @@ class TestSteeringConfig:
 
         config = SteeringConfig(str(config_file))
 
-        assert config.router_transport == "ssh"
+        assert config.router_transport == "rest"
 
     def test_router_rest_transport(self, tmp_path, valid_config_dict):
         """Test REST transport with password and port."""

@@ -162,7 +162,7 @@ class SteeringConfig(BaseConfig):
     def _load_router_transport(self) -> None:
         """Load router transport settings (REST or SSH)."""
         router = self.data["router"]
-        self.router_transport = router.get("transport", "ssh")  # Default to SSH
+        self.router_transport = router.get("transport", "rest")  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
         # REST-specific settings
         self.router_password = router.get("password", "")
         self.router_port = router.get("port", 443)
