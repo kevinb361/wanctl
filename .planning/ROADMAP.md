@@ -41,6 +41,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Address findings from senior architectural review -- fix critical hot-loop and config bugs, improve operational resilience, and strengthen test quality.
 
 - [ ] **Phase 50: Critical Hot-Loop & Transport Fixes** - Fix blocking delays in hot loop, transport config contradictions, and failover re-probe
+  **Plans:** 3 plans
+  Plans:
+  - [ ] 50-01-PLAN.md -- Sub-cycle retry delays on run_cmd + shutdown_event.wait in main loop
+  - [ ] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection
+  - [ ] 50-03-PLAN.md -- Add periodic re-probe of primary transport after failover
 - [ ] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety
 - [ ] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages
 - [ ] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function
@@ -225,7 +230,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                          | Phases | Plans | Status      |
 | ---------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes   | 50-55  | TBD   | Not started |
+| v1.10 Architectural Review Fixes   | 50-55  | 3+TBD | In progress |
 
 ### Completed Milestones
 
