@@ -44,6 +44,7 @@ Configuration (in YAML):
 """
 
 import logging
+import time as _time
 from typing import TYPE_CHECKING, Any, Union
 
 from wanctl.routeros_ssh import RouterOSSSH
@@ -114,6 +115,12 @@ def _create_transport(transport: str, config: Any, logger: logging.Logger) -> Ro
         raise ValueError(f"Unsupported transport: {transport}")
 
 
+# Re-probe constants: after failover, periodically try primary transport
+_REPROBE_INITIAL_INTERVAL = 30.0  # seconds before first re-probe
+_REPROBE_MAX_INTERVAL = 300.0  # max backoff (5 minutes)
+_REPROBE_BACKOFF_FACTOR = 2.0
+
+
 class FailoverRouterClient:
     """Router client wrapper with automatic REST-to-SSH failover.
 
@@ -156,6 +163,9 @@ class FailoverRouterClient:
         self._primary_client: RouterClient | None = None
         self._fallback_client: RouterClient | None = None
         self._using_fallback = False
+        # Re-probe state: track when to retry primary after failover
+        self._last_probe_time: float = 0.0
+        self._probe_interval: float = _REPROBE_INITIAL_INTERVAL
 
     def _get_primary(self) -> RouterClient:
         """Get or create primary transport client."""
@@ -177,6 +187,55 @@ class FailoverRouterClient:
             )
         return self._fallback_client
 
+    def _try_restore_primary(
+        self, cmd: str, capture: bool, timeout: int | None
+    ) -> tuple[int, str, str] | None:
+        """Attempt to restore primary transport during fallback.
+
+        Returns command result if primary succeeded, None if probe failed or not due.
+        """
+        now = _time.monotonic()
+        if now - self._last_probe_time < self._probe_interval:
+            return None  # Not time yet
+
+        self._last_probe_time = now
+
+        # Close stale primary client (may have old broken connection)
+        if self._primary_client is not None:
+            try:
+                self._primary_client.close()
+            except Exception:
+                pass
+            self._primary_client = None
+
+        try:
+            result = self._get_primary().run_cmd(cmd, capture=capture, timeout=timeout)
+            # Primary succeeded -- restore it
+            self.logger.info(
+                f"Primary transport ({self.primary_transport}) restored successfully"
+            )
+            self._using_fallback = False
+            self._probe_interval = _REPROBE_INITIAL_INTERVAL  # reset backoff
+            return result
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self.logger.debug(
+                f"Primary re-probe failed: {e}. "
+                f"Next probe in {self._probe_interval * _REPROBE_BACKOFF_FACTOR:.0f}s"
+            )
+            # Backoff probe interval
+            self._probe_interval = min(
+                self._probe_interval * _REPROBE_BACKOFF_FACTOR,
+                _REPROBE_MAX_INTERVAL,
+            )
+            # Primary client is broken, clear it
+            if self._primary_client is not None:
+                try:
+                    self._primary_client.close()
+                except Exception:
+                    pass
+                self._primary_client = None
+            return None
+
     def run_cmd(
         self, cmd: str, capture: bool = False, timeout: int | None = None
     ) -> tuple[int, str, str]:
@@ -191,6 +250,10 @@ class FailoverRouterClient:
             Tuple of (return_code, stdout, stderr)
         """
         if self._using_fallback:
+            # Periodically try to restore primary
+            result = self._try_restore_primary(cmd, capture, timeout)
+            if result is not None:
+                return result
             return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
 
         try:
@@ -201,6 +264,8 @@ class FailoverRouterClient:
                 f"Switching to fallback ({self.fallback_transport})"
             )
             self._using_fallback = True
+            self._last_probe_time = _time.monotonic()  # start probe timer
+            self._probe_interval = _REPROBE_INITIAL_INTERVAL  # reset interval
             return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
 
     def close(self) -> None:
@@ -245,4 +310,7 @@ __all__ = [
     "get_router_client_with_failover",
     "FailoverRouterClient",
     "RouterClient",
+    "_REPROBE_INITIAL_INTERVAL",
+    "_REPROBE_MAX_INTERVAL",
+    "_REPROBE_BACKOFF_FACTOR",
 ]
