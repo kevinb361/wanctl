@@ -40,19 +40,33 @@ wan_name: "wan1"
 
 Router connection settings.
 
-| Field       | Type   | Required | Default      | Description                                   |
-| ----------- | ------ | -------- | ------------ | --------------------------------------------- |
-| `type`      | string | no       | `"routeros"` | Router platform (only `"routeros"` supported) |
-| `host`      | string | yes      | -            | RouterOS IP address                           |
-| `user`      | string | yes      | -            | SSH username                                  |
-| `ssh_key`   | string | yes      | -            | Path to SSH private key                       |
-| `transport` | string | no       | `"ssh"`      | Transport type: `"ssh"` or `"rest"`           |
-| `password`  | string | no       | -            | REST API password (for `transport: rest`)     |
+| Field        | Type    | Required | Default      | Description                                   |
+| ------------ | ------- | -------- | ------------ | --------------------------------------------- |
+| `type`       | string  | no       | `"routeros"` | Router platform (only `"routeros"` supported) |
+| `host`       | string  | yes      | -            | RouterOS IP address                           |
+| `user`       | string  | yes      | -            | SSH username                                  |
+| `ssh_key`    | string  | yes      | -            | Path to SSH private key                       |
+| `transport`  | string  | no       | `"ssh"`      | Transport type: `"ssh"` or `"rest"`           |
+| `password`   | string  | no       | -            | REST API password (for `transport: rest`)     |
+| `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport    |
 
 **Transport options:**
 
 - `ssh` (default): Uses SSH/Paramiko for RouterOS communication
 - `rest`: Uses RouterOS REST API (faster, requires password instead of ssh_key)
+
+**SSL verification (REST transport):**
+
+SSL certificate verification is enabled by default (`verify_ssl: true`). MikroTik RouterOS uses self-signed certificates by default, so you may need to either:
+
+1. **Disable verification** (recommended for trusted LAN / direct connection to router):
+   ```yaml
+   router:
+     verify_ssl: false
+   ```
+2. **Install the router's CA certificate** on the wanctl host for proper verification.
+
+Disabling SSL verification is appropriate when the connection is on a trusted local network with no untrusted hops between wanctl and the router.
 
 ```yaml
 # SSH transport (default)
@@ -68,6 +82,7 @@ router:
   user: "admin"
   password: "${ROUTER_PASSWORD}"  # From environment or secrets file
   transport: "rest"
+  verify_ssl: false  # Disable for self-signed RouterOS certificates
 ```
 
 ---
