@@ -691,6 +691,10 @@ class SteeringDaemon:
         self._overrun_count = 0
         self._cycle_interval_ms = ASSESSMENT_INTERVAL_SECONDS * 1000.0
 
+        # STEER-01: Track which legacy state names have already been warned about
+        # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
+        self._legacy_state_warned: set[str] = set()
+
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
 
@@ -700,11 +704,21 @@ class SteeringDaemon:
         Returns:
             True if state is "good", False otherwise
         """
-        return current_state == self.config.state_good or current_state in (
-            "SPECTRUM_GOOD",
-            "WAN1_GOOD",
-            "WAN2_GOOD",
-        )
+        if current_state == self.config.state_good:
+            return True
+
+        # STEER-01: Legacy state name detection with rate-limited warning
+        legacy_names = ("SPECTRUM_GOOD", "WAN1_GOOD", "WAN2_GOOD")
+        if current_state in legacy_names:
+            if current_state not in self._legacy_state_warned:
+                self.logger.warning(
+                    f"Legacy state name '{current_state}' detected, "
+                    f"normalized to '{self.config.state_good}'"
+                )
+                self._legacy_state_warned.add(current_state)
+            return True
+
+        return False
 
     def _evaluate_degradation_condition(
         self, signals: CongestionSignals
@@ -1446,7 +1460,7 @@ class SteeringDaemon:
             cake_timer.elapsed_ms, rtt_timer.elapsed_ms, state_timer.elapsed_ms, cycle_start
         )
         if anomaly_detected:
-            return False
+            return True  # STEER-02: cycle-skip (not failure) -- anomalies are transient
         return True
 
 

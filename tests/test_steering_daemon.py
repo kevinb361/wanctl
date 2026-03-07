@@ -2721,7 +2721,7 @@ class TestRunCycle:
 
         result = daemon_for_run_cycle.run_cycle()
 
-        assert result is False
+        assert result is True  # STEER-02: anomaly = cycle-skip (True), not failure (False)
         # Should NOT reach EWMA or state machine
         daemon_for_run_cycle.update_ewma_smoothing.assert_not_called()
         daemon_for_run_cycle.update_state_machine.assert_not_called()
