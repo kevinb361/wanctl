@@ -185,7 +185,7 @@ class RouterOSSSH:
                     pass  # nosec B110 - cleanup during reconnect, failure acceptable
             self._connect()
 
-    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
+    @retry_with_backoff(max_attempts=2, initial_delay=0.05, backoff_factor=1.0, max_delay=0.1)
     def run_cmd(
         self, cmd: str, capture: bool = False, timeout: int | None = None
     ) -> tuple[int, str, str]:

@@ -108,16 +108,12 @@ class TestTransientFailureBlockingTime:
             logger=MagicMock(),
         )
 
-        call_count = 0
+        # Create a mock client whose exec_command raises ConnectionError
+        mock_client = MagicMock()
+        mock_client.exec_command.side_effect = ConnectionError("Transient failure")
 
-        def fake_run_cmd(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            raise ConnectionError("Transient failure")
-
-        # Patch _ensure_connected to no-op and the inner function behavior
         with patch.object(ssh, "_ensure_connected"), \
-             patch.object(ssh, "_client", MagicMock()):
+             patch.object(ssh, "_client", mock_client):
             start = time.monotonic()
             with pytest.raises(ConnectionError):
                 ssh.run_cmd("/test")

@@ -1009,7 +1009,7 @@ class TestDaemonControlLoop:
         assert mock_degraded.call_count >= 1
 
     def test_control_loop_sleeps_remainder_of_interval(self, valid_config_yaml, tmp_path):
-        """Control loop sleeps for remainder of cycle interval."""
+        """Control loop waits for remainder of cycle interval via shutdown_event.wait."""
         config_file = tmp_path / "config.yaml"
         config_file.write_text(valid_config_yaml)
 
@@ -1041,6 +1041,11 @@ class TestDaemonControlLoop:
             + [0.1 + i * 0.01 for i in range(20)]
         )
 
+        # Mock shutdown_event with trackable .wait() and .is_set()
+        mock_event = MagicMock()
+        mock_event.is_set.return_value = False
+        mock_event.wait.return_value = False  # Simulate timeout (not set)
+
         with (
             patch("sys.argv", ["autorate", "--config", str(config_file)]),
             patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
@@ -1050,7 +1055,10 @@ class TestDaemonControlLoop:
                 "wanctl.autorate_continuous.is_shutdown_requested",
                 side_effect=is_shutdown_after_two,
             ),
-            patch("wanctl.autorate_continuous.time.sleep") as mock_sleep,
+            patch(
+                "wanctl.autorate_continuous.get_shutdown_event",
+                return_value=mock_event,
+            ),
             patch(
                 "wanctl.autorate_continuous.time.monotonic",
                 side_effect=lambda: next(monotonic_values),
@@ -1061,8 +1069,8 @@ class TestDaemonControlLoop:
 
             main()
 
-        # Sleep should be called with positive remainder
-        assert mock_sleep.call_count >= 1
+        # shutdown_event.wait should be called with positive remainder (replaces time.sleep)
+        assert mock_event.wait.call_count >= 1
 
 
 # =============================================================================
