@@ -23,11 +23,11 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 
 ### Operational Resilience
 
-- [ ] **OPS-01**: REST API client defaults to `verify_ssl=True` with documentation for self-signed cert setup
+- [x] **OPS-01**: REST API client defaults to `verify_ssl=True` with documentation for self-signed cert setup
 - [x] **OPS-02**: SQLite metrics writer performs `PRAGMA integrity_check` at startup and rebuilds on corruption
 - [x] **OPS-03**: Health endpoint includes disk space status for `/var/lib/wanctl/`, warns when low
-- [ ] **OPS-04**: Cryptography dependency updated to patch CVE-2026-26007
-- [ ] **OPS-05**: YAML config parse errors surface line numbers in error messages
+- [x] **OPS-04**: Cryptography dependency updated to patch CVE-2026-26007
+- [x] **OPS-05**: YAML config parse errors surface line numbers in error messages
 
 ### Code Cleanup
 
@@ -81,11 +81,11 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | STEER-02    | Phase 51 | Complete |
 | STEER-03    | Phase 51 | Complete |
 | STEER-04    | Phase 51 | Complete |
-| OPS-01      | Phase 52 | Pending  |
+| OPS-01      | Phase 52 | Complete |
 | OPS-02      | Phase 52 | Complete |
 | OPS-03      | Phase 52 | Complete |
-| OPS-04      | Phase 52 | Pending  |
-| OPS-05      | Phase 52 | Pending  |
+| OPS-04      | Phase 52 | Complete |
+| OPS-05      | Phase 52 | Complete |
 | CLEAN-01    | Phase 53 | Pending  |
 | CLEAN-02    | Phase 53 | Pending  |
 | CLEAN-03    | Phase 53 | Pending  |

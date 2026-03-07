@@ -61,6 +61,8 @@ See: .planning/PROJECT.md
 - [51-02] Removed import json from daemon.py -- only usage was in BaselineLoader, replaced by safe_json_load_file
 - [51-02] Staleness check after safe_json_load_file succeeds -- no point checking mtime if file is unreadable
 - [51-02] STALE_BASELINE_THRESHOLD_SECONDS = 300 as module-level constant for easy tuning
+- [52-01] Pin cryptography>=46.0.5 (not >=45.0.0) because pip-audit confirmed 46.0.5 is the actual CVE-2026-26007 fix version
+- [52-01] YAML parse errors re-raise as ConfigValidationError to maintain single exception type for all config errors
 - [52-02] Extract \_open_connection/\_rebuild_database/\_connect_and_validate helpers in MetricsWriter for testability
 - [52-02] \_get_disk_space_status is shared helper in health_check.py, imported by steering/health.py
 - [52-02] 100MB disk space warning threshold as module constant (\_DISK_SPACE_WARNING_BYTES), no config change needed
@@ -87,5 +89,6 @@ None.
 - 2026-03-07: Plan 51-01 executed -- legacy state warning + anomaly cycle-skip (1 task, TDD, 2010 tests pass)
 - 2026-03-07: Plan 51-02 executed -- safe baseline loading + staleness detection (1 task, TDD, 2016 tests pass)
 - 2026-03-07: Phase 51 COMPLETE -- all 2 plans done, ready for Phase 52
+- 2026-03-07: Plan 52-01 executed -- SSL verify_ssl=True default, CVE-2026-26007 patch, YAML error line numbers (3 tasks, TDD, 1966 tests pass)
 - 2026-03-07: Plan 52-02 executed -- SQLite integrity check + disk space monitoring (2 tasks, TDD, 2037 tests pass)
 - 2026-03-07: Phase 52 COMPLETE -- all 2 plans done, ready for Phase 53
