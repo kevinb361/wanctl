@@ -5,7 +5,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -991,3 +991,83 @@ class TestSteeringCycleBudget:
             exc_info.value.close()
         finally:
             server.shutdown()
+
+
+class TestDiskSpaceInSteeringHealth:
+    """Tests for disk_space field in steering health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    def test_steering_health_includes_disk_space(self):
+        """Test that steering health response includes disk_space field."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "disk_space" in data
+            ds = data["disk_space"]
+            assert "path" in ds
+            assert "free_bytes" in ds
+            assert "total_bytes" in ds
+            assert "free_pct" in ds
+            assert "status" in ds
+        finally:
+            server.shutdown()
+
+    def test_steering_health_degrades_on_disk_warning(self):
+        """Test that steering health degrades when disk space is low."""
+        mock_usage = MagicMock()
+        mock_usage.free = 50_000_000  # 50MB, below threshold
+        mock_usage.total = 10_000_000_000
+
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
+
+        try:
+            with patch("wanctl.health_check.shutil.disk_usage", return_value=mock_usage):
+                url = f"http://127.0.0.1:{port}/health"
+                with pytest.raises(urllib.error.HTTPError) as exc_info:
+                    urllib.request.urlopen(url, timeout=5)
+
+                assert exc_info.value.code == 503
+                data = json.loads(exc_info.value.read().decode())
+                assert data["status"] == "degraded"
+                assert data["disk_space"]["status"] == "warning"
+                exc_info.value.close()
+        finally:
+            server.shutdown()
+
+    def test_steering_health_disk_space_unknown_on_error(self):
+        """Test that disk_space status is 'unknown' when path inaccessible."""
+        with patch(
+            "wanctl.health_check.shutil.disk_usage",
+            side_effect=OSError("path not found"),
+        ):
+            port = find_free_port()
+            server = start_steering_health_server(
+                host="127.0.0.1", port=port, daemon=None
+            )
+
+            try:
+                url = f"http://127.0.0.1:{port}/health"
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+
+                assert data["disk_space"]["status"] == "unknown"
+                # unknown disk space should NOT degrade health
+                assert data["status"] == "healthy"
+            finally:
+                server.shutdown()
