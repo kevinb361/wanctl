@@ -630,6 +630,50 @@ class TestValidateCommentSecurityEdgeCases:
         assert result == comment
 
 
+class TestYAMLParseErrors:
+    """Tests for YAML parse error handling with line numbers."""
+
+    def test_invalid_yaml_raises_config_validation_error(self, tmp_path):
+        """Invalid YAML raises ConfigValidationError with 'line' in message."""
+        config_file = tmp_path / "bad.yaml"
+        config_file.write_text("key: [unclosed\n")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig(str(config_file))
+        assert "line" in str(exc_info.value).lower()
+
+    def test_valid_yaml_still_loads(self, tmp_path):
+        """Valid YAML loads correctly (no regression)."""
+        config_file = tmp_path / "good.yaml"
+        config_file.write_text("""
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+""")
+        config = BaseConfig(str(config_file))
+        assert config.wan_name == "test"
+
+    def test_yaml_tab_indentation_error_includes_line(self, tmp_path):
+        """YAML with tab indentation error includes line number."""
+        config_file = tmp_path / "tabs.yaml"
+        config_file.write_text("key:\n\t- value\n")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig(str(config_file))
+        assert "line" in str(exc_info.value).lower()
+
+    def test_yaml_error_includes_config_path(self, tmp_path):
+        """YAML parse error message includes the config file path."""
+        config_file = tmp_path / "bad.yaml"
+        config_file.write_text("key: {unclosed\n")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            BaseConfig(str(config_file))
+        assert "bad.yaml" in str(exc_info.value)
+
+
 class TestSchemaVersioning:
     """Tests for configuration schema versioning."""
 
