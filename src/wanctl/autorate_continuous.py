@@ -42,6 +42,7 @@ from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
+    get_shutdown_event,
     is_shutdown_requested,
     register_signal_handlers,
 )
@@ -448,7 +449,7 @@ class Config(BaseConfig):
     def _load_router_transport_config(self) -> None:
         """Load router transport settings (SSH or REST)."""
         router = self.data.get("router", {})
-        self.router_transport = router.get("transport", "ssh")  # Default to SSH
+        self.router_transport = router.get("transport", "rest")  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
         # REST API specific settings (only used if transport=rest)
         self.router_password = router.get("password", "")
         self.router_port = router.get("port", 443)
@@ -1999,6 +2000,9 @@ def main() -> int | None:
         if is_systemd_available():
             wan_info["logger"].info("Systemd watchdog support enabled")
 
+    # Get shutdown event for interruptible sleep (instant signal responsiveness)
+    shutdown_event = get_shutdown_event()
+
     try:
         while not is_shutdown_requested():
             cycle_start = time.monotonic()
@@ -2097,7 +2101,7 @@ def main() -> int | None:
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
             if sleep_time > 0 and not is_shutdown_requested():
-                time.sleep(sleep_time)
+                shutdown_event.wait(timeout=sleep_time)
 
         # Log shutdown when detected (safe - in main loop, not signal handler)
         if is_shutdown_requested():
