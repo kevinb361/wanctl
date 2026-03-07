@@ -72,7 +72,7 @@ def backend(mock_ssh):
             user="admin",
             ssh_key="/path/to/key",
         )
-    backend.ssh = mock_ssh
+    backend.client = mock_ssh
     return backend
 
 

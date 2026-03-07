@@ -680,7 +680,7 @@ class TestDaemonModeShutdown:
         config_file.write_text(valid_config_yaml)
 
         mock_router = MagicMock()
-        mock_router.ssh = MagicMock()
+        mock_router.client = MagicMock()
         mock_wan_controller = MagicMock()
         mock_wan_controller.router = mock_router
 
@@ -722,8 +722,8 @@ class TestDaemonModeShutdown:
 
             main()
 
-        # Verify router.ssh.close() was called in finally block
-        mock_router.ssh.close.assert_called_once()
+        # Verify router.client.close() was called in finally block
+        mock_router.client.close.assert_called_once()
 
     def test_shutdown_stops_servers(self, valid_config_yaml, tmp_path):
         """Shutdown stops metrics and health servers."""
@@ -1827,8 +1827,8 @@ class TestDaemonCleanupHandlers:
         config_file.write_text(valid_config_yaml)
 
         mock_router = MagicMock()
-        mock_router.ssh = MagicMock()
-        mock_router.ssh.close.side_effect = Exception("close failed")
+        mock_router.client = MagicMock()
+        mock_router.client.close.side_effect = Exception("close failed")
         mock_wan_ctrl = MagicMock()
         mock_wan_ctrl.router = mock_router
         mock_logger = MagicMock()

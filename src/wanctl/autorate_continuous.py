@@ -4,7 +4,7 @@ Continuous CAKE Auto-Tuning System
 3-zone controller with EWMA smoothing for responsive congestion control
 Expert-tuned for VDSL2, Cable, and Fiber connections
 
-Runs as a persistent daemon with internal 2-second control loop.
+Runs as a persistent daemon with internal 50ms control loop.
 """
 
 import argparse
@@ -537,8 +537,8 @@ class RouterOS:
     """RouterOS interface for setting queue limits.
 
     Supports multiple transports:
-    - ssh: SSH via paramiko (default) - uses SSH keys
-    - rest: REST API via HTTPS - uses password authentication
+    - ssh: SSH via paramiko - uses SSH keys
+    - rest: REST API via HTTPS (default) - uses password authentication
 
     Transport is selected via config.router_transport field.
     """
@@ -547,10 +547,10 @@ class RouterOS:
         self.config = config
         self.logger = logger
         # Use factory function to get appropriate client (SSH or REST) with failover
-        self.ssh = get_router_client_with_failover(config, logger)
+        self.client = get_router_client_with_failover(config, logger)
 
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
-        """Set CAKE limits for one WAN using a single batched SSH command"""
+        """Set CAKE limits for one WAN using a single batched router command"""
         self.logger.debug(f"{wan}: Setting limits DOWN={down_bps} UP={up_bps}")
 
         # WAN name for queue type (e.g., "ATT" -> "att", "Spectrum" -> "spectrum")
@@ -565,7 +565,7 @@ class RouterOS:
             f"queue=cake-up-{wan_lower} max-limit={up_bps}"
         )
 
-        rc, _, _ = self.ssh.run_cmd(cmd)
+        rc, _, _ = self.client.run_cmd(cmd)
         if rc != 0:
             self.logger.error(f"Failed to set queue limits: {cmd}")
             return False
@@ -1460,9 +1460,7 @@ class WANController:
 
             # Record metrics to SQLite history (if enabled)
             if self._metrics_writer is not None:
-                import time as time_module
-
-                ts = int(time_module.time())
+                ts = int(time.time())
                 metrics_batch = [
                     (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
                     (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
@@ -1810,7 +1808,7 @@ def main() -> int | None:
             - None: Clean shutdown in daemon mode (SIGTERM or oneshot completion)
     """
     parser = argparse.ArgumentParser(
-        description="Continuous CAKE Auto-Tuning Daemon with 2-second Control Loop"
+        description="Continuous CAKE Auto-Tuning Daemon with 50ms Control Loop"
     )
     parser.add_argument(
         "--config",
@@ -1917,7 +1915,7 @@ def main() -> int | None:
         controller.run_cycle(use_lock=True)
         return None
 
-    # Daemon mode: continuous loop with 2-second cycle time
+    # Daemon mode: continuous loop with 50ms cycle time
     # Acquire locks once at startup and hold for entire run
     lock_files = []
     for lock_path in controller.get_lock_paths():
@@ -2155,8 +2153,8 @@ def main() -> int | None:
             try:
                 router = wan_info["controller"].router
                 # Handle both SSH and REST transports
-                if hasattr(router, "ssh") and router.ssh:
-                    router.ssh.close()
+                if hasattr(router, "client") and router.client:
+                    router.client.close()
                 if hasattr(router, "close"):
                     router.close()
             except Exception as e:

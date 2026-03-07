@@ -55,7 +55,7 @@ class RouterOSBackend(RouterBackend):
             logger: Logger instance
         """
         super().__init__(logger)
-        self.ssh = RouterOSSSH(
+        self.client = RouterOSSSH(
             host=host, user=user, ssh_key=ssh_key, timeout=timeout, logger=self.logger
         )
 
@@ -92,7 +92,7 @@ class RouterOSBackend(RouterBackend):
             True if successful
         """
         cmd = f'/queue/tree/set [find name="{queue}"] max-limit={rate_bps}'
-        rc, _, err = self.ssh.run_cmd(cmd)
+        rc, _, err = self.client.run_cmd(cmd)
 
         if check_command_success(rc, cmd, err, self.logger, f"set bandwidth on {queue}"):
             self.logger.debug(f"Set {queue} max-limit to {rate_bps} bps")
@@ -109,7 +109,7 @@ class RouterOSBackend(RouterBackend):
             Current bandwidth in bps, or None on error
         """
         cmd = f'/queue/tree/print detail where name="{queue}"'
-        rc, out, err = self.ssh.run_cmd(cmd, capture=True)
+        rc, out, err = self.client.run_cmd(cmd, capture=True)
 
         if rc != 0:
             self.logger.error(f"Failed to get bandwidth for {queue}: {err}")
@@ -144,7 +144,7 @@ class RouterOSBackend(RouterBackend):
             Dict with stats, or None on error
         """
         cmd = f'/queue/tree/print stats detail where name="{queue}"'
-        rc, out, err = self.ssh.run_cmd(cmd, capture=True)
+        rc, out, err = self.client.run_cmd(cmd, capture=True)
 
         if rc != 0:
             self.logger.error(f"Failed to get stats for {queue}: {err}")
@@ -163,7 +163,7 @@ class RouterOSBackend(RouterBackend):
             True if successful
         """
         cmd = f'/ip/firewall/mangle/enable [find comment="{comment}"]'
-        rc, _, err = self.ssh.run_cmd(cmd)
+        rc, _, err = self.client.run_cmd(cmd)
 
         if check_command_success(rc, cmd, err, self.logger, f"enable rule '{comment}'"):
             self.logger.info(f"Enabled mangle rule: {comment}")
@@ -180,7 +180,7 @@ class RouterOSBackend(RouterBackend):
             True if successful
         """
         cmd = f'/ip/firewall/mangle/disable [find comment="{comment}"]'
-        rc, _, err = self.ssh.run_cmd(cmd)
+        rc, _, err = self.client.run_cmd(cmd)
 
         if check_command_success(rc, cmd, err, self.logger, f"disable rule '{comment}'"):
             self.logger.info(f"Disabled mangle rule: {comment}")
@@ -197,7 +197,7 @@ class RouterOSBackend(RouterBackend):
             True if enabled, False if disabled, None if not found
         """
         cmd = f'/ip/firewall/mangle/print where comment="{comment}"'
-        rc, out, err = self.ssh.run_cmd(cmd, capture=True)
+        rc, out, err = self.client.run_cmd(cmd, capture=True)
 
         if rc != 0:
             self.logger.error(f"Failed to check rule '{comment}': {err}")
@@ -220,7 +220,7 @@ class RouterOSBackend(RouterBackend):
             True if successful
         """
         cmd = f'/queue/tree/reset-counters [find name="{queue}"]'
-        rc, _, err = self.ssh.run_cmd(cmd)
+        rc, _, err = self.client.run_cmd(cmd)
 
         if rc != 0:
             self.logger.error(f"Failed to reset counters for {queue}: {err}")
@@ -235,5 +235,5 @@ class RouterOSBackend(RouterBackend):
         Returns:
             True if router responds to identity command
         """
-        rc, out, _ = self.ssh.run_cmd("/system/identity/print", capture=True)
+        rc, out, _ = self.client.run_cmd("/system/identity/print", capture=True)
         return rc == 0 and bool(out.strip())

@@ -128,7 +128,7 @@ class TestRouterOS:
             router = RouterOS(mock_config, mock_logger)
 
             mock_get_client.assert_called_once_with(mock_config, mock_logger)
-            assert router.ssh is not None
+            assert router.client is not None
 
     def test_routeros_init_stores_config_and_logger(self, mock_config, mock_logger):
         """Config and logger attributes should be set during init."""
