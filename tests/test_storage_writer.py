@@ -491,34 +491,34 @@ class TestIntegrityCheck:
         assert cursor.fetchone()[0] == 1
 
     def test_integrity_check_error_logs_warning_and_proceeds(
-        self, reset_singleton, test_db_path
+        self, reset_singleton, test_db_path, caplog
     ):
         """Test that if integrity_check itself throws, log warning and proceed."""
+        import logging
+        from unittest.mock import MagicMock
+
         writer = MetricsWriter(test_db_path)
 
-        # Mock the connection's execute to raise on integrity_check
-        with patch.object(
-            sqlite3.Connection,
-            "execute",
-            wraps=None,
-        ) as mock_execute:
-            # We need a more targeted approach: patch only the integrity check call
-            original_connect = sqlite3.connect
+        # Create a mock connection that raises on integrity_check PRAGMA
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        call_count = 0
 
-            def patched_connect(*args, **kwargs):
-                conn = original_connect(*args, **kwargs)
-                original_execute = conn.execute
+        def selective_execute(sql, *args, **kwargs):
+            nonlocal call_count
+            if "integrity_check" in str(sql):
+                raise sqlite3.OperationalError("database is locked")
+            call_count += 1
+            return MagicMock()
 
-                def selective_execute(sql, *a, **kw):
-                    if "integrity_check" in str(sql):
-                        raise sqlite3.OperationalError("database is locked")
-                    return original_execute(sql, *a, **kw)
+        mock_conn.execute = MagicMock(side_effect=selective_execute)
 
-                conn.execute = selective_execute
-                return conn
+        with patch.object(writer, "_open_connection", return_value=mock_conn):
+            with caplog.at_level(logging.WARNING, logger="wanctl.storage.writer"):
+                conn = writer._connect_and_validate()
 
-            with patch("wanctl.storage.writer.sqlite3.connect", side_effect=patched_connect):
-                conn = writer._get_connection()
-
-            # Should have succeeded despite integrity check error
-            assert conn is not None
+        # Should have returned the connection despite integrity check error
+        assert conn is mock_conn
+        assert "Integrity check error" in caplog.text
+        # No .corrupt file -- error doesn't trigger rebuild
+        corrupt_path = test_db_path.with_suffix(".db.corrupt")
+        assert not corrupt_path.exists()

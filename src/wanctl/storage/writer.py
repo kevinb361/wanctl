@@ -82,7 +82,8 @@ class MetricsWriter:
         """Get or create database connection.
 
         Creates parent directory if needed, enables WAL mode,
-        and initializes schema on first connection.
+        runs integrity check (rebuilds on corruption), and
+        initializes schema on first connection.
 
         Returns:
             sqlite3.Connection: Database connection with WAL mode enabled
@@ -93,21 +94,8 @@ class MetricsWriter:
         # Create parent directory if needed
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Connect with isolation_level=None for autocommit mode
-        # This allows PRAGMA statements and manual transaction control
-        self._conn = sqlite3.connect(
-            self._db_path,
-            timeout=30.0,
-            check_same_thread=False,
-            isolation_level=None,  # Autocommit mode for PRAGMA support
-        )
-
-        # Enable WAL mode for concurrent read/write (requires autocommit)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA synchronous=NORMAL")
-
-        # Use Row factory for dict-like access
-        self._conn.row_factory = sqlite3.Row
+        # Connect and validate database, rebuilding if corrupt
+        self._conn = self._connect_and_validate()
 
         # Initialize schema (uses explicit transactions internally)
         create_tables(self._conn)
@@ -115,6 +103,53 @@ class MetricsWriter:
         logger.debug("MetricsWriter connected to %s with WAL mode", self._db_path)
 
         return self._conn
+
+    def _open_connection(self) -> sqlite3.Connection:
+        """Open a new SQLite connection with WAL mode and Row factory."""
+        conn = sqlite3.connect(
+            self._db_path,
+            timeout=30.0,
+            check_same_thread=False,
+            isolation_level=None,
+        )
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _rebuild_database(self) -> sqlite3.Connection:
+        """Rename corrupt DB and create a fresh one."""
+        corrupt_path = self._db_path.with_suffix(".db.corrupt")
+        self._db_path.rename(corrupt_path)
+        logger.warning("Corrupt database moved to %s", corrupt_path)
+        return self._open_connection()
+
+    def _connect_and_validate(self) -> sqlite3.Connection:
+        """Connect to database, run integrity check, rebuild if corrupt.
+
+        Safety property: never raises on corruption. Logs, rebuilds, continues.
+        """
+        try:
+            conn = self._open_connection()
+        except sqlite3.DatabaseError:
+            # File exists but is not a valid SQLite database
+            logger.error("Database file is not valid SQLite. Rebuilding database.")
+            return self._rebuild_database()
+
+        # Check database integrity
+        try:
+            result = conn.execute("PRAGMA integrity_check").fetchone()
+            if result[0] != "ok":
+                logger.error(
+                    "Database integrity check failed: %s. Rebuilding database.",
+                    result[0],
+                )
+                conn.close()
+                return self._rebuild_database()
+        except Exception as e:
+            logger.warning("Integrity check error (proceeding anyway): %s", e)
+
+        return conn
 
     def write_metric(
         self,
