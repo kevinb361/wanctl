@@ -12,7 +12,7 @@ None
 
 ### Active
 
-- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-55) - IN PROGRESS
+- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-56) - IN PROGRESS
 
 ### Completed
 
@@ -67,6 +67,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 54-01-PLAN.md -- Audit report + module boundary cleanup (steering **init**.py simplification) (2/2 tasks)
   - [x] 54-02-PLAN.md -- Consolidate daemon duplication + extract main() complexity hotspots (2/2 tasks)
 - [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests
+- [ ] **Phase 56: Integration Gap Fixes** - Fix verify_ssl semantic contradiction + CONFIG_SCHEMA.md transport default
+      **Gap Closure:** Closes OPS-01 integration gap + CLEAN-04 integration gap from audit
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
@@ -246,7 +248,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                        | Phases | Plans | Status      |
 | -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-55  | 9+TBD | In progress |
+| v1.10 Architectural Review Fixes | 50-56  | 9+TBD | In progress |
 
 ### Completed Milestones
 
