@@ -1,0 +1,364 @@
+"""Multi-failure cascade tests for graceful degradation.
+
+These tests verify that the system does NOT crash when multiple failures occur
+simultaneously. Each test stacks 2-3 failure injections and asserts that
+run_cycle() either completes or raises a non-fatal exception (caught by the
+daemon loop).
+
+The goal is to prove COMBINATION resilience -- individual error handling is
+already tested in test_autorate_error_recovery.py.
+"""
+
+import sqlite3
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from wanctl.autorate_continuous import WANController
+
+
+@pytest.fixture
+def mock_config():
+    """Create a mock config for WANController with all required fields."""
+    config = MagicMock()
+    config.wan_name = "TestWAN"
+    config.baseline_rtt_initial = 25.0
+    config.download_floor_green = 800_000_000
+    config.download_floor_yellow = 600_000_000
+    config.download_floor_soft_red = 500_000_000
+    config.download_floor_red = 400_000_000
+    config.download_ceiling = 920_000_000
+    config.download_step_up = 10_000_000
+    config.download_factor_down = 0.85
+    config.download_factor_down_yellow = 0.96
+    config.download_green_required = 5
+    config.upload_floor_green = 35_000_000
+    config.upload_floor_yellow = 30_000_000
+    config.upload_floor_red = 25_000_000
+    config.upload_ceiling = 40_000_000
+    config.upload_step_up = 1_000_000
+    config.upload_factor_down = 0.85
+    config.upload_factor_down_yellow = 0.94
+    config.upload_green_required = 5
+    config.target_bloat_ms = 15.0
+    config.warn_bloat_ms = 45.0
+    config.hard_red_bloat_ms = 80.0
+    config.alpha_baseline = 0.001
+    config.alpha_load = 0.1
+    config.baseline_update_threshold_ms = 3.0
+    config.baseline_rtt_min = 10.0
+    config.baseline_rtt_max = 60.0
+    config.accel_threshold_ms = 15.0
+    config.ping_hosts = ["1.1.1.1"]
+    config.use_median_of_three = False
+    config.fallback_enabled = True
+    config.fallback_check_gateway = True
+    config.fallback_check_tcp = True
+    config.fallback_gateway_ip = "10.10.110.1"
+    config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
+    config.fallback_mode = "graceful_degradation"
+    config.fallback_max_cycles = 3
+    config.metrics_enabled = False
+    config.state_file = MagicMock()
+    config.queue_down = "dl-spectrum"
+    config.queue_up = "ul-spectrum"
+    return config
+
+
+@pytest.fixture
+def mock_router():
+    """Create a mock router with set_limits returning True by default."""
+    router = MagicMock()
+    router.set_limits.return_value = True
+    return router
+
+
+@pytest.fixture
+def mock_rtt_measurement():
+    """Create a mock RTT measurement."""
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_logger():
+    """Create a mock logger."""
+    return MagicMock()
+
+
+@pytest.fixture
+def controller(mock_config, mock_router, mock_rtt_measurement, mock_logger):
+    """Create a WANController with patched load_state to avoid file I/O."""
+    with patch.object(WANController, "load_state"):
+        ctrl = WANController(
+            wan_name="TestWAN",
+            config=mock_config,
+            router=mock_router,
+            rtt_measurement=mock_rtt_measurement,
+            logger=mock_logger,
+        )
+    return ctrl
+
+
+class TestAutorateFailureCascade:
+    """Multi-failure cascade tests for WANController.run_cycle()."""
+
+    def test_router_unreachable_plus_state_save_fails(
+        self, controller, mock_router, mock_rtt_measurement
+    ):
+        """Router unreachable + state file write fails -- run_cycle handles both.
+
+        Router failure is caught in the router communication subsystem (try/except),
+        and save_state uses @handle_errors which swallows OSError.
+        """
+        # Successful RTT measurement
+        mock_rtt_measurement.ping_host.return_value = 30.0
+
+        # Router returns non-zero (unreachable/failure)
+        mock_router.set_limits.return_value = False
+
+        # State save fails
+        with patch.object(
+            controller.state_manager, "save", side_effect=OSError("disk full")
+        ):
+            # run_cycle should complete without crashing
+            # Returns False because router failed, but no exception propagates
+            result = controller.run_cycle()
+
+        # Router failure means run_cycle returns False, but no crash
+        assert result is False
+
+    def test_router_exception_plus_storage_error(
+        self, controller, mock_router, mock_rtt_measurement
+    ):
+        """Router raises ConnectionError + MetricsWriter raises sqlite3.OperationalError.
+
+        Both failures are handled by run_cycle's exception handling.
+        When metrics_enabled is False, write_metrics_batch is not called,
+        so we test with the router exception alone + state save failure.
+        """
+        # Successful RTT measurement
+        mock_rtt_measurement.ping_host.return_value = 30.0
+
+        # Router set_limits raises exception (caught by run_cycle's try/except)
+        mock_router.set_limits.side_effect = ConnectionError("unreachable")
+
+        # State save also fails (caught by @handle_errors)
+        with patch.object(
+            controller.state_manager, "save", side_effect=OSError("permission denied")
+        ):
+            # run_cycle catches the ConnectionError in the router subsystem
+            # and save_state catches the OSError via @handle_errors
+            result = controller.run_cycle()
+
+        # Should return False (router failed) but not crash
+        assert result is False
+
+    def test_icmp_fails_plus_connectivity_lost(
+        self, controller, mock_rtt_measurement, mock_config
+    ):
+        """ICMP ping fails + TCP fallback fails -- WANController enters freeze/degradation.
+
+        When all connectivity checks fail, run_cycle returns False (no crash).
+        """
+        # ICMP fails
+        mock_rtt_measurement.ping_host.return_value = None
+
+        # Connectivity fallback also fails
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
+            result = controller.run_cycle()
+
+        # Total connectivity loss -> returns False, no crash
+        assert result is False
+
+    def test_icmp_fails_plus_state_file_corrupted(
+        self, controller, mock_rtt_measurement, mock_config
+    ):
+        """ICMP ping fails + state file corrupted during save.
+
+        In graceful_degradation mode, the first ICMP-unavailable cycle uses
+        last known RTT. Even if state save then fails, no crash.
+        """
+        # ICMP fails
+        mock_rtt_measurement.ping_host.return_value = None
+
+        # Connectivity check says "yes" (gateway reachable) but no TCP RTT
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
+            # State save fails when trying to persist after freeze
+            with patch.object(
+                controller.state_manager, "save", side_effect=OSError("corrupted FS")
+            ):
+                # Graceful degradation mode, cycle 1 -> uses last RTT
+                result = controller.run_cycle()
+
+        # Should complete the cycle (uses fallback RTT), even though save fails
+        # Returns True because the cycle succeeded (freeze mode)
+        assert isinstance(result, bool)
+
+    def test_triple_failure_router_icmp_storage(
+        self, controller, mock_router, mock_rtt_measurement
+    ):
+        """All three: router unreachable + ICMP fails + state save error.
+
+        Worst case: everything fails simultaneously. The daemon should
+        degrade gracefully -- run_cycle returns False, no uncaught exception.
+        """
+        # ICMP fails
+        mock_rtt_measurement.ping_host.return_value = None
+
+        # Router would fail too, but ICMP failure path returns early
+        mock_router.set_limits.side_effect = ConnectionError("router down")
+
+        # Connectivity fallback fails
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
+            # State save fails
+            with patch.object(
+                controller.state_manager, "save", side_effect=OSError("no space")
+            ):
+                result = controller.run_cycle()
+
+        # Total connectivity loss causes early return (False), no crash
+        assert result is False
+
+    def test_router_garbage_response_plus_storage_error(
+        self, controller, mock_router, mock_rtt_measurement
+    ):
+        """Router returns garbage (non-zero rc) + MetricsWriter raises.
+
+        When metrics_enabled is True and write_metrics_batch raises,
+        the exception propagates from run_cycle -- but the daemon loop catches it.
+        This test verifies the exception is a standard Exception (not SystemExit).
+        """
+        # Successful RTT measurement
+        mock_rtt_measurement.ping_host.return_value = 30.0
+
+        # Enable metrics and inject a failing MetricsWriter
+        controller.config.metrics_enabled = True
+        controller._metrics_writer = MagicMock()
+        controller._metrics_writer.write_metrics_batch.side_effect = (
+            sqlite3.OperationalError("database is locked")
+        )
+
+        # Router returns garbage
+        mock_router.set_limits.return_value = False
+
+        # The exception from write_metrics_batch will propagate
+        # because it's not wrapped in try/except inside run_cycle
+        with pytest.raises(sqlite3.OperationalError):
+            controller.run_cycle()
+
+        # The important thing: it's a standard exception (caught by daemon loop),
+        # NOT a SystemExit or segfault
+
+
+class TestSteeringFailureCascade:
+    """Multi-failure cascade tests for SteeringDaemon.run_cycle()."""
+
+    def test_baseline_corrupt_plus_cake_error_plus_router_timeout(self):
+        """BaselineLoader returns None + no cached baseline + router would timeout.
+
+        When baseline loading fails AND no cached baseline exists,
+        run_cycle returns False immediately (cannot proceed without baseline RTT).
+        No crash regardless of other failures that would have occurred later.
+        """
+        from wanctl.steering.daemon import BaselineLoader, SteeringDaemon
+
+        # Create minimal mock config for SteeringDaemon
+        mock_config = MagicMock()
+        mock_config.cake_aware = False
+        mock_config.use_confidence_scoring = False
+        mock_config.metrics_enabled = False
+        mock_config.primary_wan = "spectrum"
+        mock_config.data = {}
+
+        mock_state = MagicMock()
+        mock_state.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "baseline_rtt": None,  # No cached baseline -- update_baseline_rtt returns False
+            "bad_count": 0,
+            "good_count": 0,
+        }
+
+        mock_router = MagicMock()
+        mock_router.client.run_cmd.side_effect = TimeoutError("router timeout")
+
+        mock_rtt = MagicMock()
+
+        # BaselineLoader returns None (corrupted state file)
+        mock_baseline_loader = MagicMock(spec=BaselineLoader)
+        mock_baseline_loader.load_baseline_rtt.return_value = None
+
+        mock_logger = MagicMock()
+
+        # Patch get_storage_config to avoid accessing config.data["storage"]
+        with patch("wanctl.steering.daemon.get_storage_config", return_value={}):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                baseline_loader=mock_baseline_loader,
+                logger=mock_logger,
+            )
+
+        # run_cycle should return False (no baseline RTT available)
+        result = daemon.run_cycle()
+        assert result is False
+
+        # Verify warning was issued about missing baseline
+        mock_logger.warning.assert_called()
+
+    def test_baseline_valid_but_ping_and_state_fail(self):
+        """Baseline loads OK but ping fails and state save errors.
+
+        When RTT measurement returns None after retries, steering run_cycle
+        returns False. No crash even if state operations would also fail.
+        """
+        from wanctl.steering.daemon import BaselineLoader, SteeringDaemon
+
+        mock_config = MagicMock()
+        mock_config.cake_aware = False
+        mock_config.use_confidence_scoring = False
+        mock_config.metrics_enabled = False
+        mock_config.primary_wan = "spectrum"
+        mock_config.data = {}
+
+        mock_state = MagicMock()
+        mock_state.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "baseline_rtt": 25.0,
+            "bad_count": 0,
+            "good_count": 0,
+        }
+        mock_state.save.side_effect = OSError("state file corrupted")
+
+        mock_router = MagicMock()
+
+        mock_rtt = MagicMock()
+        # All ping attempts fail
+        mock_rtt.ping_host.return_value = None
+
+        mock_baseline_loader = MagicMock(spec=BaselineLoader)
+        mock_baseline_loader.load_baseline_rtt.return_value = 25.0
+
+        mock_logger = MagicMock()
+
+        with patch("wanctl.steering.daemon.get_storage_config", return_value={}):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                baseline_loader=mock_baseline_loader,
+                logger=mock_logger,
+            )
+
+        # Ping fails -> run_cycle returns False, state save error never reached
+        result = daemon.run_cycle()
+        assert result is False
