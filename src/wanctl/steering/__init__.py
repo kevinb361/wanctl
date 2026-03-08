@@ -9,7 +9,7 @@ Components:
 - daemon.py: Main steering daemon with state machine
 - cake_stats.py: CAKE queue statistics reader
 - congestion_assessment.py: Multi-signal congestion assessment
-- steering_confidence.py: Phase 2B confidence-based steering (optional)
+- steering_confidence.py: Confidence-based steering
 
 Usage:
     from wanctl.steering import SteeringDaemon, CongestionState
@@ -30,15 +30,16 @@ from .daemon import (
     SteeringDaemon,
     run_daemon_loop,
 )
+from .steering_confidence import (
+    ConfidenceController,
+    ConfidenceSignals,
+    ConfidenceWeights,
+    TimerState,
+    compute_confidence,
+)
 
-# Confidence-based steering (optional)
-CONFIDENCE_AVAILABLE = False
-try:
-    from . import steering_confidence as _sc
-
-    CONFIDENCE_AVAILABLE = bool(_sc)  # Reference to satisfy linters
-except ImportError:
-    pass
+# Confidence-based steering is always available
+CONFIDENCE_AVAILABLE = True
 
 __all__ = [
     # Core classes
@@ -57,24 +58,11 @@ __all__ = [
     "StateThresholds",
     "assess_congestion_state",
     "ewma_update",
-    # Confidence-based steering (if available)
+    # Confidence-based steering
     "CONFIDENCE_AVAILABLE",
+    "ConfidenceController",
+    "ConfidenceSignals",
+    "ConfidenceWeights",
+    "TimerState",
+    "compute_confidence",
 ]
-
-# Add confidence-based steering exports if available
-if CONFIDENCE_AVAILABLE:
-    # Re-export confidence-based steering symbols (referenced via _sc for linter compatibility)
-    ConfidenceController = _sc.ConfidenceController
-    ConfidenceSignals = _sc.ConfidenceSignals
-    ConfidenceWeights = _sc.ConfidenceWeights
-    TimerState = _sc.TimerState
-    compute_confidence = _sc.compute_confidence
-    __all__.extend(
-        [
-            "ConfidenceController",
-            "ConfidenceSignals",
-            "ConfidenceWeights",
-            "TimerState",
-            "compute_confidence",
-        ]
-    )
