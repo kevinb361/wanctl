@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
-current_phase: Phase 54 - Codebase Audit
-current_plan: Phase 54, Plan 01
+current_phase: Phase 55 - Test Quality
+current_plan: Phase 55, Plan 01
 status: in_progress
-last_updated: "2026-03-08T11:14:55Z"
-last_activity: 2026-03-08 -- Plan 54-01 executed (audit report + steering __init__.py simplification)
+last_updated: "2026-03-08T11:49:15Z"
+last_activity: 2026-03-08 -- Plan 54-02 executed (daemon duplication consolidation + main() CC reduction)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # Session State
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.10 Architectural Review Fixes
-**Current phase:** Phase 54 - Codebase Audit
-**Current plan:** Phase 54, Plan 01
+**Current phase:** Phase 55 - Test Quality
+**Current plan:** Phase 55, Plan 01
 **Status:** In progress
-**Last activity:** 2026-03-08 -- Plan 54-01 executed (audit report + steering **init**.py simplification)
+**Last activity:** 2026-03-08 -- Plan 54-02 executed (daemon duplication consolidation + main() CC reduction)
 
-**Progress:** [█████████░] 91%
+**Progress:** [██████████] 100%
 
 ## Phase Summary
 
@@ -39,7 +39,7 @@ See: .planning/PROJECT.md
 | 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | COMPLETE    |
 | 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | COMPLETE    |
 | 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | COMPLETE    |
-| 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | IN PROGRESS |
+| 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | COMPLETE    |
 | 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | Not started |
 
 ## Accumulated Context
@@ -73,6 +73,10 @@ See: .planning/PROJECT.md
 - [54-01] Direct imports in steering/**init**.py -- CONFIDENCE_AVAILABLE=True as constant, no try/except
 - [54-01] 6 duplication patterns categorized: 3 EXTRACT (Plan 02), 2 LEAVE (too small/divergent), 1 PARTIAL
 - [54-01] 15 CC>10 functions: 2 address (main()), 3 skip (architectural spine), 10 leave (inherent complexity)
+- [54-02] Overrun warning format uses daemon_name prefix: autorate="wan_name: Cycle", steering="Steering cycle" for backward compatibility
+- [54-02] check_cleanup_deadline accepts now= keyword so callers pass time.monotonic() from their module scope (test mock compatibility)
+- [54-02] PROFILE_REPORT_INTERVAL re-exported via noqa: F401 from both daemon modules
+- [54-02] Extracted 4 helpers from main() (CC 60->47): \_parse_autorate_args, \_init_storage, \_acquire_daemon_locks, \_start_servers
 
 ### Known Issues
 
@@ -102,3 +106,5 @@ None.
 - 2026-03-07: Plan 53-02 executed -- scope InsecureRequestWarning to **init**, fix 4 ruff violations in rtt_measurement.py (1 task, 2037 tests pass)
 - 2026-03-07: Phase 53 COMPLETE -- all 2 plans done, ready for Phase 54
 - 2026-03-08: Plan 54-01 executed -- audit report (178 lines) + steering **init**.py simplification (2 tasks, 2037 tests pass)
+- 2026-03-08: Plan 54-02 executed -- shared profiling/deadline helpers + main() CC reduction 60->47 (2 tasks, TDD, 2050 tests pass)
+- 2026-03-08: Phase 54 COMPLETE -- all 2 plans done, ready for Phase 55

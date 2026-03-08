@@ -61,11 +61,11 @@ Decimal phases appear between their surrounding integers in numeric order.
       Plans:
   - [x] 53-01-PLAN.md -- Rename self.ssh to self.client, update stale docstrings, remove hot-loop import alias, extract validate_config_mode (2/2 tasks)
   - [x] 53-02-PLAN.md -- Scope InsecureRequestWarning to REST session, fix ruff violations (1/1 tasks)
-- [ ] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots
-      **Plans:** 2 plans
+- [x] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots (completed 2026-03-08)
+      **Plans:** 2 plans (2/2 complete)
       Plans:
-  - [ ] 54-01-PLAN.md -- Audit report + module boundary cleanup (steering __init__.py simplification) (2/2 tasks)
-  - [ ] 54-02-PLAN.md -- Consolidate daemon duplication + extract main() complexity hotspots (2/2 tasks)
+  - [x] 54-01-PLAN.md -- Audit report + module boundary cleanup (steering **init**.py simplification) (2/2 tasks)
+  - [x] 54-02-PLAN.md -- Consolidate daemon duplication + extract main() complexity hotspots (2/2 tasks)
 - [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
