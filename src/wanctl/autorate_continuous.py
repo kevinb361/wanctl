@@ -23,6 +23,7 @@ from wanctl.config_validation_utils import (
     validate_bandwidth_order,
     validate_threshold_order,
 )
+from wanctl.daemon_utils import check_cleanup_deadline
 from wanctl.error_handling import handle_errors
 from wanctl.health_check import start_health_server, update_health_status
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
@@ -35,7 +36,12 @@ from wanctl.metrics import (
     start_metrics_server,
 )
 from wanctl.pending_rates import PendingRateChange
-from wanctl.perf_profiler import OperationProfiler, PerfTimer
+from wanctl.perf_profiler import (
+    PROFILE_REPORT_INTERVAL,  # noqa: F401 -- re-exported for test compatibility
+    OperationProfiler,
+    PerfTimer,
+    record_cycle_profiling,
+)
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
@@ -97,7 +103,7 @@ MAX_SANE_BASELINE_RTT = 60.0
 DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
-PROFILE_REPORT_INTERVAL = 1200  # Profiling report every 60s (1200 * 50ms)
+# PROFILE_REPORT_INTERVAL imported from perf_profiler (shared with steering)
 
 # Conversion factors
 MBPS_TO_BPS = 1_000_000
@@ -1347,42 +1353,27 @@ class WANController:
         router_ms: float,
         cycle_start: float,
     ) -> None:
-        """Record subsystem timing to profiler, emit structured log, and detect overruns."""
-        total_ms = (time.perf_counter() - cycle_start) * 1000.0
-        self._profiler.record("autorate_rtt_measurement", rtt_ms)
-        self._profiler.record("autorate_state_management", state_ms)
-        self._profiler.record("autorate_router_communication", router_ms)
-        self._profiler.record("autorate_cycle_total", total_ms)
+        """Record subsystem timing to profiler, emit structured log, and detect overruns.
 
-        # Overrun detection
-        is_overrun = total_ms > self._cycle_interval_ms
-        if is_overrun:
-            self._overrun_count += 1
-            # Rate-limited WARNING: 1st, 3rd, every 10th
-            count = self._overrun_count
-            if count == 1 or count == 3 or count % 10 == 0:
-                self.logger.warning(
-                    f"{self.wan_name}: Cycle overrun: {total_ms:.1f}ms > "
-                    f"{self._cycle_interval_ms:.0f}ms (total: {self._overrun_count})"
-                )
-
-        # Structured DEBUG log every cycle
-        self.logger.debug(
-            "Cycle timing",
-            extra={
-                "cycle_total_ms": round(total_ms, 1),
-                "rtt_measurement_ms": round(rtt_ms, 1),
-                "state_management_ms": round(state_ms, 1),
-                "router_communication_ms": round(router_ms, 1),
-                "overrun": is_overrun,
+        Thin wrapper around shared record_cycle_profiling() -- preserves method
+        signature for test compatibility.
+        """
+        self._overrun_count, self._profile_cycle_count = record_cycle_profiling(
+            profiler=self._profiler,
+            timings={
+                "autorate_rtt_measurement": rtt_ms,
+                "autorate_state_management": state_ms,
+                "autorate_router_communication": router_ms,
             },
+            cycle_start=cycle_start,
+            cycle_interval_ms=self._cycle_interval_ms,
+            logger=self.logger,
+            daemon_name=f"{self.wan_name}: Cycle",
+            label_prefix="autorate",
+            overrun_count=self._overrun_count,
+            profiling_enabled=self._profiling_enabled,
+            profile_cycle_count=self._profile_cycle_count,
         )
-
-        # Periodic profiling report (deque maxlen handles eviction, no clear needed)
-        self._profile_cycle_count += 1
-        if self._profiling_enabled and self._profile_cycle_count >= PROFILE_REPORT_INTERVAL:
-            self._profiler.report(self.logger)
-            self._profile_cycle_count = 0
 
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
@@ -2125,16 +2116,6 @@ def main() -> int | None:
         _cleanup_log = logging.getLogger(__name__)
         _cleanup_log.info("Shutting down daemon...")
 
-        def _check_deadline(step_name: str, step_start: float) -> None:
-            elapsed = time.monotonic() - step_start
-            if elapsed > 5.0:
-                _cleanup_log.warning(f"Slow cleanup step: {step_name} took {elapsed:.1f}s")
-            if time.monotonic() > deadline:
-                _cleanup_log.error(
-                    f"Cleanup deadline exceeded ({SHUTDOWN_TIMEOUT_SECONDS}s) "
-                    f"after {step_name}"
-                )
-
         # 0. Force save state for all WANs (preserve EWMA/counters on shutdown)
         t0 = time.monotonic()
         for wan_info in controller.wan_controllers:
@@ -2142,7 +2123,7 @@ def main() -> int | None:
                 wan_info["controller"].save_state(force=True)
             except Exception:
                 pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
-        _check_deadline("state_save", t0)
+        check_cleanup_deadline("state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:
@@ -2171,7 +2152,7 @@ def main() -> int | None:
                     router.close()
             except Exception as e:
                 wan_info["logger"].debug(f"Error closing router connection: {e}")
-        _check_deadline("router_close", t0)
+        check_cleanup_deadline("router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # 3. Shut down metrics server
         t0 = time.monotonic()
@@ -2181,7 +2162,7 @@ def main() -> int | None:
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
-        _check_deadline("metrics_server", t0)
+        check_cleanup_deadline("metrics_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # 4. Shut down health check server
         t0 = time.monotonic()
@@ -2191,7 +2172,7 @@ def main() -> int | None:
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down health server: {e}")
-        _check_deadline("health_server", t0)
+        check_cleanup_deadline("health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # 5. Close MetricsWriter (SQLite connection)
         t0 = time.monotonic()
@@ -2201,7 +2182,7 @@ def main() -> int | None:
                 _cleanup_log.debug("MetricsWriter connection closed")
         except Exception as e:
             _cleanup_log.debug(f"Error closing MetricsWriter: {e}")
-        _check_deadline("metrics_writer", t0)
+        check_cleanup_deadline("metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # Log clean shutdown
         total = time.monotonic() - cleanup_start
