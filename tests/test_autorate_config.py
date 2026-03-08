@@ -665,3 +665,115 @@ lock_timeout: 300
             ValueError, match="must specify either load_time_constant_sec or alpha_load"
         ):
             Config(str(config_file))
+
+
+# =============================================================================
+# TestConfigRouterTransportDefault
+# =============================================================================
+
+
+class TestConfigRouterTransportDefault:
+    """Tests for autorate Config router_transport default.
+
+    CLEAN-04: Autorate Config must default router_transport to "rest" when
+    the transport key is omitted from the router section. This matches the
+    steering daemon default and the factory default, resolving the previous
+    contradiction where config defaulted to "ssh" but factory used "rest".
+    """
+
+    def test_router_transport_defaults_to_rest_when_omitted(self, tmp_path):
+        """Config defaults router_transport to 'rest' when transport key is missing."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.router_transport == "rest"
+
+    def test_router_transport_explicit_rest(self, tmp_path):
+        """Config honors explicit transport='rest' setting."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+  transport: "rest"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.router_transport == "rest"
