@@ -222,3 +222,80 @@ def measure_operation(
             return func(*args, **kwargs)
 
     return wrapper
+
+
+# =============================================================================
+# SHARED PROFILING HELPERS
+# =============================================================================
+
+PROFILE_REPORT_INTERVAL = 1200  # ~60s at 50ms cycles
+
+
+def record_cycle_profiling(
+    profiler: OperationProfiler,
+    timings: dict[str, float],
+    cycle_start: float,
+    cycle_interval_ms: float,
+    logger: logging.Logger,
+    daemon_name: str,
+    label_prefix: str,
+    overrun_count: int,
+    profiling_enabled: bool,
+    profile_cycle_count: int,
+) -> tuple[int, int]:
+    """Record subsystem timing, detect overruns, emit structured logs.
+
+    Shared implementation for both autorate and steering daemon profiling.
+    Each daemon's _record_profiling() method delegates to this function.
+
+    Args:
+        profiler: OperationProfiler instance to record timings to
+        timings: Dict of label->elapsed_ms for each subsystem
+        cycle_start: perf_counter() timestamp when cycle started
+        cycle_interval_ms: Target cycle interval in milliseconds
+        logger: Logger for warnings and debug output
+        daemon_name: Name for overrun warning messages (e.g., "spectrum", "Steering")
+        label_prefix: Prefix for cycle_total label (e.g., "autorate", "steering")
+        overrun_count: Current cumulative overrun count
+        profiling_enabled: Whether periodic report is enabled
+        profile_cycle_count: Current cycle count toward next report
+
+    Returns:
+        Tuple of (updated_overrun_count, updated_profile_cycle_count)
+    """
+    total_ms = (time.perf_counter() - cycle_start) * 1000.0
+
+    # Record each subsystem timing
+    for label, elapsed_ms in timings.items():
+        profiler.record(label, elapsed_ms)
+
+    # Record cycle total
+    profiler.record(f"{label_prefix}_cycle_total", total_ms)
+
+    # Overrun detection
+    is_overrun = total_ms > cycle_interval_ms
+    if is_overrun:
+        overrun_count += 1
+        # Rate-limited WARNING: 1st, 3rd, every 10th
+        if overrun_count == 1 or overrun_count == 3 or overrun_count % 10 == 0:
+            logger.warning(
+                f"{daemon_name} overrun: {total_ms:.1f}ms > "
+                f"{cycle_interval_ms:.0f}ms (total: {overrun_count})"
+            )
+
+    # Structured DEBUG log every cycle -- build extra dict from timing keys
+    extra: dict[str, Any] = {"cycle_total_ms": round(total_ms, 1), "overrun": is_overrun}
+    for label, elapsed_ms in timings.items():
+        # Convert "autorate_rtt_measurement" -> "rtt_measurement_ms"
+        # Convert "steering_cake_stats" -> "cake_stats_ms"
+        suffix = label.split("_", 1)[1] if "_" in label else label
+        extra[f"{suffix}_ms"] = round(elapsed_ms, 1)
+    logger.debug("Cycle timing", extra=extra)
+
+    # Periodic profiling report (deque maxlen handles eviction, no clear needed)
+    profile_cycle_count += 1
+    if profiling_enabled and profile_cycle_count >= PROFILE_REPORT_INTERVAL:
+        profiler.report(logger)
+        profile_cycle_count = 0
+
+    return overrun_count, profile_cycle_count

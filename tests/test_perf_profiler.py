@@ -4,6 +4,7 @@ Covers:
 - PerfTimer context manager for timing code blocks
 - OperationProfiler for accumulating metrics across cycles
 - measure_operation decorator for timing function calls
+- record_cycle_profiling shared helper for daemon profiling
 """
 
 import logging
@@ -12,7 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wanctl.perf_profiler import OperationProfiler, PerfTimer, measure_operation
+from wanctl.perf_profiler import (
+    PROFILE_REPORT_INTERVAL,
+    OperationProfiler,
+    PerfTimer,
+    measure_operation,
+    record_cycle_profiling,
+)
 
 
 class TestPerfTimer:
@@ -260,3 +267,233 @@ class TestMeasureOperationDecorator:
         # Note: PerfTimer logs in __exit__ which runs before exception propagates
         # so the log should still happen
         mock_logger.debug.assert_called_once()
+
+
+class TestRecordCycleProfiling:
+    """Tests for record_cycle_profiling shared helper."""
+
+    @pytest.fixture
+    def profiler(self) -> OperationProfiler:
+        return OperationProfiler(max_samples=100)
+
+    @pytest.fixture
+    def logger(self) -> MagicMock:
+        return MagicMock(spec=logging.Logger)
+
+    def test_records_all_timing_keys_to_profiler(self, profiler, logger) -> None:
+        """All timing keys should be recorded to the profiler."""
+        timings = {
+            "autorate_rtt_measurement": 10.0,
+            "autorate_state_management": 2.0,
+            "autorate_router_communication": 1.0,
+        }
+        cycle_start = time.perf_counter()
+        record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+
+        for key in timings:
+            assert key in profiler.samples, f"Expected {key} in profiler samples"
+
+    def test_records_cycle_total_to_profiler(self, profiler, logger) -> None:
+        """cycle_total label should be recorded based on label_prefix."""
+        timings = {"autorate_rtt_measurement": 10.0}
+        cycle_start = time.perf_counter()
+        record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+        assert "autorate_cycle_total" in profiler.samples
+
+    def test_detects_overrun(self, profiler, logger) -> None:
+        """Overrun should be detected when total_ms > cycle_interval_ms."""
+        timings = {"autorate_rtt_measurement": 10.0}
+        cycle_start = time.perf_counter() - 0.1  # 100ms ago
+        overrun_count, _ = record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+        assert overrun_count == 1
+
+    def test_no_overrun_for_fast_cycle(self, profiler, logger) -> None:
+        """No overrun should occur for fast cycles."""
+        timings = {"autorate_rtt_measurement": 1.0}
+        cycle_start = time.perf_counter()
+        overrun_count, _ = record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+        assert overrun_count == 0
+
+    def test_rate_limited_overrun_warnings_1st_3rd_10th(self, profiler, logger) -> None:
+        """WARNING should be logged on 1st, 3rd, and every 10th overrun."""
+        overrun_count = 0
+        cycle_count = 0
+        for i in range(20):
+            cycle_start = time.perf_counter() - 0.1  # Force overrun
+            overrun_count, cycle_count = record_cycle_profiling(
+                profiler=profiler,
+                timings={"autorate_rtt_measurement": 10.0},
+                cycle_start=cycle_start,
+                cycle_interval_ms=50.0,
+                logger=logger,
+                daemon_name="TestWAN: Cycle",
+                label_prefix="autorate",
+                overrun_count=overrun_count,
+                profiling_enabled=False,
+                profile_cycle_count=cycle_count,
+            )
+
+        # 1st, 3rd, 10th, 20th = 4 warnings
+        assert logger.warning.call_count == 4
+
+    def test_structured_debug_log_emission(self, profiler, logger) -> None:
+        """Structured DEBUG log should be emitted with correct extra fields."""
+        timings = {
+            "autorate_rtt_measurement": 10.5,
+            "autorate_state_management": 2.3,
+            "autorate_router_communication": 1.7,
+        }
+        cycle_start = time.perf_counter()
+        record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+
+        logger.debug.assert_called_once()
+        args, kwargs = logger.debug.call_args
+        assert args[0] == "Cycle timing"
+        assert "extra" in kwargs
+        extra = kwargs["extra"]
+        assert "cycle_total_ms" in extra
+        assert "overrun" in extra
+        assert isinstance(extra["overrun"], bool)
+
+    def test_periodic_report_trigger(self, profiler, logger) -> None:
+        """Report should trigger at PROFILE_REPORT_INTERVAL when profiling enabled."""
+        overrun_count = 0
+        cycle_count = 0
+        for _ in range(PROFILE_REPORT_INTERVAL):
+            cycle_start = time.perf_counter()
+            overrun_count, cycle_count = record_cycle_profiling(
+                profiler=profiler,
+                timings={"autorate_rtt_measurement": 1.0},
+                cycle_start=cycle_start,
+                cycle_interval_ms=50.0,
+                logger=logger,
+                daemon_name="TestWAN: Cycle",
+                label_prefix="autorate",
+                overrun_count=overrun_count,
+                profiling_enabled=True,
+                profile_cycle_count=cycle_count,
+            )
+
+        # report should have been triggered
+        info_calls = [str(call) for call in logger.info.call_args_list]
+        assert any("Profiling Report" in c for c in info_calls)
+
+    def test_no_report_when_profiling_disabled(self, profiler, logger) -> None:
+        """No report should trigger when profiling_enabled=False."""
+        overrun_count = 0
+        cycle_count = 0
+        for _ in range(PROFILE_REPORT_INTERVAL + 100):
+            cycle_start = time.perf_counter()
+            overrun_count, cycle_count = record_cycle_profiling(
+                profiler=profiler,
+                timings={"autorate_rtt_measurement": 1.0},
+                cycle_start=cycle_start,
+                cycle_interval_ms=50.0,
+                logger=logger,
+                daemon_name="TestWAN: Cycle",
+                label_prefix="autorate",
+                overrun_count=overrun_count,
+                profiling_enabled=False,
+                profile_cycle_count=cycle_count,
+            )
+
+        info_calls = [str(call) for call in logger.info.call_args_list]
+        assert not any("Profiling Report" in c for c in info_calls)
+
+    def test_returns_updated_counts(self, profiler, logger) -> None:
+        """Should return updated (overrun_count, profile_cycle_count)."""
+        cycle_start = time.perf_counter()
+        overrun_count, cycle_count = record_cycle_profiling(
+            profiler=profiler,
+            timings={"autorate_rtt_measurement": 1.0},
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=5,
+            profiling_enabled=False,
+            profile_cycle_count=10,
+        )
+        assert isinstance(overrun_count, int)
+        assert isinstance(cycle_count, int)
+        # No overrun -> overrun_count unchanged
+        assert overrun_count == 5
+        # cycle_count incremented by 1
+        assert cycle_count == 11
+
+    def test_cycle_count_resets_after_report(self, profiler, logger) -> None:
+        """profile_cycle_count should reset to 0 after report and then increment."""
+        overrun_count = 0
+        cycle_count = 0
+        for _ in range(PROFILE_REPORT_INTERVAL + 1):
+            cycle_start = time.perf_counter()
+            overrun_count, cycle_count = record_cycle_profiling(
+                profiler=profiler,
+                timings={"autorate_rtt_measurement": 1.0},
+                cycle_start=cycle_start,
+                cycle_interval_ms=50.0,
+                logger=logger,
+                daemon_name="TestWAN: Cycle",
+                label_prefix="autorate",
+                overrun_count=overrun_count,
+                profiling_enabled=True,
+                profile_cycle_count=cycle_count,
+            )
+        # After 1200 it resets to 0, then 1 more = 1
+        assert cycle_count == 1

@@ -31,10 +31,16 @@ from pathlib import Path
 
 from ..config_base import BaseConfig, get_storage_config
 from ..config_validation_utils import validate_alpha
+from ..daemon_utils import check_cleanup_deadline
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
 from ..metrics import record_steering_state, record_steering_transition
-from ..perf_profiler import OperationProfiler, PerfTimer
+from ..perf_profiler import (
+    PROFILE_REPORT_INTERVAL,  # noqa: F401 -- re-exported for test compatibility
+    OperationProfiler,
+    PerfTimer,
+    record_cycle_profiling,
+)
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
@@ -116,8 +122,7 @@ BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than thi
 # With baseline ~23ms, this allows absolute RTT up to ~523ms before rejection.
 MAX_SANE_RTT_DELTA_MS = 500.0
 
-# Profiling report interval (cycles between reports at 50ms = 60 seconds)
-PROFILE_REPORT_INTERVAL = 1200
+# PROFILE_REPORT_INTERVAL imported from perf_profiler (shared with autorate)
 
 
 # =============================================================================
@@ -1275,42 +1280,27 @@ class SteeringDaemon:
         state_ms: float,
         cycle_start: float,
     ) -> None:
-        """Record subsystem timing to profiler, emit structured log, and detect overruns."""
-        total_ms = (time.perf_counter() - cycle_start) * 1000.0
-        self._profiler.record("steering_cake_stats", cake_ms)
-        self._profiler.record("steering_rtt_measurement", rtt_ms)
-        self._profiler.record("steering_state_management", state_ms)
-        self._profiler.record("steering_cycle_total", total_ms)
+        """Record subsystem timing to profiler, emit structured log, and detect overruns.
 
-        # Overrun detection
-        is_overrun = total_ms > self._cycle_interval_ms
-        if is_overrun:
-            self._overrun_count += 1
-            # Rate-limited WARNING: 1st, 3rd, every 10th
-            count = self._overrun_count
-            if count == 1 or count == 3 or count % 10 == 0:
-                self.logger.warning(
-                    f"Steering cycle overrun: {total_ms:.1f}ms > "
-                    f"{self._cycle_interval_ms:.0f}ms (total: {self._overrun_count})"
-                )
-
-        # Structured DEBUG log every cycle
-        self.logger.debug(
-            "Cycle timing",
-            extra={
-                "cycle_total_ms": round(total_ms, 1),
-                "rtt_measurement_ms": round(rtt_ms, 1),
-                "cake_stats_ms": round(cake_ms, 1),
-                "state_management_ms": round(state_ms, 1),
-                "overrun": is_overrun,
+        Thin wrapper around shared record_cycle_profiling() -- preserves method
+        signature for test compatibility.
+        """
+        self._overrun_count, self._profile_cycle_count = record_cycle_profiling(
+            profiler=self._profiler,
+            timings={
+                "steering_cake_stats": cake_ms,
+                "steering_rtt_measurement": rtt_ms,
+                "steering_state_management": state_ms,
             },
+            cycle_start=cycle_start,
+            cycle_interval_ms=self._cycle_interval_ms,
+            logger=self.logger,
+            daemon_name="Steering cycle",
+            label_prefix="steering",
+            overrun_count=self._overrun_count,
+            profiling_enabled=self._profiling_enabled,
+            profile_cycle_count=self._profile_cycle_count,
         )
-
-        # Periodic profiling report (deque maxlen handles eviction, no clear needed)
-        self._profile_cycle_count += 1
-        if self._profiling_enabled and self._profile_cycle_count >= PROFILE_REPORT_INTERVAL:
-            self._profiler.report(self.logger)
-            self._profile_cycle_count = 0
 
     def run_cycle(self) -> bool:
         """
@@ -1749,16 +1739,6 @@ def main() -> int | None:
         deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
         logger.info("Shutting down daemon...")
 
-        def _check_deadline(step_name: str, step_start: float) -> None:
-            elapsed = time.monotonic() - step_start
-            if elapsed > 5.0:
-                logger.warning(f"Slow cleanup step: {step_name} took {elapsed:.1f}s")
-            if time.monotonic() > deadline:
-                logger.error(
-                    f"Cleanup deadline exceeded ({SHUTDOWN_TIMEOUT_SECONDS}s) "
-                    f"after {step_name}"
-                )
-
         # 0. Force save state (preserve EWMA/counters on shutdown)
         t0 = time.monotonic()
         try:
@@ -1766,7 +1746,7 @@ def main() -> int | None:
             logger.debug("State saved on shutdown")
         except Exception as e:
             logger.warning(f"Error saving state on shutdown: {e}")
-        _check_deadline("state_save", t0)
+        check_cleanup_deadline("state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
 
         # 1. Shutdown health server (INTG-02)
         if health_server is not None:
@@ -1776,7 +1756,7 @@ def main() -> int | None:
                 logger.debug("Health server stopped")
             except Exception as e:
                 logger.warning(f"Error shutting down health server: {e}")
-            _check_deadline("health_server", t0)
+            check_cleanup_deadline("health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
 
         # 2. Close router connection
         t0 = time.monotonic()
@@ -1785,7 +1765,7 @@ def main() -> int | None:
             logger.debug("Router connection closed")
         except Exception as e:
             logger.warning(f"Error closing router connection: {e}")
-        _check_deadline("router_close", t0)
+        check_cleanup_deadline("router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
 
         # 3. Close MetricsWriter (SQLite connection)
         t0 = time.monotonic()
@@ -1795,7 +1775,7 @@ def main() -> int | None:
                 logger.debug("MetricsWriter connection closed")
         except Exception as e:
             logger.warning(f"Error closing MetricsWriter: {e}")
-        _check_deadline("metrics_writer", t0)
+        check_cleanup_deadline("metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
 
         # 4. Release lock file
         if config.lock_file.exists():
