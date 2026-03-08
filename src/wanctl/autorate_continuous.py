@@ -1806,6 +1806,158 @@ def validate_config_mode(config_files: list[str]) -> int:
     return 0 if all_valid else 1
 
 
+def _parse_autorate_args() -> argparse.Namespace:
+    """Parse command-line arguments for the autorate daemon.
+
+    Returns:
+        Parsed argument namespace with config, debug, oneshot, validate_config,
+        and profile flags.
+    """
+    parser = argparse.ArgumentParser(
+        description="Continuous CAKE Auto-Tuning Daemon with 50ms Control Loop"
+    )
+    parser.add_argument(
+        "--config",
+        nargs="+",
+        required=True,
+        help="One or more config files (supports single-WAN or multi-WAN)",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="Enable debug logging to console and debug log file"
+    )
+    parser.add_argument(
+        "--oneshot", action="store_true", help="Run one cycle and exit (for testing/manual runs)"
+    )
+    parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate configuration and exit (dry-run mode for CI/CD)",
+    )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable periodic profiling reports (INFO level)",
+    )
+    return parser.parse_args()
+
+
+def _init_storage(
+    controller: "ContinuousAutoRate",
+) -> tuple[Any, int]:
+    """Initialize storage, record config snapshot, and run startup maintenance.
+
+    Args:
+        controller: The ContinuousAutoRate instance (for config/logger access).
+
+    Returns:
+        Tuple of (maintenance_conn, maintenance_retention_days).
+        maintenance_conn is None if storage is not enabled.
+    """
+    first_config = controller.wan_controllers[0]["config"]
+    storage_config = get_storage_config(first_config.data)
+    db_path = storage_config.get("db_path")
+    maintenance_conn = None
+    maintenance_retention_days = storage_config.get("retention_days", 7)
+
+    # Only record snapshot if db_path is a valid string (not MagicMock in tests)
+    if db_path and isinstance(db_path, str):
+        from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
+
+        writer = MetricsWriter(Path(db_path))
+        maintenance_conn = writer.connection
+        record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
+
+        # Run startup maintenance (cleanup + downsampling)
+        # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
+        maint_result = run_startup_maintenance(
+            maintenance_conn,
+            retention_days=maintenance_retention_days,
+            log=controller.wan_controllers[0]["logger"],
+            watchdog_fn=notify_watchdog,
+            max_seconds=20,
+        )
+        if maint_result.get("error"):
+            controller.wan_controllers[0]["logger"].warning(
+                f"Startup maintenance error: {maint_result['error']}"
+            )
+
+    return maintenance_conn, maintenance_retention_days
+
+
+def _acquire_daemon_locks(
+    controller: "ContinuousAutoRate",
+) -> tuple[list[Path], int | None]:
+    """Acquire exclusive locks for all WAN controllers.
+
+    Args:
+        controller: The ContinuousAutoRate instance.
+
+    Returns:
+        Tuple of (lock_files, error_code). error_code is None on success,
+        1 if lock acquisition failed.
+    """
+    lock_files: list[Path] = []
+    for lock_path in controller.get_lock_paths():
+        logger = controller.wan_controllers[0]["logger"]
+        lock_timeout = controller.wan_controllers[0]["config"].lock_timeout
+        try:
+            if not validate_and_acquire_lock(lock_path, lock_timeout, logger):
+                for wan_info in controller.wan_controllers:
+                    wan_info["logger"].error("Another instance is running, refusing to start")
+                return lock_files, 1
+            lock_files.append(lock_path)
+        except RuntimeError as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].error(f"Failed to validate lock: {e}")
+            return lock_files, 1
+    return lock_files, None
+
+
+def _start_servers(
+    controller: "ContinuousAutoRate",
+) -> tuple[Any, Any]:
+    """Start optional metrics and health check servers.
+
+    Args:
+        controller: The ContinuousAutoRate instance.
+
+    Returns:
+        Tuple of (metrics_server, health_server). Either may be None if
+        not configured or if startup fails (non-fatal).
+    """
+    metrics_server = None
+    health_server = None
+    first_config = controller.wan_controllers[0]["config"]
+
+    if first_config.metrics_enabled:
+        try:
+            metrics_server = start_metrics_server(
+                host=first_config.metrics_host,
+                port=first_config.metrics_port,
+            )
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].info(
+                    f"Prometheus metrics available at "
+                    f"http://{first_config.metrics_host}:{first_config.metrics_port}/metrics"
+                )
+        except OSError as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].warning(f"Failed to start metrics server: {e}")
+
+    if first_config.health_check_enabled:
+        try:
+            health_server = start_health_server(
+                host=first_config.health_check_host,
+                port=first_config.health_check_port,
+                controller=controller,
+            )
+        except OSError as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].warning(f"Failed to start health check server: {e}")
+
+    return metrics_server, health_server
+
+
 def main() -> int | None:
     """Main entry point for continuous CAKE auto-tuning daemon.
 
@@ -1845,33 +1997,7 @@ def main() -> int | None:
             - 130: Interrupted by signal (SIGINT/Ctrl+C)
             - None: Clean shutdown in daemon mode (SIGTERM or oneshot completion)
     """
-    parser = argparse.ArgumentParser(
-        description="Continuous CAKE Auto-Tuning Daemon with 50ms Control Loop"
-    )
-    parser.add_argument(
-        "--config",
-        nargs="+",
-        required=True,
-        help="One or more config files (supports single-WAN or multi-WAN)",
-    )
-    parser.add_argument(
-        "--debug", action="store_true", help="Enable debug logging to console and debug log file"
-    )
-    parser.add_argument(
-        "--oneshot", action="store_true", help="Run one cycle and exit (for testing/manual runs)"
-    )
-    parser.add_argument(
-        "--validate-config",
-        action="store_true",
-        help="Validate configuration and exit (dry-run mode for CI/CD)",
-    )
-    parser.add_argument(
-        "--profile",
-        action="store_true",
-        help="Enable periodic profiling reports (INFO level)",
-    )
-
-    args = parser.parse_args()
+    args = _parse_autorate_args()
 
     # Validate-config mode: check configuration and exit
     if args.validate_config:
@@ -1885,33 +2011,8 @@ def main() -> int | None:
         for wan_info in controller.wan_controllers:
             wan_info["controller"]._profiling_enabled = True
 
-    # Record config snapshot on startup (if storage enabled)
-    first_config = controller.wan_controllers[0]["config"]
-    storage_config = get_storage_config(first_config.data)
-    db_path = storage_config.get("db_path")
-    maintenance_conn = None  # Set if storage enabled, used for periodic maintenance
-    maintenance_retention_days = storage_config.get("retention_days", 7)
-    # Only record snapshot if db_path is a valid string (not MagicMock in tests)
-    if db_path and isinstance(db_path, str):
-        from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
-
-        writer = MetricsWriter(Path(db_path))
-        maintenance_conn = writer.connection
-        record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
-
-        # Run startup maintenance (cleanup + downsampling)
-        # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
-        maint_result = run_startup_maintenance(
-            maintenance_conn,
-            retention_days=maintenance_retention_days,
-            log=controller.wan_controllers[0]["logger"],
-            watchdog_fn=notify_watchdog,
-            max_seconds=20,
-        )
-        if maint_result.get("error"):
-            controller.wan_controllers[0]["logger"].warning(
-                f"Startup maintenance error: {maint_result['error']}"
-            )
+    # Initialize storage, record config snapshot, and run startup maintenance
+    maintenance_conn, maintenance_retention_days = _init_storage(controller)
 
     # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
@@ -1920,24 +2021,9 @@ def main() -> int | None:
 
     # Daemon mode: continuous loop with 50ms cycle time
     # Acquire locks once at startup and hold for entire run
-    lock_files = []
-    for lock_path in controller.get_lock_paths():
-        # Use unified lock validation and acquisition from lock_utils
-        # This handles PID validation, stale lock cleanup, and atomic lock creation
-        logger = controller.wan_controllers[0]["logger"]  # Use first logger for multi-WAN
-        lock_timeout = controller.wan_controllers[0]["config"].lock_timeout
-        try:
-            if not validate_and_acquire_lock(lock_path, lock_timeout, logger):
-                # Another instance is running
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].error("Another instance is running, refusing to start")
-                return 1
-            lock_files.append(lock_path)
-        except RuntimeError as e:
-            # Unexpected error during lock validation
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].error(f"Failed to validate lock: {e}")
-            return 1
+    lock_files, lock_error = _acquire_daemon_locks(controller)
+    if lock_error is not None:
+        return lock_error
 
     # Register emergency cleanup handler for abnormal termination (e.g., SIGKILL)
     # atexit handlers run on normal exit, sys.exit(), and unhandled exceptions
@@ -1959,39 +2045,10 @@ def main() -> int | None:
     consecutive_failures = 0
     MAX_CONSECUTIVE_FAILURES = 3
     watchdog_enabled = True
-    health_server = None
-    metrics_server = None
     last_maintenance = time.monotonic()
 
-    # Start metrics server if enabled (use first WAN's config for settings)
-    first_config = controller.wan_controllers[0]["config"]
-    if first_config.metrics_enabled:
-        try:
-            metrics_server = start_metrics_server(
-                host=first_config.metrics_host,
-                port=first_config.metrics_port,
-            )
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].info(
-                    f"Prometheus metrics available at http://{first_config.metrics_host}:{first_config.metrics_port}/metrics"
-                )
-        except OSError as e:
-            # Non-fatal: log warning but continue without metrics
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].warning(f"Failed to start metrics server: {e}")
-
-    # Start health check server
-    if first_config.health_check_enabled:
-        try:
-            health_server = start_health_server(
-                host=first_config.health_check_host,
-                port=first_config.health_check_port,
-                controller=controller,
-            )
-        except OSError as e:
-            # Non-fatal: log warning but continue without health check
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].warning(f"Failed to start health check server: {e}")
+    # Start optional servers (metrics, health check)
+    metrics_server, health_server = _start_servers(controller)
 
     # Log startup
     for wan_info in controller.wan_controllers:
