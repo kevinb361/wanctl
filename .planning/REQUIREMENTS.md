@@ -48,9 +48,9 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 ### Test Quality
 
 - [ ] **TEST-01**: Consolidate duplicated `mock_config` fixtures (8+ files) into shared conftest.py fixtures
-- [ ] **TEST-02**: Add behavioral integration tests for autorate-steering daemon interaction via state file
-- [ ] **TEST-03**: Add reduced-mock behavioral tests for router communication layer (REST and SSH)
-- [ ] **TEST-04**: Add failure cascade tests (router down + storage error simultaneously)
+- [x] **TEST-02**: Add behavioral integration tests for autorate-steering daemon interaction via state file
+- [x] **TEST-03**: Add reduced-mock behavioral tests for router communication layer (REST and SSH)
+- [x] **TEST-04**: Add failure cascade tests (router down + storage error simultaneously)
 
 ## Future Requirements
 
@@ -97,9 +97,9 @@ Requirements from senior architectural review. Each maps to roadmap phases.
 | AUDIT-02    | Phase 54 | Complete |
 | AUDIT-03    | Phase 54 | Complete |
 | TEST-01     | Phase 55 | Pending  |
-| TEST-02     | Phase 55 | Pending  |
-| TEST-03     | Phase 55 | Pending  |
-| TEST-04     | Phase 55 | Pending  |
+| TEST-02     | Phase 55 | Complete |
+| TEST-03     | Phase 55 | Complete |
+| TEST-04     | Phase 55 | Complete |
 
 **Coverage:**
 
