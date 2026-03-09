@@ -12,10 +12,11 @@ None
 
 ### Active
 
-- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-57) - IN PROGRESS
+None — planning next milestone.
 
 ### Completed
 
+- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-57) - SHIPPED 2026-03-09
 - [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - SHIPPED 2026-03-07
 - [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - SHIPPED 2026-03-06
 - [v1.7 Metrics History](milestones/v1.7-ROADMAP.md) (Phases 38-42) - SHIPPED 2026-01-25
@@ -36,53 +37,25 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.10 Architectural Review Fixes (Phases 50-57)
+<details>
+<summary>v1.10 Architectural Review Fixes (Phases 50-57) - SHIPPED 2026-03-09</summary>
 
 **Milestone Goal:** Address findings from senior architectural review -- fix critical hot-loop and config bugs, improve operational resilience, and strengthen test quality.
 
-- [x] **Phase 50: Critical Hot-Loop & Transport Fixes** - Fix blocking delays in hot loop, transport config contradictions, and failover re-probe
-      **Plans:** 3 plans (3/3 complete)
-      Plans:
-  - [x] 50-01-PLAN.md -- Sub-cycle retry delays on run_cmd + shutdown_event.wait in main loop (1/1 tasks)
-  - [x] 50-02-PLAN.md -- Make config.router_transport authoritative for transport selection (1/1 tasks)
-  - [x] 50-03-PLAN.md -- Add periodic re-probe of primary transport after failover (1/1 tasks)
-- [x] **Phase 51: Steering Reliability** - Fix state normalization, anomaly detection semantics, stale baseline detection, and file safety (completed 2026-03-07)
-      **Plans:** 2 plans
-      Plans:
-  - [ ] 51-01-PLAN.md -- Legacy state warning logging + anomaly cycle-skip semantics (1/1 tasks)
-  - [ ] 51-02-PLAN.md -- Safe JSON loading + stale baseline detection in BaselineLoader (1/1 tasks)
-- [x] **Phase 52: Operational Resilience** - SSL defaults, DB corruption recovery, disk monitoring, CVE patch, config error messages (completed 2026-03-07)
-      **Plans:** 2 plans (2/2 complete)
-      Plans:
-  - [x] 52-01-PLAN.md -- SSL verify_ssl=True default + YAML line number errors + cryptography CVE pin (3/3 tasks)
-  - [x] 52-02-PLAN.md -- SQLite integrity check with auto-rebuild + disk space in health endpoints (2/2 tasks)
-- [x] **Phase 53: Code Cleanup** - Rename misleading variables, fix stale docstrings, clean imports, scope warnings, ruff fixes, extract function (completed 2026-03-07)
-      **Plans:** 2 plans (2/2 complete)
-      Plans:
-  - [x] 53-01-PLAN.md -- Rename self.ssh to self.client, update stale docstrings, remove hot-loop import alias, extract validate_config_mode (2/2 tasks)
-  - [x] 53-02-PLAN.md -- Scope InsecureRequestWarning to REST session, fix ruff violations (1/1 tasks)
-- [x] **Phase 54: Codebase Audit** - Audit duplication, module boundaries, and remaining complexity hotspots (completed 2026-03-08)
-      **Plans:** 2 plans (2/2 complete)
-      Plans:
-  - [x] 54-01-PLAN.md -- Audit report + module boundary cleanup (steering **init**.py simplification) (2/2 tasks)
-  - [x] 54-02-PLAN.md -- Consolidate daemon duplication + extract main() complexity hotspots (2/2 tasks)
-- [ ] **Phase 55: Test Quality** - Consolidate fixtures, add behavioral integration tests, reduced-mock tests, failure cascade tests
-      **Plans:** 2 plans
-      Plans:
-  - [ ] 55-01-PLAN.md -- Consolidate duplicated mock_config fixtures into shared conftest.py (2/2 tasks)
-  - [ ] 55-02-PLAN.md -- Behavioral integration, reduced-mock router, and failure cascade tests (3/3 tasks)
-- [x] **Phase 56: Integration Gap Fixes** - Fix verify_ssl semantic contradiction + CONFIG_SCHEMA.md transport default (completed 2026-03-09)
-      **Plans:** 1 plan (1/1 complete)
-      **Gap Closure:** Closes OPS-01 integration gap + CLEAN-04 integration gap from audit
-      Plans:
-  - [x] 56-01-PLAN.md -- Fix verify_ssl default to True in both config loaders + update CONFIG_SCHEMA.md transport default to rest (2/2 tasks)
-- [x] **Phase 57: v1.10 Gap Closure** - Consolidate test fixtures (TEST-01) + cosmetic fixes from audit (completed 2026-03-09)
-      **Gap Closure:** Closes TEST-01 unsatisfied requirement + cosmetic residuals from v1.10-MILESTONE-AUDIT.md
-      **Plans:** 1 plan
-      Plans:
-  - [ ] 57-01-PLAN.md -- Consolidate mock_config fixtures + fix stale router_client.py docstring and default (2/2 tasks)
+- [x] Phase 50: Critical Hot-Loop & Transport Fixes (3/3 plans) -- completed 2026-03-07
+- [x] Phase 51: Steering Reliability (2/2 plans) -- completed 2026-03-07
+- [x] Phase 52: Operational Resilience (2/2 plans) -- completed 2026-03-07
+- [x] Phase 53: Code Cleanup (2/2 plans) -- completed 2026-03-07
+- [x] Phase 54: Codebase Audit (2/2 plans) -- completed 2026-03-08
+- [x] Phase 55: Test Quality (1/2 plans executed, 55-01 superseded by Phase 57) -- completed 2026-03-08
+- [x] Phase 56: Integration Gap Fixes (1/1 plan) -- completed 2026-03-09
+- [x] Phase 57: v1.10 Gap Closure (1/1 plan) -- completed 2026-03-09
+
+**Key Results:** Hot-loop blocking delays eliminated (sub-cycle retries), self-healing transport failover with re-probe, SSL verification defaults fixed, SQLite corruption auto-recovery, disk space health monitoring, systematic codebase audit with daemon duplication consolidated, 24 new behavioral/integration tests, fixture consolidation (-481 lines), all 27 requirements satisfied, 2,109 tests at 91%+ coverage.
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
+
+</details>
 
 <details>
 <summary>v1.9 Performance & Efficiency (Phases 47-49) - SHIPPED 2026-03-07</summary>
@@ -254,27 +227,22 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Status:** v1.10 Architectural Review Fixes in progress.
-
-### Active Milestone
-
-| Milestone                        | Phases | Plans | Status      |
-| -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-57  | 15    | In progress |
+**Status:** No active milestone. Planning next.
 
 ### Completed Milestones
 
-| Milestone                     | Phases | Plans | Status   | Shipped    |
-| ----------------------------- | ------ | ----- | -------- | ---------- |
-| v1.9 Performance & Efficiency | 47-49  | 6     | Complete | 2026-03-07 |
-| v1.8 Resilience & Robustness  | 43-46  | 8     | Complete | 2026-03-06 |
-| v1.7 Metrics History          | 38-42  | 8     | Complete | 2026-01-25 |
-| v1.6 Test Coverage 90%        | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene        | 27-30  | 8     | Complete | 2026-01-24 |
-| v1.4 Observability            | 25-26  | 4     | Complete | 2026-01-24 |
-| v1.3 Reliability & Hardening  | 21-24  | 5     | Complete | 2026-01-21 |
-| v1.2 Configuration & Polish   | 16-20  | 5     | Complete | 2026-01-14 |
-| v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
-| v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
+| Milestone                          | Phases | Plans | Status   | Shipped    |
+| ---------------------------------- | ------ | ----- | -------- | ---------- |
+| v1.10 Architectural Review Fixes   | 50-57  | 15    | Complete | 2026-03-09 |
+| v1.9 Performance & Efficiency      | 47-49  | 6     | Complete | 2026-03-07 |
+| v1.8 Resilience & Robustness      | 43-46  | 8     | Complete | 2026-03-06 |
+| v1.7 Metrics History              | 38-42  | 8     | Complete | 2026-01-25 |
+| v1.6 Test Coverage 90%            | 31-37  | 17    | Complete | 2026-01-25 |
+| v1.5 Quality & Hygiene            | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.4 Observability                | 25-26  | 4     | Complete | 2026-01-24 |
+| v1.3 Reliability & Hardening      | 21-24  | 5     | Complete | 2026-01-21 |
+| v1.2 Configuration & Polish       | 16-20  | 5     | Complete | 2026-01-14 |
+| v1.1 Code Quality                 | 6-15   | 30    | Complete | 2026-01-14 |
+| v1.0 Performance Optimization     | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 49 phases complete, 105 plans across 10 milestones + 7 new phases planned
+**Total:** 57 phases complete, 119 plans across 11 milestones

@@ -1,5 +1,14 @@
 # Project Milestones: wanctl
 
+## v1.10 Architectural Review Fixes (Shipped: 2026-03-09)
+
+**Phases completed:** 8 phases, 15 plans, 3 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.9 Performance & Efficiency (Shipped: 2026-03-07)
 
 **Delivered:** Profiling-driven cycle optimization with icmplib raw ICMP sockets, per-subsystem telemetry, and health endpoint cycle budget visibility.

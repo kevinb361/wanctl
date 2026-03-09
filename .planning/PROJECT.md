@@ -95,6 +95,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Cycle budget telemetry in both health endpoints — v1.9
 - ✓ Profiling analysis pipeline with 50ms budget context — v1.9
 
+**v1.10 Architectural Review Fixes:**
+
+- ✓ Sub-cycle retry delays (50ms max per attempt, single retry) — v1.10
+- ✓ Transport config authoritative (router_transport controls primary) — v1.10
+- ✓ Self-healing failover (periodic re-probe of primary REST) — v1.10
+- ✓ Steering state normalization with legacy warnings — v1.10
+- ✓ Safe JSON loading and stale baseline detection — v1.10
+- ✓ SSL verify_ssl=True default across all layers — v1.10
+- ✓ SQLite integrity check with auto-rebuild on corruption — v1.10
+- ✓ Disk space monitoring in health endpoints — v1.10
+- ✓ Daemon duplication consolidated (daemon_utils.py, perf_profiler.py) — v1.10
+- ✓ Test fixture consolidation (-481 lines, shared conftest.py) — v1.10
+- ✓ 27/27 requirements satisfied, all 6 E2E flows verified — v1.10
+
 ### Active
 
 **Ongoing:**
@@ -202,6 +216,17 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 49: Telemetry & monitoring (structured logs, health endpoint cycle budget)
 - 97 new tests (1,881 → 1,978 total)
 
+**v1.10 Architectural Review Fixes (2026-03-07 → 2026-03-09):**
+
+- Phase 50: Critical hot-loop & transport fixes (sub-cycle retries, config authority, failover re-probe)
+- Phase 51: Steering reliability (state normalization, anomaly semantics, stale baseline, safe JSON)
+- Phase 52: Operational resilience (SSL defaults, SQLite recovery, disk monitoring, CVE patch)
+- Phase 53: Code cleanup (self.ssh → self.client, stale docstrings, import cleanup, ruff fixes)
+- Phase 54: Codebase audit (duplication consolidated, module boundaries, complexity extraction)
+- Phase 55: Test quality (behavioral integration, failure cascade, reduced-mock tests)
+- Phase 56-57: Gap closure (verify_ssl chain, config docs, fixture consolidation)
+- 131 new tests (1,978 → 2,109 total), 27/27 requirements satisfied
+
 ## Constraints
 
 - **Production deployment**: Running in home network — must maintain stability and reliability
@@ -231,7 +256,12 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | icmplib replaces subprocess ping | Eliminate fork/exec overhead in RTT hot path | ✓ -3.4ms avg (8.3%) | 2026-03-06 |
 | OPTM-02/03 closed by profiling evidence | Router comm 0.0-0.2ms, CAKE stats at 2s interval | ✓ No code change needed | 2026-03-06 |
 | Shared \_build_cycle_budget() helper | Single source of truth for health endpoint telemetry | ✓ Both endpoints consistent | 2026-03-06 |
+| Sub-cycle retry with single attempt | Prevent multi-second blocking in 50ms hot loop | ✓ Max 50ms retry delay | 2026-03-07 |
+| Self-healing transport failover | Auto-recover primary REST after SSH fallback | ✓ Exponential backoff 30-300s | 2026-03-07 |
+| verify_ssl=True default everywhere | Secure by default, explicit opt-out for self-signed | ✓ All 3 layers aligned | 2026-03-09 |
+| Daemon duplication → shared helpers | daemon_utils.py + perf_profiler.py reduce copy-paste | ✓ Both daemons import shared | 2026-03-08 |
+| Fixture delegation over duplication | Shared conftest + class overrides vs. copy-paste | ✓ -481 lines, 21 fixtures | 2026-03-09 |
 
 ---
 
-_Last updated: 2026-03-09 after v1.11 milestone start_
+_Last updated: 2026-03-09 after v1.10 milestone completion_
