@@ -72,7 +72,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [ ] 55-01-PLAN.md -- Consolidate duplicated mock_config fixtures into shared conftest.py (2/2 tasks)
   - [ ] 55-02-PLAN.md -- Behavioral integration, reduced-mock router, and failure cascade tests (3/3 tasks)
 - [ ] **Phase 56: Integration Gap Fixes** - Fix verify_ssl semantic contradiction + CONFIG_SCHEMA.md transport default
+      **Plans:** 1 plan
       **Gap Closure:** Closes OPS-01 integration gap + CLEAN-04 integration gap from audit
+      Plans:
+  - [ ] 56-01-PLAN.md -- Fix verify_ssl default to True in both config loaders + update CONFIG_SCHEMA.md transport default to rest (2/2 tasks)
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
@@ -252,7 +255,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                        | Phases | Plans | Status      |
 | -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-56  | 13+TBD | In progress |
+| v1.10 Architectural Review Fixes | 50-56  | 14    | In progress |
 
 ### Completed Milestones
 
