@@ -1690,6 +1690,39 @@ class TestStateLoadSave:
         call_kwargs = mock_state_manager.save.call_args.kwargs
         assert call_kwargs["force"] is True
 
+    def test_save_state_includes_congestion(self, controller_with_mocks):
+        """save_state() passes congestion dict to state_manager.save()."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        ctrl.save_state()
+
+        mock_state_manager.save.assert_called_once()
+        call_kwargs = mock_state_manager.save.call_args.kwargs
+        assert "congestion" in call_kwargs
+        congestion = call_kwargs["congestion"]
+        assert "dl_state" in congestion
+        assert "ul_state" in congestion
+
+    def test_save_state_congestion_uses_zone_attrs(self, controller_with_mocks):
+        """save_state() congestion dict uses _dl_zone and _ul_zone attrs."""
+        ctrl, _, _, mock_state_manager = controller_with_mocks
+
+        ctrl._dl_zone = "RED"
+        ctrl._ul_zone = "YELLOW"
+
+        ctrl.save_state()
+
+        call_kwargs = mock_state_manager.save.call_args.kwargs
+        assert call_kwargs["congestion"]["dl_state"] == "RED"
+        assert call_kwargs["congestion"]["ul_state"] == "YELLOW"
+
+    def test_zone_attrs_initialized_green(self, controller_with_mocks):
+        """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        assert ctrl._dl_zone == "GREEN"
+        assert ctrl._ul_zone == "GREEN"
+
 
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
