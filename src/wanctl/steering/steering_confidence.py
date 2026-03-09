@@ -89,7 +89,12 @@ class ConfidenceSignals:
     wan_zone: str | None = None
 
 
-def compute_confidence(signals: ConfidenceSignals, logger: logging.Logger) -> tuple[int, list[str]]:
+def compute_confidence(
+    signals: ConfidenceSignals,
+    logger: logging.Logger,
+    wan_red_weight: int | None = None,
+    wan_soft_red_weight: int | None = None,
+) -> tuple[int, list[str]]:
     """
     Compute confidence score (0-100) from current signals.
 
@@ -147,10 +152,10 @@ def compute_confidence(signals: ConfidenceSignals, logger: logging.Logger) -> tu
 
     # WAN zone amplification (FUSE-02: only RED and SOFT_RED contribute)
     if signals.wan_zone == "RED":
-        score += ConfidenceWeights.WAN_RED
+        score += wan_red_weight if wan_red_weight is not None else ConfidenceWeights.WAN_RED
         contributors.append("WAN_RED")
     elif signals.wan_zone == "SOFT_RED":
-        score += ConfidenceWeights.WAN_SOFT_RED
+        score += wan_soft_red_weight if wan_soft_red_weight is not None else ConfidenceWeights.WAN_SOFT_RED
         contributors.append("WAN_SOFT_RED")
     # GREEN, YELLOW, None: no WAN contribution (SAFE-02)
 
