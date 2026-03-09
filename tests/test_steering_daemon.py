@@ -28,27 +28,9 @@ class TestCollectCakeStats:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for SteeringDaemon."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 15
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False  # Phase 2B disabled by default in tests
-        config.confidence_config = None
-        return config
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -290,11 +272,10 @@ class TestRunDaemonLoop:
         return daemon
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock SteeringConfig."""
-        config = MagicMock()
-        config.measurement_interval = 0.05  # 50ms for fast tests
-        return config
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with measurement_interval."""
+        mock_steering_config.measurement_interval = 0.05  # 50ms for fast tests
+        return mock_steering_config
 
     @pytest.fixture
     def mock_logger(self):
@@ -691,14 +672,9 @@ class TestExecuteSteeringTransition:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for SteeringDaemon."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.metrics_enabled = False
-        return config
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -1030,22 +1006,16 @@ class TestUpdateEwmaSmoothing:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for SteeringDaemon.
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with EWMA overrides.
 
         Note: cake_aware=False to bypass CakeStatsReader initialization.
         The update_ewma_smoothing() method works independently of cake_aware.
         """
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = False  # Bypass CakeStatsReader init
-        config.rtt_ewma_alpha = 0.3
-        config.queue_ewma_alpha = 0.4
-        config.metrics_enabled = False
-        return config
+        mock_steering_config.cake_aware = False
+        mock_steering_config.rtt_ewma_alpha = 0.3
+        mock_steering_config.queue_ewma_alpha = 0.4
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -1306,40 +1276,20 @@ class TestUnifiedStateMachine:
     """
 
     @pytest.fixture
-    def mock_config_cake(self):
-        """Create a mock config for CAKE-aware mode."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 3
-        config.metrics_enabled = False
-        return config
+    def mock_config_cake(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with green_samples_required=3."""
+        mock_steering_config.green_samples_required = 3
+        return mock_steering_config
 
     @pytest.fixture
-    def mock_config_legacy(self):
-        """Create a mock config for legacy mode."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = False
-        config.bad_threshold_ms = 25.0
-        config.recovery_threshold_ms = 12.0
-        config.bad_samples = 2
-        config.good_samples = 3
-        config.metrics_enabled = False
-        return config
+    def mock_config_legacy(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with legacy mode overrides."""
+        mock_steering_config.cake_aware = False
+        mock_steering_config.bad_threshold_ms = 25.0
+        mock_steering_config.recovery_threshold_ms = 12.0
+        mock_steering_config.bad_samples = 2
+        mock_steering_config.good_samples = 3
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -2755,51 +2705,26 @@ class TestRunCycle:
     """
 
     @pytest.fixture
-    def mock_config_cake(self):
-        """Create a mock config for CAKE-aware mode."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 3
-        config.rtt_ewma_alpha = 0.3
-        config.queue_ewma_alpha = 0.4
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False
-        config.confidence_config = None
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        config.ping_host = "8.8.8.8"
-        config.ping_count = 1
-        return config
+    def mock_config_cake(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with CAKE run_cycle overrides."""
+        mock_steering_config.green_samples_required = 3
+        mock_steering_config.rtt_ewma_alpha = 0.3
+        mock_steering_config.queue_ewma_alpha = 0.4
+        mock_steering_config.ping_host = "8.8.8.8"
+        mock_steering_config.ping_count = 1
+        return mock_steering_config
 
     @pytest.fixture
-    def mock_config_legacy(self):
-        """Create a mock config for legacy mode."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = False
-        config.bad_threshold_ms = 25.0
-        config.recovery_threshold_ms = 12.0
-        config.bad_samples = 2
-        config.good_samples = 3
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False
-        config.confidence_config = None
-        config.ping_host = "8.8.8.8"
-        config.ping_count = 1
-        return config
+    def mock_config_legacy(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with legacy mode overrides."""
+        mock_steering_config.cake_aware = False
+        mock_steering_config.bad_threshold_ms = 25.0
+        mock_steering_config.recovery_threshold_ms = 12.0
+        mock_steering_config.bad_samples = 2
+        mock_steering_config.good_samples = 3
+        mock_steering_config.ping_host = "8.8.8.8"
+        mock_steering_config.ping_count = 1
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -3089,32 +3014,17 @@ class TestConfidenceIntegration:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config with confidence scoring enabled."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 3
-        config.rtt_ewma_alpha = 0.3
-        config.queue_ewma_alpha = 0.4
-        config.metrics_enabled = False
-        config.use_confidence_scoring = True
-        config.confidence_config = {
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with confidence scoring enabled."""
+        mock_steering_config.use_confidence_scoring = True
+        mock_steering_config.confidence_config = {
             "dry_run": {"enabled": True},
             "confidence": {"steer_threshold": 55, "recovery_threshold": 20},
         }
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        return config
+        mock_steering_config.rtt_ewma_alpha = 0.3
+        mock_steering_config.queue_ewma_alpha = 0.4
+        mock_steering_config.green_samples_required = 3
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -4068,28 +3978,10 @@ class TestRouterConnectivityTrackingSteeringDaemon:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for SteeringDaemon."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 15
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False
-        config.confidence_config = None
-        config.data = {}
-        return config
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with data dict."""
+        mock_steering_config.data = {}
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -4313,33 +4205,15 @@ class TestSteeringProfilingInstrumentation:
     """
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for SteeringDaemon."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 15
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False
-        config.confidence_config = None
-        config.rtt_ewma_alpha = 0.3
-        config.queue_ewma_alpha = 0.3
-        config.bad_samples = 3
-        config.good_samples = 5
-        config.threshold_ms = 15.0
-        config.history_size = 60
-        return config
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with profiling overrides."""
+        mock_steering_config.rtt_ewma_alpha = 0.3
+        mock_steering_config.queue_ewma_alpha = 0.3
+        mock_steering_config.bad_samples = 3
+        mock_steering_config.good_samples = 5
+        mock_steering_config.threshold_ms = 15.0
+        mock_steering_config.history_size = 60
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
@@ -4608,31 +4482,14 @@ class TestAnomalyCycleSkip:
     """
 
     @pytest.fixture
-    def mock_config_cake(self):
-        """Create a mock config for CAKE-aware mode."""
-        config = MagicMock()
-        config.primary_wan = "spectrum"
-        config.alternate_wan = "att"
-        config.state_good = "SPECTRUM_GOOD"
-        config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
-        config.green_rtt_ms = 5.0
-        config.yellow_rtt_ms = 15.0
-        config.red_rtt_ms = 15.0
-        config.min_drops_red = 1
-        config.min_queue_yellow = 10
-        config.min_queue_red = 50
-        config.red_samples_required = 2
-        config.green_samples_required = 3
-        config.rtt_ewma_alpha = 0.3
-        config.queue_ewma_alpha = 0.4
-        config.metrics_enabled = False
-        config.use_confidence_scoring = False
-        config.confidence_config = None
-        config.primary_download_queue = "WAN-Download-Spectrum"
-        config.ping_host = "8.8.8.8"
-        config.ping_count = 1
-        return config
+    def mock_config_cake(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with anomaly test overrides."""
+        mock_steering_config.green_samples_required = 3
+        mock_steering_config.rtt_ewma_alpha = 0.3
+        mock_steering_config.queue_ewma_alpha = 0.4
+        mock_steering_config.ping_host = "8.8.8.8"
+        mock_steering_config.ping_count = 1
+        return mock_steering_config
 
     @pytest.fixture
     def mock_state_mgr(self):
