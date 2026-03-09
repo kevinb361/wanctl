@@ -29,6 +29,7 @@ class WANControllerState:
             "upload": {"green_streak", "soft_red_streak", "red_streak", "current_rate"},
             "ewma": {"baseline_rtt", "load_rtt"},
             "last_applied": {"dl_rate", "ul_rate"},
+            "congestion": {"dl_state", "ul_state"},  # optional, excluded from dirty tracking
             "timestamp": ISO-8601 string
         }
     """
@@ -107,18 +108,22 @@ class WANControllerState:
         upload: dict[str, Any],
         ewma: dict[str, float],
         last_applied: dict[str, int | None],
+        congestion: dict[str, str] | None = None,
         force: bool = False,
     ) -> bool:
         """
         Save state to disk with atomic write and dirty tracking.
 
         Skips write if state unchanged from last save (dirty tracking).
+        Congestion zone data is excluded from dirty tracking to prevent
+        write amplification (zone changes every cycle, tracked state rarely).
 
         Args:
             download: Download controller state (streaks, current_rate)
             upload: Upload controller state (streaks, current_rate)
             ewma: EWMA state (baseline_rtt, load_rtt)
             last_applied: Last applied rates (dl_rate, ul_rate)
+            congestion: Congestion zone state (dl_state, ul_state), optional
             force: If True, bypass dirty check and always write
 
         Returns:
@@ -135,9 +140,13 @@ class WANControllerState:
             "last_applied": last_applied,
             "timestamp": datetime.datetime.now().isoformat(),
         }
+        if congestion is not None:
+            state["congestion"] = congestion
 
         atomic_write_json(self.state_file, state)
         # Update last saved state for dirty tracking
+        # NOTE: congestion is intentionally excluded -- zone changes alone
+        # must NOT trigger disk writes (prevents 20x write amplification)
         self._last_saved_state = {
             "download": download,
             "upload": upload,
