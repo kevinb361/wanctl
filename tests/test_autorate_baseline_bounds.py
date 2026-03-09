@@ -28,38 +28,11 @@ class TestBaselineBoundsValidation:
     """Tests for baseline RTT bounds validation in WANController."""
 
     @pytest.fixture
-    def mock_config(self):
-        """Create a mock config for WANController."""
-        config = MagicMock()
-        config.wan_name = "TestWAN"
-        config.baseline_rtt_initial = 25.0
-        config.download_floor_green = 800_000_000
-        config.download_floor_yellow = 600_000_000
-        config.download_floor_soft_red = 500_000_000
-        config.download_floor_red = 400_000_000
-        config.download_ceiling = 920_000_000
-        config.download_step_up = 10_000_000
-        config.download_factor_down = 0.85
-        config.upload_floor_green = 35_000_000
-        config.upload_floor_yellow = 30_000_000
-        config.upload_floor_red = 25_000_000
-        config.upload_ceiling = 40_000_000
-        config.upload_step_up = 1_000_000
-        config.upload_factor_down = 0.85
-        config.target_bloat_ms = 15.0
-        config.warn_bloat_ms = 45.0
-        config.hard_red_bloat_ms = 80.0
-        config.alpha_baseline = 0.5  # High alpha for fast updates in tests
-        config.alpha_load = 0.1
-        config.baseline_update_threshold_ms = 3.0
-        config.baseline_rtt_min = 10.0
-        config.baseline_rtt_max = 60.0
-        config.ping_hosts = ["1.1.1.1"]
-        config.use_median_of_three = False
-        config.fallback_enabled = False
-        config.metrics_enabled = False
-        config.state_file = MagicMock()
-        return config
+    def mock_config(self, mock_autorate_config):
+        """Delegate to shared mock_autorate_config with baseline bounds overrides."""
+        mock_autorate_config.alpha_baseline = 0.5  # High alpha for fast updates in tests
+        mock_autorate_config.fallback_enabled = False
+        return mock_autorate_config
 
     @pytest.fixture
     def mock_router(self):
