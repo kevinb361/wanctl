@@ -777,3 +777,114 @@ lock_timeout: 300
         config = Config(str(config_file))
 
         assert config.router_transport == "rest"
+
+
+# =============================================================================
+# TestConfigVerifySslDefault
+# =============================================================================
+
+
+class TestConfigVerifySslDefault:
+    """Tests for autorate Config verify_ssl default.
+
+    OPS-01: Config must default router_verify_ssl to True when
+    verify_ssl key is omitted from the router section. This ensures
+    secure-by-default behavior matching the RouterOS REST client fallback.
+    """
+
+    def test_verify_ssl_defaults_to_true_when_omitted(self, tmp_path):
+        """Config defaults router_verify_ssl to True when verify_ssl key is missing."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.router_verify_ssl is True
+
+    def test_verify_ssl_explicit_false_still_works(self, tmp_path):
+        """Config honors explicit verify_ssl=false setting (no regression)."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+  verify_ssl: false
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.router_verify_ssl is False

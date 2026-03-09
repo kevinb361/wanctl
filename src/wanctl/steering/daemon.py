@@ -171,7 +171,7 @@ class SteeringConfig(BaseConfig):
         # REST-specific settings
         self.router_password = router.get("password", "")
         self.router_port = router.get("port", 443)
-        self.router_verify_ssl = router.get("verify_ssl", False)
+        self.router_verify_ssl = router.get("verify_ssl", True)
 
     def _load_topology(self) -> None:
         """Load topology - which WANs to monitor and steer between."""
