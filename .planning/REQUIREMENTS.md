@@ -9,9 +9,9 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 
 ### State Export
 
-- [ ] **STATE-01**: Autorate persists `congestion.dl_state` (GREEN/YELLOW/SOFT_RED/RED) to state file each cycle
-- [ ] **STATE-02**: State file extension is backward-compatible (pre-upgrade steering ignores unknown keys)
-- [ ] **STATE-03**: Zone field excluded from dirty-tracking comparison to prevent write amplification
+- [x] **STATE-01**: Autorate persists `congestion.dl_state` (GREEN/YELLOW/SOFT_RED/RED) to state file each cycle
+- [x] **STATE-02**: State file extension is backward-compatible (pre-upgrade steering ignores unknown keys)
+- [x] **STATE-03**: Zone field excluded from dirty-tracking comparison to prevent write amplification
 
 ### Signal Fusion
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STATE-01 | Phase 58 | Pending |
-| STATE-02 | Phase 58 | Pending |
-| STATE-03 | Phase 58 | Pending |
+| STATE-01 | Phase 58 | Complete |
+| STATE-02 | Phase 58 | Complete |
+| STATE-03 | Phase 58 | Complete |
 | FUSE-01 | Phase 59 | Pending |
 | FUSE-02 | Phase 59 | Pending |
 | FUSE-03 | Phase 59 | Pending |

@@ -41,7 +41,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Feed autorate's end-to-end WAN RTT state into steering's failover decision, closing the gap where CAKE queue stats mask ISP-level congestion. ~100 lines of new production code wiring existing primitives together.
 
-- [ ] **Phase 58: State File Extension** - Autorate persists congestion zone to state file with backward compatibility and no write amplification
+- [x] **Phase 58: State File Extension** - Autorate persists congestion zone to state file with backward compatibility and no write amplification (completed 2026-03-09)
 - [ ] **Phase 59: WAN State Reader + Signal Fusion** - Steering reads WAN zone, maps to confidence weights, enforces CAKE-primary semantics with fail-safe defaults
 - [ ] **Phase 60: Configuration + Safety + Wiring** - YAML config, schema validation, startup grace period, feature toggle, end-to-end daemon wiring
 - [ ] **Phase 61: Observability + Metrics** - Health endpoint, SQLite metrics, and log integration for WAN-aware steering decisions
@@ -301,7 +301,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. State File Extension | 0/1 | Planned | - |
+| 58. State File Extension | 1/1 | Complete   | 2026-03-09 |
 | 59. WAN State Reader + Signal Fusion | 0/? | Not started | - |
 | 60. Configuration + Safety + Wiring | 0/? | Not started | - |
 | 61. Observability + Metrics | 0/? | Not started | - |
