@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
 status: executing
-last_updated: "2026-03-09T15:12:22Z"
-last_activity: 2026-03-09 -- Completed 59-01-PLAN.md
+last_updated: "2026-03-09T15:25:52Z"
+last_activity: 2026-03-09 -- Completed 59-02-PLAN.md (Phase 59 complete)
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 15
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
+  percent: 30
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.11 WAN-Aware Steering -- Phase 59 plan 01 complete
+**Current focus:** v1.11 WAN-Aware Steering -- Phase 59 complete, ready for Phase 60
 
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 59 of 61 (WAN State Reader & Signal Fusion)
-**Plan:** 1 of 2 (Phase 59)
+**Phase:** 59 of 61 (WAN State Reader & Signal Fusion) -- COMPLETE
+**Plan:** 2 of 2 (Phase 59) -- COMPLETE
 **Status:** Executing
-**Last activity:** 2026-03-09 -- Completed 59-01-PLAN.md
+**Last activity:** 2026-03-09 -- Completed 59-02-PLAN.md (Phase 59 complete)
 
-**Progress:** [██░░░░░░░░] 15%
+**Progress:** [███░░░░░░░] 30%
 
 ## Accumulated Context
 
@@ -51,6 +51,11 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - Recovery gate uses wan_zone in (GREEN, None) for fail-safe when WAN data unavailable
 - wan_zone defaults to None on ConfidenceSignals for full backward compatibility
 
+- Zone extraction piggybacks on existing safe_json_load_file() call (FUSE-01: zero additional I/O)
+- 5-second staleness threshold defaults zone to GREEN (SAFE-01: fail-safe over stale data)
+- Autorate unavailable returns (None, None) -- zone is None, not GREEN (SAFE-02)
+- wan_zone stored as SteeringDaemon.\_wan_zone instance attribute, threaded to ConfidenceSignals
+
 ### Known Issues
 
 None.
@@ -61,6 +66,7 @@ None.
 
 ## Session Log
 
+- 2026-03-09: Completed 59-02 -- BaselineLoader WAN zone extraction, staleness fail-safe, ConfidenceSignals wiring (10 new tests, 2149 total)
 - 2026-03-09: Completed 59-01 -- WAN zone confidence scoring and recovery gate (21 new tests, 2137 total)
 - 2026-03-09: Completed 58-01 -- state file extension with congestion zone (10 new tests, 2119 total)
 - 2026-03-09: Phase 58 context gathered -- all decisions at Claude's discretion

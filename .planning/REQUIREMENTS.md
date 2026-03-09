@@ -15,7 +15,7 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 
 ### Signal Fusion
 
-- [ ] **FUSE-01**: Steering reads WAN zone from autorate state file (same read as baseline RTT, zero additional I/O)
+- [x] **FUSE-01**: Steering reads WAN zone from autorate state file (same read as baseline RTT, zero additional I/O)
 - [x] **FUSE-02**: WAN zone mapped to confidence weights (WAN_RED, WAN_SOFT_RED) in `compute_confidence()`
 - [x] **FUSE-03**: WAN state alone cannot trigger steering (WAN_RED < steer_threshold enforced by weight values)
 - [x] **FUSE-04**: Sustained WAN RED amplifies CAKE-based signals toward steer threshold
@@ -23,7 +23,7 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 
 ### Safety
 
-- [ ] **SAFE-01**: Stale WAN state (>5s) defaults to GREEN (fail-safe)
+- [x] **SAFE-01**: Stale WAN state (>5s) defaults to GREEN (fail-safe)
 - [x] **SAFE-02**: Graceful degradation when autorate unavailable (None = skip WAN weight)
 - [ ] **SAFE-03**: Startup grace period ignores WAN signal for first 30s after daemon start
 - [ ] **SAFE-04**: Feature ships disabled by default (`wan_state.enabled: false`)
@@ -53,46 +53,48 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Explicitly excluded. Documented to prevent scope creep.
 
-| Feature | Reason |
-|---------|--------|
-| WAN state overrides CAKE state | Violates "CAKE is primary" architecture; WAN RTT can spike from unrelated causes |
-| Bidirectional state sharing | Creates circular dependency; autorate must remain link-agnostic per PORTABLE_CONTROLLER_ARCHITECTURE.md |
-| Real-time IPC (shared memory, Unix sockets) | Over-engineering; file polling on tmpfs is <1ms, steering polls at 500ms |
-| Automatic parameter tuning / ML | PROJECT.md explicitly excludes ML-based prediction; self-tuning weights are unpredictable |
-| Kill existing connections on failover | Breaks TCP sessions; pfSense documented bugs with "kill states" approach |
-| Per-direction WAN awareness | Upload congestion rarely affects latency-sensitive traffic; download zone is authoritative |
-| WAN state EWMA smoothing | Double-smoothing; autorate zone is already EWMA-filtered with streak counters |
-| Separate WAN state polling interval | Timer complexity; steering already reads state file every cycle for baseline RTT |
+| Feature                                     | Reason                                                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| WAN state overrides CAKE state              | Violates "CAKE is primary" architecture; WAN RTT can spike from unrelated causes                        |
+| Bidirectional state sharing                 | Creates circular dependency; autorate must remain link-agnostic per PORTABLE_CONTROLLER_ARCHITECTURE.md |
+| Real-time IPC (shared memory, Unix sockets) | Over-engineering; file polling on tmpfs is <1ms, steering polls at 500ms                                |
+| Automatic parameter tuning / ML             | PROJECT.md explicitly excludes ML-based prediction; self-tuning weights are unpredictable               |
+| Kill existing connections on failover       | Breaks TCP sessions; pfSense documented bugs with "kill states" approach                                |
+| Per-direction WAN awareness                 | Upload congestion rarely affects latency-sensitive traffic; download zone is authoritative              |
+| WAN state EWMA smoothing                    | Double-smoothing; autorate zone is already EWMA-filtered with streak counters                           |
+| Separate WAN state polling interval         | Timer complexity; steering already reads state file every cycle for baseline RTT                        |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| STATE-01 | Phase 58 | Complete |
-| STATE-02 | Phase 58 | Complete |
-| STATE-03 | Phase 58 | Complete |
-| FUSE-01 | Phase 59 | Pending |
-| FUSE-02 | Phase 59 | Complete |
-| FUSE-03 | Phase 59 | Complete |
-| FUSE-04 | Phase 59 | Complete |
-| FUSE-05 | Phase 59 | Complete |
-| SAFE-01 | Phase 59 | Pending |
-| SAFE-02 | Phase 59 | Complete |
-| SAFE-03 | Phase 60 | Pending |
-| SAFE-04 | Phase 60 | Pending |
-| CONF-01 | Phase 60 | Pending |
-| CONF-02 | Phase 60 | Pending |
-| OBSV-01 | Phase 61 | Pending |
-| OBSV-02 | Phase 61 | Pending |
-| OBSV-03 | Phase 61 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| STATE-01    | Phase 58 | Complete |
+| STATE-02    | Phase 58 | Complete |
+| STATE-03    | Phase 58 | Complete |
+| FUSE-01     | Phase 59 | Complete |
+| FUSE-02     | Phase 59 | Complete |
+| FUSE-03     | Phase 59 | Complete |
+| FUSE-04     | Phase 59 | Complete |
+| FUSE-05     | Phase 59 | Complete |
+| SAFE-01     | Phase 59 | Complete |
+| SAFE-02     | Phase 59 | Complete |
+| SAFE-03     | Phase 60 | Pending  |
+| SAFE-04     | Phase 60 | Pending  |
+| CONF-01     | Phase 60 | Pending  |
+| CONF-02     | Phase 60 | Pending  |
+| OBSV-01     | Phase 61 | Pending  |
+| OBSV-02     | Phase 61 | Pending  |
+| OBSV-03     | Phase 61 | Pending  |
 
 **Coverage:**
+
 - v1.11 requirements: 17 total
 - Mapped to phases: 17
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after roadmap creation*
+
+_Requirements defined: 2026-03-09_
+_Last updated: 2026-03-09 after roadmap creation_
