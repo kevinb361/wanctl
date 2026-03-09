@@ -19,6 +19,7 @@ from wanctl.steering.steering_confidence import (
     ConfidenceWeights,
     DryRunLogger,
     FlapDetector,
+    TimerManager,
     TimerState,
     compute_confidence,
 )
@@ -625,3 +626,285 @@ class TestConfidenceControllerEvaluate:
                 break
 
         assert len(ctrl.timer_state.flap_window) == 1
+
+
+# =============================================================================
+# WAN zone confidence scoring tests
+# =============================================================================
+
+
+class TestWANZoneWeights:
+    """Tests for WAN zone amplification in compute_confidence()."""
+
+    @pytest.fixture
+    def logger(self):
+        return MagicMock(spec=logging.Logger)
+
+    def test_wan_red_weight_constant(self):
+        """WAN_RED weight constant should be 25."""
+        assert ConfidenceWeights.WAN_RED == 25
+
+    def test_wan_soft_red_weight_constant(self):
+        """WAN_SOFT_RED weight constant should be 12."""
+        assert ConfidenceWeights.WAN_SOFT_RED == 12
+
+    def test_wan_zone_field_defaults_to_none(self):
+        """ConfidenceSignals.wan_zone should default to None."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+        )
+        assert signals.wan_zone is None
+
+    def test_wan_red_adds_25_points(self, logger):
+        """WAN RED zone should add 25 points to confidence score."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == 25
+        assert "WAN_RED" in contributors
+
+    def test_wan_soft_red_adds_12_points(self, logger):
+        """WAN SOFT_RED zone should add 12 points to confidence score."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="SOFT_RED",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == 12
+        assert "WAN_SOFT_RED" in contributors
+
+    def test_wan_green_adds_zero(self, logger):
+        """WAN GREEN zone should add 0 points (no contributor)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="GREEN",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == 0
+        assert "WAN_RED" not in contributors
+        assert "WAN_SOFT_RED" not in contributors
+
+    def test_wan_yellow_adds_zero(self, logger):
+        """WAN YELLOW zone should add 0 points (no contributor)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="YELLOW",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == 0
+        assert "WAN_RED" not in contributors
+        assert "WAN_SOFT_RED" not in contributors
+
+    def test_wan_none_skips_entirely(self, logger):
+        """WAN zone None should skip WAN weight entirely (SAFE-02)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone=None,
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == 0
+        assert "WAN_RED" not in contributors
+        assert "WAN_SOFT_RED" not in contributors
+
+    def test_wan_red_alone_cannot_reach_steer_threshold(self, logger):
+        """WAN RED alone (25) should not reach steer threshold (55) (FUSE-03)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, _ = compute_confidence(signals, logger)
+        assert score == ConfidenceWeights.WAN_RED
+        assert score < 55  # steer_threshold
+
+    def test_wan_red_plus_cake_red_exceeds_steer_threshold(self, logger):
+        """WAN RED + CAKE RED (25+50=75) should exceed steer threshold (FUSE-04)."""
+        signals = ConfidenceSignals(
+            cake_state="RED",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        expected = ConfidenceWeights.RED_STATE + ConfidenceWeights.WAN_RED  # 50+25=75
+        assert score == expected
+        assert score > 55  # steer_threshold
+        assert "RED" in contributors
+        assert "WAN_RED" in contributors
+
+    def test_wan_soft_red_plus_cake_red_exceeds_steer_threshold(self, logger):
+        """WAN SOFT_RED + CAKE RED (12+50=62) should exceed steer threshold (FUSE-04)."""
+        signals = ConfidenceSignals(
+            cake_state="RED",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="SOFT_RED",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        expected = ConfidenceWeights.RED_STATE + ConfidenceWeights.WAN_SOFT_RED  # 50+12=62
+        assert score == expected
+        assert score > 55  # steer_threshold
+
+    def test_wan_red_plus_rtt_severe_still_needs_cake(self, logger):
+        """WAN RED + RTT_DELTA_SEVERE (25+25=50) still below threshold, needs CAKE."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=150.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, _ = compute_confidence(signals, logger)
+        expected = ConfidenceWeights.WAN_RED + ConfidenceWeights.RTT_DELTA_SEVERE  # 25+25=50
+        assert score == expected
+        assert score < 55  # steer_threshold
+
+    def test_existing_tests_backward_compatible(self, logger):
+        """Existing signals without wan_zone should work unchanged (backward compat)."""
+        signals = ConfidenceSignals(
+            cake_state="RED",
+            rtt_delta_ms=150.0,
+            drops_per_sec=10.0,
+            queue_depth_pct=70.0,
+            drops_history=[2.0, 5.0, 10.0],
+            queue_history=[65.0, 70.0],
+        )
+        score, contributors = compute_confidence(signals, logger)
+        expected = (
+            ConfidenceWeights.RED_STATE
+            + ConfidenceWeights.RTT_DELTA_SEVERE
+            + ConfidenceWeights.DROPS_INCREASING
+            + ConfidenceWeights.QUEUE_HIGH_SUSTAINED
+        )
+        assert score == expected
+        assert len(contributors) == 4  # No WAN contributor when wan_zone is None
+
+
+# =============================================================================
+# WAN zone recovery gate tests
+# =============================================================================
+
+
+class TestWANRecoveryGate:
+    """Tests for WAN zone gating in update_recovery_timer()."""
+
+    @pytest.fixture
+    def logger(self):
+        return MagicMock(spec=logging.Logger)
+
+    @pytest.fixture
+    def timer_mgr(self, logger):
+        return TimerManager(
+            steer_threshold=55,
+            recovery_threshold=20,
+            sustain_duration=2,
+            recovery_duration=10,
+            hold_down_duration=30,
+            state_good="WAN1_GOOD",
+            state_degraded="WAN1_DEGRADED",
+            logger=logger,
+        )
+
+    @pytest.fixture
+    def timer_state(self):
+        return TimerState()
+
+    def test_recovery_allowed_with_wan_green(self, timer_mgr, timer_state):
+        """wan_zone=GREEN should allow recovery (recovery_eligible)."""
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="GREEN",
+        )
+        # First call starts recovery timer, not yet expired
+        assert result is None
+        assert timer_state.recovery_timer is not None  # Timer started
+
+    def test_recovery_allowed_with_wan_none(self, timer_mgr, timer_state):
+        """wan_zone=None should allow recovery (SAFE-02: unavailable = skip gate)."""
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone=None,
+        )
+        assert result is None
+        assert timer_state.recovery_timer is not None  # Timer started
+
+    def test_recovery_blocked_with_wan_yellow(self, timer_mgr, timer_state):
+        """wan_zone=YELLOW should block recovery (FUSE-05)."""
+        # Start recovery timer first
+        timer_state.recovery_timer = 5.0
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="YELLOW",
+        )
+        assert result is None
+        assert timer_state.recovery_timer is None  # Timer reset
+
+    def test_recovery_blocked_with_wan_soft_red(self, timer_mgr, timer_state):
+        """wan_zone=SOFT_RED should block recovery."""
+        timer_state.recovery_timer = 5.0
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="SOFT_RED",
+        )
+        assert result is None
+        assert timer_state.recovery_timer is None  # Timer reset
+
+    def test_recovery_blocked_with_wan_red(self, timer_mgr, timer_state):
+        """wan_zone=RED should block recovery."""
+        timer_state.recovery_timer = 5.0
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="RED",
+        )
+        assert result is None
+        assert timer_state.recovery_timer is None  # Timer reset
+
+    def test_recovery_reset_reason_includes_wan_zone(self, timer_mgr, timer_state, logger):
+        """When wan_zone blocks recovery, reason should include wan_zone."""
+        timer_state.recovery_timer = 5.0
+        timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="RED",
+        )
+        # Check that logger was called with wan_zone in the reason
+        info_calls = [str(c) for c in logger.info.call_args_list]
+        assert any("wan_zone=RED" in c for c in info_calls)
+
+    def test_recovery_without_wan_zone_kwarg_defaults_to_allowed(self, timer_mgr, timer_state):
+        """Calling update_recovery_timer without wan_zone kwarg should allow recovery (backward compat)."""
+        result = timer_mgr.update_recovery_timer(
+            timer_state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+        )
+        assert result is None
+        assert timer_state.recovery_timer is not None  # Timer started (not blocked)
