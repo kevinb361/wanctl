@@ -1057,7 +1057,7 @@ class TestUpdateEwmaSmoothing:
     def mock_baseline_loader(self):
         """Create a mock baseline loader."""
         loader = MagicMock()
-        loader.load_baseline_rtt.return_value = 25.0
+        loader.load_baseline_rtt.return_value = (25.0, None)
         return loader
 
     @pytest.fixture
@@ -2004,7 +2004,7 @@ class TestBaselineLoader:
     # =========================================================================
 
     def test_file_not_found_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when file not found.
+        """Test load_baseline_rtt returns (None, None) when file not found.
 
         safe_json_load_file handles missing files by returning None (default).
         """
@@ -2013,16 +2013,17 @@ class TestBaselineLoader:
         mock_config.primary_state_file = tmp_path / "nonexistent_state.json"
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
 
     # =========================================================================
     # Valid baseline tests
     # =========================================================================
 
     def test_valid_baseline_within_bounds(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns float for valid baseline within bounds."""
+        """Test load_baseline_rtt returns (float, zone) for valid baseline within bounds."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2030,9 +2031,9 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result == 25.0
+        assert baseline_rtt == 25.0
         mock_logger.debug.assert_called()
 
     def test_baseline_at_min_bound(self, tmp_path, mock_config, mock_logger):
@@ -2044,9 +2045,9 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result == 10.0
+        assert baseline_rtt == 10.0
 
     def test_baseline_at_max_bound(self, tmp_path, mock_config, mock_logger):
         """Test load_baseline_rtt accepts baseline exactly at max bound."""
@@ -2057,16 +2058,16 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result == 60.0
+        assert baseline_rtt == 60.0
 
     # =========================================================================
     # Out of bounds tests
     # =========================================================================
 
     def test_baseline_below_min_bound_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when baseline below min bound."""
+        """Test load_baseline_rtt returns (None, zone) when baseline below min bound."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2074,15 +2075,15 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
         mock_logger.warning.assert_called_once()
         assert "out of bounds" in str(mock_logger.warning.call_args)
         assert "possible autorate compromise" in str(mock_logger.warning.call_args)
 
     def test_baseline_above_max_bound_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when baseline above max bound."""
+        """Test load_baseline_rtt returns (None, zone) when baseline above max bound."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2090,9 +2091,9 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
         mock_logger.warning.assert_called_once()
         assert "out of bounds" in str(mock_logger.warning.call_args)
 
@@ -2101,7 +2102,7 @@ class TestBaselineLoader:
     # =========================================================================
 
     def test_missing_ewma_key_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when 'ewma' key missing."""
+        """Test load_baseline_rtt returns (None, zone) when 'ewma' key missing."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2109,14 +2110,14 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
         mock_logger.warning.assert_called_once()
         assert "not found in autorate state file" in str(mock_logger.warning.call_args)
 
     def test_missing_baseline_rtt_in_ewma_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None when 'baseline_rtt' missing in ewma."""
+        """Test load_baseline_rtt returns (None, zone) when 'baseline_rtt' missing in ewma."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2124,9 +2125,9 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
         mock_logger.warning.assert_called_once()
 
     # =========================================================================
@@ -2134,7 +2135,7 @@ class TestBaselineLoader:
     # =========================================================================
 
     def test_json_parse_error_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None on JSON parse error.
+        """Test load_baseline_rtt returns (None, None) on JSON parse error.
 
         safe_json_load_file handles JSONDecodeError and logs via error_context.
         """
@@ -2145,14 +2146,15 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
         mock_logger.error.assert_called_once()
         assert "autorate state" in str(mock_logger.error.call_args)
 
     def test_non_numeric_baseline_returns_none(self, tmp_path, mock_config, mock_logger):
-        """Test load_baseline_rtt returns None on non-numeric baseline_rtt."""
+        """Test load_baseline_rtt returns (None, zone) on non-numeric baseline_rtt."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -2160,9 +2162,9 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
         mock_logger.error.assert_called_once()
         assert "Invalid baseline_rtt value" in str(mock_logger.error.call_args)
 
@@ -2192,20 +2194,22 @@ class TestBaselineLoader:
         mock_config.primary_state_file = state_file
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
 
     def test_missing_file_returns_none_via_safe_load(self, tmp_path, mock_config, mock_logger):
-        """STEER-04: Missing file handled by safe_json_load_file returns None."""
+        """STEER-04: Missing file handled by safe_json_load_file returns (None, None)."""
         from wanctl.steering.daemon import BaselineLoader
 
         mock_config.primary_state_file = tmp_path / "does_not_exist.json"
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
 
     # =========================================================================
     # STEER-03: Stale baseline detection tests
@@ -2221,9 +2225,9 @@ class TestBaselineLoader:
         # File was just written, so mtime is within seconds of now
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result == 25.0
+        assert baseline_rtt == 25.0
         # No staleness warning should be logged
         for call in mock_logger.warning.call_args_list:
             assert "stale" not in str(call).lower(), "Should not warn about staleness for fresh file"
@@ -2243,10 +2247,10 @@ class TestBaselineLoader:
         os.utime(state_file, (old_time, old_time))
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
         # Should still return the value (graceful degradation)
-        assert result == 25.0
+        assert baseline_rtt == 25.0
         # Should have logged a staleness warning
         staleness_warnings = [
             call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
@@ -2271,10 +2275,10 @@ class TestBaselineLoader:
         os.utime(state_file, (old_time, old_time))
 
         loader = BaselineLoader(mock_config, mock_logger)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
         # Must return the value, not None
-        assert result == 30.0, "Stale baseline must still return the RTT value"
+        assert baseline_rtt == 30.0, "Stale baseline must still return the RTT value"
 
     def test_staleness_warning_rate_limited(self, tmp_path, mock_config, mock_logger):
         """STEER-03: Staleness warning logged once, not on every call."""
@@ -2351,6 +2355,178 @@ class TestBaselineLoader:
             call for call in mock_logger.warning.call_args_list if "stale" in str(call).lower()
         ]
         assert len(staleness_warnings_3) == 2, "Should warn again after stale->fresh->stale cycle"
+
+    # =========================================================================
+    # WAN zone extraction tests (FUSE-01, SAFE-01)
+    # =========================================================================
+
+    def test_wan_zone_extracted_from_state_file(self, tmp_path, mock_config, mock_logger):
+        """State with congestion.dl_state='RED' returns (baseline, 'RED')."""
+        import json
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "ewma": {"baseline_rtt": 25.0},
+                    "congestion": {"dl_state": "RED", "ul_state": "GREEN"},
+                }
+            )
+        )
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt == 25.0
+        assert wan_zone == "RED"
+
+    def test_wan_zone_green_from_state_file(self, tmp_path, mock_config, mock_logger):
+        """State with congestion.dl_state='GREEN' returns (baseline, 'GREEN')."""
+        import json
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "ewma": {"baseline_rtt": 25.0},
+                    "congestion": {"dl_state": "GREEN", "ul_state": "GREEN"},
+                }
+            )
+        )
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt == 25.0
+        assert wan_zone == "GREEN"
+
+    def test_wan_zone_none_when_congestion_missing(self, tmp_path, mock_config, mock_logger):
+        """State with ewma but no congestion key returns (baseline, None)."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt == 25.0
+        assert wan_zone is None
+
+    def test_wan_zone_none_when_autorate_unavailable(self, tmp_path, mock_config, mock_logger):
+        """State is None (autorate unavailable) returns (None, None)."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        mock_config.primary_state_file = tmp_path / "nonexistent_state.json"
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt is None
+        assert wan_zone is None
+
+    def test_wan_zone_defaults_green_when_stale(self, tmp_path, mock_config, mock_logger):
+        """File mtime > 5s old returns (baseline, 'GREEN') regardless of actual zone."""
+        import json
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "ewma": {"baseline_rtt": 25.0},
+                    "congestion": {"dl_state": "RED", "ul_state": "GREEN"},
+                }
+            )
+        )
+        mock_config.primary_state_file = state_file
+
+        # Set mtime to 10 seconds ago (> 5s threshold)
+        old_time = time.time() - 10
+        os.utime(state_file, (old_time, old_time))
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt == 25.0
+        assert wan_zone == "GREEN", "Stale file should default zone to GREEN (SAFE-01)"
+
+    def test_wan_zone_fresh_returns_actual(self, tmp_path, mock_config, mock_logger):
+        """File mtime < 5s returns (baseline, actual_zone)."""
+        import json
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "ewma": {"baseline_rtt": 25.0},
+                    "congestion": {"dl_state": "RED", "ul_state": "GREEN"},
+                }
+            )
+        )
+        mock_config.primary_state_file = state_file
+        # File was just written, so mtime is fresh
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+
+        assert baseline_rtt == 25.0
+        assert wan_zone == "RED", "Fresh file should return actual zone"
+
+    def test_is_wan_zone_stale_true_for_old_file(self, tmp_path, mock_config, mock_logger):
+        """_is_wan_zone_stale returns True when file age > 5s."""
+        import os
+
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+
+        old_time = time.time() - 10
+        os.utime(state_file, (old_time, old_time))
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        assert loader._is_wan_zone_stale() is True
+
+    def test_is_wan_zone_stale_true_for_oserror(self, tmp_path, mock_config, mock_logger):
+        """_is_wan_zone_stale returns True when stat() raises OSError."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        # Point to nonexistent file
+        mock_config.primary_state_file = tmp_path / "nonexistent.json"
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        assert loader._is_wan_zone_stale() is True
+
+    def test_is_wan_zone_stale_false_for_fresh_file(self, tmp_path, mock_config, mock_logger):
+        """_is_wan_zone_stale returns False when file age < 5s."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        state_file = tmp_path / "spectrum_state.json"
+        state_file.write_text('{"ewma": {"baseline_rtt": 25.0}}')
+        mock_config.primary_state_file = state_file
+        # File was just written, mtime is current
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        assert loader._is_wan_zone_stale() is False
+
+    def test_stale_wan_zone_threshold_constant_exists(self):
+        """STALE_WAN_ZONE_THRESHOLD_SECONDS = 5 constant must exist."""
+        from wanctl.steering.daemon import STALE_WAN_ZONE_THRESHOLD_SECONDS
+
+        assert STALE_WAN_ZONE_THRESHOLD_SECONDS == 5
 
 
 class TestSteeringConfig:
@@ -4278,7 +4454,7 @@ class TestSteeringProfilingInstrumentation:
             )
         # Setup for successful run_cycle:
         # update_baseline_rtt needs to succeed
-        d.baseline_loader.load_baseline_rtt.return_value = 25.0
+        d.baseline_loader.load_baseline_rtt.return_value = (25.0, None)
         # _measure_current_rtt_with_retry needs to return valid RTT
         d.rtt_measurement.ping_host.return_value = 27.0
         return d

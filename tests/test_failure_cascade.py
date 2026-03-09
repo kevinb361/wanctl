@@ -249,7 +249,7 @@ class TestSteeringFailureCascade:
 
         # BaselineLoader returns None (corrupted state file)
         mock_baseline_loader = MagicMock(spec=BaselineLoader)
-        mock_baseline_loader.load_baseline_rtt.return_value = None
+        mock_baseline_loader.load_baseline_rtt.return_value = (None, None)
 
         mock_logger = MagicMock()
 
@@ -302,7 +302,7 @@ class TestSteeringFailureCascade:
         mock_rtt.ping_host.return_value = None
 
         mock_baseline_loader = MagicMock(spec=BaselineLoader)
-        mock_baseline_loader.load_baseline_rtt.return_value = 25.0
+        mock_baseline_loader.load_baseline_rtt.return_value = (25.0, None)
 
         mock_logger = MagicMock()
 

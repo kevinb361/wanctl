@@ -87,9 +87,9 @@ class TestAutorateSteeringStateInterface:
         loader = make_loader()
 
         _write_state(writer, baseline_rtt=25.0)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result == 25.0
+        assert baseline_rtt == 25.0
 
     def test_baseline_below_min_returns_none(self, make_writer, make_loader):
         """Autorate writes baseline_rtt=5.0 (below min 10.0), steering returns None."""
@@ -97,9 +97,9 @@ class TestAutorateSteeringStateInterface:
         loader = make_loader(baseline_rtt_min=10.0)
 
         _write_state(writer, baseline_rtt=5.0)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
 
     def test_baseline_above_max_returns_none(self, make_writer, make_loader):
         """Autorate writes baseline_rtt=70.0 (above max 60.0), steering returns None."""
@@ -107,25 +107,27 @@ class TestAutorateSteeringStateInterface:
         loader = make_loader(baseline_rtt_max=60.0)
 
         _write_state(writer, baseline_rtt=70.0)
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
 
     def test_missing_state_file_returns_none(self, make_loader):
-        """State file does not exist, steering returns None gracefully."""
+        """State file does not exist, steering returns (None, None) gracefully."""
         loader = make_loader()
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
 
     def test_corrupted_json_returns_none(self, state_file, make_loader):
-        """State file contains corrupted JSON, steering returns None gracefully."""
+        """State file contains corrupted JSON, steering returns (None, None) gracefully."""
         state_file.write_text("{invalid json content!!!}")
 
         loader = make_loader()
-        result = loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
 
-        assert result is None
+        assert baseline_rtt is None
+        assert wan_zone is None
 
     def test_second_write_overwrites_first(self, make_writer, make_loader):
         """Autorate writes twice (25.0 then 30.0), steering reads latest (30.0)."""
@@ -135,8 +137,8 @@ class TestAutorateSteeringStateInterface:
         _write_state(writer, baseline_rtt=25.0)
         _write_state(writer, baseline_rtt=30.0)
 
-        result = loader.load_baseline_rtt()
-        assert result == 30.0
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+        assert baseline_rtt == 30.0
 
     def test_full_round_trip_complete_state(self, make_writer, make_loader):
         """Full round-trip: WANControllerState.save() writes complete state,
@@ -163,8 +165,8 @@ class TestAutorateSteeringStateInterface:
             force=True,
         )
 
-        result = loader.load_baseline_rtt()
-        assert result == 22.5
+        baseline_rtt, wan_zone = loader.load_baseline_rtt()
+        assert baseline_rtt == 22.5
 
     def test_boundary_values_at_min_max(self, make_writer, make_loader):
         """Baseline RTT exactly at min and max boundaries should be accepted."""
@@ -173,9 +175,11 @@ class TestAutorateSteeringStateInterface:
         # At min boundary
         loader_min = make_loader(baseline_rtt_min=10.0, baseline_rtt_max=60.0)
         _write_state(writer, baseline_rtt=10.0)
-        assert loader_min.load_baseline_rtt() == 10.0
+        baseline_rtt_min_val, _ = loader_min.load_baseline_rtt()
+        assert baseline_rtt_min_val == 10.0
 
         # At max boundary
         loader_max = make_loader(baseline_rtt_min=10.0, baseline_rtt_max=60.0)
         _write_state(writer, baseline_rtt=60.0)
-        assert loader_max.load_baseline_rtt() == 60.0
+        baseline_rtt_max_val, _ = loader_max.load_baseline_rtt()
+        assert baseline_rtt_max_val == 60.0
