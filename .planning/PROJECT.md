@@ -8,20 +8,19 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.10 Architectural Review Fixes
+## Current Milestone: v1.11 WAN-Aware Steering
 
-**Goal:** Address findings from senior architectural review — fix critical hot-loop and config bugs, improve operational resilience, and strengthen test quality.
+**Goal:** Feed autorate's end-to-end WAN RTT state into steering's failover decision, closing the gap where CAKE queue stats mask ISP-level congestion.
 
-**Target fixes:**
+**Target features:**
 
-- Hot-loop retry delay removal (C1) and transport config correctness (C2)
-- Failover re-probe, steering reliability, stale baseline detection
-- Operational resilience: SSL defaults, DB corruption recovery, disk monitoring
-- Dependency security patch (cryptography CVE)
-- Code cleanup: stale docstrings, naming, ruff fixes
-- Test quality: reduce mock overreliance, add behavioral integration tests
+- Steering reads autorate WAN congestion state (RED/YELLOW/GREEN) as additional failover signal
+- Hysteresis gate: sustained WAN RED (~1s) triggers failover, sustained GREEN (~3s) for recovery
+- Configurable thresholds in YAML for production tuning
+- Existing CAKE stats remain primary signal; WAN state is secondary/amplifying
+- Recovery: only new connections steer, existing connections expire naturally on ATT
 
-**Previous:** v1.9 Performance & Efficiency — icmplib, profiling, telemetry
+**Previous:** v1.10 Architectural Review Fixes — hot-loop fixes, steering reliability, operational resilience
 
 ## Requirements
 
@@ -235,4 +234,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-07 after v1.10 milestone start_
+_Last updated: 2026-03-09 after v1.11 milestone start_

@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.10
-milestone_name: Architectural Review Fixes
-current_phase: Phase 55 - Test Quality
-current_plan: Phase 55, Plan 02
-status: completed
-last_updated: "2026-03-08T17:59:59Z"
-last_activity: 2026-03-08 -- Plan 55-02 executed (behavioral integration, reduced-mock router, failure cascade tests)
+milestone: v1.11
+milestone_name: WAN-Aware Steering
+current_phase: Not started
+current_plan: —
+status: defining_requirements
+last_updated: "2026-03-09T01:30:00Z"
+last_activity: 2026-03-09 — Milestone v1.11 started (WAN-Aware Steering)
 progress:
-  total_phases: 6
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 12
-  percent: 92
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -23,68 +23,32 @@ See: .planning/PROJECT.md
 
 ## Position
 
-**Milestone:** v1.10 Architectural Review Fixes
-**Current phase:** Phase 55 - Test Quality
-**Current plan:** Phase 55, Plan 02
-**Status:** Plan 55-02 complete
-**Last activity:** 2026-03-08 -- Plan 55-02 executed (behavioral integration, reduced-mock router, failure cascade tests)
+**Milestone:** v1.11 WAN-Aware Steering
+**Current phase:** Not started (defining requirements)
+**Current plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-03-09 — Milestone v1.11 started
 
-**Progress:** [█████████░] 92%
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Phase Summary
 
-| Phase | Name                                | Requirements                                               | Status                  |
-| ----- | ----------------------------------- | ---------------------------------------------------------- | ----------------------- |
-| 50    | Critical Hot-Loop & Transport Fixes | LOOP-01, LOOP-02, LOOP-03, LOOP-04, CLEAN-04               | COMPLETE                |
-| 51    | Steering Reliability                | STEER-01, STEER-02, STEER-03, STEER-04                     | COMPLETE                |
-| 52    | Operational Resilience              | OPS-01, OPS-02, OPS-03, OPS-04, OPS-05                     | COMPLETE                |
-| 53    | Code Cleanup                        | CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-05, CLEAN-06, CLEAN-07 | COMPLETE                |
-| 54    | Codebase Audit                      | AUDIT-01, AUDIT-02, AUDIT-03                               | COMPLETE                |
-| 55    | Test Quality                        | TEST-01, TEST-02, TEST-03, TEST-04                         | IN PROGRESS (2/2 plans) |
+| Phase | Name | Requirements | Status |
+| ----- | ---- | ------------ | ------ |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- Phase ordering follows review priority: hot-loop/transport (highest production risk) first, test quality last
-- CLEAN-04 (transport config contradiction) grouped with Phase 50 instead of Phase 53 because it directly affects transport selection logic
-- 6 phases at "fine" granularity -- natural category boundaries match review structure
-- [50-01] Flat retry (backoff_factor=1.0) for hot-loop run_cmd: 2 attempts in 50ms cycle makes escalation meaningless
-- [50-01] shutdown_event.wait matches existing steering daemon pattern (daemon.py:1524)
-- [50-02] Removed primary/fallback params from factory -- config is single source of truth
-- [50-02] Fallback auto-derived as opposite of primary (rest->ssh, ssh->rest)
-- [50-03] Re-probe uses actual run_cmd command opportunistically (no separate probe command)
-- [50-03] Stale primary client closed/recreated on each probe attempt (fresh connection)
-- [50-03] Backoff: 30->60->120->240->300 (capped at 5min)
-- [51-01] Log-once pattern via set for legacy state warnings -- simpler than counter, zero overhead after first warning
-- [51-01] Anomaly cycle-skip returns True (same as normal success) -- daemon loop only needs success/failure distinction
-- [51-02] Removed import json from daemon.py -- only usage was in BaselineLoader, replaced by safe_json_load_file
-- [51-02] Staleness check after safe_json_load_file succeeds -- no point checking mtime if file is unreadable
-- [51-02] STALE_BASELINE_THRESHOLD_SECONDS = 300 as module-level constant for easy tuning
-- [52-01] Pin cryptography>=46.0.5 (not >=45.0.0) because pip-audit confirmed 46.0.5 is the actual CVE-2026-26007 fix version
-- [52-01] YAML parse errors re-raise as ConfigValidationError to maintain single exception type for all config errors
-- [52-02] Extract \_open_connection/\_rebuild_database/\_connect_and_validate helpers in MetricsWriter for testability
-- [52-02] \_get_disk_space_status is shared helper in health_check.py, imported by steering/health.py
-- [52-02] 100MB disk space warning threshold as module constant (\_DISK_SPACE_WARNING_BYTES), no config change needed
-- [52-02] "unknown" disk space (OSError) does not degrade health -- only "warning" does
-- [53-01] Left self.ssh_key unchanged -- refers to SSH key file path, not the renamed client connection object
-- [53-02] urllib3.disable_warnings in **init** conditional on verify_ssl=False -- scopes suppression to explicit opt-in
-- [53-02] noqa: F401 for subprocess import in rtt_measurement.py -- ruff supports inline noqa, no bare-expression workaround needed
-- [54-01] Direct imports in steering/**init**.py -- CONFIDENCE_AVAILABLE=True as constant, no try/except
-- [54-01] 6 duplication patterns categorized: 3 EXTRACT (Plan 02), 2 LEAVE (too small/divergent), 1 PARTIAL
-- [54-01] 15 CC>10 functions: 2 address (main()), 3 skip (architectural spine), 10 leave (inherent complexity)
-- [54-02] Overrun warning format uses daemon_name prefix: autorate="wan_name: Cycle", steering="Steering cycle" for backward compatibility
-- [54-02] check_cleanup_deadline accepts now= keyword so callers pass time.monotonic() from their module scope (test mock compatibility)
-- [54-02] PROFILE_REPORT_INTERVAL re-exported via noqa: F401 from both daemon modules
-- [54-02] Extracted 4 helpers from main() (CC 60->47): \_parse_autorate_args, \_init_storage, \_acquire_daemon_locks, \_start_servers
-- [55-02] SSH tests patch paramiko.SSHClient at module level since \_connect() creates fresh instances
-- [55-02] REST ConnectionError caught at \_handle_queue_tree_print level returns generic "Command failed", not original error
-- [55-02] sqlite3.OperationalError in write_metrics_batch propagates from run_cycle -- caught by daemon loop catch-all
-- [55-02] BaselineLoader staleness check passes naturally with tmp_path files -- no mocking needed
+- Steering will use autorate WAN state as secondary signal (CAKE stats remain primary)
+- Hysteresis: ~20 cycles (1s) sustained RED to trigger, ~60 cycles (3s) sustained GREEN to recover
+- Recovery: existing connections expire naturally on ATT, only new connections steer
+- Configurable thresholds in YAML for production tuning
+- Watchdog surrender bug fixed (ee8d9b6) before milestone start
 
 ### Known Issues
 
-None yet.
+None.
 
 ### Blockers
 
@@ -92,24 +56,4 @@ None.
 
 ## Session Log
 
-- 2026-03-07: Milestone v1.10 started from senior architectural review findings
-- 2026-03-07: STATE.md regenerated by /gsd:health --repair
-- 2026-03-07: Roadmap created -- 6 phases (50-55), 27 requirements mapped
-- 2026-03-07: Phase 50 context gathered -- requirements prescriptive, all implementation at Claude's discretion
-- 2026-03-07: Plan 50-01 executed -- sub-cycle retry params on run_cmd + shutdown_event.wait in main loop (1 task, TDD, 1991 tests pass)
-- 2026-03-07: Plan 50-02 executed -- config.router_transport authoritative, defaults aligned to REST (1 task, TDD, 270 related tests pass)
-- 2026-03-07: Plan 50-03 executed -- periodic re-probe of primary transport after failover with backoff (1 task, TDD, 2000 tests pass)
-- 2026-03-07: Phase 50 COMPLETE -- all 3 plans done, ready for Phase 51
-- 2026-03-07: Plan 51-01 executed -- legacy state warning + anomaly cycle-skip (1 task, TDD, 2010 tests pass)
-- 2026-03-07: Plan 51-02 executed -- safe baseline loading + staleness detection (1 task, TDD, 2016 tests pass)
-- 2026-03-07: Phase 51 COMPLETE -- all 2 plans done, ready for Phase 52
-- 2026-03-07: Plan 52-01 executed -- SSL verify_ssl=True default, CVE-2026-26007 patch, YAML error line numbers (3 tasks, TDD, 1966 tests pass)
-- 2026-03-07: Plan 52-02 executed -- SQLite integrity check + disk space monitoring (2 tasks, TDD, 2037 tests pass)
-- 2026-03-07: Phase 52 COMPLETE -- all 2 plans done, ready for Phase 53
-- 2026-03-07: Plan 53-01 executed -- rename self.ssh->self.client, update stale docstrings, remove import alias, extract validate_config_mode (2 tasks, 2037 tests pass)
-- 2026-03-07: Plan 53-02 executed -- scope InsecureRequestWarning to **init**, fix 4 ruff violations in rtt_measurement.py (1 task, 2037 tests pass)
-- 2026-03-07: Phase 53 COMPLETE -- all 2 plans done, ready for Phase 54
-- 2026-03-08: Plan 54-01 executed -- audit report (178 lines) + steering **init**.py simplification (2 tasks, 2037 tests pass)
-- 2026-03-08: Plan 54-02 executed -- shared profiling/deadline helpers + main() CC reduction 60->47 (2 tasks, TDD, 2050 tests pass)
-- 2026-03-08: Phase 54 COMPLETE -- all 2 plans done, ready for Phase 55
-- 2026-03-08: Plan 55-02 executed -- behavioral integration + reduced-mock router + failure cascade tests (3 tasks, TDD, 2103 tests pass)
+- 2026-03-09: Milestone v1.11 started — WAN-aware steering to close ISP congestion visibility gap
