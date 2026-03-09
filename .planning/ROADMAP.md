@@ -12,7 +12,7 @@ None
 
 ### Active
 
-- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-56) - IN PROGRESS
+- [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-57) - IN PROGRESS
 
 ### Completed
 
@@ -36,7 +36,7 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.10 Architectural Review Fixes (Phases 50-55)
+### v1.10 Architectural Review Fixes (Phases 50-57)
 
 **Milestone Goal:** Address findings from senior architectural review -- fix critical hot-loop and config bugs, improve operational resilience, and strengthen test quality.
 
@@ -76,6 +76,10 @@ Decimal phases appear between their surrounding integers in numeric order.
       **Gap Closure:** Closes OPS-01 integration gap + CLEAN-04 integration gap from audit
       Plans:
   - [x] 56-01-PLAN.md -- Fix verify_ssl default to True in both config loaders + update CONFIG_SCHEMA.md transport default to rest (2/2 tasks)
+- [ ] **Phase 57: v1.10 Gap Closure** - Consolidate test fixtures (TEST-01) + cosmetic fixes from audit
+      **Gap Closure:** Closes TEST-01 unsatisfied requirement + cosmetic residuals from v1.10-MILESTONE-AUDIT.md
+      Plans:
+  - [ ] 57-01-PLAN.md -- Consolidate mock_config fixtures + fix stale router_client.py docstring and default (3/3 tasks)
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
@@ -255,7 +259,7 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 | Milestone                        | Phases | Plans | Status      |
 | -------------------------------- | ------ | ----- | ----------- |
-| v1.10 Architectural Review Fixes | 50-56  | 14    | In progress |
+| v1.10 Architectural Review Fixes | 50-57  | 15    | In progress |
 
 ### Completed Milestones
 
@@ -272,4 +276,4 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 | v1.1 Code Quality             | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 49 phases complete, 105 plans across 10 milestones + 6 new phases planned
+**Total:** 49 phases complete, 105 plans across 10 milestones + 7 new phases planned
