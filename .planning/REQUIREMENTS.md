@@ -16,15 +16,15 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 ### Signal Fusion
 
 - [ ] **FUSE-01**: Steering reads WAN zone from autorate state file (same read as baseline RTT, zero additional I/O)
-- [ ] **FUSE-02**: WAN zone mapped to confidence weights (WAN_RED, WAN_SOFT_RED) in `compute_confidence()`
-- [ ] **FUSE-03**: WAN state alone cannot trigger steering (WAN_RED < steer_threshold enforced by weight values)
-- [ ] **FUSE-04**: Sustained WAN RED amplifies CAKE-based signals toward steer threshold
-- [ ] **FUSE-05**: Recovery eligibility requires WAN state GREEN (or unavailable) in addition to existing CAKE checks
+- [x] **FUSE-02**: WAN zone mapped to confidence weights (WAN_RED, WAN_SOFT_RED) in `compute_confidence()`
+- [x] **FUSE-03**: WAN state alone cannot trigger steering (WAN_RED < steer_threshold enforced by weight values)
+- [x] **FUSE-04**: Sustained WAN RED amplifies CAKE-based signals toward steer threshold
+- [x] **FUSE-05**: Recovery eligibility requires WAN state GREEN (or unavailable) in addition to existing CAKE checks
 
 ### Safety
 
 - [ ] **SAFE-01**: Stale WAN state (>5s) defaults to GREEN (fail-safe)
-- [ ] **SAFE-02**: Graceful degradation when autorate unavailable (None = skip WAN weight)
+- [x] **SAFE-02**: Graceful degradation when autorate unavailable (None = skip WAN weight)
 - [ ] **SAFE-03**: Startup grace period ignores WAN signal for first 30s after daemon start
 - [ ] **SAFE-04**: Feature ships disabled by default (`wan_state.enabled: false`)
 
@@ -74,12 +74,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STATE-02 | Phase 58 | Complete |
 | STATE-03 | Phase 58 | Complete |
 | FUSE-01 | Phase 59 | Pending |
-| FUSE-02 | Phase 59 | Pending |
-| FUSE-03 | Phase 59 | Pending |
-| FUSE-04 | Phase 59 | Pending |
-| FUSE-05 | Phase 59 | Pending |
+| FUSE-02 | Phase 59 | Complete |
+| FUSE-03 | Phase 59 | Complete |
+| FUSE-04 | Phase 59 | Complete |
+| FUSE-05 | Phase 59 | Complete |
 | SAFE-01 | Phase 59 | Pending |
-| SAFE-02 | Phase 59 | Pending |
+| SAFE-02 | Phase 59 | Complete |
 | SAFE-03 | Phase 60 | Pending |
 | SAFE-04 | Phase 60 | Pending |
 | CONF-01 | Phase 60 | Pending |

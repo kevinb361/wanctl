@@ -302,7 +302,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. State File Extension | 1/1 | Complete    | 2026-03-09 |
-| 59. WAN State Reader + Signal Fusion | 0/2 | Not started | - |
+| 59. WAN State Reader + Signal Fusion | 1/2 | In Progress|  |
 | 60. Configuration + Safety + Wiring | 0/? | Not started | - |
 | 61. Observability + Metrics | 0/? | Not started | - |
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: planning
-last_updated: "2026-03-09T14:14:36.231Z"
-last_activity: 2026-03-09 -- Completed 58-01-PLAN.md
+status: executing
+last_updated: "2026-03-09T15:12:22Z"
+last_activity: 2026-03-09 -- Completed 59-01-PLAN.md
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 5
+  total_plans: 2
+  completed_plans: 2
+  percent: 15
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.11 WAN-Aware Steering -- Phase 58 plan 01 complete
+**Current focus:** v1.11 WAN-Aware Steering -- Phase 59 plan 01 complete
 
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 58 of 61 (State File Extension)
-**Plan:** 1 of 1 (Phase 58)
-**Status:** Ready to plan
-**Last activity:** 2026-03-09 -- Completed 58-01-PLAN.md
+**Phase:** 59 of 61 (WAN State Reader & Signal Fusion)
+**Plan:** 1 of 2 (Phase 59)
+**Status:** Executing
+**Last activity:** 2026-03-09 -- Completed 59-01-PLAN.md
 
-**Progress:** [█░░░░░░░░░] 5%
+**Progress:** [██░░░░░░░░] 15%
 
 ## Accumulated Context
 
@@ -47,6 +47,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - Zone attrs on WANController instance (\_dl_zone/\_ul_zone) for availability at all save_state call sites
 - GREEN default for zone attrs before first RTT measurement (fail-safe)
 
+- WAN_RED=25 and WAN_SOFT_RED=12 as amplifying weights (neither can reach steer_threshold=55 alone)
+- Recovery gate uses wan_zone in (GREEN, None) for fail-safe when WAN data unavailable
+- wan_zone defaults to None on ConfidenceSignals for full backward compatibility
+
 ### Known Issues
 
 None.
@@ -57,6 +61,7 @@ None.
 
 ## Session Log
 
+- 2026-03-09: Completed 59-01 -- WAN zone confidence scoring and recovery gate (21 new tests, 2137 total)
 - 2026-03-09: Completed 58-01 -- state file extension with congestion zone (10 new tests, 2119 total)
 - 2026-03-09: Phase 58 context gathered -- all decisions at Claude's discretion
 - 2026-03-09: Roadmap created -- 4 phases (58-61), 17/17 requirements mapped
