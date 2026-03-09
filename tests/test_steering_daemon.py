@@ -2870,6 +2870,277 @@ class TestSteeringConfig:
         assert config.router_port == 8443
 
 
+class TestWanStateConfig:
+    """Tests for SteeringConfig._load_wan_state_config() method.
+
+    Covers CONF-01 (wan_state YAML loading), CONF-02 (validation),
+    and SAFE-04 (disabled by default, graceful degradation).
+    """
+
+    @pytest.fixture
+    def valid_config_dict(self):
+        """Create a valid config dict with wan_state section."""
+        return {
+            "wan_name": "steering",
+            "router": {
+                "transport": "ssh",
+                "host": "10.10.99.1",
+                "user": "admin",
+                "ssh_key": "/path/to/key",
+            },
+            "topology": {
+                "primary_wan": "spectrum",
+                "primary_wan_config": "/etc/wanctl/spectrum.yaml",
+                "alternate_wan": "att",
+            },
+            "mangle_rule": {"comment": "ADAPTIVE-STEER"},
+            "measurement": {
+                "interval_seconds": 0.5,
+                "ping_host": "1.1.1.1",
+                "ping_count": 3,
+            },
+            "state": {
+                "file": "/var/lib/wanctl/steering_state.json",
+                "history_size": 240,
+            },
+            "logging": {
+                "main_log": "/var/log/wanctl/steering.log",
+                "debug_log": "/var/log/wanctl/steering_debug.log",
+            },
+            "lock_file": "/run/wanctl/steering.lock",
+            "lock_timeout": 60,
+            "thresholds": {
+                "bad_threshold_ms": 25.0,
+                "recovery_threshold_ms": 12.0,
+            },
+        }
+
+    def _make_config(self, tmp_path, config_dict):
+        """Helper to create a SteeringConfig from a dict."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(config_dict))
+        return SteeringConfig(str(config_file))
+
+    # =========================================================================
+    # Absent / disabled tests
+    # =========================================================================
+
+    def test_absent_wan_state_sets_none(self, tmp_path, valid_config_dict):
+        """Missing wan_state section results in wan_state_config = None."""
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is None
+
+    def test_disabled_wan_state_sets_dict_with_enabled_false(self, tmp_path, valid_config_dict):
+        """wan_state.enabled: false produces a dict with enabled=False."""
+        valid_config_dict["wan_state"] = {"enabled": False}
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is None
+
+    def test_absent_wan_state_logs_disabled_message(self, tmp_path, valid_config_dict, caplog):
+        """Missing wan_state section logs disabled message."""
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "WAN awareness: disabled" in caplog.text
+
+    def test_disabled_wan_state_logs_disabled_message(self, tmp_path, valid_config_dict, caplog):
+        """wan_state.enabled: false logs disabled message."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": False}
+        with caplog.at_level(logging.INFO):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "WAN awareness: disabled" in caplog.text
+
+    # =========================================================================
+    # Enabled / valid tests
+    # =========================================================================
+
+    def test_enabled_wan_state_creates_config_dict(self, tmp_path, valid_config_dict):
+        """wan_state.enabled: true produces a config dict with all fields."""
+        valid_config_dict["wan_state"] = {"enabled": True}
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is not None
+        assert config.wan_state_config["enabled"] is True
+
+    def test_enabled_wan_state_has_all_fields(self, tmp_path, valid_config_dict):
+        """Enabled wan_state config dict contains all 6 required fields."""
+        valid_config_dict["wan_state"] = {"enabled": True}
+        config = self._make_config(tmp_path, valid_config_dict)
+        expected_keys = {"enabled", "red_weight", "soft_red_weight",
+                         "staleness_threshold_sec", "grace_period_sec", "wan_override"}
+        assert set(config.wan_state_config.keys()) == expected_keys
+
+    def test_enabled_wan_state_default_values(self, tmp_path, valid_config_dict):
+        """Enabled wan_state with no overrides uses safe defaults."""
+        valid_config_dict["wan_state"] = {"enabled": True}
+        config = self._make_config(tmp_path, valid_config_dict)
+        wsc = config.wan_state_config
+        assert wsc["red_weight"] == 25
+        assert wsc["soft_red_weight"] == int(25 * 0.48)  # 12
+        assert wsc["staleness_threshold_sec"] == 5
+        assert wsc["grace_period_sec"] == 30
+        assert wsc["wan_override"] is False
+
+    def test_enabled_wan_state_custom_values(self, tmp_path, valid_config_dict):
+        """Enabled wan_state with custom values are respected."""
+        valid_config_dict["wan_state"] = {
+            "enabled": True,
+            "red_weight": 30,
+            "staleness_threshold_sec": 10,
+            "grace_period_sec": 60,
+        }
+        config = self._make_config(tmp_path, valid_config_dict)
+        wsc = config.wan_state_config
+        assert wsc["red_weight"] == 30
+        assert wsc["soft_red_weight"] == int(30 * 0.48)  # 14
+        assert wsc["staleness_threshold_sec"] == 10
+        assert wsc["grace_period_sec"] == 60
+
+    def test_enabled_wan_state_logs_enabled_message(self, tmp_path, valid_config_dict, caplog):
+        """Enabled wan_state logs enabled message with parameters."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True}
+        with caplog.at_level(logging.INFO):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "WAN awareness: enabled" in caplog.text
+        assert "red_weight: 25" in caplog.text
+        assert "grace period: 30s" in caplog.text
+
+    # =========================================================================
+    # Invalid type tests (warn + disable)
+    # =========================================================================
+
+    def test_wrong_type_enabled_warns_and_disables(self, tmp_path, valid_config_dict, caplog):
+        """Non-bool enabled value warns and disables feature."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": "yes"}
+        with caplog.at_level(logging.WARNING):
+            config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is None
+        assert "wan_state" in caplog.text.lower()
+
+    def test_wrong_type_red_weight_warns_and_disables(self, tmp_path, valid_config_dict, caplog):
+        """Non-int red_weight warns and disables feature."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True, "red_weight": "heavy"}
+        with caplog.at_level(logging.WARNING):
+            config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is None
+
+    # =========================================================================
+    # Weight clamping tests
+    # =========================================================================
+
+    def test_red_weight_clamped_to_steer_threshold_minus_one(self, tmp_path, valid_config_dict, caplog):
+        """red_weight >= steer_threshold is clamped with warning."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 200}
+        valid_config_dict["confidence"] = {"steer_threshold": 55}
+        with caplog.at_level(logging.WARNING):
+            config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config is not None
+        assert config.wan_state_config["red_weight"] == 54  # steer_threshold - 1
+        assert "clamped" in caplog.text.lower()
+
+    def test_red_weight_at_threshold_gets_clamped(self, tmp_path, valid_config_dict, caplog):
+        """red_weight exactly at steer_threshold is clamped."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 55}
+        valid_config_dict["confidence"] = {"steer_threshold": 55}
+        with caplog.at_level(logging.WARNING):
+            config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config["red_weight"] == 54
+
+    def test_red_weight_below_threshold_not_clamped(self, tmp_path, valid_config_dict):
+        """red_weight below steer_threshold is not clamped."""
+        valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 25}
+        valid_config_dict["confidence"] = {"steer_threshold": 55}
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config["red_weight"] == 25
+
+    # =========================================================================
+    # wan_override tests
+    # =========================================================================
+
+    def test_wan_override_true_removes_weight_ceiling(self, tmp_path, valid_config_dict):
+        """wan_override=True allows red_weight >= steer_threshold (no clamping)."""
+        valid_config_dict["wan_state"] = {
+            "enabled": True,
+            "red_weight": 60,
+            "wan_override": True,
+        }
+        valid_config_dict["confidence"] = {"steer_threshold": 55}
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config["red_weight"] == 60  # NOT clamped
+
+    def test_wan_override_true_logs_warning(self, tmp_path, valid_config_dict, caplog):
+        """wan_override=True logs override active warning."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True, "wan_override": True}
+        with caplog.at_level(logging.WARNING):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "override" in caplog.text.lower()
+
+    def test_wan_override_true_plus_disabled_warns(self, tmp_path, valid_config_dict, caplog):
+        """wan_override=True + enabled=False produces validation warning."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": False, "wan_override": True}
+        with caplog.at_level(logging.WARNING):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "override has no effect" in caplog.text.lower()
+
+    # =========================================================================
+    # Unknown keys test
+    # =========================================================================
+
+    def test_unknown_keys_produce_warning(self, tmp_path, valid_config_dict, caplog):
+        """Unknown keys in wan_state section produce typo warning."""
+        import logging
+
+        valid_config_dict["wan_state"] = {"enabled": True, "redd_weight": 25, "typo_key": 99}
+        with caplog.at_level(logging.WARNING):
+            self._make_config(tmp_path, valid_config_dict)
+        assert "unrecognized" in caplog.text.lower()
+
+    # =========================================================================
+    # soft_red_weight derivation
+    # =========================================================================
+
+    def test_soft_red_weight_derived_from_red_weight(self, tmp_path, valid_config_dict):
+        """soft_red_weight is int(red_weight * 0.48)."""
+        valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 50}
+        valid_config_dict["confidence"] = {"steer_threshold": 55}
+        # red_weight=50 (below threshold), soft_red_weight = int(50 * 0.48) = 24
+        config = self._make_config(tmp_path, valid_config_dict)
+        assert config.wan_state_config["soft_red_weight"] == 24
+
+    # =========================================================================
+    # Feature does not crash on invalid config
+    # =========================================================================
+
+    def test_invalid_config_does_not_crash(self, tmp_path, valid_config_dict):
+        """Invalid wan_state section degrades gracefully, rest of config loads."""
+        valid_config_dict["wan_state"] = {"enabled": "bogus", "red_weight": "bad"}
+        config = self._make_config(tmp_path, valid_config_dict)
+        # Config loaded successfully (not crashed)
+        assert config.primary_wan == "spectrum"
+        # WAN state disabled
+        assert config.wan_state_config is None
+
+
 class TestRunCycle:
     """Tests for SteeringDaemon.run_cycle() method.
 
