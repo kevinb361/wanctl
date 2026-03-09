@@ -2696,6 +2696,35 @@ class TestSteeringConfig:
 
         assert config.router_transport == "rest"
 
+    def test_verify_ssl_defaults_to_true_when_omitted(self, tmp_path, valid_config_dict):
+        """Test verify_ssl defaults to True when omitted (secure-by-default)."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        # Remove verify_ssl if present
+        valid_config_dict["router"].pop("verify_ssl", None)
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.router_verify_ssl is True
+
+    def test_verify_ssl_explicit_false_still_works(self, tmp_path, valid_config_dict):
+        """Test explicit verify_ssl=false is honored (no regression)."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["router"]["verify_ssl"] = False
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.router_verify_ssl is False
+
     def test_router_rest_transport(self, tmp_path, valid_config_dict):
         """Test REST transport with password and port."""
         import yaml
