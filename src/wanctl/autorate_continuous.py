@@ -945,6 +945,9 @@ class WANController:
         self.state_manager = WANControllerState(
             state_file=config.state_file, logger=logger, wan_name=wan_name
         )
+        # Congestion zone for state file export (read by steering daemon)
+        self._dl_zone: str = "GREEN"
+        self._ul_zone: str = "GREEN"
         # Periodic force save counter (safety net against crashes)
         self._cycles_since_forced_save = 0
 
@@ -1434,11 +1437,13 @@ class WANController:
                 self.soft_red_threshold,
                 self.hard_red_threshold,
             )
+            self._dl_zone = dl_zone
 
             # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
             ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
                 self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
             )
+            self._ul_zone = ul_zone
 
             # Log decision
             delta = self.load_rtt - self.baseline_rtt
@@ -1634,6 +1639,7 @@ class WANController:
                 "dl_rate": self.last_applied_dl_rate,
                 "ul_rate": self.last_applied_ul_rate,
             },
+            congestion={"dl_state": self._dl_zone, "ul_state": self._ul_zone},
             force=force,
         )
 
