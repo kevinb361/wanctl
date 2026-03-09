@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Architectural Review Fixes
-current_phase: Phase 56 - Integration Gap Fixes (v1.10)
+current_phase: Phase 57 - v1.10 Gap Closure
 current_plan: 01 (complete)
 status: completed
-last_updated: "2026-03-09T02:31:33.596Z"
-last_activity: 2026-03-09 -- Completed 56-01 (verify_ssl + CONFIG_SCHEMA fixes)
+last_updated: "2026-03-09T11:51:28Z"
+last_activity: 2026-03-09 -- Completed 57-01 (TEST-01 fixture consolidation + router_client docstring fix)
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 14
-  completed_plans: 13
-  percent: 0
+  completed_phases: 7
+  total_plans: 15
+  completed_plans: 14
+  percent: 93
 ---
 
 # Session State
@@ -23,13 +23,13 @@ See: .planning/PROJECT.md
 
 ## Position
 
-**Milestone:** v1.11 WAN-Aware Steering
-**Current phase:** Phase 56 - Integration Gap Fixes (v1.10)
+**Milestone:** v1.10 Architectural Review Fixes
+**Current phase:** Phase 57 - v1.10 Gap Closure
 **Current plan:** 01 (complete)
-**Status:** Milestone complete
-**Last activity:** 2026-03-09 -- Completed 56-01 (verify_ssl + CONFIG_SCHEMA fixes)
+**Status:** Phase 57 complete, v1.10 gap closure done
+**Last activity:** 2026-03-09 -- Completed 57-01 (TEST-01 fixture consolidation + router_client docstring fix)
 
-**Progress:** [░░░░░░░░░░] 0%
+**Progress:** [#########-] 93%
 
 ## Phase Summary
 
@@ -53,6 +53,8 @@ See: .planning/PROJECT.md
 - ~60 lines production code, ~150-200 lines tests across 5 existing files
 - verify_ssl defaults to True (secure-by-default) in both config loaders, matching RouterOS REST client fallback
 - CONFIG_SCHEMA.md transport default changed from ssh to rest, matching code since Phase 50
+- TEST-01: All mock_config fixtures in 4 test files delegate to shared conftest.py fixtures
+- router_client.py get_router_client() default transport changed from ssh to rest
 
 ### Known Issues
 
@@ -64,6 +66,7 @@ None.
 
 ## Session Log
 
+- 2026-03-09: Completed 57-01 -- TEST-01 fixture consolidation (481 lines removed) + router_client.py docstring/default fix, 2109 tests passing
 - 2026-03-09: Completed 56-01 -- verify_ssl default fix (OPS-01) + CONFIG_SCHEMA.md transport default (CLEAN-04), 4 new tests, 2109 total passing
 - 2026-03-09: Milestone v1.11 started -- WAN-aware steering to close ISP congestion visibility gap
 - 2026-03-08: Roadmap created -- 3 phases (56-58), 12 requirements mapped with 100% coverage
