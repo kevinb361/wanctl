@@ -908,3 +908,103 @@ class TestWANRecoveryGate:
         )
         assert result is None
         assert timer_state.recovery_timer is not None  # Timer started (not blocked)
+
+
+# =============================================================================
+# Config-driven WAN weight gating tests (SAFE-03, SAFE-04)
+# =============================================================================
+
+
+class TestWanStateGating:
+    """Tests for config-driven WAN weight parameters on compute_confidence().
+
+    Covers SAFE-03 (config-driven weights override class constants) and
+    SAFE-04 (disabled mode uses defaults / None falls back to constants).
+    """
+
+    @pytest.fixture
+    def logger(self):
+        return MagicMock(spec=logging.Logger)
+
+    def test_custom_wan_red_weight_used_when_provided(self, logger):
+        """Custom wan_red_weight=40 should produce score with 40 (not default 25)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, contributors = compute_confidence(
+            signals, logger, wan_red_weight=40
+        )
+        assert score == 40
+        assert "WAN_RED" in contributors
+
+    def test_custom_wan_soft_red_weight_used_when_provided(self, logger):
+        """Custom wan_soft_red_weight=20 should produce score with 20 (not default 12)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="SOFT_RED",
+        )
+        score, contributors = compute_confidence(
+            signals, logger, wan_soft_red_weight=20
+        )
+        assert score == 20
+        assert "WAN_SOFT_RED" in contributors
+
+    def test_none_defaults_fall_back_to_class_constants(self, logger):
+        """None defaults (no kwargs) should use ConfidenceWeights class constants."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, contributors = compute_confidence(signals, logger)
+        assert score == ConfidenceWeights.WAN_RED  # 25
+        assert "WAN_RED" in contributors
+
+    def test_config_driven_weight_produces_different_score_than_default(self, logger):
+        """Config-driven weight=60 should differ from default=25 for WAN RED."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        default_score, _ = compute_confidence(signals, logger)
+        custom_score, _ = compute_confidence(signals, logger, wan_red_weight=60)
+        assert default_score == 25
+        assert custom_score == 60
+        assert custom_score != default_score
+
+    def test_wan_red_weight_60_can_trigger_alone_if_override(self, logger):
+        """wan_red_weight=60 with wan_zone=RED should score 60 (>55 steer threshold)."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, _ = compute_confidence(signals, logger, wan_red_weight=60)
+        assert score == 60
+        assert score > 55  # Exceeds typical steer_threshold
+
+    def test_explicit_none_falls_back_to_class_constant(self, logger):
+        """Passing wan_red_weight=None explicitly should use class constant."""
+        signals = ConfidenceSignals(
+            cake_state="GREEN",
+            rtt_delta_ms=5.0,
+            drops_per_sec=0.0,
+            queue_depth_pct=10.0,
+            wan_zone="RED",
+        )
+        score, _ = compute_confidence(signals, logger, wan_red_weight=None)
+        assert score == ConfidenceWeights.WAN_RED
