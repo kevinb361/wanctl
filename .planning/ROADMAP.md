@@ -56,10 +56,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Autorate state file contains `congestion.dl_state` field (GREEN/YELLOW/SOFT_RED/RED) updated each cycle
   2. Pre-upgrade steering (without WAN awareness code) continues to operate normally when reading the extended state file
   3. State file write frequency does not increase when congestion zone changes between cycles (zone excluded from dirty-tracking)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 58-01: TBD
+- [ ] 58-01-PLAN.md -- Extend state persistence with congestion zone and wire WANController save
 
 ### Phase 59: WAN State Reader + Signal Fusion
 **Goal**: Steering consumes WAN congestion zone as an amplifying signal in confidence scoring, with fail-safe behavior for stale or missing data
@@ -301,7 +301,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. State File Extension | 0/? | Not started | - |
+| 58. State File Extension | 0/1 | Planned | - |
 | 59. WAN State Reader + Signal Fusion | 0/? | Not started | - |
 | 60. Configuration + Safety + Wiring | 0/? | Not started | - |
 | 61. Observability + Metrics | 0/? | Not started | - |
