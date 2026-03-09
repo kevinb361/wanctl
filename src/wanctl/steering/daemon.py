@@ -562,6 +562,7 @@ class RouterOSController:
 # =============================================================================
 
 STALE_BASELINE_THRESHOLD_SECONDS = 300
+STALE_WAN_ZONE_THRESHOLD_SECONDS = 5
 
 
 class BaselineLoader:
@@ -572,12 +573,19 @@ class BaselineLoader:
         self.logger = logger
         self._stale_baseline_warned = False
 
-    def load_baseline_rtt(self) -> float | None:
+    def load_baseline_rtt(self) -> tuple[float | None, str | None]:
         """
-        Load baseline RTT from primary WAN autorate state file
-        Reads ewma.baseline_rtt from autorate_continuous state
-        Returns None if unavailable (daemon will use config fallback)
-        Warns (rate-limited) if state file is stale (>5 minutes old)
+        Load baseline RTT and WAN congestion zone from primary WAN autorate state file.
+
+        Reads ewma.baseline_rtt and congestion.dl_state from autorate_continuous state.
+        Returns (None, None) if unavailable (daemon will use config fallback).
+        WAN zone defaults to GREEN if state file is stale (>5s) per SAFE-01.
+        Warns (rate-limited) if state file is stale (>5 minutes old).
+
+        Returns:
+            tuple of (baseline_rtt, wan_zone):
+                - baseline_rtt: float or None if unavailable/invalid
+                - wan_zone: congestion zone str or None if congestion key missing
         """
         state = safe_json_load_file(
             self.config.primary_state_file,
@@ -586,10 +594,16 @@ class BaselineLoader:
         )
 
         if state is None:
-            return None
+            return None, None
 
         # STEER-03: Check file staleness before parsing
         self._check_staleness()
+
+        # FUSE-01: Extract WAN zone from same dict (zero additional I/O)
+        if self._is_wan_zone_stale():
+            wan_zone: str | None = "GREEN"  # SAFE-01: stale defaults to GREEN
+        else:
+            wan_zone = state.get("congestion", {}).get("dl_state", None)
 
         # autorate_continuous format: state['ewma']['baseline_rtt']
         if "ewma" in state and "baseline_rtt" in state["ewma"]:
@@ -597,7 +611,7 @@ class BaselineLoader:
                 baseline_rtt = float(state["ewma"]["baseline_rtt"])
             except (ValueError, TypeError) as e:
                 self.logger.error(f"Invalid baseline_rtt value: {e}")
-                return None
+                return None, wan_zone
 
             # PROTECTED: Security fix C4 - bounds baseline to 10-60ms to prevent malicious state file attacks.
             # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
@@ -606,16 +620,24 @@ class BaselineLoader:
                 self.logger.debug(
                     f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms"
                 )
-                return baseline_rtt
+                return baseline_rtt, wan_zone
             else:
                 self.logger.warning(
                     f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
                     f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
                 )
-                return None
+                return None, wan_zone
         else:
             self.logger.warning("Baseline RTT not found in autorate state file")
-            return None
+            return None, wan_zone
+
+    def _is_wan_zone_stale(self) -> bool:
+        """Check if autorate state file is too old for WAN zone to be trusted."""
+        try:
+            file_age = time.time() - self.config.primary_state_file.stat().st_mtime
+        except OSError:
+            return True  # Cannot stat = treat as stale (fail-safe)
+        return file_age > STALE_WAN_ZONE_THRESHOLD_SECONDS
 
     def _check_staleness(self) -> None:
         """Check if autorate state file is stale and warn (rate-limited)."""
@@ -719,6 +741,9 @@ class SteeringDaemon:
         self._profiling_enabled = False
         self._overrun_count = 0
         self._cycle_interval_ms = ASSESSMENT_INTERVAL_SECONDS * 1000.0
+
+        # WAN congestion zone from autorate state (FUSE-01)
+        self._wan_zone: str | None = None
 
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
@@ -1068,10 +1093,11 @@ class SteeringDaemon:
 
     def update_baseline_rtt(self) -> bool:
         """
-        Update baseline RTT from autorate state
-        Returns True if successful, False otherwise
+        Update baseline RTT and WAN zone from autorate state.
+        Returns True if successful, False otherwise.
         """
-        baseline_rtt = self.baseline_loader.load_baseline_rtt()
+        baseline_rtt, wan_zone = self.baseline_loader.load_baseline_rtt()
+        self._wan_zone = wan_zone  # Store for use in update_state_machine
 
         if baseline_rtt is not None:
             old_baseline = self.state_mgr.state["baseline_rtt"]
@@ -1155,6 +1181,7 @@ class SteeringDaemon:
                 cake_state_history=list(state.get("cake_state_history", [])),
                 drops_history=list(state.get("cake_drops_history", [])),
                 queue_history=list(state.get("queue_depth_history", [])),
+                wan_zone=self._wan_zone,
             )
 
             # Evaluate confidence (returns decision or None if dry-run)
