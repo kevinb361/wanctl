@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.10
-milestone_name: Architectural Review Fixes
-current_phase: complete
+milestone: v1.11
+milestone_name: WAN-Aware Steering
+current_phase: not_started
 current_plan: null
-status: milestone_complete
+status: defining_requirements
 last_updated: "2026-03-09"
-last_activity: 2026-03-09 -- v1.10 milestone archived and tagged
+last_activity: 2026-03-09 -- Milestone v1.11 started
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 15
-  completed_plans: 14
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -22,15 +22,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.10 complete, planning next milestone (v1.11 WAN-Aware Steering)
+**Current focus:** v1.11 WAN-Aware Steering — defining requirements
 
 ## Position
 
-**Milestone:** v1.10 Architectural Review Fixes — SHIPPED 2026-03-09
-**Status:** Milestone complete, archived to milestones/
-**Next:** /gsd:new-milestone (v1.11 already scoped in PROJECT.md)
+**Milestone:** v1.11 WAN-Aware Steering
+**Status:** Defining requirements
+**Last activity:** 2026-03-09 — Milestone v1.11 started
 
-**Progress:** [##########] 100%
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
