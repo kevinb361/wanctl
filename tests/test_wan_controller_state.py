@@ -244,3 +244,139 @@ class TestDirtyStateTracking:
         result = state_manager.save(**modified)
 
         assert result is True
+
+
+class TestCongestionZoneExport:
+    """Tests for congestion zone export in state file.
+
+    Verifies that congestion zone data (dl_state, ul_state) is written to the
+    state file when provided, excluded from dirty tracking to prevent write
+    amplification, and backward compatible when omitted.
+    """
+
+    @pytest.fixture
+    def state_file(self, tmp_path):
+        """Temporary state file path."""
+        return tmp_path / "test-state.json"
+
+    @pytest.fixture
+    def state_manager(self, state_file):
+        """State manager instance."""
+        logger = MagicMock()
+        return WANControllerState(state_file, logger, "test-wan")
+
+    @pytest.fixture
+    def sample_state(self):
+        """Sample state data for tests."""
+        return {
+            "download": {
+                "green_streak": 5,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 100000000,
+            },
+            "upload": {
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 20000000,
+            },
+            "ewma": {"baseline_rtt": 20.0, "load_rtt": 22.0},
+            "last_applied": {"dl_rate": 100000000, "ul_rate": 20000000},
+        }
+
+    def test_congestion_written_to_state_file(self, state_manager, state_file, sample_state):
+        """save() with congestion parameter writes congestion key to file."""
+        state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "RED", "ul_state": "GREEN"},
+        )
+
+        state = json.loads(state_file.read_text())
+        assert "congestion" in state
+        assert state["congestion"]["dl_state"] == "RED"
+        assert state["congestion"]["ul_state"] == "GREEN"
+
+    def test_both_zones_written(self, state_manager, state_file, sample_state):
+        """Saved state file contains both dl_state and ul_state values."""
+        state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "YELLOW", "ul_state": "RED"},
+        )
+
+        state = json.loads(state_file.read_text())
+        assert state["congestion"] == {"dl_state": "YELLOW", "ul_state": "RED"}
+
+    def test_backward_compat_no_congestion(self, state_manager, state_file, sample_state):
+        """save() without congestion parameter still works (no congestion key in file)."""
+        state_manager.save(**sample_state)
+
+        state = json.loads(state_file.read_text())
+        assert "congestion" not in state
+
+    def test_zone_change_alone_no_write(self, state_manager, sample_state):
+        """Changing only congestion value should NOT trigger disk write."""
+        # First save with one congestion value
+        result1 = state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "GREEN", "ul_state": "GREEN"},
+        )
+        # Second save with different congestion but same tracked state
+        result2 = state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "RED", "ul_state": "YELLOW"},
+        )
+
+        assert result1 is True  # First save writes
+        assert result2 is False  # Zone change alone does NOT trigger write
+
+    def test_zone_included_on_normal_write(self, state_manager, state_file, sample_state):
+        """When tracked state changes, congestion is included in the write."""
+        state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "GREEN", "ul_state": "GREEN"},
+        )
+
+        # Change download data AND provide new congestion
+        modified = sample_state.copy()
+        modified["download"] = sample_state["download"].copy()
+        modified["download"]["green_streak"] = 10
+        state_manager.save(
+            **modified,
+            congestion={"dl_state": "RED", "ul_state": "YELLOW"},
+        )
+
+        state = json.loads(state_file.read_text())
+        assert state["congestion"] == {"dl_state": "RED", "ul_state": "YELLOW"}
+        assert state["download"]["green_streak"] == 10
+
+    def test_force_save_includes_congestion(self, state_manager, state_file, sample_state):
+        """force=True with congestion writes congestion to file."""
+        # First save
+        state_manager.save(**sample_state)
+        # Force save with congestion (same tracked state)
+        state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "SOFT_RED", "ul_state": "GREEN"},
+            force=True,
+        )
+
+        state = json.loads(state_file.read_text())
+        assert state["congestion"] == {"dl_state": "SOFT_RED", "ul_state": "GREEN"}
+
+    def test_load_does_not_track_congestion(self, state_manager, state_file, sample_state):
+        """Loading state with congestion key should not affect dirty tracking."""
+        # Save state with congestion
+        state_manager.save(
+            **sample_state,
+            congestion={"dl_state": "RED", "ul_state": "GREEN"},
+        )
+
+        # Create new manager and load (simulates restart)
+        logger = MagicMock()
+        new_manager = WANControllerState(state_file, logger, "test-wan")
+        new_manager.load()
+
+        # Save same 4 tracked fields -- should be skipped (not dirty)
+        result = new_manager.save(**sample_state)
+        assert result is False
