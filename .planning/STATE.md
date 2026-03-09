@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
 current_phase: 56
-current_plan: —
-status: ready_to_plan
-last_updated: "2026-03-08T00:00:00Z"
-last_activity: 2026-03-08 — Roadmap created for v1.11 (3 phases, 12 requirements)
+current_plan: 01
+status: plan_complete
+last_updated: "2026-03-09T02:27:00Z"
+last_activity: 2026-03-09 — Completed 56-01 (verify_ssl + CONFIG_SCHEMA fixes)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 1
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering
-**Current phase:** Phase 56 - WAN State Data Path (ready to plan)
-**Current plan:** --
-**Status:** Ready to plan
-**Last activity:** 2026-03-08 -- Roadmap created (3 phases, 12 requirements mapped)
+**Current phase:** Phase 56 - Integration Gap Fixes (v1.10)
+**Current plan:** 01 (complete)
+**Status:** Plan complete
+**Last activity:** 2026-03-09 -- Completed 56-01 (verify_ssl + CONFIG_SCHEMA fixes)
 
 **Progress:** [░░░░░░░░░░] 0%
 
@@ -51,6 +51,8 @@ See: .planning/PROJECT.md
 - Staleness threshold: 5 seconds (steering runs at 0.5s, autorate at 50ms -- 10:1 ratio provides margin)
 - Recovery requires WAN GREEN in addition to CAKE GREEN
 - ~60 lines production code, ~150-200 lines tests across 5 existing files
+- verify_ssl defaults to True (secure-by-default) in both config loaders, matching RouterOS REST client fallback
+- CONFIG_SCHEMA.md transport default changed from ssh to rest, matching code since Phase 50
 
 ### Known Issues
 
@@ -62,5 +64,6 @@ None.
 
 ## Session Log
 
+- 2026-03-09: Completed 56-01 -- verify_ssl default fix (OPS-01) + CONFIG_SCHEMA.md transport default (CLEAN-04), 4 new tests, 2109 total passing
 - 2026-03-09: Milestone v1.11 started -- WAN-aware steering to close ISP congestion visibility gap
 - 2026-03-08: Roadmap created -- 3 phases (56-58), 12 requirements mapped with 100% coverage
