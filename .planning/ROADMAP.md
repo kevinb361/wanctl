@@ -12,7 +12,7 @@ None
 
 ### Active
 
-None — planning next milestone.
+- **v1.11 WAN-Aware Steering** - Phases 58-61 (in progress)
 
 ### Completed
 
@@ -36,6 +36,73 @@ None — planning next milestone.
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.11 WAN-Aware Steering (Phases 58-61)
+
+**Milestone Goal:** Feed autorate's end-to-end WAN RTT state into steering's failover decision, closing the gap where CAKE queue stats mask ISP-level congestion. ~100 lines of new production code wiring existing primitives together.
+
+- [ ] **Phase 58: State File Extension** - Autorate persists congestion zone to state file with backward compatibility and no write amplification
+- [ ] **Phase 59: WAN State Reader + Signal Fusion** - Steering reads WAN zone, maps to confidence weights, enforces CAKE-primary semantics with fail-safe defaults
+- [ ] **Phase 60: Configuration + Safety + Wiring** - YAML config, schema validation, startup grace period, feature toggle, end-to-end daemon wiring
+- [ ] **Phase 61: Observability + Metrics** - Health endpoint, SQLite metrics, and log integration for WAN-aware steering decisions
+
+## Phase Details
+
+### Phase 58: State File Extension
+**Goal**: Autorate's congestion zone is available to any consumer via the existing state file
+**Depends on**: Nothing (first phase of v1.11)
+**Requirements**: STATE-01, STATE-02, STATE-03
+**Success Criteria** (what must be TRUE):
+  1. Autorate state file contains `congestion.dl_state` field (GREEN/YELLOW/SOFT_RED/RED) updated each cycle
+  2. Pre-upgrade steering (without WAN awareness code) continues to operate normally when reading the extended state file
+  3. State file write frequency does not increase when congestion zone changes between cycles (zone excluded from dirty-tracking)
+**Plans**: TBD
+
+Plans:
+- [ ] 58-01: TBD
+
+### Phase 59: WAN State Reader + Signal Fusion
+**Goal**: Steering consumes WAN congestion zone as an amplifying signal in confidence scoring, with fail-safe behavior for stale or missing data
+**Depends on**: Phase 58
+**Requirements**: FUSE-01, FUSE-02, FUSE-03, FUSE-04, FUSE-05, SAFE-01, SAFE-02
+**Success Criteria** (what must be TRUE):
+  1. Steering reads WAN zone from the same file read it already performs for baseline RTT (zero additional I/O operations)
+  2. WAN RED alone produces a confidence score below the steer threshold (CAKE-primary invariant enforced by weight values)
+  3. WAN RED combined with at least one CAKE-based signal pushes confidence score toward or above the steer threshold
+  4. Recovery from steering requires WAN zone to be GREEN (or unavailable) in addition to existing CAKE recovery checks
+  5. WAN zone older than 5 seconds defaults to GREEN; autorate being completely unavailable skips the WAN weight entirely
+**Plans**: TBD
+
+Plans:
+- [ ] 59-01: TBD
+- [ ] 59-02: TBD
+
+### Phase 60: Configuration + Safety + Wiring
+**Goal**: WAN-aware steering is fully wired end-to-end in the steering daemon, controlled by YAML configuration, and ships disabled by default
+**Depends on**: Phase 59
+**Requirements**: CONF-01, CONF-02, SAFE-03, SAFE-04
+**Success Criteria** (what must be TRUE):
+  1. YAML `wan_state:` section configures enabled flag, weight values, staleness threshold, and grace period with validated defaults
+  2. Invalid `wan_state:` configuration values are caught by schema validation and produce clear error messages
+  3. Steering daemon ignores WAN signal for the first 30 seconds after startup (grace period)
+  4. Feature ships with `wan_state.enabled: false` as default -- no behavioral change on upgrade unless explicitly enabled
+**Plans**: TBD
+
+Plans:
+- [ ] 60-01: TBD
+
+### Phase 61: Observability + Metrics
+**Goal**: Operators can monitor WAN-aware steering behavior through health endpoints, metrics history, and logs
+**Depends on**: Phase 60
+**Requirements**: OBSV-01, OBSV-02, OBSV-03
+**Success Criteria** (what must be TRUE):
+  1. Health endpoint response includes WAN awareness state: current zone, staleness age, sustained cycle count, and confidence contribution value
+  2. SQLite metrics database records WAN awareness signal each cycle (zone, weight applied, staleness)
+  3. Log output includes WAN state information when it contributes to a steering decision (steer or recover)
+**Plans**: TBD
+
+Plans:
+- [ ] 61-01: TBD
 
 <details>
 <summary>v1.10 Architectural Review Fixes (Phases 50-57) - SHIPPED 2026-03-09</summary>
@@ -227,7 +294,17 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Status:** No active milestone. Planning next.
+**Execution Order:**
+Phases execute in numeric order: 58 -> 59 -> 60 -> 61
+
+### v1.11 WAN-Aware Steering
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 58. State File Extension | 0/? | Not started | - |
+| 59. WAN State Reader + Signal Fusion | 0/? | Not started | - |
+| 60. Configuration + Safety + Wiring | 0/? | Not started | - |
+| 61. Observability + Metrics | 0/? | Not started | - |
 
 ### Completed Milestones
 

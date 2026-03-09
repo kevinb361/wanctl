@@ -70,29 +70,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STATE-01 | — | Pending |
-| STATE-02 | — | Pending |
-| STATE-03 | — | Pending |
-| FUSE-01 | — | Pending |
-| FUSE-02 | — | Pending |
-| FUSE-03 | — | Pending |
-| FUSE-04 | — | Pending |
-| FUSE-05 | — | Pending |
-| SAFE-01 | — | Pending |
-| SAFE-02 | — | Pending |
-| SAFE-03 | — | Pending |
-| SAFE-04 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| OBSV-01 | — | Pending |
-| OBSV-02 | — | Pending |
-| OBSV-03 | — | Pending |
+| STATE-01 | Phase 58 | Pending |
+| STATE-02 | Phase 58 | Pending |
+| STATE-03 | Phase 58 | Pending |
+| FUSE-01 | Phase 59 | Pending |
+| FUSE-02 | Phase 59 | Pending |
+| FUSE-03 | Phase 59 | Pending |
+| FUSE-04 | Phase 59 | Pending |
+| FUSE-05 | Phase 59 | Pending |
+| SAFE-01 | Phase 59 | Pending |
+| SAFE-02 | Phase 59 | Pending |
+| SAFE-03 | Phase 60 | Pending |
+| SAFE-04 | Phase 60 | Pending |
+| CONF-01 | Phase 60 | Pending |
+| CONF-02 | Phase 60 | Pending |
+| OBSV-01 | Phase 61 | Pending |
+| OBSV-02 | Phase 61 | Pending |
+| OBSV-03 | Phase 61 | Pending |
 
 **Coverage:**
 - v1.11 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
