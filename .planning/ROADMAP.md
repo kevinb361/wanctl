@@ -78,8 +78,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 56-01-PLAN.md -- Fix verify_ssl default to True in both config loaders + update CONFIG_SCHEMA.md transport default to rest (2/2 tasks)
 - [ ] **Phase 57: v1.10 Gap Closure** - Consolidate test fixtures (TEST-01) + cosmetic fixes from audit
       **Gap Closure:** Closes TEST-01 unsatisfied requirement + cosmetic residuals from v1.10-MILESTONE-AUDIT.md
+      **Plans:** 1 plan
       Plans:
-  - [ ] 57-01-PLAN.md -- Consolidate mock_config fixtures + fix stale router_client.py docstring and default (3/3 tasks)
+  - [ ] 57-01-PLAN.md -- Consolidate mock_config fixtures + fix stale router_client.py docstring and default (2/2 tasks)
 
 See [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) for full details.
 
