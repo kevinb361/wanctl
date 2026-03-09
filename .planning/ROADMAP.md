@@ -94,11 +94,12 @@ Plans:
 2. Invalid `wan_state:` configuration values are caught by schema validation and produce clear error messages
 3. Steering daemon ignores WAN signal for the first 30 seconds after startup (grace period)
 4. Feature ships with `wan_state.enabled: false` as default -- no behavioral change on upgrade unless explicitly enabled
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 60-01: TBD
+- [ ] 60-01-PLAN.md -- YAML wan_state: config section with validation, clamping, wan_override, and startup logging
+- [ ] 60-02-PLAN.md -- Grace period timer, feature-enabled gate, and config-driven weights wiring
 
 ### Phase 61: Observability + Metrics
 
@@ -315,7 +316,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | ------------------------------------ | -------------- | ----------- | ---------- |
 | 58. State File Extension             | 1/1            | Complete    | 2026-03-09 |
 | 59. WAN State Reader + Signal Fusion | 2/2            | Complete    | 2026-03-09 |
-| 60. Configuration + Safety + Wiring  | 0/?            | Not started | -          |
+| 60. Configuration + Safety + Wiring  | 0/2            | Not started | -          |
 | 61. Observability + Metrics          | 0/?            | Not started | -          |
 
 ### Completed Milestones
