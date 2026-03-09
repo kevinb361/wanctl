@@ -10,7 +10,6 @@ already tested in test_autorate_error_recovery.py.
 """
 
 import sqlite3
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
