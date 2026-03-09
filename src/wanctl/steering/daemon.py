@@ -290,6 +290,131 @@ class SteeringConfig(BaseConfig):
             },
         }
 
+    def _load_wan_state_config(self) -> None:
+        """Load WAN-aware steering configuration.
+
+        Validates the optional wan_state: YAML section. Invalid config warns
+        and disables the feature (does not crash). Feature ships disabled by
+        default per SAFE-04.
+
+        Sets self.wan_state_config to a dict with all fields when valid and
+        enabled, or None when absent/disabled/invalid.
+        """
+        logger = logging.getLogger(__name__)
+        wan_state = self.data.get("wan_state", {})
+
+        # Known keys for typo detection
+        known_keys = {
+            "enabled", "red_weight", "staleness_threshold_sec",
+            "grace_period_sec", "wan_override",
+        }
+
+        # Missing or empty wan_state section
+        if not wan_state:
+            self.wan_state_config = None
+            logger.info("WAN awareness: disabled (enable via wan_state.enabled)")
+            return
+
+        # Check for unknown keys (typo detection)
+        unknown = set(wan_state.keys()) - known_keys
+        if unknown:
+            logger.warning(f"wan_state: unrecognized keys {unknown} (possible typo)")
+
+        # Validate 'enabled' field type
+        enabled = wan_state.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                f"wan_state.enabled must be bool, got {type(enabled).__name__}; "
+                "disabling WAN awareness"
+            )
+            self.wan_state_config = None
+            return
+
+        # Cross-field: wan_override with disabled
+        wan_override = wan_state.get("wan_override", False)
+        if not isinstance(wan_override, bool):
+            logger.warning(
+                f"wan_state.wan_override must be bool, got {type(wan_override).__name__}; "
+                "disabling WAN awareness"
+            )
+            self.wan_state_config = None
+            return
+
+        if wan_override and not enabled:
+            logger.warning("wan_state: override has no effect when disabled")
+
+        if not enabled:
+            self.wan_state_config = None
+            logger.info("WAN awareness: disabled (enable via wan_state.enabled)")
+            return
+
+        # Validate numeric fields
+        try:
+            red_weight = wan_state.get("red_weight", 25)
+            if not isinstance(red_weight, int) or isinstance(red_weight, bool):
+                raise TypeError(
+                    f"wan_state.red_weight must be int, got {type(red_weight).__name__}"
+                )
+
+            staleness_threshold_sec = wan_state.get("staleness_threshold_sec", 5)
+            if not isinstance(staleness_threshold_sec, (int, float)) or isinstance(
+                staleness_threshold_sec, bool
+            ):
+                raise TypeError(
+                    f"wan_state.staleness_threshold_sec must be numeric, "
+                    f"got {type(staleness_threshold_sec).__name__}"
+                )
+
+            grace_period_sec = wan_state.get("grace_period_sec", 30)
+            if not isinstance(grace_period_sec, (int, float)) or isinstance(
+                grace_period_sec, bool
+            ):
+                raise TypeError(
+                    f"wan_state.grace_period_sec must be numeric, "
+                    f"got {type(grace_period_sec).__name__}"
+                )
+        except TypeError as e:
+            logger.warning(f"{e}; disabling WAN awareness")
+            self.wan_state_config = None
+            return
+
+        # Enforce minimum
+        if red_weight < 1:
+            red_weight = 1
+
+        # Weight clamping: red_weight must be < steer_threshold unless wan_override
+        steer_threshold = self.data.get("confidence", {}).get("steer_threshold", 55)
+        if not wan_override and red_weight >= steer_threshold:
+            clamped = steer_threshold - 1
+            logger.warning(
+                f"red_weight clamped to {clamped} (must be < steer_threshold {steer_threshold})"
+            )
+            red_weight = clamped
+
+        # Derive soft_red_weight
+        soft_red_weight = int(red_weight * 0.48)
+
+        # Build config dict
+        self.wan_state_config = {
+            "enabled": True,
+            "red_weight": red_weight,
+            "soft_red_weight": soft_red_weight,
+            "staleness_threshold_sec": staleness_threshold_sec,
+            "grace_period_sec": grace_period_sec,
+            "wan_override": wan_override,
+        }
+
+        # Startup logging
+        if wan_override:
+            logger.warning(
+                "WAN override active -- WAN RED can trigger failover "
+                "independently of CAKE signals"
+            )
+        logger.info(
+            f"WAN awareness: enabled (grace period: {grace_period_sec}s, "
+            f"red_weight: {red_weight}, wan_override: {wan_override})"
+        )
+
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
         thresholds = self.data["thresholds"]
@@ -388,6 +513,7 @@ class SteeringConfig(BaseConfig):
         self._load_cake_queues()  # Depends on _load_topology for primary_wan
         self._load_operational_mode()
         self._load_confidence_config()  # Depends on _load_operational_mode for use_confidence_scoring
+        self._load_wan_state_config()  # Depends on confidence for steer_threshold
 
         # Thresholds and bounds
         self._load_thresholds()
