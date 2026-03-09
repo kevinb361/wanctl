@@ -71,11 +71,11 @@ Plans:
   3. WAN RED combined with at least one CAKE-based signal pushes confidence score toward or above the steer threshold
   4. Recovery from steering requires WAN zone to be GREEN (or unavailable) in addition to existing CAKE recovery checks
   5. WAN zone older than 5 seconds defaults to GREEN; autorate being completely unavailable skips the WAN weight entirely
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 59-01: TBD
-- [ ] 59-02: TBD
+- [ ] 59-01-PLAN.md -- Add WAN zone to confidence scoring and recovery gate
+- [ ] 59-02-PLAN.md -- Extend BaselineLoader to return WAN zone tuple with staleness and wire to ConfidenceSignals
 
 ### Phase 60: Configuration + Safety + Wiring
 **Goal**: WAN-aware steering is fully wired end-to-end in the steering daemon, controlled by YAML configuration, and ships disabled by default
@@ -302,7 +302,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. State File Extension | 1/1 | Complete    | 2026-03-09 |
-| 59. WAN State Reader + Signal Fusion | 0/? | Not started | - |
+| 59. WAN State Reader + Signal Fusion | 0/2 | Not started | - |
 | 60. Configuration + Safety + Wiring | 0/? | Not started | - |
 | 61. Observability + Metrics | 0/? | Not started | - |
 
