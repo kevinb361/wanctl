@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: planning
-last_updated: "2026-03-09T15:31:45.977Z"
-last_activity: 2026-03-09 -- Completed 59-02-PLAN.md (Phase 59 complete)
+status: executing
+last_updated: "2026-03-09T23:54:43.000Z"
+last_activity: 2026-03-09 -- Completed 60-01-PLAN.md (wan_state config validation)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 30
+  total_plans: 4
+  completed_plans: 4
+  percent: 50
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.11 WAN-Aware Steering -- Phase 59 complete, ready for Phase 60
+**Current focus:** v1.11 WAN-Aware Steering -- Phase 60 in progress
 
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 59 of 61 (WAN State Reader & Signal Fusion) -- COMPLETE
-**Plan:** 2 of 2 (Phase 59) -- COMPLETE
-**Status:** Ready to plan
-**Last activity:** 2026-03-09 -- Completed 59-02-PLAN.md (Phase 59 complete)
+**Phase:** 60 of 61 (Configuration + Safety + Wiring) -- IN PROGRESS
+**Plan:** 1 of 2 (Phase 60) -- COMPLETE
+**Status:** Executing
+**Last activity:** 2026-03-09 -- Completed 60-01-PLAN.md (wan_state config validation)
 
-**Progress:** [███░░░░░░░] 30%
+**Progress:** [█████░░░░░] 50%
 
 ## Accumulated Context
 
@@ -56,6 +56,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - Autorate unavailable returns (None, None) -- zone is None, not GREEN (SAFE-02)
 - wan_zone stored as SteeringDaemon.\_wan_zone instance attribute, threaded to ConfidenceSignals
 
+- wan_state fields NOT in SCHEMA (manual validation in \_load_wan_state_config to prevent crash on invalid)
+- warn+disable pattern: invalid wan_state config warns and disables feature, does not crash daemon
+- wan_override cross-field warning fires even when feature disabled
+
 ### Known Issues
 
 None.
@@ -66,6 +70,7 @@ None.
 
 ## Session Log
 
+- 2026-03-09: Completed 60-01 -- wan_state YAML config with validation, weight clamping, wan_override, startup logging (20 new tests, 2167 total)
 - 2026-03-09: Completed 59-02 -- BaselineLoader WAN zone extraction, staleness fail-safe, ConfidenceSignals wiring (10 new tests, 2149 total)
 - 2026-03-09: Completed 59-01 -- WAN zone confidence scoring and recovery gate (21 new tests, 2137 total)
 - 2026-03-09: Completed 58-01 -- state file extension with congestion zone (10 new tests, 2119 total)

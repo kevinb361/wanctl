@@ -26,12 +26,12 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 - [x] **SAFE-01**: Stale WAN state (>5s) defaults to GREEN (fail-safe)
 - [x] **SAFE-02**: Graceful degradation when autorate unavailable (None = skip WAN weight)
 - [ ] **SAFE-03**: Startup grace period ignores WAN signal for first 30s after daemon start
-- [ ] **SAFE-04**: Feature ships disabled by default (`wan_state.enabled: false`)
+- [x] **SAFE-04**: Feature ships disabled by default (`wan_state.enabled: false`)
 
 ### Configuration
 
-- [ ] **CONF-01**: YAML `wan_state:` section with `enabled`, weight values, staleness threshold, grace period
-- [ ] **CONF-02**: Config validated via existing schema validation framework
+- [x] **CONF-01**: YAML `wan_state:` section with `enabled`, weight values, staleness threshold, grace period
+- [x] **CONF-02**: Config validated via existing schema validation framework
 
 ### Observability
 
@@ -81,9 +81,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-01     | Phase 59 | Complete |
 | SAFE-02     | Phase 59 | Complete |
 | SAFE-03     | Phase 60 | Pending  |
-| SAFE-04     | Phase 60 | Pending  |
-| CONF-01     | Phase 60 | Pending  |
-| CONF-02     | Phase 60 | Pending  |
+| SAFE-04     | Phase 60 | Complete |
+| CONF-01     | Phase 60 | Complete |
+| CONF-02     | Phase 60 | Complete |
 | OBSV-01     | Phase 61 | Pending  |
 | OBSV-02     | Phase 61 | Pending  |
 | OBSV-03     | Phase 61 | Pending  |

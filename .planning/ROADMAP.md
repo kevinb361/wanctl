@@ -316,7 +316,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | ------------------------------------ | -------------- | ----------- | ---------- |
 | 58. State File Extension             | 1/1            | Complete    | 2026-03-09 |
 | 59. WAN State Reader + Signal Fusion | 2/2            | Complete    | 2026-03-09 |
-| 60. Configuration + Safety + Wiring  | 0/2            | Not started | -          |
+| 60. Configuration + Safety + Wiring  | 1/2            | In progress | -          |
 | 61. Observability + Metrics          | 0/?            | Not started | -          |
 
 ### Completed Milestones
