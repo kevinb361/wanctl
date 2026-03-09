@@ -46,14 +46,14 @@ Router connection settings.
 | `host`       | string  | yes      | -            | RouterOS IP address                           |
 | `user`       | string  | yes      | -            | SSH username                                  |
 | `ssh_key`    | string  | yes      | -            | Path to SSH private key                       |
-| `transport`  | string  | no       | `"ssh"`      | Transport type: `"ssh"` or `"rest"`           |
+| `transport`  | string  | no       | `"rest"`     | Transport type: `"rest"` or `"ssh"`           |
 | `password`   | string  | no       | -            | REST API password (for `transport: rest`)     |
 | `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport    |
 
 **Transport options:**
 
-- `ssh` (default): Uses SSH/Paramiko for RouterOS communication
-- `rest`: Uses RouterOS REST API (faster, requires password instead of ssh_key)
+- `rest` (default): Uses RouterOS REST API (faster, requires password instead of ssh_key)
+- `ssh`: Uses SSH/Paramiko for RouterOS communication
 
 **SSL verification (REST transport):**
 
@@ -69,12 +69,12 @@ SSL certificate verification is enabled by default (`verify_ssl: true`). MikroTi
 Disabling SSL verification is appropriate when the connection is on a trusted local network with no untrusted hops between wanctl and the router.
 
 ```yaml
-# SSH transport (default)
+# REST transport (default)
 router:
   host: "192.168.1.1"
   user: "admin"
   ssh_key: "/etc/wanctl/ssh/router.key"
-  transport: "ssh"  # Optional, this is the default
+  transport: "rest"  # Optional, this is the default
 
 # REST transport (faster)
 router:
