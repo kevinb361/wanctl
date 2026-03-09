@@ -57,6 +57,10 @@ class ConfidenceWeights:
     YELLOW_STATE = 10  # Early warning: delta 15-45ms
     GREEN_STATE = 0  # Healthy: delta < 15ms
 
+    # WAN zone amplification (end-to-end RTT evidence from autorate)
+    WAN_RED = 25  # WAN end-to-end congestion amplifier (< steer_threshold alone)
+    WAN_SOFT_RED = 12  # WAN moderate congestion amplifier
+
     # Additional signal contributions
     RTT_DELTA_HIGH = 15  # Moderate latency spike: > 80ms
     RTT_DELTA_SEVERE = 25  # Severe latency spike: > 120ms
@@ -80,6 +84,9 @@ class ConfidenceSignals:
     cake_state_history: list[str] = field(default_factory=list)
     drops_history: list[float] = field(default_factory=list)
     queue_history: list[float] = field(default_factory=list)
+
+    # WAN congestion zone from autorate (None = unavailable)
+    wan_zone: str | None = None
 
 
 def compute_confidence(signals: ConfidenceSignals, logger: logging.Logger) -> tuple[int, list[str]]:
@@ -137,6 +144,15 @@ def compute_confidence(signals: ConfidenceSignals, logger: logging.Logger) -> tu
         if all(q > 50.0 for q in recent_queue):  # > 50% queue utilization
             score += ConfidenceWeights.QUEUE_HIGH_SUSTAINED
             contributors.append(f"queue_high({signals.queue_depth_pct:.0f}%)")
+
+    # WAN zone amplification (FUSE-02: only RED and SOFT_RED contribute)
+    if signals.wan_zone == "RED":
+        score += ConfidenceWeights.WAN_RED
+        contributors.append("WAN_RED")
+    elif signals.wan_zone == "SOFT_RED":
+        score += ConfidenceWeights.WAN_SOFT_RED
+        contributors.append("WAN_SOFT_RED")
+    # GREEN, YELLOW, None: no WAN contribution (SAFE-02)
 
     # Clamp to 0-100
     score = max(0, min(100, score))
@@ -297,6 +313,7 @@ class TimerManager:
         rtt_delta: float,
         drops: float,
         current_state: str,
+        wan_zone: str | None = None,
     ) -> str | None:
         """
         Update recovery timer and check for recovery decision.
@@ -316,6 +333,7 @@ class TimerManager:
             and cake_state == "GREEN"
             and rtt_delta < 10.0
             and drops < 0.001
+            and wan_zone in ("GREEN", None)  # FUSE-05: WAN must be clear or unavailable
         )
 
         if recovery_eligible:
@@ -354,6 +372,8 @@ class TimerManager:
                     reason.append(f"rtt_delta={rtt_delta:.1f}ms")
                 if drops >= 0.001:
                     reason.append(f"drops={drops:.3f}")
+                if wan_zone not in ("GREEN", None):
+                    reason.append(f"wan_zone={wan_zone}")
 
                 self.logger.info(f"[CONFIDENCE] recovery_timer_reset reason=[{', '.join(reason)}]")
                 timer_state.recovery_timer = None
@@ -610,6 +630,7 @@ class ConfidenceController:
                     signals.rtt_delta_ms,
                     signals.drops_per_sec,
                     current_state,
+                    wan_zone=signals.wan_zone,
                 )
 
                 if decision == "DISABLE_STEERING":
