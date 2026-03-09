@@ -30,7 +30,7 @@ Failover usage:
 
 Configuration (in YAML):
     router:
-      transport: "ssh"  # or "rest"
+      transport: "rest"  # or "ssh"
       host: "10.10.99.1"
       user: "admin"
 
@@ -40,7 +40,7 @@ Configuration (in YAML):
       # For REST transport
       password: "${ROUTER_PASSWORD}"  # env var reference
       port: 443
-      verify_ssl: false
+      verify_ssl: true
 """
 
 import logging
@@ -63,7 +63,7 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
 
     Args:
         config: Configuration object with router settings.
-                Must have router transport type (defaults to 'ssh').
+                Must have router transport type (defaults to 'rest').
         logger: Logger instance
 
     Returns:
@@ -73,7 +73,7 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
         ValueError: If transport type is not supported
     """
     # Get transport type from config
-    transport = getattr(config, "router_transport", "ssh")
+    transport = getattr(config, "router_transport", "rest")
 
     if transport == "ssh":
         logger.debug("Using SSH transport (paramiko)")
