@@ -2073,6 +2073,14 @@ def main() -> int | None:
             # Track consecutive failures
             if cycle_success:
                 consecutive_failures = 0
+                # Re-enable watchdog if previously surrendered (recovery)
+                if not watchdog_enabled:
+                    watchdog_enabled = True
+                    for wan_info in controller.wan_controllers:
+                        wan_info["logger"].info(
+                            "Cycle recovered after watchdog surrender. "
+                            "Re-enabling watchdog notifications."
+                        )
             else:
                 consecutive_failures += 1
 

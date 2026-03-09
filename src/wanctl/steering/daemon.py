@@ -1525,6 +1525,13 @@ def run_daemon_loop(
         # Track consecutive failures for watchdog
         if cycle_success:
             consecutive_failures = 0
+            # Re-enable watchdog if previously surrendered (recovery)
+            if not watchdog_enabled:
+                watchdog_enabled = True
+                logger.info(
+                    "Cycle recovered after watchdog surrender. "
+                    "Re-enabling watchdog notifications."
+                )
         else:
             consecutive_failures += 1
             logger.warning(f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")

@@ -489,6 +489,64 @@ class TestRunDaemonLoop:
         # Cycle 4: notify_degraded("4 consecutive failures")
         assert mock_degraded.call_count >= 2
 
+    def test_watchdog_re_enabled_after_recovery(
+        self, mock_daemon, mock_config, mock_logger, shutdown_event
+    ):
+        """Test watchdog resumes after surrender when cycles start succeeding again."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        call_count = [0]
+
+        def run_cycle_fail_then_recover():
+            call_count[0] += 1
+            if call_count[0] >= 6:
+                shutdown_event.set()
+            # Cycles 1-3: fail (triggers surrender at cycle 3)
+            # Cycles 4-6: succeed (should re-enable watchdog)
+            return call_count[0] > 3
+
+        mock_daemon.run_cycle.side_effect = run_cycle_fail_then_recover
+
+        with patch("wanctl.steering.daemon.is_systemd_available", return_value=True):
+            with patch("wanctl.steering.daemon.notify_watchdog") as mock_watchdog:
+                with patch("wanctl.steering.daemon.notify_degraded"):
+                    result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
+
+        assert result == 0
+        # Watchdog should be notified for recovered cycles 4, 5, and 6
+        assert mock_watchdog.call_count == 3
+        # Logger should have logged recovery message
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("Re-enabling watchdog" in c for c in info_calls)
+
+    def test_watchdog_recovery_logs_only_once(
+        self, mock_daemon, mock_config, mock_logger, shutdown_event
+    ):
+        """Test recovery log appears once, not on every subsequent success."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        call_count = [0]
+
+        def run_cycle_fail_then_recover():
+            call_count[0] += 1
+            if call_count[0] >= 6:
+                shutdown_event.set()
+            # Cycles 1-3: fail (triggers surrender)
+            # Cycles 4-6: succeed (recovery on 4, normal on 5-6)
+            return call_count[0] > 3
+
+        mock_daemon.run_cycle.side_effect = run_cycle_fail_then_recover
+
+        with patch("wanctl.steering.daemon.is_systemd_available", return_value=True):
+            with patch("wanctl.steering.daemon.notify_watchdog"):
+                with patch("wanctl.steering.daemon.notify_degraded"):
+                    run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
+
+        # Recovery message should appear exactly once (cycle 4 only)
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        recovery_msgs = [c for c in info_calls if "Re-enabling watchdog" in c]
+        assert len(recovery_msgs) == 1
+
     # =========================================================================
     # Timing tests
     # =========================================================================
