@@ -107,6 +107,26 @@ mode:
 #   penalty_threshold_add: 15     # Threshold increase during penalty
 #   dry_run: true                 # VALIDATION MODE - logs only, no routing changes
 
+# WAN-aware steering (optional, disabled by default)
+# Feeds autorate's end-to-end RTT congestion zone into confidence scoring.
+# When enabled, WAN RED/SOFT_RED zones add weight to the confidence score,
+# amplifying CAKE-based congestion signals with end-to-end RTT evidence.
+#
+# Key behaviors:
+# - red_weight: score added when WAN zone is RED (default: 25)
+# - soft_red_weight: automatically derived as int(red_weight * 0.48), not configurable
+# - staleness_threshold_sec: zone data older than this defaults to GREEN (fail-safe)
+# - grace_period_sec: WAN signal ignored for first N seconds after startup
+# - wan_override: when true, removes weight ceiling so WAN RED alone can trigger failover
+#   (default behavior clamps red_weight below steer_threshold)
+#
+# wan_state:
+#   enabled: false              # Set true to activate WAN zone signal
+#   red_weight: 25              # Confidence score added for WAN RED zone (clamped to steer_threshold-1)
+#   staleness_threshold_sec: 5  # WAN zone older than this defaults to GREEN
+#   grace_period_sec: 30        # Ignore WAN signal for first N seconds after startup
+#   wan_override: false         # When true, WAN RED alone can trigger failover (removes weight ceiling)
+
 # State persistence
 state:
   file: "/var/lib/wanctl/steering_state.json"
