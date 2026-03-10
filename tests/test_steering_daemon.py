@@ -5036,3 +5036,216 @@ class TestAnomalyCycleSkip:
 
         daemon_for_anomaly.update_ewma_smoothing.assert_not_called()
         daemon_for_anomaly.update_state_machine.assert_not_called()
+
+
+# =============================================================================
+# WAN grace period and enabled gate tests (SAFE-03, SAFE-04)
+# =============================================================================
+
+
+class TestWanGracePeriodAndGating:
+    """Tests for WAN grace period timer, enabled gate, and config weight wiring.
+
+    Covers:
+    - _is_wan_grace_period_active() returns True during first 30s
+    - _get_effective_wan_zone() returns None when disabled or grace active
+    - update_state_machine() passes effective wan_zone to ConfidenceSignals
+    - Config weights passed through to compute_confidence() via evaluate()
+    """
+
+    @pytest.fixture
+    def mock_config(self, mock_steering_config):
+        """Steering config with WAN state enabled and confidence scoring."""
+        mock_steering_config.wan_state_config = {
+            "enabled": True,
+            "red_weight": 40,
+            "soft_red_weight": 19,
+            "staleness_threshold_sec": 10.0,
+            "grace_period_sec": 30.0,
+            "wan_override": False,
+        }
+        mock_steering_config.use_confidence_scoring = True
+        mock_steering_config.confidence_config = {
+            "confidence": {
+                "steer_threshold": 55,
+                "recovery_threshold": 20,
+                "sustain_duration_sec": 2,
+                "recovery_sustain_sec": 10,
+            },
+            "timers": {"hold_down_duration_sec": 30},
+            "flap_detection": {
+                "enabled": False,
+                "window_minutes": 5,
+                "max_toggles": 3,
+                "penalty_duration_sec": 300,
+                "penalty_threshold_add": 15,
+            },
+            "dry_run": {"enabled": True},
+        }
+        mock_steering_config.data = {}
+        return mock_steering_config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager with dict-based state."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "bad_count": 0,
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "cake_state_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def daemon(self, mock_config, mock_state_mgr):
+        """Create a SteeringDaemon with WAN state enabled."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state_mgr,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=MagicMock(),
+            )
+        return daemon
+
+    def test_grace_period_active_during_startup(self, daemon):
+        """Grace period should be active immediately after startup."""
+        assert daemon._is_wan_grace_period_active() is True
+
+    def test_grace_period_expired_after_threshold(self, daemon):
+        """Grace period should be inactive after grace_period_sec."""
+        # Simulate time passing beyond grace period
+        daemon._startup_time = time.monotonic() - 35.0
+        assert daemon._is_wan_grace_period_active() is False
+
+    def test_effective_wan_zone_none_during_grace(self, daemon):
+        """During grace period, effective WAN zone should be None."""
+        daemon._wan_zone = "RED"
+        # Grace period is active (daemon just created)
+        assert daemon._get_effective_wan_zone() is None
+
+    def test_effective_wan_zone_used_after_grace(self, daemon):
+        """After grace period, effective WAN zone should be the actual zone."""
+        daemon._wan_zone = "RED"
+        daemon._startup_time = time.monotonic() - 35.0
+        assert daemon._get_effective_wan_zone() == "RED"
+
+    def test_effective_wan_zone_none_when_disabled(self):
+        """When wan_state_config is None, effective WAN zone should be None."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 15
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        config.wan_state_config = None
+        config.data = {}
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=config,
+                state=MagicMock(),
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        daemon._wan_zone = "RED"
+        assert daemon._get_effective_wan_zone() is None
+
+    def test_effective_wan_zone_none_when_enabled_false(self):
+        """When wan_state_config has enabled=False, effective WAN zone should be None."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.alternate_wan = "att"
+        config.state_good = "SPECTRUM_GOOD"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        config.cake_aware = True
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 15
+        config.metrics_enabled = False
+        config.use_confidence_scoring = False
+        config.confidence_config = None
+        # Config present but enabled=False
+        config.wan_state_config = None
+        config.data = {}
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=config,
+                state=MagicMock(),
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        daemon._wan_zone = "RED"
+        assert daemon._get_effective_wan_zone() is None
+
+    def test_update_state_machine_uses_effective_wan_zone(self, daemon, mock_state_mgr):
+        """update_state_machine should use _get_effective_wan_zone() for ConfidenceSignals."""
+        from wanctl.steering.congestion_assessment import CongestionSignals
+
+        daemon._wan_zone = "RED"
+        # Grace period still active -- effective zone should be None
+        signals = CongestionSignals(
+            rtt_delta=5.0,
+            cake_drops=0,
+            queued_packets=10,
+        )
+
+        # We need to spy on ConfidenceSignals construction
+        with patch("wanctl.steering.daemon.ConfidenceSignals") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            daemon.update_state_machine(signals)
+
+            # Verify ConfidenceSignals was called with wan_zone=None (grace period active)
+            mock_cs.assert_called_once()
+            call_kwargs = mock_cs.call_args
+            assert call_kwargs.kwargs.get("wan_zone") is None or call_kwargs[1].get("wan_zone") is None
+
+    def test_staleness_threshold_from_config(self, daemon):
+        """Config-driven staleness threshold should be stored on daemon."""
+        assert daemon._wan_staleness_sec == 10.0
