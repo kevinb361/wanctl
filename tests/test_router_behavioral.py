@@ -31,6 +31,24 @@ def logger() -> logging.Logger:
 # =============================================================================
 
 
+def _add_request_delegate(mock_session: MagicMock) -> None:
+    """Configure mock_session.request to delegate to .get/.patch/.post mocks.
+
+    After code change from self._session.get(...) to self._session.request("GET", ...),
+    tests that set up mock_session.get/patch/post need this delegate.
+    """
+    def _request(method: str, url: str, **kwargs):
+        m = method.upper()
+        if m == "GET":
+            return mock_session.get(url, **kwargs)
+        elif m == "PATCH":
+            return mock_session.patch(url, **kwargs)
+        elif m == "POST":
+            return mock_session.post(url, **kwargs)
+        raise ValueError(f"Unsupported method: {method}")
+    mock_session.request.side_effect = _request
+
+
 class TestRouterOSRESTBehavioral:
     """Tests exercising real RouterOSREST code with only HTTP transport mocked."""
 
@@ -38,6 +56,8 @@ class TestRouterOSRESTBehavioral:
         self, mock_session_cls: MagicMock, logger: logging.Logger
     ) -> RouterOSREST:
         """Create RouterOSREST with mocked requests.Session."""
+        mock_session = mock_session_cls.return_value
+        _add_request_delegate(mock_session)
         with patch("wanctl.routeros_rest.requests.Session", mock_session_cls):
             return RouterOSREST(
                 host="10.10.99.1",

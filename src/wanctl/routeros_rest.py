@@ -39,6 +39,7 @@ Usage:
 
 import logging
 import re
+import warnings
 from typing import Any
 
 import requests
@@ -103,11 +104,10 @@ class RouterOSREST:
         self._session.auth = (user, password)
         self._session.verify = verify_ssl
 
-        # Suppress InsecureRequestWarning only when SSL verification is disabled
-        if not verify_ssl:
-            import urllib3
-
-            urllib3.disable_warnings(InsecureRequestWarning)
+        # Per-request SSL warning suppression (SECR-02)
+        # Instead of process-wide urllib3.disable_warnings, use warnings.catch_warnings
+        # context manager around each HTTP request when SSL verification is disabled.
+        self._suppress_ssl_warnings = not verify_ssl
 
         # Cache for queue/rule IDs to reduce API calls
         # Key: queue_name or rule_comment, Value: RouterOS ID (e.g., "*1")
@@ -115,6 +115,27 @@ class RouterOSREST:
         self._mangle_id_cache: dict[str, str] = {}
 
         self.logger.debug(f"RouterOS REST client initialized: {self.base_url}")
+
+    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+        """Execute an HTTP request with optional per-request SSL warning suppression.
+
+        When verify_ssl=False, wraps the request in warnings.catch_warnings to
+        suppress InsecureRequestWarning only for this specific request, rather
+        than globally via urllib3.disable_warnings.
+
+        Args:
+            method: HTTP method (GET, POST, PATCH, etc.)
+            url: Request URL
+            **kwargs: Additional arguments passed to session.request
+
+        Returns:
+            requests.Response from the session
+        """
+        if self._suppress_ssl_warnings:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+                return self._session.request(method, url, **kwargs)
+        return self._session.request(method, url, **kwargs)
 
     @classmethod
     def from_config(cls, config: Any, logger: logging.Logger) -> "RouterOSREST":
@@ -341,7 +362,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree/{queue_id}"
 
         try:
-            resp = self._session.patch(url, json=params, timeout=timeout_val)
+            resp = self._request("PATCH", url, json=params, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Queue {queue_name} updated: {params}")
@@ -394,7 +415,7 @@ class RouterOSREST:
 
         try:
             # RouterOS REST API expects .id parameter for the target
-            resp = self._session.post(url, json={".id": queue_id}, timeout=timeout_val)
+            resp = self._request("POST", url, json={".id": queue_id}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
@@ -431,7 +452,7 @@ class RouterOSREST:
             params["name"] = name_match.group(1)
 
         try:
-            resp = self._session.get(url, params=params, timeout=timeout_val)
+            resp = self._request("GET", url, params=params, timeout=timeout_val)
 
             if resp.ok:
                 return resp.json()
@@ -480,7 +501,7 @@ class RouterOSREST:
         url = f"{self.base_url}/ip/firewall/mangle/{rule_id}"
 
         try:
-            resp = self._session.patch(url, json={"disabled": disabled}, timeout=timeout_val)
+            resp = self._request("PATCH", url, json={"disabled": disabled}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
@@ -528,7 +549,7 @@ class RouterOSREST:
         url = f"{self.base_url}/{endpoint}"
 
         try:
-            resp = self._session.get(url, params={filter_key: filter_value}, timeout=timeout_val)
+            resp = self._request("GET", url, params={filter_key: filter_value}, timeout=timeout_val)
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -610,8 +631,8 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree/{queue_id}"
 
         try:
-            resp = self._session.patch(
-                url, json={"max-limit": str(max_limit)}, timeout=self.timeout
+            resp = self._request(
+                "PATCH", url, json={"max-limit": str(max_limit)}, timeout=self.timeout
             )
 
             if resp.ok:
@@ -637,7 +658,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree"
 
         try:
-            resp = self._session.get(url, params={"name": queue_name}, timeout=self.timeout)
+            resp = self._request("GET", url, params={"name": queue_name}, timeout=self.timeout)
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -657,7 +678,7 @@ class RouterOSREST:
             True if API is reachable and authenticated, False otherwise
         """
         try:
-            resp = self._session.get(f"{self.base_url}/system/resource", timeout=5)
+            resp = self._request("GET", f"{self.base_url}/system/resource", timeout=5)
             return resp.ok
         except requests.RequestException:
             return False

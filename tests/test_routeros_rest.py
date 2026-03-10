@@ -24,6 +24,28 @@ from wanctl.routeros_rest import RouterOSREST
 # =============================================================================
 
 
+def _make_session_request_delegate(session: MagicMock):
+    """Create a request method that delegates to session.get/patch/post mocks.
+
+    This allows existing tests that set up session.get/patch/post to continue
+    working after the code was changed to use session.request(method, url, ...).
+    """
+    def _request(method: str, url: str, **kwargs):
+        method_upper = method.upper()
+        if method_upper == "GET":
+            return session.get(url, **kwargs)
+        elif method_upper == "PATCH":
+            return session.patch(url, **kwargs)
+        elif method_upper == "POST":
+            return session.post(url, **kwargs)
+        elif method_upper == "PUT":
+            return session.put(url, **kwargs)
+        elif method_upper == "DELETE":
+            return session.delete(url, **kwargs)
+        raise ValueError(f"Unsupported method: {method}")
+    return _request
+
+
 @pytest.fixture
 def mock_session():
     """Create mock requests Session with standard response."""
@@ -34,6 +56,7 @@ def mock_session():
     session.get.return_value = response
     session.patch.return_value = response
     session.post.return_value = response
+    session.request.side_effect = _make_session_request_delegate(session)
     return session
 
 
@@ -967,3 +990,123 @@ class TestHighLevelAPI:
         # Should not raise
         rest_client.close()
         assert rest_client._session is None
+
+
+# =============================================================================
+# TestSSLWarningSuppressionPerSession - SECR-02 Tests
+# =============================================================================
+
+
+class TestSSLWarningSuppressionPerSession:
+    """Tests for per-session SSL warning suppression (SECR-02).
+
+    InsecureRequestWarning must be suppressed per-request via
+    warnings.catch_warnings, not process-wide via urllib3.disable_warnings.
+    """
+
+    def test_verify_ssl_false_does_not_call_disable_warnings(self):
+        """Creating RouterOSREST with verify_ssl=False does NOT call urllib3.disable_warnings."""
+        with (
+            patch("wanctl.routeros_rest.requests.Session"),
+        ):
+            with patch("urllib3.disable_warnings") as mock_disable:
+                client = RouterOSREST(
+                    host="192.168.1.1",
+                    user="admin",
+                    password="test",  # pragma: allowlist secret
+                    verify_ssl=False,
+                )
+                mock_disable.assert_not_called()
+
+    def test_suppress_ssl_warnings_flag_set(self):
+        """verify_ssl=False sets _suppress_ssl_warnings=True."""
+        with patch("wanctl.routeros_rest.requests.Session"):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=False,
+            )
+        assert client._suppress_ssl_warnings is True
+
+    def test_suppress_ssl_warnings_flag_not_set(self):
+        """verify_ssl=True (default) sets _suppress_ssl_warnings=False."""
+        with patch("wanctl.routeros_rest.requests.Session"):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=True,
+            )
+        assert client._suppress_ssl_warnings is False
+
+    def test_request_with_suppression_uses_catch_warnings(self):
+        """Making a request with verify_ssl=False uses warnings.catch_warnings."""
+        mock_session = MagicMock(spec=requests.Session)
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = []
+        mock_session.request.return_value = response
+
+        with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=False,
+            )
+        client._session = mock_session
+
+        with patch("wanctl.routeros_rest.warnings") as mock_warnings:
+            mock_ctx = MagicMock()
+            mock_warnings.catch_warnings.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+            mock_warnings.catch_warnings.return_value.__exit__ = MagicMock(return_value=False)
+
+            client._request("GET", "https://example.com/rest/test", timeout=5)
+
+            mock_warnings.catch_warnings.assert_called_once()
+            mock_warnings.filterwarnings.assert_called_once()
+
+    def test_request_without_suppression_skips_catch_warnings(self):
+        """Making a request with verify_ssl=True does NOT use warnings context manager."""
+        mock_session = MagicMock(spec=requests.Session)
+        response = MagicMock()
+        response.ok = True
+        mock_session.request.return_value = response
+
+        with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=True,
+            )
+        client._session = mock_session
+
+        with patch("wanctl.routeros_rest.warnings") as mock_warnings:
+            client._request("GET", "https://example.com/rest/test", timeout=5)
+
+            mock_warnings.catch_warnings.assert_not_called()
+
+    def test_request_delegates_to_session(self):
+        """_request delegates to self._session.request with correct args."""
+        mock_session = MagicMock(spec=requests.Session)
+        response = MagicMock()
+        response.ok = True
+        mock_session.request.return_value = response
+
+        with patch("wanctl.routeros_rest.requests.Session", return_value=mock_session):
+            client = RouterOSREST(
+                host="192.168.1.1",
+                user="admin",
+                password="test",  # pragma: allowlist secret
+                verify_ssl=True,
+            )
+        client._session = mock_session
+
+        result = client._request("PATCH", "https://example.com/rest/queue/tree/*1", json={"max-limit": "500"}, timeout=15)
+
+        mock_session.request.assert_called_once_with(
+            "PATCH", "https://example.com/rest/queue/tree/*1", json={"max-limit": "500"}, timeout=15
+        )
+        assert result is response
