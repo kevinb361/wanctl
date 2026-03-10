@@ -758,6 +758,17 @@ class BaselineLoader:
             self.logger.warning("Baseline RTT not found in autorate state file")
             return None, wan_zone
 
+    def _get_wan_zone_age(self) -> float | None:
+        """Get age of autorate state file in seconds.
+
+        Returns:
+            File age in seconds, or None if file is inaccessible.
+        """
+        try:
+            return time.time() - self.config.primary_state_file.stat().st_mtime
+        except OSError:
+            return None
+
     def _is_wan_zone_stale(self) -> bool:
         """Check if autorate state file is too old for WAN zone to be trusted."""
         try:
@@ -1016,6 +1027,17 @@ class SteeringDaemon:
         # Log transition and update state
         self.state_mgr.log_transition(from_state, to_state)
         self.state_mgr.state["current_state"] = to_state
+
+        # OBSV-03: Log WAN context when WAN contributed to this decision
+        if self.confidence_controller:
+            contributors = self.confidence_controller.timer_state.confidence_contributors
+            wan_contributors = [c for c in contributors if c.startswith("WAN_")]
+            if wan_contributors:
+                wan_str = ", ".join(wan_contributors)
+                self.logger.info(
+                    f"[STEERING] Transition {from_state} -> {to_state} "
+                    f"with WAN signal: [{wan_str}]"
+                )
 
         # Record metrics if enabled (Prometheus)
         if self.config.metrics_enabled:
