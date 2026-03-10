@@ -3,6 +3,7 @@
 Wraps flent/netperf to generate RRUL (Realtime Response Under Load) traffic.
 """
 
+import os
 import shutil
 import subprocess
 import time
@@ -29,7 +30,10 @@ class LoadProfile:
 
     @classmethod
     def from_yaml(cls, path: Path) -> "LoadProfile":
-        """Load profile from YAML file."""
+        """Load profile from YAML file.
+
+        The host field can be overridden via WANCTL_TEST_HOST env var.
+        """
         with open(path) as f:
             data = yaml.safe_load(f)
         # Filter out SLA config keys (used by SLAConfig, not LoadProfile)
@@ -44,6 +48,10 @@ class LoadProfile:
             "parameters",
         }
         filtered = {k: v for k, v in data.items() if k in profile_keys}
+        # Allow WANCTL_TEST_HOST env var to override YAML host
+        env_host = os.environ.get("WANCTL_TEST_HOST")
+        if env_host:
+            filtered["host"] = env_host
         return cls(**filtered)
 
 

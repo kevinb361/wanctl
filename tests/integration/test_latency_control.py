@@ -13,13 +13,17 @@ Usage:
     # With controller monitoring (requires SSH to cake-spectrum)
     pytest tests/integration/test_latency_control.py -k standard --with-controller -v
 
+    # Override target host via environment variable
+    WANCTL_TEST_HOST=192.168.1.100 pytest tests/integration/test_latency_control.py -v
+
 Requirements:
     - flent or netperf installed locally
     - fping installed (for latency measurement)
-    - Network access to Dallas netperf server (104.200.21.31)
+    - Network access to test host (default: 104.200.21.31)
     - SSH access to cake-spectrum (for controller monitoring)
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -38,7 +42,7 @@ from tests.integration.framework.latency_collector import measure_baseline_rtt
 from tests.integration.framework.load_generator import create_load_generator
 
 PROFILES_DIR = Path(__file__).parent / "profiles"
-DALLAS_HOST = "104.200.21.31"
+DALLAS_HOST = os.environ.get("WANCTL_TEST_HOST", "104.200.21.31")
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
