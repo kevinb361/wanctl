@@ -264,7 +264,6 @@ install_dependencies() {
     # Check for required Python packages
     local missing_py=()
     python3 -c "import yaml" 2>/dev/null || missing_py+=("python3-yaml")
-    python3 -c "import pexpect" 2>/dev/null || missing_py+=("python3-pexpect")
 
     # Check for required system tools
     local missing_sys=()
@@ -284,7 +283,7 @@ install_dependencies() {
             # Try pip for Python packages only
             if [[ ${#missing_py[@]} -gt 0 ]] && command -v pip3 &>/dev/null; then
                 print_step "Installing Python packages via pip..."
-                pip3 install pyyaml pexpect
+                pip3 install pyyaml
             fi
             # Warn about missing system tools
             if [[ ${#missing_sys[@]} -gt 0 ]]; then
@@ -303,12 +302,12 @@ install_python_deps() {
 
     if ! command -v pip3 &>/dev/null; then
         print_warning "pip3 not found — skipping Python dependency installation"
-        print_warning "Install pip3 and re-run, or install manually: pip3 install requests pyyaml paramiko pexpect tabulate icmplib cryptography"
+        print_warning "Install pip3 and re-run, or install manually: pip3 install requests pyyaml paramiko tabulate icmplib cryptography"
         return 0
     fi
 
     pip3 install --break-system-packages \
-        requests pyyaml paramiko pexpect tabulate icmplib cryptography \
+        requests pyyaml paramiko tabulate icmplib cryptography \
         && print_success "Python runtime dependencies installed" \
         || print_warning "pip3 install failed — some dependencies may be missing"
 }

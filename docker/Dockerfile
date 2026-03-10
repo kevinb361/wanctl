@@ -48,7 +48,6 @@ RUN pip install --no-cache-dir \
     requests>=2.31.0 \
     pyyaml>=6.0.1 \
     paramiko>=3.4.0 \
-    pexpect>=4.9.0 \
     tabulate>=0.9.0 \
     icmplib>=3.0.4 \
     cryptography>=46.0.5
