@@ -7,6 +7,7 @@ Only mocking: logger and BaselineLoader config object.
 No mocking: file operations, WANControllerState, BaselineLoader core logic.
 """
 
+import json
 import logging
 import time
 from pathlib import Path
@@ -183,3 +184,112 @@ class TestAutorateSteeringStateInterface:
         _write_state(writer, baseline_rtt=60.0)
         baseline_rtt_max_val, _ = loader_max.load_baseline_rtt()
         assert baseline_rtt_max_val == 60.0
+
+
+class TestAutorateSteeringStateContract:
+    """Schema-pinning contract tests for the autorate->steering state file.
+
+    Unlike TestAutorateSteeringStateInterface above which tests behavioral
+    round-trips through BaselineLoader, these tests inspect the RAW JSON
+    written by WANControllerState.save(). They pin the exact key paths that
+    the steering daemon depends on.
+
+    If a key is renamed on the writer side (wan_controller_state.py), these
+    tests fail even if the reader side (BaselineLoader) is updated in sync.
+    This catches silent schema drift that behavioral tests would miss.
+    """
+
+    def test_ewma_baseline_rtt_key_path_exists(self, make_writer, state_file):
+        """ewma.baseline_rtt key path must exist in raw JSON."""
+        writer = make_writer()
+        _write_state(writer, baseline_rtt=25.0)
+
+        raw = json.loads(state_file.read_text())
+        assert "ewma" in raw
+        assert "baseline_rtt" in raw["ewma"]
+
+    def test_ewma_load_rtt_key_path_exists(self, make_writer, state_file):
+        """ewma.load_rtt key path must exist in raw JSON."""
+        writer = make_writer()
+        _write_state(writer, baseline_rtt=25.0, load_rtt=30.0)
+
+        raw = json.loads(state_file.read_text())
+        assert "load_rtt" in raw["ewma"]
+
+    def test_congestion_dl_state_key_path_exists(self, make_writer, state_file):
+        """congestion.dl_state key path must exist when congestion is provided."""
+        writer = make_writer()
+        writer.save(
+            download={
+                "green_streak": 0,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 920_000_000,
+            },
+            upload={
+                "green_streak": 0,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 40_000_000,
+            },
+            ewma={"baseline_rtt": 25.0, "load_rtt": 30.0},
+            last_applied={"dl_rate": 920_000_000, "ul_rate": 40_000_000},
+            congestion={"dl_state": "GREEN", "ul_state": "GREEN"},
+            force=True,
+        )
+
+        raw = json.loads(state_file.read_text())
+        assert "congestion" in raw
+        assert "dl_state" in raw["congestion"]
+
+    def test_congestion_ul_state_key_path_exists(self, make_writer, state_file):
+        """congestion.ul_state key path must exist when congestion is provided."""
+        writer = make_writer()
+        writer.save(
+            download={
+                "green_streak": 0,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 920_000_000,
+            },
+            upload={
+                "green_streak": 0,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 40_000_000,
+            },
+            ewma={"baseline_rtt": 25.0, "load_rtt": 30.0},
+            last_applied={"dl_rate": 920_000_000, "ul_rate": 40_000_000},
+            congestion={"dl_state": "RED", "ul_state": "YELLOW"},
+            force=True,
+        )
+
+        raw = json.loads(state_file.read_text())
+        assert "ul_state" in raw["congestion"]
+
+    def test_top_level_tracked_sections_exist(self, make_writer, state_file):
+        """All top-level sections required by steering must be present."""
+        writer = make_writer()
+        _write_state(writer, baseline_rtt=25.0)
+
+        raw = json.loads(state_file.read_text())
+        for key in ("download", "upload", "ewma", "last_applied", "timestamp"):
+            assert key in raw, f"Missing required top-level key: {key}"
+
+    def test_download_section_has_required_keys(self, make_writer, state_file):
+        """download section must contain all hysteresis counters and current_rate."""
+        writer = make_writer()
+        _write_state(writer, baseline_rtt=25.0)
+
+        raw = json.loads(state_file.read_text())
+        for key in ("green_streak", "soft_red_streak", "red_streak", "current_rate"):
+            assert key in raw["download"], f"Missing download key: {key}"
+
+    def test_upload_section_has_required_keys(self, make_writer, state_file):
+        """upload section must contain all hysteresis counters and current_rate."""
+        writer = make_writer()
+        _write_state(writer, baseline_rtt=25.0)
+
+        raw = json.loads(state_file.read_text())
+        for key in ("green_streak", "soft_red_streak", "red_streak", "current_rate"):
+            assert key in raw["upload"], f"Missing upload key: {key}"
