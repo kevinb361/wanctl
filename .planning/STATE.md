@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: executing
-last_updated: "2026-03-10T00:06:22.000Z"
+status: planning
+last_updated: "2026-03-10T00:11:40.321Z"
 last_activity: 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 4
+  total_plans: 5
   completed_plans: 5
   percent: 75
 ---
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
 **Phase:** 60 of 61 (Configuration + Safety + Wiring) -- COMPLETE
 **Plan:** 2 of 2 (Phase 60) -- COMPLETE
-**Status:** Executing
+**Status:** Ready to plan
 **Last activity:** 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
 
 **Progress:** [███████░░░] 75%
