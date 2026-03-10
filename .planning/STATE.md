@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: complete
-last_updated: "2026-03-10T08:34:00.000Z"
+status: completed
+last_updated: "2026-03-10T08:39:59.844Z"
 last_activity: 2026-03-10 -- Completed 61-03-PLAN.md (OBSV-01/OBSV-02 gap closure)
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
 **Phase:** 61 of 61 (Observability + Metrics) -- COMPLETE
 **Plan:** 3 of 3 (Phase 61) -- COMPLETE
-**Status:** Complete
+**Status:** Milestone complete
 **Last activity:** 2026-03-10 -- Completed 61-03-PLAN.md (OBSV-01/OBSV-02 gap closure)
 
 **Progress:** [██████████] 100%
