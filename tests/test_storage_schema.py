@@ -24,6 +24,7 @@ class TestStoredMetrics:
             "wanctl_rate_upload_mbps",
             "wanctl_state",
             "wanctl_steering_enabled",
+            "wanctl_wan_zone",
         }
         assert set(STORED_METRICS.keys()) == expected_keys
 

@@ -1678,6 +1678,23 @@ class SteeringDaemon:
                             "raw",
                         ),
                     ]
+
+                    # WAN awareness metric (OBSV-02)
+                    if self._wan_state_enabled:
+                        zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+                        effective_zone = self._get_effective_wan_zone()
+                        zone_val = zone_map.get(effective_zone or "GREEN", 0)
+                        metrics_batch.append(
+                            (
+                                ts,
+                                self.config.primary_wan,
+                                "wanctl_wan_zone",
+                                float(zone_val),
+                                {"zone": effective_zone or "none"},
+                                "raw",
+                            )
+                        )
+
                     self._metrics_writer.write_metrics_batch(metrics_batch)
 
         self._record_profiling(
