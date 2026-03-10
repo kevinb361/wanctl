@@ -268,8 +268,15 @@ class TimerManager:
 
                 if timer_state.degrade_timer <= 0:
                     # Timer expired - steer!
+                    # OBSV-03: Include WAN context when WAN contributed to decision
+                    wan_info = ""
+                    if "WAN_RED" in timer_state.confidence_contributors:
+                        wan_info = " wan_zone=RED"
+                    elif "WAN_SOFT_RED" in timer_state.confidence_contributors:
+                        wan_info = " wan_zone=SOFT_RED"
                     self.logger.warning(
-                        f"[CONFIDENCE] degrade_timer expired: confidence={confidence} sustained={self.sustain_duration}s"
+                        f"[CONFIDENCE] degrade_timer expired: confidence={confidence} "
+                        f"sustained={self.sustain_duration}s{wan_info}"
                     )
                     timer_state.degrade_timer = None
                     return "ENABLE_STEERING"
