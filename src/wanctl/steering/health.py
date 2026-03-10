@@ -223,6 +223,44 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             if cycle_budget is not None:
                 health["cycle_budget"] = cycle_budget
 
+            # WAN awareness (OBSV-01)
+            wan_awareness: dict[str, Any] = {
+                "enabled": self.daemon._wan_state_enabled,
+            }
+            if self.daemon._wan_state_enabled:
+                wan_awareness["zone"] = self.daemon._wan_zone
+                wan_awareness["effective_zone"] = self.daemon._get_effective_wan_zone()
+                wan_awareness["grace_period_active"] = self.daemon._is_wan_grace_period_active()
+                zone_age = self.daemon.baseline_loader._get_wan_zone_age()
+                wan_awareness["staleness_age_sec"] = (
+                    round(zone_age, 1) if zone_age is not None else None
+                )
+                wan_awareness["stale"] = self.daemon.baseline_loader._is_wan_zone_stale()
+                # Confidence contribution: actual weight applied for current effective zone
+                effective = self.daemon._get_effective_wan_zone()
+                if effective == "RED":
+                    from wanctl.steering.steering_confidence import ConfidenceWeights
+
+                    wan_awareness["confidence_contribution"] = (
+                        self.daemon._wan_red_weight
+                        if self.daemon._wan_red_weight is not None
+                        else ConfidenceWeights.WAN_RED
+                    )
+                elif effective == "SOFT_RED":
+                    from wanctl.steering.steering_confidence import ConfidenceWeights
+
+                    wan_awareness["confidence_contribution"] = (
+                        self.daemon._wan_soft_red_weight
+                        if self.daemon._wan_soft_red_weight is not None
+                        else ConfidenceWeights.WAN_SOFT_RED
+                    )
+                else:
+                    wan_awareness["confidence_contribution"] = 0
+            else:
+                # Disabled mode: show raw zone for staged rollout verification (Phase 60 decision)
+                wan_awareness["zone"] = self.daemon._wan_zone
+            health["wan_awareness"] = wan_awareness
+
         # Top-level router reachability
         health["router_reachable"] = router_reachable
 

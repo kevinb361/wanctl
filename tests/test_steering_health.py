@@ -249,6 +249,8 @@ class TestSteeringHealthResponseFields:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -507,6 +509,8 @@ class TestSteeringHealthLifecycle:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -719,6 +723,8 @@ class TestSteeringRouterConnectivityReporting:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -859,6 +865,8 @@ class TestSteeringCycleBudget:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -1071,3 +1079,182 @@ class TestDiskSpaceInSteeringHealth:
                 assert data["status"] == "healthy"
             finally:
                 server.shutdown()
+
+
+class TestWanAwarenessHealth:
+    """Tests for WAN awareness section in steering health endpoint (OBSV-01)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_daemon(self):
+        """Create a mock SteeringDaemon with WAN awareness attributes."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # WAN awareness attributes (enabled by default)
+        daemon._wan_state_enabled = True
+        daemon._wan_zone = "RED"
+        daemon._wan_red_weight = None  # use class constant
+        daemon._wan_soft_red_weight = None  # use class constant
+        daemon._get_effective_wan_zone.return_value = "RED"
+        daemon._is_wan_grace_period_active.return_value = False
+        daemon.baseline_loader._get_wan_zone_age.return_value = 2.3
+        daemon.baseline_loader._is_wan_zone_stale.return_value = False
+        return daemon
+
+    def test_wan_awareness_enabled_with_all_fields(self, mock_daemon):
+        """Test health response includes wan_awareness with all OBSV-01 fields when enabled."""
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "wan_awareness" in data
+            wa = data["wan_awareness"]
+            assert wa["enabled"] is True
+            assert wa["zone"] == "RED"
+            assert wa["effective_zone"] == "RED"
+            assert wa["grace_period_active"] is False
+            assert wa["staleness_age_sec"] == 2.3
+            assert wa["stale"] is False
+            assert "confidence_contribution" in wa
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_disabled_shows_raw_zone(self, mock_daemon):
+        """Test health response shows enabled=false with raw zone when disabled."""
+        mock_daemon._wan_state_enabled = False
+        mock_daemon._wan_zone = "YELLOW"
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["enabled"] is False
+            assert wa["zone"] == "YELLOW"
+            # Should NOT have effective_zone, grace_period_active etc when disabled
+            assert "effective_zone" not in wa
+            assert "confidence_contribution" not in wa
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_grace_period_active(self, mock_daemon):
+        """Test grace_period_active=true during startup grace period, effective_zone=None."""
+        mock_daemon._is_wan_grace_period_active.return_value = True
+        mock_daemon._get_effective_wan_zone.return_value = None
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["grace_period_active"] is True
+            assert wa["effective_zone"] is None
+            assert wa["confidence_contribution"] == 0
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_confidence_contribution_red(self, mock_daemon):
+        """Test confidence_contribution reflects config-driven WAN weight for RED zone."""
+        # Set config-driven weight (overrides class constant)
+        mock_daemon._wan_red_weight = 30
+        mock_daemon._get_effective_wan_zone.return_value = "RED"
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["confidence_contribution"] == 30
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_confidence_contribution_zero_for_green(self, mock_daemon):
+        """Test confidence_contribution=0 when effective zone is GREEN."""
+        mock_daemon._get_effective_wan_zone.return_value = "GREEN"
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["confidence_contribution"] == 0
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_staleness_age_numeric(self, mock_daemon):
+        """Test staleness_age_sec is numeric float when file accessible, stale flag matches."""
+        mock_daemon.baseline_loader._get_wan_zone_age.return_value = 4.567
+        mock_daemon.baseline_loader._is_wan_zone_stale.return_value = False
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["staleness_age_sec"] == 4.6  # rounded to 1 decimal
+            assert wa["stale"] is False
+        finally:
+            server.shutdown()
+
+    def test_wan_zone_age_returns_none_on_oserror(self):
+        """Test _get_wan_zone_age() returns None on OSError."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        config = MagicMock()
+        config.primary_state_file.stat.side_effect = OSError("no such file")
+        loader = BaselineLoader(config, MagicMock())
+
+        result = loader._get_wan_zone_age()
+        assert result is None
