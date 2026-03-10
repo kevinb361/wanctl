@@ -43,7 +43,7 @@ from wanctl.perf_profiler import (
     record_cycle_profiling,
 )
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
-from wanctl.router_client import get_router_client_with_failover
+from wanctl.router_client import clear_router_password, get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.signal_utils import (
@@ -435,7 +435,7 @@ class Config(BaseConfig):
         self.fallback_enabled = fallback.get("enabled", True)  # Enabled by default
         self.fallback_check_gateway = fallback.get("check_gateway", True)
         self.fallback_check_tcp = fallback.get("check_tcp", True)
-        self.fallback_gateway_ip = fallback.get("gateway_ip", "10.10.110.1")  # Default gateway
+        self.fallback_gateway_ip = fallback.get("gateway_ip", "")
         self.fallback_tcp_targets = fallback.get(
             "tcp_targets",
             [
@@ -1082,6 +1082,8 @@ class WANController:
             return False
 
         gateway_ip = self.config.fallback_gateway_ip
+        if not gateway_ip:
+            return False
         result = self.rtt_measurement.ping_host(gateway_ip, count=1)
         if result is not None:
             self.logger.warning(
@@ -1702,6 +1704,7 @@ class ContinuousAutoRate:
 
             # Create shared instances
             router = RouterOS(config, logger)
+            clear_router_password(config)
             # Use unified RTTMeasurement with AVERAGE aggregation and sample stats logging
             rtt_measurement = RTTMeasurement(
                 logger,
