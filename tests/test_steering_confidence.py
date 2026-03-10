@@ -1008,3 +1008,113 @@ class TestWanStateGating:
         )
         score, _ = compute_confidence(signals, logger, wan_red_weight=None)
         assert score == ConfidenceWeights.WAN_RED
+
+
+# =============================================================================
+# WAN awareness logging tests (OBSV-03)
+# =============================================================================
+
+
+class TestWanAwarenessLogging:
+    """Tests for WAN context in steering decision log lines (OBSV-03).
+
+    Verifies that degrade_timer expiry WARNING logs include wan_zone
+    when WAN contributed to the decision, and that recovery_timer expiry
+    does NOT include WAN context (WAN is only a blocker, not a trigger).
+    """
+
+    @pytest.fixture
+    def logger(self):
+        return MagicMock(spec=logging.Logger)
+
+    @pytest.fixture
+    def timer_mgr(self, logger):
+        return TimerManager(
+            steer_threshold=55,
+            recovery_threshold=20,
+            sustain_duration=2,
+            recovery_duration=10,
+            hold_down_duration=30,
+            state_good="WAN1_GOOD",
+            state_degraded="WAN1_DEGRADED",
+            logger=logger,
+        )
+
+    def test_degrade_expiry_includes_wan_red(self, timer_mgr, logger):
+        """Degrade timer expiry log includes wan_zone=RED when WAN_RED in contributors."""
+        state = TimerState()
+        state.confidence_contributors = ["RED", "WAN_RED"]
+        # Set timer near expiry so next decrement expires it
+        state.degrade_timer = 0.01
+
+        result = timer_mgr.update_degrade_timer(state, confidence=75, current_state="WAN1_GOOD")
+        assert result == "ENABLE_STEERING"
+
+        warning_calls = [str(c) for c in logger.warning.call_args_list]
+        assert any("wan_zone=RED" in c for c in warning_calls), (
+            f"Expected 'wan_zone=RED' in warning log, got: {warning_calls}"
+        )
+
+    def test_degrade_expiry_includes_wan_soft_red(self, timer_mgr, logger):
+        """Degrade timer expiry log includes wan_zone=SOFT_RED when WAN_SOFT_RED in contributors."""
+        state = TimerState()
+        state.confidence_contributors = ["RED", "WAN_SOFT_RED"]
+        state.degrade_timer = 0.01
+
+        result = timer_mgr.update_degrade_timer(state, confidence=62, current_state="WAN1_GOOD")
+        assert result == "ENABLE_STEERING"
+
+        warning_calls = [str(c) for c in logger.warning.call_args_list]
+        assert any("wan_zone=SOFT_RED" in c for c in warning_calls), (
+            f"Expected 'wan_zone=SOFT_RED' in warning log, got: {warning_calls}"
+        )
+
+    def test_degrade_expiry_no_wan_when_absent(self, timer_mgr, logger):
+        """Degrade timer expiry log has no wan_zone when no WAN contributor present."""
+        state = TimerState()
+        state.confidence_contributors = ["RED", "rtt_delta=150.0ms(severe)"]
+        state.degrade_timer = 0.01
+
+        result = timer_mgr.update_degrade_timer(state, confidence=75, current_state="WAN1_GOOD")
+        assert result == "ENABLE_STEERING"
+
+        warning_calls = [str(c) for c in logger.warning.call_args_list]
+        assert not any("wan_zone" in c for c in warning_calls), (
+            f"Expected no 'wan_zone' in warning log, got: {warning_calls}"
+        )
+
+    def test_recovery_expiry_no_wan_context(self, timer_mgr, logger):
+        """Recovery timer expiry log should NOT include wan_zone (WAN only blocks, never triggers)."""
+        state = TimerState()
+        state.confidence_contributors = []
+        state.recovery_timer = 0.01
+
+        result = timer_mgr.update_recovery_timer(
+            state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="GREEN",
+        )
+        assert result == "DISABLE_STEERING"
+
+        info_calls = [str(c) for c in logger.info.call_args_list]
+        recovery_expiry_calls = [c for c in info_calls if "recovery_timer expired" in c]
+        assert len(recovery_expiry_calls) > 0, "Expected recovery_timer expired log line"
+        assert not any("wan_zone" in c for c in recovery_expiry_calls), (
+            f"Expected no 'wan_zone' in recovery expiry log, got: {recovery_expiry_calls}"
+        )
+
+    def test_recovery_reset_already_includes_wan_zone(self, timer_mgr, logger):
+        """Recovery timer reset reason already includes wan_zone when blocking (Phase 59)."""
+        state = TimerState()
+        state.recovery_timer = 5.0
+
+        timer_mgr.update_recovery_timer(
+            state, confidence=5, cake_state="GREEN",
+            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            wan_zone="RED",
+        )
+
+        info_calls = [str(c) for c in logger.info.call_args_list]
+        assert any("wan_zone=RED" in c for c in info_calls), (
+            f"Expected 'wan_zone=RED' in recovery_timer_reset reason, got: {info_calls}"
+        )
