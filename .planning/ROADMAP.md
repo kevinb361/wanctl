@@ -111,11 +111,12 @@ Plans:
 1. Health endpoint response includes WAN awareness state: current zone, staleness age, sustained cycle count, and confidence contribution value
 2. SQLite metrics database records WAN awareness signal each cycle (zone, weight applied, staleness)
 3. Log output includes WAN state information when it contributes to a steering decision (steer or recover)
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 61-01: TBD
+- [ ] 61-01-PLAN.md -- Health endpoint wan_awareness section and SQLite wanctl_wan_zone metric
+- [ ] 61-02-PLAN.md -- WAN context in steering decision and transition log lines
 
 <details>
 <summary>v1.10 Architectural Review Fixes (Phases 50-57) - SHIPPED 2026-03-09</summary>
@@ -316,8 +317,8 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | ------------------------------------ | -------------- | ----------- | ---------- |
 | 58. State File Extension             | 1/1            | Complete    | 2026-03-09 |
 | 59. WAN State Reader + Signal Fusion | 2/2            | Complete    | 2026-03-09 |
-| 60. Configuration + Safety + Wiring  | 2/2 | Complete    | 2026-03-10 |
-| 61. Observability + Metrics          | 0/?            | Not started | -          |
+| 60. Configuration + Safety + Wiring  | 2/2            | Complete    | 2026-03-10 |
+| 61. Observability + Metrics          | 0/2            | Not started | -          |
 
 ### Completed Milestones
 
