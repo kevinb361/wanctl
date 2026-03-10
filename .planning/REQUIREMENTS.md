@@ -37,7 +37,7 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 
 - [ ] **OBSV-01**: Health endpoint exposes WAN awareness state (zone, staleness, sustained cycles, confidence contribution)
 - [ ] **OBSV-02**: SQLite metrics record WAN awareness signal each cycle
-- [ ] **OBSV-03**: Log output includes WAN state when it contributes to steering decisions
+- [x] **OBSV-03**: Log output includes WAN state when it contributes to steering decisions
 
 ## Future Requirements
 
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-02     | Phase 60 | Complete |
 | OBSV-01     | Phase 61 | Pending  |
 | OBSV-02     | Phase 61 | Pending  |
-| OBSV-03     | Phase 61 | Pending  |
+| OBSV-03     | Phase 61 | Complete |
 
 **Coverage:**
 

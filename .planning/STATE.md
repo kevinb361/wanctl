@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: planning
-last_updated: "2026-03-10T00:11:40.321Z"
-last_activity: 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
+status: executing
+last_updated: "2026-03-10T02:34:37.000Z"
+last_activity: 2026-03-10 -- Completed 61-02-PLAN.md (WAN awareness logging)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 75
+  total_plans: 7
+  completed_plans: 6
+  percent: 85
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.11 WAN-Aware Steering -- Phase 60 in progress
+**Current focus:** v1.11 WAN-Aware Steering -- Phase 61 in progress
 
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 60 of 61 (Configuration + Safety + Wiring) -- COMPLETE
-**Plan:** 2 of 2 (Phase 60) -- COMPLETE
-**Status:** Ready to plan
-**Last activity:** 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
+**Phase:** 61 of 61 (Observability + Metrics) -- IN PROGRESS
+**Plan:** 1 of 2 (Phase 61) -- 61-02 complete, 61-01 remaining
+**Status:** Executing
+**Last activity:** 2026-03-10 -- Completed 61-02-PLAN.md (WAN awareness logging)
 
-**Progress:** [███████░░░] 75%
+**Progress:** [████████░░] 85%
 
 ## Accumulated Context
 
@@ -64,6 +64,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - Config weights as optional params (None=class constant fallback) for backward compatibility
 - BaselineLoader staleness threshold overridden via instance attribute, not constructor change
 
+- WAN context derived from confidence_contributors list (no additional state lookups)
+- Supplementary INFO log in daemon, does not modify state_mgr.log_transition interface
+- Recovery timer expiry excludes WAN context (WAN is blocker, not trigger)
+
 ### Known Issues
 
 None.
@@ -74,6 +78,7 @@ None.
 
 ## Session Log
 
+- 2026-03-10: Completed 61-02 -- WAN awareness logging in degrade timer expiry and steering transitions (8 new tests, 2199 total)
 - 2026-03-10: Completed 60-02 -- Grace period timer, enabled gate, config-driven weights wired into steering daemon (14 new tests, 2181 total)
 - 2026-03-09: Completed 60-01 -- wan_state YAML config with validation, weight clamping, wan_override, startup logging (20 new tests, 2167 total)
 - 2026-03-09: Completed 59-02 -- BaselineLoader WAN zone extraction, staleness fail-safe, ConfidenceSignals wiring (10 new tests, 2149 total)
