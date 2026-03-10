@@ -25,7 +25,7 @@ Requirements for WAN-Aware Steering. Each maps to roadmap phases.
 
 - [x] **SAFE-01**: Stale WAN state (>5s) defaults to GREEN (fail-safe)
 - [x] **SAFE-02**: Graceful degradation when autorate unavailable (None = skip WAN weight)
-- [ ] **SAFE-03**: Startup grace period ignores WAN signal for first 30s after daemon start
+- [x] **SAFE-03**: Startup grace period ignores WAN signal for first 30s after daemon start
 - [x] **SAFE-04**: Feature ships disabled by default (`wan_state.enabled: false`)
 
 ### Configuration
@@ -80,7 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FUSE-05     | Phase 59 | Complete |
 | SAFE-01     | Phase 59 | Complete |
 | SAFE-02     | Phase 59 | Complete |
-| SAFE-03     | Phase 60 | Pending  |
+| SAFE-03     | Phase 60 | Complete |
 | SAFE-04     | Phase 60 | Complete |
 | CONF-01     | Phase 60 | Complete |
 | CONF-02     | Phase 60 | Complete |

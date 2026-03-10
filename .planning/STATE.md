@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
 status: executing
-last_updated: "2026-03-09T23:54:43.000Z"
-last_activity: 2026-03-09 -- Completed 60-01-PLAN.md (wan_state config validation)
+last_updated: "2026-03-10T00:06:22.000Z"
+last_activity: 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 4
-  percent: 50
+  completed_plans: 5
+  percent: 75
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 60 of 61 (Configuration + Safety + Wiring) -- IN PROGRESS
-**Plan:** 1 of 2 (Phase 60) -- COMPLETE
+**Phase:** 60 of 61 (Configuration + Safety + Wiring) -- COMPLETE
+**Plan:** 2 of 2 (Phase 60) -- COMPLETE
 **Status:** Executing
-**Last activity:** 2026-03-09 -- Completed 60-01-PLAN.md (wan_state config validation)
+**Last activity:** 2026-03-10 -- Completed 60-02-PLAN.md (WAN safety wiring)
 
-**Progress:** [█████░░░░░] 50%
+**Progress:** [███████░░░] 75%
 
 ## Accumulated Context
 
@@ -60,6 +60,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - warn+disable pattern: invalid wan_state config warns and disables feature, does not crash daemon
 - wan_override cross-field warning fires even when feature disabled
 
+- Zone nullification at daemon level: \_get_effective_wan_zone() returns None when disabled or grace active
+- Config weights as optional params (None=class constant fallback) for backward compatibility
+- BaselineLoader staleness threshold overridden via instance attribute, not constructor change
+
 ### Known Issues
 
 None.
@@ -70,6 +74,7 @@ None.
 
 ## Session Log
 
+- 2026-03-10: Completed 60-02 -- Grace period timer, enabled gate, config-driven weights wired into steering daemon (14 new tests, 2181 total)
 - 2026-03-09: Completed 60-01 -- wan_state YAML config with validation, weight clamping, wan_override, startup logging (20 new tests, 2167 total)
 - 2026-03-09: Completed 59-02 -- BaselineLoader WAN zone extraction, staleness fail-safe, ConfidenceSignals wiring (10 new tests, 2149 total)
 - 2026-03-09: Completed 59-01 -- WAN zone confidence scoring and recovery gate (21 new tests, 2137 total)
