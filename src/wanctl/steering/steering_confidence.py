@@ -597,6 +597,12 @@ class ConfidenceController:
 
         Returns:
             "ENABLE_STEERING", "DISABLE_STEERING", or None
+
+        Note:
+            check_flapping() is called for its side effects on timer_state
+            (flap penalty activation and expiry cleanup). The returned effective
+            threshold is intentionally discarded; steering decisions use
+            self.base_steer_threshold directly via timer_mgr.
         """
         # Compute confidence
         confidence, contributors = compute_confidence(
