@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.8.0
+**Version:** 1.11.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -117,12 +117,12 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.8.0 (Watchdog-Safe Startup & Periodic Maintenance)
+**Current:** v1.11.0 (WAN-Aware Steering)
 
-- Watchdog-safe startup maintenance (time budget, VACUUM deferred)
-- Hourly periodic maintenance (cleanup, downsample, VACUUM)
-- systemd circuit breaker (StartLimitBurst=5, StartLimitIntervalSec=300s)
-- 1,873 unit tests passing, 91%+ coverage
+- WAN congestion zone fused into steering confidence scoring (disabled by default)
+- YAML wan_state: configuration with warn+disable graceful degradation
+- Health endpoint wan_awareness section, 3 SQLite metrics, WAN context in logs
+- 2,210 unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
