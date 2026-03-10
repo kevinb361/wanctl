@@ -77,7 +77,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. rtt_measurement.py has no subprocess import; all RTT tests mock icmplib directly (not subprocess)
 3. RTTMeasurement constructor and callers have no timeout_total parameter; API accepts only per-probe timeout
 4. All existing tests pass after dead code removal with no new test failures
-   **Plans**: TBD
+   **Plans**: 1 plan
+   Plans:
+
+- [ ] 63-01-PLAN.md -- Remove pexpect dep, dead subprocess import, stale timeout_total API
 
 ### Phase 64: Security Hardening
 
@@ -124,7 +127,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | Phase                                  | Plans Complete | Status      | Completed  |
 | -------------------------------------- | -------------- | ----------- | ---------- |
 | 62. Deployment Alignment               | 1/1            | Complete    | 2026-03-10 |
-| 63. Dead Code & Stale API Cleanup      | 0/?            | Not started | -          |
+| 63. Dead Code & Stale API Cleanup      | 0/1            | Not started | -          |
 | 64. Security Hardening                 | 0/?            | Not started | -          |
 | 65. Fragile Area Stabilization         | 0/?            | Not started | -          |
 | 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |
