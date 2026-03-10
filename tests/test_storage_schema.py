@@ -25,6 +25,8 @@ class TestStoredMetrics:
             "wanctl_state",
             "wanctl_steering_enabled",
             "wanctl_wan_zone",
+            "wanctl_wan_weight",
+            "wanctl_wan_staleness_sec",
         }
         assert set(STORED_METRICS.keys()) == expected_keys
 

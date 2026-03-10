@@ -1679,7 +1679,7 @@ class SteeringDaemon:
                         ),
                     ]
 
-                    # WAN awareness metric (OBSV-02)
+                    # WAN awareness metrics (OBSV-02)
                     if self._wan_state_enabled:
                         zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
                         effective_zone = self._get_effective_wan_zone()
@@ -1691,6 +1691,55 @@ class SteeringDaemon:
                                 "wanctl_wan_zone",
                                 float(zone_val),
                                 {"zone": effective_zone or "none"},
+                                "raw",
+                            )
+                        )
+
+                        # WAN weight applied this cycle (OBSV-02 gap closure)
+                        if effective_zone == "RED":
+                            from wanctl.steering.steering_confidence import (
+                                ConfidenceWeights,
+                            )
+
+                            weight_val = float(
+                                self._wan_red_weight
+                                if self._wan_red_weight is not None
+                                else ConfidenceWeights.WAN_RED
+                            )
+                        elif effective_zone == "SOFT_RED":
+                            from wanctl.steering.steering_confidence import (
+                                ConfidenceWeights,
+                            )
+
+                            weight_val = float(
+                                self._wan_soft_red_weight
+                                if self._wan_soft_red_weight is not None
+                                else ConfidenceWeights.WAN_SOFT_RED
+                            )
+                        else:
+                            weight_val = 0.0
+                        metrics_batch.append(
+                            (
+                                ts,
+                                self.config.primary_wan,
+                                "wanctl_wan_weight",
+                                weight_val,
+                                None,
+                                "raw",
+                            )
+                        )
+
+                        # WAN staleness age in seconds (OBSV-02 gap closure)
+                        staleness_age = self.baseline_loader._get_wan_zone_age()
+                        metrics_batch.append(
+                            (
+                                ts,
+                                self.config.primary_wan,
+                                "wanctl_wan_staleness_sec",
+                                float(staleness_age)
+                                if staleness_age is not None
+                                else -1.0,
+                                None,
                                 "raw",
                             )
                         )

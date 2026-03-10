@@ -17,6 +17,8 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_state": "Congestion state (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
     "wanctl_steering_enabled": "Steering active status (0=disabled, 1=enabled)",
     "wanctl_wan_zone": "WAN congestion zone from autorate (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
+    "wanctl_wan_weight": "WAN confidence weight applied (0 when GREEN/None, config weight when RED/SOFT_RED)",
+    "wanctl_wan_staleness_sec": "WAN state file age in seconds (-1 when inaccessible)",
 }
 
 # SQL schema for metrics table with indexes for time-series queries
