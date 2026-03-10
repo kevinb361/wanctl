@@ -31,9 +31,9 @@ Ping Timeout Values:
   timeout ensures the control loop stays responsive. Lost pings are handled via
   EWMA smoothing rather than long waits.
 
-- Steering (10s total): Allows multiple ping attempts within the assessment
-  window. Longer total timeout improves reliability of congestion detection
-  without blocking the daemon's main loop.
+- Steering (2s per ping): Per-ping timeout matching the steering daemon config
+  default. Steering uses median-of-three concurrent pings, so per-ping timeout
+  is the relevant value.
 
 - Calibrate (15s): Generous timeout for baseline establishment. Calibration
   runs infrequently and accuracy matters more than speed. Allows for path
@@ -72,9 +72,6 @@ DEFAULT_CALIBRATE_SSH_TIMEOUT = 10
 
 # Autorate single ping timeout (1 second per ping)
 DEFAULT_AUTORATE_PING_TIMEOUT = 1
-
-# Steering total ping timeout (10 seconds for all attempts)
-DEFAULT_STEERING_PING_TOTAL_TIMEOUT = 10
 
 # Calibration single ping timeout (15 seconds)
 DEFAULT_CALIBRATE_PING_TIMEOUT = 15
@@ -129,12 +126,11 @@ def get_ssh_timeout(component: ComponentName) -> int:
     return timeouts[component]
 
 
-def get_ping_timeout(component: ComponentName, total: bool = False) -> int:
+def get_ping_timeout(component: ComponentName) -> int:
     """Get ping timeout for a component.
 
     Args:
         component: Component name ("autorate", "steering", "calibrate")
-        total: If True, return total timeout for all ping attempts; if False, return per-ping timeout
 
     Returns:
         Timeout in seconds
@@ -142,19 +138,15 @@ def get_ping_timeout(component: ComponentName, total: bool = False) -> int:
     Raises:
         ValueError: If component is unknown
     """
-    if component == "autorate":
-        return DEFAULT_AUTORATE_PING_TIMEOUT
+    timeouts = {
+        "autorate": DEFAULT_AUTORATE_PING_TIMEOUT,
+        "steering": 2,  # Per-ping timeout matching steering daemon config default
+        "calibrate": DEFAULT_CALIBRATE_PING_TIMEOUT,
+    }
 
-    if component == "steering":
-        return (
-            DEFAULT_STEERING_PING_TOTAL_TIMEOUT
-            if total
-            else DEFAULT_STEERING_PING_TOTAL_TIMEOUT // 3
+    if component not in timeouts:
+        raise ValueError(
+            f"Unknown component: {component}. Must be one of: {', '.join(timeouts.keys())}"
         )
 
-    if component == "calibrate":
-        return DEFAULT_CALIBRATE_PING_TIMEOUT
-
-    raise ValueError(
-        f"Unknown component: {component}. Must be one of: autorate, steering, calibrate"
-    )
+    return timeouts[component]

@@ -8,7 +8,6 @@ from wanctl.timeouts import (
     DEFAULT_CALIBRATE_PING_TIMEOUT,
     DEFAULT_CALIBRATE_SSH_TIMEOUT,
     DEFAULT_LOCK_TIMEOUT,
-    DEFAULT_STEERING_PING_TOTAL_TIMEOUT,
     DEFAULT_STEERING_SSH_TIMEOUT,
     TIMEOUT_LONG,
     TIMEOUT_QUICK,
@@ -46,10 +45,10 @@ class TestTimeoutConstants:
         assert DEFAULT_AUTORATE_PING_TIMEOUT > 0
 
     def test_ping_timeout_steering(self):
-        """Test steering ping total timeout is reasonable."""
-        assert DEFAULT_STEERING_PING_TOTAL_TIMEOUT == 10
-        assert isinstance(DEFAULT_STEERING_PING_TOTAL_TIMEOUT, int)
-        assert DEFAULT_STEERING_PING_TOTAL_TIMEOUT > 0
+        """Test steering ping timeout is reasonable."""
+        assert get_ping_timeout("steering") == 2
+        assert isinstance(get_ping_timeout("steering"), int)
+        assert get_ping_timeout("steering") > 0
 
     def test_ping_timeout_calibrate(self):
         """Test calibrate ping timeout is reasonable."""
@@ -128,22 +127,10 @@ class TestGetPingTimeout:
         timeout = get_ping_timeout("autorate")
         assert timeout == DEFAULT_AUTORATE_PING_TIMEOUT
 
-    def test_autorate_ping_timeout_total_flag_ignored(self):
-        """Test that total flag doesn't affect autorate ping timeout."""
-        timeout_normal = get_ping_timeout("autorate", total=False)
-        timeout_total = get_ping_timeout("autorate", total=True)
-        assert timeout_normal == timeout_total
-
-    def test_steering_ping_timeout_per_ping(self):
-        """Test getting steering ping timeout for single ping."""
-        timeout = get_ping_timeout("steering", total=False)
-        assert timeout > 0
-        assert timeout < DEFAULT_STEERING_PING_TOTAL_TIMEOUT
-
-    def test_steering_ping_timeout_total(self):
-        """Test getting steering ping timeout for all pings."""
-        timeout = get_ping_timeout("steering", total=True)
-        assert timeout == DEFAULT_STEERING_PING_TOTAL_TIMEOUT
+    def test_steering_ping_timeout(self):
+        """Test getting steering ping timeout."""
+        timeout = get_ping_timeout("steering")
+        assert timeout == 2
 
     def test_calibrate_ping_timeout(self):
         """Test getting calibrate ping timeout."""
@@ -163,8 +150,3 @@ class TestGetPingTimeout:
             assert isinstance(timeout, int)
             assert timeout > 0
 
-    def test_per_ping_less_than_total(self):
-        """Test that per-ping timeout is less than total for steering."""
-        per_ping = get_ping_timeout("steering", total=False)
-        total = get_ping_timeout("steering", total=True)
-        assert per_ping <= total

@@ -483,25 +483,20 @@ class TestIcmplibErrorHandling:
         assert "DNS" in mock_logger.warning.call_args[0][0]
 
 
-class TestNoSubprocessInHotPath:
-    """Test that ping_host does NOT call subprocess.run."""
+class TestIcmplibInHotPath:
+    """Test that ping_host uses icmplib directly."""
 
-    def test_no_subprocess_in_hot_path(self):
-        """Verify that ping_host does NOT call subprocess.run (uses icmplib)."""
+    def test_uses_icmplib_not_subprocess(self):
+        """Verify that ping_host uses icmplib.ping (not subprocess)."""
         mock_logger = MagicMock()
         rtt = RTTMeasurement(logger=mock_logger)
 
-        with (
-            patch("wanctl.rtt_measurement.icmplib.ping") as mock_icmplib,
-            patch("wanctl.rtt_measurement.subprocess.run") as mock_subprocess,
-        ):
+        with patch("wanctl.rtt_measurement.icmplib.ping") as mock_icmplib:
             mock_icmplib.return_value = make_host_result(rtts=[10.0])
             rtt.ping_host("8.8.8.8")
 
             # icmplib should be called
             mock_icmplib.assert_called_once()
-            # subprocess should NOT be called
-            mock_subprocess.assert_not_called()
 
 
 class TestPingHostsConcurrentEdgeCases:

@@ -59,7 +59,7 @@ from ..systemd_utils import (
     notify_degraded,
     notify_watchdog,
 )
-from ..timeouts import DEFAULT_STEERING_PING_TOTAL_TIMEOUT, DEFAULT_STEERING_SSH_TIMEOUT
+from ..timeouts import DEFAULT_STEERING_SSH_TIMEOUT
 from .cake_stats import CakeStatsReader, CongestionSignals
 from .congestion_assessment import (
     CongestionState,
@@ -477,7 +477,6 @@ class SteeringConfig(BaseConfig):
         timeouts = self.data.get("timeouts", {})
         self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_STEERING_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get("ping", 2)  # seconds (-W parameter)
-        self.timeout_ping_total = timeouts.get("ping_total", DEFAULT_STEERING_PING_TOTAL_TIMEOUT)
 
     def _build_router_dict(self) -> None:
         """Build router dict for CakeStatsReader."""
@@ -1939,11 +1938,10 @@ def main() -> int | None:
     )
     state_mgr.load()
     router = RouterOSController(config, logger)
-    # Use unified RTTMeasurement with MEDIAN aggregation and total timeout
+    # Use unified RTTMeasurement with MEDIAN aggregation
     rtt_measurement = RTTMeasurement(
         logger,
         timeout_ping=config.timeout_ping,
-        timeout_total=config.timeout_ping_total,
         aggregation_strategy=RTTAggregationStrategy.MEDIAN,
         log_sample_stats=False,  # Steering only uses single sample (count=1)
     )
