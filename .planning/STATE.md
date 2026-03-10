@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
 status: complete
-last_updated: "2026-03-10T02:37:36.000Z"
-last_activity: 2026-03-10 -- Completed 61-01-PLAN.md (WAN awareness observability)
+last_updated: "2026-03-10T08:34:00.000Z"
+last_activity: 2026-03-10 -- Completed 61-03-PLAN.md (OBSV-01/OBSV-02 gap closure)
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 8
+  completed_plans: 8
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
 **Phase:** 61 of 61 (Observability + Metrics) -- COMPLETE
-**Plan:** 2 of 2 (Phase 61) -- COMPLETE
+**Plan:** 3 of 3 (Phase 61) -- COMPLETE
 **Status:** Complete
-**Last activity:** 2026-03-10 -- Completed 61-01-PLAN.md (WAN awareness observability)
+**Last activity:** 2026-03-10 -- Completed 61-03-PLAN.md (OBSV-01/OBSV-02 gap closure)
 
 **Progress:** [██████████] 100%
 
@@ -72,6 +72,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - WAN zone metric uses \_get_effective_wan_zone() so metric reflects what steering actually sees
 - Disabled mode shows raw zone for staged rollout verification (Phase 60 decision preserved)
 
+- degrade_timer exposed as seconds remaining (not sustained_cycles counter) -- timer IS the sustain countdown
+- -1.0 sentinel for inaccessible staleness age keeps REAL column always numeric
+- Reuse effective_zone variable already computed for wanctl_wan_zone -- no redundant method call
+
 ### Known Issues
 
 None.
@@ -82,6 +86,7 @@ None.
 
 ## Session Log
 
+- 2026-03-10: Completed 61-03 -- OBSV-01/OBSV-02 gap closure: degrade_timer_remaining, wanctl_wan_weight, wanctl_wan_staleness_sec (8 new tests, 2210 total)
 - 2026-03-10: Completed 61-01 -- WAN awareness observability: health endpoint wan_awareness section, wanctl_wan_zone SQLite metric (11 new tests, 2202 total)
 - 2026-03-10: Completed 61-02 -- WAN awareness logging in degrade timer expiry and steering transitions (8 new tests, 2199 total)
 - 2026-03-10: Completed 60-02 -- Grace period timer, enabled gate, config-driven weights wired into steering daemon (14 new tests, 2181 total)
