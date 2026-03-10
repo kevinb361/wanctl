@@ -1,395 +1,419 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-03-10
 
 ## Test Framework
 
 **Runner:**
 - pytest 8.0.0+
-- Config: `pyproject.toml` (minimal, uses defaults)
-- 25 test files, 684 test functions, all passing
+- Config: `pyproject.toml` `[tool.pytest.ini_options]` — `addopts = "--cov-config=pyproject.toml"`
 
 **Assertion Library:**
-- pytest built-in assert statement
-- Matchers: `assert x == y`, `assert x in y`, `assert isinstance(x, Type)`
+- pytest built-in `assert` statement
+- `pytest.raises(ExceptionType, match="pattern")` for exception testing
 
 **Run Commands:**
 ```bash
-.venv/bin/pytest tests/ -v              # Run all tests with verbose output
-.venv/bin/pytest tests/ -vvs            # Very verbose (show print statements)
-.venv/bin/pytest tests/test_*.py        # Run specific test file
-.venv/bin/pytest tests/ -k test_name    # Run tests matching pattern
-.venv/bin/pytest tests/ --tb=short      # Shorter traceback format
+.venv/bin/pytest tests/ -v                   # All tests, verbose
+.venv/bin/pytest tests/test_foo.py -v        # Specific file
+.venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-report=html  # With HTML coverage
+.venv/bin/pytest tests/ --cov=src --cov-fail-under=90  # Coverage enforcement (CI)
+```
+
+**Make targets:**
+```bash
+make test             # Run tests without coverage
+make coverage         # Tests + HTML report (coverage-report/index.html)
+make coverage-check   # Tests + enforce 90% threshold (used by CI)
+make ci               # lint + type + coverage-check
 ```
 
 ## Test File Organization
 
-**Location:**
-- `tests/` directory at project root
-- Subdirectories: `tests/integration/`, `tests/integration/framework/`
-- One test file per module being tested
-- Naming: `test_<module_name>.py` (e.g., `test_config_validation_utils.py`)
+**Location:** `tests/` at project root, co-located with source but separate directory
+
+**Naming:** `test_<module_name>.py` mirroring `src/wanctl/<module_name>.py`
 
 **Structure:**
 ```
 tests/
-├── conftest.py                      # Shared fixtures
-├── test_autorate_baseline_bounds.py # State machine boundary tests
-├── test_baseline_rtt_manager.py     # RTT baseline tracking
-├── test_config_base.py              # Config schema validation
-├── test_config_edge_cases.py        # Edge case scenarios
-├── test_config_validation_utils.py  # Config validation (590 lines)
-├── test_health_check.py             # HTTP health endpoint
-├── test_lock_utils.py               # Lock file acquisition
-├── test_lockfile.py                 # Lockfile implementation
-├── test_logging_utils.py            # Structured logging
-├── test_path_utils.py               # Path utilities
-├── test_rate_limiter.py             # Rate limiting (sliding window)
-├── test_retry_utils.py              # Retry with exponential backoff
-├── test_retry_utils_extended.py     # Extended retry scenarios
-├── test_rtt_measurement.py          # RTT parsing and aggregation
-├── test_router_command_utils.py     # RouterOS command utilities
-├── test_state_manager.py            # State persistence
-├── test_state_utils.py              # State file utilities
-├── test_steering_daemon.py          # Steering daemon tests
-├── test_steering_deprecation.py     # Steering deprecation scenarios
-├── test_steering_logger.py          # Steering event logging
-├── test_steering_timers.py          # Steering timer logic
-├── test_timeouts.py                 # Timeout constants
-├── test_wan_controller.py           # WANController (1500+ lines)
-├── test_wan_controller_state.py     # WANController state persistence
+├── conftest.py                        # Shared fixtures (temp_dir, mock_autorate_config, mock_steering_config)
+├── test_autorate_baseline_bounds.py   # Baseline RTT boundary conditions
+├── test_autorate_config.py            # Config loading and validation
+├── test_autorate_continuous.py        # WANController pending rate integration
+├── test_autorate_entry_points.py      # main() and ContinuousAutoRate (2047 lines)
+├── test_autorate_error_recovery.py    # Error recovery paths (1032 lines)
+├── test_autorate_metrics_recording.py # SQLite metrics integration
+├── test_autorate_telemetry.py         # Profiling telemetry
+├── test_backends.py                   # RouterBackend ABC and RouterOSBackend
+├── test_baseline_rtt_manager.py       # BaselineRTTManager class
+├── test_cake_stats.py                 # CakeStatsReader
+├── test_calibrate.py                  # Calibration tool (1572 lines)
+├── test_config_base.py                # BaseConfig schema validation
+├── test_config_edge_cases.py          # Config edge cases
+├── test_config_snapshot.py            # Config snapshot recording
+├── test_config_validation_utils.py    # Validation utility functions
+├── test_daemon_interaction.py         # Cross-daemon interactions
+├── test_daemon_utils.py               # Deadline tracking
+├── test_error_handling.py             # handle_errors, safe_operation, safe_call
+├── test_failure_cascade.py            # Cascade failure scenarios
+├── test_health_check.py               # HTTP health endpoint (799 lines)
+├── test_health_check_history.py       # Health endpoint history data
+├── test_history_cli.py                # wanctl-history CLI (605 lines)
+├── test_hot_loop_retry_params.py      # Hot loop retry parameter validation
+├── test_lock_utils.py / test_lockfile.py  # Lock file utilities
+├── test_logging_utils.py              # JSONFormatter, setup_logging
+├── test_metrics.py                    # Prometheus metrics (639 lines)
+├── test_metrics_reader.py             # SQLite metrics reader
+├── test_path_utils.py                 # Path utilities
+├── test_pending_rates.py              # PendingRateChange
+├── test_perf_profiler.py              # OperationProfiler, PerfTimer
+├── test_queue_controller.py           # QueueController state machine (1196 lines)
+├── test_rate_limiter.py               # RateLimiter
+├── test_retry_utils.py / test_retry_utils_extended.py  # Retry with backoff
+├── test_router_behavioral.py          # Router behavioral tests
+├── test_router_client.py              # Router client with failover (745 lines)
+├── test_router_command_utils.py       # CommandResult, command parsing
+├── test_router_connectivity.py        # RouterConnectivityState
+├── test_routeros_rest.py              # REST backend (969 lines)
+├── test_routeros_ssh.py               # SSH backend (717 lines)
+├── test_rtt_measurement.py            # RTTMeasurement, icmplib
+├── test_signal_utils.py               # Signal handling
+├── test_state_manager.py              # StateManager (997 lines)
+├── test_state_utils.py                # atomic_write_json, safe_json_load_file
+├── test_steering_confidence.py        # Confidence scoring (1120 lines)
+├── test_steering_daemon.py            # SteeringDaemon (5360 lines — largest file)
+├── test_steering_health.py            # Steering health endpoint (1312 lines)
+├── test_steering_logger.py            # SteeringLogger
+├── test_steering_metrics_recording.py # Steering SQLite metrics
+├── test_steering_module_boundary.py   # Steering module boundaries
+├── test_steering_telemetry.py         # Steering profiling
+├── test_steering_timers.py            # Timer management
+├── test_storage_downsampler.py        # Metrics downsampling
+├── test_storage_maintenance.py        # DB maintenance
+├── test_storage_retention.py          # Retention policy
+├── test_storage_schema.py             # SQLite schema
+├── test_storage_writer.py             # MetricsWriter singleton
+├── test_systemd_utils.py              # systemd notify
+├── test_timeouts.py                   # Timeout constants
+├── test_wan_controller.py             # WANController (2115 lines)
+├── test_wan_controller_state.py       # WANControllerState persistence
 └── integration/
-    ├── test_latency_control.py      # End-to-end validation
-    └── framework/                   # Integration test utilities
+    ├── conftest.py                    # Integration fixtures, custom markers
+    ├── test_latency_control.py        # End-to-end RRUL validation
+    └── framework/                     # ControllerMonitor, LatencyCollector, SLAChecker
 ```
+
+**Total:** 2,210 tests collected, all passing (as of 2026-03-10)
 
 ## Test Structure
 
-**Suite Organization:**
+**Suite Organization:** Class-per-feature, one behavior per test method
 ```python
-import logging
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
 import pytest
-
-from wanctl.module_name import FunctionUnderTest
-
-
-@pytest.fixture
-def logger():
-    """Provide logger for tests."""
-    return logging.getLogger("test_module_name")
+from wanctl.autorate_continuous import WANController
 
 
-@pytest.fixture
-def temp_dir():
-    """Create a temporary directory for test files."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+class TestHandleIcmpFailure:
+    """Tests for WANController.handle_icmp_failure() method.
 
+    Tests all 3 fallback modes and edge cases.
+    """
 
-class TestFeatureName:
-    """Tests for FeatureName functionality."""
+    @pytest.fixture
+    def mock_config(self, mock_autorate_config):
+        """Delegate to shared mock_autorate_config from conftest.py."""
+        return mock_autorate_config
 
-    def test_specific_behavior_succeeds(self, logger):
-        """Test that specific behavior succeeds."""
-        # Arrange
-        input_value = setup_test_data()
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
 
-        # Act
-        result = FunctionUnderTest(input_value)
+    def test_graceful_degradation_cycle_1_uses_last_rtt(self, controller):
+        """Cycle 1 should use last known RTT and return True."""
+        controller.config.fallback_mode = "graceful_degradation"
+        controller.icmp_unavailable_cycles = 0
+        controller.load_rtt = 28.5
 
-        # Assert
-        assert result == expected_value
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+            should_continue, measured_rtt = controller.handle_icmp_failure()
 
-    def test_specific_behavior_fails(self):
-        """Test that invalid input raises error."""
-        with pytest.raises(ConfigValidationError) as exc_info:
-            FunctionUnderTest(invalid_input)
-        assert "expected error message" in str(exc_info.value)
+        assert should_continue is True
+        assert measured_rtt == 28.5
+        assert controller.icmp_unavailable_cycles == 1
+        controller.logger.warning.assert_called()
 ```
 
-**Patterns:**
-- Use `@pytest.fixture` for shared setup (logger, temp files)
-- Organize tests in classes by feature/function
-- Arrange-Act-Assert pattern in each test
-- One assertion focus per test (multiple asserts OK if testing single behavior)
-- Descriptive test names: `test_<behavior>_<result>` format
-- Fixtures defined in `conftest.py` for cross-test reuse
+**Test naming:** `test_<behavior>_<result>` — `test_graceful_degradation_cycle_1_uses_last_rtt`, `test_singleton_same_instance`
 
-## Mocking
-
-**Framework:**
-- `unittest.mock` (built-in)
-- pytest does not auto-mock
-- Imports: `from unittest.mock import MagicMock, patch`
-
-**Patterns:**
-
-1. **Mock Creation:**
-   ```python
-   mock_config = MagicMock()
-   mock_config.wan_name = "TestWAN"
-   mock_config.baseline_rtt_initial = 25.0
-   mock_config.ping_hosts = ["1.1.1.1"]
-
-   mock_router = MagicMock()
-   mock_router.set_limits.return_value = True
-   ```
-
-2. **Context Manager Patching:**
-   ```python
-   with patch('wanctl.module.function') as mock_fn:
-       mock_fn.return_value = expected_value
-       # test code
-   ```
-
-3. **Decorator Patching:**
-   ```python
-   @patch('wanctl.module.external_call')
-   def test_function(self, mock_external):
-       mock_external.return_value = test_value
-       # test code
-   ```
-
-4. **Assertion on Mocks:**
-   ```python
-   mock_router.set_limits.assert_called()
-   mock_logger.warning.assert_called_with("msg")
-   mock_object.method.assert_not_called()
-   ```
-
-**What to Mock:**
-- External services (RouterOS commands via `RouterOSREST`, `RouterOSSSH`)
-- File I/O (state files, logs)
-- System calls (ping, netperf)
-- Time-dependent behavior (datetime, sleep)
-- HTTP servers (health check, metrics endpoints)
-
-**What NOT to Mock:**
-- Pure validation functions (`validate_field()`, `enforce_rate_bounds()`)
-- EWMA calculations and state machine logic
-- Config parsing and schema validation
-- Rate limiter sliding window logic
-
-**Example from Tests:**
-
-Real-world example from `test_wan_controller.py`:
+**Module-level section dividers** in large test files:
 ```python
-@pytest.fixture
-def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
-    """Create a WANController with mocked dependencies."""
-    from wanctl.autorate_continuous import WANController
-
-    # Patch load_state to avoid file I/O
-    with patch.object(WANController, "load_state"):
-        controller = WANController(
-            wan_name="TestWAN",
-            config=mock_config,
-            router=mock_router,
-            rtt_measurement=mock_rtt_measurement,
-            logger=mock_logger,
-        )
-    return controller
+# =========================================================================
+# graceful_degradation mode tests
+# =========================================================================
 ```
 
-## Fixtures and Factories
+## Shared Fixtures (conftest.py)
 
-**Shared Fixtures in `conftest.py`:**
+Two canonical mock config fixtures in `tests/conftest.py` cover the full attribute superset:
+
 ```python
 @pytest.fixture
-def temp_dir():
-    """Create a temporary directory for test files."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
-
-
-@pytest.fixture
-def sample_config_data():
-    """Sample configuration data for testing."""
-    return {
-        "wan_name": "TestWAN",
-        "router": {"host": "192.168.1.1", "user": "admin"},
-        "queues": {"download": "WAN-Download", "upload": "WAN-Upload"},
-        "bandwidth": {"down_max": 100, "down_min": 10, "up_max": 20, "up_min": 5},
-    }
-```
-
-**Test-Specific Fixtures:**
-```python
-@pytest.fixture
-def mock_config(self):
-    """Create a mock config for WANController."""
+def mock_autorate_config():
+    """Shared mock config for autorate WANController tests."""
     config = MagicMock()
     config.wan_name = "TestWAN"
     config.baseline_rtt_initial = 25.0
     config.download_floor_green = 800_000_000
-    config.download_ceiling = 920_000_000
-    # ... more fields
+    config.ping_hosts = ["1.1.1.1"]
+    config.metrics_enabled = False
+    config.state_file = MagicMock()
+    # ... full superset of attributes
+    return config
+
+@pytest.fixture
+def mock_steering_config():
+    """Shared mock config for steering daemon tests."""
+    config = MagicMock()
+    config.primary_wan = "spectrum"
+    config.wan_state_config = None  # WAN-aware steering disabled by default
+    # ... full superset of attributes
     return config
 ```
 
-**Factory Functions:**
+**Also in conftest.py:**
+- `temp_dir` — `tempfile.TemporaryDirectory` yielding `Path`
+- `sample_config_data` — baseline config dict
+
+**Fixture delegation pattern** (per-class overrides without renaming):
 ```python
-def create_test_state(overrides=None):
-    """Create test state with optional overrides."""
-    state = {
-        "download": {"green_streak": 0, "current_rate": 800_000_000},
-        "upload": {"green_streak": 0, "current_rate": 35_000_000},
-        "ewma": {"baseline_rtt": 25.0, "load_rtt": 28.0},
-    }
-    if overrides:
-        state.update(overrides)
-    return state
+class TestCollectCakeStats:
+    @pytest.fixture
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        return mock_steering_config
+```
+This preserves the local name `mock_config` while reusing the shared fixture.
+
+**`autouse=True` for class-level teardown:**
+```python
+class TestMainEntryPoint:
+    @pytest.fixture(autouse=True)
+    def _mock_storage(self):
+        """Prevent main() from hitting production storage paths."""
+        with patch(
+            "wanctl.steering.daemon.get_storage_config",
+            return_value={"retention_days": 7, "db_path": ""},
+        ):
+            yield
+```
+Used to isolate all tests in a class from production filesystem paths.
+
+**Module-level `autouse` for global state reset:**
+```python
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset global metrics registry before and after each test."""
+    metrics.reset()
+    yield
+    metrics.reset()
 ```
 
-**Location:**
-- Fixtures used across multiple tests: `tests/conftest.py`
-- Test-specific fixtures: Define in test class or test file
-- Factories: Define near usage or in `conftest.py` for reuse
+## Mocking
+
+**Framework:** `unittest.mock` — `from unittest.mock import MagicMock, patch`
+
+**MagicMock config objects:**
+```python
+config = MagicMock()
+config.wan_name = "TestWAN"
+config.download_floor_green = 800_000_000
+router = MagicMock()
+router.set_limits.return_value = True
+```
+
+**Context manager patch (most common form):**
+```python
+with patch("wanctl.rtt_measurement.icmplib.ping") as mock:
+    mock.return_value = make_host_result(rtts=[12.3])
+    result = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"])
+```
+
+**patch.object for methods:**
+```python
+with patch.object(WANController, "load_state"):
+    controller = WANController(...)
+
+with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+    result = controller.handle_icmp_failure()
+```
+
+**side_effect for sequential returns:**
+```python
+mock_icmplib_ping.side_effect = [
+    make_host_result(rtts=[12.3]),   # First call
+    make_host_result(is_alive=False), # Second call
+]
+```
+
+**Factory helper functions** for complex mocks:
+```python
+def make_host_result(address="8.8.8.8", rtts=None, is_alive=True):
+    """Build a mock icmplib Host object for testing."""
+    host = MagicMock()
+    host.address = address
+    host.rtts = rtts or [12.3]
+    host.is_alive = is_alive
+    host.packet_loss = 0.0 if is_alive else 1.0
+    return host
+```
+
+**What to mock:**
+- Router I/O: `RouterOSSSH`, `RouterOSREST`, `icmplib.ping`
+- File system access: `WANController.load_state`, `get_storage_config`
+- Singletons: `MetricsWriter._reset_instance()` in setup/teardown
+- HTTP servers: `start_health_server`, `start_steering_health_server`
+- Time: `time.monotonic` when testing deadline tracking (needs ~12+ extra values for cleanup path)
+
+**What NOT to mock:**
+- Pure calculation functions: `enforce_rate_bounds`, `is_retryable_error`, `compute_confidence`
+- State machines: `QueueController.adjust`, `QueueController.adjust_4state`
+- Config validation: `validate_field`, `validate_bandwidth_order`
+- SQLite in-memory (use `tmp_path` for real SQLite in storage tests)
 
 ## Coverage
 
-**Requirements:**
-- No enforced coverage target in CI
-- Focus on critical paths: validation, state machines, measurements
-- Gaps are acceptable for error recovery paths and integration code
+**Requirements:** 90% enforced by `make coverage-check` / `make ci`
+- Config: `[tool.coverage.report]` in `pyproject.toml` — `fail_under = 90`
+- Branch coverage enabled: `branch = true`
+- Both `src` and `tests` in coverage source
 
-**Current Status:**
-- 684 test functions across 25 test files
-- 594 passing unit tests (per CLAUDE.md)
-- Comprehensive coverage: config validation, state management, retry logic, rate limiting
+**View HTML report:**
+```bash
+make coverage    # generates coverage-report/index.html
+```
 
-**Configuration:**
-- Pytest-cov plugin available but not configured
-- Run: `pytest --cov=src/wanctl tests/` if coverage report needed
+**Current state:** 2,210 tests, 91%+ coverage (as of 2026-03-10)
 
 ## Test Types
 
-**Unit Tests:**
-- Test single function in isolation
-- Mock all external dependencies (RouterOS, file I/O)
-- Fast execution (< 100ms per test)
-- Examples:
-  - `test_config_validation_utils.py` (590 lines, extensive config validation)
-  - `test_retry_utils.py` (error classification logic)
-  - `test_rate_utils.py` (rate bounding functions)
+**Unit Tests (majority):**
+- Test single class/function in isolation
+- All external dependencies mocked
+- Target: specific method behavior, edge cases, error paths
+- Examples: `test_queue_controller.py`, `test_error_handling.py`, `test_retry_utils.py`
 
-**Integration Tests:**
-- Test multiple modules together
-- Mock external boundaries only (RouterOS commands)
-- Verify data flow between components
-- Examples:
-  - `test_baseline_rtt_manager.py` (RTT tracking with state persistence)
-  - `test_wan_controller.py` (controller with mocked router/RTT)
-  - `test_health_check.py` (HTTP server with controller integration)
+**Functional/Integration Tests (class-level in unit test files):**
+- Test multiple modules wired together with boundary mocks only
+- Examples: `test_wan_controller.py` (WANController + mocked router), `test_health_check.py` (HTTP server + real handler)
 
-**End-to-End Tests:**
-- `tests/integration/test_latency_control.py`: Full system validation
-- Runs actual RRUL load tests (flent/netperf)
-- Measures latency under load to validate congestion control
-- Requires network setup (Dallas netperf server)
+**E2E / Integration Tests:**
+- `tests/integration/test_latency_control.py`
+- Requires external tools: `flent`/`netperf`, `fping`/`ping`
+- Marked with `@pytest.mark.integration` and `@pytest.mark.slow`
+- Skipped automatically if dependencies missing (autouse fixture in `tests/integration/conftest.py`)
+- Not run by `make test` or `make ci`
 
 ## Common Patterns
 
-**Async Testing:**
-- Not used in wanctl (synchronous code only)
-- If needed: Use pytest-asyncio plugin
-
-**Error Testing:**
+**Parametrize for boundary conditions:**
 ```python
-def test_invalid_input_raises_error(self, logger):
-    """Test that invalid input raises ConfigValidationError."""
-    with pytest.raises(ConfigValidationError) as exc_info:
-        validate_bandwidth_order(
-            name="download",
-            floor_red=20000000,      # greater than floor_yellow
-            floor_yellow=10000000,
-            floor_green=50000000,
-            ceiling=100000000,
-            logger=logger,
-        )
-    assert "floor ordering violation" in str(exc_info.value)
+@pytest.mark.parametrize(
+    "delta,expected_zone",
+    [
+        (5.0, "GREEN"),   # delta <= 15 (well below target)
+        (15.0, "GREEN"),  # boundary value
+        (20.0, "YELLOW"),
+        (45.0, "YELLOW"),  # boundary value
+        (50.0, "RED"),
+        (100.0, "RED"),
+    ],
+)
+def test_zone_classification(self, controller_3state, delta, expected_zone):
+    """Parametrized test for zone classification based on delta."""
+    zone, _, _ = controller_3state.adjust(baseline_rtt=25.0, load_rtt=25.0 + delta, ...)
+    assert zone == expected_zone
 ```
 
-**Parametrized Testing:**
+**Exception testing with match:**
 ```python
-@pytest.mark.parametrize("input,expected", [
-    (1.0, 2.0),
-    (2.0, 4.0),
-    (3.0, 6.0),
-])
-def test_function_with_values(self, input, expected):
-    assert function(input) == expected
+with pytest.raises(ConfigValidationError, match="floor ordering"):
+    validate_bandwidth_order(...)
+
+with pytest.raises(ValueError, match="expected error message"):
+    some_validation(bad_input)
 ```
 
-**Fixtures with Parameters:**
+**Logger call assertion:**
 ```python
-@pytest.fixture(params=[10, 50, 100])
-def baseline_rtt(request):
-    """Provide different baseline RTT values."""
-    return request.param
-
-def test_with_baseline_values(self, baseline_rtt):
-    # Test runs 3 times with different values
-    assert valid_baseline(baseline_rtt)
+controller.logger.warning.assert_called()
+mock_logger.error.assert_called_with("expected message")
 ```
 
-**State Machine Testing:**
-State transitions tested extensively in:
-- `test_wan_controller.py`: RED/YELLOW/GREEN state transitions, hysteresis
-- `test_wan_controller_state.py`: State persistence and recovery
-- `test_state_manager.py`: Generic state schema validation
-- Tests verify: state transitions, streak counts, rate changes per state
-
-**Fallback Mode Testing:**
-From `test_wan_controller.py`:
+**Logging capture with caplog:**
 ```python
-def test_graceful_degradation_cycle_1_uses_last_rtt(self, controller):
-    """Cycle 1 should use last known RTT and return True."""
-    controller.config.fallback_mode = "graceful_degradation"
-    controller.config.fallback_max_cycles = 3
-    controller.icmp_unavailable_cycles = 0
-    controller.load_rtt = 28.5
-
-    with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
-        should_continue, measured_rtt = controller.handle_icmp_failure()
-
-    assert should_continue is True
-    assert measured_rtt == 28.5
-    assert controller.icmp_unavailable_cycles == 1
-    controller.logger.warning.assert_called()
+def test_logs_warning(self, caplog):
+    with caplog.at_level(logging.WARNING):
+        trigger_warning()
+    assert "expected text" in caplog.text
 ```
 
-## Test Execution
-
-**All Tests:**
-```bash
-.venv/bin/pytest tests/ -v
+**stdout/stderr capture with capsys:**
+```python
+def test_validate_config_success(self, valid_config_yaml, tmp_path, capsys):
+    with pytest.raises(SystemExit):
+        main()
+    captured = capsys.readouterr()
+    assert "Valid" in captured.out
 ```
 
-**Specific Test File:**
-```bash
-.venv/bin/pytest tests/test_wan_controller.py -v
+**Singleton reset pattern (MetricsWriter):**
+```python
+@pytest.fixture
+def reset_singleton():
+    MetricsWriter._reset_instance()
+    yield
+    MetricsWriter._reset_instance()
 ```
 
-**Specific Test Class:**
-```bash
-.venv/bin/pytest tests/test_wan_controller.py::TestHandleIcmpFailure -v
+**Real SQLite with tmp_path:**
+```python
+@pytest.fixture
+def temp_db(self, tmp_path: Path) -> tuple[Path, MetricsWriter]:
+    db_path = tmp_path / "test_metrics.db"
+    MetricsWriter._reset_instance()
+    writer = MetricsWriter(db_path)
+    yield db_path, writer
+    MetricsWriter._reset_instance()
 ```
 
-**Specific Test Method:**
-```bash
-.venv/bin/pytest tests/test_wan_controller.py::TestHandleIcmpFailure::test_graceful_degradation_cycle_1_uses_last_rtt -v
+**Free port discovery for HTTP server tests:**
+```python
+def find_free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 ```
 
-**Integration Tests Only:**
-```bash
-.venv/bin/pytest tests/integration/ -v
+**Import inside fixture to avoid circular imports:**
+```python
+@pytest.fixture
+def controller(self, mock_config, ...):
+    from wanctl.autorate_continuous import WANController  # deferred import
+    with patch.object(WANController, "load_state"):
+        return WANController(...)
 ```
 
 ---
 
-*Testing analysis: 2026-01-21*
+*Testing analysis: 2026-03-10*

@@ -1,256 +1,216 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-03-10
 
 ## Naming Patterns
 
 **Files:**
-- Snake case for all Python files: `rtt_measurement.py`, `autorate_continuous.py`, `state_manager.py`
-- Hierarchical organization under `src/wanctl/` with subpackages for major features: `steering/`, `backends/`
-- Test files mirror source structure with `tests/` prefix: `tests/test_rtt_measurement.py`, `tests/test_autorate_continuous.py`
-
-**Functions:**
-- Snake case for all functions: `parse_ping_output()`, `enforce_rate_bounds()`, `safe_json_load_file()`
-- Prefix with verb for action functions: `handle_errors()`, `validate_field()`, `verify_connectivity_fallback()`
-- Use `is_` or `has_` prefix for boolean-returning functions: `is_retryable_error()`, `is_shutdown_requested()`
-- Private/internal functions prefixed with underscore: `_get_nested()`, `_type_name()`, `_compute_state_hash()`
-
-**Variables:**
-- Snake case for all variables and attributes: `baseline_rtt`, `download_floor_green`, `icmp_unavailable_cycles`
-- Type annotations required for function parameters and returns (Python 3.11+ style): `list[float]`, `dict[str, Any]`, `float | None`
-- Constants in UPPER_SNAKE_CASE: `CYCLE_INTERVAL_SECONDS`, `DEFAULT_BASELINE_UPDATE_THRESHOLD_MS`, `MBPS_TO_BPS`
+- `snake_case.py` for all modules: `state_manager.py`, `baseline_rtt_manager.py`, `retry_utils.py`
+- Utility modules use `_utils` suffix: `state_utils.py`, `lock_utils.py`, `daemon_utils.py`, `router_command_utils.py`
+- Test files mirror source: `src/wanctl/state_utils.py` → `tests/test_state_utils.py`
+- Subpackages use `__init__.py` for explicit re-exports: `src/wanctl/steering/__init__.py`, `src/wanctl/storage/__init__.py`
 
 **Classes:**
-- PascalCase for all classes: `WANController`, `StateManager`, `RouterOSBackend`, `RateLimiter`
-- Base classes follow `Base` prefix: `BaseConfig`, `RouterBackend` (abstract base)
+- `PascalCase` throughout: `WANController`, `BaselineRTTManager`, `RouterOSSSH`, `MetricsWriter`
+- Acronyms kept uppercase: `WANController`, `RTTMeasurement`, `JSONFormatter`
+- Abstract base classes suffixed `Backend`: `RouterBackend` in `src/wanctl/backends/base.py`
+- State managers suffixed `Manager` or `State`: `SteeringStateManager`, `WANControllerState`
+- Config objects named `Config` or `BaseConfig` within their modules
 
-**Types:**
-- Type hints universally applied: All public functions fully typed
-- Modern union syntax preferred: `float | None` instead of `Optional[float]`
-- Generic types use bracket syntax: `list[dict[str, Any]]`, `Callable[[int], str]`
-- Custom exception classes inherit from standard base: `class ConfigValidationError(ValueError):`
+**Functions:**
+- `snake_case` everywhere: `atomic_write_json`, `setup_logging`, `is_retryable_error`
+- Private helpers prefixed `_`: `_get_nested`, `_type_name`, `_create_formatter`, `_is_state_changed`
+- Boolean predicates start with `is_` or `has_`: `is_reachable`, `has_pending`, `is_shutdown_requested`
+- Factory functions prefixed `get_`: `get_router_client_with_failover`, `get_backend`, `get_storage_config`
+
+**Variables:**
+- `snake_case` for all: `baseline_rtt`, `cycle_interval`, `rtt_delta_ewma`
+- Constants in `UPPER_SNAKE_CASE`: `CYCLE_INTERVAL_SECONDS`, `DEFAULT_HARD_RED_BLOAT_MS`, `LOG_WARNING`
+- Numeric constants use underscores for readability: `800_000_000`, `35_000_000`
+
+**Module-level constants block:**
+```python
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Daemon cycle interval - target time between cycle starts (seconds)
+# Production standard: 0.05s (50ms, 20Hz polling) - validated Phase 2 (2026-01-13)
+CYCLE_INTERVAL_SECONDS = 0.05
+```
+Always include a "why" comment explaining the value's significance.
 
 ## Code Style
 
-**Formatting:**
-- Line length: 100 characters (configured in `pyproject.toml` under `[tool.ruff]`)
-- Indentation: 4 spaces (Python standard)
-- Tool: Ruff (formatter applied via `ruff format src/ tests/`)
-- Double quotes for strings
+**Formatter:** `ruff format` (Ruff's built-in formatter)
 
-**Linting:**
-- Tool: Ruff (linter configured in `pyproject.toml` under `[tool.ruff.lint]`)
-- Rules enforced:
-  - E/W: pycodestyle errors and warnings
-  - F: pyflakes (undefined variables, unused imports)
-  - I: isort (import sorting)
-  - B: flake8-bugbear (common bugs)
-  - UP: pyupgrade (modern Python syntax)
-- Line length exceptions (E501) ignored - handled by formatter
-- B008 ignored: function call in default argument (by design)
+**Key settings (`pyproject.toml`):**
+- Line length: 100 characters
+- Target version: Python 3.12
 
-**Type Checking:**
-- Tool: MyPy (configured in `pyproject.toml` under `[tool.mypy]`)
-- Settings:
-  - `python_version = "3.12"`
-  - `disallow_untyped_defs = false` (but `check_untyped_defs = true`)
-  - `warn_return_any = false`
-  - `ignore_missing_imports = true` (external packages)
-  - `disable_error_code = ["import-untyped"]`
+**Linter:** `ruff check`
+- Rule sets: `E`, `W` (pycodestyle), `F` (pyflakes), `I` (isort), `B` (flake8-bugbear), `UP` (pyupgrade)
+- Ignored: `E501` (handled by formatter), `B008` (function call in default argument)
+- First-party package: `wanctl` (controls isort ordering)
+
+**Type checker:** `mypy` with `check_untyped_defs = true`, `python_version = "3.12"`
 
 ## Import Organization
 
-**Order:**
-1. Standard library imports (e.g., `import logging`, `from pathlib import Path`)
-2. Third-party imports (e.g., `import yaml`, `import requests`, `import paramiko`)
-3. Local wanctl imports (e.g., `from wanctl.config_base import BaseConfig`)
+**Order (enforced by ruff isort):**
+1. Standard library: `import logging`, `from pathlib import Path`, `from collections.abc import Callable`
+2. Third-party: `import yaml`, `import icmplib`, `import requests`
+3. First-party (`wanctl`): `from wanctl.state_utils import atomic_write_json`
 
-**Path Aliases:**
-- All imports use absolute paths: `from wanctl.state_manager import StateManager`
-- Never use relative imports: `from .state_manager import StateManager` (not used)
-- Known first-party package configured: `known-first-party = ["wanctl"]` in `pyproject.toml`
+**Intra-package imports:**
+- Top-level modules use **absolute** imports: `from wanctl.path_utils import ensure_file_directory`
+- Subpackages (`steering/`, `storage/`) use **relative** imports: `from ..config_base import BaseConfig`, `from .cake_stats import CongestionSignals`
 
-**Module Organization:**
-- Barrel imports used for subpackages: `from wanctl.backends import RouterBackend`
-- `__init__.py` files explicitly control public API
-- Heavy import logic avoided - pure function exports preferred
+**Suppression comments (always include rationale):**
+```python
+from wanctl.perf_profiler import (
+    PROFILE_REPORT_INTERVAL,  # noqa: F401 -- re-exported for test compatibility
+)
+import random  # nosec B311 - used for jitter timing, not security
+import subprocess  # noqa: F401 -- retained for test patching
+```
+
+## Type Annotations
+
+**Style:** Python 3.12 modern syntax throughout
+- Union types: `str | None` (not `Optional[str]`)
+- Generics: `list[float]`, `dict[str, Any]`, `tuple[int, str]`
+- Generic classes use PEP 695: `class CommandResult[T]`, `def handle_command_error[T]`
+- `from typing import Any, TypeVar` for remaining typing needs
+- `from collections.abc import Callable, Generator` (not `typing.Callable`)
+- `type: ignore` used sparingly with inline explanation
+
+**Docstrings:**
+- Module-level: triple-quoted string summarizing purpose
+- Function-level: Args/Returns/Raises/Examples sections for public functions
+- Inline `>>>` doctest examples in utility functions (`state_manager.py`, `retry_utils.py`, `state_utils.py`)
+```python
+def non_negative_int(value: Any) -> int:
+    """Validate and coerce value to non-negative integer.
+
+    Args:
+        value: Value to validate
+
+    Returns:
+        Non-negative integer (min 0)
+
+    Example:
+        >>> non_negative_int(5)
+        5
+        >>> non_negative_int(-3)
+        0
+    """
+```
+
+## Module Design
+
+**Section dividers (used consistently):**
+```python
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+```
+Sections in large files: CONSTANTS, class definitions, function groups.
+
+**Exports:**
+- Subpackage `__init__.py` files explicitly define public API
+- No star imports
+- `src/wanctl/storage/__init__.py` and `src/wanctl/steering/__init__.py` are the access points
+
+**Barrel files:**
+- `from wanctl.steering import SteeringDaemon` works because `steering/__init__.py` re-exports it
 
 ## Error Handling
 
-**Patterns:**
+**Primary pattern: `@handle_errors` decorator** (`src/wanctl/error_handling.py`):
+```python
+@handle_errors(default_return=None, log_level=logging.WARNING)
+def my_method(self):
+    return self.risky_operation()
 
-1. **Custom Exceptions for Domain Errors:**
-   - `ConfigValidationError(ValueError)`: Configuration validation failures in `config_base.py`
-   - `LockAcquisitionError(Exception)`: Lock file acquisition failures in `lock_utils.py`
-   - Domain-specific exceptions, not generic
+@handle_errors(default_return=False, log_traceback=True, error_msg="Failed to ping {exception}")
+def verify_state(self):
+    ...
+```
+Decorator auto-discovers `self.logger` from the instance.
 
-2. **Decorator-Based Error Handling:**
-   - `@handle_errors()` decorator centralizes repetitive try/except patterns
-   - Location: `src/wanctl/error_handling.py`
-   - Usage: `@handle_errors(default_return=None, log_level='warning', log_traceback=True)`
-   - Replaces 70+ scattered error handling instances across codebase
-   - Parameters: `default_return`, `log_level`, `log_traceback`, `error_msg`, `exception_types`, `reraise`, `on_error`
+**Context manager for inline blocks** (`safe_operation`):
+```python
+with safe_operation(logger, operation="database query", log_traceback=True):
+    data = read_data()
+```
 
-3. **Retryable vs Non-Retryable Distinction:**
-   - `is_retryable_error()` in `retry_utils.py` determines retry eligibility
-   - Transient errors: `subprocess.TimeoutExpired`, `ConnectionError`, connection-related `OSError`, requests timeouts
-   - Non-transient: authentication failures, syntax errors, logic errors, 4xx HTTP status
-   - Used by `@retry_with_backoff()` decorator for exponential backoff with jitter
+**Functional variant** (`safe_call`):
+```python
+result = safe_call(load_config, config_path, logger=self.logger, default={})
+```
 
-4. **Fallback Mode Handling (ICMP Blackout):**
-   - ICMP blackout handling with three modes: `graceful_degradation`, `freeze`, `use_last_rtt`
-   - Implemented in `WANController.handle_icmp_failure()` in `autorate_continuous.py`
-   - Returns tuple: `(should_continue: bool, measured_rtt: float | None)`
-   - Graceful degradation: cycle 1 uses last RTT, cycles 2-3 freeze rates, cycle 4+ fails/restarts
+**Result type pattern** (`CommandResult[T]` in `src/wanctl/router_command_utils.py`):
+```python
+result = CommandResult.ok(value)           # Success
+result = CommandResult.err("Conn failed")  # Failure
+data = result.unwrap_or(default)           # Safe extraction
+```
 
-5. **Validation Error Pattern:**
-   - Config validation uses `raise ConfigValidationError(f"message")` for failures
-   - Path-based error messages include full dotted path: `f"Invalid type for {path}: expected X, got Y"`
-   - Validation centralized in functions: `validate_field()` in `config_base.py`
+**Custom exceptions:**
+- `ConfigValidationError(ValueError)` in `src/wanctl/config_base.py`
+- `LockAcquisitionError(Exception)` in `src/wanctl/lock_utils.py`
+
+**Retry pattern** (`src/wanctl/retry_utils.py`):
+```python
+@retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0, jitter=True)
+def _run_cmd(self, cmd: str) -> ...:
+    ...
+```
+Only retries errors classified as transient by `is_retryable_error()`.
+
+**Safe JSON I/O** (`src/wanctl/state_utils.py`):
+- `atomic_write_json(path, data)` — write-to-temp-then-rename, fsync, 0o600 permissions
+- `safe_json_load_file(path, logger, default, error_context)` — never raises, returns default
+- `safe_read_json(path, default)` — simplified variant without logging
 
 ## Logging
 
 **Framework:** Python standard `logging` module
 
-**Patterns:**
+**Logger injection:** Classes receive `logger: logging.Logger` as constructor argument.
+Module-level logger: `logger = logging.getLogger(__name__)` for standalone modules.
 
-1. **Initialization:**
-   - Loggers created per module: `logger = logging.getLogger(__name__)`
-   - Setup via `setup_logging()` in `logging_utils.py`
-   - Produces both structured JSON logs and human-readable formats
-   - Configuration via YAML in `/etc/wanctl/` for production
+**Structured logging with `extra=`:**
+```python
+logger.info("State change", extra={"state": "GREEN", "rtt_delta": 5.2, "wan_name": "spectrum"})
+```
+JSON format available via `WANCTL_LOG_FORMAT=json` env var (`src/wanctl/logging_utils.py`).
 
-2. **JSON Structured Logging:**
-   - Formatter: `JSONFormatter` class in `logging_utils.py`
-   - Fields: `timestamp` (ISO 8601 with timezone), `level`, `logger`, `message`, plus custom extras
-   - Extra fields passed via `extra` dict: `logger.info("msg", extra={"wan_name": "spectrum", "state": "GREEN"})`
-   - Compatible with log aggregators: Loki, ELK, Splunk, CloudWatch
+**Log levels:**
+- `DEBUG`: per-cycle details, baseline freeze, retry attempts
+- `INFO`: state transitions, startup/shutdown, periodic summaries, rate changes
+- `WARNING`: transient failures, fallback activations, config degradation
+- `ERROR`: persistent failures, unrecoverable states after retries
 
-3. **Log Levels by Context:**
-   - DEBUG: Low-level state changes, parse details, per-cycle events
-   - INFO: Cycle summaries, rate changes, major state transitions
-   - WARNING: Transient failures, ICMP blackouts, retries, degraded operation
-   - ERROR: Persistent failures, config errors, router connectivity loss
-   - CRITICAL: Unrecoverable system failures
+## Production Guards
 
-4. **Common Log Extras:**
-   - `wan_name`: WAN identifier ("spectrum", "att")
-   - `state`: Current congestion state ("GREEN", "YELLOW", "SOFT_RED", "RED")
-   - `rtt_delta`: RTT delta in milliseconds
-   - `dl_rate`, `ul_rate`: Bandwidth rates in bps
-   - `bloat_ms`: Current queue bloat measurement in milliseconds
+**Dirty-tracking for high-frequency writes:**
+- Compare state dicts before writing: `if current != self._last_saved_state` in `WANControllerState`
+- Prevents flash wear from 20Hz cycle loop
+- High-frequency metadata (congestion zone) explicitly excluded from dirty tracking
 
-5. **Rate Limiting:**
-   - Repeated warnings deduplicated with DEBUG-level prefixes to reduce noise
-   - See `autorate_continuous.py` for rate limit event logging: `record_rate_limit_event()`
+**MagicMock guard pattern (required when value may come from mock config):**
+```python
+if db_path and isinstance(db_path, str):
+    path = Path(db_path)
+```
+This prevents `Path(MagicMock())` errors in tests.
 
-## Comments
-
-**When to Comment:**
-- Architecture decisions that override obvious approaches
-- Non-obvious algorithm logic (e.g., EWMA smoothing rationale, hysteresis thresholds)
-- Configuration tuning rationale (e.g., `DEFAULT_HARD_RED_BLOAT_MS = 80`)
-- Performance implications (e.g., regex pre-compilation for hot paths: `_RTT_PATTERN = re.compile(...)`)
-- References to external documentation or design principles
-- Invariant conditions that must be maintained (see CLAUDE.md for examples)
-
-**When NOT to Comment:**
-- Self-explanatory code: good variable names preferred
-- Temporary debugging: use logging instead
-- Repeating function docstring: already documented
-
-**JSDoc/TSDoc:**
-- Docstrings for all public classes and functions (100% coverage)
-- Format: Triple-quoted strings immediately after `def` or `class` line
-- Structure:
-  ```python
-  def enforce_rate_bounds(rate: float, floor: float | None = None) -> int:
-      """Enforce floor and ceiling constraints on bandwidth rate.
-
-      Args:
-          rate: Current rate to constrain (in bps)
-          floor: Minimum allowed rate or None
-
-      Returns:
-          Bounded rate as integer (in bps)
-
-      Raises:
-          ValueError: If floor > ceiling
-
-      Examples:
-          >>> enforce_rate_bounds(50_000_000, floor=20_000_000)
-          50000000
-      """
-  ```
-- Include Args, Returns, Raises, Examples sections
-- Inline docstring examples should be executable via doctest
-
-## Function Design
-
-**Size:**
-- Typical range: 10-50 lines
-- Utility functions often 5-20 lines
-- Complex logic broken into multiple functions with clear responsibilities
-- No arbitrary size limit, but consider readability and testability
-
-**Parameters:**
-- Maximum 6-8 positional parameters; excess bundled into config objects
-- Type annotations required for all parameters
-- Default values used for optional parameters
-- Optional parameters typically placed at end
-- Consider validator functions for complex initialization
-
-**Return Values:**
-- Explicit return types required via annotation
-- Tuple returns used for compound results: `(bool, dict)`, `(float | None, str)`
-- None returns permitted for optional results (use `T | None` annotation)
-- Generators prefer `yield` over building lists (for streaming data)
-
-## Module Design
-
-**Exports:**
-- All public API functions/classes explicitly exported
-- Private functions prefixed with underscore
-- Constants grouped at module top after imports
-- `__all__` not used; rely on naming convention
-
-**Barrel Files:**
-- Subpackage `__init__.py` files import and re-export key classes
-- Example: `src/wanctl/backends/__init__.py` exports `RouterBackend`
-- Enables: `from wanctl.backends import RouterBackend` instead of full path
-
-**Separation of Concerns:**
-- State management isolated: `state_manager.py`, `wan_controller_state.py`
-- Router communication abstracted: `backends/` package with abstract base interface
-- Configuration validation centralized: `config_base.py`, `config_validation_utils.py`
-- Utilities grouped by domain: `rate_utils.py`, `retry_utils.py`, `lock_utils.py`, `logging_utils.py`
-- Steering logic: `steering/` subpackage with independent daemon
-
-## Production Standards
-
-**Atomic Operations:**
-- State writes use `atomic_write_json()` from `state_utils.py` (write-to-temp-then-rename)
-- Prevents corruption from interrupted writes
-- Used by: `WANControllerState.save()`, `StateManager.save()`
-
-**Dirty Tracking:**
-- State dirty-tracking via hash comparison (excludes timestamp)
-- Prevents unnecessary disk writes in high-frequency loops (50ms cycles)
-- Implementation: `WANControllerState._compute_state_hash()`, `_last_saved_hash` tracking
-- Hash excludes timestamp to avoid redundant writes
-
-**Rate Bounding:**
-- All bandwidth rates validated against floor/ceiling constraints
-- Function: `enforce_rate_bounds()` in `rate_utils.py`
-- Floor enforced first, then ceiling (order matters for consistency)
-- All rates in bps (bits per second), never mixed units
-
-**Configuration Externalization:**
-- All tuning parameters in YAML files, never hardcoded
-- Environment variable substitution: `"${ROUTER_PASSWORD}"` in YAML files
-- Schema validation enforces: type checks, numeric ranges, required fields
-- See `Config.SCHEMA` pattern in `autorate_continuous.py` and `steering/daemon.py`
+**MetricsWriter singleton:**
+- Always call `MetricsWriter._reset_instance()` in test setup/teardown
+- Never share instance across tests
 
 ---
 
-*Convention analysis: 2026-01-21*
+*Convention analysis: 2026-03-10*

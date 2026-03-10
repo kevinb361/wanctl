@@ -1,136 +1,110 @@
 # Technology Stack
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-03-10
 
 ## Languages
 
 **Primary:**
-- Python 3.12 - Core application, daemons (autorate_continuous, steering), calibration tools in `src/wanctl/`
+- Python 3.12 - All application logic, daemons, CLI tools in `src/wanctl/`
 
 **Secondary:**
-- Bash - Docker entrypoint (`docker/entrypoint.sh`), deployment scripts, systemd integration
-- YAML - Configuration files (`configs/*.yaml`), supported via PyYAML
-- JSON - State persistence, health check responses, metrics exposition
+- YAML - Configuration files in `/etc/wanctl/` and `configs/`
+- SQL (SQLite dialect) - Schema and queries in `src/wanctl/storage/`
+- Bash - Entrypoint `docker/entrypoint.sh`, monitoring scripts in `scripts/`
+- JSON - State persistence, health check responses
 
 ## Runtime
 
 **Environment:**
-- Python 3.12 runtime (tested on 3.12, requires 3.11+ for type hints)
-- Linux kernel (Ubuntu/Debian-based containers, systemd support)
-- Container base: `python:3.12-slim` official image
+- CPython 3.12 (requires >=3.11 per `pyproject.toml`)
+- Production: system Python `/usr/bin/python3` (no venv on deployment hosts)
+- Development: `.venv/` managed by `uv`
 
 **Package Manager:**
-- uv - Development environment (fast dependency resolution)
-- pip - Production container installation
-- Lockfile: `requirements.txt` (production pinned versions) and `pyproject.toml` (dev/optional)
+- `uv` — project management and lockfile generation
+- Lockfile: `uv.lock` present (revision 3, hashed wheel URLs)
+- `pip` — production container install (Dockerfile uses `pip install --no-cache-dir`)
 
 ## Frameworks
 
 **Core:**
-- None - Standard library-centric architecture (socket, subprocess, logging, http.server)
+- None — stdlib-first: `http.server`, `sqlite3`, `threading`, `subprocess`, `socket`
 
 **Testing:**
-- pytest 8.0.0+ - Unit test runner, discovery in `tests/` directory
-- Config: Standard pytest discovery, fixture support via conftest.py
+- `pytest` >=8.0.0 — test runner; config in `pyproject.toml` `[tool.pytest.ini_options]`
+- `pytest-cov` >=4.1.0 — coverage enforcement (`fail_under = 90` in `[tool.coverage.report]`)
 
 **Build/Dev:**
-- ruff 0.4.0+ - Linting (E, W, F, I, B, UP rules) and formatting (100 char line length)
-- mypy 1.10.0+ - Static type checking (python_version: 3.12, check_untyped_defs enabled)
-- setuptools - Package building (backend in pyproject.toml)
-- black conceptually (100 char via ruff formatter configuration)
+- `setuptools` — build backend (`pyproject.toml` `[build-system]`)
+- `uv` — dependency resolution and venv management
+- `ruff` >=0.4.0 — linting and formatting (target: py312, line-length: 100, rules: E/W/F/I/B/UP)
+- `mypy` >=1.10.0 — type checking (Python 3.12 mode, `check_untyped_defs = true`, `ignore_missing_imports = true`)
 
 ## Key Dependencies
 
-**Critical (Production):**
-- requests 2.31.0+ - HTTP/HTTPS REST API calls to RouterOS (used in `routeros_rest.py`)
-- paramiko 3.4.0+ - SSH client for RouterOS command execution (used in `routeros_ssh.py`, persistent connections reduce latency 6x vs subprocess SSH: 30-50ms vs ~200ms)
-- pyyaml 6.0.1+ - YAML configuration file parsing (safe_load for untrusted configs)
-- pexpect 4.9.0+ - TTY/subprocess control for ping execution and interactive shell fallback
+**Critical:**
+- `requests` >=2.31.0 — MikroTik RouterOS REST API HTTP client (`src/wanctl/routeros_rest.py`)
+- `paramiko` >=3.4.0 — MikroTik RouterOS SSH transport with persistent connections (`src/wanctl/routeros_ssh.py`)
+- `icmplib` >=3.0.4 — Raw ICMP ping for sub-millisecond RTT measurement (`src/wanctl/rtt_measurement.py`); requires `CAP_NET_RAW` capability
+- `pyyaml` >=6.0.1 — Configuration file parsing via `yaml.safe_load` (`src/wanctl/config_base.py`)
+- `cryptography` >=46.0.5 — SSH key handling (transitive dependency via paramiko)
 
-**Development:**
-- pyflakes 3.4.0+ - Static code analysis
-- pytest 8.0.0+ - Test framework
+**Supporting:**
+- `pexpect` >=4.9.0 — Legacy SSH interaction; also in `requirements.txt` for production containers
+- `tabulate` >=0.9.0 — CLI table output in `src/wanctl/history.py`
+
+**Optional Runtime:**
+- `systemd.daemon` (python-systemd) — watchdog and status notifications; gracefully absent if not installed (`src/wanctl/systemd_utils.py` uses try/except ImportError)
+
+**Security / Dev Only:**
+- `pip-audit` >=2.10.0 — dependency CVE scanning (`make security-deps`)
+- `bandit` >=1.9.3 — static security analysis (`make security-code`); skips B101, B311, B601
+- `detect-secrets` >=1.5.0 — secret leak detection (`make security-secrets`)
+- `pip-licenses` >=5.0.0 — license compliance; fails on GPL-2/3, AGPL-3 (`make security-licenses`)
+- `pyflakes` >=3.4.0 — unused import detection
 
 ## Configuration
 
 **Environment Variables:**
-- WANCTL_CONFIG - Path to main daemon config (default: `/etc/wanctl/wan.yaml`)
-- WANCTL_STEERING_CONFIG - Path to steering daemon config (default: `/etc/wanctl/steering.yaml`)
-- WANCTL_MODE - Daemon mode override (continuous, calibrate, steering, oneshot, shell)
-- PYTHONPATH - Set to `/opt/wanctl` in containers
-- PYTHONUNBUFFERED - Set to 1 for real-time log output
+- `WANCTL_CONFIG` — path to autorate daemon config (default: `/etc/wanctl/wan.yaml`)
+- `WANCTL_STEERING_CONFIG` — path to steering daemon config
+- `WANCTL_STATE_DIR` — state file directory (default: `/var/lib/wanctl`)
+- `WANCTL_LOG_DIR` — log directory (default: `/var/log/wanctl`)
+- `WANCTL_RUN_DIR` — runtime/lock directory (default: `/run/wanctl`)
+- `ROUTER_PASSWORD` — referenced from YAML as `password: "${ROUTER_PASSWORD}"`; resolved at runtime in `src/wanctl/routeros_rest.py` via `os.environ`
 
-**Build Configuration Files:**
-- `pyproject.toml` - Project metadata, dependencies, ruff/mypy settings, entry points
-- `docker/Dockerfile` - Multi-stage image, system dependencies (openssh-client, iputils-ping, netperf), FHS directory structure
-- `docker/docker-compose.yml` - Multi-container orchestration example (wan1, wan2, steering services)
-- `requirements.txt` - Pinned production dependencies for pip
+**Config Files:**
+- `pyproject.toml` — single source of truth for metadata, deps, ruff/mypy/coverage/pytest/bandit settings
+- `Makefile` — task runner (`make ci`, `make test`, `make lint`, `make type`, `make format`, `make security`)
+- YAML per WAN: `/etc/wanctl/wan1.yaml`, `/etc/wanctl/steering.yaml` etc. (see `configs/examples/`)
+- Secrets: `/etc/wanctl/secrets` loaded via systemd `EnvironmentFile=-/etc/wanctl/secrets`
 
-**No .env files:** Secrets managed via environment variables (injected at runtime) or YAML config references like `${ROUTER_PASSWORD}`
+## Console Entry Points
+
+- `wanctl` → `wanctl.autorate_continuous:main` — autorate CAKE tuning daemon
+- `wanctl-calibrate` → `wanctl.calibrate:main` — interactive bandwidth discovery
+- `wanctl-steering` → `wanctl.steering.daemon:main` — multi-WAN steering controller
+- `wanctl-history` → `wanctl.history:main` — CLI metrics history query tool
 
 ## Platform Requirements
 
 **Development:**
-- Python 3.11+ (3.12 tested)
-- Linux, macOS, or WSL2 (requires ping and network tools)
-- Virtual environment: venv or uv
-- Make (optional, for `make ci`, `make lint`, `make test`)
+- Linux (Ubuntu), Python 3.12, `uv` for venv
+- `CAP_NET_RAW` capability required for raw ICMP (icmplib)
+- Dev commands via `Makefile` (`.venv/bin/pytest`, `.venv/bin/ruff`, `.venv/bin/mypy`)
 
-**Production:**
-- Linux with kernel 5.10+ (for CAKE queue discipline)
-- Python 3.12 runtime
-- System packages: openssh-client, iputils-ping (from Dockerfile)
-- Network access to MikroTik RouterOS device
-- FHS-compliant filesystem:
-  - `/opt/wanctl/` - Application code (755 root:wanctl)
-  - `/etc/wanctl/` - Configuration, SSH keys (750 root:wanctl)
-  - `/var/lib/wanctl/` - State files, lock files (750 wanctl:wanctl)
-  - `/var/log/wanctl/` - Log files (750 wanctl:wanctl)
-  - `/run/wanctl/` - Runtime files (750 wanctl:wanctl)
-- User: `wanctl` non-root user (UID/GID arbitrary)
-- Docker: Host network mode required (`network_mode: host` in compose)
+**Production (systemd):**
+- Linux with systemd, non-root `wanctl` user
+- `systemd/wanctl@.service` template unit; `AmbientCapabilities=CAP_NET_RAW`
+- `systemd/steering.service` for steering daemon
+- Circuit breaker: `StartLimitBurst=5` / `StartLimitIntervalSec=300`; watchdog `WatchdogSec=30s`
 
-## Entry Points
-
-**Console Scripts (from pyproject.toml):**
-- `wanctl` → `wanctl.autorate_continuous:main` - Main continuous CAKE tuning daemon
-- `wanctl-calibrate` → `wanctl.calibrate:main` - Interactive bandwidth discovery
-- `wanctl-steering` → `wanctl.steering.daemon:main` - Multi-WAN steering controller
-
-**Docker Entrypoint:** `/usr/local/bin/entrypoint.sh`
-- Modes: `continuous` (default), `calibrate`, `steering`, `oneshot`, `shell`, `help`
-- Validation: YAML syntax check, SSH key permission audit (requires 600 or 400)
-- Signal Handling: SIGTERM, SIGINT for graceful shutdown
-
-## Performance Characteristics
-
-**Cycle Interval:** 0.05 seconds (50ms, 20Hz polling)
-- 40x faster than 2-second baseline (v1.0)
-- Congestion detection latency: 50-100ms (sub-second response)
-- Proven stable: 0% router CPU idle, 45% peak under RRUL stress load
-- Utilization: 60-80% (30-40ms execution per 50ms interval)
-- See `docs/PRODUCTION_INTERVAL.md` for validation results
-
-**Connection Optimization:**
-- Persistent SSH (paramiko): 30-50ms per command vs ~200ms for subprocess SSH (6-7x faster)
-- REST API (requests): ~50ms per state query (2x faster than SSH for JSON responses)
-- Reused connections maintained across daemon lifetime with automatic reconnection
-
-**RTT Measurement:**
-- Strategy: Median-of-three samples (handles reflector variation)
-- Hosts: 1.1.1.1, 8.8.8.8, 9.9.9.9 (public, reliable, diverse)
-- Ping timeout: 0.5 seconds per attempt (reduced from 1s for sub-100ms cycle targets)
-- Fallback: TCP connections to HTTPS ports (443) if ICMP blocked
-- Samples: 3 concurrent pings per cycle, aggregated via statistics.median()
-
-## Version
-
-**Current:** 1.1.0 (First Stable Release - 2026-01-13)
-- 594 unit tests passing
-- Phase2BController integrated (dry-run validation)
-- TCP RTT fallback for ICMP blackout (Spectrum ISP fix, v1.1.0)
-- Cycle interval: 50ms production standard
+**Production (Docker):**
+- `docker/Dockerfile` — `python:3.12-slim` base; system packages: `openssh-client`, `iputils-ping`, `netperf`
+- `docker/docker-compose.yml` — multi-container reference (wan1, wan2, steering services)
+- `network_mode: host` required for accurate RTT measurements (direct host network stack)
+- FHS paths: `/opt/wanctl` (code), `/etc/wanctl` (config), `/var/lib/wanctl` (state+db), `/var/log/wanctl` (logs), `/run/wanctl` (locks)
 
 ---
 
-*Stack analysis: 2026-01-21*
+*Stack analysis: 2026-03-10*

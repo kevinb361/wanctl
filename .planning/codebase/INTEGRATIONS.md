@@ -1,209 +1,163 @@
 # External Integrations
 
-**Analysis Date:** 2026-01-21
+**Analysis Date:** 2026-03-10
 
 ## APIs & External Services
 
-**MikroTik RouterOS - Primary Integration (Network Device):**
-- **Type:** Network device control API and state query interface
-- **What it's used for:** Queue limit configuration, CAKE parameter tuning, routing table updates, connection marking for traffic steering, DSCP enforcement
-- **Transport Options:**
-  - SSH (port 22): Uses `paramiko` 3.4.0+, persistent connections (~30-50ms per command)
-  - REST API (port 443 HTTPS): Uses `requests` 2.31.0+, JSON responses (~50ms per query), FASTER recommended
-- **SDK/Client:** Dual-mode factory in `src/wanctl/router_client.py`
-  - SSH implementation: `src/wanctl/routeros_ssh.py` (persistent paramiko.SSHClient)
-  - REST implementation: `src/wanctl/routeros_rest.py` (stateless requests.Session)
-- **Configuration:** `router` section in YAML
-  - Transport selection: `transport: "rest"` or `transport: "ssh"`
-  - Host/user/auth: `host`, `user`, `password` (REST) or `ssh_key` (SSH)
-- **Endpoints/Commands Used:**
-  - `/queue/tree` - Query and update CAKE queue limits
-  - `/ip/address-list` - Query for steering overrides, add/remove addresses
-  - `/ip/firewall/mangle` - Query connection marks for steering state
-  - Custom RouterOS script commands via `/system/script/run`
-- **State Persistence:** Tracks `last_applied_dl_rate` and `last_applied_ul_rate` to minimize router API calls (flash wear protection)
+**MikroTik RouterOS — Primary Device Integration:**
+- Used for: CAKE queue limit adjustment, routing rule toggling for traffic steering, queue statistics reads
+- Transport (REST): HTTPS to RouterOS 7.x REST API on port 443 (default, recommended)
+  - SDK/Client: `requests.Session` in `src/wanctl/routeros_rest.py`
+  - Auth: HTTP Basic Auth (username + password)
+  - Config vars: `router.host`, `router.user`, `router.password` (supports `${ROUTER_PASSWORD}` env ref)
+  - Endpoints used: `PATCH /rest/queue/tree/{id}`, `GET /rest/queue/tree`, `POST /rest/queue/tree/reset-counters`, `PATCH /rest/ip/firewall/mangle/{id}`
+  - ID caching: `_queue_id_cache` and `_mangle_id_cache` dicts reduce lookup round-trips
+- Transport (SSH): Port 22 via persistent paramiko SSHClient
+  - SDK/Client: `paramiko.SSHClient` in `src/wanctl/routeros_ssh.py`
+  - Auth: SSH key file (path from `router.ssh_key`, e.g., `/etc/wanctl/ssh/router.key`)
+  - Config vars: `router.host`, `router.user`, `router.ssh_key`
+- Factory + failover: `src/wanctl/router_client.py` — `get_router_client()` (single transport), `get_router_client_with_failover()` (`FailoverRouterClient`: REST primary, SSH fallback with exponential re-probe backoff: 30s → 300s)
+- SSL: `verify_ssl: false` typical (routers use self-signed certs); `urllib3.disable_warnings(InsecureRequestWarning)` suppressed when disabled
 
-**Public DNS/Echo Servers - RTT Measurement:**
-- **Services:** Cloudflare (1.1.1.1), Google (8.8.8.8), Quad9 (9.9.9.9)
-- **What it's used for:** ICMP echo responses to measure round-trip latency, baseline RTT calculation, congestion detection via RTT delta
-- **Protocol:** ICMP ping (3 concurrent pings per cycle)
-- **Aggregation:** Median-of-three strategy (handles reflector variation, reduces noise)
-- **Configuration:** `continuous_monitoring.ping_hosts` in YAML (configurable per WAN)
-- **Measurement Interval:** 50ms cycle interval (pings sent per cycle, results parsed via subprocess `ping` command)
+**Public ICMP Reflectors — RTT Measurement:**
+- Services: Cloudflare `1.1.1.1`, Google `8.8.8.8`, Quad9 `9.9.9.9`
+- Used for: Round-trip latency measurement as congestion signal; delta from frozen baseline drives state machine
+- Protocol: Raw ICMP via `icmplib` (primary, hot-path); subprocess `ping` retained for `calibrate.py`
+- Config: `continuous_monitoring.ping_hosts` in YAML (list, configurable per WAN)
+- Strategy: `use_median_of_three: true` (median of 3 concurrent pings per cycle)
+- Capability required: `CAP_NET_RAW` (systemd `AmbientCapabilities`, or Docker `--cap-add NET_RAW`)
+- Implementation: `src/wanctl/rtt_measurement.py`
 
-**TCP Echo Servers (Fallback Connectivity):**
-- **Services:** HTTPS endpoints (port 443) for TCP-based RTT measurement when ICMP blocked/rate-limited
-- **What it's used for:** Internet connectivity verification, TCP RTT fallback when ISP blocks ICMP (Spectrum ISP observed behavior)
-- **Configuration:** `fallback_checks.tcp_targets` list in YAML (e.g., `[["1.1.1.1", 443], ["8.8.8.8", 443]]`)
-- **Trigger:** Activated when consecutive ping failures exceed threshold (graceful_degradation mode)
-- **Implementation:** `src/wanctl/rtt_measurement.py` - Falls back to socket-based TCP connection timing
-- **Result:** Uses TCP RTT as congestion signal until ICMP recovers
+**TCP Fallback Connectivity — ICMP Blackout Handling:**
+- Services: HTTPS endpoints (port 443) at same reflector IPs
+- Used for: TCP-based RTT when ISP (Spectrum) blocks ICMP; prevents false positive congestion detection
+- Protocol: TCP socket connect timing
+- Trigger: Activated on consecutive ICMP failures (graceful degradation mode)
+- Implementation: `src/wanctl/rtt_measurement.py` — TCP RTT path (v1.1.0 fix)
 
 ## Data Storage
 
-**State Files (JSON - Local File System):**
-- **Location:** `/var/lib/wanctl/<wan_name>_state.json` (configurable via `state_file` in YAML)
-- **Format:** Human-readable JSON, compact separators (no spaces)
-- **Persistence:** Atomic write-then-move pattern (avoid corruption on crash)
-- **Contents:** EWMA baseline RTT, load RTT, measurement history, transition counters, cycle numbers
-- **Locking:** fcntl-based file locking for multi-process safety (readers/writers)
-- **Implementation:** `src/wanctl/state_utils.py` (atomic_write_json, safe_json_load_file, safe_json_loads)
-- **Access Pattern:** Read on daemon start, write every 60 seconds + on state changes
+**SQLite — Time-Series Metrics Database:**
+- Location: `/var/lib/wanctl/metrics.db` (default `DEFAULT_DB_PATH` in `src/wanctl/storage/writer.py`)
+- Used for: Historical metrics storage, trend analysis, `wanctl-history` CLI queries
+- Client: Python stdlib `sqlite3`; WAL mode enabled for concurrent read/write
+- Schema: Single `metrics` table (id, timestamp, wan_name, metric_name, value, labels, granularity) defined in `src/wanctl/storage/schema.py`
+- Indexes: on `timestamp`, composite `(wan_name, metric_name, timestamp)`, `(granularity, timestamp)`
+- Granularities: `raw`, `1m`, `5m`, `1h` (downsampled by `src/wanctl/storage/downsampler.py`)
+- Writer: `MetricsWriter` singleton in `src/wanctl/storage/writer.py` — thread-safe, batch write support
+- Reader: `src/wanctl/storage/reader.py` — `query_metrics()`, `select_granularity()`, `compute_summary()`
+- Maintenance: Hourly cleanup + downsample + VACUUM in `src/wanctl/storage/maintenance.py`
+- Stored metrics (from `src/wanctl/storage/schema.py`): `wanctl_rtt_ms`, `wanctl_rtt_baseline_ms`, `wanctl_rtt_delta_ms`, `wanctl_rate_download_mbps`, `wanctl_rate_upload_mbps`, `wanctl_state`, `wanctl_steering_enabled`, `wanctl_wan_zone`, `wanctl_wan_weight`, `wanctl_wan_staleness_sec`
 
-**Configuration Files (YAML):**
-- **Location:** `/etc/wanctl/*.yaml` (spectrum.yaml, att.yaml, steering.yaml, etc.)
-- **Format:** YAML with environment variable references (e.g., `${ROUTER_PASSWORD}`)
-- **Parsing:** PyYAML safe_load (no arbitrary code execution)
-- **Implementation:** `src/wanctl/config_base.py` - BaseConfig class with attribute accessor pattern
+**JSON State Files — Daemon State Persistence:**
+- Location: `/var/lib/wanctl/<wan_name>_state.json`; configurable as `state_file` in YAML
+- Used for: EWMA baseline RTT persistence across restarts, steering state, congestion zone (written by autorate, read by steering for WAN-aware scoring)
+- Write pattern: Atomic write via `atomic_write_json()` in `src/wanctl/state_utils.py` (temp file + fsync + rename — crash-safe)
+- Write frequency: Every 60s + on state transitions; dirty-tracking excludes high-frequency metadata (congestion zone) to prevent write amplification
+- Steering state: `/var/lib/wanctl/steering_state.json`
 
-**Logs (Text - Local File System):**
-- **Main Log:** `/var/log/wanctl/<wan_name>.log` (configurable)
-- **Debug Log:** `/var/log/wanctl/<wan_name>_debug.log` (optional, high verbosity)
-- **Rotation:** External logrotate config at `configs/logrotate_cake.conf` (daily, 7-day retention)
-- **Format:** Python logging with timestamps, levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- **Implementation:** `src/wanctl/logging_utils.py` - setup_logging() configures file handlers
+**YAML Configuration Files:**
+- Location: `/etc/wanctl/*.yaml` (one per WAN instance + steering)
+- Parsing: `yaml.safe_load()` — no arbitrary code execution
+- Env var substitution: `${VAR_NAME}` syntax resolved at runtime in `src/wanctl/routeros_rest.py` and `src/wanctl/config_base.py`
+- Schema version: `schema_version: "1.0"` field for forward compatibility
+- Examples: `configs/examples/` (cable, dsl, fiber, wan1, wan2, steering)
+- Implementation: `src/wanctl/config_base.py` — `validate_field()` with dot-notation path, type checks, range/choice validation
 
-**No Database:** Project uses local JSON state, no SQL database, no external storage backend, no cache server.
+**Log Files:**
+- Location: `/var/log/wanctl/<wan_name>.log` and `<wan_name>_debug.log`
+- Format: JSON structured logging via `JSONFormatter` in `src/wanctl/logging_utils.py`; fields: timestamp (ISO 8601 UTC), level, logger, message + extras (wan_name, state, rtt_delta, dl_rate, ul_rate)
+- Rotation: External logrotate config at `configs/logrotate-wanctl`
 
 ## Authentication & Identity
 
 **RouterOS SSH:**
-- **Method:** SSH key-based authentication (preferred, secure, no password transmission)
-- **Configuration Field:** `router.ssh_key` in YAML (path to private key file, e.g., `/etc/wanctl/ssh/router.key`)
-- **Permissions:** 600 or 400 (checked by entrypoint.sh)
-- **Implementation:** `src/wanctl/routeros_ssh.py` with `paramiko.RSAKey.from_private_key_file()` or auto-detection
-- **Fallback:** pexpect subprocess mode if paramiko fails (for password auth, legacy systems)
+- Method: SSH key-based (private key file, no password transmission)
+- Config: `router.ssh_key` → path to private key (e.g., `/etc/wanctl/ssh/router.key`)
+- Required permissions: 600 or 400 (enforced by `docker/entrypoint.sh`)
+- Implementation: `paramiko.SSHClient` with `paramiko.RSAKey.from_private_key_file()` in `src/wanctl/routeros_ssh.py`
 
-**RouterOS REST API:**
-- **Method:** HTTP Basic Auth (username/password over HTTPS) or token-based (RouterOS 7.1+)
-- **Configuration Fields:** `router.user`, `router.password` in YAML (password can be `${ROUTER_PASSWORD}` env var reference)
-- **SSL Verification:** Disabled by default (`verify_ssl: false`) - routers typically use self-signed certificates
-- **Implementation:** `src/wanctl/routeros_rest.py` with `requests.auth.HTTPBasicAuth()`
-- **Credentials Injection:** Environment variables at container startup or YAML config references
-
-**No OAuth/External IdP:** Direct credential-based auth only; no federated identity, no third-party auth providers.
+**RouterOS REST:**
+- Method: HTTP Basic Auth over HTTPS
+- Config: `router.user` + `router.password` (password supports `${ENV_VAR}` reference)
+- Credentials injected via: (1) systemd `EnvironmentFile=/etc/wanctl/secrets`, (2) YAML env ref, (3) Docker environment block
+- No OAuth, no token rotation, no external IdP
 
 ## Monitoring & Observability
 
-**Health Check HTTP Endpoint (Internal):**
-- **Protocol:** HTTP (local only, no authentication, no TLS)
-- **Port:** 9101 (configurable in daemon code, defaults to 127.0.0.1:9101)
-- **Endpoint:** `GET /health` or `GET /`
-- **Response:** JSON with daemon status, uptime, version, per-WAN health, consecutive failure count
-- **Status Codes:** 200 (healthy), 503 (degraded)
-- **Implementation:** `src/wanctl/health_check.py` with built-in `http.server.HTTPServer`
-- **Usage:** Kubernetes liveness/readiness probes, health monitoring systems
+**Health Check HTTP Endpoint:**
+- Binding: `127.0.0.1:9101` (autorate), `127.0.0.1:9103` (steering)
+- Endpoint: `GET /health` — JSON response with daemon status, uptime, version, cycle stats, disk space, `wan_awareness` section (v1.11)
+- Status codes: 200 (healthy), 503 (degraded)
+- Implementation: `src/wanctl/health_check.py` and `src/wanctl/steering/health.py` using stdlib `http.server.HTTPServer`
 
-**Metrics Endpoint (Prometheus-compatible - Internal):**
-- **Protocol:** HTTP (local only, no authentication, no TLS)
-- **Port:** 9100 (configurable in daemon code, defaults to 127.0.0.1:9100)
-- **Endpoint:** `GET /metrics`
-- **Format:** Prometheus text exposition format (v0.0.4)
-- **Metrics Exposed:**
-  - Gauges: bandwidth_mbps, baseline_rtt_ms, load_rtt_ms, per-WAN state
-  - Counters: cycles_total, state_transitions, rate_limit_events, router_updates, ping_failures
-- **Implementation:** `src/wanctl/metrics.py` - Custom MetricsRegistry (no prometheus_client dependency to keep slim)
-- **Thread-Safe:** Metrics use threading.Lock() for concurrent daemon threads
+**Prometheus-Compatible Metrics Endpoint:**
+- Binding: `127.0.0.1:9100` (autorate daemon)
+- Endpoint: `GET /metrics` — Prometheus text exposition format v0.0.4
+- Metrics: gauges (bandwidth_mbps, baseline_rtt_ms, load_rtt_ms, state), counters (cycles_total, state_transitions, router_updates, ping_failures)
+- Implementation: `src/wanctl/metrics.py` — custom `MetricsRegistry` (no `prometheus_client` dependency); thread-safe via `threading.Lock`
+- Note: Pull model only; no push to external Prometheus/Grafana
 
-**Systemd Integration (Host OS):**
-- **Watchdog Notification:** `sd_notify(WATCHDOG=1)` periodic heartbeat (prevents watchdog restart during normal operation)
-- **Status Updates:** `sd_notify(STATUS="...")` for daemon state messages (visible in `systemctl status`)
-- **Degraded State:** Notifies systemd when consecutive failures detected (toggles between healthy/degraded)
-- **Implementation:** `src/wanctl/systemd_utils.py` with systemd protocol socket communication
-- **Availability:** Check `is_systemd_available()` before notifying (works in containers, optional)
+**Systemd Watchdog & Status:**
+- Protocol: `sd_notify` socket messages (`WATCHDOG=1`, `STATUS=...`, `STOPPING=1`, `READY=1`)
+- Watchdog timeout: `WatchdogSec=30s` in `systemd/wanctl@.service`
+- Behavior: Daemon sends `WATCHDOG=1` every successful cycle; stops sending on failure — systemd auto-restarts
+- Degraded notification: `STATUS=Degraded - {message}` on consecutive failures
+- Implementation: `src/wanctl/systemd_utils.py` — graceful no-op if `systemd.daemon` module absent
+- Circuit breaker: `StartLimitBurst=5` / `StartLimitIntervalSec=300` — stops restarting after 5 failures in 5 min
 
-**Error Logging:**
-- **Framework:** Python logging module (standard library)
-- **Levels:** DEBUG, INFO, WARNING, ERROR, CRITICAL
-- **Output:** Configured log files per WAN (e.g., spectrum.log, att.log)
-- **Propagation:** All errors logged locally; no remote error tracking (Sentry, DataDog, etc.)
-- **Files:** `src/wanctl/logging_utils.py` - Centralized logging config
-
-**No External Monitoring Integrations:** Prometheus/Grafana not integrated, Sentry/DataDog not integrated, custom metrics export not implemented. Integration happens at edge (Prometheus scrapes /metrics endpoint, etc.).
-
-## Traffic Steering Integration
-
-**RouterOS Mangle Rules (Packet Classification):**
-- **Operation:** Toggle latency-sensitive traffic to alternate WAN during primary WAN degradation
-- **Mechanism:** Add/remove mangle rules that mark packets (DSCP EF, AF31, custom marks) for routing policy
-- **Rule Identifier:** Comment field `"ADAPTIVE: Steer latency-sensitive to <WAN>"` for identification
-- **Implementation:** `src/wanctl/steering/daemon.py` - RouterOSController.enable_steering/disable_steering methods
-- **State Machine:** Two-state (PRIMARY_GOOD → PRIMARY_DEGRADED transitions, hysteresis prevents flapping)
-- **Decision Logic:** Based on RTT delta vs baseline (threshold configurable), asymmetric streak counting for hysteresis
-
-**Address Lists (Surgical Overrides):**
-- **Purpose:** Allow fine-grained routing exceptions (force specific addresses to particular WAN)
-- **Format:** RouterOS address lists like `FORCE_OUT_SECONDARY` for manual overrides
-- **Implementation:** Queried but not automatically managed (manual operator control)
+**Structured Logging (journald):**
+- Daemon stdout/stderr → systemd journal (`StandardOutput=journal` in service unit)
+- `SyslogIdentifier=wanctl-%i` for per-instance filtering
+- JSON formatter enables downstream log aggregation (Loki, ELK, Splunk, CloudWatch)
+- No remote error tracking (Sentry, Datadog) — local logs only
 
 ## CI/CD & Deployment
 
-**Hosting Platform:**
-- Primary: Docker containers (self-hosted or orchestrated)
-- Alternative: Bare metal Linux with systemd services
+**Hosting:**
+- Primary: Linux host with systemd (`systemd/wanctl@.service` template + `systemd/steering.service`)
+- Alternative: Docker containers (`docker/docker-compose.yml`)
+- No cloud hosting, no Kubernetes manifests present
 
-**Container Build:**
-- Base: `python:3.12-slim` official image
-- Build file: `docker/Dockerfile`
-- System dependencies installed: openssh-client, iputils-ping, netperf
-- Non-root user: `wanctl` (UID/GID auto-assigned)
-- Multi-layer: Application code, configurations, entrypoint separated
-
-**Orchestration:**
-- Docker Compose: `docker/docker-compose.yml` - Reference multi-WAN setup (wan1, wan2, steering services)
-- Network Mode: `host` required for accurate RTT measurements (direct system ping access)
-- Health Checks: pgrep-based process monitoring (30s interval, 3 retries)
-- Volumes: Config mount (read-only), state mount (read-write), logs mount (optional), SSH key mount (read-only)
-
-**CI Pipeline (Expected from `.github/workflows/`):**
-- Tests: `pytest tests/ -v` with 594 test cases
-- Linting: `ruff check src/ tests/`
-- Type Checking: `mypy src/wanctl/`
-- Build: Docker image build test
-- Trigger: Push to main, PR, manual dispatch
+**CI Pipeline:**
+- No `.github/workflows/` directory detected — no automated CI configured
+- Local CI gate: `make ci` → `make lint` + `make type` + `make coverage-check` (90% threshold)
+- Security gate: `make security` → pip-audit + bandit + detect-secrets + pip-licenses
 
 ## Environment Configuration
 
-**Required Environment Variables (at runtime):**
-- WANCTL_CONFIG - Path to main daemon config (default: `/etc/wanctl/wan.yaml`)
-- WANCTL_STEERING_CONFIG - Path to steering config (if multi-WAN enabled)
-- ROUTER_PASSWORD - RouterOS REST API password (alternative: embed in YAML)
+**Required env vars at runtime:**
+- `ROUTER_PASSWORD` — when using REST transport with `${ROUTER_PASSWORD}` YAML reference
 
-**Optional Environment Variables:**
-- WANCTL_MODE - Daemon startup mode override
-- PYTHONPATH - Python module search path (set to `/opt/wanctl` in containers)
-- PYTHONUNBUFFERED - Real-time log output (set to 1 in containers)
+**Optional env vars:**
+- `WANCTL_CONFIG` — override config path (default: `/etc/wanctl/wan.yaml`)
+- `WANCTL_STEERING_CONFIG` — override steering config path
+- `WANCTL_STATE_DIR`, `WANCTL_LOG_DIR`, `WANCTL_RUN_DIR` — override FHS paths
 
-**Secrets Injection Methods:**
-1. Environment variables (injected at container startup)
-2. YAML config file references (e.g., `${ROUTER_PASSWORD}` syntax)
-3. SSH private key files (mounted read-only, permissions 600)
-
-**No Vault Integration:** Ansible Vault or external secret managers can wrap config delivery, but wanctl itself uses direct environment/file substitution. No built-in HashiCorp Vault or AWS Secrets Manager support.
+**Secrets location:**
+- Production: `/etc/wanctl/secrets` (plain env file, loaded by systemd `EnvironmentFile`)
+- SSH key: `/etc/wanctl/ssh/router.key` (600 permissions, mounted read-only in Docker)
+- Docker: `environment:` block in compose or host env injection
 
 ## Webhooks & Callbacks
 
-**Incoming Webhooks:** None - system is pull-based only (queries router, measures RTT, sends updates)
+**Incoming:** None — system is pull-based only
 
-**Outgoing Webhooks/Callbacks:** None - events logged locally, metrics exposed via HTTP endpoints (Prometheus-style pull model)
+**Outgoing:** None — events logged locally; metrics exposed as HTTP pull endpoints (Prometheus scrape model)
 
 ## Network Requirements
 
-**Outbound Connections:**
-- RouterOS device: SSH (port 22) or REST (port 443/80, configurable)
-- DNS servers: ICMP echo (port 0, ICMP protocol)
-- TCP echo services: HTTPS (port 443)
-- Gateway: ICMP ping (gateway_ip in fallback_checks config)
+**Outbound:**
+- RouterOS device: port 443 (REST HTTPS) or port 22 (SSH)
+- ICMP reflectors: raw ICMP (1.1.1.1, 8.8.8.8, 9.9.9.9)
+- TCP fallback: port 443 to reflector IPs
 
-**Inbound Connections (optional, internal only):**
-- Health check HTTP: Port 9101 (localhost or restricted network)
-- Metrics HTTP: Port 9100 (localhost or restricted network)
+**Inbound (localhost only):**
+- Health check: port 9101 (autorate), 9103 (steering)
+- Prometheus metrics: port 9100
 
-**Network Mode (Docker):**
-- Host network mode required (`network_mode: host` in docker-compose)
-- Necessary for: Direct system ping command, accurate link-layer latency, ARP resolution
-- Alternative: Overlay network with bridge mode would add latency, not suitable for sub-100ms cycles
+**Docker network mode:** `network_mode: host` mandatory — required for raw ICMP and accurate link-layer RTT measurements
 
 ---
 
-*Integration audit: 2026-01-21*
+*Integration audit: 2026-03-10*
