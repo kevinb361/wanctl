@@ -8,17 +8,12 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.11 WAN-Aware Steering
+## Current State
 
-**Goal:** Feed autorate's end-to-end WAN RTT state into steering's failover decision, closing the gap where CAKE queue stats mask ISP-level congestion.
-
-**Target features:**
-
-- Steering reads autorate WAN congestion state (RED/YELLOW/GREEN) as additional failover signal
-- Hysteresis gate: sustained WAN RED (~1s) triggers failover, sustained GREEN (~3s) for recovery
-- Configurable thresholds in YAML for production tuning
-- Existing CAKE stats remain primary signal; WAN state is secondary/amplifying
-- Recovery: only new connections steer, existing connections expire naturally on ATT
+**Version:** v1.11 (WAN-Aware Steering) — shipped 2026-03-10
+**Tests:** 2,210 passing, 91%+ coverage
+**LOC:** ~16,880 Python (src/)
+**Milestones:** 12 shipped (v1.0-v1.11), 61 phases, 127 plans
 
 **Previous:** v1.10 Architectural Review Fixes — hot-loop fixes, steering reliability, operational resilience
 
@@ -109,11 +104,30 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Test fixture consolidation (-481 lines, shared conftest.py) — v1.10
 - ✓ 27/27 requirements satisfied, all 6 E2E flows verified — v1.10
 
+**v1.11 WAN-Aware Steering:**
+
+- ✓ Autorate state file exports congestion zone (dl_state/ul_state) each cycle — v1.11
+- ✓ Backward-compatible state file extension (unknown keys ignored) — v1.11
+- ✓ Write-amplification-safe zone persistence (dirty-tracking exclusion) — v1.11
+- ✓ WAN zone fused into confidence scoring (WAN_RED=25, WAN_SOFT_RED=12) — v1.11
+- ✓ CAKE-primary invariant enforced (WAN alone cannot trigger steering) — v1.11
+- ✓ Recovery gate requires WAN GREEN (or unavailable) — v1.11
+- ✓ Zero additional I/O (zone piggybacked on existing state file read) — v1.11
+- ✓ Stale zone (>5s) defaults to GREEN, autorate unavailable skips WAN weight — v1.11
+- ✓ 30s startup grace period ignores WAN signal — v1.11
+- ✓ Feature ships disabled by default (wan_state.enabled: false) — v1.11
+- ✓ YAML wan_state: section with schema validation — v1.11
+- ✓ Health endpoint wan_awareness section with zone, staleness, confidence contribution — v1.11
+- ✓ SQLite metrics for WAN zone, weight, and staleness per cycle — v1.11
+- ✓ WAN context in steering transition and degrade timer logs — v1.11
+- ✓ 17/17 requirements satisfied, 14/14 integration, 3/3 E2E flows — v1.11
+
 ### Active
 
 **Ongoing:**
 
 - [ ] Confidence-based steering validation (enabled 2026-01-23, monitoring)
+- [ ] WAN-aware steering production validation (feature deployed disabled, awaiting enablement)
 
 ### Deferred
 
@@ -227,6 +241,14 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 56-57: Gap closure (verify_ssl chain, config docs, fixture consolidation)
 - 131 new tests (1,978 → 2,109 total), 27/27 requirements satisfied
 
+**v1.11 WAN-Aware Steering (2026-03-09 → 2026-03-10):**
+
+- Phase 58: State file extension (congestion zone persistence, dirty-tracking exclusion)
+- Phase 59: WAN state reader + signal fusion (confidence scoring, recovery gate, BaselineLoader extraction)
+- Phase 60: Configuration + safety + wiring (YAML wan_state, grace period, enabled gate, config-driven weights)
+- Phase 61: Observability + metrics (health endpoint, 3 SQLite metrics, WAN context in logs)
+- 101 new tests (2,109 → 2,210 total), 17/17 requirements satisfied
+
 ## Constraints
 
 - **Production deployment**: Running in home network — must maintain stability and reliability
@@ -261,7 +283,12 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | verify_ssl=True default everywhere | Secure by default, explicit opt-out for self-signed | ✓ All 3 layers aligned | 2026-03-09 |
 | Daemon duplication → shared helpers | daemon_utils.py + perf_profiler.py reduce copy-paste | ✓ Both daemons import shared | 2026-03-08 |
 | Fixture delegation over duplication | Shared conftest + class overrides vs. copy-paste | ✓ -481 lines, 21 fixtures | 2026-03-09 |
+| WAN state strictly amplifying | WAN alone < steer_threshold; CAKE remains primary signal | ✓ WAN_RED=25 < threshold=55 | 2026-03-09 |
+| Dirty-tracking exclusion for zone | Prevent 20x write amplification from zone changes at 20Hz | ✓ Zero extra writes | 2026-03-09 |
+| Ship disabled by default | No behavioral change on upgrade; explicit opt-in required | ✓ wan_state.enabled: false | 2026-03-09 |
+| Warn+disable for invalid config | Invalid wan_state config degrades gracefully, never crashes | ✓ Daemon stays running | 2026-03-09 |
+| Zone piggybacked on existing read | Zero additional I/O; BaselineLoader returns (rtt, zone) tuple | ✓ FUSE-01 satisfied | 2026-03-09 |
 
 ---
 
-_Last updated: 2026-03-09 after v1.10 milestone completion_
+_Last updated: 2026-03-10 after v1.11 milestone completion_

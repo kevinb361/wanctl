@@ -2,7 +2,7 @@
 
 ## Overview
 
-wanctl is a production CAKE bandwidth controller running on MikroTik RouterOS with dual-WAN steering. The project has achieved 40x performance improvement (2s to 50ms cycle time) and now focuses on code quality and maintainability while preserving production stability.
+wanctl is a production CAKE bandwidth controller running on MikroTik RouterOS with dual-WAN steering. The project has achieved 40x performance improvement (2s to 50ms cycle time) and now includes WAN-aware steering that fuses autorate congestion state into failover decisions.
 
 ## Domain Expertise
 
@@ -10,12 +10,9 @@ None
 
 ## Milestones
 
-### Active
-
-- **v1.11 WAN-Aware Steering** - Phases 58-61 (in progress)
-
 ### Completed
 
+- [v1.11 WAN-Aware Steering](milestones/v1.11-ROADMAP.md) (Phases 58-61) - SHIPPED 2026-03-10
 - [v1.10 Architectural Review Fixes](milestones/v1.10-ROADMAP.md) (Phases 50-57) - SHIPPED 2026-03-09
 - [v1.9 Performance & Efficiency](milestones/v1.9-ROADMAP.md) (Phases 47-49) - SHIPPED 2026-03-07
 - [v1.8 Resilience & Robustness](milestones/v1.8-ROADMAP.md) (Phases 43-46) - SHIPPED 2026-03-06
@@ -37,7 +34,8 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-### v1.11 WAN-Aware Steering (Phases 58-61)
+<details>
+<summary>v1.11 WAN-Aware Steering (Phases 58-61) - SHIPPED 2026-03-10</summary>
 
 **Milestone Goal:** Feed autorate's end-to-end WAN RTT state into steering's failover decision, closing the gap where CAKE queue stats mask ISP-level congestion. ~100 lines of new production code wiring existing primitives together.
 
@@ -46,78 +44,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 60: Configuration + Safety + Wiring** - YAML config, schema validation, startup grace period, feature toggle, end-to-end daemon wiring (completed 2026-03-10)
 - [x] **Phase 61: Observability + Metrics** - Health endpoint, SQLite metrics, and log integration for WAN-aware steering decisions (completed 2026-03-10)
 
-## Phase Details
+**Key Results:** WAN congestion zone fused into confidence scoring (WAN_RED=25, WAN_SOFT_RED=12), CAKE-primary invariant preserved, fail-safe defaults at every boundary, YAML configuration with warn+disable, health endpoint wan_awareness section, 3 SQLite metrics, WAN context in logs. 101 new tests (2,109 to 2,210), 17/17 requirements satisfied.
 
-### Phase 58: State File Extension
+See [milestones/v1.11-ROADMAP.md](milestones/v1.11-ROADMAP.md) for full details.
 
-**Goal**: Autorate's congestion zone is available to any consumer via the existing state file
-**Depends on**: Nothing (first phase of v1.11)
-**Requirements**: STATE-01, STATE-02, STATE-03
-**Success Criteria** (what must be TRUE):
-
-1. Autorate state file contains `congestion.dl_state` field (GREEN/YELLOW/SOFT_RED/RED) updated each cycle
-2. Pre-upgrade steering (without WAN awareness code) continues to operate normally when reading the extended state file
-3. State file write frequency does not increase when congestion zone changes between cycles (zone excluded from dirty-tracking)
-   **Plans**: 1 plan
-
-Plans:
-
-- [ ] 58-01-PLAN.md -- Extend state persistence with congestion zone and wire WANController save
-
-### Phase 59: WAN State Reader + Signal Fusion
-
-**Goal**: Steering consumes WAN congestion zone as an amplifying signal in confidence scoring, with fail-safe behavior for stale or missing data
-**Depends on**: Phase 58
-**Requirements**: FUSE-01, FUSE-02, FUSE-03, FUSE-04, FUSE-05, SAFE-01, SAFE-02
-**Success Criteria** (what must be TRUE):
-
-1. Steering reads WAN zone from the same file read it already performs for baseline RTT (zero additional I/O operations)
-2. WAN RED alone produces a confidence score below the steer threshold (CAKE-primary invariant enforced by weight values)
-3. WAN RED combined with at least one CAKE-based signal pushes confidence score toward or above the steer threshold
-4. Recovery from steering requires WAN zone to be GREEN (or unavailable) in addition to existing CAKE recovery checks
-5. WAN zone older than 5 seconds defaults to GREEN; autorate being completely unavailable skips the WAN weight entirely
-   **Plans**: 2 plans
-
-Plans:
-
-- [ ] 59-01-PLAN.md -- Add WAN zone to confidence scoring and recovery gate
-- [ ] 59-02-PLAN.md -- Extend BaselineLoader to return WAN zone tuple with staleness and wire to ConfidenceSignals
-
-### Phase 60: Configuration + Safety + Wiring
-
-**Goal**: WAN-aware steering is fully wired end-to-end in the steering daemon, controlled by YAML configuration, and ships disabled by default
-**Depends on**: Phase 59
-**Requirements**: CONF-01, CONF-02, SAFE-03, SAFE-04
-**Success Criteria** (what must be TRUE):
-
-1. YAML `wan_state:` section configures enabled flag, weight values, staleness threshold, and grace period with validated defaults
-2. Invalid `wan_state:` configuration values are caught by schema validation and produce clear error messages
-3. Steering daemon ignores WAN signal for the first 30 seconds after startup (grace period)
-4. Feature ships with `wan_state.enabled: false` as default -- no behavioral change on upgrade unless explicitly enabled
-   **Plans**: 2 plans
-
-Plans:
-
-- [ ] 60-01-PLAN.md -- YAML wan_state: config section with validation, clamping, wan_override, and startup logging
-- [ ] 60-02-PLAN.md -- Grace period timer, feature-enabled gate, and config-driven weights wiring
-
-### Phase 61: Observability + Metrics
-
-**Goal**: Operators can monitor WAN-aware steering behavior through health endpoints, metrics history, and logs
-**Depends on**: Phase 60
-**Requirements**: OBSV-01, OBSV-02, OBSV-03
-**Success Criteria** (what must be TRUE):
-
-1. Health endpoint response includes WAN awareness state: current zone, staleness age, sustained cycle count, and confidence contribution value
-2. SQLite metrics database records WAN awareness signal each cycle (zone, weight applied, staleness)
-3. Log output includes WAN state information when it contributes to a steering decision (steer or recover)
-   **Plans**: 3 plans
-
-Plans:
-
-- [ ] 61-01-PLAN.md -- Health endpoint wan_awareness section and SQLite wanctl_wan_zone metric
-- [ ] 61-02-PLAN.md -- WAN context in steering decision and transition log lines
-- [ ] 61-03-PLAN.md -- Gap closure: degrade_timer_remaining in health, wanctl_wan_weight and wanctl_wan_staleness_sec SQLite metrics
+</details>
 
 <details>
 <summary>v1.10 Architectural Review Fixes (Phases 50-57) - SHIPPED 2026-03-09</summary>
@@ -309,22 +240,11 @@ See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 58 -> 59 -> 60 -> 61
-
-### v1.11 WAN-Aware Steering
-
-| Phase                                | Plans Complete | Status      | Completed  |
-| ------------------------------------ | -------------- | ----------- | ---------- |
-| 58. State File Extension             | 1/1            | Complete    | 2026-03-09 |
-| 59. WAN State Reader + Signal Fusion | 2/2            | Complete    | 2026-03-09 |
-| 60. Configuration + Safety + Wiring  | 2/2            | Complete    | 2026-03-10 |
-| 61. Observability + Metrics          | 3/3 | Complete    | 2026-03-10 |
-
 ### Completed Milestones
 
 | Milestone                        | Phases | Plans | Status   | Shipped    |
 | -------------------------------- | ------ | ----- | -------- | ---------- |
+| v1.11 WAN-Aware Steering         | 58-61  | 8     | Complete | 2026-03-10 |
 | v1.10 Architectural Review Fixes | 50-57  | 15    | Complete | 2026-03-09 |
 | v1.9 Performance & Efficiency    | 47-49  | 6     | Complete | 2026-03-07 |
 | v1.8 Resilience & Robustness     | 43-46  | 8     | Complete | 2026-03-06 |
@@ -337,4 +257,4 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | v1.1 Code Quality                | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization    | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 57 phases complete, 119 plans across 11 milestones
+**Total:** 61 phases complete, 127 plans across 12 milestones

@@ -1,11 +1,48 @@
 # Project Milestones: wanctl
 
-## v1.10 Architectural Review Fixes (Shipped: 2026-03-09)
+## v1.11 WAN-Aware Steering (Shipped: 2026-03-10)
 
-**Phases completed:** 8 phases, 15 plans, 3 tasks
+**Delivered:** WAN-aware steering that fuses autorate congestion zone into confidence scoring, with fail-safe defaults, YAML configuration, and full observability.
+
+**Phases completed:** 58-61 (8 plans total)
 
 **Key accomplishments:**
-- (none recorded)
+
+- Autorate state file exports congestion zone (dl_state/ul_state) with dirty-tracking exclusion preventing write amplification
+- WAN zone fused into confidence scoring (WAN_RED=25, WAN_SOFT_RED=12) — CAKE-primary invariant enforced (WAN alone < steer_threshold)
+- Fail-safe defaults at every boundary: stale zone (>5s) defaults GREEN, autorate unavailable skips WAN weight, 30s startup grace period
+- YAML `wan_state:` configuration with warn+disable graceful degradation, ships disabled by default
+- Full observability: health endpoint `wan_awareness` section, 3 SQLite metrics (zone/weight/staleness), WAN context in steering transition and degrade timer logs
+
+**Stats:**
+
+- 16 files modified
+- +2,437 / -78 lines changed
+- 4 phases, 8 plans, 56 commits
+- 101 new tests (2,109 to 2,210)
+- 16,880 LOC Python (src/)
+- 2 days (2026-03-09 to 2026-03-10)
+
+**Git range:** `v1.10..v1.11`
+
+**What's next:** Next milestone planning.
+
+---
+
+## v1.10 Architectural Review Fixes (Shipped: 2026-03-09)
+
+**Delivered:** Hot-loop fixes, steering reliability, operational resilience, codebase audit, and test quality improvements from senior architectural review.
+
+**Phases completed:** 50-57 (14 plans executed, 1 superseded)
+
+**Key accomplishments:**
+
+- Hot-loop blocking delays eliminated (sub-cycle retries, 50ms max per attempt)
+- Self-healing transport failover with periodic primary REST re-probe (30-300s backoff)
+- SSL verify_ssl=True default across all layers, SQLite corruption auto-recovery, disk space monitoring
+- Daemon duplication consolidated (daemon_utils.py, perf_profiler.py), systematic codebase audit
+- Test fixture consolidation (-481 lines), 24 new behavioral/integration tests
+- 27/27 requirements satisfied, 6/6 E2E flows verified
 
 ---
 
