@@ -16,6 +16,7 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_rate_upload_mbps": "Current upload rate limit in Mbps",
     "wanctl_state": "Congestion state (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
     "wanctl_steering_enabled": "Steering active status (0=disabled, 1=enabled)",
+    "wanctl_wan_zone": "WAN congestion zone from autorate (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
 }
 
 # SQL schema for metrics table with indexes for time-series queries

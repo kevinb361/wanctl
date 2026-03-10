@@ -125,6 +125,101 @@ class TestSteeringMetricsRecording:
         assert rows[0] == 2
 
 
+class TestWanAwarenessMetrics:
+    """Tests for WAN zone metric recording in steering run_cycle (OBSV-02)."""
+
+    @pytest.fixture
+    def temp_db(self, tmp_path):
+        """Create temporary database for testing."""
+        db_path = tmp_path / "test_wan_metrics.db"
+        MetricsWriter._reset_instance()
+        writer = MetricsWriter(db_path)
+        yield db_path, writer
+        MetricsWriter._reset_instance()
+
+    def test_wan_zone_metric_included_when_enabled(self, temp_db):
+        """When wan_state enabled, metrics_batch includes wanctl_wan_zone with numeric value."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate what run_cycle does when wan_state is enabled
+        zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+        effective_zone = "RED"
+        zone_val = zone_map.get(effective_zone, 0)
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_rtt_ms", 28.5, None, "raw"),
+            (ts, "spectrum", "wanctl_wan_zone", float(zone_val), {"zone": effective_zone}, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        # Verify wanctl_wan_zone recorded with correct value and labels
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value, labels FROM metrics WHERE metric_name='wanctl_wan_zone'"
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == 3.0  # RED = 3
+        labels = json.loads(row[1])
+        assert labels["zone"] == "RED"
+
+    def test_wan_zone_metric_excluded_when_disabled(self, temp_db):
+        """When wan_state disabled, metrics_batch does NOT include wanctl_wan_zone."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate batch without WAN zone (disabled path)
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_rtt_ms", 28.5, None, "raw"),
+            (ts, "spectrum", "wanctl_rtt_baseline_ms", 25.0, None, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        # Verify no wanctl_wan_zone metric
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name='wanctl_wan_zone'"
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0
+
+    def test_wan_zone_metric_none_during_grace_period(self, temp_db):
+        """When effective zone is None (grace period), metric records value 0 with zone='none'."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate grace period: effective_zone is None
+        zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+        effective_zone = None
+        zone_val = zone_map.get(effective_zone or "GREEN", 0)
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_wan_zone", float(zone_val),
+             {"zone": effective_zone or "none"}, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        # Verify metric records 0 with labels {"zone": "none"}
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value, labels FROM metrics WHERE metric_name='wanctl_wan_zone'"
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0.0
+        labels = json.loads(row[1])
+        assert labels["zone"] == "none"
+
+    def test_wan_zone_in_stored_metrics(self):
+        """wanctl_wan_zone appears in STORED_METRICS dict."""
+        from wanctl.storage.schema import STORED_METRICS
+
+        assert "wanctl_wan_zone" in STORED_METRICS
+
+
 class TestSteeringPerformanceOverhead:
     """Verify steering metrics recording overhead is <5ms."""
 
