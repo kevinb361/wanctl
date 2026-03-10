@@ -93,7 +93,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. urllib3 InsecureRequestWarning suppression is applied per-session (not via global warnings.filterwarnings at module level)
 3. When fallback_gateway_ip is absent from config, steering treats it as disabled rather than using a hardcoded default IP
 4. Integration tests that probe external hosts read the target IP from WANCTL_TEST_HOST env var (not hardcoded)
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 64-01-PLAN.md -- Router credential lifetime + per-session SSL warning suppression
+- [ ] 64-02-PLAN.md -- Safe fallback gateway default + integration test host parameterization
 
 ### Phase 65: Fragile Area Stabilization
 
@@ -128,7 +132,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | -------------------------------------- | -------------- | ----------- | ---------- |
 | 62. Deployment Alignment               | 1/1            | Complete    | 2026-03-10 |
 | 63. Dead Code & Stale API Cleanup      | 1/1 | Complete    | 2026-03-10 |
-| 64. Security Hardening                 | 0/?            | Not started | -          |
+| 64. Security Hardening                 | 0/2            | Planning    | -          |
 | 65. Fragile Area Stabilization         | 0/?            | Not started | -          |
 | 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |
 
