@@ -22,8 +22,8 @@
 
 - [x] **SECR-01**: Router password deleted from Config object after router client construction
 - [x] **SECR-02**: urllib3 InsecureRequestWarning suppression scoped to session, not process-wide
-- [ ] **SECR-03**: Default fallback_gateway_ip changed to empty string with disabled behavior when absent
-- [ ] **SECR-04**: Integration test external IP parameterized via WANCTL_TEST_HOST env var
+- [x] **SECR-03**: Default fallback_gateway_ip changed to empty string with disabled behavior when absent
+- [x] **SECR-04**: Integration test external IP parameterized via WANCTL_TEST_HOST env var
 
 ### Fragile Area Stabilization
 
@@ -68,8 +68,8 @@
 | DEAD-03 | Phase 63 | Complete |
 | SECR-01 | Phase 64 | Complete |
 | SECR-02 | Phase 64 | Complete |
-| SECR-03 | Phase 64 | Pending |
-| SECR-04 | Phase 64 | Pending |
+| SECR-03 | Phase 64 | Complete |
+| SECR-04 | Phase 64 | Complete |
 | FRAG-01 | Phase 65 | Pending |
 | FRAG-02 | Phase 65 | Pending |
 | FRAG-03 | Phase 65 | Pending |

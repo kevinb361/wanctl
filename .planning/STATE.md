@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Deployment & Code Health
 status: executing
-last_updated: "2026-03-10T13:18:11Z"
-last_activity: 2026-03-10 -- Phase 64 plan 01 complete (router credential lifetime & SSL warning scope)
+last_updated: "2026-03-10T13:41:00Z"
+last_activity: 2026-03-10 -- Phase 64 complete (security hardening, 2 plans)
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 50
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
+  percent: 60
 ---
 
 # Session State
@@ -25,20 +25,20 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Position
 
 **Milestone:** v1.12 Deployment & Code Health
-**Phase:** 64 of 66 (Security Hardening)
-**Current Plan:** 1 of 2 complete
-**Status:** Executing phase 64
-**Last activity:** 2026-03-10 -- Phase 64 plan 01 complete (router credential lifetime & SSL warning scope)
+**Phase:** 64 of 66 (Security Hardening) -- COMPLETE
+**Current Plan:** 2 of 2 complete
+**Status:** Phase 64 complete, ready for phase 65
+**Last activity:** 2026-03-10 -- Phase 64 complete (security hardening, SECR-01 through SECR-04)
 
-**Progress:** [█████░░░░░] 50%
+**Progress:** [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: ~9 min
-- Total execution time: ~0.5 hours
+- Total plans completed: 4
+- Average duration: ~12 min
+- Total execution time: ~0.8 hours
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 | ----- | ----- | ------- | -------- |
 | 62    | 1     | ~5 min  | ~5 min   |
 | 63    | 1     | ~8 min  | ~8 min   |
-| 64    | 1     | ~15 min | ~15 min  |
+| 64    | 2     | ~35 min | ~18 min  |
 
 ## Accumulated Context
 
@@ -59,6 +59,9 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 - RTTMeasurement API: 4 params (logger, timeout_ping, aggregation_strategy, log_sample_stats)
 - FailoverRouterClient resolves password eagerly at init, stores as \_resolved_password
 - SSL warning suppression is per-request via warnings.catch_warnings (not process-wide)
+- fallback_gateway_ip defaults to "" (safe empty), not a hardcoded IP
+- clear_router_password called after RouterOS() in autorate, after SteeringDaemon() in steering
+- WANCTL_TEST_HOST env var overrides integration test target host
 
 ### Known Issues
 
@@ -76,3 +79,5 @@ None.
 - 2026-03-10: Phase 62 complete -- Deployment alignment (DPLY-01 through DPLY-04)
 - 2026-03-10: Phase 63 complete -- Dead code & stale API cleanup (DEAD-01, DEAD-02, DEAD-03)
 - 2026-03-10: Phase 64 plan 01 complete -- Router credential lifetime & SSL warning scope (SECR-01, SECR-02)
+- 2026-03-10: Phase 64 plan 02 complete -- Safe config defaults, password clearing wiring, test host parameterization (SECR-01, SECR-03, SECR-04)
+- 2026-03-10: Phase 64 COMPLETE -- Security Hardening (4 requirements, 2 plans)
