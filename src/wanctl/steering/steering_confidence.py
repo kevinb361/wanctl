@@ -572,19 +572,31 @@ class ConfidenceController:
         if dry_run_cfg["enabled"]:
             self.logger.warning("[CONFIDENCE][DRY-RUN] LOG-ONLY mode - no routing changes")
 
-    def evaluate(self, signals: ConfidenceSignals, current_state: str) -> str | None:
+    def evaluate(
+        self,
+        signals: ConfidenceSignals,
+        current_state: str,
+        wan_red_weight: int | None = None,
+        wan_soft_red_weight: int | None = None,
+    ) -> str | None:
         """
         Evaluate steering decision based on confidence and timers.
 
         Args:
             signals: Current congestion signals
             current_state: Current routing state (e.g., "WAN1_GOOD" or "WAN1_DEGRADED")
+            wan_red_weight: Config-driven WAN RED weight (None = use class constant)
+            wan_soft_red_weight: Config-driven WAN SOFT_RED weight (None = use class constant)
 
         Returns:
             "ENABLE_STEERING", "DISABLE_STEERING", or None
         """
         # Compute confidence
-        confidence, contributors = compute_confidence(signals, self.logger)
+        confidence, contributors = compute_confidence(
+            signals, self.logger,
+            wan_red_weight=wan_red_weight,
+            wan_soft_red_weight=wan_soft_red_weight,
+        )
         self.timer_state.confidence_score = confidence
         self.timer_state.confidence_contributors = contributors
 

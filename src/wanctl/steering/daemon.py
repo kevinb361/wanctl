@@ -698,6 +698,7 @@ class BaselineLoader:
         self.config = config
         self.logger = logger
         self._stale_baseline_warned = False
+        self._wan_staleness_threshold = STALE_WAN_ZONE_THRESHOLD_SECONDS
 
     def load_baseline_rtt(self) -> tuple[float | None, str | None]:
         """
@@ -763,7 +764,7 @@ class BaselineLoader:
             file_age = time.time() - self.config.primary_state_file.stat().st_mtime
         except OSError:
             return True  # Cannot stat = treat as stale (fail-safe)
-        return file_age > STALE_WAN_ZONE_THRESHOLD_SECONDS
+        return file_age > self._wan_staleness_threshold
 
     def _check_staleness(self) -> None:
         """Check if autorate state file is stale and warn (rate-limited)."""
@@ -871,6 +872,19 @@ class SteeringDaemon:
         # WAN congestion zone from autorate state (FUSE-01)
         self._wan_zone: str | None = None
 
+        # WAN awareness gating (SAFE-03, SAFE-04)
+        self._startup_time = time.monotonic()
+        wsc = self.config.wan_state_config
+        self._wan_state_enabled = bool(wsc and wsc.get("enabled", False))
+        self._wan_grace_period_sec = wsc["grace_period_sec"] if wsc else 30.0
+        self._wan_red_weight: int | None = wsc["red_weight"] if wsc else None
+        self._wan_soft_red_weight: int | None = wsc["soft_red_weight"] if wsc else None
+        self._wan_staleness_sec: float = wsc["staleness_threshold_sec"] if wsc else STALE_WAN_ZONE_THRESHOLD_SECONDS
+
+        # Override BaselineLoader staleness threshold with config value
+        if hasattr(self.baseline_loader, '_wan_staleness_threshold'):
+            self.baseline_loader._wan_staleness_threshold = self._wan_staleness_sec
+
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
@@ -899,6 +913,25 @@ class SteeringDaemon:
             return True
 
         return False
+
+    def _is_wan_grace_period_active(self) -> bool:
+        """Check if startup grace period for WAN awareness is still active."""
+        return (time.monotonic() - self._startup_time) < self._wan_grace_period_sec
+
+    def _get_effective_wan_zone(self) -> str | None:
+        """Get WAN zone for confidence scoring, applying enabled and grace gates.
+
+        Returns None (no WAN contribution) when:
+        - WAN awareness is disabled (wan_state_config is None or enabled=False)
+        - Grace period is still active (first N seconds after startup)
+
+        Otherwise returns the actual WAN zone from autorate state.
+        """
+        if not self._wan_state_enabled:
+            return None
+        if self._is_wan_grace_period_active():
+            return None
+        return self._wan_zone
 
     def _evaluate_degradation_condition(
         self, signals: CongestionSignals
@@ -1307,12 +1340,14 @@ class SteeringDaemon:
                 cake_state_history=list(state.get("cake_state_history", [])),
                 drops_history=list(state.get("cake_drops_history", [])),
                 queue_history=list(state.get("queue_depth_history", [])),
-                wan_zone=self._wan_zone,
+                wan_zone=self._get_effective_wan_zone(),
             )
 
             # Evaluate confidence (returns decision or None if dry-run)
             confidence_decision = self.confidence_controller.evaluate(
-                phase2b_signals, state["current_state"]
+                phase2b_signals, state["current_state"],
+                wan_red_weight=self._wan_red_weight,
+                wan_soft_red_weight=self._wan_soft_red_weight,
             )
 
             # In live mode (dry_run=False), use confidence decision for routing

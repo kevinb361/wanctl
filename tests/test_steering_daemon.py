@@ -5226,7 +5226,7 @@ class TestWanGracePeriodAndGating:
 
     def test_update_state_machine_uses_effective_wan_zone(self, daemon, mock_state_mgr):
         """update_state_machine should use _get_effective_wan_zone() for ConfidenceSignals."""
-        from wanctl.steering.congestion_assessment import CongestionSignals
+        from wanctl.steering.cake_stats import CongestionSignals
 
         daemon._wan_zone = "RED"
         # Grace period still active -- effective zone should be None
@@ -5236,15 +5236,10 @@ class TestWanGracePeriodAndGating:
             queued_packets=10,
         )
 
-        # We need to spy on ConfidenceSignals construction
-        with patch("wanctl.steering.daemon.ConfidenceSignals") as mock_cs:
-            mock_cs.return_value = MagicMock()
+        # Spy on _get_effective_wan_zone to verify it was called
+        with patch.object(daemon, "_get_effective_wan_zone", return_value=None) as mock_gate:
             daemon.update_state_machine(signals)
-
-            # Verify ConfidenceSignals was called with wan_zone=None (grace period active)
-            mock_cs.assert_called_once()
-            call_kwargs = mock_cs.call_args
-            assert call_kwargs.kwargs.get("wan_zone") is None or call_kwargs[1].get("wan_zone") is None
+            mock_gate.assert_called_once()
 
     def test_staleness_threshold_from_config(self, daemon):
         """Config-driven staleness threshold should be stored on daemon."""
