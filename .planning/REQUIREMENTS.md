@@ -27,9 +27,9 @@
 
 ### Fragile Area Stabilization
 
-- [ ] **FRAG-01**: Contract tests enforce autorate-steering state file schema (key path renames cause test failures)
-- [ ] **FRAG-02**: flap_detector.check_flapping() call-site made explicit (return value used or docstring documents side-effect contract)
-- [ ] **FRAG-03**: WAN-aware steering config misconfiguration logged at WARNING level (not INFO)
+- [x] **FRAG-01**: Contract tests enforce autorate-steering state file schema (key path renames cause test failures)
+- [x] **FRAG-02**: flap_detector.check_flapping() call-site made explicit (return value used or docstring documents side-effect contract)
+- [x] **FRAG-03**: WAN-aware steering config misconfiguration logged at WARNING level (not INFO)
 
 ### Infrastructure
 
@@ -70,9 +70,9 @@
 | SECR-02 | Phase 64 | Complete |
 | SECR-03 | Phase 64 | Complete |
 | SECR-04 | Phase 64 | Complete |
-| FRAG-01 | Phase 65 | Pending |
-| FRAG-02 | Phase 65 | Pending |
-| FRAG-03 | Phase 65 | Pending |
+| FRAG-01 | Phase 65 | Complete |
+| FRAG-02 | Phase 65 | Complete |
+| FRAG-03 | Phase 65 | Complete |
 | INFR-01 | Phase 66 | Pending |
 | INFR-02 | Phase 66 | Pending |
 | INFR-03 | Phase 66 | Pending |
