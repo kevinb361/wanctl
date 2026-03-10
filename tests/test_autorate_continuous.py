@@ -19,54 +19,6 @@ from wanctl.autorate_continuous import WANController
 
 
 @pytest.fixture
-def mock_config():
-    """Create a mock config for WANController with all required fields."""
-    config = MagicMock()
-    config.wan_name = "TestWAN"
-    config.baseline_rtt_initial = 25.0
-    config.download_floor_green = 800_000_000
-    config.download_floor_yellow = 600_000_000
-    config.download_floor_soft_red = 500_000_000
-    config.download_floor_red = 400_000_000
-    config.download_ceiling = 920_000_000
-    config.download_step_up = 10_000_000
-    config.download_factor_down = 0.85
-    config.download_factor_down_yellow = 0.96
-    config.download_green_required = 5
-    config.upload_floor_green = 35_000_000
-    config.upload_floor_yellow = 30_000_000
-    config.upload_floor_red = 25_000_000
-    config.upload_ceiling = 40_000_000
-    config.upload_step_up = 1_000_000
-    config.upload_factor_down = 0.85
-    config.upload_factor_down_yellow = 0.94
-    config.upload_green_required = 5
-    config.target_bloat_ms = 15.0
-    config.warn_bloat_ms = 45.0
-    config.hard_red_bloat_ms = 80.0
-    config.alpha_baseline = 0.001
-    config.alpha_load = 0.1
-    config.baseline_update_threshold_ms = 3.0
-    config.baseline_rtt_min = 10.0
-    config.baseline_rtt_max = 60.0
-    config.accel_threshold_ms = 15.0
-    config.ping_hosts = ["1.1.1.1"]
-    config.use_median_of_three = False
-    config.fallback_enabled = True
-    config.fallback_check_gateway = True
-    config.fallback_check_tcp = True
-    config.fallback_gateway_ip = "10.10.110.1"
-    config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
-    config.fallback_mode = "graceful_degradation"
-    config.fallback_max_cycles = 3
-    config.metrics_enabled = False
-    config.state_file = MagicMock()
-    config.queue_down = "dl-spectrum"
-    config.queue_up = "ul-spectrum"
-    return config
-
-
-@pytest.fixture
 def mock_router():
     """Create a mock router with set_limits returning True by default."""
     router = MagicMock()
@@ -87,12 +39,12 @@ def mock_logger():
 
 
 @pytest.fixture
-def controller(mock_config, mock_router, mock_rtt_measurement, mock_logger):
+def controller(mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger):
     """Create a WANController with patched load_state to avoid file I/O."""
     with patch.object(WANController, "load_state"):
         ctrl = WANController(
             wan_name="TestWAN",
-            config=mock_config,
+            config=mock_autorate_config,
             router=mock_router,
             rtt_measurement=mock_rtt_measurement,
             logger=mock_logger,
@@ -203,7 +155,7 @@ class TestWatchdogDistinction:
     """
 
     def test_watchdog_continues_during_router_failure(
-        self, controller, mock_config, mock_router, mock_rtt_measurement, mock_logger
+        self, controller, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger
     ):
         """Watchdog should continue notifying during router-only failures.
 
@@ -220,7 +172,7 @@ class TestWatchdogDistinction:
         assert controller.router_connectivity.last_failure_type != "auth_failure"
 
     def test_watchdog_stops_on_auth_failure(
-        self, controller, mock_config, mock_router, mock_rtt_measurement, mock_logger
+        self, controller, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger
     ):
         """Watchdog should NOT continue on auth failures.
 
@@ -352,12 +304,12 @@ class TestProfilingInstrumentation:
     """
 
     @pytest.fixture
-    def profiled_controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+    def profiled_controller(self, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController for profiling tests with mocked subsystems."""
         with patch.object(WANController, "load_state"):
             ctrl = WANController(
                 wan_name="TestWAN",
-                config=mock_config,
+                config=mock_autorate_config,
                 router=mock_router,
                 rtt_measurement=mock_rtt_measurement,
                 logger=mock_logger,
