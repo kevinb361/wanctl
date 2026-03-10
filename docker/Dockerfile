@@ -10,7 +10,7 @@ FROM python:3.12-slim
 
 LABEL maintainer="wanctl project"
 LABEL description="Adaptive CAKE bandwidth controller for Mikrotik RouterOS"
-LABEL version="1.0"
+LABEL version="1.12.0"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,8 +43,15 @@ RUN chown -R root:wanctl /etc/wanctl \
     && chmod 750 /var/lib/wanctl \
     && chmod 750 /var/log/wanctl
 
-# Install Python dependencies
-RUN pip install --no-cache-dir pexpect==4.9.0 PyYAML==6.0.1
+# Dependencies must match pyproject.toml [project.dependencies]
+RUN pip install --no-cache-dir \
+    requests>=2.31.0 \
+    pyyaml>=6.0.1 \
+    paramiko>=3.4.0 \
+    pexpect>=4.9.0 \
+    tabulate>=0.9.0 \
+    icmplib>=3.0.4 \
+    cryptography>=46.0.5
 
 # Copy application code
 COPY src/wanctl/*.py /opt/wanctl/
