@@ -196,22 +196,26 @@ class TestClean05WarningScopedToSession:
             )
             mock_urllib3.disable_warnings.assert_not_called()
 
-    def test_disable_warnings_called_when_verify_ssl_false(self):
-        """Creating a REST client with verify_ssl=False calls disable_warnings."""
+    def test_disable_warnings_not_called_when_verify_ssl_false(self):
+        """Creating a REST client with verify_ssl=False does NOT call disable_warnings.
+
+        SECR-02: SSL warning suppression is now per-request via warnings.catch_warnings,
+        not process-wide via urllib3.disable_warnings.
+        """
         with patch("wanctl.routeros_rest.requests.Session") as mock_session_cls:
             mock_session_cls.return_value = MagicMock()
             from wanctl.routeros_rest import RouterOSREST
 
-            # The implementation does: import urllib3; urllib3.disable_warnings(...)
-            # inside the __init__ conditional. We need to verify this call happens.
             with patch("urllib3.disable_warnings") as mock_disable:
-                RouterOSREST(
+                client = RouterOSREST(
                     host="192.168.1.1",
                     user="admin",
                     password="test",  # pragma: allowlist secret
                     verify_ssl=False,
                 )
-                mock_disable.assert_called_once()
+                mock_disable.assert_not_called()
+                # Instead, _suppress_ssl_warnings flag is set for per-request suppression
+                assert client._suppress_ssl_warnings is True
 
     def test_no_module_level_disable_warnings_call(self):
         """The routeros_rest.py module has no top-level disable_warnings call."""
