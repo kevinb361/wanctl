@@ -8,14 +8,26 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.12 Deployment & Code Health
+
+**Goal:** Align deployment artifacts with codebase reality, eliminate dead code and stale APIs, harden fragile areas, and close deferred infrastructure gaps.
+
+**Target features:**
+
+- Deployment hygiene: Dockerfile, deploy script, install script aligned with actual dependencies
+- Dead code removal: unused imports, stale parameters, orphaned dependencies
+- Security hardening: credential lifetime, SSL warning scope, default safety
+- Fragile area fixes: singleton testing, state file contract, silent failure modes
+- Infrastructure gaps: contract tests, log rotation, Docker CI validation
+
 ## Current State
 
-**Version:** v1.11 (WAN-Aware Steering) — shipped 2026-03-10
+**Version:** v1.12 (Deployment & Code Health) — in progress
 **Tests:** 2,210 passing, 91%+ coverage
 **LOC:** ~16,880 Python (src/)
 **Milestones:** 12 shipped (v1.0-v1.11), 61 phases, 127 plans
 
-**Previous:** v1.10 Architectural Review Fixes — hot-loop fixes, steering reliability, operational resilience
+**Previous:** v1.11 WAN-Aware Steering — WAN congestion zone fused into steering confidence scoring
 
 ## Requirements
 
@@ -123,6 +135,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ 17/17 requirements satisfied, 14/14 integration, 3/3 E2E flows — v1.11
 
 ### Active
+
+**v1.12 Deployment & Code Health:**
+
+- [ ] Deployment artifacts aligned with actual dependencies (Dockerfile, deploy script, install script)
+- [ ] Dead code and stale APIs removed (subprocess import, timeout_total, pexpect dep)
+- [ ] Security hardened (credential lifetime, SSL warning scope, fallback gateway default)
+- [ ] Fragile areas stabilized (state file contract, singleton testing, silent failures)
+- [ ] Infrastructure gaps closed (contract tests, log rotation, Docker CI)
 
 **Ongoing:**
 
@@ -291,4 +311,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-10 after v1.11 milestone completion_
+_Last updated: 2026-03-10 after v1.12 milestone start_

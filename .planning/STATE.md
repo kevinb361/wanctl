@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.11
-milestone_name: WAN-Aware Steering
-status: archived
+milestone: v1.12
+milestone_name: Deployment & Code Health
+status: requirements
 last_updated: "2026-03-10"
-last_activity: 2026-03-10 -- v1.11 milestone archived and tagged
+last_activity: 2026-03-10 -- Milestone v1.12 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.12 Deployment & Code Health
 
 ## Position
 
-**Milestone:** v1.11 WAN-Aware Steering — ARCHIVED
-**Status:** Milestone complete, tagged v1.11
-**Last activity:** 2026-03-10 — v1.11 milestone archived
+**Milestone:** v1.12 Deployment & Code Health
+**Status:** Defining requirements
+**Last activity:** 2026-03-10 — Milestone v1.12 started
 
-**Progress:** [██████████] 100%
+**Progress:** [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(Cleared at milestone boundary. See .planning/PROJECT.md Key Decisions table.)
+(New milestone — no decisions yet.)
 
 ### Known Issues
 
@@ -46,4 +46,4 @@ None.
 
 ## Session Log
 
-- 2026-03-10: v1.11 milestone archived and tagged
+- 2026-03-10: Milestone v1.12 started — Deployment & Code Health
