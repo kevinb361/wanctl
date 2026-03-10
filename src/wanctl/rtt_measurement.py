@@ -10,7 +10,6 @@ import concurrent.futures
 import logging
 import re
 import statistics
-import subprocess  # noqa: F401 -- retained for test patching (tests mock wanctl.rtt_measurement.subprocess)
 from enum import Enum
 
 import icmplib
@@ -102,7 +101,6 @@ class RTTMeasurement:
         self,
         logger: logging.Logger,
         timeout_ping: int = 1,
-        timeout_total: int | None = None,
         aggregation_strategy: RTTAggregationStrategy = RTTAggregationStrategy.AVERAGE,
         log_sample_stats: bool = False,
     ):
@@ -112,8 +110,6 @@ class RTTMeasurement:
         Args:
             logger: Logger instance for error/debug messages
             timeout_ping: Per-packet timeout in seconds (passed to icmplib.ping timeout)
-            timeout_total: Retained for API compatibility. Not used by icmplib path
-                          (icmplib timeout is per-packet). Previously was subprocess timeout.
             aggregation_strategy: How to aggregate multiple RTT samples (AVERAGE, MEDIAN, MIN, MAX)
             log_sample_stats: If True, log min/max/median for debugging (only with AVERAGE strategy)
 
@@ -121,13 +117,11 @@ class RTTMeasurement:
             # autorate_continuous style: 5 samples, average, show min/max
             rtt = RTTMeasurement(logger, timeout_ping=1, aggregation_strategy=RTTAggregationStrategy.AVERAGE, log_sample_stats=True)
 
-            # steering/daemon style: 1 sample, median, total timeout
-            rtt = RTTMeasurement(logger, timeout_ping=2, timeout_total=10, aggregation_strategy=RTTAggregationStrategy.MEDIAN)
+            # steering/daemon style: 1 sample, median
+            rtt = RTTMeasurement(logger, timeout_ping=2, aggregation_strategy=RTTAggregationStrategy.MEDIAN)
         """
         self.logger = logger
         self.timeout_ping = timeout_ping
-        # timeout_total retained for API compatibility but unused by icmplib path
-        self.timeout_total = timeout_total
         self.aggregation_strategy = aggregation_strategy
         self.log_sample_stats = log_sample_stats
 
