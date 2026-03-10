@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Align deployment artifacts with codebase reality, eliminate dead code and stale APIs, harden security posture, stabilize fragile areas with contract tests, and close infrastructure gaps including config boilerplate extraction.
 
 - [x] **Phase 62: Deployment Alignment** - Dockerfile, deploy script, install script, and version all match pyproject.toml reality (completed 2026-03-10)
-- [ ] **Phase 63: Dead Code & Stale API Cleanup** - Remove pexpect dependency, dead subprocess import, and stale timeout_total parameter
+- [x] **Phase 63: Dead Code & Stale API Cleanup** - Remove pexpect dependency, dead subprocess import, and stale timeout_total parameter (completed 2026-03-10)
 - [ ] **Phase 64: Security Hardening** - Credential lifetime, SSL warning scope, fallback gateway safety, test parameterization
 - [ ] **Phase 65: Fragile Area Stabilization** - Contract tests for state file schema, explicit API contracts, warning-level logging
 - [ ] **Phase 66: Infrastructure & Config Extraction** - Log rotation, Docker CI validation, config boilerplate extraction, cryptography version check
@@ -127,7 +127,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | Phase                                  | Plans Complete | Status      | Completed  |
 | -------------------------------------- | -------------- | ----------- | ---------- |
 | 62. Deployment Alignment               | 1/1            | Complete    | 2026-03-10 |
-| 63. Dead Code & Stale API Cleanup      | 0/1            | Not started | -          |
+| 63. Dead Code & Stale API Cleanup      | 1/1 | Complete   | 2026-03-10 |
 | 64. Security Hardening                 | 0/?            | Not started | -          |
 | 65. Fragile Area Stabilization         | 0/?            | Not started | -          |
 | 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |

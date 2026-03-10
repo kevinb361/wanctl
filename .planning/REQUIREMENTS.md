@@ -14,9 +14,9 @@
 
 ### Dead Code Removal
 
-- [ ] **DEAD-01**: pexpect removed from production dependencies (moved to dev extras or removed entirely)
-- [ ] **DEAD-02**: Dead subprocess import removed from rtt_measurement.py and affected tests refactored to mock icmplib directly
-- [ ] **DEAD-03**: Dead timeout_total parameter removed from RTTMeasurement API and all callers updated
+- [x] **DEAD-01**: pexpect removed from production dependencies (moved to dev extras or removed entirely)
+- [x] **DEAD-02**: Dead subprocess import removed from rtt_measurement.py and affected tests refactored to mock icmplib directly
+- [x] **DEAD-03**: Dead timeout_total parameter removed from RTTMeasurement API and all callers updated
 
 ### Security Hardening
 
@@ -63,9 +63,9 @@
 | DPLY-02 | Phase 62 | Pending |
 | DPLY-03 | Phase 62 | Pending |
 | DPLY-04 | Phase 62 | Pending |
-| DEAD-01 | Phase 63 | Pending |
-| DEAD-02 | Phase 63 | Pending |
-| DEAD-03 | Phase 63 | Pending |
+| DEAD-01 | Phase 63 | Complete |
+| DEAD-02 | Phase 63 | Complete |
+| DEAD-03 | Phase 63 | Complete |
 | SECR-01 | Phase 64 | Pending |
 | SECR-02 | Phase 64 | Pending |
 | SECR-03 | Phase 64 | Pending |

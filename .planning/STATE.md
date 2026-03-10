@@ -4,13 +4,13 @@ milestone: v1.12
 milestone_name: Deployment & Code Health
 status: executing
 last_updated: "2026-03-10"
-last_activity: 2026-03-10 -- Phase 62 complete (1/1 plans, 4 requirements satisfied)
+last_activity: 2026-03-10 -- Phase 63 plan 01 complete (DEAD-01, DEAD-02, DEAD-03 satisfied)
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 20
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 40
 ---
 
 # Session State
@@ -20,30 +20,31 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.12 Deployment & Code Health -- Phase 63 next
+**Current focus:** v1.12 Deployment & Code Health -- Phase 64 next
 
 ## Position
 
 **Milestone:** v1.12 Deployment & Code Health
-**Phase:** 63 of 66 (Dead Code & Stale API Cleanup)
-**Status:** Phase 62 complete, Phase 63 ready to plan
-**Last activity:** 2026-03-10 -- Phase 62 complete (deployment alignment)
+**Phase:** 64 of 66 (Config Boilerplate Extraction)
+**Status:** Phase 63 complete, Phase 64 ready to plan
+**Last activity:** 2026-03-10 -- Phase 63 complete (dead code & stale API cleanup)
 
-**Progress:** [██░░░░░░░░] 20%
+**Progress:** [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: ~5 min
-- Total execution time: ~0.1 hours
+- Total plans completed: 2
+- Average duration: ~7 min
+- Total execution time: ~0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total  | Avg/Plan |
 | ----- | ----- | ------ | -------- |
 | 62    | 1     | ~5 min | ~5 min   |
+| 63    | 1     | ~8 min | ~8 min   |
 
 ## Accumulated Context
 
@@ -52,6 +53,8 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 - pyproject.toml is the single source of truth for dependency versions
 - install.sh uses `--break-system-packages` for production (system Python, no venv)
 - deploy_refactored.sh archived (untracked, thoroughly obsolete)
+- Steering per-ping timeout in get_ping_timeout set to 2 (matching daemon config default)
+- RTTMeasurement API: 4 params (logger, timeout_ping, aggregation_strategy, log_sample_stats)
 
 ### Known Issues
 
@@ -67,3 +70,4 @@ None.
 - 2026-03-10: Milestone v1.12 started -- Deployment & Code Health
 - 2026-03-10: Roadmap created -- 5 phases (62-66), 18 requirements mapped
 - 2026-03-10: Phase 62 complete -- Deployment alignment (DPLY-01 through DPLY-04)
+- 2026-03-10: Phase 63 complete -- Dead code & stale API cleanup (DEAD-01, DEAD-02, DEAD-03)
