@@ -14,6 +14,7 @@ import pytest
 
 from wanctl.router_client import (
     FailoverRouterClient,
+    clear_router_password,
     get_router_client,
     get_router_client_with_failover,
 )
@@ -92,7 +93,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "output", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             # First call creates REST (fails), second creates SSH (succeeds)
             mock_create.side_effect = [mock_rest, mock_ssh]
 
@@ -116,7 +117,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "success", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_rest, mock_ssh]
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -135,7 +136,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_rest, mock_ssh]
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -158,7 +159,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_rest, mock_ssh]
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -182,7 +183,7 @@ class TestFailoverRouterClient:
         mock_rest = MagicMock()
         mock_rest.run_cmd.return_value = (0, "rest output", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.return_value = mock_rest
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -203,7 +204,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_rest, mock_ssh]
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -229,7 +230,7 @@ class TestFailoverRouterClient:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, "ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_rest, mock_ssh]
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -254,7 +255,7 @@ class TestFailoverRouterClient:
         mock_rest = MagicMock()
         mock_rest.run_cmd.return_value = (0, "rest ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.side_effect = [mock_ssh, mock_rest]
 
             # Factory reads config.router_transport="ssh" -> SSH primary, REST fallback
@@ -278,7 +279,7 @@ class TestFailoverRouterClient:
         mock_rest = MagicMock()
         mock_rest.run_cmd.return_value = (0, "ok", "")
 
-        with patch("wanctl.router_client._create_transport") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             mock_create.return_value = mock_rest
 
             client = get_router_client_with_failover(mock_config, mock_logger)
@@ -290,8 +291,10 @@ class TestFailoverRouterClient:
 
             # Only one transport created (REST), no fallback
             assert mock_create.call_count == 1
-            # Verify it was the primary (rest)
-            mock_create.assert_called_once_with("rest", mock_config, mock_logger)
+            # Verify it was the primary (rest) -- password is the resolved value
+            call_args = mock_create.call_args[0]
+            assert call_args[0] == "rest"
+            assert call_args[1] is mock_config
 
 
 class TestFailoverRouterClientInit:
@@ -441,7 +444,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             # Time sequence: failover at t=100, then run_cmd at t=131 (31s later, > 30s interval)
@@ -487,7 +490,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             mock_time.monotonic.side_effect = [
@@ -531,7 +534,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             mock_time.monotonic.side_effect = [
@@ -574,7 +577,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             # Failover
@@ -641,7 +644,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             # Failover
@@ -682,7 +685,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             # Failover at t=100
@@ -719,7 +722,7 @@ class TestFailoverReprobe:
         mock_ssh.run_cmd.return_value = (0, "fallback result", "")
 
         with (
-            patch("wanctl.router_client._create_transport") as mock_create,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create,
             patch("wanctl.router_client._time") as mock_time,
         ):
             mock_time.monotonic.return_value = 100.0
@@ -743,3 +746,129 @@ class TestFailoverReprobe:
             mock_ssh.run_cmd.assert_called_once_with(
                 "/important-cmd", capture=False, timeout=None
             )
+
+
+class TestClearRouterPassword:
+    """Tests for clear_router_password helper and FailoverRouterClient password resolution.
+
+    SECR-01: Plaintext passwords must not linger on Config objects after
+    router clients are constructed.
+    """
+
+    def test_clear_router_password_sets_empty(self) -> None:
+        """After clear_router_password(config), config.router_password == ''."""
+        config = MagicMock()
+        config.router_password = "supersecret"  # pragma: allowlist secret
+
+        clear_router_password(config)
+
+        assert config.router_password == ""
+
+    def test_clear_router_password_attr_still_exists(self) -> None:
+        """After clearing, hasattr(config, 'router_password') is True but value is ''."""
+        config = MagicMock()
+        config.router_password = "supersecret"  # pragma: allowlist secret
+
+        clear_router_password(config)
+
+        assert hasattr(config, "router_password")
+        assert config.router_password == ""
+
+    def test_clear_router_password_no_attr(self) -> None:
+        """clear_router_password is safe when config has no router_password attr."""
+        config = type("Config", (), {})()
+
+        # Should not raise
+        clear_router_password(config)
+
+    def test_failover_client_resolves_password_at_init(self) -> None:
+        """FailoverRouterClient stores resolved password at __init__ time."""
+        config = MagicMock()
+        config.router_transport = "rest"
+        config.router_password = "init_pass"  # pragma: allowlist secret
+        logger = MagicMock(spec=logging.Logger)
+
+        client = FailoverRouterClient(config, logger)
+
+        assert client._resolved_password == "init_pass"
+
+    def test_failover_client_resolves_env_var_password(self) -> None:
+        """FailoverRouterClient resolves ${ENV_VAR} syntax at init."""
+        config = MagicMock()
+        config.router_transport = "rest"
+        config.router_password = "${TEST_ROUTER_PW}"
+        logger = MagicMock(spec=logging.Logger)
+
+        with patch.dict("os.environ", {"TEST_ROUTER_PW": "env_resolved"}):
+            client = FailoverRouterClient(config, logger)
+
+        assert client._resolved_password == "env_resolved"
+
+    def test_failover_client_reprobe_after_password_cleared(self) -> None:
+        """Re-probe creates working transport even after config password is cleared.
+
+        This is the key SECR-01 test: password is eagerly resolved at init,
+        so clearing config.router_password does not break re-probe.
+        """
+        config = MagicMock()
+        config.router_transport = "rest"
+        config.router_host = "10.10.99.1"
+        config.router_user = "admin"
+        config.router_password = "secret_pass"  # pragma: allowlist secret
+        config.router_port = 443
+        config.router_verify_ssl = True
+        config.timeout_ssh_command = 15
+        logger = MagicMock(spec=logging.Logger)
+
+        mock_rest = MagicMock()
+        mock_rest.run_cmd.side_effect = ConnectionError("REST down")
+
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch(
+                "wanctl.router_client._create_transport_with_password"
+            ) as mock_create_pw,
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            mock_create_pw.side_effect = [mock_rest, mock_ssh]
+            mock_time.monotonic.return_value = 100.0
+
+            client = FailoverRouterClient(config, logger)
+            # Trigger failover
+            client.run_cmd("/trigger")
+
+            # Clear the config password (simulating daemon behavior)
+            clear_router_password(config)
+            assert config.router_password == ""
+
+            # Re-probe: should still work because password was resolved at init
+            mock_time.monotonic.return_value = 200.0
+            reprobe_rest = MagicMock()
+            reprobe_rest.run_cmd.return_value = (0, "rest restored", "")
+            mock_create_pw.side_effect = [reprobe_rest]
+
+            rc, stdout, stderr = client.run_cmd("/after-clear")
+
+            assert rc == 0
+            assert stdout == "rest restored"
+            # Verify the resolved password was used, not the cleared config password
+            for call_args in mock_create_pw.call_args_list:
+                if call_args[0][0] == "rest":  # transport type
+                    assert call_args[0][2] == "secret_pass"  # password arg
+
+    def test_get_router_client_unaffected(self) -> None:
+        """get_router_client (non-failover) continues to work normally.
+
+        It eagerly creates a transport, so password clearing is not relevant.
+        """
+        config = MagicMock()
+        config.router_transport = "rest"
+        logger = MagicMock(spec=logging.Logger)
+
+        with patch("wanctl.routeros_rest.RouterOSREST") as mock_rest:
+            mock_rest.from_config.return_value = MagicMock()
+            client = get_router_client(config, logger)
+            mock_rest.from_config.assert_called_once_with(config, logger)
+            assert client is not None

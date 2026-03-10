@@ -44,6 +44,7 @@ Configuration (in YAML):
 """
 
 import logging
+import os
 import time as _time
 from typing import TYPE_CHECKING, Any, Union
 
@@ -87,6 +88,79 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
 
     else:
         raise ValueError(f"Unsupported router transport: {transport}")
+
+
+def _resolve_password(config: Any) -> str:
+    """Resolve the router password from config, expanding ${ENV_VAR} references.
+
+    Same resolution logic as RouterOSREST.from_config, but decoupled so the
+    resolved value can be stored independently of the config object.
+
+    Args:
+        config: Configuration object with router_password attribute
+
+    Returns:
+        Resolved plaintext password string
+    """
+    password = getattr(config, "router_password", None) or ""
+    if password and isinstance(password, str) and password.startswith("${") and password.endswith("}"):
+        env_var = password[2:-1]
+        password = os.environ.get(env_var, "")
+    return password
+
+
+def clear_router_password(config: Any) -> None:
+    """Clear the router password from a config object.
+
+    Sets config.router_password to empty string if the attribute exists.
+    Called by daemon code after all router clients are constructed to
+    prevent plaintext passwords from lingering in memory.
+
+    Args:
+        config: Configuration object with router_password attribute
+    """
+    if hasattr(config, "router_password"):
+        config.router_password = ""
+
+
+def _create_transport_with_password(
+    transport: str, config: Any, password: str, logger: logging.Logger
+) -> RouterClient:
+    """Create transport client using an explicit password.
+
+    Unlike _create_transport which reads config.router_password via from_config,
+    this helper accepts the pre-resolved password directly. This allows
+    FailoverRouterClient to use a password resolved at init time, even after
+    config.router_password has been cleared.
+
+    Args:
+        transport: Transport type ("ssh" or "rest")
+        config: Configuration object with router settings (host, user, port, etc.)
+        password: Pre-resolved plaintext password
+        logger: Logger instance
+
+    Returns:
+        RouterClient instance
+
+    Raises:
+        ValueError: If transport type is not supported
+    """
+    if transport == "ssh":
+        return RouterOSSSH.from_config(config, logger)
+    elif transport == "rest":
+        from wanctl.routeros_rest import RouterOSREST
+
+        return RouterOSREST(
+            host=config.router_host,
+            user=config.router_user,
+            password=password,
+            port=getattr(config, "router_port", 443),
+            verify_ssl=getattr(config, "router_verify_ssl", True),
+            timeout=getattr(config, "timeout_ssh_command", 15),
+            logger=logger,
+        )
+    else:
+        raise ValueError(f"Unsupported transport: {transport}")
 
 
 def _create_transport(transport: str, config: Any, logger: logging.Logger) -> RouterClient:
@@ -160,6 +234,7 @@ class FailoverRouterClient:
         self.logger = logger
         self.primary_transport = primary_transport
         self.fallback_transport = fallback_transport
+        self._resolved_password = _resolve_password(config)
         self._primary_client: RouterClient | None = None
         self._fallback_client: RouterClient | None = None
         self._using_fallback = False
@@ -170,8 +245,8 @@ class FailoverRouterClient:
     def _get_primary(self) -> RouterClient:
         """Get or create primary transport client."""
         if self._primary_client is None:
-            self._primary_client = _create_transport(
-                self.primary_transport, self.config, self.logger
+            self._primary_client = _create_transport_with_password(
+                self.primary_transport, self.config, self._resolved_password, self.logger
             )
         return self._primary_client
 
@@ -182,8 +257,8 @@ class FailoverRouterClient:
                 f"Creating fallback {self.fallback_transport} transport "
                 f"(primary {self.primary_transport} failed)"
             )
-            self._fallback_client = _create_transport(
-                self.fallback_transport, self.config, self.logger
+            self._fallback_client = _create_transport_with_password(
+                self.fallback_transport, self.config, self._resolved_password, self.logger
             )
         return self._fallback_client
 
@@ -308,6 +383,7 @@ def get_router_client_with_failover(
 __all__ = [
     "get_router_client",
     "get_router_client_with_failover",
+    "clear_router_password",
     "FailoverRouterClient",
     "RouterClient",
     "_REPROBE_INITIAL_INTERVAL",
