@@ -5244,3 +5244,117 @@ class TestWanGracePeriodAndGating:
     def test_staleness_threshold_from_config(self, daemon):
         """Config-driven staleness threshold should be stored on daemon."""
         assert daemon._wan_staleness_sec == 10.0
+
+
+# =============================================================================
+# WAN awareness transition logging tests (OBSV-03)
+# =============================================================================
+
+
+class TestWanAwarenessTransitionLogging:
+    """Tests for WAN context in steering transition log lines (OBSV-03).
+
+    Verifies that execute_steering_transition() logs WAN signal context
+    when the confidence controller has WAN contributors, and omits it
+    when WAN was not a contributor or confidence is not active.
+    """
+
+    @pytest.fixture
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        return mock_steering_config
+
+    @pytest.fixture
+    def mock_state_mgr(self):
+        """Create a mock state manager."""
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "red_count": 0,
+            "good_count": 0,
+        }
+        return state_mgr
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.enable_steering.return_value = True
+        router.disable_steering.return_value = True
+        return router
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def daemon(self, mock_config, mock_state_mgr, mock_router, mock_logger):
+        """Create a SteeringDaemon with mocked dependencies."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        mock_config.cake_aware = False
+
+        daemon = SteeringDaemon(
+            config=mock_config,
+            state=mock_state_mgr,
+            router=mock_router,
+            rtt_measurement=MagicMock(),
+            baseline_loader=MagicMock(),
+            logger=mock_logger,
+        )
+        return daemon
+
+    def test_wan_red_in_transition_log(self, daemon):
+        """Transition log includes WAN signal when WAN_RED in contributors."""
+        from wanctl.steering.steering_confidence import TimerState
+
+        # Set up a confidence_controller with WAN_RED in contributors
+        daemon.confidence_controller = MagicMock()
+        daemon.confidence_controller.timer_state = TimerState()
+        daemon.confidence_controller.timer_state.confidence_contributors = [
+            "RED", "WAN_RED"
+        ]
+
+        daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        info_calls = [str(c) for c in daemon.logger.info.call_args_list]
+        assert any("WAN_RED" in c and "STEERING" in c for c in info_calls), (
+            f"Expected WAN_RED in transition log, got: {info_calls}"
+        )
+
+    def test_no_wan_in_transition_log_when_absent(self, daemon):
+        """Transition log has no WAN context when no WAN contributors."""
+        from wanctl.steering.steering_confidence import TimerState
+
+        daemon.confidence_controller = MagicMock()
+        daemon.confidence_controller.timer_state = TimerState()
+        daemon.confidence_controller.timer_state.confidence_contributors = [
+            "RED", "rtt_delta=150.0ms(severe)"
+        ]
+
+        daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        info_calls = [str(c) for c in daemon.logger.info.call_args_list]
+        wan_transition_calls = [c for c in info_calls if "STEERING" in c and "WAN" in c]
+        assert len(wan_transition_calls) == 0, (
+            f"Expected no WAN context in transition log, got: {wan_transition_calls}"
+        )
+
+    def test_no_wan_context_when_hysteresis_mode(self, daemon):
+        """No WAN context log when confidence_controller is None (hysteresis mode)."""
+        assert daemon.confidence_controller is None  # Default is None
+
+        daemon.execute_steering_transition(
+            "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
+        )
+
+        info_calls = [str(c) for c in daemon.logger.info.call_args_list]
+        wan_transition_calls = [c for c in info_calls if "STEERING" in c and "WAN" in c]
+        assert len(wan_transition_calls) == 0, (
+            f"Expected no WAN context in hysteresis mode, got: {wan_transition_calls}"
+        )
