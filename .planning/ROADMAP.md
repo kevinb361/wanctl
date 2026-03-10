@@ -10,6 +10,10 @@ None
 
 ## Milestones
 
+### Current
+
+- **v1.12 Deployment & Code Health** - Phases 62-66 (in progress)
+
 ### Completed
 
 - [v1.11 WAN-Aware Steering](milestones/v1.11-ROADMAP.md) (Phases 58-61) - SHIPPED 2026-03-10
@@ -33,6 +37,103 @@ None
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
+
+### v1.12 Deployment & Code Health (Phases 62-66)
+
+**Milestone Goal:** Align deployment artifacts with codebase reality, eliminate dead code and stale APIs, harden security posture, stabilize fragile areas with contract tests, and close infrastructure gaps including config boilerplate extraction.
+
+- [ ] **Phase 62: Deployment Alignment** - Dockerfile, deploy script, install script, and version all match pyproject.toml reality
+- [ ] **Phase 63: Dead Code & Stale API Cleanup** - Remove pexpect dependency, dead subprocess import, and stale timeout_total parameter
+- [ ] **Phase 64: Security Hardening** - Credential lifetime, SSL warning scope, fallback gateway safety, test parameterization
+- [ ] **Phase 65: Fragile Area Stabilization** - Contract tests for state file schema, explicit API contracts, warning-level logging
+- [ ] **Phase 66: Infrastructure & Config Extraction** - Log rotation, Docker CI validation, config boilerplate extraction, cryptography version check
+
+## Phase Details
+
+### Phase 62: Deployment Alignment
+**Goal**: Deployment artifacts accurately reflect the codebase's actual runtime dependencies and version
+**Depends on**: Nothing (first phase -- low risk, no source code changes)
+**Requirements**: DPLY-01, DPLY-02, DPLY-03, DPLY-04
+**Success Criteria** (what must be TRUE):
+  1. Dockerfile pip install line includes icmplib, requests, paramiko, tabulate, and cryptography
+  2. deploy_refactored.sh installs the same set of runtime dependencies as the Dockerfile
+  3. install.sh VERSION variable matches the version string in pyproject.toml (1.12.0)
+  4. pyproject.toml version field reads "1.12.0"
+**Plans**: TBD
+
+### Phase 63: Dead Code & Stale API Cleanup
+**Goal**: Production source code contains no unused imports, dead parameters, or orphaned dependencies
+**Depends on**: Phase 62 (pexpect removal may affect Dockerfile dependency list established in Phase 62)
+**Requirements**: DEAD-01, DEAD-02, DEAD-03
+**Success Criteria** (what must be TRUE):
+  1. pexpect does not appear in pyproject.toml [project.dependencies] (may remain in dev extras if needed)
+  2. rtt_measurement.py has no subprocess import; all RTT tests mock icmplib directly (not subprocess)
+  3. RTTMeasurement constructor and callers have no timeout_total parameter; API accepts only per-probe timeout
+  4. All existing tests pass after dead code removal with no new test failures
+**Plans**: TBD
+
+### Phase 64: Security Hardening
+**Goal**: Credentials have minimal lifetime, SSL warnings are properly scoped, and defaults are safe
+**Depends on**: Phase 62 (version bump complete)
+**Requirements**: SECR-01, SECR-02, SECR-03, SECR-04
+**Success Criteria** (what must be TRUE):
+  1. After router client construction, Config object no longer holds the plaintext router password (attribute deleted or cleared)
+  2. urllib3 InsecureRequestWarning suppression is applied per-session (not via global warnings.filterwarnings at module level)
+  3. When fallback_gateway_ip is absent from config, steering treats it as disabled rather than using a hardcoded default IP
+  4. Integration tests that probe external hosts read the target IP from WANCTL_TEST_HOST env var (not hardcoded)
+**Plans**: TBD
+
+### Phase 65: Fragile Area Stabilization
+**Goal**: Inter-daemon state file contract is enforced by tests, and implicit API contracts are made explicit
+**Depends on**: Phase 63 (clean codebase after dead code removal)
+**Requirements**: FRAG-01, FRAG-02, FRAG-03
+**Success Criteria** (what must be TRUE):
+  1. A test suite validates the autorate-to-steering state file schema: renaming a key path causes a test failure
+  2. flap_detector.check_flapping() call-site either uses the return value or has a docstring documenting the side-effect contract
+  3. WAN-aware steering config misconfiguration (invalid wan_state values) logs at WARNING level, not INFO
+**Plans**: TBD
+
+### Phase 66: Infrastructure & Config Extraction
+**Goal**: Logging has rotation, Docker builds are validated, config loading boilerplate is consolidated, and production cryptography is verified
+**Depends on**: Phase 62 (Dockerfile must be correct before Docker CI validates it), Phase 63 (pexpect removed before Docker build)
+**Requirements**: INFR-01, INFR-02, INFR-03, INFR-04
+**Success Criteria** (what must be TRUE):
+  1. setup_logging() uses RotatingFileHandler with configurable maxBytes and backupCount (not unbounded FileHandler)
+  2. Dockerfile builds successfully in CI with all runtime dependencies installed and importable
+  3. Both daemon Config classes use a shared BaseConfig field-declaration pattern, eliminating duplicated YAML-to-attribute boilerplate
+  4. Production containers have cryptography >= 46.0.5 (verified by test or script)
+**Plans**: TBD
+
+## Progress
+
+### Current Milestone: v1.12 Deployment & Code Health
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 62. Deployment Alignment | 0/? | Not started | - |
+| 63. Dead Code & Stale API Cleanup | 0/? | Not started | - |
+| 64. Security Hardening | 0/? | Not started | - |
+| 65. Fragile Area Stabilization | 0/? | Not started | - |
+| 66. Infrastructure & Config Extraction | 0/? | Not started | - |
+
+### Completed Milestones
+
+| Milestone                        | Phases | Plans | Status   | Shipped    |
+| -------------------------------- | ------ | ----- | -------- | ---------- |
+| v1.11 WAN-Aware Steering         | 58-61  | 8     | Complete | 2026-03-10 |
+| v1.10 Architectural Review Fixes | 50-57  | 15    | Complete | 2026-03-09 |
+| v1.9 Performance & Efficiency    | 47-49  | 6     | Complete | 2026-03-07 |
+| v1.8 Resilience & Robustness     | 43-46  | 8     | Complete | 2026-03-06 |
+| v1.7 Metrics History             | 38-42  | 8     | Complete | 2026-01-25 |
+| v1.6 Test Coverage 90%           | 31-37  | 17    | Complete | 2026-01-25 |
+| v1.5 Quality & Hygiene           | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.4 Observability               | 25-26  | 4     | Complete | 2026-01-24 |
+| v1.3 Reliability & Hardening     | 21-24  | 5     | Complete | 2026-01-21 |
+| v1.2 Configuration & Polish      | 16-20  | 5     | Complete | 2026-01-14 |
+| v1.1 Code Quality                | 6-15   | 30    | Complete | 2026-01-14 |
+| v1.0 Performance Optimization    | 1-5    | 8     | Complete | 2026-01-13 |
+
+**Total:** 61 phases complete, 127 plans across 12 milestones
 
 <details>
 <summary>v1.11 WAN-Aware Steering (Phases 58-61) - SHIPPED 2026-03-10</summary>
@@ -237,24 +338,3 @@ See [milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full details.
 See [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) for full details.
 
 </details>
-
-## Progress
-
-### Completed Milestones
-
-| Milestone                        | Phases | Plans | Status   | Shipped    |
-| -------------------------------- | ------ | ----- | -------- | ---------- |
-| v1.11 WAN-Aware Steering         | 58-61  | 8     | Complete | 2026-03-10 |
-| v1.10 Architectural Review Fixes | 50-57  | 15    | Complete | 2026-03-09 |
-| v1.9 Performance & Efficiency    | 47-49  | 6     | Complete | 2026-03-07 |
-| v1.8 Resilience & Robustness     | 43-46  | 8     | Complete | 2026-03-06 |
-| v1.7 Metrics History             | 38-42  | 8     | Complete | 2026-01-25 |
-| v1.6 Test Coverage 90%           | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene           | 27-30  | 8     | Complete | 2026-01-24 |
-| v1.4 Observability               | 25-26  | 4     | Complete | 2026-01-24 |
-| v1.3 Reliability & Hardening     | 21-24  | 5     | Complete | 2026-01-21 |
-| v1.2 Configuration & Polish      | 16-20  | 5     | Complete | 2026-01-14 |
-| v1.1 Code Quality                | 6-15   | 30    | Complete | 2026-01-14 |
-| v1.0 Performance Optimization    | 1-5    | 8     | Complete | 2026-01-13 |
-
-**Total:** 61 phases complete, 127 plans across 12 milestones

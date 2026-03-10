@@ -59,30 +59,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DPLY-01 | — | Pending |
-| DPLY-02 | — | Pending |
-| DPLY-03 | — | Pending |
-| DPLY-04 | — | Pending |
-| DEAD-01 | — | Pending |
-| DEAD-02 | — | Pending |
-| DEAD-03 | — | Pending |
-| SECR-01 | — | Pending |
-| SECR-02 | — | Pending |
-| SECR-03 | — | Pending |
-| SECR-04 | — | Pending |
-| FRAG-01 | — | Pending |
-| FRAG-02 | — | Pending |
-| FRAG-03 | — | Pending |
-| INFR-01 | — | Pending |
-| INFR-02 | — | Pending |
-| INFR-03 | — | Pending |
-| INFR-04 | — | Pending |
+| DPLY-01 | Phase 62 | Pending |
+| DPLY-02 | Phase 62 | Pending |
+| DPLY-03 | Phase 62 | Pending |
+| DPLY-04 | Phase 62 | Pending |
+| DEAD-01 | Phase 63 | Pending |
+| DEAD-02 | Phase 63 | Pending |
+| DEAD-03 | Phase 63 | Pending |
+| SECR-01 | Phase 64 | Pending |
+| SECR-02 | Phase 64 | Pending |
+| SECR-03 | Phase 64 | Pending |
+| SECR-04 | Phase 64 | Pending |
+| FRAG-01 | Phase 65 | Pending |
+| FRAG-02 | Phase 65 | Pending |
+| FRAG-03 | Phase 65 | Pending |
+| INFR-01 | Phase 66 | Pending |
+| INFR-02 | Phase 66 | Pending |
+| INFR-03 | Phase 66 | Pending |
+| INFR-04 | Phase 66 | Pending |
 
 **Coverage:**
 - v1.12 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after initial definition*
+*Last updated: 2026-03-10 after roadmap creation*
