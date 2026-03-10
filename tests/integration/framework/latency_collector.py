@@ -4,6 +4,7 @@ Uses fping for low-overhead, high-frequency RTT measurement.
 Computes statistics and detects flat-top failures (sustained high latency).
 """
 
+import os
 import re
 import shutil
 import statistics
@@ -55,7 +56,7 @@ class LatencyCollector:
     frequency. Computes percentile statistics and detects flat-top failures.
 
     Usage:
-        collector = LatencyCollector(target="104.200.21.31")
+        collector = LatencyCollector()  # uses WANCTL_TEST_HOST or default
         collector.start()
         # ... run load test ...
         stats = collector.stop()
@@ -64,7 +65,7 @@ class LatencyCollector:
 
     def __init__(
         self,
-        target: str = "104.200.21.31",
+        target: str | None = None,
         interval_ms: float = 100,
         timeout_ms: float = 500,
         flat_top_threshold_ms: float = 100,
@@ -73,13 +74,13 @@ class LatencyCollector:
         """Initialize latency collector.
 
         Args:
-            target: Host to ping for latency measurement
+            target: Host to ping (default: WANCTL_TEST_HOST env or 104.200.21.31)
             interval_ms: Time between pings (100ms = 10Hz)
             timeout_ms: Ping timeout
             flat_top_threshold_ms: Latency above this is "high"
             flat_top_min_duration_sec: Sustained high latency to flag as flat-top
         """
-        self.target = target
+        self.target = target or os.environ.get("WANCTL_TEST_HOST", "104.200.21.31")
         self.interval_ms = interval_ms
         self.timeout_ms = timeout_ms
         self.flat_top_threshold_ms = flat_top_threshold_ms

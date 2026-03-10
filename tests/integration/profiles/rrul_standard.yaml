@@ -13,7 +13,7 @@ tool: flent
 duration_seconds: 120
 warmup_seconds: 5
 cooldown_seconds: 5
-host: "104.200.21.31"
+host: "104.200.21.31" # Override via WANCTL_TEST_HOST env var
 
 parameters:
   # RRUL test generates bidirectional TCP traffic
