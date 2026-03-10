@@ -256,6 +256,16 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                     )
                 else:
                     wan_awareness["confidence_contribution"] = 0
+                # Sustained cycle indicator: degrade_timer countdown (OBSV-01 gap closure)
+                if self.daemon.confidence_controller:
+                    ts = self.daemon.confidence_controller.timer_state
+                    wan_awareness["degrade_timer_remaining"] = (
+                        round(ts.degrade_timer, 2)
+                        if ts.degrade_timer is not None
+                        else None
+                    )
+                else:
+                    wan_awareness["degrade_timer_remaining"] = None
             else:
                 # Disabled mode: show raw zone for staged rollout verification (Phase 60 decision)
                 wan_awareness["zone"] = self.daemon._wan_zone
