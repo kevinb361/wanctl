@@ -59,7 +59,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. deploy_refactored.sh installs the same set of runtime dependencies as the Dockerfile
   3. install.sh VERSION variable matches the version string in pyproject.toml (1.12.0)
   4. pyproject.toml version field reads "1.12.0"
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 62-01-PLAN.md -- Version bump, Dockerfile deps, install.sh deps, archive obsolete script
 
 ### Phase 63: Dead Code & Stale API Cleanup
 **Goal**: Production source code contains no unused imports, dead parameters, or orphaned dependencies
@@ -110,7 +112,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 62. Deployment Alignment | 0/? | Not started | - |
+| 62. Deployment Alignment | 0/1 | Planned | - |
 | 63. Dead Code & Stale API Cleanup | 0/? | Not started | - |
 | 64. Security Hardening | 0/? | Not started | - |
 | 65. Fragile Area Stabilization | 0/? | Not started | - |
