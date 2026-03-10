@@ -22,30 +22,6 @@ from wanctl.steering.daemon import ASSESSMENT_INTERVAL_SECONDS, SteeringDaemon
 
 
 @pytest.fixture
-def mock_config():
-    """Create a mock config for SteeringDaemon."""
-    config = MagicMock()
-    config.primary_wan = "spectrum"
-    config.alternate_wan = "att"
-    config.state_good = "SPECTRUM_GOOD"
-    config.state_degraded = "SPECTRUM_DEGRADED"
-    config.cake_aware = True
-    config.primary_download_queue = "WAN-Download-Spectrum"
-    config.green_rtt_ms = 5.0
-    config.yellow_rtt_ms = 15.0
-    config.red_rtt_ms = 15.0
-    config.min_drops_red = 1
-    config.min_queue_yellow = 10
-    config.min_queue_red = 50
-    config.red_samples_required = 2
-    config.green_samples_required = 15
-    config.metrics_enabled = False
-    config.use_confidence_scoring = False
-    config.confidence_config = None
-    return config
-
-
-@pytest.fixture
 def mock_state_mgr():
     """Create a mock state manager with dict-based state."""
     state_mgr = MagicMock()
@@ -70,7 +46,7 @@ def mock_state_mgr():
 
 
 @pytest.fixture
-def daemon(mock_config, mock_state_mgr):
+def daemon(mock_steering_config, mock_state_mgr):
     """Create a SteeringDaemon with mocked dependencies."""
     mock_router = MagicMock()
     mock_logger = MagicMock()
@@ -79,7 +55,7 @@ def daemon(mock_config, mock_state_mgr):
     with patch("wanctl.steering.daemon.CakeStatsReader") as mock_reader_class:
         mock_reader_class.return_value = mock_cake_reader
         d = SteeringDaemon(
-            config=mock_config,
+            config=mock_steering_config,
             state=mock_state_mgr,
             router=mock_router,
             rtt_measurement=MagicMock(),

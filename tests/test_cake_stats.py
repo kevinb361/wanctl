@@ -19,14 +19,18 @@ def logger():
 
 
 @pytest.fixture
-def mock_config():
-    """Provide a mock config object."""
-    config = MagicMock()
-    config.router = MagicMock()
-    config.router.host = "10.10.99.1"
-    config.router.port = 22
-    config.router.username = "admin"
-    return config
+def mock_config(mock_steering_config):
+    """Extend shared steering config with router attributes for CakeStatsReader.
+
+    CakeStatsReader needs config.router.host/port/username for
+    get_router_client_with_failover(). The shared fixture provides
+    steering-specific attributes; we add router connection attrs here.
+    """
+    mock_steering_config.router = MagicMock()
+    mock_steering_config.router.host = "10.10.99.1"
+    mock_steering_config.router.port = 22
+    mock_steering_config.router.username = "admin"
+    return mock_steering_config
 
 
 @pytest.fixture
