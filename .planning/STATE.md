@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: WAN-Aware Steering
-status: executing
-last_updated: "2026-03-10T02:34:37.000Z"
-last_activity: 2026-03-10 -- Completed 61-02-PLAN.md (WAN awareness logging)
+status: complete
+last_updated: "2026-03-10T02:37:36.000Z"
+last_activity: 2026-03-10 -- Completed 61-01-PLAN.md (WAN awareness observability)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
-  percent: 85
+  completed_plans: 7
+  percent: 100
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 ## Position
 
 **Milestone:** v1.11 WAN-Aware Steering (Phases 58-61)
-**Phase:** 61 of 61 (Observability + Metrics) -- IN PROGRESS
-**Plan:** 1 of 2 (Phase 61) -- 61-02 complete, 61-01 remaining
-**Status:** Executing
-**Last activity:** 2026-03-10 -- Completed 61-02-PLAN.md (WAN awareness logging)
+**Phase:** 61 of 61 (Observability + Metrics) -- COMPLETE
+**Plan:** 2 of 2 (Phase 61) -- COMPLETE
+**Status:** Complete
+**Last activity:** 2026-03-10 -- Completed 61-01-PLAN.md (WAN awareness observability)
 
-**Progress:** [████████░░] 85%
+**Progress:** [██████████] 100%
 
 ## Accumulated Context
 
@@ -68,6 +68,10 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 - Supplementary INFO log in daemon, does not modify state_mgr.log_transition interface
 - Recovery timer expiry excludes WAN context (WAN is blocker, not trigger)
 
+- Inline import of ConfidenceWeights inside if-blocks avoids circular import risk in health.py
+- WAN zone metric uses \_get_effective_wan_zone() so metric reflects what steering actually sees
+- Disabled mode shows raw zone for staged rollout verification (Phase 60 decision preserved)
+
 ### Known Issues
 
 None.
@@ -78,6 +82,7 @@ None.
 
 ## Session Log
 
+- 2026-03-10: Completed 61-01 -- WAN awareness observability: health endpoint wan_awareness section, wanctl_wan_zone SQLite metric (11 new tests, 2202 total)
 - 2026-03-10: Completed 61-02 -- WAN awareness logging in degrade timer expiry and steering transitions (8 new tests, 2199 total)
 - 2026-03-10: Completed 60-02 -- Grace period timer, enabled gate, config-driven weights wired into steering daemon (14 new tests, 2181 total)
 - 2026-03-09: Completed 60-01 -- wan_state YAML config with validation, weight clamping, wan_override, startup logging (20 new tests, 2167 total)

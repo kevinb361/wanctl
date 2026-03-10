@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 58: State File Extension** - Autorate persists congestion zone to state file with backward compatibility and no write amplification (completed 2026-03-09)
 - [x] **Phase 59: WAN State Reader + Signal Fusion** - Steering reads WAN zone, maps to confidence weights, enforces CAKE-primary semantics with fail-safe defaults (completed 2026-03-09)
 - [x] **Phase 60: Configuration + Safety + Wiring** - YAML config, schema validation, startup grace period, feature toggle, end-to-end daemon wiring (completed 2026-03-10)
-- [ ] **Phase 61: Observability + Metrics** - Health endpoint, SQLite metrics, and log integration for WAN-aware steering decisions
+- [x] **Phase 61: Observability + Metrics** - Health endpoint, SQLite metrics, and log integration for WAN-aware steering decisions (completed 2026-03-10)
 
 ## Phase Details
 
@@ -318,7 +318,7 @@ Phases execute in numeric order: 58 -> 59 -> 60 -> 61
 | 58. State File Extension             | 1/1            | Complete    | 2026-03-09 |
 | 59. WAN State Reader + Signal Fusion | 2/2            | Complete    | 2026-03-09 |
 | 60. Configuration + Safety + Wiring  | 2/2            | Complete    | 2026-03-10 |
-| 61. Observability + Metrics          | 1/2 | In Progress|  |
+| 61. Observability + Metrics          | 2/2 | Complete   | 2026-03-10 |
 
 ### Completed Milestones
 
