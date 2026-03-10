@@ -1175,6 +1175,17 @@ class TestVerifyLocalConnectivity:
         # No warning should be logged for unreachable
         logger.warning.assert_not_called()
 
+    def test_empty_gateway_ip_returns_false_without_ping(self, controller_with_mocks):
+        """When fallback_gateway_ip is empty string, returns False and skips ping."""
+        ctrl, config, _ = controller_with_mocks
+        config.fallback_check_gateway = True
+        config.fallback_gateway_ip = ""
+
+        result = ctrl.verify_local_connectivity()
+
+        assert result is False
+        ctrl.rtt_measurement.ping_host.assert_not_called()
+
 
 class TestVerifyTcpConnectivity:
     """Tests for WANController.verify_tcp_connectivity() method.

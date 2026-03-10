@@ -888,3 +888,110 @@ lock_timeout: 300
         config = Config(str(config_file))
 
         assert config.router_verify_ssl is False
+
+
+class TestConfigFallbackGatewayDefault:
+    """Tests for safe fallback_gateway_ip default (SECR-03).
+
+    When no fallback_checks.gateway_ip is configured, the default must be
+    empty string (not a hardcoded IP) so verify_local_connectivity safely skips.
+    """
+
+    def test_fallback_gateway_ip_defaults_to_empty_when_omitted(self, tmp_path):
+        """Config defaults fallback_gateway_ip to '' when gateway_ip key is missing."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.fallback_gateway_ip == ""
+
+    def test_fallback_gateway_ip_explicit_value_preserved(self, tmp_path):
+        """Config honors explicit gateway_ip when set."""
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+fallback_checks:
+  gateway_ip: "10.10.110.1"
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        config = Config(str(config_file))
+
+        assert config.fallback_gateway_ip == "10.10.110.1"
