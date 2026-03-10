@@ -978,9 +978,8 @@ continuous_monitoring:
     warn_bloat_ms: 45
     baseline_time_constant_sec: 60
     load_time_constant_sec: 0.5
-
-fallback_checks:
-  gateway_ip: "10.10.110.1"
+  fallback_checks:
+    gateway_ip: "10.10.110.1"
 
 logging:
   main_log: "/tmp/test.log"

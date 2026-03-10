@@ -91,7 +91,7 @@ def mock_autorate_config():
     config.fallback_enabled = True
     config.fallback_check_gateway = True
     config.fallback_check_tcp = True
-    config.fallback_gateway_ip = "10.10.110.1"
+    config.fallback_gateway_ip = ""
     config.fallback_tcp_targets = [["1.1.1.1", 443], ["8.8.8.8", 443]]
     config.fallback_mode = "graceful_degradation"
     config.fallback_max_cycles = 3
