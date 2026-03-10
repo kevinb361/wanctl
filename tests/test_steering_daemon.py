@@ -3022,19 +3022,23 @@ class TestWanStateConfig:
         import logging
 
         valid_config_dict["wan_state"] = {"enabled": "yes"}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             config = self._make_config(tmp_path, valid_config_dict)
         assert config.wan_state_config is None
-        assert "wan_state" in caplog.text.lower()
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
+        assert any("wan_state" in r.message.lower() for r in warning_records)
 
     def test_wrong_type_red_weight_warns_and_disables(self, tmp_path, valid_config_dict, caplog):
         """Non-int red_weight warns and disables feature."""
         import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": "heavy"}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             config = self._make_config(tmp_path, valid_config_dict)
         assert config.wan_state_config is None
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
 
     # =========================================================================
     # Weight clamping tests
@@ -3046,11 +3050,13 @@ class TestWanStateConfig:
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 200}
         valid_config_dict["confidence"] = {"steer_threshold": 55}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             config = self._make_config(tmp_path, valid_config_dict)
         assert config.wan_state_config is not None
         assert config.wan_state_config["red_weight"] == 54  # steer_threshold - 1
-        assert "clamped" in caplog.text.lower()
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
+        assert any("clamped" in r.message.lower() for r in warning_records)
 
     def test_red_weight_at_threshold_gets_clamped(self, tmp_path, valid_config_dict, caplog):
         """red_weight exactly at steer_threshold is clamped."""
@@ -3089,18 +3095,22 @@ class TestWanStateConfig:
         import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "wan_override": True}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             self._make_config(tmp_path, valid_config_dict)
-        assert "override" in caplog.text.lower()
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
+        assert any("override" in r.message.lower() for r in warning_records)
 
     def test_wan_override_true_plus_disabled_warns(self, tmp_path, valid_config_dict, caplog):
         """wan_override=True + enabled=False produces validation warning."""
         import logging
 
         valid_config_dict["wan_state"] = {"enabled": False, "wan_override": True}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             self._make_config(tmp_path, valid_config_dict)
-        assert "override has no effect" in caplog.text.lower()
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
+        assert any("override has no effect" in r.message.lower() for r in warning_records)
 
     # =========================================================================
     # Unknown keys test
@@ -3111,9 +3121,11 @@ class TestWanStateConfig:
         import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "redd_weight": 25, "typo_key": 99}
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.DEBUG):
             self._make_config(tmp_path, valid_config_dict)
-        assert "unrecognized" in caplog.text.lower()
+        warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warning_records) > 0, "Expected WARNING-level log for misconfiguration"
+        assert any("unrecognized" in r.message.lower() for r in warning_records)
 
     # =========================================================================
     # soft_red_weight derivation
