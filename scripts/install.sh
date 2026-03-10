@@ -17,7 +17,7 @@
 set -e
 
 # Version
-VERSION="1.4.0"
+VERSION="1.12.0"
 
 # Colors for output
 RED='\033[0;31m'
@@ -294,6 +294,23 @@ install_dependencies() {
     fi
 
     print_success "Dependencies satisfied"
+}
+
+# Install Python runtime dependencies via pip
+# Dependencies must match pyproject.toml [project.dependencies]
+install_python_deps() {
+    print_step "Installing Python runtime dependencies..."
+
+    if ! command -v pip3 &>/dev/null; then
+        print_warning "pip3 not found — skipping Python dependency installation"
+        print_warning "Install pip3 and re-run, or install manually: pip3 install requests pyyaml paramiko pexpect tabulate icmplib cryptography"
+        return 0
+    fi
+
+    pip3 install --break-system-packages \
+        requests pyyaml paramiko pexpect tabulate icmplib cryptography \
+        && print_success "Python runtime dependencies installed" \
+        || print_warning "pip3 install failed — some dependencies may be missing"
 }
 
 # Configure logrotate
@@ -1625,6 +1642,7 @@ main() {
     fi
 
     install_dependencies
+    install_python_deps
     setup_logrotate
     create_example_configs
 

@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Align deployment artifacts with codebase reality, eliminate dead code and stale APIs, harden security posture, stabilize fragile areas with contract tests, and close infrastructure gaps including config boilerplate extraction.
 
-- [ ] **Phase 62: Deployment Alignment** - Dockerfile, deploy script, install script, and version all match pyproject.toml reality
+- [x] **Phase 62: Deployment Alignment** - Dockerfile, deploy script, install script, and version all match pyproject.toml reality (completed 2026-03-10)
 - [ ] **Phase 63: Dead Code & Stale API Cleanup** - Remove pexpect dependency, dead subprocess import, and stale timeout_total parameter
 - [ ] **Phase 64: Security Hardening** - Credential lifetime, SSL warning scope, fallback gateway safety, test parameterization
 - [ ] **Phase 65: Fragile Area Stabilization** - Contract tests for state file schema, explicit API contracts, warning-level logging
@@ -51,72 +51,83 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 62: Deployment Alignment
+
 **Goal**: Deployment artifacts accurately reflect the codebase's actual runtime dependencies and version
 **Depends on**: Nothing (first phase -- low risk, no source code changes)
 **Requirements**: DPLY-01, DPLY-02, DPLY-03, DPLY-04
 **Success Criteria** (what must be TRUE):
-  1. Dockerfile pip install line includes icmplib, requests, paramiko, tabulate, and cryptography
-  2. deploy_refactored.sh installs the same set of runtime dependencies as the Dockerfile
-  3. install.sh VERSION variable matches the version string in pyproject.toml (1.12.0)
-  4. pyproject.toml version field reads "1.12.0"
-**Plans**: 1 plan
-Plans:
-- [ ] 62-01-PLAN.md -- Version bump, Dockerfile deps, install.sh deps, archive obsolete script
+
+1. Dockerfile pip install line includes icmplib, requests, paramiko, tabulate, and cryptography
+2. deploy_refactored.sh installs the same set of runtime dependencies as the Dockerfile
+3. install.sh VERSION variable matches the version string in pyproject.toml (1.12.0)
+4. pyproject.toml version field reads "1.12.0"
+   **Plans**: 1 plan
+   Plans:
+
+- [x] 62-01-PLAN.md -- Version bump, Dockerfile deps, install.sh deps, archive obsolete script
 
 ### Phase 63: Dead Code & Stale API Cleanup
+
 **Goal**: Production source code contains no unused imports, dead parameters, or orphaned dependencies
 **Depends on**: Phase 62 (pexpect removal may affect Dockerfile dependency list established in Phase 62)
 **Requirements**: DEAD-01, DEAD-02, DEAD-03
 **Success Criteria** (what must be TRUE):
-  1. pexpect does not appear in pyproject.toml [project.dependencies] (may remain in dev extras if needed)
-  2. rtt_measurement.py has no subprocess import; all RTT tests mock icmplib directly (not subprocess)
-  3. RTTMeasurement constructor and callers have no timeout_total parameter; API accepts only per-probe timeout
-  4. All existing tests pass after dead code removal with no new test failures
-**Plans**: TBD
+
+1. pexpect does not appear in pyproject.toml [project.dependencies] (may remain in dev extras if needed)
+2. rtt_measurement.py has no subprocess import; all RTT tests mock icmplib directly (not subprocess)
+3. RTTMeasurement constructor and callers have no timeout_total parameter; API accepts only per-probe timeout
+4. All existing tests pass after dead code removal with no new test failures
+   **Plans**: TBD
 
 ### Phase 64: Security Hardening
+
 **Goal**: Credentials have minimal lifetime, SSL warnings are properly scoped, and defaults are safe
 **Depends on**: Phase 62 (version bump complete)
 **Requirements**: SECR-01, SECR-02, SECR-03, SECR-04
 **Success Criteria** (what must be TRUE):
-  1. After router client construction, Config object no longer holds the plaintext router password (attribute deleted or cleared)
-  2. urllib3 InsecureRequestWarning suppression is applied per-session (not via global warnings.filterwarnings at module level)
-  3. When fallback_gateway_ip is absent from config, steering treats it as disabled rather than using a hardcoded default IP
-  4. Integration tests that probe external hosts read the target IP from WANCTL_TEST_HOST env var (not hardcoded)
-**Plans**: TBD
+
+1. After router client construction, Config object no longer holds the plaintext router password (attribute deleted or cleared)
+2. urllib3 InsecureRequestWarning suppression is applied per-session (not via global warnings.filterwarnings at module level)
+3. When fallback_gateway_ip is absent from config, steering treats it as disabled rather than using a hardcoded default IP
+4. Integration tests that probe external hosts read the target IP from WANCTL_TEST_HOST env var (not hardcoded)
+   **Plans**: TBD
 
 ### Phase 65: Fragile Area Stabilization
+
 **Goal**: Inter-daemon state file contract is enforced by tests, and implicit API contracts are made explicit
 **Depends on**: Phase 63 (clean codebase after dead code removal)
 **Requirements**: FRAG-01, FRAG-02, FRAG-03
 **Success Criteria** (what must be TRUE):
-  1. A test suite validates the autorate-to-steering state file schema: renaming a key path causes a test failure
-  2. flap_detector.check_flapping() call-site either uses the return value or has a docstring documenting the side-effect contract
-  3. WAN-aware steering config misconfiguration (invalid wan_state values) logs at WARNING level, not INFO
-**Plans**: TBD
+
+1. A test suite validates the autorate-to-steering state file schema: renaming a key path causes a test failure
+2. flap_detector.check_flapping() call-site either uses the return value or has a docstring documenting the side-effect contract
+3. WAN-aware steering config misconfiguration (invalid wan_state values) logs at WARNING level, not INFO
+   **Plans**: TBD
 
 ### Phase 66: Infrastructure & Config Extraction
+
 **Goal**: Logging has rotation, Docker builds are validated, config loading boilerplate is consolidated, and production cryptography is verified
 **Depends on**: Phase 62 (Dockerfile must be correct before Docker CI validates it), Phase 63 (pexpect removed before Docker build)
 **Requirements**: INFR-01, INFR-02, INFR-03, INFR-04
 **Success Criteria** (what must be TRUE):
-  1. setup_logging() uses RotatingFileHandler with configurable maxBytes and backupCount (not unbounded FileHandler)
-  2. Dockerfile builds successfully in CI with all runtime dependencies installed and importable
-  3. Both daemon Config classes use a shared BaseConfig field-declaration pattern, eliminating duplicated YAML-to-attribute boilerplate
-  4. Production containers have cryptography >= 46.0.5 (verified by test or script)
-**Plans**: TBD
+
+1. setup_logging() uses RotatingFileHandler with configurable maxBytes and backupCount (not unbounded FileHandler)
+2. Dockerfile builds successfully in CI with all runtime dependencies installed and importable
+3. Both daemon Config classes use a shared BaseConfig field-declaration pattern, eliminating duplicated YAML-to-attribute boilerplate
+4. Production containers have cryptography >= 46.0.5 (verified by test or script)
+   **Plans**: TBD
 
 ## Progress
 
 ### Current Milestone: v1.12 Deployment & Code Health
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 62. Deployment Alignment | 0/1 | Planned | - |
-| 63. Dead Code & Stale API Cleanup | 0/? | Not started | - |
-| 64. Security Hardening | 0/? | Not started | - |
-| 65. Fragile Area Stabilization | 0/? | Not started | - |
-| 66. Infrastructure & Config Extraction | 0/? | Not started | - |
+| Phase                                  | Plans Complete | Status      | Completed  |
+| -------------------------------------- | -------------- | ----------- | ---------- |
+| 62. Deployment Alignment               | 1/1            | Complete    | 2026-03-10 |
+| 63. Dead Code & Stale API Cleanup      | 0/?            | Not started | -          |
+| 64. Security Hardening                 | 0/?            | Not started | -          |
+| 65. Fragile Area Stabilization         | 0/?            | Not started | -          |
+| 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |
 
 ### Completed Milestones
 
