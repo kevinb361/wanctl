@@ -132,7 +132,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | -------------------------------------- | -------------- | ----------- | ---------- |
 | 62. Deployment Alignment               | 1/1            | Complete    | 2026-03-10 |
 | 63. Dead Code & Stale API Cleanup      | 1/1 | Complete    | 2026-03-10 |
-| 64. Security Hardening                 | 0/2            | Planning    | -          |
+| 64. Security Hardening                 | 1/2 | In Progress|  |
 | 65. Fragile Area Stabilization         | 0/?            | Not started | -          |
 | 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |
 
