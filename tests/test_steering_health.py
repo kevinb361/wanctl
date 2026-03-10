@@ -1258,3 +1258,55 @@ class TestWanAwarenessHealth:
 
         result = loader._get_wan_zone_age()
         assert result is None
+
+    def test_wan_awareness_degrade_timer_active(self, mock_daemon):
+        """Test degrade_timer_remaining is float when degrade_timer active."""
+        mock_daemon.confidence_controller = MagicMock()
+        mock_daemon.confidence_controller.timer_state.confidence_score = 50
+        mock_daemon.confidence_controller.timer_state.degrade_timer = 3.75
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["degrade_timer_remaining"] == 3.75
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_degrade_timer_inactive(self, mock_daemon):
+        """Test degrade_timer_remaining is null when degrade_timer is None."""
+        mock_daemon.confidence_controller = MagicMock()
+        mock_daemon.confidence_controller.timer_state.confidence_score = 0
+        mock_daemon.confidence_controller.timer_state.degrade_timer = None
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["degrade_timer_remaining"] is None
+        finally:
+            server.shutdown()
+
+    def test_wan_awareness_no_confidence_controller(self, mock_daemon):
+        """Test degrade_timer_remaining is null when confidence_controller is None."""
+        mock_daemon.confidence_controller = None
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            wa = data["wan_awareness"]
+            assert wa["degrade_timer_remaining"] is None
+        finally:
+            server.shutdown()

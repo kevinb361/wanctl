@@ -219,6 +219,99 @@ class TestWanAwarenessMetrics:
 
         assert "wanctl_wan_zone" in STORED_METRICS
 
+    def test_wan_weight_metric_red_zone(self, temp_db):
+        """When wan_state enabled and zone RED, wanctl_wan_weight records weight value (25)."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate RED zone: weight = ConfidenceWeights.WAN_RED (25)
+        from wanctl.steering.steering_confidence import ConfidenceWeights
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_wan_zone", 3.0, {"zone": "RED"}, "raw"),
+            (ts, "spectrum", "wanctl_wan_weight", float(ConfidenceWeights.WAN_RED), None, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value FROM metrics WHERE metric_name='wanctl_wan_weight'"
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == 25.0
+
+    def test_wan_weight_metric_green_zone(self, temp_db):
+        """When wan_state enabled and zone GREEN, wanctl_wan_weight records 0."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_wan_zone", 0.0, {"zone": "GREEN"}, "raw"),
+            (ts, "spectrum", "wanctl_wan_weight", 0.0, None, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value FROM metrics WHERE metric_name='wanctl_wan_weight'"
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == 0.0
+
+    def test_wan_staleness_metric_recorded(self, temp_db):
+        """When wan_state enabled, wanctl_wan_staleness_sec records age value."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_wan_staleness_sec", 2.3, None, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT value FROM metrics WHERE metric_name='wanctl_wan_staleness_sec'"
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == 2.3
+
+    def test_wan_weight_staleness_not_recorded_when_disabled(self, temp_db):
+        """When wan_state disabled, neither wanctl_wan_weight nor wanctl_wan_staleness_sec in batch."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate disabled path: only base metrics, no WAN metrics
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_rtt_ms", 28.5, None, "raw"),
+            (ts, "spectrum", "wanctl_rtt_baseline_ms", 25.0, None, "raw"),
+        ]
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        weight_row = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name='wanctl_wan_weight'"
+        ).fetchone()
+        staleness_row = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name='wanctl_wan_staleness_sec'"
+        ).fetchone()
+        conn.close()
+
+        assert weight_row[0] == 0
+        assert staleness_row[0] == 0
+
+    def test_wan_weight_and_staleness_in_stored_metrics(self):
+        """wanctl_wan_weight and wanctl_wan_staleness_sec appear in STORED_METRICS dict."""
+        from wanctl.storage.schema import STORED_METRICS
+
+        assert "wanctl_wan_weight" in STORED_METRICS
+        assert "wanctl_wan_staleness_sec" in STORED_METRICS
+
 
 class TestSteeringPerformanceOverhead:
     """Verify steering metrics recording overhead is <5ms."""
