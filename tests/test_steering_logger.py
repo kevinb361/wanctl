@@ -49,28 +49,8 @@ class TestSteeringLoggerInitialization:
 class TestLogMeasurement:
     """Tests for log_measurement method."""
 
-    def test_log_measurement_rtt_only(self, steering_logger, caplog):
-        """Test logging RTT-only measurement."""
-        with caplog.at_level(logging.INFO):
-            steering_logger.log_measurement(
-                current_state="SPECTRUM_GOOD",
-                current_rtt=32.5,
-                baseline_rtt=30.0,
-                delta=2.5,
-                bad_count=0,
-                good_count=5,
-                bad_samples_threshold=3,
-                good_samples_threshold=15,
-                cake_aware=False,
-            )
-
-        assert "[SPECTRUM_GOOD]" in caplog.text
-        assert "RTT=32.5ms" in caplog.text
-        assert "baseline=30.0ms" in caplog.text
-        assert "delta=2.5ms" in caplog.text
-
-    def test_log_measurement_cake_aware(self, steering_logger, congestion_signals, caplog):
-        """Test logging CAKE-aware measurement."""
+    def test_log_measurement_with_signals(self, steering_logger, congestion_signals, caplog):
+        """Test logging measurement with congestion signals."""
         with caplog.at_level(logging.INFO):
             steering_logger.log_measurement(
                 current_state="SPECTRUM_GOOD",
@@ -78,11 +58,25 @@ class TestLogMeasurement:
                 baseline_rtt=30.0,
                 delta=2.5,
                 signals=congestion_signals,
-                cake_aware=True,
             )
 
         assert "[SPECTRUM_GOOD]" in caplog.text
-        # CAKE-aware format should include signals
+        # Multi-signal format should include signals and congestion
+
+    def test_log_measurement_without_signals(self, steering_logger, caplog):
+        """Test logging measurement without signals (simplified format)."""
+        with caplog.at_level(logging.INFO):
+            steering_logger.log_measurement(
+                current_state="SPECTRUM_GOOD",
+                current_rtt=32.5,
+                baseline_rtt=30.0,
+                delta=2.5,
+            )
+
+        assert "[SPECTRUM_GOOD]" in caplog.text
+        assert "RTT=32.5ms" in caplog.text
+        assert "baseline=30.0ms" in caplog.text
+        assert "delta=2.5ms" in caplog.text
 
     def test_log_measurement_none_baseline(self, steering_logger, caplog):
         """Test logging measurement with None baseline."""
@@ -92,7 +86,6 @@ class TestLogMeasurement:
                 current_rtt=32.5,
                 baseline_rtt=None,
                 delta=0.0,
-                cake_aware=False,
             )
 
         assert "baseline=N/A" in caplog.text

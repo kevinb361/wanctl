@@ -116,7 +116,6 @@ def mock_steering_config():
     config.alternate_wan = "att"
     config.state_good = "SPECTRUM_GOOD"
     config.state_degraded = "SPECTRUM_DEGRADED"
-    config.cake_aware = True
     config.primary_download_queue = "WAN-Download-Spectrum"
     # RTT thresholds
     config.green_rtt_ms = 5.0

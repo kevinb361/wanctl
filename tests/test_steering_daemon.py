@@ -96,32 +96,6 @@ class TestCollectCakeStats:
             )
         return daemon
 
-    # =========================================================================
-    # CAKE-aware disabled tests
-    # =========================================================================
-
-    def test_cake_aware_disabled_returns_zeros(
-        self, mock_config, mock_state_mgr, mock_router, mock_logger
-    ):
-        """Test CAKE-aware disabled returns (0, 0)."""
-        from wanctl.steering.daemon import SteeringDaemon
-
-        mock_config.cake_aware = False
-
-        daemon = SteeringDaemon(
-            config=mock_config,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
-
-        drops, queued = daemon.collect_cake_stats()
-
-        assert drops == 0
-        assert queued == 0
-
     def test_no_cake_reader_returns_zeros(self, daemon, mock_logger):
         """Test no cake_reader returns (0, 0)."""
         daemon.cake_reader = None
@@ -705,17 +679,15 @@ class TestExecuteSteeringTransition:
         """Create a SteeringDaemon with mocked dependencies."""
         from wanctl.steering.daemon import SteeringDaemon
 
-        # Set config.cake_aware to False to skip CAKE initialization
-        mock_config.cake_aware = False
-
-        daemon = SteeringDaemon(
-            config=mock_config,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state_mgr,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
         return daemon
 
     # =========================================================================
