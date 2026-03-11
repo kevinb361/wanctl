@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **WAN-aware steering graduated to production** (Phase 72)
+  - `wan_state.enabled: true` on cake-spectrum (WAN zone signal active in confidence scoring)
+  - SIGUSR1 hot-reload extended to toggle `wan_state.enabled` without restart
+  - Grace period re-triggers on re-enable (30s safe ramp-up)
+  - Degradation validated: stale zone falls back to GREEN, missing state file skips WAN weight
+  - Operational runbook added to `docs/STEERING.md`
 - **Confidence-based steering graduated from dry-run to live mode** (Phase 71)
   - `configs/steering.yaml` now ships with `dry_run: false` (confidence scoring drives routing decisions)
   - Multi-signal confidence scoring (0-100 scale) replaces binary RED-triggers-steer model
