@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Deployment & Code Health
-current_plan: Not started
-status: planning
-last_updated: "2026-03-10T14:25:13.960Z"
-last_activity: 2026-03-10 -- Phase 65 plan 01 complete (fragile area stabilization, FRAG-01 through FRAG-03)
+current_plan: Plan 2 of 2 in Phase 66 -- COMPLETE
+status: complete
+last_updated: "2026-03-11T08:47:47Z"
+last_activity: 2026-03-11 -- Phase 66 plan 02 complete (Dockerfile & dependency contract tests, INFR-02 INFR-04)
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
-  percent: 80
+  completed_phases: 5
+  total_plans: 7
+  completed_plans: 7
+  percent: 100
 ---
 
 # Session State
@@ -21,25 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.12 Deployment & Code Health -- Phase 65 complete
+**Current focus:** v1.12 Deployment & Code Health -- COMPLETE
 
 ## Position
 
 **Milestone:** v1.12 Deployment & Code Health
-**Phase:** 65 of 66 (Fragile Area Stabilization) -- COMPLETE
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-10 -- Phase 65 plan 01 complete (fragile area stabilization, FRAG-01 through FRAG-03)
+**Phase:** 66 of 66 (Infrastructure & Config Extraction) -- COMPLETE
+**Current Plan:** Plan 2 of 2 in Phase 66 -- COMPLETE
+**Status:** Phase 66 complete, milestone v1.12 complete
+**Last activity:** 2026-03-11 -- Phase 66 plan 02 complete (Dockerfile & dependency contract tests, INFR-02 INFR-04)
 
-**Progress:** [████████░░] 80%
+**Progress:** [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: ~12 min
-- Total execution time: ~0.9 hours
+- Total execution time: ~1.1 hours
 
 **By Phase:**
 
@@ -49,6 +49,7 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 | 63    | 1     | ~8 min  | ~8 min   |
 | 64    | 2     | ~35 min | ~18 min  |
 | 65    | 1     | ~7 min  | ~7 min   |
+| 66    | 1     | ~14 min | ~14 min  |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 - Contract tests use json.loads() on raw file (not BaselineLoader) to catch same-side renames
 - Docstring-only approach for check_flapping side-effect documentation (no behavioral change)
 - caplog.at_level(DEBUG) + record filtering pattern for explicit WARNING-level assertions
+- packaging.version.Version for semver comparison in contract tests
+- Dynamic parametrization from pyproject.toml for auto-testing new deps
 
 ### Known Issues
 
@@ -87,3 +90,4 @@ None.
 - 2026-03-10: Phase 64 plan 02 complete -- Safe config defaults, password clearing wiring, test host parameterization (SECR-01, SECR-03, SECR-04)
 - 2026-03-10: Phase 64 COMPLETE -- Security Hardening (4 requirements, 2 plans)
 - 2026-03-10: Phase 65 plan 01 complete -- Fragile area stabilization (FRAG-01 through FRAG-03, 7 contract tests, 6 strengthened)
+- 2026-03-11: Phase 66 plan 02 complete -- Dockerfile & dependency contract tests (INFR-02, INFR-04, 17 tests)

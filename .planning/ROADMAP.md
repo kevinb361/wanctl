@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 63: Dead Code & Stale API Cleanup** - Remove pexpect dependency, dead subprocess import, and stale timeout_total parameter (completed 2026-03-10)
 - [x] **Phase 64: Security Hardening** - Credential lifetime, SSL warning scope, fallback gateway safety, test parameterization (completed 2026-03-10)
 - [x] **Phase 65: Fragile Area Stabilization** - Contract tests for state file schema, explicit API contracts, warning-level logging (completed 2026-03-10)
-- [ ] **Phase 66: Infrastructure & Config Extraction** - Log rotation, Docker CI validation, config boilerplate extraction, cryptography version check
+- [x] **Phase 66: Infrastructure & Config Extraction** - Log rotation, Docker CI validation, config boilerplate extraction, cryptography version check (completed 2026-03-11)
 
 ## Phase Details
 
@@ -141,7 +141,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | 63. Dead Code & Stale API Cleanup      | 1/1 | Complete    | 2026-03-10 |
 | 64. Security Hardening                 | 2/2 | Complete    | 2026-03-10 |
 | 65. Fragile Area Stabilization         | 1/1 | Complete    | 2026-03-10 |
-| 66. Infrastructure & Config Extraction | 0/2            | Not started | -          |
+| 66. Infrastructure & Config Extraction | 2/2 | Complete   | 2026-03-11 |
 
 ### Completed Milestones
 
