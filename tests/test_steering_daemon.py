@@ -5602,3 +5602,151 @@ class TestDryRunReload:
             run_daemon_loop(daemon, config, logger, shutdown_event)
 
         mock_reset.assert_called()
+
+
+class TestWanStateReload:
+    """Tests for SteeringDaemon._reload_wan_state_config() method.
+
+    Verifies SIGUSR1-triggered reload of the wan_state.enabled flag from YAML
+    without restarting the daemon, including grace period re-trigger on re-enable.
+    """
+
+    @pytest.fixture
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        config = mock_steering_config
+        config.config_file_path = "/tmp/test_steering.yaml"
+        config.wan_state_config = {
+            "enabled": False,
+            "grace_period_sec": 30.0,
+            "red_weight": 25,
+            "soft_red_weight": 12,
+            "staleness_threshold_sec": 5.0,
+        }
+        return config
+
+    @pytest.fixture
+    def mock_daemon(self, mock_config):
+        """Create a minimal SteeringDaemon mock with _reload_wan_state_config."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch.object(SteeringDaemon, "__init__", lambda self, *a, **k: None):
+            daemon = SteeringDaemon.__new__(SteeringDaemon)
+
+        daemon.config = mock_config
+        daemon.logger = MagicMock()
+        daemon._wan_state_enabled = False
+        daemon._startup_time = time.monotonic() - 100  # well past grace period
+        daemon._wan_grace_period_sec = 30.0
+        return daemon
+
+    def test_reload_reads_yaml_and_updates_wan_state_enabled(self, tmp_path, mock_daemon):
+        """_reload_wan_state_config reads wan_state.enabled from YAML and updates attribute."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"wan_state": {"enabled": True}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon._wan_state_enabled = False
+
+        mock_daemon._reload_wan_state_config()
+
+        assert mock_daemon._wan_state_enabled is True
+
+    def test_reload_false_to_true_resets_startup_time(self, tmp_path, mock_daemon):
+        """Toggling wan_state.enabled false->true resets _startup_time (grace period re-trigger)."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"wan_state": {"enabled": True}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon._wan_state_enabled = False
+        old_startup_time = mock_daemon._startup_time
+
+        mock_daemon._reload_wan_state_config()
+
+        assert mock_daemon._startup_time > old_startup_time
+
+    def test_reload_true_to_false_does_not_reset_startup_time(self, tmp_path, mock_daemon):
+        """Toggling wan_state.enabled true->false does NOT reset _startup_time."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"wan_state": {"enabled": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon._wan_state_enabled = True
+        old_startup_time = mock_daemon._startup_time
+
+        mock_daemon._reload_wan_state_config()
+
+        assert mock_daemon._startup_time == old_startup_time
+
+    def test_reload_noop_when_wan_state_section_missing(self, tmp_path, mock_daemon):
+        """When wan_state section missing from YAML, _reload_wan_state_config is no-op (logs info)."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        old_enabled = mock_daemon._wan_state_enabled
+
+        mock_daemon._reload_wan_state_config()
+
+        assert mock_daemon._wan_state_enabled == old_enabled
+        mock_daemon.logger.info.assert_called()
+
+    def test_reload_handles_yaml_read_error_gracefully(self, mock_daemon):
+        """YAML read error in _reload_wan_state_config logs error, does not crash."""
+        mock_daemon.config.config_file_path = "/nonexistent/path/steering.yaml"
+
+        # Should not raise
+        mock_daemon._reload_wan_state_config()
+
+        mock_daemon.logger.error.assert_called()
+
+    def test_reload_unchanged_logs_warning(self, tmp_path, mock_daemon):
+        """Unchanged wan_state.enabled logs 'unchanged' warning."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"wan_state": {"enabled": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon._wan_state_enabled = False
+
+        mock_daemon._reload_wan_state_config()
+
+        mock_daemon.logger.warning.assert_called()
+        warn_msg = str(mock_daemon.logger.warning.call_args)
+        assert "unchanged" in warn_msg.lower()
+
+    def test_run_daemon_loop_calls_both_reload_methods_on_signal(self):
+        """run_daemon_loop SIGUSR1 block calls both _reload_dry_run_config AND _reload_wan_state_config."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        daemon = MagicMock()
+        daemon.run_cycle.return_value = True
+        config = MagicMock()
+        config.measurement_interval = 0.05
+        logger = MagicMock()
+        shutdown_event = threading.Event()
+
+        call_count = [0]
+
+        def side_effect_shutdown(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] >= 2:
+                shutdown_event.set()
+            return True
+
+        daemon.run_cycle.side_effect = side_effect_shutdown
+
+        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
+             patch("wanctl.steering.daemon.reset_reload_state"), \
+             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
+             patch("wanctl.steering.daemon.update_steering_health_status"), \
+             patch("wanctl.steering.daemon.notify_watchdog"), \
+             patch("wanctl.steering.daemon.notify_degraded"):
+            run_daemon_loop(daemon, config, logger, shutdown_event)
+
+        daemon._reload_dry_run_config.assert_called()
+        daemon._reload_wan_state_config.assert_called()
