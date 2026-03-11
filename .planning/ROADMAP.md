@@ -117,7 +117,7 @@ Phases execute in numeric order: 73 -> 74 -> 75
 | --------------------------- | -------------- | -------- | ---------- |
 | 73. Foundation              | 3/3            | Complete | 2026-03-11 |
 | 74. Visualization & History | 2/2            | Complete | 2026-03-11 |
-| 75. Layout & Compatibility  | 2/2            | Complete | 2026-03-11 |
+| 75. Layout & Compatibility  | 2/2            | Complete    | 2026-03-11 |
 
 ### Completed Milestones
 
