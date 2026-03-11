@@ -77,7 +77,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 1. `_update_state_machine_cake_aware()` and `_update_state_machine_legacy()` methods no longer exist in the steering daemon
 2. Obsolete ISP-specific config files no longer exist in the `configs/` directory
 3. All existing tests pass after removal (no test depends on removed code)
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 68-01-PLAN.md — Eliminate cake_aware mode branching from steering daemon (LGCY-02)
+- [ ] 68-02-PLAN.md — Remove obsolete config files and update docs (LGCY-05)
 
 ### Phase 69: Legacy Fallback Removal
 
@@ -136,7 +140,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
-| 68. Dead Code Removal       | 0/TBD          | Not started | -          |
+| 68. Dead Code Removal       | 0/2            | Not started | -          |
 | 69. Legacy Fallback Removal | 0/TBD          | Not started | -          |
 | 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
