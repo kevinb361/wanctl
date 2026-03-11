@@ -49,8 +49,8 @@ class SparklinePanelWidget(Widget):
     def compose(self) -> ComposeResult:
         """Yield label and 3 sparkline widgets."""
         yield Static(f"Trends: {self._wan_name}")
-        yield Sparkline(id="dl-spark")
-        yield Sparkline(id="ul-spark")
+        yield Sparkline(id="dl-spark", min_color="green", max_color="yellow")
+        yield Sparkline(id="ul-spark", min_color="green", max_color="yellow")
         yield Sparkline(
             id="rtt-spark",
             min_color=self._rtt_min_color,

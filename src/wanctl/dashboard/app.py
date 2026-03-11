@@ -265,8 +265,16 @@ class DashboardApp(App):
         load_rtt = wan_data.get("load_rtt_ms", 0)
         rtt_delta = max(0, load_rtt - baseline_rtt)
 
+        # Normalize rates to % of ceiling so both WANs look visually equivalent
+        wan_name = wan_data.get("name", "")
+        limits = self.config.wan_rate_limits.get(wan_name, {})
+        dl_ceil = limits.get("dl_mbps", 0)
+        ul_ceil = limits.get("ul_mbps", 0)
+        dl_val = (dl_rate / dl_ceil * 100) if dl_ceil > 0 else dl_rate
+        ul_val = (ul_rate / ul_ceil * 100) if ul_ceil > 0 else ul_rate
+
         spark = self.query_one(f"#spark-wan-{wan_num}", SparklinePanelWidget)
-        spark.append_data(dl_rate, ul_rate, rtt_delta)
+        spark.append_data(dl_val, ul_val, rtt_delta)
 
         cycle_budget = wan_data.get("cycle_budget")
         if cycle_budget is not None:
