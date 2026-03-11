@@ -15,7 +15,6 @@ import pytest
 
 from wanctl.steering.daemon import ASSESSMENT_INTERVAL_SECONDS, SteeringDaemon
 
-
 # =============================================================================
 # SHARED FIXTURES
 # =============================================================================
@@ -293,7 +292,7 @@ class TestProfilerClearRemoved:
         daemon._profiling_enabled = True
         daemon._profiler = MagicMock()
 
-        for i in range(1200):
+        for _i in range(1200):
             cycle_start = time.perf_counter()
             daemon._record_profiling(1.0, 0.5, 0.5, cycle_start)
 
@@ -305,7 +304,7 @@ class TestProfilerClearRemoved:
         daemon._profiling_enabled = True
         daemon._profiler = MagicMock()
 
-        for i in range(1201):
+        for _i in range(1201):
             cycle_start = time.perf_counter()
             daemon._record_profiling(1.0, 0.5, 0.5, cycle_start)
 

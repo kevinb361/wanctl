@@ -10,8 +10,7 @@ response format mismatches, error propagation failures.
 
 import json
 import logging
-from io import BytesIO
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

@@ -8,14 +8,13 @@ instant signal responsiveness instead of time.sleep().
 """
 
 import inspect
-import threading
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.routeros_ssh import RouterOSSSH
 from wanctl.routeros_rest import RouterOSREST
+from wanctl.routeros_ssh import RouterOSSSH
 
 
 class TestSSHRunCmdRetryParams:
@@ -167,7 +166,7 @@ def _extract_retry_closure_vars(method) -> dict:
     # Map cell names to values
     code = method.__code__
     freevars = code.co_freevars
-    cell_map = dict(zip(freevars, closure))
+    cell_map = dict(zip(freevars, closure, strict=False))
 
     result = {}
     for name in ("max_attempts", "initial_delay", "backoff_factor", "max_delay", "jitter"):
@@ -180,7 +179,7 @@ def _extract_retry_closure_vars(method) -> dict:
         inner = getattr(method, "__wrapped__", None)
         if inner and inner.__closure__:
             freevars = inner.__code__.co_freevars
-            cell_map = dict(zip(freevars, inner.__closure__))
+            cell_map = dict(zip(freevars, inner.__closure__, strict=False))
             for name in ("max_attempts", "initial_delay", "backoff_factor", "max_delay", "jitter"):
                 if name in cell_map:
                     result[name] = cell_map[name].cell_contents

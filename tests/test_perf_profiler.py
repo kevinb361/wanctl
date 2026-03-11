@@ -362,7 +362,7 @@ class TestRecordCycleProfiling:
         """WARNING should be logged on 1st, 3rd, and every 10th overrun."""
         overrun_count = 0
         cycle_count = 0
-        for i in range(20):
+        for _i in range(20):
             cycle_start = time.perf_counter() - 0.1  # Force overrun
             overrun_count, cycle_count = record_cycle_profiling(
                 profiler=profiler,

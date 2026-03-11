@@ -9,7 +9,6 @@ No mocking: file operations, WANControllerState, BaselineLoader core logic.
 
 import json
 import logging
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
