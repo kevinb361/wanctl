@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Plan 2 of 2 in Phase 68
-status: executing
-last_updated: "2026-03-11T10:53:38Z"
-last_activity: 2026-03-11 -- Completed 68-02-PLAN.md (Obsolete Config Cleanup)
+current_plan: Phase 68 complete
+status: phase-complete
+last_updated: "2026-03-11T11:07:00Z"
+last_activity: 2026-03-11 -- Completed 68-01-PLAN.md (cake_aware removal)
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
   completed_plans: 3
 ---
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 68 - Dead Code Removal (2/2 plans complete)
+**Current focus:** v1.13 Phase 68 - Dead Code Removal (COMPLETE)
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 68 of 72 (Dead Code Removal) -- 2/2 plans complete
-**Current Plan:** Plan 2 of 2 in Phase 68
-**Status:** Phase 68 complete
-**Last activity:** 2026-03-11 -- Completed 68-02-PLAN.md (Obsolete Config Cleanup)
+**Phase:** 68 of 72 (Dead Code Removal) -- COMPLETE (2/2 plans)
+**Current Plan:** Phase 68 complete, next: Phase 69
+**Status:** Ready for Phase 69
+**Last activity:** 2026-03-11 -- Completed 68-01-PLAN.md (cake_aware removal)
 
 ## Accumulated Context
 
@@ -45,6 +45,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - bad_samples/good_samples are code defaults, not legacy fallbacks
 - steering.yaml production drift (dry_run, wan_override) is intentional operational tuning
 - Obsolete config files untracked via .gitignore -- disk deletion only, no git rm needed
+- cake_aware flag removed: CAKE three-state model is sole code path, CakeStatsReader initialized unconditionally
+- Tests patch CakeStatsReader instead of setting cake_aware=False for lightweight daemon creation
 
 ### Known Issues
 
@@ -68,3 +70,5 @@ None.
 - 2026-03-11: Roadmap created -- 6 phases (67-72), 13/13 requirements mapped
 - 2026-03-11: Phase 67 complete -- Production Config Audit (1/1 plans, LGCY-01 satisfied)
 - 2026-03-11: Completed 68-02-PLAN.md -- Obsolete Config Cleanup (7 files deleted, ARCHITECTURE.md updated, LGCY-05 satisfied)
+- 2026-03-11: Completed 68-01-PLAN.md -- cake_aware removal (119 lines dead code removed, 6 legacy tests deleted, LGCY-02 satisfied)
+- 2026-03-11: Phase 68 complete -- Dead Code Removal (2/2 plans, LGCY-02 + LGCY-05 satisfied)

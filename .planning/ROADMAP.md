@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Remove accumulated legacy code and config fallbacks, then graduate confidence-based steering (dry-run to live) and WAN-aware steering (disabled to enabled) for production use.
 
 - [x] **Phase 67: Production Config Audit** - Audit live configs on both containers to confirm modern parameter usage (completed 2026-03-11)
-- [ ] **Phase 68: Dead Code Removal** - Remove dead state machine methods and obsolete ISP-specific config files
+- [x] **Phase 68: Dead Code Removal** - Remove dead state machine methods and obsolete ISP-specific config files (completed 2026-03-11)
 - [ ] **Phase 69: Legacy Fallback Removal** - Remove config parameter fallbacks, legacy validation code, and resolve RTT-only mode
 - [ ] **Phase 70: Legacy Test Cleanup** - Update test fixtures and test paths to reflect current-only code
 - [ ] **Phase 71: Confidence Graduation** - Graduate confidence-based steering from dry-run to live with rollback path
@@ -80,8 +80,8 @@ Decimal phases appear between their surrounding integers in numeric order.
    **Plans**: 2 plans
    Plans:
 
-- [ ] 68-01-PLAN.md — Eliminate cake_aware mode branching from steering daemon (LGCY-02)
-- [ ] 68-02-PLAN.md — Remove obsolete config files and update docs (LGCY-05)
+- [x] 68-01-PLAN.md — Eliminate cake_aware mode branching from steering daemon (LGCY-02) (completed 2026-03-11)
+- [x] 68-02-PLAN.md — Remove obsolete config files and update docs (LGCY-05) (completed 2026-03-11)
 
 ### Phase 69: Legacy Fallback Removal
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
-| 68. Dead Code Removal       | 1/2 | In Progress|  |
+| 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
 | 69. Legacy Fallback Removal | 0/TBD          | Not started | -          |
 | 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
