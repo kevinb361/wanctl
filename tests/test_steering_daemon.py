@@ -38,7 +38,7 @@ class TestCollectCakeStats:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -979,12 +979,7 @@ class TestUpdateEwmaSmoothing:
 
     @pytest.fixture
     def mock_config(self, mock_steering_config):
-        """Delegate to shared mock_steering_config with EWMA overrides.
-
-        Note: cake_aware=False to bypass CakeStatsReader initialization.
-        The update_ewma_smoothing() method works independently of cake_aware.
-        """
-        mock_steering_config.cake_aware = False
+        """Delegate to shared mock_steering_config with EWMA overrides."""
         mock_steering_config.rtt_ewma_alpha = 0.3
         mock_steering_config.queue_ewma_alpha = 0.4
         return mock_steering_config
@@ -995,7 +990,7 @@ class TestUpdateEwmaSmoothing:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -1050,14 +1045,15 @@ class TestUpdateEwmaSmoothing:
         """Create a SteeringDaemon with mocked dependencies."""
         from wanctl.steering.daemon import SteeringDaemon
 
-        daemon = SteeringDaemon(
-            config=mock_config,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=mock_rtt_measurement,
-            baseline_loader=mock_baseline_loader,
-            logger=mock_logger,
-        )
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state_mgr,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                baseline_loader=mock_baseline_loader,
+                logger=mock_logger,
+            )
         return daemon
 
     # =========================================================================
@@ -1254,22 +1250,11 @@ class TestUnifiedStateMachine:
         return mock_steering_config
 
     @pytest.fixture
-    def mock_config_legacy(self, mock_steering_config):
-        """Delegate to shared mock_steering_config with legacy mode overrides."""
-        mock_steering_config.cake_aware = False
-        mock_steering_config.bad_threshold_ms = 25.0
-        mock_steering_config.recovery_threshold_ms = 12.0
-        mock_steering_config.bad_samples = 2
-        mock_steering_config.good_samples = 3
-        return mock_steering_config
-
-    @pytest.fixture
     def mock_state_mgr(self):
         """Create a mock state manager with dict-based state."""
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -1313,21 +1298,6 @@ class TestUnifiedStateMachine:
                 baseline_loader=MagicMock(),
                 logger=mock_logger,
             )
-        return daemon
-
-    @pytest.fixture
-    def daemon_legacy(self, mock_config_legacy, mock_state_mgr, mock_router, mock_logger):
-        """Create a SteeringDaemon in legacy mode."""
-        from wanctl.steering.daemon import SteeringDaemon
-
-        daemon = SteeringDaemon(
-            config=mock_config_legacy,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
         return daemon
 
     # =========================================================================
@@ -1442,81 +1412,7 @@ class TestUnifiedStateMachine:
         assert mock_state_mgr.state["good_count"] == 0  # Reset after transition
 
     # =========================================================================
-    # Legacy mode tests
-    # =========================================================================
-
-    def test_legacy_high_delta_increments_degrade_count(self, daemon_legacy, mock_state_mgr):
-        """Test legacy mode: high delta increments bad_count (degrade counter)."""
-        from wanctl.steering.cake_stats import CongestionSignals
-
-        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
-        mock_state_mgr.state["bad_count"] = 0
-
-        signals = CongestionSignals(
-            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
-        )  # delta > bad_threshold_ms (25.0)
-
-        daemon_legacy._update_state_machine_unified(signals)
-
-        assert mock_state_mgr.state["bad_count"] == 1
-
-    def test_legacy_low_delta_increments_recover_count(self, daemon_legacy, mock_state_mgr):
-        """Test legacy mode: low delta increments good_count (recover counter)."""
-        from wanctl.steering.cake_stats import CongestionSignals
-
-        mock_state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
-        mock_state_mgr.state["good_count"] = 0
-
-        signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
-        )  # delta < recovery_threshold_ms (12.0)
-
-        daemon_legacy._update_state_machine_unified(signals)
-
-        assert mock_state_mgr.state["good_count"] == 1
-
-    def test_legacy_transitions_to_degraded_after_bad_samples(
-        self, daemon_legacy, mock_state_mgr, mock_router
-    ):
-        """Test legacy transitions to DEGRADED after bad_samples exceeded."""
-        from wanctl.steering.cake_stats import CongestionSignals
-
-        mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
-        mock_state_mgr.state["bad_count"] = 1  # One short of threshold (2)
-
-        signals = CongestionSignals(
-            rtt_delta=30.0, rtt_delta_ewma=30.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
-        )
-
-        result = daemon_legacy._update_state_machine_unified(signals)
-
-        assert result is True
-        mock_router.enable_steering.assert_called_once()
-        assert mock_state_mgr.state["current_state"] == "SPECTRUM_DEGRADED"
-        assert mock_state_mgr.state["bad_count"] == 0  # Reset after transition
-
-    def test_legacy_transitions_to_good_after_good_samples(
-        self, daemon_legacy, mock_state_mgr, mock_router
-    ):
-        """Test legacy transitions to GOOD after good_samples exceeded."""
-        from wanctl.steering.cake_stats import CongestionSignals
-
-        mock_state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
-        mock_state_mgr.state["good_count"] = 2  # One short of threshold (3)
-
-        signals = CongestionSignals(
-            rtt_delta=10.0, rtt_delta_ewma=10.0, cake_drops=0, queued_packets=0, baseline_rtt=25.0
-        )
-
-        result = daemon_legacy._update_state_machine_unified(signals)
-
-        assert result is True
-        mock_router.disable_steering.assert_called_once()
-        assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
-        assert mock_state_mgr.state["good_count"] == 0  # Reset after transition
-
-    # =========================================================================
-    # Cross-mode tests
+    # Counter and state change tests
     # =========================================================================
 
     def test_counter_reset_on_state_change_cake(self, daemon_cake, mock_state_mgr, mock_router):
@@ -2616,8 +2512,6 @@ class TestSteeringConfig:
         config = SteeringConfig(str(config_file))
 
         # Check defaults are applied
-        assert config.bad_threshold_ms == 25.0  # DEFAULT_BAD_THRESHOLD_MS
-        assert config.recovery_threshold_ms == 12.0  # DEFAULT_RECOVERY_THRESHOLD_MS
         assert config.green_rtt_ms == 5.0  # DEFAULT_GREEN_RTT_MS
         assert config.rtt_ewma_alpha == 0.3  # DEFAULT_RTT_EWMA_ALPHA
         assert config.queue_ewma_alpha == 0.4  # DEFAULT_QUEUE_EWMA_ALPHA
@@ -2635,19 +2529,6 @@ class TestSteeringConfig:
 
         assert config.baseline_rtt_min == 10.0  # MIN_SANE_BASELINE_RTT
         assert config.baseline_rtt_max == 60.0  # MAX_SANE_BASELINE_RTT
-
-    def test_default_cake_aware_mode(self, tmp_path, valid_config_dict):
-        """Test CAKE-aware mode defaults to True."""
-        import yaml
-
-        from wanctl.steering.daemon import SteeringConfig
-
-        config_file = tmp_path / "steering.yaml"
-        config_file.write_text(yaml.dump(valid_config_dict))
-
-        config = SteeringConfig(str(config_file))
-
-        assert config.cake_aware is True
 
     # =========================================================================
     # Legacy support tests
@@ -3146,24 +3027,11 @@ class TestRunCycle:
         return mock_steering_config
 
     @pytest.fixture
-    def mock_config_legacy(self, mock_steering_config):
-        """Delegate to shared mock_steering_config with legacy mode overrides."""
-        mock_steering_config.cake_aware = False
-        mock_steering_config.bad_threshold_ms = 25.0
-        mock_steering_config.recovery_threshold_ms = 12.0
-        mock_steering_config.bad_samples = 2
-        mock_steering_config.good_samples = 3
-        mock_steering_config.ping_host = "8.8.8.8"
-        mock_steering_config.ping_count = 1
-        return mock_steering_config
-
-    @pytest.fixture
     def mock_state_mgr(self):
         """Create a mock state manager."""
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -3237,10 +3105,10 @@ class TestRunCycle:
         mock_state_mgr.add_measurement.assert_called_once()
         mock_state_mgr.save.assert_called_once()
 
-    def test_run_cycle_cake_aware_mode_logs_congestion_state(
+    def test_run_cycle_logs_congestion_state(
         self, daemon_for_run_cycle, mock_state_mgr, mock_logger
     ):
-        """Test CAKE-aware mode logs include congestion state."""
+        """Test run_cycle logs include congestion state."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         mock_state_mgr.state["congestion_state"] = "YELLOW"
 
@@ -3249,35 +3117,6 @@ class TestRunCycle:
         # Verify logger.info was called with congestion state
         info_calls = [str(c) for c in mock_logger.info.call_args_list]
         assert any("congestion=YELLOW" in c for c in info_calls)
-
-    def test_run_cycle_legacy_mode_logs_bad_good_counts(
-        self, mock_config_legacy, mock_state_mgr, mock_router, mock_logger
-    ):
-        """Test legacy mode logs include bad_count/good_count."""
-        from wanctl.steering.daemon import SteeringDaemon
-
-        mock_state_mgr.state["baseline_rtt"] = 25.0
-        mock_state_mgr.state["bad_count"] = 1
-        mock_state_mgr.state["good_count"] = 2
-
-        daemon = SteeringDaemon(
-            config=mock_config_legacy,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
-        daemon.update_baseline_rtt = MagicMock(return_value=True)
-        daemon._measure_current_rtt_with_retry = MagicMock(return_value=30.0)
-        daemon.update_state_machine = MagicMock(return_value=False)
-
-        daemon.run_cycle()
-
-        # Verify logger.info was called with bad_count/good_count
-        info_calls = [str(c) for c in mock_logger.info.call_args_list]
-        assert any("bad_count=" in c for c in info_calls)
-        assert any("good_count=" in c for c in info_calls)
 
     def test_run_cycle_state_change_triggers_transition_log(
         self, daemon_for_run_cycle, mock_state_mgr, mock_logger
@@ -3463,7 +3302,7 @@ class TestConfidenceIntegration:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4420,7 +4259,7 @@ class TestRouterConnectivityTrackingSteeringDaemon:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4640,8 +4479,6 @@ class TestSteeringProfilingInstrumentation:
         """Delegate to shared mock_steering_config with profiling overrides."""
         mock_steering_config.rtt_ewma_alpha = 0.3
         mock_steering_config.queue_ewma_alpha = 0.3
-        mock_steering_config.bad_samples = 3
-        mock_steering_config.good_samples = 5
         mock_steering_config.threshold_ms = 15.0
         mock_steering_config.history_size = 60
         return mock_steering_config
@@ -4652,7 +4489,7 @@ class TestSteeringProfilingInstrumentation:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4805,26 +4642,32 @@ class TestLegacyStateWarning:
         config.alternate_wan = "att"
         config.state_good = "SPECTRUM_GOOD"
         config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = False
-        config.bad_threshold_ms = 25.0
-        config.recovery_threshold_ms = 12.0
-        config.bad_samples = 2
-        config.good_samples = 3
+        config.primary_download_queue = "WAN-Download-Spectrum"
+        config.green_rtt_ms = 5.0
+        config.yellow_rtt_ms = 15.0
+        config.red_rtt_ms = 15.0
+        config.min_drops_red = 1
+        config.min_queue_yellow = 10
+        config.min_queue_red = 50
+        config.red_samples_required = 2
+        config.green_samples_required = 15
         config.metrics_enabled = False
         config.use_confidence_scoring = False
         config.confidence_config = None
+        config.wan_state_config = None
         config.data = {}
 
         mock_logger = MagicMock()
 
-        daemon = SteeringDaemon(
-            config=config,
-            state=MagicMock(),
-            router=MagicMock(),
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=config,
+                state=MagicMock(),
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
         return daemon, mock_logger
 
     def test_legacy_state_spectrum_good_returns_true_and_warns(self, daemon_with_logger):
@@ -4928,7 +4771,7 @@ class TestAnomalyCycleSkip:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -5075,7 +4918,7 @@ class TestWanGracePeriodAndGating:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-            "bad_count": 0,
+
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -5140,7 +4983,6 @@ class TestWanGracePeriodAndGating:
         config.alternate_wan = "att"
         config.state_good = "SPECTRUM_GOOD"
         config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
         config.primary_download_queue = "WAN-Download-Spectrum"
         config.green_rtt_ms = 5.0
         config.yellow_rtt_ms = 15.0
@@ -5178,7 +5020,6 @@ class TestWanGracePeriodAndGating:
         config.alternate_wan = "att"
         config.state_good = "SPECTRUM_GOOD"
         config.state_degraded = "SPECTRUM_DEGRADED"
-        config.cake_aware = True
         config.primary_download_queue = "WAN-Download-Spectrum"
         config.green_rtt_ms = 5.0
         config.yellow_rtt_ms = 15.0
@@ -5277,16 +5118,15 @@ class TestWanAwarenessTransitionLogging:
         """Create a SteeringDaemon with mocked dependencies."""
         from wanctl.steering.daemon import SteeringDaemon
 
-        mock_config.cake_aware = False
-
-        daemon = SteeringDaemon(
-            config=mock_config,
-            state=mock_state_mgr,
-            router=mock_router,
-            rtt_measurement=MagicMock(),
-            baseline_loader=MagicMock(),
-            logger=mock_logger,
-        )
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_config,
+                state=mock_state_mgr,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                baseline_loader=MagicMock(),
+                logger=mock_logger,
+            )
         return daemon
 
     def test_wan_red_in_transition_log(self, daemon):
