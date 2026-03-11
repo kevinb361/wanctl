@@ -94,7 +94,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. Legacy config validation code has been removed from `config_validation_utils.py`
 3. RTT-only mode (`cake_aware: false`) disposition is resolved -- either retired with a deprecation error or explicitly documented as a supported mode
 4. All existing tests pass with the new error-on-legacy behavior
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 69-01-PLAN.md — Deprecation helper + autorate/steering config fallback warnings (LGCY-03)
+- [ ] 69-02-PLAN.md — validate_sample_counts cleanup + calibrate.py + cake_aware retirement + docs (LGCY-04, LGCY-07)
 
 ### Phase 70: Legacy Test Cleanup
 
@@ -141,7 +145,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
-| 69. Legacy Fallback Removal | 0/TBD          | Not started | -          |
+| 69. Legacy Fallback Removal | 0/2            | Not started | -          |
 | 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
