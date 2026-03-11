@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: 72-02 complete (milestone complete)
-status: milestone-complete
-last_updated: "2026-03-11T16:31:31.453Z"
+current_plan: Not started
+status: completed
+last_updated: "2026-03-11T16:36:49.191Z"
 last_activity: 2026-03-11 -- Completed 72-02-PLAN.md (WAN-aware steering verified live on production, all 4 degradation paths validated, v1.13 milestone complete)
 progress:
   total_phases: 6
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation -- COMPLETE
 **Phase:** 72 of 72 (WAN-Aware Enablement) -- Complete (2/2 plans)
-**Current Plan:** 72-02 complete (milestone complete)
-**Status:** Milestone Complete
+**Current Plan:** Not started
+**Status:** Milestone complete
 **Last activity:** 2026-03-11 -- Completed 72-02-PLAN.md (WAN-aware steering verified live on production, all 4 degradation paths validated, v1.13 milestone complete)
 
 ## Accumulated Context
