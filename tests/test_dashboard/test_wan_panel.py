@@ -2,8 +2,6 @@
 
 from datetime import UTC, datetime
 
-import pytest
-
 from wanctl.dashboard.widgets.wan_panel import WanPanel
 
 
@@ -35,8 +33,9 @@ class TestWanPanelRendering:
         """Render the panel and return the plain text representation."""
         renderable = panel.render()
         # Rich renderables have a __str__ or we can use Rich console to capture
-        from rich.console import Console
         from io import StringIO
+
+        from rich.console import Console
 
         buf = StringIO()
         console = Console(file=buf, force_terminal=True, width=80)

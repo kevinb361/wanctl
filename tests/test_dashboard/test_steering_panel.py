@@ -2,10 +2,8 @@
 
 from datetime import UTC, datetime
 
-import pytest
-
-from wanctl.dashboard.widgets.steering_panel import SteeringPanel
 from wanctl.dashboard.widgets.status_bar import StatusBar, format_duration
+from wanctl.dashboard.widgets.steering_panel import SteeringPanel
 
 
 class TestSteeringPanelRendering:
@@ -47,8 +45,9 @@ class TestSteeringPanelRendering:
     def _render_text(self, panel: SteeringPanel) -> str:
         """Render the panel and return plain text via Rich console."""
         renderable = panel.render()
-        from rich.console import Console
         from io import StringIO
+
+        from rich.console import Console
 
         buf = StringIO()
         console = Console(file=buf, force_terminal=True, width=80)
@@ -138,8 +137,9 @@ class TestStatusBarRendering:
     def _render_text(self, bar: StatusBar) -> str:
         """Render the bar and return plain text."""
         renderable = bar.render()
-        from rich.console import Console
         from io import StringIO
+
+        from rich.console import Console
 
         buf = StringIO()
         console = Console(file=buf, force_terminal=True, width=80)
