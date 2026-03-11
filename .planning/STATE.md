@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Plan 2 of 2 complete
-status: executing
-last_updated: "2026-03-11T15:25:18Z"
+current_plan: Not started
+status: planning
+last_updated: "2026-03-11T15:36:49.490Z"
 last_activity: 2026-03-11 -- Completed 71-02-PLAN.md (confidence graduation to live mode, CONF-01 + CONF-02 satisfied)
 progress:
   total_phases: 6
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
 **Phase:** 71 of 72 (Confidence Graduation) -- Complete (2/2 plans)
-**Current Plan:** Plan 2 of 2 complete
-**Status:** Executing
+**Current Plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-03-11 -- Completed 71-02-PLAN.md (confidence graduation to live mode, CONF-01 + CONF-02 satisfied)
 
 ## Accumulated Context
