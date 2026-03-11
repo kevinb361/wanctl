@@ -125,7 +125,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. Dockerfile builds successfully in CI with all runtime dependencies installed and importable
 3. Both daemon Config classes use a shared BaseConfig field-declaration pattern, eliminating duplicated YAML-to-attribute boilerplate
 4. Production containers have cryptography >= 46.0.5 (verified by test or script)
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 66-01-PLAN.md -- Config boilerplate extraction to BaseConfig + RotatingFileHandler log rotation
+- [ ] 66-02-PLAN.md -- Dockerfile dependency contract tests + runtime dependency version verification
 
 ## Progress
 
@@ -137,7 +141,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 | 63. Dead Code & Stale API Cleanup      | 1/1 | Complete    | 2026-03-10 |
 | 64. Security Hardening                 | 2/2 | Complete    | 2026-03-10 |
 | 65. Fragile Area Stabilization         | 1/1 | Complete    | 2026-03-10 |
-| 66. Infrastructure & Config Extraction | 0/?            | Not started | -          |
+| 66. Infrastructure & Config Extraction | 0/2            | Not started | -          |
 
 ### Completed Milestones
 
