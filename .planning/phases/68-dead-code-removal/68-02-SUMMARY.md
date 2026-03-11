@@ -62,8 +62,8 @@ Each task was committed atomically:
 1. **Task 1: Delete obsolete config files** - No git commit (files were untracked via .gitignore; disk-only deletion)
 2. **Task 2: Update ARCHITECTURE.md config file references** - `01371a9` (chore)
 
-**Deviation fix:** `a4fcb27` (fix: incomplete 68-01 test updates)
-**Plan metadata:** TBD (docs: complete plan)
+**Deviation fixes:** `a4fcb27` + `a5608f9` (fix: incomplete 68-01 test updates)
+**Plan metadata:** `cd4a0c1` (docs: complete plan)
 
 ## Files Created/Modified
 
