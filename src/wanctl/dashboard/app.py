@@ -14,6 +14,9 @@ import httpx
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.events import Resize
+from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets import TabbedContent, TabPane
 
@@ -137,11 +140,16 @@ class StatusBarWidget(Widget):
         return self._renderer.render()
 
 
+BREAKPOINT_WIDE = 120
+HYSTERESIS_DELAY = 0.3
+
+
 class DashboardApp(App):
     """Textual TUI application for wanctl monitoring.
 
-    Composes WAN panels, steering panel, and status bar in a vertical layout.
-    Polls health endpoints at the configured interval and routes data to widgets.
+    Composes WAN panels, steering panel, and status bar in a responsive layout.
+    Wide terminals (>=120 cols) show WAN panels side-by-side; narrow terminals
+    stack them vertically. Polls health endpoints at the configured interval.
     """
 
     CSS_PATH = "dashboard.tcss"
@@ -165,17 +173,22 @@ class DashboardApp(App):
             normal_interval=config.refresh_interval,
         )
         self._client: httpx.AsyncClient | None = None
+        self._layout_mode: str = ""
+        self._resize_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         """Compose the dashboard widget tree with Live/History tabs."""
         with TabbedContent(initial="live"):
             with TabPane("Live", id="live"):
-                yield WanPanelWidget("WAN 1 (Spectrum)", id="wan-1")
-                yield SparklinePanelWidget(wan_name="WAN 1", id="spark-wan-1")
-                yield CycleBudgetGaugeWidget(id="gauge-wan-1")
-                yield WanPanelWidget("WAN 2 (ATT)", id="wan-2")
-                yield SparklinePanelWidget(wan_name="WAN 2", id="spark-wan-2")
-                yield CycleBudgetGaugeWidget(id="gauge-wan-2")
+                with Horizontal(id="wan-row"):
+                    with Vertical(id="wan-col-1", classes="wan-col"):
+                        yield WanPanelWidget("WAN 1 (Spectrum)", id="wan-1")
+                        yield SparklinePanelWidget(wan_name="WAN 1", id="spark-wan-1")
+                        yield CycleBudgetGaugeWidget(id="gauge-wan-1")
+                    with Vertical(id="wan-col-2", classes="wan-col"):
+                        yield WanPanelWidget("WAN 2 (ATT)", id="wan-2")
+                        yield SparklinePanelWidget(wan_name="WAN 2", id="spark-wan-2")
+                        yield CycleBudgetGaugeWidget(id="gauge-wan-2")
                 yield SteeringPanelWidget(id="steering")
             with TabPane("History", id="history"):
                 yield HistoryBrowserWidget(
@@ -185,10 +198,29 @@ class DashboardApp(App):
         yield StatusBarWidget(id="status-bar")
 
     async def on_mount(self) -> None:
-        """Initialize HTTP client and start polling timers."""
+        """Initialize HTTP client, start polling timers, and set initial layout."""
         self._client = httpx.AsyncClient(timeout=2.0)
         self.set_interval(self.config.refresh_interval, self._poll_autorate)
         self.set_interval(self.config.refresh_interval, self._poll_steering)
+        self._apply_layout()
+
+    def on_resize(self, event: Resize) -> None:
+        """Debounced layout switch on terminal resize."""
+        if self._resize_timer is not None:
+            self._resize_timer.stop()
+        self._resize_timer = self.set_timer(
+            HYSTERESIS_DELAY, self._apply_layout
+        )
+
+    def _apply_layout(self) -> None:
+        """Switch layout based on current terminal width."""
+        new_mode = "wide" if self.size.width >= BREAKPOINT_WIDE else "narrow"
+        if new_mode == self._layout_mode:
+            return
+        self._layout_mode = new_mode
+        wan_row = self.query_one("#wan-row")
+        wan_row.set_class(new_mode == "wide", "wide-layout")
+        wan_row.set_class(new_mode == "narrow", "narrow-layout")
 
     async def on_unmount(self) -> None:
         """Clean up HTTP client."""

@@ -9,9 +9,24 @@ TabPane {
     overflow-y: auto;
 }
 
-Vertical {
+/* Responsive WAN panel container */
+#wan-row {
+    layout: vertical;
     width: 100%;
-    height: 100%;
+    height: auto;
+}
+
+#wan-row.wide-layout {
+    layout: horizontal;
+}
+
+.wan-col {
+    width: 100%;
+    height: auto;
+}
+
+#wan-row.wide-layout .wan-col {
+    width: 1fr;
 }
 
 WanPanelWidget {
