@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 68: Dead Code Removal** - Remove dead state machine methods and obsolete ISP-specific config files (completed 2026-03-11)
 - [x] **Phase 69: Legacy Fallback Removal** - Remove config parameter fallbacks, legacy validation code, and resolve RTT-only mode (completed 2026-03-11)
 - [x] **Phase 70: Legacy Test Cleanup** - Update test fixtures and test paths to reflect current-only code (completed 2026-03-11)
-- [ ] **Phase 71: Confidence Graduation** - Graduate confidence-based steering from dry-run to live with rollback path
+- [x] **Phase 71: Confidence Graduation** - Graduate confidence-based steering from dry-run to live with rollback path (completed 2026-03-11)
 - [ ] **Phase 72: WAN-Aware Enablement** - Enable WAN-aware steering in production with degradation validation
 
 ## Phase Details
@@ -128,8 +128,8 @@ Decimal phases appear between their surrounding integers in numeric order.
    **Plans**: 2 plans
    Plans:
 
-- [ ] 71-01-PLAN.md — SIGUSR1 hot-reload for dry_run flag (config reload without restart)
-- [ ] 71-02-PLAN.md — Production config graduation + rollback docs + deployment verification
+- [x] 71-01-PLAN.md — SIGUSR1 hot-reload for dry_run flag (config reload without restart) (completed 2026-03-11)
+- [x] 71-02-PLAN.md — Production config graduation + rollback docs + deployment verification (completed 2026-03-11)
 
 ### Phase 72: WAN-Aware Enablement
 
@@ -154,7 +154,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
 | 69. Legacy Fallback Removal | 2/2            | Complete    | 2026-03-11 |
 | 70. Legacy Test Cleanup     | 1/1            | Complete    | 2026-03-11 |
-| 71. Confidence Graduation   | 1/2 | In Progress|  |
+| 71. Confidence Graduation   | 2/2            | Complete    | 2026-03-11 |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
 
 ### Completed Milestones

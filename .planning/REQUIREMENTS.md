@@ -19,8 +19,8 @@ Requirements for Legacy Cleanup & Feature Graduation milestone. Each maps to roa
 
 ### Confidence Graduation
 
-- [ ] **CONF-01**: Confidence-based steering config updated to `dry_run: false` for live routing decisions
-- [ ] **CONF-02**: Health endpoint confirms confidence scores actively influencing steering decisions in production
+- [x] **CONF-01**: Confidence-based steering config updated to `dry_run: false` for live routing decisions
+- [x] **CONF-02**: Health endpoint confirms confidence scores actively influencing steering decisions in production
 - [x] **CONF-03**: Rollback path documented and validated (revert to `dry_run: true` without daemon restart)
 
 ### WAN-Aware Enablement
@@ -62,8 +62,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LGCY-05     | Phase 68 | Complete |
 | LGCY-06     | Phase 70 | Complete |
 | LGCY-07     | Phase 69 | Complete |
-| CONF-01     | Phase 71 | Pending  |
-| CONF-02     | Phase 71 | Pending  |
+| CONF-01     | Phase 71 | Complete |
+| CONF-02     | Phase 71 | Complete |
 | CONF-03     | Phase 71 | Complete |
 | WANE-01     | Phase 72 | Pending  |
 | WANE-02     | Phase 72 | Pending  |
