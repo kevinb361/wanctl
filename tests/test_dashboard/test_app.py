@@ -12,21 +12,28 @@ def _make_autorate_response(
     version: str = "1.13.0",
     uptime: float = 3600,
     disk_status: str = "ok",
+    include_cycle_budget: bool = True,
 ) -> dict:
     """Build sample autorate health response."""
     wans = []
     names = ["spectrum", "att"]
+    utilization_pcts = [70.4, 56.2]
     for i in range(wans_count):
-        wans.append(
-            {
-                "name": names[i] if i < len(names) else f"wan{i}",
-                "baseline_rtt_ms": 12.3,
-                "load_rtt_ms": 18.7,
-                "download": {"current_rate_mbps": 245.0, "state": dl_state},
-                "upload": {"current_rate_mbps": 10.5, "state": "GREEN"},
-                "router_connectivity": True,
+        wan = {
+            "name": names[i] if i < len(names) else f"wan{i}",
+            "baseline_rtt_ms": 12.3,
+            "load_rtt_ms": 18.7,
+            "download": {"current_rate_mbps": 245.0, "state": dl_state},
+            "upload": {"current_rate_mbps": 10.5, "state": "GREEN"},
+            "router_connectivity": True,
+        }
+        if include_cycle_budget:
+            wan["cycle_budget"] = {
+                "used_ms": 35.2 if i == 0 else 28.1,
+                "budget_ms": 50.0,
+                "utilization_pct": utilization_pcts[i] if i < 2 else 50.0,
             }
-        )
+        wans.append(wan)
     return {
         "status": "healthy",
         "version": version,
@@ -284,5 +291,157 @@ class TestDashboardAppOfflineIsolation:
 
                 panel = app.query_one("#steering", SteeringPanelWidget)
                 assert panel._renderer._online is False
+
+        asyncio.run(_test())
+
+
+class TestDashboardAppSparklineWidgets:
+    """Test DashboardApp.compose() includes sparkline and gauge widgets."""
+
+    def test_compose_yields_sparkline_panels(self):
+        """DashboardApp.compose() yields 2 SparklinePanelWidget children."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                panels = app.query(SparklinePanelWidget)
+                assert len(panels) == 2
+
+        asyncio.run(_test())
+
+    def test_compose_yields_gauge_widgets(self):
+        """DashboardApp.compose() yields 2 CycleBudgetGaugeWidget children."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                gauges = app.query(CycleBudgetGaugeWidget)
+                assert len(gauges) == 2
+
+        asyncio.run(_test())
+
+    def test_sparkline_widgets_have_correct_ids(self):
+        """Sparkline panels have IDs spark-wan-1 and spark-wan-2."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                spark1 = app.query_one("#spark-wan-1", SparklinePanelWidget)
+                spark2 = app.query_one("#spark-wan-2", SparklinePanelWidget)
+                assert spark1 is not None
+                assert spark2 is not None
+
+        asyncio.run(_test())
+
+    def test_gauge_widgets_have_correct_ids(self):
+        """Gauge widgets have IDs gauge-wan-1 and gauge-wan-2."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                gauge1 = app.query_one("#gauge-wan-1", CycleBudgetGaugeWidget)
+                gauge2 = app.query_one("#gauge-wan-2", CycleBudgetGaugeWidget)
+                assert gauge1 is not None
+                assert gauge2 is not None
+
+        asyncio.run(_test())
+
+
+class TestDashboardAppSparklineRouting:
+    """Test poll callback routes data to sparkline and gauge widgets."""
+
+    def test_poll_routes_data_to_sparkline_widgets(self):
+        """Poll callback extracts DL/UL/RTT and routes to SparklinePanelWidget."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+
+                spark1 = app.query_one("#spark-wan-1", SparklinePanelWidget)
+                assert len(spark1._dl_data) == 1
+                assert spark1._dl_data[0] == 245.0
+                assert spark1._ul_data[0] == 10.5
+                # RTT delta = max(0, 18.7 - 12.3) = 6.4
+                assert abs(spark1._rtt_delta_data[0] - 6.4) < 0.01
+
+        asyncio.run(_test())
+
+    def test_poll_routes_cycle_budget_to_gauge(self):
+        """Poll callback routes cycle_budget.utilization_pct to gauge widget."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+
+                gauge1 = app.query_one("#gauge-wan-1", CycleBudgetGaugeWidget)
+                assert gauge1._utilization_pct == 70.4
+
+                gauge2 = app.query_one("#gauge-wan-2", CycleBudgetGaugeWidget)
+                assert gauge2._utilization_pct == 56.2
+
+        asyncio.run(_test())
+
+    def test_poll_missing_cycle_budget_does_not_crash(self):
+        """When cycle_budget is None, gauge is not updated and no crash."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(
+                    wans_count=2, include_cycle_budget=False
+                )
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+
+                # Should not crash; gauge stays at initial 0
+                gauge1 = app.query_one("#gauge-wan-1", CycleBudgetGaugeWidget)
+                assert gauge1._utilization_pct == 0
+
+        asyncio.run(_test())
+
+    def test_poll_accumulates_sparkline_data(self):
+        """Multiple polls accumulate sparkline data points."""
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+                await app._poll_autorate()
+                await app._poll_autorate()
+
+                spark1 = app.query_one("#spark-wan-1", SparklinePanelWidget)
+                assert len(spark1._dl_data) == 3
 
         asyncio.run(_test())
