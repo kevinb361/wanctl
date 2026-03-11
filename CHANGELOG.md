@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Confidence-based steering graduated from dry-run to live mode** (Phase 71)
+  - `configs/steering.yaml` now ships with `dry_run: false` (confidence scoring drives routing decisions)
+  - Multi-signal confidence scoring (0-100 scale) replaces binary RED-triggers-steer model
+  - SIGUSR1 hot-reload enables toggling dry_run without daemon restart
+  - Rollback procedure documented in `docs/STEERING.md` (edit YAML + `kill -USR1`)
+  - WAN-aware steering remains at its current enabled state (`wan_state.enabled: true`)
 - **Tuned `accel_threshold_ms`** - Reduced from 15ms to 12ms for faster spike detection
   - A/B testing showed 19% reduction in average RTT under load (48ms → 39ms)
   - 11% reduction in peak latency spikes (83ms → 74ms avg peak)
