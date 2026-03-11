@@ -10,10 +10,9 @@ import statistics
 from typing import Any
 
 import httpx
+from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Select, Static
-from textual.app import ComposeResult
-
 
 TIME_RANGES: list[tuple[str, str]] = [
     ("1 Hour", "1h"),
