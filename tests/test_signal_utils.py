@@ -5,11 +5,15 @@ from unittest.mock import patch
 
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
+    _reload_event,
+    _reload_signal_handler,
     _shutdown_event,
     _signal_handler,
     get_shutdown_event,
+    is_reload_requested,
     is_shutdown_requested,
     register_signal_handlers,
+    reset_reload_state,
     reset_shutdown_state,
     wait_for_shutdown,
 )
@@ -160,3 +164,65 @@ class TestSignalUtils:
     def test_shutdown_timeout_less_than_systemd_default(self):
         """Test timeout is well under systemd's 90s SIGKILL threshold."""
         assert SHUTDOWN_TIMEOUT_SECONDS < 90
+
+
+class TestReloadSignal:
+    """Tests for SIGUSR1 config reload signal infrastructure."""
+
+    def setup_method(self):
+        """Reset reload and shutdown state before each test."""
+        reset_reload_state()
+        reset_shutdown_state()
+
+    def teardown_method(self):
+        """Reset reload and shutdown state after each test."""
+        reset_reload_state()
+        reset_shutdown_state()
+
+    def test_reload_signal_handler_sets_reload_event(self):
+        """Test _reload_signal_handler sets _reload_event without setting _shutdown_event."""
+        assert not _reload_event.is_set()
+        assert not _shutdown_event.is_set()
+
+        _reload_signal_handler(signal.SIGUSR1, None)
+
+        assert _reload_event.is_set()
+        assert not _shutdown_event.is_set()
+
+    def test_is_reload_requested_returns_false_initially(self):
+        """Test is_reload_requested() returns False when reload has not been signaled."""
+        assert not is_reload_requested()
+
+    def test_is_reload_requested_returns_true_after_set(self):
+        """Test is_reload_requested() returns True after _reload_event.set()."""
+        _reload_event.set()
+        assert is_reload_requested()
+
+    def test_reset_reload_state_clears_event(self):
+        """Test reset_reload_state() clears _reload_event back to False."""
+        _reload_event.set()
+        assert is_reload_requested()
+
+        reset_reload_state()
+
+        assert not is_reload_requested()
+
+    def test_register_signal_handlers_registers_sigusr1_by_default(self):
+        """Test register_signal_handlers(include_sigusr1=True) registers SIGUSR1 handler."""
+        with patch("wanctl.signal_utils.signal.signal") as mock_signal:
+            register_signal_handlers(include_sigusr1=True)
+
+            # Should have registered SIGTERM, SIGINT, and SIGUSR1 (3 calls)
+            assert mock_signal.call_count == 3
+            calls = [call[0] for call in mock_signal.call_args_list]
+            assert (signal.SIGUSR1, _reload_signal_handler) in calls
+
+    def test_register_signal_handlers_skips_sigusr1_when_false(self):
+        """Test register_signal_handlers(include_sigusr1=False) does NOT register SIGUSR1."""
+        with patch("wanctl.signal_utils.signal.signal") as mock_signal:
+            register_signal_handlers(include_sigusr1=False)
+
+            # Should register SIGTERM + SIGINT only (2 calls)
+            assert mock_signal.call_count == 2
+            calls = [call[0] for call in mock_signal.call_args_list]
+            assert all(c[0] != signal.SIGUSR1 for c in calls)
