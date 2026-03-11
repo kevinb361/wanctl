@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.14
 milestone_name: Operational Visibility
-current_plan: Not started
-status: planning
-last_updated: "2026-03-11T20:14:30.122Z"
-last_activity: 2026-03-11 -- Completed 74-02 (History browser and tabbed navigation)
+current_plan: 75-01 complete
+status: executing
+last_updated: "2026-03-11T20:59:02Z"
+last_activity: 2026-03-11 -- Completed 75-01 (Responsive layout with hysteresis)
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 67
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
 ---
 
 # Session State
@@ -21,25 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.14 Operational Visibility -- Phase 74 Visualization in progress
+**Current focus:** v1.14 Operational Visibility -- Phase 75 Layout & Compatibility in progress
 
 ## Position
 
 **Milestone:** v1.14 Operational Visibility
-**Phase:** 74 of 75 (Visualization & History)
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-11 -- Completed 74-02 (History browser and tabbed navigation)
+**Phase:** 75 of 75 (Layout & Compatibility)
+**Current Plan:** 75-01 complete, 75-02 next
+**Status:** Executing phase 75
+**Last activity:** 2026-03-11 -- Completed 75-01 (Responsive layout with hysteresis)
 
-Progress: [██████----] 67% (Phase 74, 2/3 plans)
+Progress: [████████--] 86% (Phase 75, 1/2 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 10min
-- Total execution time: 51min
+- Total plans completed: 6
+- Average duration: 9min
+- Total execution time: 54min
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -48,6 +48,7 @@ Progress: [██████----] 67% (Phase 74, 2/3 plans)
 | 73    | 03   | 24min    | 2     | 3     |
 | 74    | 01   | 7min     | 2     | 8     |
 | 74    | 02   | 8min     | 2     | 5     |
+| 75    | 01   | 3min     | 1     | 3     |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Progress: [██████----] 67% (Phase 74, 2/3 plans)
 - TabbedContent(initial="live") for default Live tab focus on launch
 - StatusBarWidget outside TabbedContent for persistent dock-bottom visibility
 - Lazy httpx.AsyncClient creation in \_fetch_and_populate avoids lifecycle issues before mount
+- Initialize \_layout_mode to empty string so first \_apply_layout() always sets CSS class
+- CSS class toggle pattern: set_class(condition, class_name) for responsive layout switching
+- Horizontal container with CSS layout override (TCSS specificity > DEFAULT_CSS)
 
 ### Known Issues
 
@@ -101,3 +105,4 @@ None.
 - 2026-03-11: Phase 73 (Foundation) COMPLETE -- 3/3 plans, 79 dashboard tests, wanctl-dashboard fully functional
 - 2026-03-11: Completed 74-01 -- Sparkline trends + cycle gauge (23 new tests, 7min, 102 total dashboard tests)
 - 2026-03-11: Completed 74-02 -- History browser + tabbed navigation (12 new tests, 8min, 114 total dashboard tests)
+- 2026-03-11: Completed 75-01 -- Responsive layout with hysteresis (13 new tests, 3min, 127 total dashboard tests)
