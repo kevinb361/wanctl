@@ -173,6 +173,13 @@ class DashboardApp(App):
             config.steering_url,
             normal_interval=config.refresh_interval,
         )
+        self._secondary_autorate_poller: EndpointPoller | None = None
+        if config.secondary_autorate_url:
+            self._secondary_autorate_poller = EndpointPoller(
+                "autorate-secondary",
+                config.secondary_autorate_url,
+                normal_interval=config.refresh_interval,
+            )
         self._client: httpx.AsyncClient | None = None
         self._layout_mode: str = ""
         self._resize_timer: Timer | None = None
@@ -203,6 +210,10 @@ class DashboardApp(App):
         self._client = httpx.AsyncClient(timeout=2.0)
         self.set_interval(self.config.refresh_interval, self._poll_autorate)
         self.set_interval(self.config.refresh_interval, self._poll_steering)
+        if self._secondary_autorate_poller is not None:
+            self.set_interval(
+                self.config.refresh_interval, self._poll_secondary_autorate
+            )
         self._apply_layout()
 
     def on_resize(self, event: Resize) -> None:
@@ -228,8 +239,44 @@ class DashboardApp(App):
         if self._client:
             await self._client.aclose()
 
+    def _route_wan_data(
+        self, wan_data: dict | None, wan_num: int, full_response: dict | None
+    ) -> None:
+        """Route WAN data to panel, sparkline, and gauge for the given WAN number."""
+        wan_widget = self.query_one(f"#wan-{wan_num}", WanPanelWidget)
+        if wan_data is None:
+            wan_widget.update_from_data(None)
+            return
+
+        status = full_response.get("status") if full_response else None
+        if wan_num == 1:
+            last_seen = self._autorate_poller.last_seen
+        else:
+            last_seen = (
+                self._secondary_autorate_poller.last_seen
+                if self._secondary_autorate_poller
+                else self._autorate_poller.last_seen
+            )
+        wan_widget.update_from_data(wan_data, status=status, last_seen=last_seen)
+
+        dl_rate = wan_data.get("download", {}).get("current_rate_mbps", 0)
+        ul_rate = wan_data.get("upload", {}).get("current_rate_mbps", 0)
+        baseline_rtt = wan_data.get("baseline_rtt_ms", 0)
+        load_rtt = wan_data.get("load_rtt_ms", 0)
+        rtt_delta = max(0, load_rtt - baseline_rtt)
+
+        spark = self.query_one(f"#spark-wan-{wan_num}", SparklinePanelWidget)
+        spark.append_data(dl_rate, ul_rate, rtt_delta)
+
+        cycle_budget = wan_data.get("cycle_budget")
+        if cycle_budget is not None:
+            gauge = self.query_one(
+                f"#gauge-wan-{wan_num}", CycleBudgetGaugeWidget
+            )
+            gauge.update_utilization(cycle_budget.get("utilization_pct", 0))
+
     async def _poll_autorate(self) -> None:
-        """Poll autorate endpoint and route data to WAN panels and status bar."""
+        """Poll primary autorate endpoint and route data to WAN panels."""
         if self._client is None:
             return
 
@@ -239,35 +286,13 @@ class DashboardApp(App):
 
         if data and "wans" in data:
             wans = data["wans"]
-            for i, wan_data in enumerate(wans[:2]):
-                wan_widget = [wan1, wan2][i]
-                wan_widget.update_from_data(
-                    wan_data,
-                    status=data.get("status"),
-                    last_seen=self._autorate_poller.last_seen,
-                )
-
-                # Route sparkline data
-                dl_rate = wan_data.get("download", {}).get("current_rate_mbps", 0)
-                ul_rate = wan_data.get("upload", {}).get("current_rate_mbps", 0)
-                baseline_rtt = wan_data.get("baseline_rtt_ms", 0)
-                load_rtt = wan_data.get("load_rtt_ms", 0)
-                rtt_delta = max(0, load_rtt - baseline_rtt)
-
-                spark = self.query_one(
-                    f"#spark-wan-{i + 1}", SparklinePanelWidget
-                )
-                spark.append_data(dl_rate, ul_rate, rtt_delta)
-
-                # Route cycle budget data
-                cycle_budget = wan_data.get("cycle_budget")
-                if cycle_budget is not None:
-                    gauge = self.query_one(
-                        f"#gauge-wan-{i + 1}", CycleBudgetGaugeWidget
-                    )
-                    gauge.update_utilization(
-                        cycle_budget.get("utilization_pct", 0)
-                    )
+            if self._secondary_autorate_poller is not None:
+                # Dual mode: primary handles only WAN 1
+                self._route_wan_data(wans[0] if wans else None, 1, data)
+            else:
+                # Single mode: primary handles both WANs (existing behavior)
+                for i, wan_data in enumerate(wans[:2]):
+                    self._route_wan_data(wan_data, i + 1, data)
 
             status_bar = self.query_one("#status-bar", StatusBarWidget)
             status_bar.update_status(
@@ -277,7 +302,27 @@ class DashboardApp(App):
             )
         else:
             wan1.update_from_data(None, last_seen=self._autorate_poller.last_seen)
-            wan2.update_from_data(None, last_seen=self._autorate_poller.last_seen)
+            if self._secondary_autorate_poller is None:
+                wan2.update_from_data(
+                    None, last_seen=self._autorate_poller.last_seen
+                )
+
+    async def _poll_secondary_autorate(self) -> None:
+        """Poll secondary autorate endpoint and route data to WAN 2 panel."""
+        if self._client is None or self._secondary_autorate_poller is None:
+            return
+
+        data = await self._secondary_autorate_poller.poll(self._client)
+        wan2 = self.query_one("#wan-2", WanPanelWidget)
+
+        if data and "wans" in data:
+            wans = data["wans"]
+            if wans:
+                self._route_wan_data(wans[0], 2, data)
+        else:
+            wan2.update_from_data(
+                None, last_seen=self._secondary_autorate_poller.last_seen
+            )
 
     async def _poll_steering(self) -> None:
         """Poll steering endpoint and route data to steering panel."""
@@ -294,6 +339,8 @@ class DashboardApp(App):
     async def action_refresh(self) -> None:
         """Handle 'r' keybinding: force immediate refresh of all endpoints."""
         await self._poll_autorate()
+        if self._secondary_autorate_poller is not None:
+            await self._poll_secondary_autorate()
         await self._poll_steering()
 
 
