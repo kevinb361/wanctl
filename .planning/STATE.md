@@ -5,7 +5,7 @@ milestone_name: Operational Visibility
 current_plan: Not started
 status: completed
 last_updated: "2026-03-11T21:23:06.753Z"
-last_activity: 2026-03-11 -- Completed 75-02 (Color control CLI flags and tmux compatibility)
+last_activity: 2026-03-11 - Completed quick task 6: LAN-accessible health endpoints and dual-WAN dashboard polling
 progress:
   total_phases: 3
   completed_phases: 3
@@ -90,6 +90,12 @@ None.
 ### Blockers
 
 None.
+
+### Quick Tasks Completed
+
+| #   | Description                                                    | Date       | Commit  | Directory                                                                                         |
+| --- | -------------------------------------------------------------- | ---------- | ------- | ------------------------------------------------------------------------------------------------- |
+| 6   | LAN-accessible health endpoints and dual-WAN dashboard polling | 2026-03-11 | f900229 | [6-lan-accessible-health-endpoints-and-dual](./quick/6-lan-accessible-health-endpoints-and-dual/) |
 
 ### Pending Todos
 
