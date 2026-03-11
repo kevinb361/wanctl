@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 68 - Dead Code Removal (COMPLETE)
+**Current focus:** v1.13 Phase 69 - Legacy Fallback Removal (context gathered)
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 68 of 72 (Dead Code Removal) -- COMPLETE (2/2 plans)
+**Phase:** 69 of 72 (Legacy Fallback Removal) -- Context gathered
 **Current Plan:** Not started
 **Status:** Ready to plan
-**Last activity:** 2026-03-11 -- Completed 68-01-PLAN.md (cake_aware removal)
+**Last activity:** 2026-03-11 -- Phase 69 context gathered
 
 ## Accumulated Context
 
@@ -72,3 +72,4 @@ None.
 - 2026-03-11: Completed 68-02-PLAN.md -- Obsolete Config Cleanup (7 files deleted, ARCHITECTURE.md updated, LGCY-05 satisfied)
 - 2026-03-11: Completed 68-01-PLAN.md -- cake_aware removal (119 lines dead code removed, 6 legacy tests deleted, LGCY-02 satisfied)
 - 2026-03-11: Phase 68 complete -- Dead Code Removal (2/2 plans, LGCY-02 + LGCY-05 satisfied)
+- 2026-03-11: Phase 69 context gathered -- Legacy Fallback Removal (8 decision areas, warn+translate pattern)
