@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 73: Foundation** - Polling engine, live status panels, CLI entry point, and infrastructure
 - [x] **Phase 74: Visualization & History** - Sparklines, cycle budget gauge, and historical metrics browser (completed 2026-03-11)
-- [ ] **Phase 75: Layout & Compatibility** - Adaptive wide/narrow layout, resize hysteresis, and terminal compatibility
+- [x] **Phase 75: Layout & Compatibility** - Adaptive wide/narrow layout, resize hysteresis, and terminal compatibility (completed 2026-03-11)
 
 ## Phase Details
 
@@ -103,8 +103,8 @@ Plans:
 
 Plans:
 
-- [ ] 75-01-PLAN.md -- Responsive layout with side-by-side/stacked WAN panels and resize hysteresis
-- [ ] 75-02-PLAN.md -- Color control CLI flags and tmux/SSH compatibility verification
+- [x] 75-01-PLAN.md -- Responsive layout with side-by-side/stacked WAN panels and resize hysteresis
+- [x] 75-02-PLAN.md -- Color control CLI flags and tmux/SSH compatibility verification
 
 ## Progress
 
@@ -113,11 +113,11 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 73 -> 74 -> 75
 
-| Phase                       | Plans Complete | Status      | Completed  |
-| --------------------------- | -------------- | ----------- | ---------- |
-| 73. Foundation              | 3/3            | Complete    | 2026-03-11 |
-| 74. Visualization & History | 2/2            | Complete    | 2026-03-11 |
-| 75. Layout & Compatibility  | 1/2 | In Progress|  |
+| Phase                       | Plans Complete | Status   | Completed  |
+| --------------------------- | -------------- | -------- | ---------- |
+| 73. Foundation              | 3/3            | Complete | 2026-03-11 |
+| 74. Visualization & History | 2/2            | Complete | 2026-03-11 |
+| 75. Layout & Compatibility  | 2/2            | Complete | 2026-03-11 |
 
 ### Completed Milestones
 

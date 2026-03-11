@@ -41,8 +41,8 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 - [x] **LYOT-01**: Adaptive layout shows side-by-side WAN panels at >=120 columns
 - [x] **LYOT-02**: Stacked/tabbed layout below 120 columns
 - [x] **LYOT-03**: Resize hysteresis prevents layout flicker at breakpoint boundary
-- [ ] **LYOT-04**: Dashboard works in tmux and SSH+tmux sessions
-- [ ] **LYOT-05**: `--no-color` and `--256-color` CLI flags for terminal fallback
+- [x] **LYOT-04**: Dashboard works in tmux and SSH+tmux sessions
+- [x] **LYOT-05**: `--no-color` and `--256-color` CLI flags for terminal fallback
 
 ### Infrastructure
 
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LYOT-01     | Phase 75 | Complete |
 | LYOT-02     | Phase 75 | Complete |
 | LYOT-03     | Phase 75 | Complete |
-| LYOT-04     | Phase 75 | Pending  |
-| LYOT-05     | Phase 75 | Pending  |
+| LYOT-04     | Phase 75 | Complete |
+| LYOT-05     | Phase 75 | Complete |
 | INFRA-01    | Phase 73 | Complete |
 | INFRA-02    | Phase 73 | Complete |
 | INFRA-03    | Phase 73 | Complete |

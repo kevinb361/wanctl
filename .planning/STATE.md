@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.14
 milestone_name: Operational Visibility
-current_plan: 75-01 complete
-status: executing
-last_updated: "2026-03-11T20:59:02Z"
-last_activity: 2026-03-11 -- Completed 75-01 (Responsive layout with hysteresis)
+current_plan: 75-02 complete
+status: milestone-complete
+last_updated: "2026-03-11T21:14:00Z"
+last_activity: 2026-03-11 -- Completed 75-02 (Color control CLI flags and tmux compatibility)
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 100
 ---
 
 # Session State
@@ -27,19 +27,19 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Milestone:** v1.14 Operational Visibility
 **Phase:** 75 of 75 (Layout & Compatibility)
-**Current Plan:** 75-01 complete, 75-02 next
-**Status:** Executing phase 75
-**Last activity:** 2026-03-11 -- Completed 75-01 (Responsive layout with hysteresis)
+**Current Plan:** 75-02 complete (all plans done)
+**Status:** Milestone v1.14 complete
+**Last activity:** 2026-03-11 -- Completed 75-02 (Color control CLI flags and tmux compatibility)
 
-Progress: [████████--] 86% (Phase 75, 1/2 plans)
+Progress: [██████████] 100% (Phase 75, 2/2 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: 9min
-- Total execution time: 54min
+- Total plans completed: 7
+- Average duration: 8min
+- Total execution time: 59min
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -49,6 +49,7 @@ Progress: [████████--] 86% (Phase 75, 1/2 plans)
 | 74    | 01   | 7min     | 2     | 8     |
 | 74    | 02   | 8min     | 2     | 5     |
 | 75    | 01   | 3min     | 1     | 3     |
+| 75    | 02   | 5min     | 2     | 2     |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Progress: [████████--] 86% (Phase 75, 1/2 plans)
 - Initialize \_layout_mode to empty string so first \_apply_layout() always sets CSS class
 - CSS class toggle pattern: set_class(condition, class_name) for responsive layout switching
 - Horizontal container with CSS layout override (TCSS specificity > DEFAULT_CSS)
+- NO_COLOR env var convention (no-color.org) for --no-color flag; TEXTUAL_COLOR_SYSTEM for --256-color
+- --no-color takes priority over --256-color via if/elif (env vars set before app.run())
 
 ### Known Issues
 
@@ -106,3 +109,6 @@ None.
 - 2026-03-11: Completed 74-01 -- Sparkline trends + cycle gauge (23 new tests, 7min, 102 total dashboard tests)
 - 2026-03-11: Completed 74-02 -- History browser + tabbed navigation (12 new tests, 8min, 114 total dashboard tests)
 - 2026-03-11: Completed 75-01 -- Responsive layout with hysteresis (13 new tests, 3min, 127 total dashboard tests)
+- 2026-03-11: Completed 75-02 -- Color control CLI flags and tmux compatibility (6 new tests, 5min, 133 total dashboard tests)
+- 2026-03-11: Phase 75 (Layout & Compatibility) COMPLETE -- 2/2 plans, all LYOT requirements satisfied
+- 2026-03-11: v1.14 Operational Visibility COMPLETE -- 3 phases, 7 plans, 27/27 requirements, 133 dashboard tests
