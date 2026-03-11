@@ -48,8 +48,10 @@ from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
+    is_reload_requested,
     is_shutdown_requested,
     register_signal_handlers,
+    reset_reload_state,
 )
 from ..state_manager import StateSchema, SteeringStateManager
 from ..state_utils import safe_json_load_file
@@ -885,6 +887,43 @@ class SteeringDaemon:
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
+
+    def _reload_dry_run_config(self) -> None:
+        """Re-read dry_run flag from config YAML file (triggered by SIGUSR1).
+
+        Only reloads the confidence.dry_run field. All other config values
+        remain unchanged (require full restart to modify).
+        """
+        if self.confidence_controller is None:
+            self.logger.info("[CONFIDENCE] Config reload: no-op (confidence scoring not enabled)")
+            return
+
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[CONFIDENCE] Config reload failed: {e}")
+            return
+
+        new_dry_run = fresh_data.get("confidence", {}).get("dry_run", True)
+        # confidence_controller is not None (guarded above), so confidence_config is set
+        assert self.config.confidence_config is not None
+        old_dry_run = self.config.confidence_config["dry_run"]["enabled"]
+
+        if new_dry_run == old_dry_run:
+            self.logger.warning(f"[CONFIDENCE] Config reload: dry_run={old_dry_run} (unchanged)")
+            return
+
+        # Update both the config dict and the controller instance
+        self.config.confidence_config["dry_run"]["enabled"] = new_dry_run
+        self.confidence_controller.dry_run.enabled = new_dry_run
+
+        mode_str = "DRY-RUN (log-only)" if new_dry_run else "LIVE (routing active)"
+        self.logger.warning(
+            f"[CONFIDENCE] Config reload: dry_run={old_dry_run}->{new_dry_run} mode={mode_str}"
+        )
 
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
@@ -1753,6 +1792,12 @@ def run_daemon_loop(
 
         # Update health server with current failure state (INTG-03)
         update_steering_health_status(consecutive_failures)
+
+        # Check for config reload signal (SIGUSR1)
+        if is_reload_requested():
+            logger.info("SIGUSR1 received, reloading dry_run config")
+            daemon._reload_dry_run_config()
+            reset_reload_state()
 
         # Notify systemd watchdog ONLY if healthy
         if watchdog_enabled and cycle_success:

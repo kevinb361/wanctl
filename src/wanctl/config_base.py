@@ -286,6 +286,7 @@ class BaseConfig:
             ConfigValidationError: If YAML syntax is invalid (includes line number)
                 or if required config keys are missing or invalid
         """
+        self.config_file_path = config_path
         with open(config_path) as f:
             try:
                 self.data = yaml.safe_load(f)
