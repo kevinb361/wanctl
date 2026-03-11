@@ -60,12 +60,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. When one daemon endpoint is unreachable, that panel shows "offline" with last-seen timestamp while the other panel continues updating normally
   4. CLI args (`--autorate-url`, `--steering-url`) override default endpoint URLs, a YAML config file persists dashboard settings, and a footer displays discoverable keybindings
   5. `wanctl-dashboard` installs as a standalone command via `pip install wanctl[dashboard]` with textual and httpx as optional dependencies
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 73-01: TBD
-- [ ] 73-02: TBD
-- [ ] 73-03: TBD
+- [ ] 73-01-PLAN.md -- Infrastructure, config module, and async endpoint poller
+- [ ] 73-02-PLAN.md -- WanPanel, SteeringPanel, and StatusBar widgets
+- [ ] 73-03-PLAN.md -- App assembly, polling wiring, keybindings, and visual verification
 
 ### Phase 74: Visualization & History
 **Goal**: Operator can see rate and RTT trends at a glance via sparklines and browse historical metrics with selectable time ranges
@@ -106,7 +106,7 @@ Phases execute in numeric order: 73 -> 74 -> 75
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 73. Foundation | 0/? | Not started | - |
+| 73. Foundation | 0/3 | Planned | - |
 | 74. Visualization & History | 0/? | Not started | - |
 | 75. Layout & Compatibility | 0/? | Not started | - |
 
