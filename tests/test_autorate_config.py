@@ -1,8 +1,8 @@
 """Tests for Config class loading and validation in autorate_continuous.
 
 Covers:
-- Config._load_download_config (legacy and state-based floors)
-- Config._load_upload_config (legacy and state-based floors)
+- Config._load_download_config (single-floor and state-based floors)
+- Config._load_upload_config (single-floor and state-based floors)
 - Floor ordering validation
 
 Coverage target: lines 274-343 (_load_download_config, _load_upload_config).
@@ -68,8 +68,8 @@ lock_timeout: 300
 
 
 @pytest.fixture
-def base_config_yaml_legacy() -> str:
-    """Base config YAML with legacy single floor (v1 format)."""
+def base_config_yaml_single_floor() -> str:
+    """Base config YAML with single floor_mbps (applies to all states)."""
     return """
 wan_name: TestWAN
 router:
@@ -120,14 +120,14 @@ lock_timeout: 300
 class TestLoadDownloadConfig:
     """Tests for Config._load_download_config method."""
 
-    def test_load_download_legacy_floor(self, base_config_yaml_legacy, tmp_path):
-        """Legacy single floor_mbps applies to all states."""
+    def test_load_download_single_floor(self, base_config_yaml_single_floor, tmp_path):
+        """Single floor_mbps applies to all states."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(base_config_yaml_legacy)
+        config_file.write_text(base_config_yaml_single_floor)
 
         config = Config(str(config_file))
 
-        # Legacy floor (400 Mbps) should be used for all states
+        # Single floor (400 Mbps) should be used for all states
         expected_floor = 400 * 1_000_000
         assert config.download_floor_green == expected_floor
         assert config.download_floor_yellow == expected_floor
@@ -260,14 +260,14 @@ lock_timeout: 300
 class TestLoadUploadConfig:
     """Tests for Config._load_upload_config method."""
 
-    def test_load_upload_legacy_floor(self, base_config_yaml_legacy, tmp_path):
-        """Legacy single floor_mbps applies to all states."""
+    def test_load_upload_single_floor(self, base_config_yaml_single_floor, tmp_path):
+        """Single floor_mbps applies to all states."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text(base_config_yaml_legacy)
+        config_file.write_text(base_config_yaml_single_floor)
 
         config = Config(str(config_file))
 
-        # Legacy floor (25 Mbps) should be used for all states
+        # Single floor (25 Mbps) should be used for all states
         expected_floor = 25 * 1_000_000
         assert config.upload_floor_green == expected_floor
         assert config.upload_floor_yellow == expected_floor
