@@ -1,5 +1,33 @@
 # Project Milestones: wanctl
 
+## v1.12 Deployment & Code Health (Shipped: 2026-03-11)
+
+**Delivered:** Deployment alignment, dead code removal, security hardening, fragile area stabilization, and infrastructure consolidation for production hygiene.
+
+**Phases completed:** 62-66 (7 plans total)
+
+**Key accomplishments:**
+
+- Deployment artifacts (Dockerfile, install.sh, deploy.sh) aligned with pyproject.toml as single source of truth, version bumped to 1.12.0
+- Dead code removed: pexpect dependency eliminated, dead subprocess import and stale timeout_total API cleaned from RTT measurement
+- Security hardened: router password cleared after client construction, SSL warnings scoped per-request, safe fallback gateway default, integration test hosts parameterized
+- Fragile areas stabilized: state file schema contract tests catch key renames, check_flapping side-effect contract documented, WAN config warnings at proper level
+- Config boilerplate consolidated: 6 common fields extracted to BaseConfig, eliminating duplicate YAML-to-attribute loading across both daemons
+- Infrastructure validated: RotatingFileHandler for log rotation (10MB/3 backups), 17 Dockerfile/dependency contract tests parametrized from pyproject.toml
+
+**Stats:**
+
+- 5 phases, 7 plans
+- 53 new tests (2,210 to 2,263)
+- 16,993 LOC Python (src/)
+- 2 days (2026-03-10 to 2026-03-11)
+
+**Git range:** `v1.11..v1.12`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.11 WAN-Aware Steering (Shipped: 2026-03-10)
 
 **Delivered:** WAN-aware steering that fuses autorate congestion zone into confidence scoring, with fail-safe defaults, YAML configuration, and full observability.

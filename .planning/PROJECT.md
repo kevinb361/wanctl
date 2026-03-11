@@ -8,26 +8,15 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.12 Deployment & Code Health
-
-**Goal:** Align deployment artifacts with codebase reality, eliminate dead code and stale APIs, harden fragile areas, and close deferred infrastructure gaps.
-
-**Target features:**
-
-- Deployment hygiene: Dockerfile, deploy script, install script aligned with actual dependencies
-- Dead code removal: unused imports, stale parameters, orphaned dependencies
-- Security hardening: credential lifetime, SSL warning scope, default safety
-- Fragile area fixes: singleton testing, state file contract, silent failure modes
-- Infrastructure gaps: contract tests, log rotation, Docker CI validation
-
 ## Current State
 
-**Version:** v1.12 (Deployment & Code Health) — in progress
-**Tests:** 2,210 passing, 91%+ coverage
-**LOC:** ~16,880 Python (src/)
-**Milestones:** 12 shipped (v1.0-v1.11), 61 phases, 127 plans
+**Version:** v1.12.0 (Deployment & Code Health) — shipped 2026-03-11
+**Tests:** 2,263 passing, 91%+ coverage
+**LOC:** ~16,993 Python (src/)
+**Milestones:** 13 shipped (v1.0-v1.12), 66 phases, 134 plans
 
 **Previous:** v1.11 WAN-Aware Steering — WAN congestion zone fused into steering confidence scoring
+**Latest:** v1.12 Deployment & Code Health — deployment alignment, security hardening, config consolidation
 
 ## Requirements
 
@@ -134,15 +123,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ WAN context in steering transition and degrade timer logs — v1.11
 - ✓ 17/17 requirements satisfied, 14/14 integration, 3/3 E2E flows — v1.11
 
-### Active
-
 **v1.12 Deployment & Code Health:**
 
-- [ ] Deployment artifacts aligned with actual dependencies (Dockerfile, deploy script, install script)
-- [ ] Dead code and stale APIs removed (subprocess import, timeout_total, pexpect dep)
-- [ ] Security hardened (credential lifetime, SSL warning scope, fallback gateway default)
-- [ ] Fragile areas stabilized (state file contract, singleton testing, silent failures)
-- [ ] Infrastructure gaps closed (contract tests, log rotation, Docker CI)
+- ✓ Deployment artifacts aligned with pyproject.toml (Dockerfile, install.sh, deploy.sh) — v1.12
+- ✓ Dead code removed (pexpect, subprocess import, timeout_total API) — v1.12
+- ✓ Security hardened (password scrubbing, scoped SSL warnings, safe defaults) — v1.12
+- ✓ Fragile areas stabilized (state file contract tests, check_flapping contract, WAN config warnings) — v1.12
+- ✓ Config boilerplate consolidated (BaseConfig with 6 common fields) — v1.12
+- ✓ Log rotation via RotatingFileHandler (10MB/3 backups) — v1.12
+- ✓ Dockerfile/dependency contract tests parametrized from pyproject.toml — v1.12
+- ✓ 18/18 requirements satisfied, audit passed — v1.12
+
+### Active
 
 **Ongoing:**
 
@@ -269,6 +261,15 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 61: Observability + metrics (health endpoint, 3 SQLite metrics, WAN context in logs)
 - 101 new tests (2,109 → 2,210 total), 17/17 requirements satisfied
 
+**v1.12 Deployment & Code Health (2026-03-10 → 2026-03-11):**
+
+- Phase 62: Deployment alignment (pyproject.toml as canonical source for all artifacts)
+- Phase 63: Dead code removal (pexpect, dead subprocess import, stale timeout_total)
+- Phase 64: Security hardening (password clearing, per-request SSL suppression, safe defaults)
+- Phase 65: Fragile area stabilization (state file schema contract, check_flapping contract)
+- Phase 66: Config extraction (BaseConfig consolidation, RotatingFileHandler, deployment contract tests)
+- 53 new tests (2,210 → 2,263 total)
+
 ## Constraints
 
 - **Production deployment**: Running in home network — must maintain stability and reliability
@@ -308,7 +309,12 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Ship disabled by default | No behavioral change on upgrade; explicit opt-in required | ✓ wan_state.enabled: false | 2026-03-09 |
 | Warn+disable for invalid config | Invalid wan_state config degrades gracefully, never crashes | ✓ Daemon stays running | 2026-03-09 |
 | Zone piggybacked on existing read | Zero additional I/O; BaselineLoader returns (rtt, zone) tuple | ✓ FUSE-01 satisfied | 2026-03-09 |
+| pyproject.toml as single source of truth | Dockerfile, install.sh, deploy.sh derive from one place | ✓ Contract tests enforce | 2026-03-10 |
+| BaseConfig consolidation (6 fields) | Eliminate duplicate YAML-to-attribute boilerplate | ✓ Both daemons use shared | 2026-03-11 |
+| RotatingFileHandler with getattr defaults | Backward-compatible log rotation without config changes | ✓ 10MB/3 backups default | 2026-03-11 |
+| Password clearing after construction | Minimize credential lifetime in memory | ✓ Eager resolve + delete | 2026-03-10 |
+| Contract tests parametrized from source | Adding deps auto-creates test cases | ✓ 17 deployment tests | 2026-03-11 |
 
 ---
 
-_Last updated: 2026-03-10 after v1.12 milestone start_
+_Last updated: 2026-03-11 after v1.12 milestone completion_
