@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.14
-milestone_name: Operational Visibility
+milestone: v1.15
+milestone_name: Alerting & Notifications
 current_plan: Not started
-status: milestone_archived
-last_updated: "2026-03-11T23:30:00.000Z"
-last_activity: 2026-03-11 -- v1.14 milestone archived
+status: defining_requirements
+last_updated: "2026-03-11T23:45:00.000Z"
+last_activity: 2026-03-11 -- Milestone v1.15 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -21,21 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.15 Alerting & Notifications — defining requirements
 
 ## Position
 
-**Milestone:** v1.14 Operational Visibility — ARCHIVED
-**Status:** Milestone complete and archived
-**Last activity:** 2026-03-11 -- v1.14 milestone archived
+**Milestone:** v1.15 Alerting & Notifications
+**Status:** Defining requirements
+**Last activity:** 2026-03-11 — Milestone v1.15 started
 
-Progress: [██████████] 100% — 15 milestones shipped, 75 phases, 151 plans
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(Cleared — full log in PROJECT.md Key Decisions table)
+- Alert engine embedded in both daemons (not standalone process)
+- Per-event cooldown suppression (not global rate limit)
+- Discord webhook delivery first, ntfy.sh later
+- Generic webhook layer for extensibility
 
 ### Known Issues
 

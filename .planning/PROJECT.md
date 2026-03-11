@@ -162,7 +162,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(None — planning next milestone)
+**Current Milestone: v1.15 Alerting & Notifications**
+
+**Goal:** Proactive alerting when wanctl detects noteworthy events, delivered via Discord webhook with per-event cooldown suppression.
+
+**Target features:**
+
+- Alert engine embedded in both daemons with configurable per-event cooldowns
+- Sustained congestion alerts (RED/SOFT_RED beyond threshold duration)
+- Steering transition alerts (traffic rerouted or recovered)
+- WAN offline/degraded alerts (health endpoint unreachable, connectivity lost)
+- Anomaly detection alerts (baseline drift, RTT spikes, flapping)
+- Discord webhook delivery with color-coded severity embeds
+- YAML alerting configuration (rules, thresholds, cooldowns, webhook URLs)
+- Alert history persisted to SQLite for review
 
 ### Deferred
 
@@ -369,4 +382,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-11 after v1.14 milestone completed_
+_Last updated: 2026-03-11 after v1.15 milestone started_
