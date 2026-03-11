@@ -97,8 +97,8 @@ Decimal phases appear between their surrounding integers in numeric order.
    **Plans**: 2 plans
    Plans:
 
-- [ ] 69-01-PLAN.md — Deprecation helper + autorate/steering config fallback warnings (LGCY-03)
-- [ ] 69-02-PLAN.md — validate_sample_counts cleanup + calibrate.py + cake_aware retirement + docs (LGCY-04, LGCY-07)
+- [x] 69-01-PLAN.md — Deprecation helper + autorate/steering config fallback warnings (LGCY-03)
+- [x] 69-02-PLAN.md — validate_sample_counts cleanup + calibrate.py + cake_aware retirement + docs (LGCY-04, LGCY-07)
 
 ### Phase 70: Legacy Test Cleanup
 
@@ -110,7 +110,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 1. No test fixtures exist that configure retired legacy-only scenarios (e.g., `cake_aware: false` fixtures if RTT-only mode was retired)
 2. Test coverage remains at 90%+ after fixture and test removal
 3. Before/after test count is documented to distinguish intentional removals from accidental breakage
-   **Plans**: TBD
+   **Plans**: 1 plan
+   Plans:
+
+- [ ] 70-01-PLAN.md — Update stale docstrings, fixture names, and comments referencing retired CAKE-aware/legacy mode distinction (LGCY-06)
 
 ### Phase 71: Confidence Graduation
 
@@ -145,8 +148,8 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
-| 69. Legacy Fallback Removal | 2/2 | Complete    | 2026-03-11 |
-| 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
+| 69. Legacy Fallback Removal | 2/2            | Complete    | 2026-03-11 |
+| 70. Legacy Test Cleanup     | 0/1            | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
 
