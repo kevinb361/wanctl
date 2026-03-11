@@ -19,7 +19,7 @@ def sample_autorate_response() -> dict:
                 "download": {"current_rate_mbps": 245.0, "state": "GREEN"},
                 "upload": {"current_rate_mbps": 10.5, "state": "GREEN"},
                 "router_connectivity": True,
-                "cycle_budget": {"used_ms": 35.2, "budget_ms": 50.0},
+                "cycle_budget": {"used_ms": 35.2, "budget_ms": 50.0, "utilization_pct": 70.4},
             },
             {
                 "name": "att",
@@ -28,7 +28,7 @@ def sample_autorate_response() -> dict:
                 "download": {"current_rate_mbps": 85.0, "state": "GREEN"},
                 "upload": {"current_rate_mbps": 18.0, "state": "GREEN"},
                 "router_connectivity": True,
-                "cycle_budget": {"used_ms": 28.1, "budget_ms": 50.0},
+                "cycle_budget": {"used_ms": 28.1, "budget_ms": 50.0, "utilization_pct": 56.2},
             },
         ],
         "disk_space": {
