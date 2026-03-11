@@ -42,9 +42,9 @@ src/wanctl/autorate_continuous.py
 
 ```bash
 # Same Python file, different configs
-wan-spectrum: python -m wanctl.autorate_continuous --config spectrum_config.yaml
-wan-att:      python -m wanctl.autorate_continuous --config att_config.yaml
-wan-fiber:    python -m wanctl.autorate_continuous --config fiber_config.yaml
+wan-spectrum: python -m wanctl.autorate_continuous --config spectrum.yaml
+wan-att:      python -m wanctl.autorate_continuous --config att.yaml
+wan-fiber:    python -m wanctl.autorate_continuous --config fiber.yaml
 ```
 
 ### 2. Configuration-Driven Behavior
@@ -362,7 +362,7 @@ Before deploying any new phase or feature:
 - Higher floors (550M/350M/275M/200M)
 - Moderate bloat tolerance (15/45/80ms)
 
-**File:** `configs/spectrum_config.yaml`
+**File:** `configs/spectrum.yaml`
 
 ### VDSL2 DSL (AT&T)
 
@@ -380,7 +380,7 @@ Before deploying any new phase or feature:
 - Tight bloat tolerance (3/10ms)
 - Conservative backoff (0.95 upload)
 
-**File:** `configs/att_config.yaml`
+**File:** `configs/att.yaml`
 
 ### GPON Fiber (Future)
 
@@ -398,7 +398,7 @@ Before deploying any new phase or feature:
 - Moderate bloat tolerance (10/30ms)
 - Aggressive recovery (20M step-up)
 
-**File:** `configs/dad_fiber_config.yaml` (template exists)
+**File:** `configs/examples/fiber.yaml.example` (template)
 
 ---
 
