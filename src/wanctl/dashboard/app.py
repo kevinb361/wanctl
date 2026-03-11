@@ -7,6 +7,7 @@ and Textual Widget wrappers for the render-only widget classes from Plan 02.
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -324,12 +325,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Path to dashboard config file",
     )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable all color output",
+    )
+    parser.add_argument(
+        "--256-color",
+        action="store_true",
+        dest="color_256",
+        help="Use 256-color mode (for limited terminals)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     """Entry point for wanctl-dashboard CLI."""
     args = parse_args(argv)
+
+    if args.no_color:
+        os.environ["NO_COLOR"] = "1"
+    elif args.color_256:
+        os.environ["TEXTUAL_COLOR_SYSTEM"] = "256"
+
     config = load_dashboard_config(Path(args.config) if args.config else None)
     config = apply_cli_overrides(config, args)
     app = DashboardApp(config)
