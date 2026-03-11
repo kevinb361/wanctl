@@ -1,0 +1,164 @@
+"""Historical metrics browser widget with time range selector and summary stats.
+
+Provides HistoryBrowserWidget for the History tab -- queries /metrics/history
+endpoint on demand and displays results in a DataTable with summary statistics.
+"""
+
+from __future__ import annotations
+
+import statistics
+from typing import Any
+
+import httpx
+from textual.widget import Widget
+from textual.widgets import DataTable, Select, Static
+from textual.app import ComposeResult
+
+
+TIME_RANGES: list[tuple[str, str]] = [
+    ("1 Hour", "1h"),
+    ("6 Hours", "6h"),
+    ("24 Hours", "24h"),
+    ("7 Days", "7d"),
+]
+
+
+class HistoryBrowserWidget(Widget):
+    """Browse historical metrics with time range selection and summary stats.
+
+    Queries the autorate /metrics/history endpoint on demand when the user
+    selects a time range. Results populate a DataTable and summary statistics
+    are computed client-side.
+    """
+
+    DEFAULT_CSS = """
+    HistoryBrowserWidget {
+        height: 100%;
+        padding: 0 1;
+    }
+    """
+
+    def __init__(
+        self,
+        autorate_url: str = "http://127.0.0.1:9101",
+        *,
+        id: str | None = None,
+    ) -> None:
+        super().__init__(id=id)
+        self._autorate_url = autorate_url
+        self._http_client: httpx.AsyncClient | None = None
+
+    def compose(self) -> ComposeResult:
+        """Yield time range selector, summary stats display, and data table."""
+        yield Select(options=TIME_RANGES, value="1h", id="time-range")
+        yield Static("Select a time range", id="summary-stats")
+        yield DataTable(id="history-table")
+
+    def on_mount(self) -> None:
+        """Set up DataTable columns on mount."""
+        table = self.query_one("#history-table", DataTable)
+        table.add_columns("Time", "WAN", "Metric", "Value", "Granularity")
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle time range selection change."""
+        if event.value and isinstance(event.value, str):
+            self.run_worker(self._fetch_and_populate(event.value))
+
+    async def _fetch_and_populate(self, time_range: str) -> None:
+        """Fetch historical metrics and populate the DataTable.
+
+        Args:
+            time_range: Time range string (1h, 6h, 24h, 7d).
+        """
+        summary_widget = self.query_one("#summary-stats", Static)
+        table = self.query_one("#history-table", DataTable)
+
+        summary_widget.update("Loading...")
+
+        try:
+            if self._http_client is None:
+                self._http_client = httpx.AsyncClient(timeout=5.0)
+
+            resp = await self._http_client.get(
+                f"{self._autorate_url}/metrics/history",
+                params={"range": time_range},
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+            records: list[dict[str, Any]] = payload.get("data", [])
+
+            table.clear()
+            for record in records:
+                table.add_row(
+                    record.get("timestamp", ""),
+                    record.get("wan_name", ""),
+                    record.get("metric_name", ""),
+                    f"{record.get('value', 0):.2f}",
+                    record.get("granularity", ""),
+                )
+
+            # Compute summary stats grouped by metric
+            values_by_metric: dict[str, list[float]] = {}
+            for record in records:
+                metric = record.get("metric_name", "unknown")
+                val = record.get("value")
+                if val is not None:
+                    values_by_metric.setdefault(metric, []).append(float(val))
+
+            if values_by_metric:
+                parts: list[str] = []
+                for metric, values in values_by_metric.items():
+                    stats = self._compute_summary(values)
+                    if stats:
+                        parts.append(
+                            f"{metric}: "
+                            f"Min={stats['min']:.1f} "
+                            f"Max={stats['max']:.1f} "
+                            f"Avg={stats['avg']:.1f} "
+                            f"P95={stats['p95']:.1f} "
+                            f"P99={stats['p99']:.1f}"
+                        )
+                summary_widget.update(" | ".join(parts) if parts else "No data")
+            else:
+                summary_widget.update("No data")
+
+        except Exception:
+            table.clear()
+            summary_widget.update("Failed to fetch data - No data")
+
+    def _compute_summary(self, values: list[float]) -> dict[str, float]:
+        """Compute summary statistics from a list of values.
+
+        Args:
+            values: List of numeric values.
+
+        Returns:
+            Dict with min, max, avg, p95, p99 keys, or empty dict if no values.
+        """
+        if not values:
+            return {}
+
+        if len(values) == 1:
+            v = values[0]
+            return {"min": v, "max": v, "avg": v, "p95": v, "p99": v}
+
+        avg = statistics.mean(values)
+        sorted_vals = sorted(values)
+
+        # For p95/p99, use quantiles when we have enough data
+        if len(values) >= 4:
+            quantiles = statistics.quantiles(values, n=100)
+            p95 = quantiles[94]  # 95th percentile
+            p99 = quantiles[98]  # 99th percentile
+        else:
+            # Not enough data for quantiles, use max
+            p95 = sorted_vals[-1]
+            p99 = sorted_vals[-1]
+
+        return {
+            "min": min(values),
+            "max": max(values),
+            "avg": avg,
+            "p95": p95,
+            "p99": p99,
+        }
