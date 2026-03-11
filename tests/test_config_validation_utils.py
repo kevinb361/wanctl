@@ -461,61 +461,51 @@ class TestValidateRTTThresholds:
 
 
 class TestValidateSampleCounts:
-    """Tests for validate_sample_counts function."""
+    """Tests for validate_sample_counts function.
+
+    validate_sample_counts accepts only red_samples_required and
+    green_samples_required (no bad_samples/good_samples) and returns a 2-tuple.
+    """
 
     def test_valid_sample_counts_defaults(self, logger):
         """Test valid sample counts with typical defaults."""
-        bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=8,
-            good_samples=15,
+        red_req, green_req = validate_sample_counts(
             red_samples_required=2,
             green_samples_required=15,
             logger=logger,
         )
-        assert bad == 8
-        assert good == 15
         assert red_req == 2
         assert green_req == 15
 
     def test_valid_sample_counts_all_one(self, logger):
         """Test minimum valid sample counts (all 1)."""
-        bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=1,
-            good_samples=1,
+        red_req, green_req = validate_sample_counts(
             red_samples_required=1,
             green_samples_required=1,
             logger=logger,
         )
-        assert bad == 1
-        assert good == 1
         assert red_req == 1
         assert green_req == 1
 
     def test_valid_sample_counts_large_values(self, logger):
         """Test large but reasonable sample counts."""
-        bad, good, red_req, green_req = validate_sample_counts(
-            bad_samples=100,
-            good_samples=100,
+        red_req, green_req = validate_sample_counts(
             red_samples_required=50,
             green_samples_required=50,
             logger=logger,
         )
-        assert bad == 100
-        assert good == 100
         assert red_req == 50
         assert green_req == 50
 
-    def test_bad_samples_zero_invalid(self, logger):
-        """Test that bad_samples=0 is invalid."""
-        with pytest.raises(ConfigValidationError) as exc_info:
-            validate_sample_counts(bad_samples=0, logger=logger)
-        assert "bad_samples" in str(exc_info.value)
+    def test_no_bad_samples_param(self, logger):
+        """Test that bad_samples is no longer accepted as a parameter."""
+        with pytest.raises(TypeError):
+            validate_sample_counts(bad_samples=8, logger=logger)
 
-    def test_good_samples_negative_invalid(self, logger):
-        """Test that negative good_samples is invalid."""
-        with pytest.raises(ConfigValidationError) as exc_info:
-            validate_sample_counts(good_samples=-5, logger=logger)
-        assert "good_samples" in str(exc_info.value)
+    def test_no_good_samples_param(self, logger):
+        """Test that good_samples is no longer accepted as a parameter."""
+        with pytest.raises(TypeError):
+            validate_sample_counts(good_samples=15, logger=logger)
 
     def test_red_samples_required_zero_invalid(self, logger):
         """Test that red_samples_required=0 is invalid."""
@@ -529,12 +519,6 @@ class TestValidateSampleCounts:
             validate_sample_counts(green_samples_required=-10, logger=logger)
         assert "green_samples_required" in str(exc_info.value)
 
-    def test_bad_samples_too_high_invalid(self, logger):
-        """Test that bad_samples > 1000 is invalid."""
-        with pytest.raises(ConfigValidationError) as exc_info:
-            validate_sample_counts(bad_samples=2000, logger=logger)
-        assert "unreasonably high" in str(exc_info.value)
-
     def test_red_samples_required_too_high_invalid(self, logger):
         """Test that red_samples_required > 100 is invalid."""
         with pytest.raises(ConfigValidationError) as exc_info:
@@ -546,6 +530,12 @@ class TestValidateSampleCounts:
         with pytest.raises(ConfigValidationError) as exc_info:
             validate_sample_counts(green_samples_required=200, logger=logger)
         assert "unreasonably high" in str(exc_info.value)
+
+    def test_returns_two_tuple(self, logger):
+        """Test that return type is a 2-tuple (not 4-tuple)."""
+        result = validate_sample_counts(logger=logger)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
 
 
 # =============================================================================
@@ -592,9 +582,7 @@ class TestConfigValidationIntegration:
         baseline = validate_baseline_rtt(24.0, logger=logger)
 
         # Sample counts
-        bad_samples, good_samples, red_req, green_req = validate_sample_counts(
-            bad_samples=8,
-            good_samples=15,
+        red_req, green_req = validate_sample_counts(
             red_samples_required=2,
             green_samples_required=15,
             logger=logger,

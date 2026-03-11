@@ -5277,3 +5277,101 @@ class TestWanAwarenessTransitionLogging:
         assert len(wan_transition_calls) == 0, (
             f"Expected no WAN context in hysteresis mode, got: {wan_transition_calls}"
         )
+
+
+# =============================================================================
+# Tests for cake_aware deprecation warning
+# =============================================================================
+
+
+class TestCakeAwareDeprecation:
+    """Tests that cake_aware key in mode section produces deprecation warning."""
+
+    @staticmethod
+    def _write_steering_yaml(tmp_path, mode_section):
+        """Write a minimal valid steering config YAML to tmp_path."""
+        import yaml
+
+        config_data = {
+            "wan_name": "test",
+            "router": {
+                "host": "192.168.1.1",
+                "user": "admin",
+                "ssh_key": "/tmp/key",
+                "transport": "ssh",
+            },
+            "topology": {
+                "primary_wan": "wan1",
+                "primary_wan_config": "/tmp/wan1.yaml",
+                "alternate_wan": "wan2",
+            },
+            "mangle_rule": {"comment": "test-rule"},
+            "measurement": {
+                "interval_seconds": 0.05,
+                "ping_host": "1.1.1.1",
+                "ping_count": 3,
+            },
+            "state": {
+                "file": "/tmp/state.json",
+                "history_size": 100,
+            },
+            "thresholds": {
+                "green_rtt_ms": 5.0,
+                "red_samples_required": 2,
+                "green_samples_required": 15,
+            },
+            "cake_state_sources": {"primary": "/tmp/state.json"},
+            "cake_queues": {
+                "primary_download": "WAN-DL",
+                "primary_upload": "WAN-UL",
+            },
+            "mode": mode_section,
+            "logging": {
+                "main_log": str(tmp_path / "main.log"),
+                "debug_log": str(tmp_path / "debug.log"),
+            },
+            "lock_file": str(tmp_path / "steering.lock"),
+            "lock_timeout": 300,
+        }
+
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+        return str(config_path)
+
+    def test_cake_aware_in_mode_logs_warning(self, tmp_path, caplog):
+        """SteeringConfig with mode.cake_aware logs deprecation warning."""
+        import logging
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_path = self._write_steering_yaml(
+            tmp_path,
+            {"cake_aware": True, "enable_yellow_state": True},
+        )
+
+        with caplog.at_level(logging.WARNING):
+            config = SteeringConfig(config_path)
+
+        # Should log a deprecation warning about cake_aware
+        assert any("cake_aware" in msg for msg in caplog.messages), (
+            f"Expected deprecation warning for cake_aware, got: {caplog.messages}"
+        )
+        # Config should load successfully (not crash)
+        assert config.enable_yellow_state is True
+
+    def test_no_cake_aware_no_warning(self, tmp_path, caplog):
+        """SteeringConfig without mode.cake_aware does not log cake_aware warning."""
+        import logging
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        config_path = self._write_steering_yaml(
+            tmp_path,
+            {"enable_yellow_state": True},
+        )
+
+        with caplog.at_level(logging.WARNING):
+            SteeringConfig(config_path)
+
+        assert not any("cake_aware" in msg for msg in caplog.messages)
