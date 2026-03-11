@@ -25,9 +25,9 @@ Requirements for Legacy Cleanup & Feature Graduation milestone. Each maps to roa
 
 ### WAN-Aware Enablement
 
-- [ ] **WANE-01**: WAN-aware steering config updated to `wan_state.enabled: true` on cake-spectrum
-- [ ] **WANE-02**: Health endpoint shows `wan_awareness.enabled=true` with live zone data and confidence contribution
-- [ ] **WANE-03**: Graceful degradation confirmed under real conditions (stale zone → GREEN fallback, autorate unavailable → WAN weight skipped)
+- [x] **WANE-01**: WAN-aware steering config updated to `wan_state.enabled: true` on cake-spectrum
+- [x] **WANE-02**: Health endpoint shows `wan_awareness.enabled=true` with live zone data and confidence contribution
+- [x] **WANE-03**: Graceful degradation confirmed under real conditions (stale zone → GREEN fallback, autorate unavailable → WAN weight skipped)
 
 ## Future Requirements
 
@@ -65,9 +65,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-01     | Phase 71 | Complete |
 | CONF-02     | Phase 71 | Complete |
 | CONF-03     | Phase 71 | Complete |
-| WANE-01     | Phase 72 | Pending  |
-| WANE-02     | Phase 72 | Pending  |
-| WANE-03     | Phase 72 | Pending  |
+| WANE-01     | Phase 72 | Complete |
+| WANE-02     | Phase 72 | Complete |
+| WANE-03     | Phase 72 | Complete |
 
 **Coverage:**
 

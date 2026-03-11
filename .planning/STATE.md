@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Not started
-status: planning
-last_updated: "2026-03-11T15:36:49.490Z"
-last_activity: 2026-03-11 -- Completed 71-02-PLAN.md (confidence graduation to live mode, CONF-01 + CONF-02 satisfied)
+current_plan: 72-01 complete, 72-02 next
+status: executing
+last_updated: "2026-03-11T16:21:00Z"
+last_activity: 2026-03-11 -- Completed 72-01-PLAN.md (SIGUSR1 wan_state reload + ops docs, WANE-01 + WANE-02 + WANE-03 satisfied)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
 ---
 
 # Session State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 71 complete - Confidence Graduation (2/2 plans done), Phase 72 next
+**Current focus:** v1.13 Phase 72 in progress - WAN-Aware Enablement (1/2 plans done), 72-02 next
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 71 of 72 (Confidence Graduation) -- Complete (2/2 plans)
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-11 -- Completed 71-02-PLAN.md (confidence graduation to live mode, CONF-01 + CONF-02 satisfied)
+**Phase:** 72 of 72 (WAN-Aware Enablement) -- In Progress (1/2 plans)
+**Current Plan:** 72-02 next
+**Status:** Executing
+**Last activity:** 2026-03-11 -- Completed 72-01-PLAN.md (SIGUSR1 wan_state reload + ops docs, WANE-01 + WANE-02 + WANE-03 satisfied)
 
 ## Accumulated Context
 
@@ -53,9 +53,11 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - cake_aware warning placed in \_load_operational_mode (where mode dict is accessed)
 - Test fixture names reflect sole code path (no \_cake/\_legacy suffixes when only one mode exists)
 - SIGUSR1 reload mirrors shutdown event pattern (threading.Event, no logging in handler)
-- Only dry_run reloaded via SIGUSR1 -- all other config requires restart
+- SIGUSR1 now reloads both dry_run and wan_state.enabled (generalized handler)
 - configs/steering.yaml is gitignored (site-specific); example config keeps dry_run: true for safe new deployments
 - Rollback procedure: sed dry_run toggle + kill -USR1 + health endpoint verify
+- Re-enabling wan_state via SIGUSR1 re-triggers 30s grace period (safe ramp-up)
+- Each reload method independently reads YAML (no shared read, keeps methods decoupled)
 
 ### Known Issues
 
@@ -90,3 +92,4 @@ None.
 - 2026-03-11: Completed 71-01-PLAN.md -- SIGUSR1 dry_run hot-reload (signal_utils reload event, BaseConfig.config_file_path, daemon reload handler, CONF-03 satisfied)
 - 2026-03-11: Completed 71-02-PLAN.md -- confidence graduation to live mode (dry_run: false, rollback docs, production verified, CONF-01 + CONF-02 satisfied)
 - 2026-03-11: Phase 71 complete -- Confidence Graduation (2/2 plans, CONF-01 + CONF-02 + CONF-03 satisfied)
+- 2026-03-11: Completed 72-01-PLAN.md -- SIGUSR1 wan_state reload + ops docs (7 new tests, operations runbook, WANE-01 + WANE-02 + WANE-03 satisfied)
