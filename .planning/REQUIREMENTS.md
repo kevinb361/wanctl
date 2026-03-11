@@ -50,7 +50,7 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 - [x] **INFRA-02**: Dashboard deps (textual, httpx) as optional dependency group (`wanctl[dashboard]`)
 - [x] **INFRA-03**: CLI args for endpoint URLs (`--autorate-url`, `--steering-url`) and DB path
 - [x] **INFRA-04**: YAML config file for persistent dashboard settings
-- [ ] **INFRA-05**: Footer with discoverable keybindings (q quit, Tab cycle, number keys for ranges)
+- [x] **INFRA-05**: Footer with discoverable keybindings (q quit, Tab cycle, number keys for ranges)
 
 ## Future Requirements
 
@@ -61,53 +61,55 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Live log tailing | 20Hz log volume is overwhelming; journalctl -f is purpose-built |
-| Config editing from TUI | No audit trail, dangerous for production network controller |
-| Sub-second dashboard refresh | No visual benefit below 1s, wastes CPU |
-| Full Grafana-style charts | Terminal resolution makes them unreadable; sparklines sufficient |
-| Web UI | Deferred -- TUI first, web later if needed |
+| Feature                      | Reason                                                           |
+| ---------------------------- | ---------------------------------------------------------------- |
+| Live log tailing             | 20Hz log volume is overwhelming; journalctl -f is purpose-built  |
+| Config editing from TUI      | No audit trail, dangerous for production network controller      |
+| Sub-second dashboard refresh | No visual benefit below 1s, wastes CPU                           |
+| Full Grafana-style charts    | Terminal resolution makes them unreadable; sparklines sufficient |
+| Web UI                       | Deferred -- TUI first, web later if needed                       |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| POLL-01 | Phase 73 | Complete |
-| POLL-02 | Phase 73 | Complete |
-| POLL-03 | Phase 73 | Complete |
-| POLL-04 | Phase 73 | Complete |
-| LIVE-01 | Phase 73 | Complete |
-| LIVE-02 | Phase 73 | Complete |
-| LIVE-03 | Phase 73 | Complete |
-| LIVE-04 | Phase 73 | Complete |
-| LIVE-05 | Phase 73 | Complete |
-| VIZ-01 | Phase 74 | Pending |
-| VIZ-02 | Phase 74 | Pending |
-| VIZ-03 | Phase 74 | Pending |
-| VIZ-04 | Phase 74 | Pending |
-| HIST-01 | Phase 74 | Pending |
-| HIST-02 | Phase 74 | Pending |
-| HIST-03 | Phase 74 | Pending |
-| HIST-04 | Phase 74 | Pending |
-| LYOT-01 | Phase 75 | Pending |
-| LYOT-02 | Phase 75 | Pending |
-| LYOT-03 | Phase 75 | Pending |
-| LYOT-04 | Phase 75 | Pending |
-| LYOT-05 | Phase 75 | Pending |
-| INFRA-01 | Phase 73 | Complete |
-| INFRA-02 | Phase 73 | Complete |
-| INFRA-03 | Phase 73 | Complete |
-| INFRA-04 | Phase 73 | Complete |
-| INFRA-05 | Phase 73 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| POLL-01     | Phase 73 | Complete |
+| POLL-02     | Phase 73 | Complete |
+| POLL-03     | Phase 73 | Complete |
+| POLL-04     | Phase 73 | Complete |
+| LIVE-01     | Phase 73 | Complete |
+| LIVE-02     | Phase 73 | Complete |
+| LIVE-03     | Phase 73 | Complete |
+| LIVE-04     | Phase 73 | Complete |
+| LIVE-05     | Phase 73 | Complete |
+| VIZ-01      | Phase 74 | Pending  |
+| VIZ-02      | Phase 74 | Pending  |
+| VIZ-03      | Phase 74 | Pending  |
+| VIZ-04      | Phase 74 | Pending  |
+| HIST-01     | Phase 74 | Pending  |
+| HIST-02     | Phase 74 | Pending  |
+| HIST-03     | Phase 74 | Pending  |
+| HIST-04     | Phase 74 | Pending  |
+| LYOT-01     | Phase 75 | Pending  |
+| LYOT-02     | Phase 75 | Pending  |
+| LYOT-03     | Phase 75 | Pending  |
+| LYOT-04     | Phase 75 | Pending  |
+| LYOT-05     | Phase 75 | Pending  |
+| INFRA-01    | Phase 73 | Complete |
+| INFRA-02    | Phase 73 | Complete |
+| INFRA-03    | Phase 73 | Complete |
+| INFRA-04    | Phase 73 | Complete |
+| INFRA-05    | Phase 73 | Complete |
 
 **Coverage:**
+
 - v1.14 requirements: 27 total
 - Mapped to phases: 27
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after roadmap creation*
+
+_Requirements defined: 2026-03-11_
+_Last updated: 2026-03-11 after Phase 73 completion_

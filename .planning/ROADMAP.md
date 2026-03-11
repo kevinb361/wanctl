@@ -44,56 +44,65 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Build a full-featured TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links, with adaptive layout and terminal compatibility.
 
-- [ ] **Phase 73: Foundation** - Polling engine, live status panels, CLI entry point, and infrastructure
+- [x] **Phase 73: Foundation** - Polling engine, live status panels, CLI entry point, and infrastructure
 - [ ] **Phase 74: Visualization & History** - Sparklines, cycle budget gauge, and historical metrics browser
 - [ ] **Phase 75: Layout & Compatibility** - Adaptive wide/narrow layout, resize hysteresis, and terminal compatibility
 
 ## Phase Details
 
 ### Phase 73: Foundation
+
 **Goal**: Operator can launch `wanctl-dashboard` and see live, auto-refreshing status of both WAN links and steering decisions
 **Depends on**: Nothing (first phase of v1.14)
 **Requirements**: POLL-01, POLL-02, POLL-03, POLL-04, LIVE-01, LIVE-02, LIVE-03, LIVE-04, LIVE-05, INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05
 **Success Criteria** (what must be TRUE):
-  1. Running `wanctl-dashboard` opens a TUI showing per-WAN panels with color-coded congestion state, current DL/UL rates and limits, and RTT data (baseline, load, delta) that refreshes every 1-2 seconds
-  2. Steering panel displays enabled/disabled status, confidence score, and WAN awareness details (zone, staleness, grace period, contribution)
-  3. When one daemon endpoint is unreachable, that panel shows "offline" with last-seen timestamp while the other panel continues updating normally
-  4. CLI args (`--autorate-url`, `--steering-url`) override default endpoint URLs, a YAML config file persists dashboard settings, and a footer displays discoverable keybindings
-  5. `wanctl-dashboard` installs as a standalone command via `pip install wanctl[dashboard]` with textual and httpx as optional dependencies
-**Plans**: 3 plans
+
+1. Running `wanctl-dashboard` opens a TUI showing per-WAN panels with color-coded congestion state, current DL/UL rates and limits, and RTT data (baseline, load, delta) that refreshes every 1-2 seconds
+2. Steering panel displays enabled/disabled status, confidence score, and WAN awareness details (zone, staleness, grace period, contribution)
+3. When one daemon endpoint is unreachable, that panel shows "offline" with last-seen timestamp while the other panel continues updating normally
+4. CLI args (`--autorate-url`, `--steering-url`) override default endpoint URLs, a YAML config file persists dashboard settings, and a footer displays discoverable keybindings
+5. `wanctl-dashboard` installs as a standalone command via `pip install wanctl[dashboard]` with textual and httpx as optional dependencies
+   **Plans**: 3 plans
 
 Plans:
-- [ ] 73-01-PLAN.md -- Infrastructure, config module, and async endpoint poller
-- [ ] 73-02-PLAN.md -- WanPanel, SteeringPanel, and StatusBar widgets
-- [ ] 73-03-PLAN.md -- App assembly, polling wiring, keybindings, and visual verification
+
+- [x] 73-01-PLAN.md -- Infrastructure, config module, and async endpoint poller
+- [x] 73-02-PLAN.md -- WanPanel, SteeringPanel, and StatusBar widgets
+- [x] 73-03-PLAN.md -- App assembly, polling wiring, keybindings, and visual verification
 
 ### Phase 74: Visualization & History
+
 **Goal**: Operator can see rate and RTT trends at a glance via sparklines and browse historical metrics with selectable time ranges
 **Depends on**: Phase 73
 **Requirements**: VIZ-01, VIZ-02, VIZ-03, VIZ-04, HIST-01, HIST-02, HIST-03, HIST-04
 **Success Criteria** (what must be TRUE):
-  1. Per-WAN bandwidth sparklines show DL/UL rate trends over a rolling ~2 minute window, and RTT delta sparkline uses color gradient (green=low, red=high)
-  2. Cycle budget gauge displays 50ms utilization percentage derived from health endpoint data
-  3. Historical metrics browser tab is accessible via keyboard navigation, with time range selector (1h, 6h, 24h, 7d) that loads a DataTable of metrics with summary statistics (min/max/avg/p95/p99)
-  4. All sparkline and trend data uses bounded deques -- memory usage stays constant regardless of dashboard runtime duration
-**Plans**: TBD
+
+1. Per-WAN bandwidth sparklines show DL/UL rate trends over a rolling ~2 minute window, and RTT delta sparkline uses color gradient (green=low, red=high)
+2. Cycle budget gauge displays 50ms utilization percentage derived from health endpoint data
+3. Historical metrics browser tab is accessible via keyboard navigation, with time range selector (1h, 6h, 24h, 7d) that loads a DataTable of metrics with summary statistics (min/max/avg/p95/p99)
+4. All sparkline and trend data uses bounded deques -- memory usage stays constant regardless of dashboard runtime duration
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 74-01: TBD
 - [ ] 74-02: TBD
 
 ### Phase 75: Layout & Compatibility
+
 **Goal**: Dashboard adapts gracefully to different terminal widths and works reliably in tmux and SSH sessions
 **Depends on**: Phase 74
 **Requirements**: LYOT-01, LYOT-02, LYOT-03, LYOT-04, LYOT-05
 **Success Criteria** (what must be TRUE):
-  1. WAN panels display side-by-side at >=120 columns and switch to stacked/tabbed layout below 120 columns
-  2. Resizing the terminal near the 120-column breakpoint does not cause layout flicker (hysteresis prevents rapid switching)
-  3. Dashboard renders correctly and accepts input in bare terminal, tmux, and SSH+tmux sessions
-  4. `--no-color` and `--256-color` CLI flags allow fallback for terminals with limited color support
-**Plans**: TBD
+
+1. WAN panels display side-by-side at >=120 columns and switch to stacked/tabbed layout below 120 columns
+2. Resizing the terminal near the 120-column breakpoint does not cause layout flicker (hysteresis prevents rapid switching)
+3. Dashboard renders correctly and accepts input in bare terminal, tmux, and SSH+tmux sessions
+4. `--no-color` and `--256-color` CLI flags allow fallback for terminals with limited color support
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 75-01: TBD
 - [ ] 75-02: TBD
 
@@ -104,30 +113,30 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 73 -> 74 -> 75
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 73. Foundation | 2/3 | In Progress|  |
-| 74. Visualization & History | 0/? | Not started | - |
-| 75. Layout & Compatibility | 0/? | Not started | - |
+| Phase                       | Plans Complete | Status      | Completed  |
+| --------------------------- | -------------- | ----------- | ---------- |
+| 73. Foundation              | 3/3            | Complete    | 2026-03-11 |
+| 74. Visualization & History | 0/?            | Not started | -          |
+| 75. Layout & Compatibility  | 0/?            | Not started | -          |
 
 ### Completed Milestones
 
-| Milestone                              | Phases | Plans | Status   | Shipped    |
-| -------------------------------------- | ------ | ----- | -------- | ---------- |
-| v1.13 Legacy Cleanup & Feature Grad.   | 67-72  | 10    | Complete | 2026-03-11 |
-| v1.12 Deployment & Code Health         | 62-66  | 7     | Complete | 2026-03-11 |
-| v1.11 WAN-Aware Steering               | 58-61  | 8     | Complete | 2026-03-10 |
-| v1.10 Architectural Review Fixes       | 50-57  | 15    | Complete | 2026-03-09 |
-| v1.9 Performance & Efficiency          | 47-49  | 6     | Complete | 2026-03-07 |
-| v1.8 Resilience & Robustness           | 43-46  | 8     | Complete | 2026-03-06 |
-| v1.7 Metrics History                   | 38-42  | 8     | Complete | 2026-01-25 |
-| v1.6 Test Coverage 90%                 | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene                 | 27-30  | 8     | Complete | 2026-01-24 |
-| v1.4 Observability                     | 25-26  | 4     | Complete | 2026-01-24 |
-| v1.3 Reliability & Hardening           | 21-24  | 5     | Complete | 2026-01-21 |
-| v1.2 Configuration & Polish            | 16-20  | 5     | Complete | 2026-01-14 |
-| v1.1 Code Quality                      | 6-15   | 30    | Complete | 2026-01-14 |
-| v1.0 Performance Optimization          | 1-5    | 8     | Complete | 2026-01-13 |
+| Milestone                            | Phases | Plans | Status   | Shipped    |
+| ------------------------------------ | ------ | ----- | -------- | ---------- |
+| v1.13 Legacy Cleanup & Feature Grad. | 67-72  | 10    | Complete | 2026-03-11 |
+| v1.12 Deployment & Code Health       | 62-66  | 7     | Complete | 2026-03-11 |
+| v1.11 WAN-Aware Steering             | 58-61  | 8     | Complete | 2026-03-10 |
+| v1.10 Architectural Review Fixes     | 50-57  | 15    | Complete | 2026-03-09 |
+| v1.9 Performance & Efficiency        | 47-49  | 6     | Complete | 2026-03-07 |
+| v1.8 Resilience & Robustness         | 43-46  | 8     | Complete | 2026-03-06 |
+| v1.7 Metrics History                 | 38-42  | 8     | Complete | 2026-01-25 |
+| v1.6 Test Coverage 90%               | 31-37  | 17    | Complete | 2026-01-25 |
+| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.4 Observability                   | 25-26  | 4     | Complete | 2026-01-24 |
+| v1.3 Reliability & Hardening         | 21-24  | 5     | Complete | 2026-01-21 |
+| v1.2 Configuration & Polish          | 16-20  | 5     | Complete | 2026-01-14 |
+| v1.1 Code Quality                    | 6-15   | 30    | Complete | 2026-01-14 |
+| v1.0 Performance Optimization        | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 72 phases complete, 144 plans across 14 milestones
 
