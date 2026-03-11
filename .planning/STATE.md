@@ -4,8 +4,8 @@ milestone: v1.12
 milestone_name: Deployment & Code Health
 current_plan: Plan 2 of 2 in Phase 66 -- COMPLETE
 status: complete
-last_updated: "2026-03-11T08:47:47Z"
-last_activity: 2026-03-11 -- Phase 66 plan 02 complete (Dockerfile & dependency contract tests, INFR-02 INFR-04)
+last_updated: "2026-03-11T09:02:09Z"
+last_activity: 2026-03-11 -- Phase 66 plan 01 complete (config extraction + RotatingFileHandler, INFR-01 INFR-03)
 progress:
   total_phases: 5
   completed_phases: 5
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 **Phase:** 66 of 66 (Infrastructure & Config Extraction) -- COMPLETE
 **Current Plan:** Plan 2 of 2 in Phase 66 -- COMPLETE
 **Status:** Phase 66 complete, milestone v1.12 complete
-**Last activity:** 2026-03-11 -- Phase 66 plan 02 complete (Dockerfile & dependency contract tests, INFR-02 INFR-04)
+**Last activity:** 2026-03-11 -- Phase 66 plan 01 complete (config extraction + RotatingFileHandler, INFR-01 INFR-03)
 
 **Progress:** [██████████] 100%
 
@@ -37,9 +37,9 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Velocity:**
 
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: ~12 min
-- Total execution time: ~1.1 hours
+- Total execution time: ~1.3 hours
 
 **By Phase:**
 
@@ -49,7 +49,7 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 | 63    | 1     | ~8 min  | ~8 min   |
 | 64    | 2     | ~35 min | ~18 min  |
 | 65    | 1     | ~7 min  | ~7 min   |
-| 66    | 1     | ~14 min | ~14 min  |
+| 66    | 2     | ~28 min | ~14 min  |
 
 ## Accumulated Context
 
@@ -70,11 +70,13 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 - caplog.at_level(DEBUG) + record filtering pattern for explicit WARNING-level assertions
 - packaging.version.Version for semver comparison in contract tests
 - Dynamic parametrization from pyproject.toml for auto-testing new deps
+- getattr() with defaults in setup_logging() for backward compat with config objects lacking rotation attrs
+- Common config fields (logging + lock) loaded in BaseConfig.**init** before \_load_specific_fields()
 
 ### Known Issues
 
 - FRAG-01 resolved: schema-pinning contract tests added in Phase 65 Plan 01
-- INFR-03 (config boilerplate extraction) is the largest item, touching both daemon Config classes
+- INFR-03 resolved: config boilerplate extracted to BaseConfig, RotatingFileHandler added in Phase 66 Plan 01
 
 ### Blockers
 
@@ -91,3 +93,6 @@ None.
 - 2026-03-10: Phase 64 COMPLETE -- Security Hardening (4 requirements, 2 plans)
 - 2026-03-10: Phase 65 plan 01 complete -- Fragile area stabilization (FRAG-01 through FRAG-03, 7 contract tests, 6 strengthened)
 - 2026-03-11: Phase 66 plan 02 complete -- Dockerfile & dependency contract tests (INFR-02, INFR-04, 17 tests)
+- 2026-03-11: Phase 66 plan 01 complete -- Config extraction + RotatingFileHandler (INFR-01, INFR-03, 15 tests)
+- 2026-03-11: Phase 66 COMPLETE -- Infrastructure & Config Extraction (4 requirements, 2 plans)
+- 2026-03-11: Milestone v1.12 COMPLETE -- Deployment & Code Health (7 plans, 5 phases, 18 requirements)

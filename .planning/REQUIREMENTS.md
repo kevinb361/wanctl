@@ -33,9 +33,9 @@
 
 ### Infrastructure
 
-- [ ] **INFR-01**: RotatingFileHandler with configurable maxBytes and backupCount in setup_logging()
+- [x] **INFR-01**: RotatingFileHandler with configurable maxBytes and backupCount in setup_logging()
 - [x] **INFR-02**: Docker build validated (Dockerfile builds successfully with all dependencies)
-- [ ] **INFR-03**: Config loading boilerplate extracted to BaseConfig field-declaration pattern
+- [x] **INFR-03**: Config loading boilerplate extracted to BaseConfig field-declaration pattern
 - [x] **INFR-04**: cryptography package version verified on production containers (>=46.0.5)
 
 ## Future Requirements
@@ -73,9 +73,9 @@
 | FRAG-01 | Phase 65 | Complete |
 | FRAG-02 | Phase 65 | Complete |
 | FRAG-03 | Phase 65 | Complete |
-| INFR-01 | Phase 66 | Pending |
+| INFR-01 | Phase 66 | Complete |
 | INFR-02 | Phase 66 | Complete |
-| INFR-03 | Phase 66 | Pending |
+| INFR-03 | Phase 66 | Complete |
 | INFR-04 | Phase 66 | Complete |
 
 **Coverage:**
