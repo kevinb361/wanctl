@@ -13,7 +13,7 @@ Requirements for Legacy Cleanup & Feature Graduation milestone. Each maps to roa
 - [ ] **LGCY-02**: Dead state machine methods removed (`_update_state_machine_cake_aware`, `_update_state_machine_legacy`) from steering daemon
 - [ ] **LGCY-03**: All legacy config parameter fallbacks removed — old parameter names produce clear deprecation errors instead of silent fallback
 - [ ] **LGCY-04**: Legacy config validation code removed from `config_validation_utils.py`
-- [ ] **LGCY-05**: Obsolete ISP-specific config files removed from `configs/` directory
+- [x] **LGCY-05**: Obsolete ISP-specific config files removed from `configs/` directory
 - [ ] **LGCY-06**: Legacy-only test fixtures and test paths updated to reflect current-only code paths
 - [ ] **LGCY-07**: RTT-only mode (`cake_aware: false`) disposition resolved — retired if unused or explicitly documented if kept
 
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LGCY-02 | Phase 68 | Pending |
 | LGCY-03 | Phase 69 | Pending |
 | LGCY-04 | Phase 69 | Pending |
-| LGCY-05 | Phase 68 | Pending |
+| LGCY-05 | Phase 68 | Complete |
 | LGCY-06 | Phase 70 | Pending |
 | LGCY-07 | Phase 69 | Pending |
 | CONF-01 | Phase 71 | Pending |

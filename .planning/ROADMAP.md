@@ -140,7 +140,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
-| 68. Dead Code Removal       | 0/2            | Not started | -          |
+| 68. Dead Code Removal       | 1/2 | In Progress|  |
 | 69. Legacy Fallback Removal | 0/TBD          | Not started | -          |
 | 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
