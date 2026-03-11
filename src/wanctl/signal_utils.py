@@ -1,8 +1,13 @@
-"""Unified signal handling utilities for graceful shutdown.
+"""Unified signal handling utilities for graceful shutdown and config reload.
 
 Consolidates signal handling logic used across daemons (autorate_continuous.py,
 steering/daemon.py) and utilities (calibrate.py). Provides reusable functions for
-registering signal handlers and checking shutdown state.
+registering signal handlers and checking shutdown/reload state.
+
+Signals handled:
+  - SIGTERM: Graceful shutdown (systemd stop)
+  - SIGINT: Graceful shutdown (Ctrl+C)
+  - SIGUSR1: Config reload (re-read dry_run flag from YAML without restart)
 
 Usage for daemons (graceful shutdown with threading.Event):
 
@@ -13,20 +18,22 @@ Usage for daemons (graceful shutdown with threading.Event):
         # ... initialization ...
         while not is_shutdown_requested():
             # Main loop
-            pass
+            if is_reload_requested():
+                reload_config()
+                reset_reload_state()
 
 Usage for utilities (immediate exit on signal):
 
     from wanctl.signal_utils import register_signal_handlers, is_shutdown_requested
 
     def main():
-        register_signal_handlers(include_sigterm=False)  # SIGINT only for utilities
+        register_signal_handlers(include_sigterm=False, include_sigusr1=False)
         # ... work ...
         if is_shutdown_requested():
             return 130  # Standard SIGINT exit code
 
-Thread-safe: Uses threading.Event() for shutdown coordination.
-Deadlock-safe: Signal handler does not log (logging in signal handlers is unsafe).
+Thread-safe: Uses threading.Event() for shutdown and reload coordination.
+Deadlock-safe: Signal handlers do not log (logging in signal handlers is unsafe).
 """
 
 import signal
@@ -38,6 +45,9 @@ SHUTDOWN_TIMEOUT_SECONDS: int = 30
 
 # Module-level shutdown event (thread-safe)
 _shutdown_event = threading.Event()
+
+# Module-level reload event (thread-safe) -- set by SIGUSR1
+_reload_event = threading.Event()
 
 
 def _signal_handler(signum: int, frame: types.FrameType | None) -> None:
@@ -56,22 +66,43 @@ def _signal_handler(signum: int, frame: types.FrameType | None) -> None:
     _shutdown_event.set()
 
 
-def register_signal_handlers(include_sigterm: bool = True) -> None:
-    """Register signal handlers for graceful shutdown.
+def _reload_signal_handler(signum: int, frame: types.FrameType | None) -> None:
+    """Signal handler for SIGUSR1 (config reload).
+
+    Sets the reload event to trigger config re-read in the daemon loop.
+    Does NOT set the shutdown event -- reload is independent of shutdown.
+    Thread-safe: uses threading.Event().
+
+    Args:
+        signum: Signal number received (SIGUSR1)
+        frame: Current stack frame (unused)
+    """
+    _reload_event.set()
+
+
+def register_signal_handlers(
+    include_sigterm: bool = True, include_sigusr1: bool = True
+) -> None:
+    """Register signal handlers for graceful shutdown and config reload.
 
     Registers handlers for:
       - SIGTERM: Sent by systemd on service stop (daemons only)
       - SIGINT: Sent on Ctrl+C (keyboard interrupt)
+      - SIGUSR1: Config reload signal (daemons only)
 
     Should be called early in main() before any long-running operations.
 
     Args:
         include_sigterm: If True (default), registers SIGTERM handler for daemon use.
                         Set to False for interactive utilities that only need SIGINT.
+        include_sigusr1: If True (default), registers SIGUSR1 handler for config reload.
+                        Set to False for utilities that don't need config reload.
     """
     if include_sigterm:
         signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
+    if include_sigusr1:
+        signal.signal(signal.SIGUSR1, _reload_signal_handler)
 
 
 def is_shutdown_requested() -> bool:
@@ -115,6 +146,24 @@ def wait_for_shutdown(timeout: float | None = None) -> bool:
         True if shutdown was requested, False if timeout expired.
     """
     return _shutdown_event.wait(timeout=timeout)
+
+
+def is_reload_requested() -> bool:
+    """Check if config reload has been requested via SIGUSR1.
+
+    Returns:
+        True if SIGUSR1 has been received, False otherwise.
+    """
+    return _reload_event.is_set()
+
+
+def reset_reload_state() -> None:
+    """Reset the reload state after handling the reload.
+
+    Called after the daemon has processed a config reload to clear the
+    reload event for the next SIGUSR1 signal.
+    """
+    _reload_event.clear()
 
 
 def reset_shutdown_state() -> None:
