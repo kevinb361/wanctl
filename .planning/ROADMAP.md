@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Milestone Goal:** Build a full-featured TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links, with adaptive layout and terminal compatibility.
 
 - [x] **Phase 73: Foundation** - Polling engine, live status panels, CLI entry point, and infrastructure
-- [ ] **Phase 74: Visualization & History** - Sparklines, cycle budget gauge, and historical metrics browser
+- [x] **Phase 74: Visualization & History** - Sparklines, cycle budget gauge, and historical metrics browser (completed 2026-03-11)
 - [ ] **Phase 75: Layout & Compatibility** - Adaptive wide/narrow layout, resize hysteresis, and terminal compatibility
 
 ## Phase Details
@@ -116,7 +116,7 @@ Phases execute in numeric order: 73 -> 74 -> 75
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 73. Foundation              | 3/3            | Complete    | 2026-03-11 |
-| 74. Visualization & History | 1/2 | In Progress|  |
+| 74. Visualization & History | 2/2 | Complete   | 2026-03-11 |
 | 75. Layout & Compatibility  | 0/?            | Not started | -          |
 
 ### Completed Milestones

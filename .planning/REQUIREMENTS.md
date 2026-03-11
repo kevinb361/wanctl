@@ -31,10 +31,10 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ### Historical Analysis
 
-- [ ] **HIST-01**: Historical metrics browser tab accessible via keyboard navigation
-- [ ] **HIST-02**: Time range selector with 1h, 6h, 24h, 7d options
-- [ ] **HIST-03**: DataTable displays metrics with granularity-aware queries
-- [ ] **HIST-04**: Summary statistics (min/max/avg/p95/p99) for selected time range
+- [x] **HIST-01**: Historical metrics browser tab accessible via keyboard navigation
+- [x] **HIST-02**: Time range selector with 1h, 6h, 24h, 7d options
+- [x] **HIST-03**: DataTable displays metrics with granularity-aware queries
+- [x] **HIST-04**: Summary statistics (min/max/avg/p95/p99) for selected time range
 
 ### Layout & Compatibility
 
@@ -88,10 +88,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIZ-02      | Phase 74 | Complete |
 | VIZ-03      | Phase 74 | Complete |
 | VIZ-04      | Phase 74 | Complete |
-| HIST-01     | Phase 74 | Pending  |
-| HIST-02     | Phase 74 | Pending  |
-| HIST-03     | Phase 74 | Pending  |
-| HIST-04     | Phase 74 | Pending  |
+| HIST-01     | Phase 74 | Complete |
+| HIST-02     | Phase 74 | Complete |
+| HIST-03     | Phase 74 | Complete |
+| HIST-04     | Phase 74 | Complete |
 | LYOT-01     | Phase 75 | Pending  |
 | LYOT-02     | Phase 75 | Pending  |
 | LYOT-03     | Phase 75 | Pending  |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.14
 milestone_name: Operational Visibility
-current_plan: 74-01 complete
+current_plan: 74-02 complete
 status: executing
-last_updated: "2026-03-11T19:57:44Z"
-last_activity: 2026-03-11 -- Completed 74-01 (Sparkline trends and cycle gauge widgets)
+last_updated: "2026-03-11T20:09:21Z"
+last_activity: 2026-03-11 -- Completed 74-02 (History browser and tabbed navigation)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
   percent: 100
 ---
 
@@ -27,19 +27,19 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Milestone:** v1.14 Operational Visibility
 **Phase:** 74 of 75 (Visualization & History)
-**Current Plan:** 74-01 complete
+**Current Plan:** 74-02 complete
 **Status:** Executing
-**Last activity:** 2026-03-11 -- Completed 74-01 (Sparkline trends and cycle gauge widgets)
+**Last activity:** 2026-03-11 -- Completed 74-02 (History browser and tabbed navigation)
 
-Progress: [████------] 33% (Phase 74, 1/3 plans)
+Progress: [██████----] 67% (Phase 74, 2/3 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: 11min
-- Total execution time: 43min
+- Total plans completed: 5
+- Average duration: 10min
+- Total execution time: 51min
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -47,6 +47,7 @@ Progress: [████------] 33% (Phase 74, 1/3 plans)
 | 73    | 02   | 4min     | 2     | 6     |
 | 73    | 03   | 24min    | 2     | 3     |
 | 74    | 01   | 7min     | 2     | 8     |
+| 74    | 02   | 8min     | 2     | 5     |
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Progress: [████------] 33% (Phase 74, 1/3 plans)
 - Bounded deques (maxlen=120) for sparkline data -- constant memory regardless of uptime
 - RTT delta sparkline uses green-to-red gradient (min_color/max_color)
 - conftest cycle_budget includes utilization_pct matching real health endpoint format
+- Client-side summary stats using statistics stdlib (no daemon imports in dashboard)
+- TabbedContent(initial="live") for default Live tab focus on launch
+- StatusBarWidget outside TabbedContent for persistent dock-bottom visibility
+- Lazy httpx.AsyncClient creation in \_fetch_and_populate avoids lifecycle issues before mount
 
 ### Known Issues
 
@@ -95,3 +100,4 @@ None.
 - 2026-03-11: Completed 73-03 -- DashboardApp assembly, polling wiring, keybindings, CSS (13 new tests, 24min)
 - 2026-03-11: Phase 73 (Foundation) COMPLETE -- 3/3 plans, 79 dashboard tests, wanctl-dashboard fully functional
 - 2026-03-11: Completed 74-01 -- Sparkline trends + cycle gauge (23 new tests, 7min, 102 total dashboard tests)
+- 2026-03-11: Completed 74-02 -- History browser + tabbed navigation (12 new tests, 8min, 114 total dashboard tests)
