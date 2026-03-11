@@ -271,3 +271,7 @@ def main(argv: list[str] | None = None) -> None:
     config = apply_cli_overrides(config, args)
     app = DashboardApp(config)
     app.run()
+
+
+if __name__ == "__main__":
+    main()
