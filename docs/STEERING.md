@@ -199,9 +199,9 @@ Confidence scoring replaces the binary RED-triggers-steer model with a multi-sig
 
 ### SIGUSR1 Hot-Reload
 
-The steering daemon supports hot-reload of the `dry_run` flag via SIGUSR1. This allows toggling between live and dry-run mode without restarting the daemon.
+The steering daemon supports hot-reload of `dry_run` and `wan_state.enabled` via SIGUSR1. This allows toggling between live/dry-run mode and enabling/disabling WAN-aware steering without restarting the daemon.
 
-**Note:** SIGUSR1 only reloads the `dry_run` flag. All other config changes require a daemon restart.
+**Note:** SIGUSR1 reloads `dry_run` and `wan_state.enabled` only. All other config changes require a daemon restart.
 
 ### Rollback to Dry-Run Mode
 
@@ -244,6 +244,105 @@ To re-enable live mode:
    ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep mode'
    # Should show: "mode": "active"
    ```
+
+## WAN-Aware Steering
+
+WAN zone data from autorate fuses into confidence scoring. When enabled, WAN RED and SOFT_RED congestion zones add configurable weight to the confidence score, allowing the steering daemon to factor in WAN-level congestion signals. WAN-aware steering ships disabled by default (`wan_state.enabled: false` in the example config) and must be explicitly enabled.
+
+### Enabling WAN-Aware Steering
+
+1. Edit the steering config -- uncomment the `wan_state` section and set `enabled: true`:
+
+   ```bash
+   ssh cake-spectrum 'sudo nano /etc/wanctl/steering.yaml'
+   # Set: wan_state.enabled: true
+   ```
+
+2. Send SIGUSR1 to reload without restart:
+
+   ```bash
+   ssh cake-spectrum 'sudo kill -USR1 $(pgrep -f "steering.*--config")'
+   ```
+
+3. Verify via health endpoint:
+
+   ```bash
+   ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A5 wan_awareness'
+   # Should show: "enabled": true
+   ```
+
+**Note:** A 30-second grace period activates on enable. During this window, the WAN zone signal is ignored while the system ramps up safely.
+
+### Rollback (Disable WAN-Aware Steering)
+
+To disable WAN-aware steering without restarting the daemon:
+
+```bash
+# 1. Set enabled to false in config
+ssh cake-spectrum 'sudo sed -i "s/enabled: true/enabled: false/" /etc/wanctl/steering.yaml'
+
+# 2. Send SIGUSR1 to reload
+ssh cake-spectrum 'sudo kill -USR1 $(pgrep -f "steering.*--config")'
+
+# 3. Verify via health endpoint
+ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A5 wan_awareness'
+# Should show: "enabled": false
+```
+
+### Degradation Validation Runbook
+
+Step-by-step procedures to validate WAN-aware steering degrades safely under failure conditions.
+
+#### Stale Zone Fallback
+
+When autorate stops writing state, the WAN zone becomes stale and its confidence contribution drops to zero.
+
+```bash
+# 1. Note current state
+ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A10 wan_awareness'
+
+# 2. Stop autorate (creates stale zone condition)
+ssh cake-spectrum 'sudo systemctl stop wanctl@spectrum'
+
+# 3. Wait for staleness threshold (default 5 seconds)
+sleep 10
+
+# 4. Check health -- stale=true, confidence_contribution=0
+ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A10 wan_awareness'
+# Expected: "stale": true, "confidence_contribution": 0
+
+# 5. Restart autorate
+ssh cake-spectrum 'sudo systemctl start wanctl@spectrum'
+```
+
+#### Autorate Unavailable (No State File)
+
+When the autorate state file is missing, the WAN zone reads as null and contributes zero weight.
+
+```bash
+# 1. Rename state file
+ssh cake-spectrum 'sudo mv /run/wanctl/spectrum_state.json /run/wanctl/spectrum_state.json.bak'
+
+# 2. Wait a few cycles
+sleep 3
+
+# 3. Check health -- zone should be null, confidence_contribution=0
+ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A10 wan_awareness'
+# Expected: "zone": null, "confidence_contribution": 0
+
+# 4. Restore state file
+ssh cake-spectrum 'sudo mv /run/wanctl/spectrum_state.json.bak /run/wanctl/spectrum_state.json'
+```
+
+### Configuration Parameters
+
+| Parameter                           | Default | Description                                       |
+| ----------------------------------- | ------- | ------------------------------------------------- |
+| `wan_state.enabled`                 | `false` | Enable WAN zone signal in confidence scoring      |
+| `wan_state.grace_period_sec`        | `30`    | Seconds to ignore WAN signal after enable/startup |
+| `wan_state.red_weight`              | `25`    | Confidence weight added when WAN zone is RED      |
+| `wan_state.soft_red_weight`         | `12`    | Confidence weight added when WAN zone is SOFT_RED |
+| `wan_state.staleness_threshold_sec` | `5`     | Seconds before stale zone falls back to zero      |
 
 ## Troubleshooting
 
