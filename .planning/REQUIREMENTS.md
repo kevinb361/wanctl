@@ -1,115 +1,89 @@
-# Requirements: wanctl v1.14
+# Requirements: wanctl
 
 **Defined:** 2026-03-11
-**Core Value:** Sub-second congestion detection with 50ms control loops -- now with operational visibility via TUI dashboard
+**Core Value:** Sub-second congestion detection with 50ms control loops
 
-## v1.14 Requirements
+## v1.15 Requirements
 
-Requirements for Operational Visibility milestone. Each maps to roadmap phases.
+Requirements for Alerting & Notifications milestone. Each maps to roadmap phases.
 
-### Polling & Data Layer
+### Alert Events
 
-- [x] **POLL-01**: Dashboard polls autorate health endpoint with configurable URL and 1-2s refresh interval
-- [x] **POLL-02**: Dashboard polls steering health endpoint with configurable URL and 1-2s refresh interval
-- [x] **POLL-03**: Each endpoint polled independently -- one being unreachable does not affect others
-- [x] **POLL-04**: Unreachable endpoint shows inline "offline" state with last-seen timestamp, continues polling with backoff
+- [ ] **ALRT-01**: Autorate daemon fires alert when WAN stays in RED or SOFT_RED beyond configurable duration
+- [ ] **ALRT-02**: Steering daemon fires alert when steering is activated (traffic rerouted to secondary)
+- [ ] **ALRT-03**: Steering daemon fires alert when steering is deactivated (traffic returns to primary)
+- [ ] **ALRT-04**: Daemon fires alert when health endpoint target becomes unreachable beyond configurable duration
+- [ ] **ALRT-05**: Daemon fires alert when previously unreachable endpoint recovers
+- [ ] **ALRT-06**: Autorate daemon fires alert when baseline RTT drifts beyond configurable threshold
+- [ ] **ALRT-07**: Autorate daemon fires alert when rapid congestion state flapping is detected
 
-### Live Monitoring
+### Delivery
 
-- [x] **LIVE-01**: Per-WAN panel shows color-coded congestion state (GREEN/YELLOW/SOFT_RED/RED)
-- [x] **LIVE-02**: Per-WAN panel shows current DL/UL rates and rate limits
-- [x] **LIVE-03**: Per-WAN panel shows RTT baseline, load RTT, and delta
-- [x] **LIVE-04**: Steering panel shows enabled/disabled status and confidence score
-- [x] **LIVE-05**: Steering panel shows WAN awareness details (zone, staleness, grace period, contribution)
-
-### Visualization
-
-- [x] **VIZ-01**: Bandwidth sparklines show DL/UL rate trends per WAN (~2 min rolling window)
-- [x] **VIZ-02**: RTT delta sparkline with color gradient (green=low, red=high)
-- [x] **VIZ-03**: Cycle budget gauge shows 50ms utilization percentage
-- [x] **VIZ-04**: All sparkline/trend data uses bounded deque (no unbounded memory growth)
-
-### Historical Analysis
-
-- [x] **HIST-01**: Historical metrics browser tab accessible via keyboard navigation
-- [x] **HIST-02**: Time range selector with 1h, 6h, 24h, 7d options
-- [x] **HIST-03**: DataTable displays metrics with granularity-aware queries
-- [x] **HIST-04**: Summary statistics (min/max/avg/p95/p99) for selected time range
-
-### Layout & Compatibility
-
-- [x] **LYOT-01**: Adaptive layout shows side-by-side WAN panels at >=120 columns
-- [x] **LYOT-02**: Stacked/tabbed layout below 120 columns
-- [x] **LYOT-03**: Resize hysteresis prevents layout flicker at breakpoint boundary
-- [x] **LYOT-04**: Dashboard works in tmux and SSH+tmux sessions
-- [x] **LYOT-05**: `--no-color` and `--256-color` CLI flags for terminal fallback
+- [ ] **DLVR-01**: Alerts delivered via Discord webhook with color-coded embeds (red=critical, yellow=warning, green=recovery)
+- [ ] **DLVR-02**: Alert embeds include event type, severity, affected WAN, relevant metrics, and timestamp
+- [ ] **DLVR-03**: Webhook delivery retries with backoff on transient HTTP failures
+- [ ] **DLVR-04**: Generic webhook interface allows adding new formatters (ntfy.sh, etc.) without engine changes
 
 ### Infrastructure
 
-- [x] **INFRA-01**: `wanctl-dashboard` standalone CLI command via pyproject.toml entry point
-- [x] **INFRA-02**: Dashboard deps (textual, httpx) as optional dependency group (`wanctl[dashboard]`)
-- [x] **INFRA-03**: CLI args for endpoint URLs (`--autorate-url`, `--steering-url`) and DB path
-- [x] **INFRA-04**: YAML config file for persistent dashboard settings
-- [x] **INFRA-05**: Footer with discoverable keybindings (q quit, Tab cycle, number keys for ranges)
+- [ ] **INFRA-01**: Per-event-type cooldown suppression with configurable duration per alert type
+- [ ] **INFRA-02**: YAML `alerting:` configuration section with rules, thresholds, cooldowns, and webhook URL
+- [ ] **INFRA-03**: Fired alerts persisted to SQLite with timestamp, type, severity, WAN, and details
+- [ ] **INFRA-04**: Alert history queryable via `wanctl-history` CLI (e.g., `--alerts` flag)
+- [ ] **INFRA-05**: Alerting disabled by default, opt-in via `alerting.enabled: true`
+- [ ] **INFRA-06**: Health endpoint exposes alerting state (enabled, recent alert count, active cooldowns)
 
 ## Future Requirements
 
-### Steering Event Log (v1.15+)
+### Delivery
+
+- **DLVR-F01**: ntfy.sh push notification delivery
+- **DLVR-F02**: Generic HTTP POST with customizable payload template
+
+### Steering Event Log
 
 - **SEVT-01**: Steering decision log showing recent transitions with timestamps and reasons
 - **SEVT-02**: Daemon-side ring buffer API endpoint for transition events
 
 ## Out of Scope
 
-| Feature                      | Reason                                                           |
-| ---------------------------- | ---------------------------------------------------------------- |
-| Live log tailing             | 20Hz log volume is overwhelming; journalctl -f is purpose-built  |
-| Config editing from TUI      | No audit trail, dangerous for production network controller      |
-| Sub-second dashboard refresh | No visual benefit below 1s, wastes CPU                           |
-| Full Grafana-style charts    | Terminal resolution makes them unreadable; sparklines sufficient |
-| Web UI                       | Deferred -- TUI first, web later if needed                       |
+| Feature | Reason |
+|---------|--------|
+| ML-based anomaly detection | Simple threshold/heuristic detection sufficient for home network |
+| Alert aggregation/grouping | Per-event cooldown handles flood suppression adequately |
+| Web UI for alert management | CLI and YAML config sufficient |
+| Email delivery | Discord/webhook covers notification needs |
+| Alert acknowledgment/silencing | Cooldowns handle suppression; operator intervention not needed |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase    | Status   |
-| ----------- | -------- | -------- |
-| POLL-01     | Phase 73 | Complete |
-| POLL-02     | Phase 73 | Complete |
-| POLL-03     | Phase 73 | Complete |
-| POLL-04     | Phase 73 | Complete |
-| LIVE-01     | Phase 73 | Complete |
-| LIVE-02     | Phase 73 | Complete |
-| LIVE-03     | Phase 73 | Complete |
-| LIVE-04     | Phase 73 | Complete |
-| LIVE-05     | Phase 73 | Complete |
-| VIZ-01      | Phase 74 | Complete |
-| VIZ-02      | Phase 74 | Complete |
-| VIZ-03      | Phase 74 | Complete |
-| VIZ-04      | Phase 74 | Complete |
-| HIST-01     | Phase 74 | Complete |
-| HIST-02     | Phase 74 | Complete |
-| HIST-03     | Phase 74 | Complete |
-| HIST-04     | Phase 74 | Complete |
-| LYOT-01     | Phase 75 | Complete |
-| LYOT-02     | Phase 75 | Complete |
-| LYOT-03     | Phase 75 | Complete |
-| LYOT-04     | Phase 75 | Complete |
-| LYOT-05     | Phase 75 | Complete |
-| INFRA-01    | Phase 73 | Complete |
-| INFRA-02    | Phase 73 | Complete |
-| INFRA-03    | Phase 73 | Complete |
-| INFRA-04    | Phase 73 | Complete |
-| INFRA-05    | Phase 73 | Complete |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ALRT-01 | — | Pending |
+| ALRT-02 | — | Pending |
+| ALRT-03 | — | Pending |
+| ALRT-04 | — | Pending |
+| ALRT-05 | — | Pending |
+| ALRT-06 | — | Pending |
+| ALRT-07 | — | Pending |
+| DLVR-01 | — | Pending |
+| DLVR-02 | — | Pending |
+| DLVR-03 | — | Pending |
+| DLVR-04 | — | Pending |
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| INFRA-03 | — | Pending |
+| INFRA-04 | — | Pending |
+| INFRA-05 | — | Pending |
+| INFRA-06 | — | Pending |
 
 **Coverage:**
-
-- v1.14 requirements: 27 total
-- Mapped to phases: 27
-- Unmapped: 0
+- v1.15 requirements: 17 total
+- Mapped to phases: 0
+- Unmapped: 17
 
 ---
-
-_Requirements defined: 2026-03-11_
-_Last updated: 2026-03-11 after Phase 73 completion_
+*Requirements defined: 2026-03-11*
+*Last updated: 2026-03-11 after initial definition*
