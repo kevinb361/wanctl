@@ -1,8 +1,8 @@
 """Tests for async endpoint poller with independent polling and backoff."""
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 
@@ -35,9 +35,9 @@ class TestEndpointPollerSuccess:
         mock_response.json.return_value = {"status": "healthy"}
         mock_client.get = AsyncMock(return_value=mock_response)
 
-        before = datetime.now(tz=timezone.utc)
+        before = datetime.now(tz=UTC)
         asyncio.run(poller.poll(mock_client))
-        after = datetime.now(tz=timezone.utc)
+        after = datetime.now(tz=UTC)
 
         assert poller.last_seen is not None
         assert before <= poller.last_seen <= after
