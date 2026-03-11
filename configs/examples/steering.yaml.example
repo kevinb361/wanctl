@@ -84,7 +84,6 @@ thresholds:
 
 # Operational mode
 mode:
-  cake_aware: true              # Use multi-signal detection (recommended)
   reset_counters: true          # Reset CAKE counters before reading
   enable_yellow_state: true     # Enable YELLOW early warning state
   use_confidence_scoring: false # Enable confidence-based steering (optional)

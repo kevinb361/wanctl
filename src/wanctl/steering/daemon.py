@@ -77,12 +77,7 @@ from .steering_confidence import (
 # CONSTANTS
 # =============================================================================
 
-# Default congestion thresholds (milliseconds)
-DEFAULT_BAD_THRESHOLD_MS = 25.0  # RTT delta threshold for bad state
-DEFAULT_RECOVERY_THRESHOLD_MS = 12.0  # RTT delta threshold for recovery
-
 # Default sample counts for state transitions
-DEFAULT_GOOD_SAMPLES = 15  # Consecutive good samples before recovery
 DEFAULT_GREEN_SAMPLES_REQUIRED = 15  # Consecutive GREEN samples before steering off
 
 # Default RTT thresholds for congestion states (milliseconds)
@@ -227,7 +222,6 @@ class SteeringConfig(BaseConfig):
     def _load_operational_mode(self) -> None:
         """Load operational mode settings."""
         mode = self.data.get("mode", {})
-        self.cake_aware = mode.get("cake_aware", True)
         self.enable_yellow_state = mode.get("enable_yellow_state", True)
         self.use_confidence_scoring = mode.get("use_confidence_scoring", False)
 
@@ -413,15 +407,7 @@ class SteeringConfig(BaseConfig):
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
         thresholds = self.data["thresholds"]
 
-        # Legacy RTT-only thresholds (backward compatibility)
-        self.bad_threshold_ms = thresholds.get("bad_threshold_ms", DEFAULT_BAD_THRESHOLD_MS)
-        self.recovery_threshold_ms = thresholds.get(
-            "recovery_threshold_ms", DEFAULT_RECOVERY_THRESHOLD_MS
-        )
-        self.bad_samples = thresholds.get("bad_samples", 8)
-        self.good_samples = thresholds.get("good_samples", DEFAULT_GOOD_SAMPLES)
-
-        # CAKE-aware thresholds (three-state model)
+        # CAKE thresholds (three-state congestion model)
         self.green_rtt_ms = thresholds.get("green_rtt_ms", DEFAULT_GREEN_RTT_MS)
         self.yellow_rtt_ms = thresholds.get("yellow_rtt_ms", DEFAULT_YELLOW_RTT_MS)
         self.red_rtt_ms = thresholds.get("red_rtt_ms", DEFAULT_RED_RTT_MS)
@@ -531,7 +517,6 @@ def create_steering_state_schema(config: SteeringConfig) -> StateSchema:
     return StateSchema(
         {
             "current_state": config.state_good,
-            "bad_count": 0,
             "good_count": 0,
             "baseline_rtt": None,
             "history_rtt": [],
@@ -806,26 +791,19 @@ class SteeringDaemon:
         # Router connectivity tracking for cycle-level failure detection
         self.router_connectivity = RouterConnectivityState(self.logger)
 
-        # CAKE-aware components (if enabled)
-        self.cake_reader: CakeStatsReader | None
-        self.thresholds: StateThresholds | None
-        if self.config.cake_aware:
-            self.cake_reader = CakeStatsReader(config, logger)
-            self.thresholds = StateThresholds(
-                green_rtt=config.green_rtt_ms,
-                yellow_rtt=config.yellow_rtt_ms,
-                red_rtt=config.red_rtt_ms,
-                min_drops_red=config.min_drops_red,
-                min_queue_yellow=config.min_queue_yellow,
-                min_queue_red=config.min_queue_red,
-                red_samples_required=config.red_samples_required,
-                green_samples_required=config.green_samples_required,
-            )
-            self.logger.info("CAKE-aware mode ENABLED - using three-state congestion model")
-        else:
-            self.cake_reader = None
-            self.thresholds = None
-            self.logger.info("Legacy RTT-only mode - CAKE-aware disabled")
+        # CAKE congestion detection components
+        self.cake_reader = CakeStatsReader(config, logger)
+        self.thresholds = StateThresholds(
+            green_rtt=config.green_rtt_ms,
+            yellow_rtt=config.yellow_rtt_ms,
+            red_rtt=config.red_rtt_ms,
+            min_drops_red=config.min_drops_red,
+            min_queue_yellow=config.min_queue_yellow,
+            min_queue_red=config.min_queue_red,
+            red_samples_required=config.red_samples_required,
+            green_samples_required=config.green_samples_required,
+        )
+        self.logger.info("CAKE three-state congestion model initialized")
 
         # Metrics history storage (optional)
         storage_config = get_storage_config(config.data)
@@ -928,38 +906,30 @@ class SteeringDaemon:
 
     def _evaluate_degradation_condition(
         self, signals: CongestionSignals
-    ) -> tuple[bool, bool, bool, str | None]:
+    ) -> tuple[bool, bool, bool, str]:
         """
-        Evaluate degradation/recovery conditions based on mode.
+        Evaluate degradation/recovery conditions using CAKE congestion assessment.
 
-        Mode-specific logic:
-        - CAKE-aware: Uses assess_congestion_state() returning RED/YELLOW/GREEN
-        - Legacy: Uses threshold comparison on rtt_delta
+        Uses assess_congestion_state() with multi-signal analysis (RTT delta,
+        CAKE drops, queue depth) to determine RED/YELLOW/GREEN state.
 
         Args:
             signals: CongestionSignals containing rtt_delta and other metrics
 
         Returns:
-            tuple[bool, bool, bool, str | None]: (is_degraded, is_recovered, is_warning, assessment_value)
-            - is_degraded: True if conditions indicate degradation (RED or high delta)
-            - is_recovered: True if conditions indicate recovery (GREEN or low delta)
-            - is_warning: True if YELLOW state (CAKE-aware only, resets degrade counter)
-            - assessment_value: CongestionState.value for CAKE mode, None for legacy
+            tuple[bool, bool, bool, str]: (is_degraded, is_recovered, is_warning, assessment_value)
+            - is_degraded: True if RED state (confirmed congestion)
+            - is_recovered: True if GREEN state (healthy)
+            - is_warning: True if YELLOW state (early warning, resets degrade counter)
+            - assessment_value: CongestionState.value (RED/YELLOW/GREEN)
         """
-        if self.config.cake_aware:
-            assert self.thresholds is not None  # Set when cake_aware is True
-            assessment = assess_congestion_state(signals, self.thresholds, self.logger)
-            return (
-                assessment == CongestionState.RED,
-                assessment == CongestionState.GREEN,
-                assessment == CongestionState.YELLOW,
-                assessment.value,
-            )
-        else:
-            # Legacy mode: simple threshold comparison
-            is_degraded = signals.rtt_delta > self.config.bad_threshold_ms
-            is_recovered = signals.rtt_delta < self.config.recovery_threshold_ms
-            return (is_degraded, is_recovered, False, None)
+        assessment = assess_congestion_state(signals, self.thresholds, self.logger)
+        return (
+            assessment == CongestionState.RED,
+            assessment == CongestionState.GREEN,
+            assessment == CongestionState.YELLOW,
+            assessment.value,
+        )
 
     def execute_steering_transition(
         self, from_state: str, to_state: str, enable_steering: bool
@@ -1059,27 +1029,15 @@ class SteeringDaemon:
 
         if is_degraded:
             degrade_count += 1
-            if self.config.cake_aware:
-                self.logger.info(
-                    f"[{wan}_GOOD] [{assessment}] {signals} | "
-                    f"red_count={degrade_count}/{degrade_threshold}"
-                )
-            else:
-                self.logger.debug(
-                    f"Delta={signals.rtt_delta:.1f}ms > threshold={self.config.bad_threshold_ms}ms, "
-                    f"bad_count={degrade_count}/{degrade_threshold}"
-                )
+            self.logger.info(
+                f"[{wan}_GOOD] [{assessment}] {signals} | "
+                f"red_count={degrade_count}/{degrade_threshold}"
+            )
 
             if degrade_count >= degrade_threshold:
-                if self.config.cake_aware:
-                    self.logger.warning(
-                        f"{wan} DEGRADED detected - {signals} (sustained {degrade_count} samples)"
-                    )
-                else:
-                    self.logger.warning(
-                        f"{wan} DEGRADED detected (delta={signals.rtt_delta:.1f}ms "
-                        f"sustained for {degrade_count} samples)"
-                    )
+                self.logger.warning(
+                    f"{wan} DEGRADED detected - {signals} (sustained {degrade_count} samples)"
+                )
                 if self.execute_steering_transition(
                     self.config.state_good, self.config.state_degraded, enable_steering=True
                 ):
@@ -1091,8 +1049,7 @@ class SteeringDaemon:
             self.logger.info(f"[{wan}_GOOD] [{assessment}] {signals} | early warning, no action")
         else:
             degrade_count = 0
-            if self.config.cake_aware:
-                self.logger.debug(f"[{wan}_GOOD] [{assessment}] {signals}")
+            self.logger.debug(f"[{wan}_GOOD] [{assessment}] {signals}")
 
         return degrade_count, state_changed
 
@@ -1114,27 +1071,15 @@ class SteeringDaemon:
 
         if is_recovered:
             recover_count += 1
-            if self.config.cake_aware:
-                self.logger.info(
-                    f"[{wan}_DEGRADED] [{assessment}] {signals} | "
-                    f"good_count={recover_count}/{recover_threshold}"
-                )
-            else:
-                self.logger.debug(
-                    f"Delta={signals.rtt_delta:.1f}ms < threshold={self.config.recovery_threshold_ms}ms, "
-                    f"good_count={recover_count}/{recover_threshold}"
-                )
+            self.logger.info(
+                f"[{wan}_DEGRADED] [{assessment}] {signals} | "
+                f"good_count={recover_count}/{recover_threshold}"
+            )
 
             if recover_count >= recover_threshold:
-                if self.config.cake_aware:
-                    self.logger.info(
-                        f"{wan} RECOVERED - {signals} (sustained {recover_count} samples)"
-                    )
-                else:
-                    self.logger.info(
-                        f"{wan} RECOVERED (delta={signals.rtt_delta:.1f}ms "
-                        f"sustained for {recover_count} samples)"
-                    )
+                self.logger.info(
+                    f"{wan} RECOVERED - {signals} (sustained {recover_count} samples)"
+                )
                 if self.execute_steering_transition(
                     self.config.state_degraded, self.config.state_good, enable_steering=False
                 ):
@@ -1142,14 +1087,13 @@ class SteeringDaemon:
                     state_changed = True
         else:
             recover_count = 0
-            if self.config.cake_aware:
-                self.logger.info(f"[{wan}_DEGRADED] [{assessment}] {signals} | still degraded")
+            self.logger.info(f"[{wan}_DEGRADED] [{assessment}] {signals} | still degraded")
 
         return recover_count, state_changed
 
     def _update_state_machine_unified(self, signals: CongestionSignals) -> bool:
         """
-        Unified state machine for both CAKE-aware and legacy modes.
+        Hysteresis state machine for CAKE congestion-based steering.
 
         PROTECTED: Asymmetric hysteresis - quick to enable, slow to disable.
         Do not change thresholds without production validation.
@@ -1158,25 +1102,18 @@ class SteeringDaemon:
         state = self.state_mgr.state
         current_state = state["current_state"]
 
-        # Evaluate conditions based on mode
+        # Evaluate congestion conditions
         is_degraded, is_recovered, is_warning, assessment = self._evaluate_degradation_condition(
             signals
         )
 
-        # Store assessment for observability (CAKE mode only)
-        if assessment is not None:
-            state["congestion_state"] = assessment
+        # Store assessment for observability
+        state["congestion_state"] = assessment
 
-        # Get counters - CAKE: red_count, Legacy: bad_count
-        if self.config.cake_aware:
-            assert self.thresholds is not None  # Set when cake_aware is True
-            degrade_count = state["red_count"]
-            degrade_threshold = self.thresholds.red_samples_required
-            recover_threshold = self.thresholds.green_samples_required
-        else:
-            degrade_count = state["bad_count"]
-            degrade_threshold = self.config.bad_samples
-            recover_threshold = self.config.good_samples
+        # Get counters
+        degrade_count = state["red_count"]
+        degrade_threshold = self.thresholds.red_samples_required
+        recover_threshold = self.thresholds.green_samples_required
         recover_count = state["good_count"]
 
         # Dispatch to state handler
@@ -1197,10 +1134,7 @@ class SteeringDaemon:
             degrade_count = 0
 
         # Persist counters
-        if self.config.cake_aware:
-            state["red_count"] = degrade_count
-        else:
-            state["bad_count"] = degrade_count
+        state["red_count"] = degrade_count
         state["good_count"] = recover_count
 
         return state_changed
@@ -1322,8 +1256,8 @@ class SteeringDaemon:
         - In dry-run mode: logs confidence decisions but uses hysteresis for routing
         - In live mode: uses confidence decision for routing
 
-        Routes to unified state machine implementation that handles both
-        CAKE-aware and legacy modes when confidence scoring is disabled or in dry-run.
+        Falls through to hysteresis state machine when confidence scoring is
+        disabled or in dry-run mode.
 
         Args:
             signals: CongestionSignals containing rtt_delta, drops, queue depth, etc.
@@ -1368,15 +1302,15 @@ class SteeringDaemon:
     def collect_cake_stats(self) -> tuple[int, int]:
         """Collect CAKE statistics (drops and queued packets).
 
-        Handles CAKE-aware mode check, stats reading, history updates,
-        consecutive failure tracking (W8 fix), and router connectivity tracking.
+        Handles stats reading, history updates, consecutive failure
+        tracking (W8 fix), and router connectivity tracking.
 
         Returns:
             tuple[int, int]: (cake_drops, queued_packets)
-            Returns (0, 0) if CAKE-aware disabled or read fails
+            Returns (0, 0) if no reader configured or read fails
         """
-        # Return early if CAKE-aware mode is disabled or no reader configured
-        if not self.config.cake_aware or not self.cake_reader:
+        # Return early if no reader configured (defensive guard)
+        if not self.cake_reader:
             return (0, 0)
 
         state = self.state_mgr.state
@@ -1543,12 +1477,9 @@ class SteeringDaemon:
                 )
                 anomaly_detected = True
             else:
-                # === EWMA Smoothing (if CAKE-aware) ===
+                # === EWMA Smoothing ===
                 # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
-                if self.config.cake_aware:
-                    rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
-                else:
-                    rtt_delta_ewma = delta
+                rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
 
                 # Add to history
                 self.state_mgr.add_measurement(current_rtt, delta)
@@ -1564,26 +1495,17 @@ class SteeringDaemon:
 
                 # === Log Measurement ===
                 wan_name = self.config.primary_wan.upper()
-                if self.config.cake_aware:
-                    self.logger.info(
-                        f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
-                        f"{signals} | "
-                        f"congestion={state.get('congestion_state', 'N/A')}"
-                    )
-                else:
-                    self.logger.info(
-                        f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
-                        f"RTT={current_rtt:.1f}ms, baseline={baseline_rtt:.1f}ms, "
-                        f"delta={delta:.1f}ms | "
-                        f"bad_count={state['bad_count']}/{self.config.bad_samples}, "
-                        f"good_count={state['good_count']}/{self.config.good_samples}"
-                    )
+                self.logger.info(
+                    f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
+                    f"{signals} | "
+                    f"congestion={state.get('congestion_state', 'N/A')}"
+                )
 
                 # === Update State Machine ===
                 state_changed = self.update_state_machine(signals)
 
                 # Track cake_state_history for confidence-based steering
-                if self.config.cake_aware and "congestion_state" in state:
+                if "congestion_state" in state:
                     cake_state_history = state.get("cake_state_history", [])
                     cake_state_history.append(state["congestion_state"])
                     # Keep last 10 samples (sufficient for sustained detection)

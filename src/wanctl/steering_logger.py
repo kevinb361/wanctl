@@ -34,11 +34,6 @@ class SteeringLogger:
         baseline_rtt: float | None,
         delta: float,
         signals: CongestionSignals | None = None,
-        bad_count: int = 0,
-        good_count: int = 0,
-        bad_samples_threshold: int = 1,
-        good_samples_threshold: int = 1,
-        cake_aware: bool = False,
     ) -> None:
         """Log measurement cycle with RTT, delta, and state context.
 
@@ -50,28 +45,21 @@ class SteeringLogger:
             current_rtt: Current measured RTT (ms)
             baseline_rtt: Baseline RTT (ms), or None
             delta: RTT delta from baseline (ms)
-            signals: CongestionSignals object (optional, for CAKE-aware mode)
-            bad_count: Current bad sample counter
-            good_count: Current good sample counter
-            bad_samples_threshold: Threshold for bad samples
-            good_samples_threshold: Threshold for good samples
-            cake_aware: If True, use CAKE-aware format with signals
+            signals: CongestionSignals object (optional, for multi-signal format)
         """
         state_suffix = current_state.split("_")[-1] if "_" in current_state else current_state
         header = f"[{self.wan_name}_{state_suffix}]"
 
-        if cake_aware and signals is not None:
-            # CAKE-aware format: show all signals
+        if signals is not None:
+            # Multi-signal format: show all CAKE congestion signals
             self.logger.info(
                 f"{header} {signals} | congestion={getattr(signals, '_congestion_state', 'N/A')}"
             )
         else:
-            # RTT-only format: detailed RTT and counter info
+            # Simplified format when signals unavailable
             baseline_str = f"{baseline_rtt:.1f}ms" if baseline_rtt is not None else "N/A"
             self.logger.info(
-                f"{header} RTT={current_rtt:.1f}ms, baseline={baseline_str}, delta={delta:.1f}ms | "
-                f"bad_count={bad_count}/{bad_samples_threshold}, "
-                f"good_count={good_count}/{good_samples_threshold}"
+                f"{header} RTT={current_rtt:.1f}ms, baseline={baseline_str}, delta={delta:.1f}ms"
             )
 
     def log_state_transition(
@@ -288,46 +276,18 @@ class SteeringLogger:
                 f"{header} {signals} | {counter_name}={counter}/{threshold}{detail_str}"
             )
 
-    def log_state_progress_legacy(
-        self,
-        delta: float,
-        threshold: float,
-        counter: int,
-        counter_threshold: int,
-        counter_name: str,
-        comparison: str = ">",
-    ) -> None:
-        """Log legacy mode state progress."""
-        self.logger.debug(
-            f"Delta={delta:.1f}ms {comparison} threshold={threshold}ms, "
-            f"{counter_name}={counter}/{counter_threshold}"
-        )
-
     def log_transition_detected(
         self,
         transition_type: str,
         signals: CongestionSignals,
         count: int,
-        cake_aware: bool = True,
     ) -> None:
         """Log state transition (degradation or recovery) detected."""
         if transition_type == "degraded":
-            if cake_aware:
-                self.logger.warning(
-                    f"{self.wan_name} DEGRADED detected - {signals} (sustained {count} samples)"
-                )
-            else:
-                self.logger.warning(
-                    f"{self.wan_name} DEGRADED detected (delta={signals.rtt_delta:.1f}ms "
-                    f"sustained for {count} samples)"
-                )
+            self.logger.warning(
+                f"{self.wan_name} DEGRADED detected - {signals} (sustained {count} samples)"
+            )
         else:  # recovered
-            if cake_aware:
-                self.logger.info(
-                    f"{self.wan_name} RECOVERED - {signals} (sustained {count} samples)"
-                )
-            else:
-                self.logger.info(
-                    f"{self.wan_name} RECOVERED (delta={signals.rtt_delta:.1f}ms "
-                    f"sustained for {count} samples)"
-                )
+            self.logger.info(
+                f"{self.wan_name} RECOVERED - {signals} (sustained {count} samples)"
+            )
