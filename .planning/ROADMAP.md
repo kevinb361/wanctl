@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 67: Production Config Audit** - Audit live configs on both containers to confirm modern parameter usage (completed 2026-03-11)
 - [x] **Phase 68: Dead Code Removal** - Remove dead state machine methods and obsolete ISP-specific config files (completed 2026-03-11)
-- [ ] **Phase 69: Legacy Fallback Removal** - Remove config parameter fallbacks, legacy validation code, and resolve RTT-only mode
+- [x] **Phase 69: Legacy Fallback Removal** - Remove config parameter fallbacks, legacy validation code, and resolve RTT-only mode (completed 2026-03-11)
 - [ ] **Phase 70: Legacy Test Cleanup** - Update test fixtures and test paths to reflect current-only code
 - [ ] **Phase 71: Confidence Graduation** - Graduate confidence-based steering from dry-run to live with rollback path
 - [ ] **Phase 72: WAN-Aware Enablement** - Enable WAN-aware steering in production with degradation validation
@@ -145,7 +145,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | --------------------------- | -------------- | ----------- | ---------- |
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
-| 69. Legacy Fallback Removal | 1/2 | In Progress|  |
+| 69. Legacy Fallback Removal | 2/2 | Complete   | 2026-03-11 |
 | 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
 | 71. Confidence Graduation   | 0/TBD          | Not started | -          |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: 69-01 complete
+current_plan: 69-02 complete
 status: executing
-last_updated: "2026-03-11T12:23:40Z"
-last_activity: 2026-03-11 -- Completed 69-01-PLAN.md (deprecation helper + wiring)
+last_updated: "2026-03-11T12:46:20Z"
+last_activity: 2026-03-11 -- Completed 69-02-PLAN.md (validate_sample_counts cleanup, calibrate modernization, cake_aware retirement)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Session State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 69 - Legacy Fallback Removal (plan 01 complete)
+**Current focus:** v1.13 Phase 69 complete - Legacy Fallback Removal done
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 69 of 72 (Legacy Fallback Removal) -- Plan 01 complete
-**Current Plan:** 69-01 complete, 69-02 next
+**Phase:** 69 of 72 (Legacy Fallback Removal) -- Complete (2/2 plans)
+**Current Plan:** 69-02 complete, Phase 70 next
 **Status:** Executing
-**Last activity:** 2026-03-11 -- Completed 69-01-PLAN.md (deprecation helper + wiring)
+**Last activity:** 2026-03-11 -- Completed 69-02-PLAN.md (validate_sample_counts cleanup, calibrate modernization, cake_aware retirement)
 
 ## Accumulated Context
 
@@ -49,6 +49,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - Tests patch CakeStatsReader instead of setting cake_aware=False for lightweight daemon creation
 - deprecate_param injects translated value into dict so existing if/elif/else chains pick it up with zero structural change
 - When both old and new config keys present, modern key wins silently (no warning)
+- \_CYCLE_INTERVAL_SEC local constant in calibrate.py avoids import coupling to autorate_continuous
+- cake_aware warning placed in \_load_operational_mode (where mode dict is accessed)
 
 ### Known Issues
 
@@ -76,3 +78,5 @@ None.
 - 2026-03-11: Phase 68 complete -- Dead Code Removal (2/2 plans, LGCY-02 + LGCY-05 satisfied)
 - 2026-03-11: Phase 69 context gathered -- Legacy Fallback Removal (8 decision areas, warn+translate pattern)
 - 2026-03-11: Completed 69-01-PLAN.md -- deprecate_param helper + 5 legacy params wired (LGCY-03 satisfied)
+- 2026-03-11: Completed 69-02-PLAN.md -- validate_sample_counts cleanup, calibrate modernization, cake_aware retirement (LGCY-04 + LGCY-07 satisfied)
+- 2026-03-11: Phase 69 complete -- Legacy Fallback Removal (2/2 plans, LGCY-03 + LGCY-04 + LGCY-07 satisfied)
