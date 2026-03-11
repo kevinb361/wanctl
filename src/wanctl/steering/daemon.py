@@ -238,6 +238,16 @@ class SteeringConfig(BaseConfig):
     def _load_operational_mode(self) -> None:
         """Load operational mode settings."""
         mode = self.data.get("mode", {})
+
+        # Deprecation: cake_aware was removed in v1.12 -- CAKE three-state model
+        # is always active. Warn if someone still has it in their config.
+        if "cake_aware" in mode:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Deprecated config parameter 'mode.cake_aware': "
+                "CAKE three-state model is always active, this key is ignored"
+            )
+
         self.enable_yellow_state = mode.get("enable_yellow_state", True)
         self.use_confidence_scoring = mode.get("use_confidence_scoring", False)
 
