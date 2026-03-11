@@ -1,4 +1,13 @@
-/* Dashboard layout - vertical stack with bottom status bar */
+/* Dashboard layout - tabbed content with bottom status bar */
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    height: 100%;
+    overflow-y: auto;
+}
 
 Vertical {
     width: 100%;
@@ -43,6 +52,21 @@ StatusBarWidget {
     dock: bottom;
     background: $surface;
     color: $text;
+}
+
+/* History browser styles */
+HistoryBrowserWidget {
+    height: 100%;
+    padding: 0 1;
+}
+
+HistoryBrowserWidget Select {
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+HistoryBrowserWidget DataTable {
+    height: 1fr;
 }
 
 /* Congestion state color classes */

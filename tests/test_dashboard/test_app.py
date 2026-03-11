@@ -445,3 +445,105 @@ class TestDashboardAppSparklineRouting:
                 assert len(spark1._dl_data) == 3
 
         asyncio.run(_test())
+
+
+class TestDashboardAppTabbedContent:
+    """Test DashboardApp uses TabbedContent with Live and History tabs."""
+
+    def test_compose_yields_tabbed_content(self):
+        """DashboardApp.compose() yields TabbedContent with 2 TabPanes."""
+        from textual.widgets import TabbedContent, TabPane
+
+        from wanctl.dashboard.app import DashboardApp
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                tabbed = app.query(TabbedContent)
+                assert len(tabbed) == 1
+                panes = app.query(TabPane)
+                assert len(panes) == 2
+
+        asyncio.run(_test())
+
+    def test_live_tab_contains_wan_and_steering_widgets(self):
+        """Live tab contains WanPanelWidget, SparklinePanelWidget, CycleBudgetGaugeWidget, SteeringPanelWidget."""
+        from textual.widgets import TabPane
+
+        from wanctl.dashboard.app import (
+            DashboardApp,
+            SteeringPanelWidget,
+            WanPanelWidget,
+        )
+        from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+        from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                live_pane = app.query_one("#live", TabPane)
+                wan_panels = live_pane.query(WanPanelWidget)
+                assert len(wan_panels) == 2
+                sparklines = live_pane.query(SparklinePanelWidget)
+                assert len(sparklines) == 2
+                gauges = live_pane.query(CycleBudgetGaugeWidget)
+                assert len(gauges) == 2
+                steering = live_pane.query(SteeringPanelWidget)
+                assert len(steering) == 1
+
+        asyncio.run(_test())
+
+    def test_history_tab_contains_history_browser(self):
+        """History tab contains HistoryBrowserWidget."""
+        from textual.widgets import TabPane
+
+        from wanctl.dashboard.app import DashboardApp
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                history_pane = app.query_one("#history", TabPane)
+                browsers = history_pane.query(HistoryBrowserWidget)
+                assert len(browsers) == 1
+
+        asyncio.run(_test())
+
+    def test_status_bar_outside_tabbed_content(self):
+        """StatusBarWidget is outside TabbedContent (docked to bottom)."""
+        from textual.widgets import TabbedContent
+
+        from wanctl.dashboard.app import DashboardApp, StatusBarWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                status_bar = app.query_one("#status-bar", StatusBarWidget)
+                tabbed = app.query_one(TabbedContent)
+                # StatusBarWidget should not be a descendant of TabbedContent
+                tabbed_status = tabbed.query(StatusBarWidget)
+                assert len(tabbed_status) == 0
+                assert status_bar is not None
+
+        asyncio.run(_test())
+
+    def test_poll_routing_works_through_tab_panes(self):
+        """query_one still finds widgets inside TabPanes for poll routing."""
+        from wanctl.dashboard.app import DashboardApp, WanPanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+                wan1 = app.query_one("#wan-1", WanPanelWidget)
+                assert wan1._renderer._data is not None
+                assert wan1._renderer._data["name"] == "spectrum"
+
+        asyncio.run(_test())

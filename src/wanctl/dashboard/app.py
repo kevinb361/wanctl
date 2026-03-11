@@ -14,8 +14,8 @@ import httpx
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
 from textual.widget import Widget
+from textual.widgets import TabbedContent, TabPane
 
 from wanctl.dashboard.config import (
     DashboardConfig,
@@ -24,6 +24,7 @@ from wanctl.dashboard.config import (
 )
 from wanctl.dashboard.poller import EndpointPoller
 from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
 from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
 from wanctl.dashboard.widgets.status_bar import StatusBar
 from wanctl.dashboard.widgets.steering_panel import SteeringPanel
@@ -166,16 +167,22 @@ class DashboardApp(App):
         self._client: httpx.AsyncClient | None = None
 
     def compose(self) -> ComposeResult:
-        """Compose the dashboard widget tree."""
-        with Vertical():
-            yield WanPanelWidget("WAN 1 (Spectrum)", id="wan-1")
-            yield SparklinePanelWidget(wan_name="WAN 1", id="spark-wan-1")
-            yield CycleBudgetGaugeWidget(id="gauge-wan-1")
-            yield WanPanelWidget("WAN 2 (ATT)", id="wan-2")
-            yield SparklinePanelWidget(wan_name="WAN 2", id="spark-wan-2")
-            yield CycleBudgetGaugeWidget(id="gauge-wan-2")
-            yield SteeringPanelWidget(id="steering")
-            yield StatusBarWidget(id="status-bar")
+        """Compose the dashboard widget tree with Live/History tabs."""
+        with TabbedContent(initial="live"):
+            with TabPane("Live", id="live"):
+                yield WanPanelWidget("WAN 1 (Spectrum)", id="wan-1")
+                yield SparklinePanelWidget(wan_name="WAN 1", id="spark-wan-1")
+                yield CycleBudgetGaugeWidget(id="gauge-wan-1")
+                yield WanPanelWidget("WAN 2 (ATT)", id="wan-2")
+                yield SparklinePanelWidget(wan_name="WAN 2", id="spark-wan-2")
+                yield CycleBudgetGaugeWidget(id="gauge-wan-2")
+                yield SteeringPanelWidget(id="steering")
+            with TabPane("History", id="history"):
+                yield HistoryBrowserWidget(
+                    autorate_url=self.config.autorate_url,
+                    id="history-browser",
+                )
+        yield StatusBarWidget(id="status-bar")
 
     async def on_mount(self) -> None:
         """Initialize HTTP client and start polling timers."""
