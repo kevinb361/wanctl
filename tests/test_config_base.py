@@ -1,5 +1,7 @@
 """Tests for config_base module - schema validation and security checks."""
 
+from pathlib import Path
+
 import pytest
 
 from wanctl.config_base import (
@@ -873,3 +875,158 @@ class TestStorageConfig:
         with pytest.raises(ConfigValidationError) as exc_info:
             validate_schema(data, STORAGE_SCHEMA)
         assert "out of range" in str(exc_info.value)
+
+
+class TestBaseConfigCommonFields:
+    """Tests for BaseConfig common field loading (logging + lock)."""
+
+    MINIMAL_YAML = """\
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+logging:
+  main_log: "/var/log/wanctl/main.log"
+  debug_log: "/var/log/wanctl/debug.log"
+lock_file: "/tmp/wanctl_test.lock"
+lock_timeout: 300
+"""
+
+    def test_base_schema_contains_logging_fields(self):
+        """Test BASE_SCHEMA includes logging.max_bytes and logging.backup_count."""
+        paths = [spec["path"] for spec in BaseConfig.BASE_SCHEMA]
+        assert "logging.main_log" in paths
+        assert "logging.debug_log" in paths
+        assert "logging.max_bytes" in paths
+        assert "logging.backup_count" in paths
+
+    def test_base_schema_contains_lock_fields(self):
+        """Test BASE_SCHEMA includes lock_file and lock_timeout."""
+        paths = [spec["path"] for spec in BaseConfig.BASE_SCHEMA]
+        assert "lock_file" in paths
+        assert "lock_timeout" in paths
+
+    def test_common_fields_loaded_from_yaml(self, tmp_path):
+        """Test BaseConfig loads common logging/lock fields from YAML."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(self.MINIMAL_YAML)
+
+        config = BaseConfig(str(config_file))
+
+        assert config.main_log == "/var/log/wanctl/main.log"
+        assert config.debug_log == "/var/log/wanctl/debug.log"
+        assert config.lock_timeout == 300
+        assert isinstance(config.lock_file, Path)
+        assert str(config.lock_file) == "/tmp/wanctl_test.lock"
+
+    def test_max_bytes_defaults_to_10mb(self, tmp_path):
+        """Test max_bytes defaults to 10485760 when not in YAML."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(self.MINIMAL_YAML)
+
+        config = BaseConfig(str(config_file))
+
+        assert config.max_bytes == 10_485_760
+
+    def test_backup_count_defaults_to_3(self, tmp_path):
+        """Test backup_count defaults to 3 when not in YAML."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(self.MINIMAL_YAML)
+
+        config = BaseConfig(str(config_file))
+
+        assert config.backup_count == 3
+
+    def test_max_bytes_and_backup_count_overridden(self, tmp_path):
+        """Test max_bytes and backup_count can be overridden in YAML."""
+        yaml_with_overrides = self.MINIMAL_YAML + """\
+  max_bytes: 5242880
+  backup_count: 5
+"""
+        # Need to insert into logging section, not at top level
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""\
+wan_name: test
+router:
+  host: "192.168.1.1"
+  user: admin
+  ssh_key: "/path/to/key"
+logging:
+  main_log: "/var/log/wanctl/main.log"
+  debug_log: "/var/log/wanctl/debug.log"
+  max_bytes: 5242880
+  backup_count: 5
+lock_file: "/tmp/wanctl_test.lock"
+lock_timeout: 300
+""")
+
+        config = BaseConfig(str(config_file))
+
+        assert config.max_bytes == 5_242_880
+        assert config.backup_count == 5
+
+    def test_lock_file_is_path_object(self, tmp_path):
+        """Test lock_file is converted to Path object."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(self.MINIMAL_YAML)
+
+        config = BaseConfig(str(config_file))
+
+        assert isinstance(config.lock_file, Path)
+
+    def test_schema_rejects_max_bytes_below_min(self):
+        """Test schema validation rejects max_bytes below 1MB."""
+        data = {
+            "wan_name": "test",
+            "router": {"host": "1.1.1.1", "user": "admin", "ssh_key": "/k"},
+            "logging": {
+                "main_log": "/tmp/m.log",
+                "debug_log": "/tmp/d.log",
+                "max_bytes": 500_000,  # Below 1MB minimum
+            },
+            "lock_file": "/tmp/t.lock",
+            "lock_timeout": 300,
+        }
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_schema(data, BaseConfig.BASE_SCHEMA)
+        assert "out of range" in str(exc_info.value)
+
+    def test_schema_rejects_backup_count_below_1(self):
+        """Test schema validation rejects backup_count below 1."""
+        data = {
+            "wan_name": "test",
+            "router": {"host": "1.1.1.1", "user": "admin", "ssh_key": "/k"},
+            "logging": {
+                "main_log": "/tmp/m.log",
+                "debug_log": "/tmp/d.log",
+                "backup_count": 0,  # Below minimum 1
+            },
+            "lock_file": "/tmp/t.lock",
+            "lock_timeout": 300,
+        }
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_schema(data, BaseConfig.BASE_SCHEMA)
+        assert "out of range" in str(exc_info.value)
+
+    def test_schema_rejects_backup_count_above_10(self):
+        """Test schema validation rejects backup_count above 10."""
+        data = {
+            "wan_name": "test",
+            "router": {"host": "1.1.1.1", "user": "admin", "ssh_key": "/k"},
+            "logging": {
+                "main_log": "/tmp/m.log",
+                "debug_log": "/tmp/d.log",
+                "backup_count": 11,  # Above maximum 10
+            },
+            "lock_file": "/tmp/t.lock",
+            "lock_timeout": 300,
+        }
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_schema(data, BaseConfig.BASE_SCHEMA)
+        assert "out of range" in str(exc_info.value)
+
+    def test_default_constants_defined(self):
+        """Test default log rotation constants are defined on class."""
+        assert BaseConfig.DEFAULT_LOG_MAX_BYTES == 10_485_760
+        assert BaseConfig.DEFAULT_LOG_BACKUP_COUNT == 3

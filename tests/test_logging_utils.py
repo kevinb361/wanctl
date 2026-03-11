@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from unittest.mock import patch
 
@@ -235,7 +236,30 @@ class TestCreateFormatter:
 
 
 class MockConfig:
-    """Mock config object for testing setup_logging."""
+    """Mock config object for testing setup_logging.
+
+    Optionally accepts max_bytes and backup_count for log rotation testing.
+    When not provided, these attributes are absent (testing backward compatibility).
+    """
+
+    def __init__(
+        self,
+        temp_dir: Path,
+        wan_name: str = "TestWAN",
+        max_bytes: int | None = None,
+        backup_count: int | None = None,
+    ):
+        self.wan_name = wan_name
+        self.main_log = str(temp_dir / "main.log")
+        self.debug_log = str(temp_dir / "debug.log")
+        if max_bytes is not None:
+            self.max_bytes = max_bytes
+        if backup_count is not None:
+            self.backup_count = backup_count
+
+
+class MockConfigNoRotation:
+    """Mock config without max_bytes/backup_count for backward compat test."""
 
     def __init__(self, temp_dir: Path, wan_name: str = "TestWAN"):
         self.wan_name = wan_name
@@ -405,3 +429,62 @@ class TestIntegration:
 
         debug_data = json.loads(debug_log_lines[1])
         assert debug_data["rtt_ms"] == 24.5
+
+
+class TestRotatingFileHandler:
+    """Tests for RotatingFileHandler usage in setup_logging."""
+
+    def test_uses_rotating_file_handler(self, temp_dir):
+        """Test main log handler is RotatingFileHandler."""
+        config = MockConfig(temp_dir)
+        logger = setup_logging(config, "test_rotating")
+
+        file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
+        assert len(file_handlers) >= 1
+        assert all(isinstance(h, RotatingFileHandler) for h in file_handlers)
+
+    def test_rotating_handler_default_params(self, temp_dir):
+        """Test default maxBytes=10485760 and backupCount=3."""
+        config = MockConfigNoRotation(temp_dir)
+        logger = setup_logging(config, "test_defaults")
+
+        rotating_handlers = [h for h in logger.handlers if isinstance(h, RotatingFileHandler)]
+        assert len(rotating_handlers) >= 1
+
+        fh = rotating_handlers[0]
+        assert fh.maxBytes == 10_485_760
+        assert fh.backupCount == 3
+
+    def test_rotating_handler_custom_params(self, temp_dir):
+        """Test custom maxBytes and backupCount from config."""
+        config = MockConfig(temp_dir, max_bytes=5_242_880, backup_count=5)
+        logger = setup_logging(config, "test_custom")
+
+        rotating_handlers = [h for h in logger.handlers if isinstance(h, RotatingFileHandler)]
+        assert len(rotating_handlers) >= 1
+
+        fh = rotating_handlers[0]
+        assert fh.maxBytes == 5_242_880
+        assert fh.backupCount == 5
+
+    def test_debug_log_also_rotates(self, temp_dir):
+        """Test debug file handler is also RotatingFileHandler."""
+        config = MockConfig(temp_dir)
+        logger = setup_logging(config, "test_debug_rotate", debug=True)
+
+        rotating_handlers = [h for h in logger.handlers if isinstance(h, RotatingFileHandler)]
+        # Should have 2 RotatingFileHandlers: main + debug
+        assert len(rotating_handlers) == 2
+
+    def test_backward_compatible_without_rotation_attrs(self, temp_dir):
+        """Test config without max_bytes/backup_count still works."""
+        config = MockConfigNoRotation(temp_dir)
+        logger = setup_logging(config, "test_backward_compat")
+
+        # Should create logger without errors
+        assert logger is not None
+        # Should still use RotatingFileHandler with defaults
+        rotating_handlers = [h for h in logger.handlers if isinstance(h, RotatingFileHandler)]
+        assert len(rotating_handlers) >= 1
+        assert rotating_handlers[0].maxBytes == 10_485_760
+        assert rotating_handlers[0].backupCount == 3
