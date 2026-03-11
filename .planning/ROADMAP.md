@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Milestone Goal:** Remove accumulated legacy code and config fallbacks, then graduate confidence-based steering (dry-run to live) and WAN-aware steering (disabled to enabled) for production use.
 
-- [ ] **Phase 67: Production Config Audit** - Audit live configs on both containers to confirm modern parameter usage
+- [x] **Phase 67: Production Config Audit** - Audit live configs on both containers to confirm modern parameter usage (completed 2026-03-11)
 - [ ] **Phase 68: Dead Code Removal** - Remove dead state machine methods and obsolete ISP-specific config files
 - [ ] **Phase 69: Legacy Fallback Removal** - Remove config parameter fallbacks, legacy validation code, and resolve RTT-only mode
 - [ ] **Phase 70: Legacy Test Cleanup** - Update test fixtures and test paths to reflect current-only code
@@ -53,81 +53,94 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 67: Production Config Audit
+
 **Goal**: Complete inventory of legacy vs modern parameter usage across all production configs, with any remaining legacy params migrated
 **Depends on**: Nothing (first phase)
 **Requirements**: LGCY-01
 **Success Criteria** (what must be TRUE):
-  1. Every YAML config file on cake-spectrum and cake-att has been inspected for legacy parameter names
-  2. A clear list documents which legacy parameters were still in use vs already migrated
-  3. Both containers are confirmed running with only modern parameter names (no legacy fallbacks exercised)
-**Plans**: 1 plan
-Plans:
-- [ ] 67-01-PLAN.md — SSH audit of production configs + write AUDIT.md
+
+1. Every YAML config file on cake-spectrum and cake-att has been inspected for legacy parameter names
+2. A clear list documents which legacy parameters were still in use vs already migrated
+3. Both containers are confirmed running with only modern parameter names (no legacy fallbacks exercised)
+   **Plans**: 1 plan
+   Plans:
+
+- [x] 67-01-PLAN.md — SSH audit of production configs + write AUDIT.md (completed 2026-03-11)
 
 ### Phase 68: Dead Code Removal
+
 **Goal**: Provably unreachable code paths and obsolete files removed from the codebase
 **Depends on**: Phase 67
 **Requirements**: LGCY-02, LGCY-05
 **Success Criteria** (what must be TRUE):
-  1. `_update_state_machine_cake_aware()` and `_update_state_machine_legacy()` methods no longer exist in the steering daemon
-  2. Obsolete ISP-specific config files no longer exist in the `configs/` directory
-  3. All existing tests pass after removal (no test depends on removed code)
-**Plans**: TBD
+
+1. `_update_state_machine_cake_aware()` and `_update_state_machine_legacy()` methods no longer exist in the steering daemon
+2. Obsolete ISP-specific config files no longer exist in the `configs/` directory
+3. All existing tests pass after removal (no test depends on removed code)
+   **Plans**: TBD
 
 ### Phase 69: Legacy Fallback Removal
+
 **Goal**: Old config parameter names produce clear deprecation errors instead of silently falling back to modern equivalents
 **Depends on**: Phase 67
 **Requirements**: LGCY-03, LGCY-04, LGCY-07
 **Success Criteria** (what must be TRUE):
-  1. Using a legacy parameter name (e.g., `bad_samples`, `spectrum_download`, `floor_mbps`) in config produces a clear error message naming the modern replacement
-  2. Legacy config validation code has been removed from `config_validation_utils.py`
-  3. RTT-only mode (`cake_aware: false`) disposition is resolved -- either retired with a deprecation error or explicitly documented as a supported mode
-  4. All existing tests pass with the new error-on-legacy behavior
-**Plans**: TBD
+
+1. Using a legacy parameter name (e.g., `bad_samples`, `spectrum_download`, `floor_mbps`) in config produces a clear error message naming the modern replacement
+2. Legacy config validation code has been removed from `config_validation_utils.py`
+3. RTT-only mode (`cake_aware: false`) disposition is resolved -- either retired with a deprecation error or explicitly documented as a supported mode
+4. All existing tests pass with the new error-on-legacy behavior
+   **Plans**: TBD
 
 ### Phase 70: Legacy Test Cleanup
+
 **Goal**: Test suite reflects the current-only codebase with no vestigial legacy-mode fixtures or code paths
 **Depends on**: Phase 68, Phase 69
 **Requirements**: LGCY-06
 **Success Criteria** (what must be TRUE):
-  1. No test fixtures exist that configure retired legacy-only scenarios (e.g., `cake_aware: false` fixtures if RTT-only mode was retired)
-  2. Test coverage remains at 90%+ after fixture and test removal
-  3. Before/after test count is documented to distinguish intentional removals from accidental breakage
-**Plans**: TBD
+
+1. No test fixtures exist that configure retired legacy-only scenarios (e.g., `cake_aware: false` fixtures if RTT-only mode was retired)
+2. Test coverage remains at 90%+ after fixture and test removal
+3. Before/after test count is documented to distinguish intentional removals from accidental breakage
+   **Plans**: TBD
 
 ### Phase 71: Confidence Graduation
+
 **Goal**: Confidence-based steering actively makes live routing decisions in production
 **Depends on**: Phase 70
 **Requirements**: CONF-01, CONF-02, CONF-03
 **Success Criteria** (what must be TRUE):
-  1. Steering config on cake-spectrum has `dry_run: false` and the daemon is running with live confidence-based routing decisions
-  2. Health endpoint on port 9102 shows confidence scores actively influencing steering decisions (not computed and discarded)
-  3. Rollback to `dry_run: true` works without daemon restart and the procedure is documented
-**Plans**: TBD
+
+1. Steering config on cake-spectrum has `dry_run: false` and the daemon is running with live confidence-based routing decisions
+2. Health endpoint on port 9102 shows confidence scores actively influencing steering decisions (not computed and discarded)
+3. Rollback to `dry_run: true` works without daemon restart and the procedure is documented
+   **Plans**: TBD
 
 ### Phase 72: WAN-Aware Enablement
+
 **Goal**: WAN-aware steering is live in production with validated graceful degradation under real network conditions
 **Depends on**: Phase 71
 **Requirements**: WANE-01, WANE-02, WANE-03
 **Success Criteria** (what must be TRUE):
-  1. Steering config on cake-spectrum has `wan_state.enabled: true` and the daemon reflects this in its health endpoint
-  2. Health endpoint shows `wan_awareness.enabled=true` with live zone data, staleness tracking, and non-zero confidence contribution
-  3. Graceful degradation confirmed under real conditions: stale zone falls back to GREEN, autorate unavailable causes WAN weight to be skipped
-**Plans**: TBD
+
+1. Steering config on cake-spectrum has `wan_state.enabled: true` and the daemon reflects this in its health endpoint
+2. Health endpoint shows `wan_awareness.enabled=true` with live zone data, staleness tracking, and non-zero confidence contribution
+3. Graceful degradation confirmed under real conditions: stale zone falls back to GREEN, autorate unavailable causes WAN weight to be skipped
+   **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 67. Production Config Audit | 0/1 | Not started | - |
-| 68. Dead Code Removal | 0/TBD | Not started | - |
-| 69. Legacy Fallback Removal | 0/TBD | Not started | - |
-| 70. Legacy Test Cleanup | 0/TBD | Not started | - |
-| 71. Confidence Graduation | 0/TBD | Not started | - |
-| 72. WAN-Aware Enablement | 0/TBD | Not started | - |
+| Phase                       | Plans Complete | Status      | Completed  |
+| --------------------------- | -------------- | ----------- | ---------- |
+| 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
+| 68. Dead Code Removal       | 0/TBD          | Not started | -          |
+| 69. Legacy Fallback Removal | 0/TBD          | Not started | -          |
+| 70. Legacy Test Cleanup     | 0/TBD          | Not started | -          |
+| 71. Confidence Graduation   | 0/TBD          | Not started | -          |
+| 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
 
 ### Completed Milestones
 
