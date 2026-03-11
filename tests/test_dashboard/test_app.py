@@ -70,7 +70,7 @@ class TestDashboardAppComposition:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 wan_panels = app.query(WanPanelWidget)
                 assert len(wan_panels) == 2
 
@@ -83,7 +83,7 @@ class TestDashboardAppComposition:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 steering_panels = app.query(SteeringPanelWidget)
                 assert len(steering_panels) == 1
 
@@ -96,7 +96,7 @@ class TestDashboardAppComposition:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 status_bars = app.query(StatusBarWidget)
                 assert len(status_bars) == 1
 
@@ -109,7 +109,7 @@ class TestDashboardAppComposition:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 wan1 = app.query_one("#wan-1")
                 wan2 = app.query_one("#wan-2")
                 steering = app.query_one("#steering")
@@ -154,7 +154,7 @@ class TestDashboardAppHttpClient:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 assert app._client is not None
 
         asyncio.run(_test())
@@ -170,7 +170,7 @@ class TestDashboardAppPolling:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 app._autorate_poller.poll = AsyncMock(
                     return_value=_make_autorate_response()
                 )
@@ -190,7 +190,7 @@ class TestDashboardAppPolling:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 response = _make_autorate_response(wans_count=2)
                 app._autorate_poller.poll = AsyncMock(return_value=response)
                 await app._poll_autorate()
@@ -207,7 +207,7 @@ class TestDashboardAppPolling:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 response = _make_steering_response()
                 app._steering_poller.poll = AsyncMock(return_value=response)
                 await app._poll_steering()
@@ -223,7 +223,7 @@ class TestDashboardAppPolling:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 response = _make_autorate_response(
                     version="1.13.0", uptime=7200, disk_status="ok"
                 )
@@ -247,7 +247,7 @@ class TestDashboardAppOfflineIsolation:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 app._autorate_poller.poll = AsyncMock(return_value=None)
                 app._steering_poller.poll = AsyncMock(
                     return_value=_make_steering_response()
@@ -270,7 +270,7 @@ class TestDashboardAppOfflineIsolation:
         async def _test():
             config = DashboardConfig()
             app = DashboardApp(config)
-            async with app.run_test(size=(120, 40)) as pilot:
+            async with app.run_test(size=(120, 40)):
                 app._autorate_poller.poll = AsyncMock(
                     return_value=_make_autorate_response()
                 )
