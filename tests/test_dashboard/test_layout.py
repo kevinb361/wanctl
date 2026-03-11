@@ -1,7 +1,10 @@
 """Tests for responsive layout: wide/narrow switching with hysteresis."""
 
 import asyncio
+import os
+from unittest.mock import patch
 
+from wanctl.dashboard.app import parse_args
 from wanctl.dashboard.config import DashboardConfig
 
 
@@ -233,3 +236,83 @@ class TestWidgetPreservation:
                 assert len(wan_cols) == 2
 
         asyncio.run(_test())
+
+
+class TestColorFlags:
+    """Tests for --no-color and --256-color CLI flags."""
+
+    def test_no_color_flag_parsed(self):
+        """parse_args(['--no-color']) returns args.no_color == True."""
+        args = parse_args(["--no-color"])
+        assert args.no_color is True
+
+    def test_256_color_flag_parsed(self):
+        """parse_args(['--256-color']) returns args.color_256 == True."""
+        args = parse_args(["--256-color"])
+        assert args.color_256 is True
+
+    def test_no_color_sets_env(self):
+        """When main() called with --no-color, os.environ['NO_COLOR'] is set to '1'."""
+        from wanctl.dashboard.app import main
+
+        env_copy = os.environ.copy()
+        env_copy.pop("NO_COLOR", None)
+        env_copy.pop("TEXTUAL_COLOR_SYSTEM", None)
+
+        with (
+            patch.dict(os.environ, env_copy, clear=True),
+            patch("wanctl.dashboard.app.DashboardApp") as mock_app_cls,
+        ):
+            mock_app_cls.return_value.run.return_value = None
+            main(["--no-color"])
+            assert os.environ.get("NO_COLOR") == "1"
+
+    def test_256_color_sets_env(self):
+        """When main() called with --256-color, os.environ['TEXTUAL_COLOR_SYSTEM'] is '256'."""
+        from wanctl.dashboard.app import main
+
+        env_copy = os.environ.copy()
+        env_copy.pop("NO_COLOR", None)
+        env_copy.pop("TEXTUAL_COLOR_SYSTEM", None)
+
+        with (
+            patch.dict(os.environ, env_copy, clear=True),
+            patch("wanctl.dashboard.app.DashboardApp") as mock_app_cls,
+        ):
+            mock_app_cls.return_value.run.return_value = None
+            main(["--256-color"])
+            assert os.environ.get("TEXTUAL_COLOR_SYSTEM") == "256"
+
+    def test_flags_mutually_exclusive_priority(self):
+        """--no-color takes priority over --256-color."""
+        from wanctl.dashboard.app import main
+
+        env_copy = os.environ.copy()
+        env_copy.pop("NO_COLOR", None)
+        env_copy.pop("TEXTUAL_COLOR_SYSTEM", None)
+
+        with (
+            patch.dict(os.environ, env_copy, clear=True),
+            patch("wanctl.dashboard.app.DashboardApp") as mock_app_cls,
+        ):
+            mock_app_cls.return_value.run.return_value = None
+            main(["--no-color", "--256-color"])
+            assert os.environ.get("NO_COLOR") == "1"
+            assert os.environ.get("TEXTUAL_COLOR_SYSTEM") is None
+
+    def test_no_flags_no_env_change(self):
+        """When neither flag passed, NO_COLOR and TEXTUAL_COLOR_SYSTEM are not set."""
+        from wanctl.dashboard.app import main
+
+        env_copy = os.environ.copy()
+        env_copy.pop("NO_COLOR", None)
+        env_copy.pop("TEXTUAL_COLOR_SYSTEM", None)
+
+        with (
+            patch.dict(os.environ, env_copy, clear=True),
+            patch("wanctl.dashboard.app.DashboardApp") as mock_app_cls,
+        ):
+            mock_app_cls.return_value.run.return_value = None
+            main([])
+            assert os.environ.get("NO_COLOR") is None
+            assert os.environ.get("TEXTUAL_COLOR_SYSTEM") is None
