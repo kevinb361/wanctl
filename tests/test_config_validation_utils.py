@@ -8,6 +8,7 @@ from wanctl.config_base import ConfigValidationError
 from wanctl.config_validation_utils import (
     MAX_SANE_BASELINE_RTT,
     MIN_SANE_BASELINE_RTT,
+    deprecate_param,
     validate_alpha,
     validate_bandwidth_order,
     validate_baseline_rtt,
@@ -625,3 +626,94 @@ class TestConfigValidationIntegration:
         # Test alpha bounds error
         with pytest.raises(ConfigValidationError):
             validate_alpha(1.5, "alpha", logger=logger)
+
+
+# =============================================================================
+# Tests for deprecate_param
+# =============================================================================
+
+
+class TestDeprecateParam:
+    """Tests for deprecate_param helper function."""
+
+    def test_old_key_absent_returns_none(self, logger):
+        """deprecate_param returns None when old_key is not in config."""
+        config = {"new_key": "value"}
+        result = deprecate_param(config, "old_key", "new_key", logger)
+        assert result is None
+
+    def test_old_key_present_new_absent_returns_value(self, logger):
+        """deprecate_param returns old value when old_key present and new_key absent."""
+        config = {"old_key": "legacy_value"}
+        result = deprecate_param(config, "old_key", "new_key", logger)
+        assert result == "legacy_value"
+
+    def test_both_keys_present_returns_none(self, logger):
+        """deprecate_param returns None when both old and new keys present (modern wins)."""
+        config = {"old_key": "legacy", "new_key": "modern"}
+        result = deprecate_param(config, "old_key", "new_key", logger)
+        assert result is None
+
+    def test_logs_warning_with_old_and_new_names(self, logger, caplog):
+        """deprecate_param logs warning containing old and new param names."""
+        config = {"old_key": "legacy_value"}
+        with caplog.at_level(logging.WARNING):
+            deprecate_param(config, "old_key", "new_key", logger)
+        assert any("old_key" in msg and "new_key" in msg for msg in caplog.messages)
+
+    def test_no_warning_when_old_key_absent(self, logger, caplog):
+        """deprecate_param does not log warning when old_key absent."""
+        config = {"new_key": "value"}
+        with caplog.at_level(logging.WARNING):
+            deprecate_param(config, "old_key", "new_key", logger)
+        assert not any("old_key" in msg for msg in caplog.messages)
+
+    def test_no_warning_when_both_keys_present(self, logger, caplog):
+        """deprecate_param does not log warning when both keys present."""
+        config = {"old_key": "legacy", "new_key": "modern"}
+        with caplog.at_level(logging.WARNING):
+            deprecate_param(config, "old_key", "new_key", logger)
+        assert not any("Deprecated" in msg for msg in caplog.messages)
+
+    def test_transform_fn_applied(self, logger):
+        """deprecate_param applies transform_fn to old value."""
+        config = {"alpha_baseline": 0.001}
+        result = deprecate_param(
+            config, "alpha_baseline", "baseline_time_constant_sec", logger,
+            transform_fn=lambda v: 0.05 / v,  # cycle_interval / alpha
+        )
+        assert result == pytest.approx(50.0)
+
+    def test_transform_fn_not_called_when_absent(self, logger):
+        """transform_fn is not called when old_key is absent."""
+        called = []
+        config = {"new_key": "value"}
+        deprecate_param(
+            config, "old_key", "new_key", logger,
+            transform_fn=lambda v: called.append(v) or v,
+        )
+        assert called == []
+
+    def test_warning_contains_translated_value(self, logger, caplog):
+        """deprecate_param warning includes the translated value."""
+        config = {"alpha_baseline": 0.001}
+        with caplog.at_level(logging.WARNING):
+            deprecate_param(
+                config, "alpha_baseline", "baseline_time_constant_sec", logger,
+                transform_fn=lambda v: 0.05 / v,
+            )
+        assert any("50.0" in msg for msg in caplog.messages)
+
+    @pytest.mark.parametrize(
+        "old_key,new_key,old_val,expected",
+        [
+            ("spectrum_download", "primary_download", "WAN-DL-Spectrum", "WAN-DL-Spectrum"),
+            ("spectrum_upload", "primary_upload", "WAN-UL-Spectrum", "WAN-UL-Spectrum"),
+            ("spectrum", "primary", "/run/spectrum.json", "/run/spectrum.json"),
+        ],
+    )
+    def test_identity_transform_passthrough(self, logger, old_key, new_key, old_val, expected):
+        """deprecate_param passes through value unchanged when no transform_fn."""
+        config = {old_key: old_val}
+        result = deprecate_param(config, old_key, new_key, logger)
+        assert result == expected
