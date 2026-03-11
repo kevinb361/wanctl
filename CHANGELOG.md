@@ -14,10 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 11% reduction in peak latency spikes (83ms → 74ms avg peak)
   - 50% reduction in 100ms+ spike frequency (40% → 20% of test runs)
   - Lower values (10ms) caused over-correction; higher values (15ms) missed spikes
+- **Legacy config parameter deprecation (Phase 69)** - 8 deprecated params warn and auto-translate on load
+  - `alpha_baseline` / `alpha_load` -> `baseline_time_constant_sec` / `load_time_constant_sec` (auto-translated)
+  - `cake_state_sources.spectrum` -> `cake_state_sources.primary` (identity rename)
+  - `cake_queues.spectrum_download` / `spectrum_upload` -> `primary_download` / `primary_upload`
+  - `mode.cake_aware` retired (CAKE three-state model always active, logs warning and ignores)
+  - `bad_samples` / `good_samples` removed from `validate_sample_counts()` API
+  - Calibration tool now generates `baseline_time_constant_sec` and `load_time_constant_sec` in output configs
+  - `deprecate_param()` helper added for consistent warn+translate pattern across config loaders
 
 ### Documentation
 
 - Updated `cable.yaml.example` with modern EWMA time constants and `accel_threshold_ms`
+- Updated `CONFIG_SCHEMA.md` with modern parameter names and deprecated parameters table
 
 ## [1.1.0] - 2026-01-14
 
