@@ -547,3 +547,133 @@ class TestDashboardAppTabbedContent:
                 assert wan1._renderer._data["name"] == "spectrum"
 
         asyncio.run(_test())
+
+
+class TestDashboardAppDualPollerMode:
+    """Test dual-poller mode when secondary_autorate_url is configured."""
+
+    def test_no_secondary_url_preserves_single_poller_behavior(self):
+        """Default config (empty secondary URL) routes both WANs from single endpoint."""
+        from wanctl.dashboard.app import DashboardApp, WanPanelWidget
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+                wan1 = app.query_one("#wan-1", WanPanelWidget)
+                wan2 = app.query_one("#wan-2", WanPanelWidget)
+                assert wan1._renderer._data is not None
+                assert wan1._renderer._data["name"] == "spectrum"
+                assert wan2._renderer._data is not None
+                assert wan2._renderer._data["name"] == "att"
+
+        asyncio.run(_test())
+
+    def test_secondary_url_creates_secondary_poller(self):
+        """Non-empty secondary_autorate_url creates secondary poller."""
+        from wanctl.dashboard.app import DashboardApp
+
+        config = DashboardConfig(secondary_autorate_url="http://10.0.0.2:9101")
+        app = DashboardApp(config)
+        assert app._secondary_autorate_poller is not None
+        assert app._secondary_autorate_poller.base_url == "http://10.0.0.2:9101"
+
+    def test_no_secondary_url_has_none_secondary_poller(self):
+        """Default config has None secondary poller."""
+        from wanctl.dashboard.app import DashboardApp
+
+        config = DashboardConfig()
+        app = DashboardApp(config)
+        assert app._secondary_autorate_poller is None
+
+    def test_dual_mode_primary_only_routes_wan1(self):
+        """In dual mode, primary poll routes only WAN 1 (not WAN 2)."""
+        from wanctl.dashboard.app import DashboardApp, WanPanelWidget
+
+        async def _test():
+            config = DashboardConfig(
+                secondary_autorate_url="http://10.0.0.2:9101"
+            )
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                response = _make_autorate_response(wans_count=2)
+                app._autorate_poller.poll = AsyncMock(return_value=response)
+                await app._poll_autorate()
+                wan1 = app.query_one("#wan-1", WanPanelWidget)
+                wan2 = app.query_one("#wan-2", WanPanelWidget)
+                # WAN 1 should have data from primary
+                assert wan1._renderer._data is not None
+                assert wan1._renderer._data["name"] == "spectrum"
+                # WAN 2 should NOT have been updated by primary in dual mode
+                assert wan2._renderer._data is None
+
+        asyncio.run(_test())
+
+    def test_dual_mode_secondary_routes_wan2(self):
+        """In dual mode, secondary poll routes data to WAN 2."""
+        from wanctl.dashboard.app import DashboardApp, WanPanelWidget
+
+        async def _test():
+            config = DashboardConfig(
+                secondary_autorate_url="http://10.0.0.2:9101"
+            )
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                secondary_response = _make_autorate_response(wans_count=1)
+                secondary_response["wans"][0]["name"] = "att"
+                app._secondary_autorate_poller.poll = AsyncMock(
+                    return_value=secondary_response
+                )
+                await app._poll_secondary_autorate()
+                wan2 = app.query_one("#wan-2", WanPanelWidget)
+                assert wan2._renderer._data is not None
+                assert wan2._renderer._data["name"] == "att"
+
+        asyncio.run(_test())
+
+    def test_action_refresh_calls_secondary_poll_when_configured(self):
+        """action_refresh polls secondary endpoint when configured."""
+        from wanctl.dashboard.app import DashboardApp
+
+        async def _test():
+            config = DashboardConfig(
+                secondary_autorate_url="http://10.0.0.2:9101"
+            )
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                app._autorate_poller.poll = AsyncMock(
+                    return_value=_make_autorate_response()
+                )
+                app._secondary_autorate_poller.poll = AsyncMock(
+                    return_value=_make_autorate_response(wans_count=1)
+                )
+                app._steering_poller.poll = AsyncMock(
+                    return_value=_make_steering_response()
+                )
+                await app.action_refresh()
+                app._secondary_autorate_poller.poll.assert_called_once()
+
+        asyncio.run(_test())
+
+    def test_action_refresh_skips_secondary_when_not_configured(self):
+        """action_refresh skips secondary poll when not configured (no error)."""
+        from wanctl.dashboard.app import DashboardApp
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(120, 40)):
+                app._autorate_poller.poll = AsyncMock(
+                    return_value=_make_autorate_response()
+                )
+                app._steering_poller.poll = AsyncMock(
+                    return_value=_make_steering_response()
+                )
+                await app.action_refresh()
+                app._autorate_poller.poll.assert_called_once()
+                app._steering_poller.poll.assert_called_once()
+
+        asyncio.run(_test())
