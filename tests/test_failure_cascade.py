@@ -228,17 +228,26 @@ class TestSteeringFailureCascade:
 
         # Create minimal mock config for SteeringDaemon
         mock_config = MagicMock()
-        mock_config.cake_aware = False
         mock_config.use_confidence_scoring = False
         mock_config.metrics_enabled = False
         mock_config.primary_wan = "spectrum"
+        mock_config.primary_download_queue = "WAN-Download-Spectrum"
+        mock_config.green_rtt_ms = 5.0
+        mock_config.yellow_rtt_ms = 15.0
+        mock_config.red_rtt_ms = 15.0
+        mock_config.min_drops_red = 1
+        mock_config.min_queue_yellow = 10
+        mock_config.min_queue_red = 50
+        mock_config.red_samples_required = 2
+        mock_config.green_samples_required = 15
+        mock_config.wan_state_config = None
+        mock_config.confidence_config = None
         mock_config.data = {}
 
         mock_state = MagicMock()
         mock_state.state = {
             "current_state": "SPECTRUM_GOOD",
             "baseline_rtt": None,  # No cached baseline -- update_baseline_rtt returns False
-            "bad_count": 0,
             "good_count": 0,
         }
 
@@ -253,8 +262,9 @@ class TestSteeringFailureCascade:
 
         mock_logger = MagicMock()
 
-        # Patch get_storage_config to avoid accessing config.data["storage"]
-        with patch("wanctl.steering.daemon.get_storage_config", return_value={}):
+        # Patch get_storage_config and CakeStatsReader to avoid accessing real resources
+        with patch("wanctl.steering.daemon.get_storage_config", return_value={}), \
+             patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
                 config=mock_config,
                 state=mock_state,
@@ -280,18 +290,34 @@ class TestSteeringFailureCascade:
         from wanctl.steering.daemon import BaselineLoader, SteeringDaemon
 
         mock_config = MagicMock()
-        mock_config.cake_aware = False
         mock_config.use_confidence_scoring = False
         mock_config.metrics_enabled = False
         mock_config.primary_wan = "spectrum"
+        mock_config.primary_download_queue = "WAN-Download-Spectrum"
+        mock_config.green_rtt_ms = 5.0
+        mock_config.yellow_rtt_ms = 15.0
+        mock_config.red_rtt_ms = 15.0
+        mock_config.min_drops_red = 1
+        mock_config.min_queue_yellow = 10
+        mock_config.min_queue_red = 50
+        mock_config.red_samples_required = 2
+        mock_config.green_samples_required = 15
+        mock_config.wan_state_config = None
+        mock_config.confidence_config = None
         mock_config.data = {}
 
         mock_state = MagicMock()
         mock_state.state = {
             "current_state": "SPECTRUM_GOOD",
             "baseline_rtt": 25.0,
-            "bad_count": 0,
             "good_count": 0,
+            "red_count": 0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "cake_read_failures": 0,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "congestion_state": "GREEN",
         }
         mock_state.save.side_effect = OSError("state file corrupted")
 
@@ -306,7 +332,8 @@ class TestSteeringFailureCascade:
 
         mock_logger = MagicMock()
 
-        with patch("wanctl.steering.daemon.get_storage_config", return_value={}):
+        with patch("wanctl.steering.daemon.get_storage_config", return_value={}), \
+             patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
                 config=mock_config,
                 state=mock_state,

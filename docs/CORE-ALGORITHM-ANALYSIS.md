@@ -147,8 +147,7 @@
 | Method | Lines | Complexity | Primary Responsibility |
 |--------|-------|------------|------------------------|
 | `run_cycle` | 129 | HIGH | Orchestrate steering cycle |
-| `_update_state_machine_cake_aware` | 104 | HIGH | CAKE-aware state transitions |
-| `_update_state_machine_legacy` | 74 | MEDIUM | RTT-only state transitions |
+| `_update_state_machine_unified` | ~70 | MEDIUM | CAKE congestion state transitions |
 | `main` | 197 | HIGH | Daemon lifecycle |
 | `_load_specific_fields` | 129 | MEDIUM | Config field loading |
 
@@ -160,14 +159,13 @@
 - **Responsibilities:** 8+ distinct responsibilities
 - **Issues:**
   - Orchestrates entire steering cycle (baseline → measurement → assessment → decision → persistence)
-  - CAKE-aware vs legacy mode branching throughout
   - Mixed abstraction levels (high-level orchestration + low-level EWMA math)
   - Inline history management (W4 fix)
 
-**2. `_update_state_machine_cake_aware()` (Lines 669-772) - FLAGGED IN CONCERNS.md**
+**2. `_update_state_machine_unified()` - State Machine**
 
-- **Lines:** 104 (9% of file)
-- **Cyclomatic Complexity:** ~12
+- **Lines:** ~70
+- **Cyclomatic Complexity:** ~8 (reduced after legacy mode removal)
 - **Issues:**
   - Multiple state transitions (good_count, red_count, current_state) interdependent
   - State normalization adds branches (legacy name handling)
@@ -501,13 +499,12 @@ If touching protected zones (state machines, EWMA, rate calculations):
 
 **SteeringDaemon Methods/Functions:**
 
-| Method/Function                   | Lines | Cyclomatic | Priority |
-| --------------------------------- | ----- | ---------- | -------- |
-| main                              | 197   | HIGH (10+) | P2       |
-| \_load_specific_fields            | 129   | MEDIUM     | P1       |
-| run_cycle                         | 129   | HIGH (6+)  | P1       |
-| \_update_state_machine_cake_aware | 104   | HIGH (12)  | P3       |
-| \_update_state_machine_legacy     | 74    | MEDIUM (6) | P3       |
+| Method/Function                | Lines | Cyclomatic | Priority |
+| ------------------------------ | ----- | ---------- | -------- |
+| main                           | 197   | HIGH (10+) | P2       |
+| \_load_specific_fields         | 129   | MEDIUM     | P1       |
+| run_cycle                      | 129   | HIGH (6+)  | P1       |
+| \_update_state_machine_unified | ~70   | MEDIUM (8) | --       |
 
 ### Appendix B: State Machine Diagrams
 
