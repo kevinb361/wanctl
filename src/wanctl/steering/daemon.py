@@ -925,6 +925,52 @@ class SteeringDaemon:
             f"[CONFIDENCE] Config reload: dry_run={old_dry_run}->{new_dry_run} mode={mode_str}"
         )
 
+    def _reload_wan_state_config(self) -> None:
+        """Re-read wan_state.enabled from config YAML file (triggered by SIGUSR1).
+
+        Only reloads the wan_state.enabled field. All other wan_state values
+        remain unchanged (require full restart to modify).
+
+        If transitioning false->true, resets _startup_time to re-trigger the
+        grace period (safe ramp-up after re-enable).
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[WAN_STATE] Config reload failed: {e}")
+            return
+
+        wan_state_section = fresh_data.get("wan_state") if fresh_data else None
+        if wan_state_section is None:
+            self.logger.info("[WAN_STATE] Config reload: no wan_state section in YAML (no-op)")
+            return
+
+        new_enabled = bool(wan_state_section.get("enabled", False))
+        old_enabled = self._wan_state_enabled
+
+        if new_enabled == old_enabled:
+            self.logger.warning(
+                f"[WAN_STATE] Config reload: enabled={old_enabled} (unchanged)"
+            )
+            return
+
+        self._wan_state_enabled = new_enabled
+
+        # Re-trigger grace period when re-enabling (safe ramp-up)
+        if new_enabled and not old_enabled:
+            self._startup_time = time.monotonic()
+            self.logger.warning(
+                f"[WAN_STATE] Config reload: enabled={old_enabled}->{new_enabled} "
+                f"(grace period re-triggered: {self._wan_grace_period_sec}s)"
+            )
+        else:
+            self.logger.warning(
+                f"[WAN_STATE] Config reload: enabled={old_enabled}->{new_enabled}"
+            )
+
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
 
@@ -1795,8 +1841,9 @@ def run_daemon_loop(
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
-            logger.info("SIGUSR1 received, reloading dry_run config")
+            logger.info("SIGUSR1 received, reloading config (dry_run + wan_state)")
             daemon._reload_dry_run_config()
+            daemon._reload_wan_state_config()
             reset_reload_state()
 
         # Notify systemd watchdog ONLY if healthy
