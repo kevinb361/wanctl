@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.12.0
+**Version:** 1.14.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -117,13 +117,11 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.12.0 (Deployment Alignment)
+**Current:** v1.14.0 (Operational Visibility)
 
-- Deployment artifacts aligned with runtime dependencies (pyproject.toml → Dockerfile, install.sh)
-- All 7 runtime deps now codified in install.sh pip3 step
-- Dockerfile uses `>=` version ranges (matching pyproject.toml)
-- Version consistent across: pyproject.toml, Dockerfile LABEL, install.sh VERSION
-- 2,210 unit tests passing, 91%+ coverage
+- TUI dashboard (`wanctl-dashboard`) with live monitoring, sparklines, history browser
+- Responsive layout, terminal compatibility, dual-poller for multi-container WAN monitoring
+- 2,445 unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
