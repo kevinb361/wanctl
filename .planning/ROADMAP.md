@@ -60,7 +60,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Every YAML config file on cake-spectrum and cake-att has been inspected for legacy parameter names
   2. A clear list documents which legacy parameters were still in use vs already migrated
   3. Both containers are confirmed running with only modern parameter names (no legacy fallbacks exercised)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 67-01-PLAN.md — SSH audit of production configs + write AUDIT.md
 
 ### Phase 68: Dead Code Removal
 **Goal**: Provably unreachable code paths and obsolete files removed from the codebase
@@ -120,7 +122,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 67. Production Config Audit | 0/TBD | Not started | - |
+| 67. Production Config Audit | 0/1 | Not started | - |
 | 68. Dead Code Removal | 0/TBD | Not started | - |
 | 69. Legacy Fallback Removal | 0/TBD | Not started | - |
 | 70. Legacy Test Cleanup | 0/TBD | Not started | - |
