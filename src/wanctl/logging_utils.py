@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from datetime import UTC, datetime
+from logging.handlers import RotatingFileHandler
 from typing import Any
 
 from wanctl.path_utils import ensure_file_directory
@@ -142,13 +143,17 @@ def _create_formatter(log_format: str, wan_name: str) -> logging.Formatter:
 def setup_logging(
     config: Any, logger_prefix: str, debug: bool = False, log_format: str | None = None
 ) -> logging.Logger:
-    """Setup logging with file and console output.
+    """Setup logging with rotating file and console output.
 
     Creates a logger with:
-    - INFO-level file handler (main_log)
+    - INFO-level RotatingFileHandler (main_log, rotated at max_bytes)
     - INFO-level console handler (for systemd journal visibility)
-    - DEBUG-level file handler (debug_log, if debug=True)
+    - DEBUG-level RotatingFileHandler (debug_log, if debug=True)
     - DEBUG-level console handler (if debug=True, upgrades from INFO)
+
+    Log rotation is configured via config.max_bytes (default 10MB) and
+    config.backup_count (default 3). Uses getattr() for backward compatibility
+    with config objects that lack rotation attributes.
 
     Log format can be controlled via:
     1. The `log_format` parameter (takes precedence)
@@ -156,7 +161,8 @@ def setup_logging(
     3. Default: "text" (backward compatible)
 
     Args:
-        config: Config object with main_log and debug_log attributes
+        config: Config object with main_log, debug_log, and optional
+                max_bytes/backup_count attributes for log rotation
         logger_prefix: Logger name prefix (e.g., "cake_continuous", "wan_steering")
         debug: Enable debug logging to file and console
         log_format: Log format ("json" or "text"). If None, uses environment
@@ -192,8 +198,12 @@ def setup_logging(
     # Create formatter based on format selection
     formatter = _create_formatter(effective_format, config.wan_name)
 
-    # Main log - INFO level
-    fh = logging.FileHandler(config.main_log)
+    # Log rotation parameters (backward compatible with getattr defaults)
+    max_bytes = getattr(config, "max_bytes", 10_485_760)
+    backup_count = getattr(config, "backup_count", 3)
+
+    # Main log - INFO level (rotating to prevent unbounded growth)
+    fh = RotatingFileHandler(config.main_log, maxBytes=max_bytes, backupCount=backup_count)
     fh.setLevel(logging.INFO)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -204,7 +214,9 @@ def setup_logging(
 
     if debug and hasattr(config, "debug_log"):
         # Debug mode: debug file + DEBUG-level console
-        dfh = logging.FileHandler(config.debug_log)
+        dfh = RotatingFileHandler(
+            config.debug_log, maxBytes=max_bytes, backupCount=backup_count
+        )
         dfh.setLevel(logging.DEBUG)
         dfh.setFormatter(formatter)
         logger.addHandler(dfh)

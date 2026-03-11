@@ -651,6 +651,11 @@ router:
   host: "192.168.1.1"
   user: admin
   ssh_key: "/path/to/key"
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
 """)
         config = BaseConfig(str(config_file))
         assert config.wan_name == "test"
@@ -692,6 +697,11 @@ router:
   host: "192.168.1.1"
   user: admin
   ssh_key: "/path/to/key"
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
 """)
         config = BaseConfig(str(config_file))
         assert hasattr(config, "schema_version")
@@ -707,6 +717,11 @@ router:
   host: "192.168.1.1"
   user: admin
   ssh_key: "/path/to/key"
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
 """)
         config = BaseConfig(str(config_file))
         assert config.schema_version == "1.0"
@@ -723,6 +738,11 @@ router:
   host: "192.168.1.1"
   user: admin
   ssh_key: "/path/to/key"
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
 """)
         with caplog.at_level(logging.INFO):
             config = BaseConfig(str(config_file))
@@ -743,6 +763,11 @@ router:
   host: "192.168.1.1"
   user: admin
   ssh_key: "/path/to/key"
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
 """)
         with caplog.at_level(logging.INFO):
             config = BaseConfig(str(config_file))

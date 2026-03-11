@@ -154,12 +154,6 @@ class SteeringConfig(BaseConfig):
         # State persistence
         {"path": "state.file", "type": str, "required": True},
         {"path": "state.history_size", "type": int, "required": True, "min": 1, "max": 3000},
-        # Logging
-        {"path": "logging.main_log", "type": str, "required": True},
-        {"path": "logging.debug_log", "type": str, "required": True},
-        # Lock file
-        {"path": "lock_file", "type": str, "required": True},
-        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
         # Thresholds (required section, individual fields have defaults)
         {"path": "thresholds", "type": dict, "required": True},
     ]
@@ -461,17 +455,6 @@ class SteeringConfig(BaseConfig):
         self.state_file = Path(self.data["state"]["file"])
         self.history_size = self.data["state"]["history_size"]
 
-    def _load_logging_config(self) -> None:
-        """Load logging configuration."""
-        self.main_log = self.data["logging"]["main_log"]
-        self.debug_log = self.data["logging"]["debug_log"]
-        self.log_cake_stats = self.data["logging"].get("log_cake_stats", True)
-
-    def _load_lock_config(self) -> None:
-        """Load lock file configuration."""
-        self.lock_file = Path(self.data["lock_file"])
-        self.lock_timeout = self.data["lock_timeout"]
-
     def _load_timeouts(self) -> None:
         """Load timeout settings with sensible defaults."""
         timeouts = self.data.get("timeouts", {})
@@ -520,8 +503,8 @@ class SteeringConfig(BaseConfig):
 
         # Persistence and operational
         self._load_state_persistence()
-        self._load_logging_config()
-        self._load_lock_config()
+        # Steering-specific log setting (common logging loaded by BaseConfig)
+        self.log_cake_stats = self.data.get("logging", {}).get("log_cake_stats", True)
         self._load_timeouts()
 
         # Router dict and metrics

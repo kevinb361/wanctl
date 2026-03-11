@@ -272,12 +272,6 @@ class Config(BaseConfig):
         },
         # Ping hosts
         {"path": "continuous_monitoring.ping_hosts", "type": list, "required": True},
-        # Logging
-        {"path": "logging.main_log", "type": str, "required": True},
-        {"path": "logging.debug_log", "type": str, "required": True},
-        # Lock file
-        {"path": "lock_file", "type": str, "required": True},
-        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
     ]
 
     def _load_queue_config(self) -> None:
@@ -461,20 +455,12 @@ class Config(BaseConfig):
         self.router_port = router.get("port", 443)
         self.router_verify_ssl = router.get("verify_ssl", True)
 
-    def _load_lock_and_state_config(self) -> None:
-        """Load lock file and derive state file path."""
-        self.lock_file = Path(self.data["lock_file"])
-        self.lock_timeout = self.data["lock_timeout"]
-
+    def _load_state_config(self) -> None:
+        """Derive state file path from lock file."""
         # State file (for persisting hysteresis counters)
         # Derive from lock file path: /tmp/wanctl_att.lock -> /tmp/wanctl_att_state.json
         lock_stem = self.lock_file.stem
         self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
-
-    def _load_logging_config(self) -> None:
-        """Load logging paths."""
-        self.main_log = self.data["logging"]["main_log"]
-        self.debug_log = self.data["logging"]["debug_log"]
 
     def _load_health_check_config(self) -> None:
         """Load health check settings with defaults."""
@@ -521,11 +507,8 @@ class Config(BaseConfig):
         # Router transport (SSH or REST)
         self._load_router_transport_config()
 
-        # Lock file and state file
-        self._load_lock_and_state_config()
-
-        # Logging
-        self._load_logging_config()
+        # State file (derived from lock_file set by BaseConfig)
+        self._load_state_config()
 
         # Health check
         self._load_health_check_config()
