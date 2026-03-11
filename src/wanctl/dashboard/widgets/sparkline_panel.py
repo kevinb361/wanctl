@@ -66,20 +66,22 @@ class SparklinePanelWidget(Widget):
         self._rtt_delta_data.append(rtt_delta)
 
         # Update sparkline data reactives (triggers re-render)
+        # Prepend 0 anchor so scale is always 0..max — prevents flat-line
+        # rendering when all values are identical (Textual uses min..max range)
         try:
             dl_spark = self.query_one("#dl-spark", Sparkline)
-            dl_spark.data = list(self._dl_data)
+            dl_spark.data = [0] + list(self._dl_data)
         except Exception:
             pass
 
         try:
             ul_spark = self.query_one("#ul-spark", Sparkline)
-            ul_spark.data = list(self._ul_data)
+            ul_spark.data = [0] + list(self._ul_data)
         except Exception:
             pass
 
         try:
             rtt_spark = self.query_one("#rtt-spark", Sparkline)
-            rtt_spark.data = list(self._rtt_delta_data)
+            rtt_spark.data = [0] + list(self._rtt_delta_data)
         except Exception:
             pass
