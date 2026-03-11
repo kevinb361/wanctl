@@ -85,8 +85,8 @@ Plans:
 
 Plans:
 
-- [ ] 74-01-PLAN.md -- Sparkline trend widgets, cycle budget gauge, and poll routing
-- [ ] 74-02-PLAN.md -- Historical metrics browser with TabbedContent, time range selector, and summary stats
+- [x] 74-01-PLAN.md -- Sparkline trend widgets, cycle budget gauge, and poll routing
+- [x] 74-02-PLAN.md -- Historical metrics browser with TabbedContent, time range selector, and summary stats
 
 ### Phase 75: Layout & Compatibility
 
@@ -99,12 +99,12 @@ Plans:
 2. Resizing the terminal near the 120-column breakpoint does not cause layout flicker (hysteresis prevents rapid switching)
 3. Dashboard renders correctly and accepts input in bare terminal, tmux, and SSH+tmux sessions
 4. `--no-color` and `--256-color` CLI flags allow fallback for terminals with limited color support
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 75-01: TBD
-- [ ] 75-02: TBD
+- [ ] 75-01-PLAN.md -- Responsive layout with side-by-side/stacked WAN panels and resize hysteresis
+- [ ] 75-02-PLAN.md -- Color control CLI flags and tmux/SSH compatibility verification
 
 ## Progress
 
@@ -116,8 +116,8 @@ Phases execute in numeric order: 73 -> 74 -> 75
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 73. Foundation              | 3/3            | Complete    | 2026-03-11 |
-| 74. Visualization & History | 2/2 | Complete    | 2026-03-11 |
-| 75. Layout & Compatibility  | 0/?            | Not started | -          |
+| 74. Visualization & History | 2/2            | Complete    | 2026-03-11 |
+| 75. Layout & Compatibility  | 0/2            | Not started | -          |
 
 ### Completed Milestones
 
