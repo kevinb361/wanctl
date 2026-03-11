@@ -348,26 +348,22 @@ def validate_rtt_thresholds(
 
 
 def validate_sample_counts(
-    bad_samples: int = 8,
-    good_samples: int = 15,
     red_samples_required: int = 2,
     green_samples_required: int = 15,
     logger: logging.Logger | None = None,
-) -> tuple[int, int, int, int]:
+) -> tuple[int, int]:
     """Validate state confirmation sample requirements are reasonable.
 
     Sample counts determine how many consecutive measurements with the same
     characteristic are needed to confirm a state transition.
 
     Args:
-        bad_samples: Legacy - samples needed to confirm bad state (deprecated)
-        good_samples: Legacy - samples needed to confirm recovery
-        red_samples_required: Samples needed to confirm RED state (new)
-        green_samples_required: Samples needed to confirm GREEN state (new)
+        red_samples_required: Samples needed to confirm RED state
+        green_samples_required: Samples needed to confirm GREEN state
         logger: Logger instance (optional)
 
     Returns:
-        Tuple of (bad_samples, good_samples, red_samples_required, green_samples_required)
+        Tuple of (red_samples_required, green_samples_required)
 
     Raises:
         ConfigValidationError: If sample counts are unreasonable
@@ -377,20 +373,12 @@ def validate_sample_counts(
 
     errors = []
 
-    if bad_samples < 1:
-        errors.append(f"bad_samples ({bad_samples}) must be >= 1")
-    if good_samples < 1:
-        errors.append(f"good_samples ({good_samples}) must be >= 1")
     if red_samples_required < 1:
         errors.append(f"red_samples_required ({red_samples_required}) must be >= 1")
     if green_samples_required < 1:
         errors.append(f"green_samples_required ({green_samples_required}) must be >= 1")
 
     # Check reasonableness (not too extreme)
-    if bad_samples > 1000:
-        errors.append(f"bad_samples ({bad_samples}) unreasonably high (max 1000)")
-    if good_samples > 1000:
-        errors.append(f"good_samples ({good_samples}) unreasonably high (max 1000)")
     if red_samples_required > 100:
         errors.append(f"red_samples_required ({red_samples_required}) unreasonably high (max 100)")
     if green_samples_required > 100:
@@ -404,7 +392,7 @@ def validate_sample_counts(
         raise ConfigValidationError(msg)
 
     logger.debug(
-        f"Sample counts valid: bad={bad_samples}, good={good_samples}, "
-        f"red_required={red_samples_required}, green_required={green_samples_required}"
+        f"Sample counts valid: red_required={red_samples_required}, "
+        f"green_required={green_samples_required}"
     )
-    return (bad_samples, good_samples, red_samples_required, green_samples_required)
+    return (red_samples_required, green_samples_required)

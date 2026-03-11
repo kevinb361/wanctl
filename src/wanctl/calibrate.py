@@ -47,6 +47,12 @@ from wanctl.timeouts import (
 # Target bloat for binary search (ms)
 DEFAULT_TARGET_BLOAT_MS = 10.0
 
+# Cycle interval used by the autorate daemon (seconds).
+# Used to convert alpha values to time constants in generated config.
+# This is a local constant -- do NOT import from autorate_continuous to
+# avoid coupling the calibration tool to daemon runtime.
+_CYCLE_INTERVAL_SEC = 0.05
+
 # Test parameters
 PING_COUNT = 10
 PING_INTERVAL = 0.2
@@ -559,8 +565,8 @@ def generate_config(result: CalibrationResult, output_path: Path) -> bool:
                 "target_bloat_ms": round(target_bloat, 0),
                 "warn_bloat_ms": round(warn_bloat, 0),
                 "hard_red_bloat_ms": round(hard_red_bloat, 0),
-                "alpha_baseline": alpha_baseline,
-                "alpha_load": 0.20,
+                "baseline_time_constant_sec": round(_CYCLE_INTERVAL_SEC / alpha_baseline, 1),
+                "load_time_constant_sec": round(_CYCLE_INTERVAL_SEC / 0.20, 2),
             },
             "ping_hosts": ["1.1.1.1", "8.8.8.8", "9.9.9.9"],
             "use_median_of_three": True,
