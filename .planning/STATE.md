@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: 72-01 complete, 72-02 next
-status: executing
-last_updated: "2026-03-11T16:21:00Z"
-last_activity: 2026-03-11 -- Completed 72-01-PLAN.md (SIGUSR1 wan_state reload + ops docs, WANE-01 + WANE-02 + WANE-03 satisfied)
+current_plan: 72-02 complete (milestone complete)
+status: milestone-complete
+last_updated: "2026-03-11T16:31:31.453Z"
+last_activity: 2026-03-11 -- Completed 72-02-PLAN.md (WAN-aware steering verified live on production, all 4 degradation paths validated, v1.13 milestone complete)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Session State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 72 in progress - WAN-Aware Enablement (1/2 plans done), 72-02 next
+**Current focus:** v1.13 complete -- all 6 phases (67-72), 10 plans, 13/13 requirements satisfied
 
 ## Position
 
-**Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 72 of 72 (WAN-Aware Enablement) -- In Progress (1/2 plans)
-**Current Plan:** 72-02 next
-**Status:** Executing
-**Last activity:** 2026-03-11 -- Completed 72-01-PLAN.md (SIGUSR1 wan_state reload + ops docs, WANE-01 + WANE-02 + WANE-03 satisfied)
+**Milestone:** v1.13 Legacy Cleanup & Feature Graduation -- COMPLETE
+**Phase:** 72 of 72 (WAN-Aware Enablement) -- Complete (2/2 plans)
+**Current Plan:** 72-02 complete (milestone complete)
+**Status:** Milestone Complete
+**Last activity:** 2026-03-11 -- Completed 72-02-PLAN.md (WAN-aware steering verified live on production, all 4 degradation paths validated, v1.13 milestone complete)
 
 ## Accumulated Context
 
@@ -58,6 +58,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - Rollback procedure: sed dry_run toggle + kill -USR1 + health endpoint verify
 - Re-enabling wan_state via SIGUSR1 re-triggers 30s grace period (safe ramp-up)
 - Each reload method independently reads YAML (no shared read, keeps methods decoupled)
+- WAN-aware steering graduated to production after 4-step verification protocol (health, stale fallback, SIGUSR1 rollback, grace period re-trigger)
 
 ### Known Issues
 
@@ -93,3 +94,6 @@ None.
 - 2026-03-11: Completed 71-02-PLAN.md -- confidence graduation to live mode (dry_run: false, rollback docs, production verified, CONF-01 + CONF-02 satisfied)
 - 2026-03-11: Phase 71 complete -- Confidence Graduation (2/2 plans, CONF-01 + CONF-02 + CONF-03 satisfied)
 - 2026-03-11: Completed 72-01-PLAN.md -- SIGUSR1 wan_state reload + ops docs (7 new tests, operations runbook, WANE-01 + WANE-02 + WANE-03 satisfied)
+- 2026-03-11: Completed 72-02-PLAN.md -- WAN-aware steering verified live on production (4/4 degradation tests passed)
+- 2026-03-11: Phase 72 complete -- WAN-Aware Enablement (2/2 plans, WANE-01 + WANE-02 + WANE-03 production-verified)
+- 2026-03-11: v1.13 MILESTONE COMPLETE -- Legacy Cleanup & Feature Graduation (6 phases, 10 plans, 13/13 requirements)
