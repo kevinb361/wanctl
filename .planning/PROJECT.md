@@ -136,6 +136,17 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
+**Current Milestone: v1.13 Legacy Cleanup & Feature Graduation**
+
+**Goal:** Remove legacy code/config fallbacks, graduate confidence-based steering from dry-run to live, and enable WAN-aware steering in production.
+
+**Target features:**
+
+- Audit production configs and remove legacy parameter fallbacks
+- Remove dead code (old state machine methods, obsolete config files)
+- Graduate confidence-based steering from dry-run to live
+- Enable WAN-aware steering with production validation path
+
 **Ongoing:**
 
 - [ ] Confidence-based steering validation (enabled 2026-01-23, monitoring)
@@ -317,4 +328,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-11 after v1.12 milestone completion_
+_Last updated: 2026-03-11 after v1.13 milestone started_
