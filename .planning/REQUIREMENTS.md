@@ -55,25 +55,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LGCY-01 | — | Pending |
-| LGCY-02 | — | Pending |
-| LGCY-03 | — | Pending |
-| LGCY-04 | — | Pending |
-| LGCY-05 | — | Pending |
-| LGCY-06 | — | Pending |
-| LGCY-07 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| CONF-03 | — | Pending |
-| WANE-01 | — | Pending |
-| WANE-02 | — | Pending |
-| WANE-03 | — | Pending |
+| LGCY-01 | Phase 67 | Pending |
+| LGCY-02 | Phase 68 | Pending |
+| LGCY-03 | Phase 69 | Pending |
+| LGCY-04 | Phase 69 | Pending |
+| LGCY-05 | Phase 68 | Pending |
+| LGCY-06 | Phase 70 | Pending |
+| LGCY-07 | Phase 69 | Pending |
+| CONF-01 | Phase 71 | Pending |
+| CONF-02 | Phase 71 | Pending |
+| CONF-03 | Phase 71 | Pending |
+| WANE-01 | Phase 72 | Pending |
+| WANE-02 | Phase 72 | Pending |
+| WANE-03 | Phase 72 | Pending |
 
 **Coverage:**
 - v1.13 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation*
