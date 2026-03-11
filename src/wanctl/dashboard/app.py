@@ -23,6 +23,8 @@ from wanctl.dashboard.config import (
     load_dashboard_config,
 )
 from wanctl.dashboard.poller import EndpointPoller
+from wanctl.dashboard.widgets.cycle_gauge import CycleBudgetGaugeWidget
+from wanctl.dashboard.widgets.sparkline_panel import SparklinePanelWidget
 from wanctl.dashboard.widgets.status_bar import StatusBar
 from wanctl.dashboard.widgets.steering_panel import SteeringPanel
 from wanctl.dashboard.widgets.wan_panel import WanPanel
@@ -167,7 +169,11 @@ class DashboardApp(App):
         """Compose the dashboard widget tree."""
         with Vertical():
             yield WanPanelWidget("WAN 1 (Spectrum)", id="wan-1")
+            yield SparklinePanelWidget(wan_name="WAN 1", id="spark-wan-1")
+            yield CycleBudgetGaugeWidget(id="gauge-wan-1")
             yield WanPanelWidget("WAN 2 (ATT)", id="wan-2")
+            yield SparklinePanelWidget(wan_name="WAN 2", id="spark-wan-2")
+            yield CycleBudgetGaugeWidget(id="gauge-wan-2")
             yield SteeringPanelWidget(id="steering")
             yield StatusBarWidget(id="status-bar")
 
@@ -193,18 +199,36 @@ class DashboardApp(App):
 
         if data and "wans" in data:
             wans = data["wans"]
-            if len(wans) >= 1:
-                wan1.update_from_data(
-                    wans[0],
+            for i, wan_data in enumerate(wans[:2]):
+                wan_widget = [wan1, wan2][i]
+                wan_widget.update_from_data(
+                    wan_data,
                     status=data.get("status"),
                     last_seen=self._autorate_poller.last_seen,
                 )
-            if len(wans) >= 2:
-                wan2.update_from_data(
-                    wans[1],
-                    status=data.get("status"),
-                    last_seen=self._autorate_poller.last_seen,
+
+                # Route sparkline data
+                dl_rate = wan_data.get("download", {}).get("current_rate_mbps", 0)
+                ul_rate = wan_data.get("upload", {}).get("current_rate_mbps", 0)
+                baseline_rtt = wan_data.get("baseline_rtt_ms", 0)
+                load_rtt = wan_data.get("load_rtt_ms", 0)
+                rtt_delta = max(0, load_rtt - baseline_rtt)
+
+                spark = self.query_one(
+                    f"#spark-wan-{i + 1}", SparklinePanelWidget
                 )
+                spark.append_data(dl_rate, ul_rate, rtt_delta)
+
+                # Route cycle budget data
+                cycle_budget = wan_data.get("cycle_budget")
+                if cycle_budget is not None:
+                    gauge = self.query_one(
+                        f"#gauge-wan-{i + 1}", CycleBudgetGaugeWidget
+                    )
+                    gauge.update_utilization(
+                        cycle_budget.get("utilization_pct", 0)
+                    )
+
             status_bar = self.query_one("#status-bar", StatusBarWidget)
             status_bar.update_status(
                 version=data.get("version", "?"),

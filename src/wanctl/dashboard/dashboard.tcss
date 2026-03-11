@@ -13,6 +13,23 @@ WanPanelWidget {
     margin: 0 0 1 0;
 }
 
+SparklinePanelWidget {
+    height: auto;
+    min-height: 4;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+SparklinePanelWidget Sparkline {
+    height: 1;
+}
+
+CycleBudgetGaugeWidget {
+    height: 2;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
 SteeringPanelWidget {
     height: auto;
     min-height: 5;
