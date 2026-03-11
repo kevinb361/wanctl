@@ -24,10 +24,10 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ### Visualization
 
-- [ ] **VIZ-01**: Bandwidth sparklines show DL/UL rate trends per WAN (~2 min rolling window)
-- [ ] **VIZ-02**: RTT delta sparkline with color gradient (green=low, red=high)
-- [ ] **VIZ-03**: Cycle budget gauge shows 50ms utilization percentage
-- [ ] **VIZ-04**: All sparkline/trend data uses bounded deque (no unbounded memory growth)
+- [x] **VIZ-01**: Bandwidth sparklines show DL/UL rate trends per WAN (~2 min rolling window)
+- [x] **VIZ-02**: RTT delta sparkline with color gradient (green=low, red=high)
+- [x] **VIZ-03**: Cycle budget gauge shows 50ms utilization percentage
+- [x] **VIZ-04**: All sparkline/trend data uses bounded deque (no unbounded memory growth)
 
 ### Historical Analysis
 
@@ -84,10 +84,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIVE-03     | Phase 73 | Complete |
 | LIVE-04     | Phase 73 | Complete |
 | LIVE-05     | Phase 73 | Complete |
-| VIZ-01      | Phase 74 | Pending  |
-| VIZ-02      | Phase 74 | Pending  |
-| VIZ-03      | Phase 74 | Pending  |
-| VIZ-04      | Phase 74 | Pending  |
+| VIZ-01      | Phase 74 | Complete |
+| VIZ-02      | Phase 74 | Complete |
+| VIZ-03      | Phase 74 | Complete |
+| VIZ-04      | Phase 74 | Complete |
 | HIST-01     | Phase 74 | Pending  |
 | HIST-02     | Phase 74 | Pending  |
 | HIST-03     | Phase 74 | Pending  |
