@@ -181,14 +181,14 @@ continuous_monitoring:
 
 RTT threshold configuration for state transitions.
 
-| Field                          | Type   | Unit | Description                                   |
-| ------------------------------ | ------ | ---- | --------------------------------------------- |
-| `target_bloat_ms`              | number | ms   | GREEN → YELLOW threshold                      |
-| `warn_bloat_ms`                | number | ms   | YELLOW → SOFT_RED threshold                   |
-| `hard_red_bloat_ms`            | number | ms   | SOFT_RED/YELLOW → RED threshold               |
-| `alpha_baseline`               | number | 0-1  | Baseline EWMA smoothing (lower = slower)      |
-| `alpha_load`                   | number | 0-1  | Load RTT EWMA smoothing (higher = faster)     |
-| `baseline_update_threshold_ms` | number | ms   | Max delta for baseline updates (default: 3.0) |
+| Field                          | Type   | Unit    | Description                                   |
+| ------------------------------ | ------ | ------- | --------------------------------------------- |
+| `target_bloat_ms`              | number | ms      | GREEN → YELLOW threshold                      |
+| `warn_bloat_ms`                | number | ms      | YELLOW → SOFT_RED threshold                   |
+| `hard_red_bloat_ms`            | number | ms      | SOFT_RED/YELLOW → RED threshold               |
+| `baseline_time_constant_sec`   | number | seconds | Baseline EWMA time constant (higher = slower) |
+| `load_time_constant_sec`       | number | seconds | Load RTT EWMA time constant (lower = faster)  |
+| `baseline_update_threshold_ms` | number | ms      | Max delta for baseline updates (default: 3.0) |
 
 ```yaml
 continuous_monitoring:
@@ -196,8 +196,8 @@ continuous_monitoring:
     target_bloat_ms: 15
     warn_bloat_ms: 45
     hard_red_bloat_ms: 80
-    alpha_baseline: 0.02
-    alpha_load: 0.20
+    baseline_time_constant_sec: 2.5
+    load_time_constant_sec: 0.25
 ```
 
 #### `continuous_monitoring.ping_hosts`
@@ -428,6 +428,25 @@ State persistence configuration.
 
 ---
 
+## Deprecated Parameters
+
+The following config parameters are deprecated. They are auto-translated with a warning on load (or silently ignored where noted). Update your configs to use the modern replacements.
+
+| Deprecated                      | Replacement                    | Notes                                   |
+| ------------------------------- | ------------------------------ | --------------------------------------- |
+| `alpha_baseline`                | `baseline_time_constant_sec`   | Auto-translated: tc = interval / alpha  |
+| `alpha_load`                    | `load_time_constant_sec`       | Auto-translated: tc = interval / alpha  |
+| `cake_state_sources.spectrum`   | `cake_state_sources.primary`   | Identity rename                         |
+| `cake_queues.spectrum_download` | `cake_queues.primary_download` | Identity rename                         |
+| `cake_queues.spectrum_upload`   | `cake_queues.primary_upload`   | Identity rename                         |
+| `bad_samples`                   | _(removed)_                    | Use `red_samples_required`              |
+| `good_samples`                  | _(removed)_                    | Use `green_samples_required`            |
+| `mode.cake_aware`               | _(removed)_                    | CAKE three-state model is always active |
+
+**Behavior:** When a deprecated key is present and its modern replacement is absent, the value is auto-translated and injected so existing config chains work. When both are present, the modern key wins silently.
+
+---
+
 ## Validation
 
 Configuration is validated at load time. Common errors:
@@ -475,8 +494,8 @@ continuous_monitoring:
   thresholds:
     target_bloat_ms: 15
     hard_red_bloat_ms: 80
-    alpha_baseline: 0.02
-    alpha_load: 0.20
+    baseline_time_constant_sec: 2.5
+    load_time_constant_sec: 0.25
 
 state_file: "/var/lib/wanctl/wan1_state.json"
 lock_file: "/run/wanctl/wan1.lock"
