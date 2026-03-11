@@ -5564,7 +5564,7 @@ class TestDryRunReload:
         daemon.run_cycle.side_effect = side_effect_shutdown
 
         with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
-             patch("wanctl.steering.daemon.reset_reload_state") as mock_reset, \
+             patch("wanctl.steering.daemon.reset_reload_state"), \
              patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
              patch("wanctl.steering.daemon.update_steering_health_status"), \
              patch("wanctl.steering.daemon.notify_watchdog"), \
