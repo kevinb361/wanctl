@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.13.0 (Legacy Cleanup & Feature Graduation) — shipped 2026-03-11
-**Tests:** 2,300 passing, 91%+ coverage
-**LOC:** ~17,095 Python (src/)
-**Milestones:** 14 shipped (v1.0-v1.13), 72 phases, 144 plans
+**Version:** v1.14.0 (Operational Visibility) — shipped 2026-03-11
+**Tests:** 2,445 passing, 91%+ coverage
+**LOC:** ~18,393 Python (src/), including 1,289 LOC dashboard module
+**Milestones:** 15 shipped (v1.0-v1.14), 75 phases, 151 plans
 
-**Previous:** v1.12 Deployment & Code Health — deployment alignment, security hardening, config consolidation
-**Latest:** v1.13 Legacy Cleanup & Feature Graduation — dead code removal, legacy deprecation, confidence steering live, WAN-aware steering live
+**Previous:** v1.13 Legacy Cleanup & Feature Graduation — dead code removal, legacy deprecation, confidence steering live, WAN-aware steering live
+**Latest:** v1.14 Operational Visibility — TUI dashboard with live monitoring, sparklines, history browser, responsive layout
 
 ## Requirements
 
@@ -149,22 +149,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ 4-step degradation verification passed (stale fallback, SIGUSR1 rollback, grace period re-trigger) — v1.13
 - ✓ 13/13 requirements satisfied — v1.13
 
+**v1.14 Operational Visibility:**
+
+- ✓ TUI dashboard with live per-WAN panels, color-coded congestion, rates, RTT — v1.14
+- ✓ Async dual-poller engine with independent backoff and offline isolation — v1.14
+- ✓ Sparkline trends (DL/UL/RTT) with bounded deques and color gradients — v1.14
+- ✓ Cycle budget gauge showing 50ms utilization percentage — v1.14
+- ✓ Historical metrics browser with time range selector and summary stats — v1.14
+- ✓ Responsive layout (side-by-side >=120 cols, stacked below) with hysteresis — v1.14
+- ✓ Terminal compatibility (--no-color, --256-color, tmux/SSH verified) — v1.14
+- ✓ 27/27 requirements satisfied — v1.14
+
 ### Active
 
-## Current Milestone: v1.14 Operational Visibility
-
-**Goal:** Build a full-featured TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links.
-
-**Target features:**
-
-- Real-time congestion state, rates, baseline RTT, and steering status (live refresh)
-- Bandwidth sparkline/bar charts showing DL/UL rates over time
-- Steering decision log with confidence scores, WAN zone, and transition reasons
-- Historical metrics browser with selectable time ranges (1h, 6h, 24h, 7d)
-- Adaptive layout (side-by-side on wide terminals, tabbed on narrow)
-- Configurable endpoint URLs and DB path (run from local machine or containers)
-- Full keyboard navigation with filtering and drill-down
-- Daemon-side API additions as needed for richer dashboard data
+(None — planning next milestone)
 
 ### Deferred
 
@@ -295,6 +293,14 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 66: Config extraction (BaseConfig consolidation, RotatingFileHandler, deployment contract tests)
 - 53 new tests (2,210 → 2,263 total)
 
+**v1.14 Operational Visibility (2026-03-11):**
+
+- Phase 73: Dashboard foundation (config, poller, CLI, WanPanel, SteeringPanel, StatusBar, app wiring)
+- Phase 74: Visualization & history (sparklines, cycle gauge, history browser, TabbedContent)
+- Phase 75: Layout & compatibility (responsive layout, resize hysteresis, color flags, tmux verified)
+- 145 new dashboard tests (2,300 → 2,445 total)
+- Post-milestone: sparkline rate normalization and zero-anchor fix for visual consistency
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -354,7 +360,13 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Confidence steering live (dry_run: false) | Validated in dry-run since v1.2, all signals correct | ✓ Production active | 2026-03-11 |
 | WAN-aware steering live (wan_state.enabled: true) | 4-step degradation verification passed | ✓ Production active | 2026-03-11 |
 | Grace period re-trigger on SIGUSR1 re-enable | Safe ramp-up after operator toggle | ✓ 30s grace confirmed | 2026-03-11 |
+| Textual framework for TUI dashboard | Async-native, CSS-styled widgets, active maintenance | ✓ Clean widget composition | 2026-03-11 |
+| Dashboard standalone — zero daemon imports | All data via HTTP health endpoints | ✓ No code coupling | 2026-03-11 |
+| Rich Text renderer + Widget wrapper pattern | Enables unit testing without App.run_test() | ✓ 133 tests, no async machinery | 2026-03-11 |
+| Bounded deques (maxlen=120) for sparklines | Constant memory regardless of dashboard uptime | ✓ ~2min rolling window | 2026-03-11 |
+| Dual autorate pollers for multi-container | Each container has its own health endpoint | ✓ Independent polling + backoff | 2026-03-11 |
+| Sparkline zero-anchor for consistent rendering | Textual min==max renders as flat line | ✓ Both WANs show full bars | 2026-03-11 |
 
 ---
 
-_Last updated: 2026-03-11 after v1.14 milestone started_
+_Last updated: 2026-03-11 after v1.14 milestone completed_

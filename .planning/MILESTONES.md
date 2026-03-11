@@ -1,5 +1,36 @@
 # Project Milestones: wanctl
 
+## v1.14 Operational Visibility (Shipped: 2026-03-11)
+
+**Delivered:** Full TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links with adaptive layout and terminal compatibility.
+
+**Phases completed:** 73-75 (7 plans total)
+
+**Key accomplishments:**
+
+- Full TUI dashboard with live per-WAN panels showing color-coded congestion state, DL/UL rates, RTT baseline/load/delta, and router connectivity
+- Async dual-poller engine with independent endpoint backoff and offline isolation for multi-container WAN monitoring
+- Sparkline trend widgets (DL/UL with green-to-yellow gradient, RTT delta with green-to-red) using bounded deques for constant memory
+- Cycle budget gauge showing 50ms utilization percentage from health endpoint data
+- Historical metrics browser with time range selector (1h/6h/24h/7d), DataTable, and client-side summary stats (min/max/avg/p95/p99)
+- Responsive layout: side-by-side at >=120 cols, stacked below, with 0.3s resize hysteresis
+- Terminal compatibility: --no-color, --256-color CLI flags, tmux/SSH verified
+
+**Stats:**
+
+- 3 phases, 7 plans
+- 51 commits, 71 files changed
+- +10,425 / -1,247 lines changed
+- 145 new dashboard tests (2,300 to 2,445)
+- 1,289 LOC dashboard module, 18,393 LOC total (src/)
+- 1 day (2026-03-11)
+
+**Git range:** `v1.13..v1.14`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.13 Legacy Cleanup & Feature Graduation (Shipped: 2026-03-11)
 
 **Delivered:** Legacy code removal, config fallback retirement with deprecation warnings, and graduation of both confidence-based steering and WAN-aware steering from dry-run/disabled to production-live.
