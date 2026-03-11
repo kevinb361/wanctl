@@ -14,7 +14,7 @@ Requirements for Legacy Cleanup & Feature Graduation milestone. Each maps to roa
 - [x] **LGCY-03**: All legacy config parameter fallbacks removed — old parameter names produce clear deprecation errors instead of silent fallback
 - [x] **LGCY-04**: Legacy config validation code removed from `config_validation_utils.py`
 - [x] **LGCY-05**: Obsolete ISP-specific config files removed from `configs/` directory
-- [ ] **LGCY-06**: Legacy-only test fixtures and test paths updated to reflect current-only code paths
+- [x] **LGCY-06**: Legacy-only test fixtures and test paths updated to reflect current-only code paths
 - [x] **LGCY-07**: RTT-only mode (`cake_aware: false`) disposition resolved — retired if unused or explicitly documented if kept
 
 ### Confidence Graduation
@@ -60,7 +60,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LGCY-03     | Phase 69 | Complete |
 | LGCY-04     | Phase 69 | Complete |
 | LGCY-05     | Phase 68 | Complete |
-| LGCY-06     | Phase 70 | Pending  |
+| LGCY-06     | Phase 70 | Complete |
 | LGCY-07     | Phase 69 | Complete |
 | CONF-01     | Phase 71 | Pending  |
 | CONF-02     | Phase 71 | Pending  |

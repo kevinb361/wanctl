@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Not started
-status: planning
-last_updated: "2026-03-11T13:05:46.439Z"
-last_activity: 2026-03-11 -- Completed 69-02-PLAN.md (validate_sample_counts cleanup, calibrate modernization, cake_aware retirement)
+current_plan: Plan 1 of 1 in Phase 70
+status: executing
+last_updated: "2026-03-11T13:53:50Z"
+last_activity: 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 4
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Session State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 69 complete - Legacy Fallback Removal done
+**Current focus:** v1.13 Phase 70 complete - Legacy Test Cleanup done
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 69 of 72 (Legacy Fallback Removal) -- Complete (2/2 plans)
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-11 -- Completed 69-02-PLAN.md (validate_sample_counts cleanup, calibrate modernization, cake_aware retirement)
+**Phase:** 70 of 72 (Legacy Test Cleanup) -- Complete (1/1 plans)
+**Current Plan:** Complete
+**Status:** Phase 70 complete
+**Last activity:** 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
 
 ## Accumulated Context
 
@@ -51,6 +51,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - When both old and new config keys present, modern key wins silently (no warning)
 - \_CYCLE_INTERVAL_SEC local constant in calibrate.py avoids import coupling to autorate_continuous
 - cake_aware warning placed in \_load_operational_mode (where mode dict is accessed)
+- Test fixture names reflect sole code path (no \_cake/\_legacy suffixes when only one mode exists)
 
 ### Known Issues
 
@@ -80,3 +81,5 @@ None.
 - 2026-03-11: Completed 69-01-PLAN.md -- deprecate_param helper + 5 legacy params wired (LGCY-03 satisfied)
 - 2026-03-11: Completed 69-02-PLAN.md -- validate_sample_counts cleanup, calibrate modernization, cake_aware retirement (LGCY-04 + LGCY-07 satisfied)
 - 2026-03-11: Phase 69 complete -- Legacy Fallback Removal (2/2 plans, LGCY-03 + LGCY-04 + LGCY-07 satisfied)
+- 2026-03-11: Completed 70-01-PLAN.md -- legacy test docstring/fixture cleanup (LGCY-06 satisfied)
+- 2026-03-11: Phase 70 complete -- Legacy Test Cleanup (1/1 plans, LGCY-06 satisfied)
