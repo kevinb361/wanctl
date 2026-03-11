@@ -141,7 +141,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 1. Steering config on cake-spectrum has `wan_state.enabled: true` and the daemon reflects this in its health endpoint
 2. Health endpoint shows `wan_awareness.enabled=true` with live zone data, staleness tracking, and non-zero confidence contribution
 3. Graceful degradation confirmed under real conditions: stale zone falls back to GREEN, autorate unavailable causes WAN weight to be skipped
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 72-01-PLAN.md — SIGUSR1 wan_state reload + operations docs + CHANGELOG (WANE-01, WANE-02, WANE-03)
+- [ ] 72-02-PLAN.md — Production deployment + degradation verification checkpoint (WANE-01, WANE-02, WANE-03)
 
 ## Progress
 
@@ -155,7 +159,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | 69. Legacy Fallback Removal | 2/2            | Complete    | 2026-03-11 |
 | 70. Legacy Test Cleanup     | 1/1            | Complete    | 2026-03-11 |
 | 71. Confidence Graduation   | 2/2            | Complete    | 2026-03-11 |
-| 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
+| 72. WAN-Aware Enablement    | 0/2            | Not started | -          |
 
 ### Completed Milestones
 
