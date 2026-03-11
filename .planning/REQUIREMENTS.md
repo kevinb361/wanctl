@@ -61,29 +61,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALRT-01 | — | Pending |
-| ALRT-02 | — | Pending |
-| ALRT-03 | — | Pending |
-| ALRT-04 | — | Pending |
-| ALRT-05 | — | Pending |
-| ALRT-06 | — | Pending |
-| ALRT-07 | — | Pending |
-| DLVR-01 | — | Pending |
-| DLVR-02 | — | Pending |
-| DLVR-03 | — | Pending |
-| DLVR-04 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
+| ALRT-01 | Phase 78 | Pending |
+| ALRT-02 | Phase 78 | Pending |
+| ALRT-03 | Phase 78 | Pending |
+| ALRT-04 | Phase 79 | Pending |
+| ALRT-05 | Phase 79 | Pending |
+| ALRT-06 | Phase 79 | Pending |
+| ALRT-07 | Phase 79 | Pending |
+| DLVR-01 | Phase 77 | Pending |
+| DLVR-02 | Phase 77 | Pending |
+| DLVR-03 | Phase 77 | Pending |
+| DLVR-04 | Phase 77 | Pending |
+| INFRA-01 | Phase 76 | Pending |
+| INFRA-02 | Phase 76 | Pending |
+| INFRA-03 | Phase 76 | Pending |
+| INFRA-04 | Phase 80 | Pending |
+| INFRA-05 | Phase 76 | Pending |
+| INFRA-06 | Phase 80 | Pending |
 
 **Coverage:**
 - v1.15 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation*

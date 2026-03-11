@@ -12,7 +12,7 @@ None
 
 ### Active
 
-(None — planning next milestone)
+- **v1.15 Alerting & Notifications** - Phases 76-80 (in progress)
 
 ### Completed
 
@@ -41,6 +41,90 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+### v1.15 Alerting & Notifications
+
+- [ ] **Phase 76: Alert Engine & Configuration** - Core alert engine with per-event cooldown, YAML config, SQLite persistence, and disabled-by-default gate
+- [ ] **Phase 77: Webhook Delivery** - Discord webhook with color-coded embeds, retry with backoff, and generic formatter interface
+- [ ] **Phase 78: Congestion & Steering Alerts** - Sustained congestion detection in autorate and steering transition alerts in steering daemon
+- [ ] **Phase 79: Connectivity & Anomaly Alerts** - WAN offline/recovery detection, baseline drift, and congestion flapping alerts
+- [ ] **Phase 80: Observability & CLI** - Health endpoint alerting state and wanctl-history --alerts query support
+
+## Phase Details
+
+### Phase 76: Alert Engine & Configuration
+**Goal**: Daemons have a working alert engine that can accept, suppress, and persist alerts -- but no delivery or detection yet
+**Depends on**: Nothing (first phase of v1.15)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-05
+**Success Criteria** (what must be TRUE):
+  1. AlertEngine accepts an alert event and stores it in SQLite with timestamp, type, severity, WAN, and details
+  2. AlertEngine suppresses duplicate events within a configured per-event-type cooldown duration
+  3. YAML `alerting:` section is parsed with rules, thresholds, cooldowns, and webhook URL
+  4. Alerting is disabled by default; setting `alerting.enabled: true` activates the engine
+  5. Invalid alerting config warns and disables the feature (never crashes the daemon)
+**Plans**: TBD
+
+Plans:
+- [ ] 76-01: TBD
+- [ ] 76-02: TBD
+
+### Phase 77: Webhook Delivery
+**Goal**: Fired alerts reach the operator via Discord with rich, color-coded embeds and the delivery layer is extensible
+**Depends on**: Phase 76
+**Requirements**: DLVR-01, DLVR-02, DLVR-03, DLVR-04
+**Success Criteria** (what must be TRUE):
+  1. Fired alert is delivered to a Discord webhook as an embed with color matching severity (red=critical, yellow=warning, green=recovery)
+  2. Each embed includes event type, severity, affected WAN, relevant metrics, and timestamp
+  3. Transient HTTP failures (5xx, timeout) trigger retry with exponential backoff; permanent failures (4xx) do not retry
+  4. Adding a new delivery backend (e.g., ntfy.sh) requires only implementing a formatter class -- no engine changes
+**Plans**: TBD
+
+Plans:
+- [ ] 77-01: TBD
+- [ ] 77-02: TBD
+
+### Phase 78: Congestion & Steering Alerts
+**Goal**: Operator is notified when sustained congestion occurs or when steering reroutes/recovers traffic
+**Depends on**: Phase 77
+**Requirements**: ALRT-01, ALRT-02, ALRT-03
+**Success Criteria** (what must be TRUE):
+  1. When a WAN stays in RED or SOFT_RED beyond the configured duration, a congestion alert fires with current state, duration, and rate limits
+  2. When the steering daemon activates steering (traffic rerouted to secondary), a steering-activated alert fires
+  3. When steering deactivates (traffic returns to primary), a steering-recovered alert fires
+  4. All three alert types respect per-event cooldown suppression and persist to SQLite
+**Plans**: TBD
+
+Plans:
+- [ ] 78-01: TBD
+- [ ] 78-02: TBD
+
+### Phase 79: Connectivity & Anomaly Alerts
+**Goal**: Operator is notified of WAN health issues and anomalous RTT behavior
+**Depends on**: Phase 77
+**Requirements**: ALRT-04, ALRT-05, ALRT-06, ALRT-07
+**Success Criteria** (what must be TRUE):
+  1. When a health endpoint target is unreachable beyond a configurable duration, a WAN-offline alert fires
+  2. When a previously unreachable endpoint recovers, a WAN-recovery alert fires
+  3. When baseline RTT drifts beyond a configurable threshold from its historical norm, a baseline-drift alert fires
+  4. When rapid congestion state flapping is detected (frequent RED/GREEN transitions), a flapping alert fires
+**Plans**: TBD
+
+Plans:
+- [ ] 79-01: TBD
+- [ ] 79-02: TBD
+
+### Phase 80: Observability & CLI
+**Goal**: Operators can inspect alerting state via health endpoints and query alert history via CLI
+**Depends on**: Phase 78, Phase 79
+**Requirements**: INFRA-04, INFRA-06
+**Success Criteria** (what must be TRUE):
+  1. Health endpoint includes an `alerting` section showing enabled status, recent alert count, and active cooldowns
+  2. `wanctl-history --alerts` displays fired alerts with timestamp, type, severity, WAN, and details
+  3. Alert history is filterable by time range (consistent with existing --last flag)
+**Plans**: TBD
+
+Plans:
+- [ ] 80-01: TBD
+
 ## Progress
 
 ### Completed Milestones
@@ -64,6 +148,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 | v1.0 Performance Optimization        | 1-5    | 8     | Complete | 2026-01-13 |
 
 **Total:** 75 phases complete, 151 plans across 15 milestones
+
+### v1.15 Alerting & Notifications
+
+**Execution Order:**
+Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 76. Alert Engine & Configuration | 0/TBD | Not started | - |
+| 77. Webhook Delivery | 0/TBD | Not started | - |
+| 78. Congestion & Steering Alerts | 0/TBD | Not started | - |
+| 79. Connectivity & Anomaly Alerts | 0/TBD | Not started | - |
+| 80. Observability & CLI | 0/TBD | Not started | - |
 
 <details>
 <summary>v1.14 Operational Visibility (Phases 73-75) - SHIPPED 2026-03-11</summary>
