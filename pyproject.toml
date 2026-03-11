@@ -18,6 +18,10 @@ wanctl = "wanctl.autorate_continuous:main"
 wanctl-calibrate = "wanctl.calibrate:main"
 wanctl-steering = "wanctl.steering.daemon:main"
 wanctl-history = "wanctl.history:main"
+wanctl-dashboard = "wanctl.dashboard.app:main"
+
+[project.optional-dependencies]
+dashboard = ["textual>=0.50", "httpx>=0.27"]
 
 [tool.uv]
 package = true

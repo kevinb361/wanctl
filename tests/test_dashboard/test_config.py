@@ -3,7 +3,6 @@
 import argparse
 from pathlib import Path
 
-import pytest
 import yaml
 
 from wanctl.dashboard.config import (
