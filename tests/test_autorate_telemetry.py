@@ -15,7 +15,6 @@ import pytest
 
 from wanctl.autorate_continuous import CYCLE_INTERVAL_SECONDS, WANController
 
-
 # =============================================================================
 # SHARED FIXTURES
 # =============================================================================
@@ -278,7 +277,7 @@ class TestProfilerClearRemoved:
         controller._profiler = MagicMock()
 
         # Trigger enough cycles to reach PROFILE_REPORT_INTERVAL
-        for i in range(1200):
+        for _i in range(1200):
             cycle_start = time.perf_counter()
             controller._record_profiling(1.0, 0.5, 0.5, cycle_start)
 
@@ -292,7 +291,7 @@ class TestProfilerClearRemoved:
         controller._profiling_enabled = True
         controller._profiler = MagicMock()
 
-        for i in range(1201):
+        for _i in range(1201):
             cycle_start = time.perf_counter()
             controller._record_profiling(1.0, 0.5, 0.5, cycle_start)
 

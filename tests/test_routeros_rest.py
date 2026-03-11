@@ -1010,7 +1010,7 @@ class TestSSLWarningSuppressionPerSession:
             patch("wanctl.routeros_rest.requests.Session"),
         ):
             with patch("urllib3.disable_warnings") as mock_disable:
-                client = RouterOSREST(
+                RouterOSREST(
                     host="192.168.1.1",
                     user="admin",
                     password="test",  # pragma: allowlist secret

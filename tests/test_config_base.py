@@ -940,7 +940,7 @@ lock_timeout: 300
 
     def test_max_bytes_and_backup_count_overridden(self, tmp_path):
         """Test max_bytes and backup_count can be overridden in YAML."""
-        yaml_with_overrides = self.MINIMAL_YAML + """\
+        self.MINIMAL_YAML + """\
   max_bytes: 5242880
   backup_count: 5
 """

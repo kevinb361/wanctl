@@ -2575,7 +2575,6 @@ class TestSteeringConfig:
 
     def test_legacy_cake_state_sources_spectrum_warns(self, tmp_path, valid_config_dict, caplog):
         """Test cake_state_sources.spectrum logs deprecation warning."""
-        import logging
 
         import yaml
 
@@ -2598,7 +2597,6 @@ class TestSteeringConfig:
 
     def test_legacy_spectrum_download_warns(self, tmp_path, valid_config_dict, caplog):
         """Test spectrum_download logs deprecation warning."""
-        import logging
 
         import yaml
 
@@ -2622,7 +2620,6 @@ class TestSteeringConfig:
 
     def test_legacy_spectrum_upload_warns(self, tmp_path, valid_config_dict, caplog):
         """Test spectrum_upload logs deprecation warning."""
-        import logging
 
         import yaml
 
@@ -2646,7 +2643,6 @@ class TestSteeringConfig:
 
     def test_primary_download_no_deprecation_warning(self, tmp_path, valid_config_dict, caplog):
         """Test modern primary_download does NOT log deprecation warning."""
-        import logging
 
         import yaml
 
@@ -2892,7 +2888,6 @@ class TestWanStateConfig:
 
     def test_absent_wan_state_logs_disabled_message(self, tmp_path, valid_config_dict, caplog):
         """Missing wan_state section logs disabled message."""
-        import logging
 
         with caplog.at_level(logging.INFO):
             self._make_config(tmp_path, valid_config_dict)
@@ -2900,7 +2895,6 @@ class TestWanStateConfig:
 
     def test_disabled_wan_state_logs_disabled_message(self, tmp_path, valid_config_dict, caplog):
         """wan_state.enabled: false logs disabled message."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": False}
         with caplog.at_level(logging.INFO):
@@ -2954,7 +2948,6 @@ class TestWanStateConfig:
 
     def test_enabled_wan_state_logs_enabled_message(self, tmp_path, valid_config_dict, caplog):
         """Enabled wan_state logs enabled message with parameters."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True}
         with caplog.at_level(logging.INFO):
@@ -2969,7 +2962,6 @@ class TestWanStateConfig:
 
     def test_wrong_type_enabled_warns_and_disables(self, tmp_path, valid_config_dict, caplog):
         """Non-bool enabled value warns and disables feature."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": "yes"}
         with caplog.at_level(logging.DEBUG):
@@ -2981,7 +2973,6 @@ class TestWanStateConfig:
 
     def test_wrong_type_red_weight_warns_and_disables(self, tmp_path, valid_config_dict, caplog):
         """Non-int red_weight warns and disables feature."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": "heavy"}
         with caplog.at_level(logging.DEBUG):
@@ -2996,7 +2987,6 @@ class TestWanStateConfig:
 
     def test_red_weight_clamped_to_steer_threshold_minus_one(self, tmp_path, valid_config_dict, caplog):
         """red_weight >= steer_threshold is clamped with warning."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 200}
         valid_config_dict["confidence"] = {"steer_threshold": 55}
@@ -3010,7 +3000,6 @@ class TestWanStateConfig:
 
     def test_red_weight_at_threshold_gets_clamped(self, tmp_path, valid_config_dict, caplog):
         """red_weight exactly at steer_threshold is clamped."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 55}
         valid_config_dict["confidence"] = {"steer_threshold": 55}
@@ -3042,7 +3031,6 @@ class TestWanStateConfig:
 
     def test_wan_override_true_logs_warning(self, tmp_path, valid_config_dict, caplog):
         """wan_override=True logs override active warning."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "wan_override": True}
         with caplog.at_level(logging.DEBUG):
@@ -3053,7 +3041,6 @@ class TestWanStateConfig:
 
     def test_wan_override_true_plus_disabled_warns(self, tmp_path, valid_config_dict, caplog):
         """wan_override=True + enabled=False produces validation warning."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": False, "wan_override": True}
         with caplog.at_level(logging.DEBUG):
@@ -3068,7 +3055,6 @@ class TestWanStateConfig:
 
     def test_unknown_keys_produce_warning(self, tmp_path, valid_config_dict, caplog):
         """Unknown keys in wan_state section produce typo warning."""
-        import logging
 
         valid_config_dict["wan_state"] = {"enabled": True, "redd_weight": 25, "typo_key": 99}
         with caplog.at_level(logging.DEBUG):
@@ -5343,7 +5329,6 @@ class TestCakeAwareDeprecation:
 
     def test_cake_aware_in_mode_logs_warning(self, tmp_path, caplog):
         """SteeringConfig with mode.cake_aware logs deprecation warning."""
-        import logging
 
         from wanctl.steering.daemon import SteeringConfig
 
@@ -5364,7 +5349,6 @@ class TestCakeAwareDeprecation:
 
     def test_no_cake_aware_no_warning(self, tmp_path, caplog):
         """SteeringConfig without mode.cake_aware does not log cake_aware warning."""
-        import logging
 
         from wanctl.steering.daemon import SteeringConfig
 

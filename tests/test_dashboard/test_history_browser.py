@@ -1,9 +1,7 @@
 """Tests for HistoryBrowserWidget -- time range selection, DataTable, summary stats."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 
 class TestHistoryBrowserCompose:
@@ -28,7 +26,7 @@ class TestHistoryBrowserCompose:
             app = TestApp()
             async with app.run_test(size=(120, 40)):
                 selects = app.query(Select)
-                statics = app.query(Static)
+                app.query(Static)
                 tables = app.query(DataTable)
                 assert len(selects) >= 1
                 # Static for summary
