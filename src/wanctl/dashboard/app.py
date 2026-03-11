@@ -320,6 +320,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Polling interval in seconds (default: 2)",
     )
     parser.add_argument(
+        "--secondary-autorate-url",
+        default=None,
+        help="Secondary autorate health endpoint URL for WAN 2 (default: disabled)",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default=None,

@@ -18,6 +18,7 @@ DEFAULTS: dict = {
     "autorate_url": "http://127.0.0.1:9101",
     "steering_url": "http://127.0.0.1:9102",
     "refresh_interval": 2,
+    "secondary_autorate_url": "",
 }
 
 
@@ -29,6 +30,7 @@ class DashboardConfig:
     steering_url: str = DEFAULTS["steering_url"]
     refresh_interval: int | float = DEFAULTS["refresh_interval"]
     wan_rate_limits: dict[str, dict[str, float]] = field(default_factory=dict)
+    secondary_autorate_url: str = DEFAULTS["secondary_autorate_url"]
 
 
 def get_config_dir() -> Path:
@@ -68,6 +70,9 @@ def load_dashboard_config(path: Path | None = None) -> DashboardConfig:
         steering_url=data.get("steering_url", DEFAULTS["steering_url"]),
         refresh_interval=data.get("refresh_interval", DEFAULTS["refresh_interval"]),
         wan_rate_limits=data.get("wan_rate_limits", {}),
+        secondary_autorate_url=data.get(
+            "secondary_autorate_url", DEFAULTS["secondary_autorate_url"]
+        ),
     )
 
 
@@ -97,4 +102,9 @@ def apply_cli_overrides(
             else config.refresh_interval
         ),
         wan_rate_limits=config.wan_rate_limits,
+        secondary_autorate_url=(
+            args.secondary_autorate_url
+            if getattr(args, "secondary_autorate_url", None) is not None
+            else config.secondary_autorate_url
+        ),
     )

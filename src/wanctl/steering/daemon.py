@@ -492,6 +492,13 @@ class SteeringConfig(BaseConfig):
         metrics_config = self.data.get("metrics", {})
         self.metrics_enabled = metrics_config.get("enabled", False)
 
+    def _load_health_check_config(self) -> None:
+        """Load health check settings with defaults."""
+        health = self.data.get("health_check", {})
+        self.health_check_enabled = health.get("enabled", True)
+        self.health_check_host = health.get("host", "127.0.0.1")
+        self.health_check_port = health.get("port", 9102)
+
     def _load_specific_fields(self) -> None:
         """Load steering daemon-specific configuration fields.
 
@@ -521,9 +528,10 @@ class SteeringConfig(BaseConfig):
         self.log_cake_stats = self.data.get("logging", {}).get("log_cake_stats", True)
         self._load_timeouts()
 
-        # Router dict and metrics
+        # Router dict, metrics, and health check
         self._build_router_dict()  # Depends on router fields from _load_router_transport
         self._load_metrics_config()
+        self._load_health_check_config()
 
 
 # =============================================================================
@@ -2009,15 +2017,16 @@ def main() -> int | None:
 
     # Start health server (INTG-01)
     health_server = None
-    try:
-        health_server = start_steering_health_server(
-            host="127.0.0.1",
-            port=9102,
-            daemon=daemon,
-        )
-    except Exception as e:
-        # Log and continue - health endpoint is optional
-        logger.warning(f"Failed to start health server: {e}")
+    if config.health_check_enabled:
+        try:
+            health_server = start_steering_health_server(
+                host=config.health_check_host,
+                port=config.health_check_port,
+                daemon=daemon,
+            )
+        except Exception as e:
+            # Log and continue - health endpoint is optional
+            logger.warning(f"Failed to start health server: {e}")
 
     # Get shutdown event for direct access in timed waits
     shutdown_event = get_shutdown_event()

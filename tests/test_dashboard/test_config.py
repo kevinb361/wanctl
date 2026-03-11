@@ -26,6 +26,9 @@ class TestDefaults:
     def test_defaults_has_refresh_interval(self):
         assert DEFAULTS["refresh_interval"] == 2
 
+    def test_defaults_has_secondary_autorate_url(self):
+        assert DEFAULTS["secondary_autorate_url"] == ""
+
 
 class TestLoadDashboardConfig:
     """Test config loading from YAML with defaults fallback."""
@@ -102,6 +105,21 @@ class TestLoadDashboardConfig:
             "att": {"dl_mbps": 100, "ul_mbps": 20},
         }
 
+    def test_secondary_autorate_url_defaults_to_empty(self, tmp_path):
+        """secondary_autorate_url defaults to empty string when not in config."""
+        nonexistent = tmp_path / "nonexistent" / "dashboard.yaml"
+        config = load_dashboard_config(nonexistent)
+        assert config.secondary_autorate_url == ""
+
+    def test_secondary_autorate_url_loaded_from_yaml(self, tmp_config_dir):
+        """secondary_autorate_url loaded from YAML config."""
+        config_file = tmp_config_dir / "dashboard.yaml"
+        config_file.write_text(
+            yaml.dump({"secondary_autorate_url": "http://10.0.0.2:9101"})
+        )
+        config = load_dashboard_config(config_file)
+        assert config.secondary_autorate_url == "http://10.0.0.2:9101"
+
     def test_wan_rate_limits_defaults_to_empty_dict(self, tmp_path):
         """wan_rate_limits defaults to empty dict when not in config."""
         nonexistent = tmp_path / "nonexistent" / "dashboard.yaml"
@@ -151,6 +169,30 @@ class TestCliOverrides:
         assert result.steering_url == "http://10.0.0.1:9102"  # Not overridden
         assert result.refresh_interval == 1
 
+    def test_cli_secondary_autorate_url_overrides_config(self):
+        """CLI --secondary-autorate-url overrides config value."""
+        config = DashboardConfig(secondary_autorate_url="http://from-config:9101")
+        args = argparse.Namespace(
+            autorate_url=None,
+            steering_url=None,
+            refresh_interval=None,
+            secondary_autorate_url="http://override:9101",
+        )
+        result = apply_cli_overrides(config, args)
+        assert result.secondary_autorate_url == "http://override:9101"
+
+    def test_cli_none_secondary_autorate_url_does_not_override(self):
+        """CLI None secondary_autorate_url does not override config value."""
+        config = DashboardConfig(secondary_autorate_url="http://from-config:9101")
+        args = argparse.Namespace(
+            autorate_url=None,
+            steering_url=None,
+            refresh_interval=None,
+            secondary_autorate_url=None,
+        )
+        result = apply_cli_overrides(config, args)
+        assert result.secondary_autorate_url == "http://from-config:9101"
+
     def test_cli_none_values_do_not_override(self):
         """CLI args with None values do not override config."""
         config = DashboardConfig(
@@ -162,6 +204,7 @@ class TestCliOverrides:
             autorate_url=None,
             steering_url=None,
             refresh_interval=None,
+            secondary_autorate_url=None,
         )
         result = apply_cli_overrides(config, args)
         assert result.autorate_url == "http://10.0.0.1:9101"
