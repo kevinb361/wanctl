@@ -16,11 +16,11 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ### Live Monitoring
 
-- [ ] **LIVE-01**: Per-WAN panel shows color-coded congestion state (GREEN/YELLOW/SOFT_RED/RED)
-- [ ] **LIVE-02**: Per-WAN panel shows current DL/UL rates and rate limits
-- [ ] **LIVE-03**: Per-WAN panel shows RTT baseline, load RTT, and delta
-- [ ] **LIVE-04**: Steering panel shows enabled/disabled status and confidence score
-- [ ] **LIVE-05**: Steering panel shows WAN awareness details (zone, staleness, grace period, contribution)
+- [x] **LIVE-01**: Per-WAN panel shows color-coded congestion state (GREEN/YELLOW/SOFT_RED/RED)
+- [x] **LIVE-02**: Per-WAN panel shows current DL/UL rates and rate limits
+- [x] **LIVE-03**: Per-WAN panel shows RTT baseline, load RTT, and delta
+- [x] **LIVE-04**: Steering panel shows enabled/disabled status and confidence score
+- [x] **LIVE-05**: Steering panel shows WAN awareness details (zone, staleness, grace period, contribution)
 
 ### Visualization
 
@@ -79,11 +79,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POLL-02 | Phase 73 | Complete |
 | POLL-03 | Phase 73 | Complete |
 | POLL-04 | Phase 73 | Complete |
-| LIVE-01 | Phase 73 | Pending |
-| LIVE-02 | Phase 73 | Pending |
-| LIVE-03 | Phase 73 | Pending |
-| LIVE-04 | Phase 73 | Pending |
-| LIVE-05 | Phase 73 | Pending |
+| LIVE-01 | Phase 73 | Complete |
+| LIVE-02 | Phase 73 | Complete |
+| LIVE-03 | Phase 73 | Complete |
+| LIVE-04 | Phase 73 | Complete |
+| LIVE-05 | Phase 73 | Complete |
 | VIZ-01 | Phase 74 | Pending |
 | VIZ-02 | Phase 74 | Pending |
 | VIZ-03 | Phase 74 | Pending |

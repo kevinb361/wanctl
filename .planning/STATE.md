@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.14
 milestone_name: Operational Visibility
-current_plan: Plan 2 of 3 in Phase 73
+current_plan: Plan 3 of 3 in Phase 73
 status: executing
-last_updated: "2026-03-11T18:30:56.000Z"
-last_activity: 2026-03-11 -- Completed 73-01 (dashboard package infrastructure, config, poller)
+last_updated: "2026-03-11T18:41:57.000Z"
+last_activity: 2026-03-11 -- Completed 73-02 (WanPanel, SteeringPanel, StatusBar widgets)
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Session State
@@ -20,29 +20,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.14 Operational Visibility -- Phase 73 Foundation (Plan 2 of 3)
+**Current focus:** v1.14 Operational Visibility -- Phase 73 Foundation (Plan 3 of 3)
 
 ## Position
 
 **Milestone:** v1.14 Operational Visibility
 **Phase:** 73 of 75 (Foundation)
-**Current Plan:** Plan 2 of 3 in Phase 73
+**Current Plan:** Plan 3 of 3 in Phase 73
 **Status:** Executing Phase 73
-**Last activity:** 2026-03-11 -- Completed 73-01 (dashboard package infrastructure, config, poller)
+**Last activity:** 2026-03-11 -- Completed 73-02 (WanPanel, SteeringPanel, StatusBar widgets)
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 8min
-- Total execution time: 8min
+- Total plans completed: 2
+- Average duration: 6min
+- Total execution time: 12min
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
 | 73    | 01   | 8min     | 2     | 10    |
+| 73    | 02   | 4min     | 2     | 6     |
 
 ## Accumulated Context
 
@@ -57,6 +58,9 @@ Progress: [███░░░░░░░] 33%
 - Simple YAML config loader (not BaseConfig) for dashboard-specific config
 - httpx.AsyncClient passed into poll() for testability and lifecycle control
 - asyncio.run() in tests instead of pytest-asyncio (not in dev deps)
+- Rich Text objects for widget render() -- enables direct unit testing without Textual App.run_test()
+- format_duration() in status_bar module, shared by SteeringPanel
+- Router connectivity handles both bool and dict formats for forward compatibility
 
 ### Known Issues
 
@@ -78,3 +82,4 @@ None.
 - 2026-03-11: v1.14 milestone started -- Operational Visibility (TUI Dashboard)
 - 2026-03-11: Roadmap created -- 3 phases (73-75), 27 requirements mapped, ready for Phase 73 planning
 - 2026-03-11: Completed 73-01 -- Dashboard package infra, config, poller (30 tests, 8min)
+- 2026-03-11: Completed 73-02 -- WanPanel, SteeringPanel, StatusBar widgets (36 new tests, 4min)
