@@ -151,7 +151,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start next cycle)
+## Current Milestone: v1.14 Operational Visibility
+
+**Goal:** Build a full-featured TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links.
+
+**Target features:**
+
+- Real-time congestion state, rates, baseline RTT, and steering status (live refresh)
+- Bandwidth sparkline/bar charts showing DL/UL rates over time
+- Steering decision log with confidence scores, WAN zone, and transition reasons
+- Historical metrics browser with selectable time ranges (1h, 6h, 24h, 7d)
+- Adaptive layout (side-by-side on wide terminals, tabbed on narrow)
+- Configurable endpoint URLs and DB path (run from local machine or containers)
+- Full keyboard navigation with filtering and drill-down
+- Daemon-side API additions as needed for richer dashboard data
 
 ### Deferred
 
@@ -344,4 +357,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-11 after v1.13 milestone completed_
+_Last updated: 2026-03-11 after v1.14 milestone started_

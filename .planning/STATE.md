@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.13
-milestone_name: Legacy Cleanup & Feature Graduation
+milestone: v1.14
+milestone_name: Operational Visibility
 current_plan: Not started
-status: archived
-last_updated: "2026-03-11T17:00:00.000Z"
-last_activity: 2026-03-11 -- v1.13 milestone archived and tagged
+status: defining_requirements
+last_updated: "2026-03-11T18:00:00.000Z"
+last_activity: 2026-03-11 -- Milestone v1.14 started
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Session State
@@ -20,21 +20,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 shipped — planning next milestone
+**Current focus:** v1.14 Operational Visibility — TUI dashboard
 
 ## Position
 
-**Milestone:** v1.13 Legacy Cleanup & Feature Graduation -- ARCHIVED
-**Phase:** 72 of 72 (WAN-Aware Enablement) -- Complete
-**Current Plan:** Not started
-**Status:** Milestone archived, ready for next milestone
-**Last activity:** 2026-03-11 -- v1.13 milestone archived and tagged
+**Milestone:** v1.14 Operational Visibility
+**Phase:** Not started (defining requirements)
+**Current Plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-03-11 — Milestone v1.14 started
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(Cleared at milestone boundary — see PROJECT.md Key Decisions table for full history)
+- Textual framework for TUI (async-native, CSS-styled widgets, active maintenance)
+- Adaptive layout: side-by-side on wide terminals, tabbed on narrow
+- Data sources: health endpoints (real-time) + SQLite (historical)
+- Configurable endpoint URLs and DB path (run from local machine or containers)
+- Full interactive: navigate panels, filter time ranges, drill into metrics
+- Selectable time ranges: 1h, 6h, 24h, 7d
+- Daemon-side API additions allowed if they improve the dashboard
+- `wanctl-dashboard` as standalone command
 
 ### Known Issues
 
@@ -53,4 +60,4 @@ None.
 
 ## Session Log
 
-- 2026-03-11: v1.13 milestone archived and tagged
+- 2026-03-11: v1.14 milestone started — Operational Visibility (TUI Dashboard)
