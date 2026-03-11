@@ -10,7 +10,6 @@ from datetime import datetime
 
 from rich.text import Text
 
-
 # Color mapping for congestion states
 STATE_COLORS: dict[str, str] = {
     "GREEN": "green",
