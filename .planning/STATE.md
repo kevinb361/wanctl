@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Plan 1 of 1 in Phase 70
-status: executing
-last_updated: "2026-03-11T13:53:50Z"
+current_plan: Not started
+status: planning
+last_updated: "2026-03-11T14:04:03.286Z"
 last_activity: 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
 progress:
   total_phases: 6
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
 **Phase:** 70 of 72 (Legacy Test Cleanup) -- Complete (1/1 plans)
-**Current Plan:** Complete
-**Status:** Phase 70 complete
+**Current Plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
 
 ## Accumulated Context
