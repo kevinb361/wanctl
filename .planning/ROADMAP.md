@@ -10,6 +10,10 @@ None
 
 ## Milestones
 
+### Active
+
+- **v1.14 Operational Visibility** - Phases 73-75 (in progress)
+
 ### Completed
 
 - [v1.13 Legacy Cleanup & Feature Graduation](milestones/v1.13-ROADMAP.md) (Phases 67-72) - SHIPPED 2026-03-11
@@ -36,7 +40,75 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+### v1.14 Operational Visibility
+
+**Milestone Goal:** Build a full-featured TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links, with adaptive layout and terminal compatibility.
+
+- [ ] **Phase 73: Foundation** - Polling engine, live status panels, CLI entry point, and infrastructure
+- [ ] **Phase 74: Visualization & History** - Sparklines, cycle budget gauge, and historical metrics browser
+- [ ] **Phase 75: Layout & Compatibility** - Adaptive wide/narrow layout, resize hysteresis, and terminal compatibility
+
+## Phase Details
+
+### Phase 73: Foundation
+**Goal**: Operator can launch `wanctl-dashboard` and see live, auto-refreshing status of both WAN links and steering decisions
+**Depends on**: Nothing (first phase of v1.14)
+**Requirements**: POLL-01, POLL-02, POLL-03, POLL-04, LIVE-01, LIVE-02, LIVE-03, LIVE-04, LIVE-05, INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05
+**Success Criteria** (what must be TRUE):
+  1. Running `wanctl-dashboard` opens a TUI showing per-WAN panels with color-coded congestion state, current DL/UL rates and limits, and RTT data (baseline, load, delta) that refreshes every 1-2 seconds
+  2. Steering panel displays enabled/disabled status, confidence score, and WAN awareness details (zone, staleness, grace period, contribution)
+  3. When one daemon endpoint is unreachable, that panel shows "offline" with last-seen timestamp while the other panel continues updating normally
+  4. CLI args (`--autorate-url`, `--steering-url`) override default endpoint URLs, a YAML config file persists dashboard settings, and a footer displays discoverable keybindings
+  5. `wanctl-dashboard` installs as a standalone command via `pip install wanctl[dashboard]` with textual and httpx as optional dependencies
+**Plans**: TBD
+
+Plans:
+- [ ] 73-01: TBD
+- [ ] 73-02: TBD
+- [ ] 73-03: TBD
+
+### Phase 74: Visualization & History
+**Goal**: Operator can see rate and RTT trends at a glance via sparklines and browse historical metrics with selectable time ranges
+**Depends on**: Phase 73
+**Requirements**: VIZ-01, VIZ-02, VIZ-03, VIZ-04, HIST-01, HIST-02, HIST-03, HIST-04
+**Success Criteria** (what must be TRUE):
+  1. Per-WAN bandwidth sparklines show DL/UL rate trends over a rolling ~2 minute window, and RTT delta sparkline uses color gradient (green=low, red=high)
+  2. Cycle budget gauge displays 50ms utilization percentage derived from health endpoint data
+  3. Historical metrics browser tab is accessible via keyboard navigation, with time range selector (1h, 6h, 24h, 7d) that loads a DataTable of metrics with summary statistics (min/max/avg/p95/p99)
+  4. All sparkline and trend data uses bounded deques -- memory usage stays constant regardless of dashboard runtime duration
+**Plans**: TBD
+
+Plans:
+- [ ] 74-01: TBD
+- [ ] 74-02: TBD
+
+### Phase 75: Layout & Compatibility
+**Goal**: Dashboard adapts gracefully to different terminal widths and works reliably in tmux and SSH sessions
+**Depends on**: Phase 74
+**Requirements**: LYOT-01, LYOT-02, LYOT-03, LYOT-04, LYOT-05
+**Success Criteria** (what must be TRUE):
+  1. WAN panels display side-by-side at >=120 columns and switch to stacked/tabbed layout below 120 columns
+  2. Resizing the terminal near the 120-column breakpoint does not cause layout flicker (hysteresis prevents rapid switching)
+  3. Dashboard renders correctly and accepts input in bare terminal, tmux, and SSH+tmux sessions
+  4. `--no-color` and `--256-color` CLI flags allow fallback for terminals with limited color support
+**Plans**: TBD
+
+Plans:
+- [ ] 75-01: TBD
+- [ ] 75-02: TBD
+
 ## Progress
+
+### Active Milestone: v1.14 Operational Visibility
+
+**Execution Order:**
+Phases execute in numeric order: 73 -> 74 -> 75
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 73. Foundation | 0/? | Not started | - |
+| 74. Visualization & History | 0/? | Not started | - |
+| 75. Layout & Compatibility | 0/? | Not started | - |
 
 ### Completed Milestones
 

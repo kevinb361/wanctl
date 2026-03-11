@@ -1,7 +1,7 @@
 # Requirements: wanctl v1.14
 
 **Defined:** 2026-03-11
-**Core Value:** Sub-second congestion detection with 50ms control loops — now with operational visibility via TUI dashboard
+**Core Value:** Sub-second congestion detection with 50ms control loops -- now with operational visibility via TUI dashboard
 
 ## v1.14 Requirements
 
@@ -11,7 +11,7 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 - [ ] **POLL-01**: Dashboard polls autorate health endpoint with configurable URL and 1-2s refresh interval
 - [ ] **POLL-02**: Dashboard polls steering health endpoint with configurable URL and 1-2s refresh interval
-- [ ] **POLL-03**: Each endpoint polled independently — one being unreachable does not affect others
+- [ ] **POLL-03**: Each endpoint polled independently -- one being unreachable does not affect others
 - [ ] **POLL-04**: Unreachable endpoint shows inline "offline" state with last-seen timestamp, continues polling with backoff
 
 ### Live Monitoring
@@ -67,7 +67,7 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 | Config editing from TUI | No audit trail, dangerous for production network controller |
 | Sub-second dashboard refresh | No visual benefit below 1s, wastes CPU |
 | Full Grafana-style charts | Terminal resolution makes them unreadable; sparklines sufficient |
-| Web UI | Deferred — TUI first, web later if needed |
+| Web UI | Deferred -- TUI first, web later if needed |
 
 ## Traceability
 
@@ -75,39 +75,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POLL-01 | — | Pending |
-| POLL-02 | — | Pending |
-| POLL-03 | — | Pending |
-| POLL-04 | — | Pending |
-| LIVE-01 | — | Pending |
-| LIVE-02 | — | Pending |
-| LIVE-03 | — | Pending |
-| LIVE-04 | — | Pending |
-| LIVE-05 | — | Pending |
-| VIZ-01 | — | Pending |
-| VIZ-02 | — | Pending |
-| VIZ-03 | — | Pending |
-| VIZ-04 | — | Pending |
-| HIST-01 | — | Pending |
-| HIST-02 | — | Pending |
-| HIST-03 | — | Pending |
-| HIST-04 | — | Pending |
-| LYOT-01 | — | Pending |
-| LYOT-02 | — | Pending |
-| LYOT-03 | — | Pending |
-| LYOT-04 | — | Pending |
-| LYOT-05 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
+| POLL-01 | Phase 73 | Pending |
+| POLL-02 | Phase 73 | Pending |
+| POLL-03 | Phase 73 | Pending |
+| POLL-04 | Phase 73 | Pending |
+| LIVE-01 | Phase 73 | Pending |
+| LIVE-02 | Phase 73 | Pending |
+| LIVE-03 | Phase 73 | Pending |
+| LIVE-04 | Phase 73 | Pending |
+| LIVE-05 | Phase 73 | Pending |
+| VIZ-01 | Phase 74 | Pending |
+| VIZ-02 | Phase 74 | Pending |
+| VIZ-03 | Phase 74 | Pending |
+| VIZ-04 | Phase 74 | Pending |
+| HIST-01 | Phase 74 | Pending |
+| HIST-02 | Phase 74 | Pending |
+| HIST-03 | Phase 74 | Pending |
+| HIST-04 | Phase 74 | Pending |
+| LYOT-01 | Phase 75 | Pending |
+| LYOT-02 | Phase 75 | Pending |
+| LYOT-03 | Phase 75 | Pending |
+| LYOT-04 | Phase 75 | Pending |
+| LYOT-05 | Phase 75 | Pending |
+| INFRA-01 | Phase 73 | Pending |
+| INFRA-02 | Phase 73 | Pending |
+| INFRA-03 | Phase 73 | Pending |
+| INFRA-04 | Phase 73 | Pending |
+| INFRA-05 | Phase 73 | Pending |
 
 **Coverage:**
-- v1.14 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26 ⚠️
+- v1.14 requirements: 27 total
+- Mapped to phases: 27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation*
