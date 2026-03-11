@@ -1,0 +1,52 @@
+/* Dashboard layout - vertical stack with bottom status bar */
+
+Vertical {
+    width: 100%;
+    height: 100%;
+}
+
+WanPanelWidget {
+    height: auto;
+    min-height: 5;
+    border: solid green;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+SteeringPanelWidget {
+    height: auto;
+    min-height: 5;
+    border: solid cyan;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+StatusBarWidget {
+    height: 1;
+    dock: bottom;
+    background: $surface;
+    color: $text;
+}
+
+/* Congestion state color classes */
+.state-green {
+    color: green;
+}
+
+.state-yellow {
+    color: yellow;
+}
+
+.state-soft-red {
+    color: darkorange;
+}
+
+.state-red {
+    color: red;
+    text-style: bold;
+}
+
+/* Offline dimming */
+.offline {
+    opacity: 0.5;
+}
