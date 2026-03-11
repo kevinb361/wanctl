@@ -1,8 +1,7 @@
 """Tests for dashboard entry point and pyproject.toml correctness."""
 
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 
 class TestEntryPoint:
