@@ -81,12 +81,12 @@ Plans:
 2. Cycle budget gauge displays 50ms utilization percentage derived from health endpoint data
 3. Historical metrics browser tab is accessible via keyboard navigation, with time range selector (1h, 6h, 24h, 7d) that loads a DataTable of metrics with summary statistics (min/max/avg/p95/p99)
 4. All sparkline and trend data uses bounded deques -- memory usage stays constant regardless of dashboard runtime duration
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 74-01: TBD
-- [ ] 74-02: TBD
+- [ ] 74-01-PLAN.md -- Sparkline trend widgets, cycle budget gauge, and poll routing
+- [ ] 74-02-PLAN.md -- Historical metrics browser with TabbedContent, time range selector, and summary stats
 
 ### Phase 75: Layout & Compatibility
 
@@ -116,7 +116,7 @@ Phases execute in numeric order: 73 -> 74 -> 75
 | Phase                       | Plans Complete | Status      | Completed  |
 | --------------------------- | -------------- | ----------- | ---------- |
 | 73. Foundation              | 3/3            | Complete    | 2026-03-11 |
-| 74. Visualization & History | 0/?            | Not started | -          |
+| 74. Visualization & History | 0/2            | Not started | -          |
 | 75. Layout & Compatibility  | 0/?            | Not started | -          |
 
 ### Completed Milestones
