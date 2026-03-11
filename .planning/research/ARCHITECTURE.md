@@ -1,526 +1,434 @@
-# Architecture: WAN-Aware Steering Integration
+# Architecture Research: TUI Dashboard Integration
 
-**Domain:** Multi-signal congestion detection for dual-WAN steering
-**Researched:** 2026-03-09
-**Confidence:** HIGH (all findings from direct codebase analysis of 2,109-test, 16,493 LOC production system)
+**Domain:** Real-time network monitoring TUI for existing dual-WAN controller
+**Researched:** 2026-03-11
+**Confidence:** HIGH
 
-## Executive Summary
-
-WAN-aware steering closes a specific gap: autorate measures ISP-level congestion via end-to-end RTT (the WAN path), but this signal never reaches the steering daemon. Steering currently relies only on CAKE queue stats (local link congestion) and its own independent RTT measurement. When the ISP is congested but local CAKE queues are clean (because CAKE is doing its job), steering has no reason to act. This is the scenario v1.11 addresses.
-
-The integration requires exactly 4 changes:
-1. Autorate writes its congestion zone to the state file (1 field addition)
-2. Steering reads that zone when it already reads baseline_rtt (extend existing reader)
-3. A small hysteresis gate filters the raw zone before scoring (new ~60-line class)
-4. compute_confidence() gains a WAN weight (1 constant, ~10 lines)
-
-No architectural spine changes. No new files required (all changes fit in existing modules). No new IPC mechanisms. No daemon coupling.
-
-## Current Architecture (Before v1.11)
-
-### System Topology
+## System Overview
 
 ```
-cake-spectrum container              cake-att container
-+-----------------------------+      +-------------------+
-| autorate_continuous (50ms)  |      | autorate (50ms)   |
-|   - RTT measurement        |      |   - RTT meas.     |
-|   - 4-state zone logic      |      |   - Rate adjust   |
-|   - Rate adjustment         |      +-------------------+
-|   - Writes: spectrum_state  |
-|     .json                   |
-|                             |
-| steering_daemon (500ms)     |
-|   - Own RTT measurement     |
-|   - CAKE queue stats        |
-|   - Reads: spectrum_state   |
-|     .json (baseline_rtt)    |
-|   - Confidence scoring      |
-|   - RouterOS mangle control |
-+-----------------------------+
+                     LOCAL MACHINE (or any host)
+  ┌──────────────────────────────────────────────────────────────┐
+  │                    wanctl-dashboard (TUI)                    │
+  │                                                              │
+  │  ┌────────────┐  ┌────────────┐  ┌────────────┐             │
+  │  │  Live View  │  │  History   │  │  Steering  │   Textual   │
+  │  │  (Tab 1)   │  │  (Tab 2)   │  │  (Tab 3)   │   App       │
+  │  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘             │
+  │        │               │               │                     │
+  │  ┌─────┴───────────────┴───────────────┴──────┐              │
+  │  │           DataPoller (async worker)         │              │
+  │  │     httpx.AsyncClient with connection pool  │              │
+  │  └────────────────┬───────────────────────────┘              │
+  └───────────────────│──────────────────────────────────────────┘
+                      │  HTTP (JSON)
+        ┌─────────────┴──────────────┐
+        │                            │
+        ▼                            ▼
+  ┌───────────┐              ┌───────────┐
+  │cake-spectrum│             │ cake-att  │        CONTAINERS
+  │           │              │           │        (Docker)
+  │ :9101     │              │ :9101     │
+  │ /health   │              │ /health   │
+  │ /metrics/ │              │           │
+  │  history  │              │           │
+  │           │              │           │
+  │ :9102     │              │           │
+  │ /health   │              │           │
+  │ (steering)│              │           │
+  └───────────┘              └───────────┘
 ```
 
-### Inter-Process Communication
+### Key Architectural Decision: HTTP-Only, No Direct SQLite
 
-The ONLY communication channel between autorate and steering is the state file at `/run/wanctl/spectrum_state.json` (derived from lock file path), read via `safe_json_load_file()`.
+The dashboard communicates with daemons exclusively via their existing HTTP health endpoints. **No direct SQLite access.**
 
-**Current state file schema (written by WANControllerState.save()):**
-```json
-{
-  "download": {
-    "green_streak": 0,
-    "soft_red_streak": 0,
-    "red_streak": 0,
-    "current_rate": 940000000
-  },
-  "upload": {
-    "green_streak": 0,
-    "soft_red_streak": 0,
-    "red_streak": 0,
-    "current_rate": 38000000
-  },
-  "ewma": {
-    "baseline_rtt": 24.5,
-    "load_rtt": 25.1
-  },
-  "last_applied": {
-    "dl_rate": 940000000,
-    "ul_rate": 38000000
-  },
-  "timestamp": "2026-03-09T12:00:00.000000"
+**Rationale:**
+1. SQLite databases live inside Docker containers at `/var/lib/wanctl/metrics.db`. Direct access would require volume mounts or container filesystem access -- fragile and deployment-specific.
+2. The `/metrics/history` endpoint already exists on port 9101 with time-range queries, granularity selection, pagination, and metric filtering. This API was built in v1.7 precisely for this use case.
+3. HTTP works identically whether the dashboard runs on the same machine, a different host, or even over SSH tunnels. Direct SQLite reads only work locally.
+4. WAL mode in SQLite supports concurrent readers, but cross-container reads over shared volumes introduce latency and locking edge cases that HTTP avoids.
+5. The health endpoints already aggregate controller state that would be complex to reconstruct from raw metrics (congestion state, confidence scores, WAN awareness, cycle budgets).
+
+**What this means:** The dashboard is a pure consumer of existing APIs. Zero daemon-side code changes are needed for the initial build. Any future daemon-side additions (like a steering decision log endpoint) are additive, not structural.
+
+## Component Responsibilities
+
+| Component | Responsibility | New vs Existing |
+|-----------|----------------|-----------------|
+| `wanctl-dashboard` | TUI application entry point | **NEW** |
+| `DataPoller` | Async HTTP polling loop, connection management | **NEW** |
+| `DashboardConfig` | YAML config for endpoints, poll intervals, layout | **NEW** |
+| Health endpoint (autorate, :9101) | Live WAN state, rates, RTT, cycle budget | EXISTING |
+| Health endpoint (steering, :9102) | Steering state, confidence, WAN awareness | EXISTING |
+| `/metrics/history` endpoint (:9101) | Historical metrics with time-range queries | EXISTING |
+| Sparkline/PlotextPlot widgets | Bandwidth and RTT visualization | **NEW** (Textual built-in + textual-plotext) |
+| Live status panels | Congestion state, rates, baseline | **NEW** (Textual widgets) |
+| Steering log panel | Decision history with confidence scores | **NEW** (Textual widget, may need daemon endpoint) |
+
+## Recommended Project Structure
+
+```
+src/wanctl/
+├── dashboard/                  # NEW: TUI dashboard package
+│   ├── __init__.py
+│   ├── app.py                  # Textual App subclass, entry point
+│   ├── config.py               # DashboardConfig (YAML loader)
+│   ├── poller.py               # DataPoller: async HTTP polling
+│   ├── models.py               # Dataclasses for health/metrics responses
+│   ├── screens/                # Textual Screen subclasses (if needed)
+│   │   └── __init__.py
+│   ├── widgets/                # Custom Textual widgets
+│   │   ├── __init__.py
+│   │   ├── wan_status.py       # Per-WAN status panel (state, rates, RTT)
+│   │   ├── bandwidth_chart.py  # Sparkline or PlotextPlot for DL/UL
+│   │   ├── steering_panel.py   # Steering state, confidence, WAN awareness
+│   │   └── history_browser.py  # Historical metrics with time-range selector
+│   └── styles/
+│       └── dashboard.tcss      # Textual CSS for layout and theming
+├── ... (existing modules unchanged)
+```
+
+### Structure Rationale
+
+- **`dashboard/` as subpackage of `wanctl`:** Shares the `wanctl` namespace for import consistency (`from wanctl.dashboard.app import DashboardApp`). Installed via the same `pyproject.toml` with an additional entry point. No separate package needed.
+- **`widgets/` separated from `app.py`:** Each widget is self-contained with its own data binding and rendering logic. Textual's composition model maps well to one-widget-per-file.
+- **`styles/` with TCSS file:** Textual CSS separates presentation from logic. The `.tcss` file handles layout, colors, and responsive breakpoints. This follows Textual's recommended pattern.
+- **`models.py` for response types:** Typed dataclasses for health endpoint responses provide IDE completion and catch API drift at parse time rather than deep in widget code.
+- **`poller.py` isolated:** The HTTP polling logic is independent of Textual. This makes it unit-testable without a running TUI and reusable if a web dashboard is ever built.
+
+## Architectural Patterns
+
+### Pattern 1: Async Polling with Textual Workers
+
+**What:** Use Textual's `set_interval()` to trigger periodic async HTTP fetches via `@work` decorator. The worker fetches from all endpoints concurrently using `httpx.AsyncClient`, then posts results as Textual messages.
+
+**When to use:** For the live view tab that needs sub-second refresh rates.
+
+**Trade-offs:** Simple and idiomatic. Textual handles cancellation on shutdown. The `exclusive=True` flag prevents stale request pileup if an endpoint is slow.
+
+```python
+from textual.app import App
+from textual.worker import Worker
+import httpx
+
+class DashboardApp(App):
+    def on_mount(self) -> None:
+        self.poll_interval = self.set_interval(
+            1.0, self.poll_endpoints
+        )
+
+    @work(exclusive=True)
+    async def poll_endpoints(self) -> None:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            autorate = await client.get(f"{self.config.autorate_url}/health")
+            steering = await client.get(f"{self.config.steering_url}/health")
+        self.post_message(HealthUpdate(
+            autorate=autorate.json(),
+            steering=steering.json(),
+        ))
+```
+
+### Pattern 2: Connection Pooling with Persistent Client
+
+**What:** Create a single `httpx.AsyncClient` instance at app startup rather than per-poll. Connection reuse eliminates TCP handshake overhead on every poll cycle.
+
+**When to use:** Always. The dashboard polls 2-3 endpoints every 1-2 seconds. Without pooling, that is 6+ TCP connections per second.
+
+**Trade-offs:** Must handle client lifecycle (create on mount, close on shutdown). Must handle connection errors gracefully when a daemon is unreachable.
+
+```python
+class DataPoller:
+    def __init__(self, endpoints: list[EndpointConfig]) -> None:
+        self._client: httpx.AsyncClient | None = None
+        self._endpoints = endpoints
+
+    async def start(self) -> None:
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(5.0, connect=2.0),
+            limits=httpx.Limits(max_connections=10),
+        )
+
+    async def stop(self) -> None:
+        if self._client:
+            await self._client.aclose()
+
+    async def poll_all(self) -> dict[str, dict]:
+        results = {}
+        for ep in self._endpoints:
+            try:
+                resp = await self._client.get(ep.health_url)
+                results[ep.name] = resp.json()
+            except httpx.RequestError:
+                results[ep.name] = {"status": "unreachable"}
+        return results
+```
+
+### Pattern 3: Reactive Data Binding for Widget Updates
+
+**What:** Use Textual's reactive attributes to propagate polled data to widgets. When the poller posts a `HealthUpdate` message, the app handler updates reactive attributes on each widget, triggering automatic re-renders.
+
+**When to use:** For all live-updating widgets (status panels, sparklines, steering panel).
+
+**Trade-offs:** Clean separation between data flow and rendering. Widgets never know about HTTP -- they just watch their reactive `data` attribute change.
+
+```python
+from textual.reactive import reactive
+from textual.widgets import Static
+
+class WanStatusWidget(Static):
+    wan_data: reactive[dict | None] = reactive(None)
+
+    def watch_wan_data(self, data: dict | None) -> None:
+        if data is None:
+            self.update("[dim]Waiting for data...[/dim]")
+            return
+        state = data["download"]["state"]
+        rate = data["download"]["current_rate_mbps"]
+        self.update(f"DL: {rate} Mbps [{state}]")
+```
+
+### Pattern 4: Adaptive Layout with Terminal Width Detection
+
+**What:** Use Textual CSS media queries (or `on_resize` handler) to switch between side-by-side (wide terminal) and tabbed (narrow terminal) layouts.
+
+**When to use:** When the dashboard must work on both wide monitors and SSH sessions on laptops.
+
+**Trade-offs:** CSS-based approach is simpler but limited to what TCSS supports. Python-based `on_resize` gives full control but adds complexity. Start with CSS, fall back to Python if needed.
+
+```css
+/* dashboard.tcss */
+#wan-panels {
+    layout: horizontal;
+}
+
+/* Narrow terminal: stack vertically */
+@media (width < 100) {
+    #wan-panels {
+        layout: vertical;
+    }
 }
 ```
 
-**What steering reads today:** Only `ewma.baseline_rtt` (via `BaselineLoader.load_baseline_rtt()` at line 575 of daemon.py).
+## Data Flow
 
-**What autorate computes but does NOT persist:**
-- `dl_zone` -- the 4-state congestion zone (GREEN/YELLOW/SOFT_RED/RED) computed by `adjust_4state()` in each cycle
-- `ul_zone` -- the 3-state upload zone
-- These are used for rate decisions and metrics but lost after each cycle
-
-### The Gap
-
-The steering daemon's `assess_congestion_state()` operates on CAKE queue stats (drops, queue depth) from the local link. It has a 3-state model (GREEN/YELLOW/RED). This works when congestion manifests as local queue buildup.
-
-But when the ISP path is congested BEYOND the CAKE queue (e.g., CMTS scheduler delays on Spectrum cable), CAKE queues remain clean while RTT rises. In this case:
-- Autorate sees it: `dl_zone = SOFT_RED` or `RED` (RTT delta > 45ms or >80ms)
-- Steering misses it: CAKE drops=0, queue=0, so `assess_congestion_state()` returns GREEN
-
-This means steering won't activate during ISP-level congestion when CAKE is effectively managing the local queue -- exactly the scenario where steering would help most.
-
-## Proposed Architecture (After v1.11)
-
-### Data Flow (Changed Components Marked)
+### Live Polling Flow
 
 ```
-autorate_continuous.save_state()
-        |
-        v
-[spectrum_state.json]
-    |-- ewma.baseline_rtt         (existing)
-    |-- ewma.load_rtt             (existing)
-    |-- congestion.dl_state  ---- (NEW: "GREEN"|"YELLOW"|"SOFT_RED"|"RED")
-    |-- congestion.ul_state  ---- (NEW: "GREEN"|"YELLOW"|"RED")
-    |-- congestion.timestamp ---- (NEW: ISO 8601)
-        |
-        v
-AutorateStateLoader.load()  ----- (RENAMED from BaselineLoader)
-    |-- baseline_rtt              (existing extraction)
-    |-- wan_dl_state              (NEW extraction)
-        |
-        v
-WANStateGate.update(raw_state) -- (NEW: hysteresis filter)
-    |-- confirmed_state           (filtered, stable signal)
-        |
-        v
-compute_confidence(signals)  ---- (MODIFIED: add WAN weight)
-    |-- score (0-100)
-        |
-        v
-[existing ConfidenceController / TimerManager pipeline, UNCHANGED]
+set_interval(1.0s)
+    |
+    v
+poll_endpoints() [@work(exclusive=True)]
+    |
+    +---> GET http://<autorate_host>:9101/health  --> JSON
+    +---> GET http://<steering_host>:9102/health  --> JSON
+    |
+    v
+HealthUpdate message posted to App
+    |
+    v
+on_health_update() handler
+    |
+    +---> wan_status.wan_data = response["wans"][0]
+    +---> steering_panel.steering_data = response["steering"]
+    +---> sparkline.data = append(sparkline.data, new_rate)
+    +---> connection_indicator.status = "connected"
 ```
 
-### Component Inventory: NEW vs. MODIFIED vs. UNCHANGED
+### Historical Query Flow
 
-| Component | Status | File | Change Description |
-|-----------|--------|------|--------------------|
-| `WANControllerState.save()` | MODIFIED | `wan_controller_state.py` | Add `congestion` section to state dict |
-| `WANControllerState._is_state_changed()` | MODIFIED | `wan_controller_state.py` | Include `congestion` in dirty tracking |
-| `WANController.save_state()` | MODIFIED | `autorate_continuous.py` | Pass `dl_zone`, `ul_zone` to save() |
-| `WANController.run_cycle()` | MODIFIED | `autorate_continuous.py` | Capture zones before save_state call |
-| `BaselineLoader` -> `AutorateStateLoader` | RENAMED+MODIFIED | `steering/daemon.py` | Add `load_wan_state()`, rename class |
-| `WANStateGate` | **NEW** | `steering/wan_state_gate.py` OR inline in `steering/daemon.py` | ~60 lines, hysteresis filter |
-| `compute_confidence()` | MODIFIED | `steering/steering_confidence.py` | Add WAN weight constant + scoring branch |
-| `ConfidenceSignals` | MODIFIED | `steering/steering_confidence.py` | Add `wan_state: str` field (default "GREEN") |
-| `ConfidenceWeights` | MODIFIED | `steering/steering_confidence.py` | Add `WAN_RED_STATE`, `WAN_SOFT_RED_STATE` |
-| `SteeringDaemon.__init__()` | MODIFIED | `steering/daemon.py` | Wire WANStateGate |
-| `SteeringDaemon.run_cycle()` | MODIFIED | `steering/daemon.py` | Read WAN state, pass through gate to confidence |
-| `SteeringConfig` | MODIFIED | `steering/daemon.py` | Add wan_state config section |
-| `steering.yaml` | MODIFIED | `configs/steering.yaml` | Add wan_state config block |
-| `SteeringHealthHandler` | MODIFIED | `steering/health.py` | Expose WAN state in health endpoint |
-| `assess_congestion_state()` | **UNCHANGED** | `steering/congestion_assessment.py` | NOT touched (CAKE-only responsibility) |
-| `TimerManager` | **UNCHANGED** | `steering/steering_confidence.py` | NOT touched |
-| `FlapDetector` | **UNCHANGED** | `steering/steering_confidence.py` | NOT touched |
-| `CakeStatsReader` | **UNCHANGED** | `steering/cake_stats.py` | NOT touched |
-| `StateManager` / `SteeringStateManager` | **UNCHANGED** | `state_manager.py` | NOT touched |
-| `RouterOSController` | **UNCHANGED** | `steering/daemon.py` | NOT touched |
-
-### Architectural Spine Compliance
-
-Checking each spine rule from CLAUDE.md:
-
-1. **"All decisions based on RTT delta (not absolute RTT)"** -- COMPLIANT. WAN state derived from RTT delta in autorate. Steering uses it as an additional confidence signal, not a direct decision.
-
-2. **"Baseline must remain frozen during load"** -- COMPLIANT. No changes to baseline logic.
-
-3. **"Rate decreases: immediate / Rate increases: require sustained GREEN"** -- COMPLIANT. No changes to rate logic.
-
-4. **"Only secondary WAN makes routing decisions"** -- COMPLIANT. Only cake-spectrum's steering daemon reads the signal.
-
-5. **"Steering is binary: enabled or disabled"** -- COMPLIANT. WAN state feeds confidence score, which drives the existing binary GOOD/DEGRADED state machine.
-
-6. **"Only new latency-sensitive connections rerouted"** -- COMPLIANT. No change to mangle rule behavior.
-
-7. **"Autorate baseline RTT is authoritative (steering must not alter)"** -- COMPLIANT. Steering reads, never writes.
-
-**No spine rules are violated by this design.**
-
-## Detailed Component Design
-
-### 1. State File Extension (autorate side)
-
-**File:** `wan_controller_state.py`
-
-Add a `congestion` key to the state dict alongside existing `download`, `upload`, `ewma`, `last_applied`:
-
-```python
-# In WANControllerState.save():
-state = {
-    "download": download,
-    "upload": upload,
-    "ewma": ewma,
-    "last_applied": last_applied,
-    "congestion": {          # NEW
-        "dl_state": dl_state,  # "GREEN"|"YELLOW"|"SOFT_RED"|"RED"
-        "ul_state": ul_state,  # "GREEN"|"YELLOW"|"RED"
-    },
-    "timestamp": datetime.datetime.now().isoformat(),
-}
+```
+User selects time range (1h / 6h / 24h / 7d)
+    |
+    v
+fetch_history() [@work]
+    |
+    v
+GET http://<autorate_host>:9101/metrics/history?range=1h&metrics=wanctl_rate_download_mbps
+    |
+    v
+HistoryUpdate message posted to App
+    |
+    v
+history_browser widget updates chart with response["data"]
 ```
 
-**Impact on dirty tracking:** `_is_state_changed()` must include `congestion` in its comparison dict. Since `dl_zone` changes rarely (stays GREEN for thousands of cycles), this adds negligible write overhead.
+### Connection State Flow
 
-**Backward compatibility:** Steering's reader must handle state files without the `congestion` key (produced by older autorate versions during rolling upgrades).
-
-### 2. AutorateStateLoader (renamed BaselineLoader)
-
-**File:** `steering/daemon.py` (inline, where BaselineLoader currently lives)
-
-Rename `BaselineLoader` to `AutorateStateLoader`. Add `load_wan_state()` method that reads `congestion.dl_state` from the same file already opened for baseline_rtt:
-
-```python
-def load_wan_state(self) -> str | None:
-    """Load WAN congestion state from autorate state file.
-
-    Returns: "GREEN", "YELLOW", "SOFT_RED", "RED", or None if unavailable.
-    """
-    state = safe_json_load_file(
-        self.config.primary_state_file,
-        logger=self.logger,
-        error_context="autorate state",
-    )
-    if state is None:
-        return None
-
-    congestion = state.get("congestion", {})
-    dl_state = congestion.get("dl_state")
-
-    if dl_state not in ("GREEN", "YELLOW", "SOFT_RED", "RED"):
-        return None  # Invalid or missing -- caller treats as unknown
-
-    return dl_state
+```
+poll_endpoints() attempt
+    |
+    +-- success --> connection_status = "connected", update widgets
+    |
+    +-- httpx.ConnectError --> connection_status = "disconnected"
+    |                          show last-known data grayed out
+    |                          continue polling (will auto-reconnect)
+    |
+    +-- httpx.TimeoutException --> connection_status = "timeout"
+                                   increment error counter
+                                   continue polling
 ```
 
-**Design decision -- single read vs. combined read:** The existing `load_baseline_rtt()` opens the file independently. With two pieces of data needed from the same file, refactor to a single read that returns both:
+## Entry Point and Configuration
 
-```python
-@dataclass
-class AutorateSnapshot:
-    baseline_rtt: float | None
-    wan_dl_state: str | None  # "GREEN"|"YELLOW"|"SOFT_RED"|"RED" or None
-    file_age_seconds: float | None
+### Entry Point (pyproject.toml addition)
+
+```toml
+[project.scripts]
+wanctl-dashboard = "wanctl.dashboard.app:main"
 ```
 
-This eliminates the double-read anti-pattern.
+This follows the existing pattern: `wanctl`, `wanctl-calibrate`, `wanctl-steering`, `wanctl-history` are all defined the same way.
 
-### 3. WANStateGate (new component)
+### Configuration (YAML)
 
-**Location decision:** Small enough (~60 lines) to live in `steering/daemon.py` alongside AutorateStateLoader. If it grows, can be extracted later. Creating a new file for 60 lines is over-engineering.
-
-**Purpose:** Applies Schmitt-trigger hysteresis to the raw WAN state before it enters the confidence scorer. This prevents rapid GREEN/RED oscillation at zone boundaries from injecting noise.
-
-```python
-class WANStateGate:
-    """Hysteresis filter for WAN congestion state.
-
-    Prevents rapid oscillation of WAN state from causing
-    confidence score instability. Requires sustained bad state
-    before confirming degradation, and sustained good state
-    before confirming recovery.
-    """
-
-    def __init__(
-        self,
-        degrade_cycles: int,     # Cycles of RED/SOFT_RED before confirming
-        recovery_cycles: int,    # Cycles of GREEN before clearing
-        staleness_threshold: float,  # Seconds before treating state as stale
-        logger: logging.Logger,
-    ):
-        ...
-
-    def update(self, raw_state: str | None, file_age: float | None) -> str:
-        """Process raw WAN state through hysteresis.
-
-        Returns: confirmed state ("GREEN", "YELLOW", "SOFT_RED", "RED")
-        Defaults to "GREEN" for None/stale/unknown input.
-        """
-        ...
-```
-
-**Hysteresis parameters (from milestone context):**
-- Degrade: ~1 second sustained RED/SOFT_RED (at steering's 500ms cycle = 2 cycles)
-- Recovery: ~3 seconds sustained GREEN (at 500ms = 6 cycles)
-- Staleness: 5 seconds (if state file not updated in 5s, treat as unknown/GREEN)
-
-**Staleness detection:** The state file's `timestamp` field (ISO 8601) or filesystem mtime. BaselineLoader already has `_check_staleness()` with `STALE_BASELINE_THRESHOLD_SECONDS = 300` (5 minutes). For WAN state, a tighter threshold is needed: 5 seconds (proposed in milestone context), because the steering decision should not be based on a 5-minute-old congestion reading.
-
-### 4. Confidence Scoring Extension
-
-**File:** `steering/steering_confidence.py`
-
-Add WAN state weights to `ConfidenceWeights`:
-
-```python
-class ConfidenceWeights:
-    # Existing weights...
-    RED_STATE = 50
-    SOFT_RED_SUSTAINED = 25
-    # ...
-
-    # NEW: WAN-level congestion signals (from autorate state)
-    WAN_RED = 30       # ISP-level congestion confirmed by autorate
-    WAN_SOFT_RED = 15  # ISP-level RTT-only congestion
-```
-
-Add `wan_state` field to `ConfidenceSignals`:
-
-```python
-@dataclass
-class ConfidenceSignals:
-    cake_state: str
-    rtt_delta_ms: float
-    drops_per_sec: float
-    queue_depth_pct: float
-    # ... existing fields ...
-
-    # NEW: WAN-level congestion state from autorate
-    wan_state: str = "GREEN"  # Default GREEN = no contribution
-```
-
-Extend `compute_confidence()`:
-
-```python
-# After existing CAKE state scoring:
-if signals.wan_state == "RED":
-    score += ConfidenceWeights.WAN_RED
-    contributors.append("wan_RED")
-elif signals.wan_state == "SOFT_RED":
-    score += ConfidenceWeights.WAN_SOFT_RED
-    contributors.append("wan_SOFT_RED")
-```
-
-**Weight rationale:**
-- WAN_RED (30) is lower than CAKE RED_STATE (50) because WAN state is a secondary/amplifying signal, not primary. CAKE stats remain the authoritative local signal.
-- WAN_RED (30) alone is not enough to trigger steering (threshold is 55). It requires corroboration from at least one other signal (YELLOW=10 + WAN_RED=30 = 40, still under 55).
-- WAN_RED (30) + CAKE YELLOW (10) + RTT_DELTA_HIGH (15) = 55, which triggers the sustain timer. This is the intended "WAN amplifies weak local signals" behavior.
-- WAN_SOFT_RED (15) is a weak signal, acting as a tiebreaker when other signals are marginal.
-
-### 5. Configuration Extension
-
-**File:** `configs/steering.yaml`
+The dashboard needs its own minimal config. It does **not** reuse the autorate/steering YAML files (those contain router credentials and daemon-specific settings). A separate file keeps concerns clean.
 
 ```yaml
-# WAN-aware steering (v1.11)
-# Reads autorate's WAN congestion state as additional failover signal
-wan_state:
-  enabled: true
-  staleness_threshold_sec: 5.0    # Ignore WAN state older than 5s
-  degrade_sustain_cycles: 2       # ~1s at 500ms cycle
-  recovery_sustain_cycles: 6      # ~3s at 500ms cycle
+# /etc/wanctl/dashboard.yaml (or ~/.config/wanctl/dashboard.yaml)
+endpoints:
+  - name: "Spectrum"
+    autorate_url: "http://cake-spectrum:9101"
+    steering_url: "http://cake-spectrum:9102"
+  - name: "ATT"
+    autorate_url: "http://cake-att:9101"
+
+polling:
+  live_interval_sec: 1.0      # How often to poll /health
+  history_interval_sec: 30.0   # How often to refresh history charts
+
+display:
+  theme: "dark"                # dark or light
+  sparkline_points: 120        # Number of data points in sparklines (2min at 1s)
 ```
 
-### 6. Health Endpoint Extension
+**Why separate config file:** The dashboard runs on a different machine (or at least a different process) than the daemons. It does not need router credentials, queue names, or bandwidth limits. It only needs endpoint URLs and display preferences.
 
-**File:** `steering/health.py`
+**Config loading:** Use `yaml.safe_load()` pattern. No need for `BaseConfig` subclassing -- the dashboard config is simpler (no router validation, no lock files, no logging rotation). A standalone `DashboardConfig` dataclass with YAML loading is sufficient.
 
-Add WAN state to the health response:
+**CLI override pattern:**
 
-```python
-health["wan_state"] = {
-    "raw": raw_wan_state,           # Direct from state file
-    "confirmed": confirmed_state,    # After hysteresis gate
-    "file_age_seconds": file_age,
-    "stale": file_age > staleness_threshold if file_age else True,
-}
+```bash
+# Use config file
+wanctl-dashboard --config /etc/wanctl/dashboard.yaml
+
+# Quick single-endpoint use (no config file needed)
+wanctl-dashboard --url http://cake-spectrum:9101
+
+# Override poll interval
+wanctl-dashboard --config dashboard.yaml --interval 2.0
 ```
 
-## Integration Points With Existing Code
+### Dependency Additions (pyproject.toml)
 
-### Integration Point 1: WANController.run_cycle() -> save_state()
-
-Currently at line 1430-1441 of `autorate_continuous.py`:
-```python
-dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(...)
-ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(...)
+```toml
+[project.optional-dependencies]
+dashboard = [
+    "textual>=1.0.0",
+    "httpx>=0.27.0",
+    "textual-plotext>=0.2.0",
+]
 ```
 
-The zones are local variables. They need to be stored as instance variables (or passed through) so `save_state()` can include them:
+**Use optional dependencies:** The daemons run on constrained Docker containers and do not need Textual/httpx. Making dashboard deps optional means `pip install wanctl` gives the daemons, `pip install wanctl[dashboard]` adds the TUI. This keeps daemon containers lean.
 
-```python
-# Store for state persistence
-self._last_dl_zone = dl_zone
-self._last_ul_zone = ul_zone
-```
+## Handling Remote Deployment
 
-Then `save_state()` passes them to `WANControllerState.save()`.
+The architecture is inherently remote-capable because it uses HTTP:
 
-**Risk:** LOW. These are simple string assignments. No algorithm changes.
+| Deployment | Configuration | Notes |
+|-----------|---------------|-------|
+| Same container | `http://127.0.0.1:9101` | Simplest, but containers lack terminal |
+| Same machine | `http://cake-spectrum:9101` (Docker DNS) | Most common. Dashboard runs on host. |
+| Remote machine | `http://192.168.1.X:9101` | Requires daemon bind to `0.0.0.0` or SSH tunnel |
+| SSH tunnel | `ssh -L 9101:localhost:9101 cake-spectrum` then `http://localhost:9101` | Secure remote access without exposing ports |
 
-### Integration Point 2: SteeringDaemon.run_cycle() cycle flow
+**Current constraint:** Health servers bind to `127.0.0.1` by default (see `start_health_server()` and `start_steering_health_server()`). For remote dashboard access, either:
+1. Change bind address to `0.0.0.0` in daemon config (requires daemon config change)
+2. Use SSH port forwarding (no daemon changes needed)
+3. Add bind address to daemon YAML schema (clean solution, small daemon change)
 
-Currently at line 1305-1478 of `steering/daemon.py`:
+**Recommendation:** Add `health.bind_address` to daemon YAML schema. Default remains `127.0.0.1` for security. Operators who want remote dashboard access explicitly set `0.0.0.0`. This is a one-line change per daemon and follows the existing config-driven pattern.
 
-1. `update_baseline_rtt()` -- reads state file for baseline
-2. CAKE stats collection
-3. RTT measurement
-4. State management (delta, EWMA, signals, state machine)
+## Integration Points
 
-WAN state injection happens at step 1 (combined with baseline read) and feeds into step 4:
+### Existing Endpoints Consumed
 
-```python
-# Step 1: Load autorate state (baseline + WAN state)
-snapshot = self.autorate_loader.load()
-if not snapshot.baseline_rtt:
-    return False
+| Endpoint | Port | Data Available | Dashboard Use |
+|----------|------|----------------|---------------|
+| `/health` (autorate) | 9101 | WAN status, rates, RTT, states, cycle budget, disk space, router connectivity | Live status panels |
+| `/metrics/history` (autorate) | 9101 | Time-series metrics with filtering and pagination | History charts |
+| `/health` (steering) | 9102 | Steering state, confidence, WAN awareness, thresholds, decision timing | Steering panel |
 
-# Step 1b: Filter WAN state through hysteresis gate
-wan_confirmed = self.wan_gate.update(snapshot.wan_dl_state, snapshot.file_age)
+### Missing Endpoints (Future Additions)
 
-# ... steps 2-3 unchanged ...
+| Endpoint | Purpose | Priority |
+|----------|---------|----------|
+| `/health` on steering with `/metrics/history` | Steering metrics history (currently only autorate has it) | MEDIUM -- steering DB exists but no query endpoint |
+| `/steering/transitions` | Log of steering state transitions with timestamps | LOW -- can be derived from polling `/health` |
 
-# Step 4: Build signals with WAN state
-signals = ConfidenceSignals(
-    cake_state=state.get("congestion_state", "GREEN"),
-    rtt_delta_ms=delta,
-    drops_per_sec=float(cake_drops),
-    queue_depth_pct=float(queued_packets),
-    wan_state=wan_confirmed,  # NEW
-    # ... existing history fields ...
-)
-```
+### Internal Boundaries
 
-### Integration Point 3: ConfidenceController.evaluate() signal conversion
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| DashboardApp <-> DataPoller | Async method calls + Textual messages | Poller is owned by App, posts messages |
+| DataPoller <-> Daemons | HTTP GET (JSON responses) | httpx.AsyncClient with connection pooling |
+| App <-> Widgets | Textual reactive attributes | Widgets watch their data attributes |
+| Config <-> App | Read once at startup | DashboardConfig dataclass |
 
-Currently at line 1150-1158:
-```python
-phase2b_signals = ConfidenceSignals(
-    cake_state=state.get("congestion_state", "GREEN"),
-    rtt_delta_ms=signals.rtt_delta,
-    ...
-)
-```
+## Anti-Patterns
 
-This is where `wan_state` gets passed through. Since ConfidenceSignals gets a default of "GREEN" for the new field, existing call sites that don't set it will behave identically to pre-v1.11.
+### Anti-Pattern 1: Direct SQLite Access From Dashboard
 
-## Suggested Build Order
+**What people do:** Mount daemon data volumes and read SQLite directly from the TUI process.
+**Why it is wrong:** Couples the dashboard to the daemon's filesystem layout. Breaks when running remotely. WAL mode concurrent access across container boundaries is fragile. The `/metrics/history` API exists for exactly this purpose.
+**Do this instead:** Use the HTTP `/metrics/history` endpoint for all historical data queries.
 
-Dependencies flow downward. Each phase builds on the previous.
+### Anti-Pattern 2: Sharing the Daemon Event Loop
 
-### Phase 1: State File Extension (Writer Side)
+**What people do:** Try to run the TUI inside the daemon process to share data structures.
+**Why it is wrong:** The daemons run 50ms control loops with strict timing. Textual's event loop has its own rendering cadence. Combining them creates priority inversion and jitter. Also, daemons run in Docker containers without terminals.
+**Do this instead:** Run the dashboard as a completely separate process. Communicate via HTTP.
 
-**Changes:** `wan_controller_state.py`, `autorate_continuous.py`
-**Tests:** Verify state file contains congestion section, dirty tracking includes it, backward compat (old readers ignore new field)
-**Why first:** The data source must exist before consumers can use it. Zero risk to steering daemon -- it simply ignores the new field until Phase 3.
+### Anti-Pattern 3: Polling Too Fast
 
-### Phase 2: WANStateGate + AutorateStateLoader (Reader Side)
+**What people do:** Poll endpoints every 100ms to match the daemon's 50ms cycle.
+**Why it is wrong:** The health endpoints aggregate state -- they do not expose per-cycle data. Polling faster than 1s wastes CPU and network bandwidth with no new information. The health handler also holds the GIL during JSON serialization, so rapid polling adds measurable overhead to the daemon.
+**Do this instead:** Poll `/health` at 1-2s intervals for live view. Poll `/metrics/history` at 30-60s intervals for charts.
 
-**Changes:** `steering/daemon.py` (rename BaselineLoader, add WANStateGate class)
-**Tests:** Unit tests for WANStateGate hysteresis logic, AutorateStateLoader with/without congestion field, staleness detection
-**Why second:** Reader must exist before it can be wired into the scoring pipeline. WANStateGate is testable in isolation.
+### Anti-Pattern 4: Blocking HTTP in the UI Thread
 
-### Phase 3: Confidence Scoring Extension
+**What people do:** Use synchronous `requests.get()` in a Textual event handler.
+**Why it is wrong:** Blocks the entire TUI rendering loop. If an endpoint is slow or unreachable, the UI freezes for the full timeout duration.
+**Do this instead:** Use `httpx.AsyncClient` with Textual's `@work(exclusive=True)` decorator. The async call runs in the background; the UI stays responsive.
 
-**Changes:** `steering/steering_confidence.py` (ConfidenceWeights, ConfidenceSignals, compute_confidence)
-**Tests:** Verify WAN weights contribute correctly, verify default "GREEN" produces zero contribution, verify combined scoring scenarios
-**Why third:** Depends on ConfidenceSignals having the wan_state field from Phase 2's data model.
+## Build Order (Dependency-Aware)
 
-### Phase 4: Wiring + Config + Health
+The following order respects dependencies between components:
 
-**Changes:** `steering/daemon.py` (SteeringDaemon.__init__, run_cycle), `steering/health.py`, `configs/steering.yaml`
-**Tests:** Integration test of full run_cycle with WAN state injection, health endpoint includes WAN state, config loading
-**Why last:** End-to-end wiring depends on all components existing. Config is the final enablement mechanism.
+1. **Config + Entry Point** -- `DashboardConfig`, `app.py` skeleton, `pyproject.toml` entry point. No widgets yet, just prove the app launches.
+2. **DataPoller + Connection Management** -- `httpx.AsyncClient`, polling loop, error handling, reconnection. Test against live daemon endpoints. This is the foundation everything else depends on.
+3. **Live Status Widgets** -- `WanStatusWidget` showing congestion state, rates, RTT, baseline. Wire to poller output. Minimal layout (vertical stack).
+4. **Sparkline/Charts** -- Bandwidth sparklines using `Sparkline` widget. Accumulate polled rate data into a rolling buffer.
+5. **Steering Panel** -- Confidence scores, WAN awareness, steering state, decision timing. Consumes steering health endpoint data.
+6. **Layout and Tabs** -- `TabbedContent` with Live/History/Steering tabs. Responsive CSS for wide/narrow terminals. Keyboard navigation.
+7. **History Browser** -- Time-range selector, `/metrics/history` queries, chart rendering with `textual-plotext`.
+8. **Polish** -- Connection status indicator, error states, theming, help screen.
 
-### Phase 5 (Optional): Observability + Tuning
-
-**Changes:** SQLite metrics for WAN state, log format updates
-**Tests:** Verify metrics recorded, log grep for WAN state decisions
-
-## Anti-Patterns to Avoid
-
-### 1. Direct Signal Passthrough (No Hysteresis)
-
-Using raw WAN state directly in confidence scoring without WANStateGate. ISP RTT jitter at zone boundaries (e.g., delta oscillating around 45ms SOFT_RED threshold) causes rapid state changes that inject noise into the confidence score.
-
-**Instead:** Always filter through WANStateGate.
-
-### 2. Dual Independent Decision Paths
-
-Having WAN state trigger steering independently of CAKE stats (e.g., "if WAN RED for 5s, steer regardless of CAKE"). This creates a second decision path bypassing ConfidenceController's multi-signal corroboration.
-
-**Instead:** WAN state feeds INTO the existing confidence pipeline as an additive weight. It amplifies weak local signals but cannot trigger steering alone.
-
-### 3. Modifying assess_congestion_state()
-
-Injecting WAN state into the CAKE congestion assessment function. `assess_congestion_state()` has a clear single responsibility: map CAKE-specific signals to a 3-state congestion model. WAN state is a different signal class.
-
-**Instead:** WAN state enters at the confidence scoring layer.
-
-### 4. Coupling Daemon Cycles
-
-Making steering wait for or synchronize with autorate cycles. The daemons run at different rates (50ms vs 500ms) and must remain independently scheduled.
-
-**Instead:** Steering reads whatever state exists at its own cycle time. Staleness detection handles the case where autorate is slow/crashed.
-
-### 5. Double File Reads
-
-Creating a separate reader for WAN state that opens the same state file independently of baseline_rtt reading. Double I/O per cycle, inconsistent snapshots.
-
-**Instead:** Single read via AutorateStateLoader, returns both values.
-
-### 6. Overweighting WAN State
-
-Setting WAN_RED weight so high that it can trigger steering alone (e.g., WAN_RED=55 >= steer_threshold). This would bypass the multi-signal corroboration design.
-
-**Instead:** WAN_RED=30 requires at least one corroborating signal to reach threshold.
-
-## Scalability Considerations
-
-Not applicable. Single-machine, two-daemon system controlling one home network. The additional computation (one dict lookup, one string comparison, one integer addition per steering cycle) is negligible compared to RTT measurement (~5-10ms) and router communication (~0.1-0.2ms) that dominate the cycle budget.
-
-## Risk Assessment
-
-| Risk | Severity | Likelihood | Mitigation |
-|------|----------|------------|------------|
-| Stale state file causes steering based on old WAN state | Medium | Medium | 5-second staleness threshold, defaults to GREEN |
-| WAN state oscillation at zone boundary | Low | Medium | WANStateGate hysteresis filter |
-| Autorate crash leaves permanent WAN RED in state file | Medium | Low | Staleness detection clears after 5s |
-| Rolling upgrade: old autorate, new steering | None | Certain | Default "GREEN" when congestion key missing |
-| Rolling upgrade: new autorate, old steering | None | Certain | Old steering ignores unknown keys |
-| Flash wear from new state field | None | None | dl_zone rarely changes (stays GREEN 99%+ of cycles) |
+**Rationale:** Phases 1-3 deliver a usable (if ugly) dashboard quickly. Phase 4-5 add visualization depth. Phase 6-7 add structure and historical analysis. Phase 8 is refinement.
 
 ## Sources
 
-All findings from direct codebase analysis (HIGH confidence):
-- `src/wanctl/wan_controller_state.py` -- WANControllerState schema, save(), dirty tracking
-- `src/wanctl/autorate_continuous.py` -- WANController.run_cycle() (lines 1378-1568), save_state() (lines 1613-1638), adjust_4state() (lines 706-828)
-- `src/wanctl/steering/daemon.py` -- BaselineLoader (lines 567-638), SteeringDaemon (lines 645-1478), run_cycle() (lines 1305-1478), SteeringConfig (lines 133-410), build_steering_schema() (lines 415-442)
-- `src/wanctl/steering/steering_confidence.py` -- ConfidenceWeights, ConfidenceSignals, compute_confidence(), ConfidenceController
-- `src/wanctl/steering/congestion_assessment.py` -- assess_congestion_state() (UNCHANGED)
-- `src/wanctl/steering/health.py` -- SteeringHealthHandler._get_health_status()
-- `src/wanctl/steering/cake_stats.py` -- CongestionSignals dataclass, CakeStatsReader
-- `src/wanctl/state_utils.py` -- atomic_write_json(), safe_json_load_file()
-- `src/wanctl/state_manager.py` -- SteeringStateManager
-- `configs/steering.yaml` -- production steering configuration
-- `configs/spectrum.yaml` -- production autorate configuration
-- `docs/ARCHITECTURE.md` -- Portable Controller Architecture (portability invariants)
-- `docs/STEERING.md` -- Steering design principles
+- [Textual documentation](https://textual.textualize.io/) -- Framework reference (v8.1.1, 2026-03-10)
+- [Textual Workers guide](https://textual.textualize.io/guide/workers/) -- Background task patterns
+- [Textual Sparkline widget](https://textual.textualize.io/widgets/sparkline/) -- Built-in sparkline API
+- [Textual TabbedContent](https://textual.textualize.io/widgets/tabbed_content/) -- Tab navigation widget
+- [Textual CSS guide](https://textual.textualize.io/guide/CSS/) -- TCSS styling reference
+- [Textual-Plotext](https://github.com/Textualize/textual-plotext) -- Plotext charts in Textual
+- [httpx documentation](https://www.python-httpx.org/) -- Async HTTP client
+- [HTTPX vs Requests vs AIOHTTP comparison](https://oxylabs.io/blog/httpx-vs-requests-vs-aiohttp) -- Library comparison
+- Existing wanctl source: `health_check.py`, `steering/health.py`, `storage/reader.py`, `storage/writer.py`, `metrics.py`
+
+---
+*Architecture research for: wanctl TUI dashboard integration*
+*Researched: 2026-03-11*

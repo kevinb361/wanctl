@@ -1,151 +1,172 @@
-# Domain Pitfalls: Adding WAN-Aware Steering to Existing Dual-WAN Controller
+# Domain Pitfalls: Adding TUI Dashboard to Existing Dual-WAN Controller
 
-**Domain:** Inter-daemon WAN state sharing for congestion-aware steering
-**Researched:** 2026-03-09
-**Confidence:** HIGH (grounded in actual codebase analysis of 16,493 LOC + control systems principles)
-**Focus:** Race conditions, oscillation/flapping, stuck states, backward compatibility, production stability
+**Domain:** Textual TUI dashboard for real-time network monitoring
+**Researched:** 2026-03-11
+**Confidence:** HIGH (grounded in codebase analysis of existing health endpoints + SQLite storage + Textual framework documentation)
+**Focus:** Async event loop conflicts, polling vs refresh mismatch, SQLite concurrent access, terminal compatibility, daemon performance impact, graceful degradation
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause production routing failures, network outages, or require architectural rewrites.
+Mistakes that cause dashboard crashes, daemon performance degradation, or require architectural rewrites.
 
 ---
 
-### Pitfall 1: Autorate State File Does Not Contain the WAN Zone
+### Pitfall 1: Blocking Textual's Event Loop with Synchronous HTTP Requests
 
-**What goes wrong:** Steering tries to read autorate's congestion zone (GREEN/YELLOW/SOFT_RED/RED) from the state file at `/run/wanctl/spectrum_state.json`, but the field does not exist. The current `WANControllerState.save()` (line 1619, `autorate_continuous.py`) persists only: `download.{green_streak, soft_red_streak, red_streak, current_rate}`, `upload.{same}`, `ewma.{baseline_rtt, load_rtt}`, `last_applied.{dl_rate, ul_rate}`, and `timestamp`. The actual zone string ("GREEN", "YELLOW", "SOFT_RED", "RED") is computed fresh each cycle by `download.adjust_4state()` and passed to metrics/logs but never written to the state file.
+**What goes wrong:**
+Dashboard calls `urllib.request.urlopen()` or `requests.get()` to poll health endpoints (ports 9100, 9101, 9102) from within a Textual widget's `on_mount()` or timer callback. Since Textual runs on asyncio, any synchronous HTTP call blocks the entire event loop. The UI freezes for the duration of each HTTP request (typically 10-100ms, but up to the TCP timeout on connection failure). With two health endpoints polled every 1-2 seconds, the dashboard becomes unresponsive.
 
-**Why it happens:** The state file was designed for crash recovery (restoring hysteresis counters and EWMA values), not for inter-process communication. The zone is a derived value from streak counters + RTT thresholds.
+**Why it happens:**
+The existing health endpoints use `http.server.HTTPServer` (stdlib, synchronous). Developers instinctively reach for synchronous HTTP clients to talk to synchronous servers. Textual's async nature is not obvious when writing simple polling code.
 
-**Consequences:**
-- Steering gets KeyError/None when reading `dl_zone` from the state file
-- If steering attempts to reverse-engineer zone from `red_streak > 0`, it gets a different answer than autorate's actual zone assessment (streak counters are updated before zone is computed, creating a timing window)
-- The entire milestone is blocked until autorate publishes the zone
+**How to avoid:**
+- Use `httpx.AsyncClient` (not aiohttp -- simpler API, fewer event loop conflicts) for all HTTP polling
+- All polling must happen inside async workers (`@work(thread=False)`) or `set_interval()` callbacks that are async
+- Create a single `httpx.AsyncClient` session at app startup, reuse for all requests (connection pooling)
+- Set aggressive timeouts: `timeout=httpx.Timeout(connect=2.0, read=2.0, pool=2.0)` -- a dashboard should never wait 300s (aiohttp/httpx default)
+- Never use `requests`, `urllib`, or any synchronous HTTP library anywhere in the dashboard codebase
 
-**Prevention:**
-- Modify `WANControllerState.save()` to include `dl_zone` and `ul_zone` as explicit string fields
-- Add a `schema_version` field (value: 2) so steering can detect old-format files gracefully
-- Steering must treat missing `dl_zone` as GREEN (fail-safe default) with a logged warning
-- NEVER reverse-engineer zone from streak counters -- the zone is autorate's conclusion
+**Warning signs:**
+- UI freezes during endpoint polling (especially visible when an endpoint is unreachable)
+- `set_interval()` callbacks take >50ms (Textual logs a warning for slow callbacks)
+- Dashboard hangs for 5+ seconds when a daemon container is stopped
 
-**Detection:** Steering logs "WAN zone field missing from state file, treating as GREEN" on every cycle until autorate is updated.
-
-**Phase:** MUST be the FIRST implementation step. Creates a hard dependency: autorate state file change ships before steering reads it.
-
----
-
-### Pitfall 2: Dirty Tracking Regression -- 20x Disk Write Amplification
-
-**What goes wrong:** Adding `dl_zone` to the autorate state dict causes `WANControllerState._is_state_changed()` (line 51, `wan_controller_state.py`) to detect changes every cycle because the zone toggles between GREEN and YELLOW frequently during normal operation. Disk writes jump from approximately 1/second to 20/second (every 50ms cycle). Each write calls `atomic_write_json()` with `os.fsync()`, consuming I/O bandwidth in the hot loop.
-
-**Why it happens:** Dirty tracking (line 66-72, `wan_controller_state.py`) compares the full state dict including all fields. Zone is a volatile field that changes far more frequently than the streak counters and EWMA values that the dirty tracking was designed to filter.
-
-**Consequences:**
-- `fsync()` latency (typically 0.1-2ms on tmpfs, 5-50ms on ext4) added to every 50ms cycle
-- Flash wear on embedded storage deployments
-- Cycle overrun rate increases, degrading congestion response time
-- The autorate profiling infrastructure (`PerfTimer("autorate_state_management")`) will show this immediately as state_management time spiking
-
-**Prevention -- Two viable approaches:**
-
-Option A (recommended): Write WAN zone to a **separate lightweight file** (e.g., `/run/wanctl/spectrum_wan_zone.json`) that is written only on zone transitions, bypassing dirty tracking entirely. Zone transitions are infrequent (a few per minute under congestion, zero during steady state).
-
-Option B: Add the zone to the existing state dict but **exclude it from dirty tracking comparison** by modifying `_is_state_changed()` to compare a subset of fields (everything except `dl_zone`, `ul_zone`).
-
-**Detection:** Monitor `WANControllerState.save()` return value (True = wrote, False = skipped). If True rate jumps from ~1/s to 20/s after the change, dirty tracking is broken. The existing profiling infrastructure (`--profile` flag, `autorate_state_management` timer) will surface this.
-
-**Phase:** Directly impacts the autorate state file modification. Must be profiled before production deployment.
+**Phase to address:**
+First implementation phase (data layer). The HTTP client pattern must be async from the start -- retrofitting async into synchronous polling requires rewriting every data access call.
 
 ---
 
-### Pitfall 3: Stale State Causing Phantom Congestion or Stuck DEGRADED
+### Pitfall 2: Thread Worker UI Updates Without call_from_thread()
 
-**What goes wrong:** Autorate crashes while its zone is RED. The state file persists with RED zone indefinitely. Steering reads the stale RED, activates steering, and holds it in DEGRADED state until autorate restarts. Alternatively: during autorate's steady GREEN operation, dirty tracking skips writes (`_is_state_changed()` returns False), so `st_mtime` stops advancing. The existing staleness check (`BaselineLoader._check_staleness()`, line 620, `steering/daemon.py`) uses a 300-second threshold -- far too long for a signal that should represent sub-second congestion state.
+**What goes wrong:**
+Developer uses `@work(thread=True)` for SQLite queries (since sqlite3 is synchronous) and directly updates widget attributes or calls `widget.update()` from the thread worker. Textual is NOT thread-safe. Direct UI mutation from a thread causes: corrupted widget state, partial renders, intermittent crashes, or silently dropped updates.
 
-**Why it happens:** Two independent staleness mechanisms interact:
-1. `atomic_write_json()` only writes when dirty tracking says "changed"
-2. Baseline staleness is checked at 300s because baseline RTT changes slowly
-3. WAN zone changes faster than baseline but slower than raw RTT -- no existing staleness mechanism fits
+**Why it happens:**
+Thread workers look like regular methods. Nothing prevents setting `self.query_one(Label).update("new text")` inside a thread worker. The crash is intermittent, so it passes basic testing but fails under load.
 
-The current steering baseline loading pattern reads the file every cycle (line 1313-1316 of `steering/daemon.py`, `update_baseline_rtt()`) but only checks staleness for baseline RTT, not for zone data.
+**How to avoid:**
+- For HTTP polling: use async workers (`@work(thread=False)`) with `httpx.AsyncClient` -- no thread safety issues
+- For SQLite reads: use `@work(thread=True)` but communicate results back via `self.app.call_from_thread(self._update_display, data)` or `self.post_message(DataReady(data))` (post_message is thread-safe)
+- Prefer the message pattern: thread worker posts a custom `DataLoaded` message, message handler runs on the main thread and updates widgets safely
+- NEVER set reactive attributes from thread workers
 
-**Consequences:**
-- Autorate crash + RED state = steering stuck in DEGRADED until restart
-- Autorate restart takes ~10s (systemd ExecStart, initialization) -- 10 seconds of phantom steering
-- If `StartLimitBurst=5` triggers and autorate doesn't restart, stuck DEGRADED until manual intervention
-- User loses internet reliability because all latency-sensitive traffic routes to slower ATT WAN
+**Warning signs:**
+- Intermittent `RuntimeError` or widget rendering glitches
+- Data updates that occasionally "miss" (widget shows stale data despite successful query)
+- Dashboard crashes under heavy load that cannot be reproduced consistently
 
-**Prevention:**
-- WAN zone staleness threshold: 5 seconds (matches the milestone context specification)
-- Read both `st_mtime` of the file AND the `timestamp` field inside the JSON (belt and suspenders)
-- Stale + RED = treat as GREEN (fail-safe: if we don't know, assume healthy)
-- Stale + GREEN = treat as GREEN (no action needed)
-- Stale + any = log WARNING with file age
-- If the separate zone file approach (Pitfall 2 Option A) is used, the zone file will have its own `st_mtime` that advances only on zone transitions, making staleness detection simpler
-
-**Detection:** Log `wan_zone_age_sec` every cycle. Alert if age > 5s. Health endpoint should expose `wan_state.stale: true/false`.
-
-**Phase:** Must be addressed in the WAN state reader implementation. Highest-risk integration point.
+**Phase to address:**
+First implementation phase. Establish the data flow pattern (worker -> message -> handler -> UI update) before building any widgets.
 
 ---
 
-### Pitfall 4: Signal Conflict -- CAKE Says GREEN, WAN RTT Says RED
+### Pitfall 3: Polling Too Fast -- Wasting CPU Without Visual Benefit
 
-**What goes wrong:** Autorate's download zone is RED (ISP backbone congestion detected via RTT spikes) while steering's own CAKE stats show GREEN (local queue healthy, no drops, no backlog). Without explicit conflict resolution, the system either: (a) ignores WAN RED entirely (defeating the feature), (b) triggers steering on ISP transients that CAKE correctly filters out, or (c) requires both to agree (making the system more conservative than before -- the opposite of the goal).
+**What goes wrong:**
+Dashboard polls health endpoints every 50ms "to match the daemon cycle interval." Terminal refresh at 50ms produces no visual benefit -- humans cannot perceive changes faster than ~200ms, and terminal emulators typically render at 30-60 FPS (16-33ms frame time, but network round-trip dominates). The result: 20 HTTP requests/second per endpoint (40-60 total), burning CPU on both the dashboard machine AND the daemon health servers, while the user sees the same visual output as 1-2 Hz polling.
 
-**Why it happens:** CAKE stats measure LOCAL queue health (backlog, drops at the home router). WAN RTT measures END-TO-END path quality. These observe different phenomena. ISP peering congestion raises WAN RTT without causing CAKE drops (bottleneck is upstream). Conversely, local buffer overrun causes CAKE RED without necessarily raising WAN RTT.
+**Why it happens:**
+The daemon runs at 50ms cycles (20 Hz). Developers assume the dashboard should match this frequency "to not miss data." But the dashboard is a visualization tool, not a control system. Missing 95% of individual cycle data is perfectly fine -- the health endpoint returns current state, not a stream.
 
-**The specific gap this milestone targets:** SOFT_RED in autorate means "CAKE has clamped to floor" -- the only lever left is routing. This is the case where WAN state provides unique value. But SOFT_RED is NOT the same as ISP congestion; it means local queue tuning hit its minimum.
+**How to avoid:**
+- Health endpoint polling: 1-2 second interval (1 Hz is ideal, 0.5 Hz acceptable for historical views)
+- Sparkline/chart updates: 1-2 second interval (matches polling)
+- SQLite historical queries: on-demand (user changes time range) or 10-30 second refresh for the active view
+- Use `set_interval(1.0, self._poll_health)` -- Textual's built-in timer with automatic cancellation on widget removal
+- Document the polling budget: 2 endpoints x 1 req/s = 2 req/s total (vs. 40-60 req/s at 50ms)
 
-**Consequences:**
-- If WAN RED can independently trigger steering: false positives during ISP transients
-- If WAN RED is ignored when CAKE is GREEN: feature provides zero value
-- Combined with ConfidenceController's additive scoring, the interaction is non-obvious
+**Warning signs:**
+- Dashboard CPU usage >5% while idle (should be <1%)
+- Health endpoint handler logging shows >5 req/s from the dashboard
+- `htop` shows the dashboard process consuming noticeable CPU on the daemon container
 
-**Prevention -- Define explicit fusion rules:**
-- WAN RED + CAKE RED = fast-track (both agree, reduce sustain timer -- this is the v1.11 goal)
-- WAN RED + CAKE YELLOW = promote to RED-equivalent (WAN confirms early warning)
-- WAN RED + CAKE GREEN = **no action** (CAKE is authoritative for local queue health)
-- WAN SOFT_RED + any CAKE state = treat as WAN YELLOW (moderate signal)
-- WAN GREEN/YELLOW = zero effect on steering (normal operation)
-- WAN state NEVER independently triggers DEGRADED -- it only amplifies existing CAKE signals
-
-**Implementation in existing architecture:** Add `wan_zone` weight to `ConfidenceWeights` in `steering_confidence.py`:
-- `WAN_RED_WITH_CAKE_SIGNAL = 20` (only applied when CAKE is YELLOW or worse)
-- `WAN_RED_ALONE = 0` (explicitly zero -- WAN RED cannot contribute without CAKE corroboration)
-
-**Detection:** Log both signals side-by-side. Monitor for WAN RED + CAKE GREEN lasting >30s -- this is the "ISP transient" pattern that should NOT trigger steering.
-
-**Phase:** Architecture decision in the signal fusion design phase. Must be the first design document before any code.
+**Phase to address:**
+First implementation phase (data layer). Polling intervals are architectural -- changing them later means re-testing all timing-dependent behavior.
 
 ---
 
-### Pitfall 5: Oscillation Amplification -- Faster Degrade, Same Recovery
+### Pitfall 4: Health Endpoints Bound to 127.0.0.1 -- Unreachable from Local Machine
 
-**What goes wrong:** Adding WAN state creates a faster path to DEGRADED (WAN RED amplifies CAKE YELLOW to cross the confidence threshold sooner) but recovery still requires the same `green_samples_required=15` consecutive GREEN samples (7.5s at 0.5s interval) plus `recovery_sustain_sec=3.0`. The asymmetry becomes too aggressive: easier to enter DEGRADED, same difficulty to exit.
+**What goes wrong:**
+The dashboard runs on the developer's local machine, but the health endpoints bind to `127.0.0.1` inside Docker containers (`cake-spectrum`, `cake-att`). The dashboard cannot reach `http://127.0.0.1:9101/health` because that address refers to the container's loopback, not the host's. Connection refused.
 
-Under intermittent congestion, this increases time spent in DEGRADED. More traffic on ATT means ATT gets loaded, which can degrade ATT performance, which means steering's own RTT measurements (to 1.1.1.1 via Spectrum) may improve while ATT suffers -- a cascade the system cannot detect.
+**Why it happens:**
+The existing health server design (lines 484-485 of `health_check.py`, lines 305-306 of `steering/health.py`) deliberately binds to loopback for security -- the endpoints expose internal daemon state and should not be network-accessible. This is correct for production.
 
-**Why it happens:** The existing hysteresis is tuned for single-signal behavior. `red_samples_required=2` at 0.5s interval = 1 second to degrade. Adding WAN RED to the confidence score can bring total score from 50 (CAKE RED alone) to 70 (CAKE RED + WAN RED), which crosses the `steer_threshold=55` faster. But nothing changes on the recovery side.
+**How to avoid:**
+Three viable approaches (pick ONE):
 
-**Consequences:**
-- Increased time in DEGRADED state
-- ATT link receives more traffic, potentially saturating it
-- `FlapDetector` engages more often (>4 toggles in 5 minutes), adding `penalty_threshold_add=15` to the steer threshold -- making recovery even slower
-- Net effect: worse user experience than before the feature was added
+1. **SSH tunnel (recommended):** Dashboard opens SSH tunnels to each container: `ssh -L 9101:127.0.0.1:9101 cake-spectrum`. This preserves the loopback binding security model. The dashboard config specifies SSH hosts, and the data layer manages tunnel lifecycle.
 
-**Prevention:**
-- If WAN state accelerates the degrade path, proportionally reduce recovery requirements (e.g., from 15 GREEN samples to 10, or reduce `recovery_sustain_sec` from 3.0 to 2.0)
-- Better: have WAN state affect ONLY the confidence score, not the hysteresis counters. The ConfidenceController already has separate degrade and recovery thresholds that can be tuned independently
-- Add an invariant test: "WAN RED alone (without CAKE RED) never causes more than +20 to confidence score"
-- Add an integration test: simulate intermittent WAN RED (alternating 2s RED / 2s GREEN) with stable CAKE GREEN, verify zero state transitions
-- Monitor state transition frequency before and after enabling WAN signal. If transitions/hour increases by >50%, the signal weight is too aggressive
+2. **Docker port mapping:** Add `-p 9101:9101` to container run config. Simpler but exposes endpoints on the Docker host network. Acceptable for a home network.
 
-**Detection:** Compare `wanctl_steering_transition` metric rate before/after deployment. Track `FlapDetector` engagement rate.
+3. **Configurable bind address:** Change health endpoint config to allow `host: "0.0.0.0"` in YAML. Most flexible but requires daemon-side changes and security review.
 
-**Phase:** Must be addressed alongside signal fusion. Needs explicit invariant tests.
+- Do NOT hardcode endpoint URLs. The dashboard MUST accept configurable base URLs per container (e.g., `--spectrum-url http://cake-spectrum:9101 --att-url http://cake-att:9101`)
+- SQLite DB path must also be configurable: `--db /var/lib/wanctl/metrics.db` for local, or a remote path via sshfs/NFS
+
+**Warning signs:**
+- Dashboard shows "connection refused" for all endpoints during initial development
+- Developer adds `host: "0.0.0.0"` to daemon config as a "quick fix" without security review
+
+**Phase to address:**
+Architecture/configuration phase. The connectivity model (SSH tunnel vs port mapping vs bind address) must be decided before any HTTP polling code is written.
+
+---
+
+### Pitfall 5: SQLite "database is locked" from Concurrent Reads During WAL Checkpoint
+
+**What goes wrong:**
+Dashboard opens a read-only SQLite connection to `/var/lib/wanctl/metrics.db` to query historical data. The MetricsWriter singleton in the daemon process performs hourly maintenance (VACUUM, downsampling) which triggers a WAL checkpoint. During the checkpoint's `EXCLUSIVE` lock phase, the dashboard's read query gets `sqlite3.OperationalError: database is locked` and crashes or shows an error.
+
+**Why it happens:**
+SQLite WAL mode allows concurrent readers with one writer. But WAL checkpoints (which flush the WAL back to the main database) require an exclusive lock that blocks ALL connections, including readers. The existing `MetricsWriter._open_connection()` uses `timeout=30.0`, but the dashboard's read-only connection (opened via `sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)` in `reader.py`) has the default 5-second timeout.
+
+Checkpoint starvation is also possible: if the dashboard holds a long-running read transaction (e.g., loading 7 days of data), the checkpoint cannot complete, causing the WAL file to grow unbounded.
+
+**How to avoid:**
+- Dashboard SQLite connections must use `timeout=10.0` (match the existing reader pattern but increase from default)
+- Wrap ALL SQLite queries in try/except for `sqlite3.OperationalError`, retry once after 500ms delay
+- Use short-lived connections: open, query, close. Do not hold connections open between polls
+- Do not hold read transactions open for extended periods -- fetch data in bounded chunks
+- Consider using the existing `/metrics/history` HTTP API endpoint instead of direct SQLite access for remote dashboards -- this avoids cross-process SQLite entirely
+- If reading locally, open in `?mode=ro` (already done in `reader.py`) to avoid write-lock contention
+
+**Warning signs:**
+- Intermittent "database is locked" errors, especially at the top of each hour (maintenance window)
+- WAL file (`metrics.db-wal`) growing beyond 10MB (indicates checkpoint starvation)
+- Dashboard historical view shows gaps or errors at regular hourly intervals
+
+**Phase to address:**
+Data layer implementation. The SQLite access pattern must handle locking gracefully from the first query.
+
+---
+
+### Pitfall 6: Dashboard Crashes Take Down Daemon Health Endpoints
+
+**What goes wrong:**
+Dashboard runs in the same process or container as the daemons, and a crash in the dashboard (uncaught exception, OOM from loading too much historical data) kills the daemon process. Or: the dashboard is instrumented as a systemd service with `Restart=always`, and rapid crash loops consume system resources on the daemon host.
+
+**Why it happens:**
+Convenience -- running the dashboard in the daemon container avoids the connectivity problem (Pitfall 4). But coupling a visualization tool to a production control system violates the "dashboard must NOT affect daemon performance" requirement.
+
+**How to avoid:**
+- Dashboard MUST be a completely separate process, ideally on a separate machine
+- Dashboard has NO import dependencies on daemon code (no `from wanctl.autorate_continuous import ...`)
+- Dashboard communicates with daemons ONLY via HTTP endpoints and SQLite reads
+- If the dashboard must share a machine with daemons, run it under a separate systemd unit with `MemoryMax=256M` and `CPUQuota=10%` resource limits
+- Dashboard code lives in a separate package: `wanctl-dashboard` (separate `pyproject.toml` or at minimum a separate entry point)
+- Textual already handles most crashes gracefully (restores terminal on exception), but OOM kills bypass this
+
+**Warning signs:**
+- Dashboard imports anything from `wanctl.steering` or `wanctl.autorate_continuous`
+- Dashboard and daemon share a Python process or venv activation
+- Dashboard crash causes `systemctl status wanctl@spectrum` to show "failed"
+
+**Phase to address:**
+Project structure/architecture phase. Package separation must be established before any code is written.
 
 ---
 
@@ -153,236 +174,263 @@ Under intermittent congestion, this increases time spent in DEGRADED. More traff
 
 ---
 
-### Pitfall 6: 50ms Hot Loop Blocking on File Read
+### Pitfall 7: Sparkline Data Accumulation Without Bounds
 
-**What goes wrong:** The steering daemon's `run_cycle()` (line 1305, `steering/daemon.py`) already reads the autorate state file once per cycle via `update_baseline_rtt()` -> `BaselineLoader.load_baseline_rtt()` -> `safe_json_load_file()`. Adding WAN zone reading means a second file read in the hot path. While `safe_json_load_file()` is fast on tmpfs (~0.1ms), on degraded I/O conditions (disk full, NFS mount, high load average), it can block.
+**What goes wrong:**
+Dashboard appends every polled rate value to a `list[float]` and passes it to `Sparkline.data`. After 24 hours at 1 Hz polling, the list contains 86,400 floats. After a week, 604,800. The Sparkline widget re-renders the entire dataset on every update (it chunks data by widget width, but must iterate the full list to compute chunks). Memory grows linearly, and render time grows with dataset size.
 
-**Why it happens:** `safe_json_load_file()` does synchronous `open()` + `json.load()`. No timeout mechanism. On tmpfs this is safe; on real filesystems under load, `open()` can block on directory lookup.
+**Why it happens:**
+Sparkline accepts `Sequence[float]` and has no built-in windowing. Developers append to a list and never trim. The performance degradation is gradual -- it works fine for hours before becoming sluggish.
 
-**Consequences:**
-- If both baseline and zone reads are from the same file, no additional I/O (same `open()` call, just different field extraction)
-- If zone is in a separate file (Pitfall 2 Option A), each cycle does TWO file opens instead of one
-- Under I/O pressure, cycle overrun increases, degrading congestion response
+**How to avoid:**
+- Use a `collections.deque(maxlen=N)` instead of a list, where N = the maximum number of data points to display (e.g., 300 for 5 minutes at 1 Hz, or 3600 for 1 hour)
+- When the user changes time range, load historical data from SQLite and replace the deque contents entirely (do not accumulate)
+- Keep two data sources: a rolling deque for "live" sparkline, and SQLite queries for "historical" sparkline
+- The Sparkline widget width determines visible resolution -- a 120-column terminal shows at most 120 bars, so storing more than 120 * 10 = 1200 data points per sparkline provides no visual benefit
 
-**Prevention:**
-- If possible, read zone from the SAME state file as baseline RTT (already opened per cycle) -- zero additional I/O
-- If a separate file is needed, cache the zone in memory and only re-read when `st_mtime` changes (stat is cheaper than open+parse)
-- Never add a file lock between autorate and steering -- POSIX atomic rename is sufficient for the data freshness requirements
-- Accept one-cycle staleness (50ms for autorate's file, 500ms for steering's read interval) -- negligible for a secondary signal with 1-3 second hysteresis
+**Warning signs:**
+- Dashboard memory usage grows steadily over hours
+- Sparkline render time increases (visible as UI lag after extended runtime)
+- `len(sparkline.data)` exceeds 10,000
 
-**Detection:** `PerfTimer("steering_state_management")` in `run_cycle()` will capture any I/O latency increase.
-
-**Phase:** Implementation detail during WAN state reader. Decide same-file vs separate-file early.
-
----
-
-### Pitfall 7: Over-Engineering -- Creating a Third State Machine
-
-**What goes wrong:** Developer creates a new "WAN congestion state machine" with its own RED/YELLOW/GREEN states, hysteresis counters, and sustain timers alongside the existing CAKE congestion assessment (`congestion_assessment.py`) and ConfidenceController (`steering_confidence.py`). Three independent decision systems can disagree, creating a combinatorial explosion: 4 autorate zones * 3 CAKE states * 3 WAN states * 2 steering states = 72 possible combinations.
-
-**Why it happens:** Symmetry bias: "CAKE has a state machine, WAN should too." But the signals are not symmetric. CAKE stats are sampled directly by the steering daemon. WAN state is a pre-computed signal from another process.
-
-**Consequences:**
-- Impossible to reason about system behavior
-- Testing matrix explodes
-- The ConfidenceController already exists to fuse multiple signals into a single score -- a third state machine duplicates its role
-
-**Prevention:**
-- Do NOT create a new state machine for WAN state
-- WAN state is a simple enum (`GREEN | YELLOW | SOFT_RED | RED`) read from a file
-- Feed it directly into `compute_confidence()` in `steering_confidence.py` as additional `ConfidenceWeights`
-- Reuse ALL existing timer, flap detection, and dry-run infrastructure
-- Total new code in `steering_confidence.py` should be <50 lines (new weights + one signal check)
-- Total new code in `steering/daemon.py` should be <30 lines (read zone, pass to signals)
-
-**Detection:** If a PR introduces a new class with "state machine" in the docstring, question whether `ConfidenceController` can absorb the functionality.
-
-**Phase:** Architecture decision, first phase. Make the ConfidenceController integration path explicit.
+**Phase to address:**
+Widget implementation phase. Use deque from the start -- retrofitting bounded collections into unbounded lists requires changing every data append site.
 
 ---
 
-### Pitfall 8: Hysteresis Stacking -- Compounding Delays
+### Pitfall 8: Terminal Compatibility -- Broken Rendering in tmux/SSH
 
-**What goes wrong:** If WAN state has its own sustained-RED timer (e.g., ~1s of sustained RED before acting), this stacks with autorate's `red_streak` requirement (1-2 cycles = 50-100ms), the steering daemon's `red_samples_required=2` at 0.5s interval (1s), and the ConfidenceController's `sustain_duration_sec=2.0`. Total end-to-end latency from congestion start to steering activation: autorate detection (50-100ms) + zone file write (50ms) + steering read staleness (up to 500ms) + WAN hysteresis (1s) + confidence sustain (2s) = 3.6-3.7 seconds. This is **slower** than the current CAKE-only path (1s + 2s = 3s), making the new signal worse than useless for fast response.
+**What goes wrong:**
+Dashboard looks perfect in the local terminal but renders incorrectly when accessed via SSH + tmux: colors are wrong (Textual uses 16M color by default, tmux may only support 256), escape key has 1+ second delay (tmux escape-time default), sparkline Unicode characters render as boxes or question marks, and layout jumps on resize because tmux sends delayed SIGWINCH.
 
-**Why it happens:** Each layer adds "are you sure?" filtering. When composing layers, nobody calculates total pipeline latency.
+**Why it happens:**
+Textual outputs escape sequences for the terminal it detects via `$TERM`. Inside tmux, `$TERM` is `screen-256color` or `tmux-256color`, which may not support all of Textual's advanced rendering features. SSH adds network latency to every escape sequence. The `$COLORTERM` variable (used by Textual to detect truecolor support) may not propagate through SSH.
 
-**Prevention:**
-- WAN zone should be read AS-IS from the autorate state file -- autorate already applies its own hysteresis via streak counters
-- Steering should NOT add another hysteresis layer on top of the pre-filtered zone
-- Calculate and document full decision pipeline latency:
-  - CAKE-only path: CAKE RED detection (1s at 0.5s interval) + confidence sustain (2s) = 3s
-  - WAN-amplified path: autorate RED zone (already filtered) + confidence sustain (2s, possibly shortened to 1s due to higher score) = 2-3s
-- The WAN path should be the SAME speed or FASTER than the CAKE-only path, never slower
+**How to avoid:**
+- Test in all target environments early: bare terminal, tmux, SSH + tmux, screen
+- Set tmux `escape-time` to 10ms in `.tmux.conf` (`set -sg escape-time 10`) to eliminate escape key delay
+- Set `set -g default-terminal "tmux-256color"` in tmux config
+- Use Textual's built-in color themes that degrade gracefully to 256 colors
+- Avoid relying on Unicode block characters that may not render in all fonts -- Textual's Sparkline uses Unicode block characters by default, verify they render in the target terminal
+- Add a `--no-color` or `--256-color` CLI flag as fallback
+- Ensure `$COLORTERM=truecolor` is set in SSH sessions that support it
 
-**Detection:** Integration test: inject congestion, measure wall-clock time to steering activation via both paths.
+**Warning signs:**
+- Dashboard looks different in tmux vs direct terminal
+- Escape key requires holding for 1+ seconds
+- Sparkline shows blank spaces or `?` characters
+- Colors appear washed out or wrong in SSH sessions
 
-**Phase:** Integration testing, with end-to-end latency measurement.
-
----
-
-### Pitfall 9: Backward Compatibility -- Breaking Existing Configs and State Files
-
-**What goes wrong:** Three backward compatibility risks:
-
-1. **State file format change:** Adding `dl_zone` to autorate's state file breaks any external tooling that parses the file (monitoring scripts, `wanctl-history` CLI). If `schema_version` is not present, old readers may error on the new fields.
-
-2. **Steering config change:** Adding `wan_state:` section to `steering.yaml` fails validation on old installations that don't have this section. The `SteeringConfig` class uses a strict schema (`SCHEMA` list in `steering/daemon.py` line 150-165) that requires listed paths to exist.
-
-3. **Autorate restart behavior:** If autorate is updated to write zone but steering is not yet updated to read it, the new field is harmless. But if steering is updated to READ zone before autorate writes it, steering logs warnings every cycle until autorate is deployed.
-
-**Why it happens:** The system runs two independently deployed daemons (autorate in `cake-spectrum` container, steering in the same container but separate process). Deployment order matters.
-
-**Consequences:**
-- Rolling update fails if steering deploys before autorate
-- Config validation rejects existing `steering.yaml` files missing the new section
-- External monitoring tools break on state file format change
-
-**Prevention:**
-- New config fields MUST have defaults: `wan_state: {enabled: false}` is the default when the section is missing entirely
-- `SteeringConfig._load_wan_state()` should use `.get("wan_state", {})` with all inner fields defaulted
-- Autorate's state file change should be deployed FIRST, verified in production, then steering update deployed
-- Add `schema_version` to state files (default: 1 if missing, new format: 2)
-- Steering treats missing zone fields as GREEN (safe default), not as an error
-- Update `docs/CONFIG_SCHEMA.md` with new optional section
-
-**Detection:** Test both deployment orders: (autorate first, steering second) AND (steering first, autorate second). Both must work without errors.
-
-**Phase:** Configuration design phase. Must be explicitly tested for backward compatibility.
+**Phase to address:**
+First visual prototype phase. Build a minimal Textual app with Sparkline + DataTable and verify rendering in all target environments before building full dashboard.
 
 ---
 
-### Pitfall 10: Testing in Isolation vs. Integration
+### Pitfall 9: Adaptive Layout Flicker on Resize
 
-**What goes wrong:** Unit tests verify "when WAN state is RED, confidence score increases by 20" and "when WAN state is GREEN, score is unchanged." All pass. But in production, WAN RED fires during CAKE YELLOW (confidence = 10 + 20 = 30, below `steer_threshold=55`), so the signal has zero effect. Or, WAN RED fires during CAKE RED with RTT spike (confidence = 50 + 25 + 20 = 95), causing instant steering that the existing system would have filtered through sustained timers.
+**What goes wrong:**
+Dashboard uses `HORIZONTAL_BREAKPOINTS` to switch between side-by-side layout (wide terminal, both WANs visible) and tabbed layout (narrow terminal). When the terminal is resized near the breakpoint threshold (e.g., 120 columns), the layout oscillates between modes on every resize event. This causes visible flicker, widget destruction/recreation, and loss of scroll position in DataTable.
 
-**Why it happens:** The confidence scoring is additive. Signal interactions create non-obvious combined scores. The ConfidenceController's sustain timers add temporal behavior that unit tests skip.
+**Why it happens:**
+Terminal resize events fire rapidly during interactive resizing (dragging window edge). Each resize triggers a breakpoint check. If the terminal width hovers around the breakpoint (e.g., 118-122 columns), the layout switches back and forth multiple times per second.
 
-**Prevention -- Required test matrix:**
+**How to avoid:**
+- Add hysteresis to the breakpoint: switch to wide at 120 columns, switch to narrow at 100 columns (20-column dead zone)
+- Debounce resize handling: wait 200ms after the last resize event before switching layouts
+- Use Textual's CSS `fr` units for proportional sizing within each layout mode -- avoids the need for frequent mode switches
+- Preserve widget state across layout changes: do not destroy and recreate widgets, use `display: none` / `display: block` to hide/show the appropriate container
+- Set breakpoints conservatively: wide mode at 160+ columns (two 80-column panels), narrow mode below 160
 
-| CAKE State | WAN Zone | Expected Confidence Delta | Expected Behavior |
-|-----------|----------|--------------------------|-------------------|
-| GREEN | GREEN | 0 | No change |
-| GREEN | RED | 0 | No action (WAN alone cannot trigger) |
-| YELLOW | GREEN | +10 | Existing behavior |
-| YELLOW | RED | +10 + WAN weight | May or may not cross threshold -- document expected score |
-| SOFT_RED (sustained) | GREEN | +25 | Existing behavior |
-| SOFT_RED (sustained) | RED | +25 + WAN weight | Document expected score |
-| RED | GREEN | +50 | Existing behavior |
-| RED | RED | +50 + WAN weight | Faster threshold crossing |
+**Warning signs:**
+- Layout flickers when slowly resizing the terminal
+- DataTable scroll position resets on resize
+- Widget data disappears momentarily during resize
 
-- Test full `run_cycle()` path, not just `compute_confidence()`
-- Include ConfidenceController sustain timer behavior (confidence > threshold is necessary but not sufficient)
-- Test the recovery path: once steered, verify WAN GREEN alone does not accelerate recovery
-- Test stale zone: verify stale WAN RED has zero effect (treated as GREEN)
-
-**Detection:** Coverage analysis on signal combination paths in `compute_confidence()`.
-
-**Phase:** Dedicated testing phase after implementation. Must include the full signal combination matrix.
+**Phase to address:**
+Layout implementation phase. Test with rapid resize events explicitly.
 
 ---
 
-### Pitfall 11: Zone Enum Mismatch -- SOFT_RED Not Handled
+### Pitfall 10: Graceful Degradation Absent -- One Unreachable Endpoint Breaks Everything
 
-**What goes wrong:** Autorate uses 4-state download zones: GREEN, YELLOW, SOFT_RED, RED. Steering's `CongestionState` enum (`congestion_assessment.py`, line 15-20) has only 3 states: GREEN, YELLOW, RED. If steering reads `dl_zone: "SOFT_RED"` from the autorate state file and does an enum match or string comparison, SOFT_RED falls through to a default case (likely GREEN), effectively ignoring moderate congestion.
+**What goes wrong:**
+Dashboard polls two health endpoints (autorate:9101, steering:9102) and one SQLite database. When one endpoint is unreachable (container restart, network issue), the dashboard either: (a) crashes with unhandled `ConnectionRefusedError`, (b) blocks on the timeout for that endpoint delaying updates to the other endpoint, or (c) shows a generic error screen that hides the still-working endpoint's data.
 
-**Why it happens:** The steering congestion model and the autorate state model were designed independently. SOFT_RED exists only in the 4-state download model.
+**Why it happens:**
+All three data sources are polled sequentially in a single async function. One failure propagates to all. Or: errors are caught but result in a full-screen error overlay that hides all widgets.
 
-**Prevention:**
-- Add explicit mapping in the WAN state reader: `SOFT_RED -> YELLOW` (SOFT_RED means clamped-at-floor, which is a warning signal, not critical)
-- Or add SOFT_RED to the ConfidenceWeights with its own weight (e.g., `WAN_SOFT_RED = 10`, same as YELLOW)
-- Test every possible autorate zone value explicitly
-- Use a mapping dict, not if/elif chains, to make missing values obvious
+**How to avoid:**
+- Poll each data source independently with separate timers/workers
+- Each widget section has its own connection state: "connected", "connecting", "unreachable (last seen 30s ago)"
+- Unreachable endpoints show a small inline indicator (e.g., red dot + "offline") in their section header, NOT a full-screen error
+- Show stale data with a staleness indicator rather than clearing the display
+- Implement per-endpoint retry with exponential backoff: 1s, 2s, 4s, 8s, max 30s
+- The dashboard remains fully functional for the endpoints that ARE reachable
+- SQLite unavailability should disable the historical view but not affect live health polling
 
-**Phase:** Implementation phase, in the zone reader code.
+**Warning signs:**
+- Stopping one daemon container causes the entire dashboard to show an error
+- Dashboard shows no data for either WAN when only one endpoint is down
+- Dashboard logs show rapid retry loops (10+ retries/second) for unreachable endpoints
 
----
-
-## Minor Pitfalls
-
----
-
-### Pitfall 12: Health Endpoint Not Exposing WAN State
-
-**What goes wrong:** After deployment, operators cannot see WAN state influence on steering decisions because the health endpoint (port 9102, `steering/health.py`) does not include WAN state data. Debugging requires log analysis.
-
-**Prevention:** Add to health response: `wan_state: {zone: "GREEN", age_sec: 0.3, stale: false, source_file: "/run/wanctl/spectrum_state.json"}`.
-
-**Phase:** Same phase as signal reader implementation.
+**Phase to address:**
+Data layer implementation. Build the error handling into the polling abstraction, not as an afterthought in the UI layer.
 
 ---
 
-### Pitfall 13: Forgetting the Disabled Path
+### Pitfall 11: aiohttp Session Not Closed -- Resource Leak on Dashboard Exit
 
-**What goes wrong:** When `wan_state.enabled: false` (the default), code still attempts to read the zone file and fails because the file does not exist (e.g., on the ATT container, which has no Spectrum autorate state file). Error log spam every 0.5 seconds.
+**What goes wrong:**
+Dashboard creates `httpx.AsyncClient` (or `aiohttp.ClientSession`) in `on_mount()` but does not close it in `on_unmount()`. On clean exit, Python logs `ResourceWarning: unclosed client session`. On rapid restart cycles during development, leaked sessions accumulate file descriptors, eventually hitting the ulimit.
 
-**Prevention:** Guard with `if self.config.wan_state_enabled:` BEFORE any file I/O. Disabled path must skip entirely, not read-and-ignore.
+**Why it happens:**
+Textual's `on_mount()`/`on_unmount()` lifecycle is not always obvious. Developers create the client but forget the cleanup path. Additionally, if the app crashes (uncaught exception), `on_unmount()` may not fire.
 
-**Phase:** Implementation phase. Test the disabled path explicitly.
+**How to avoid:**
+- Create the HTTP client in `App.on_mount()`, close it in `App.on_unmount()`
+- Use `async with httpx.AsyncClient() as client:` pattern inside worker methods if the client is short-lived
+- For long-lived clients, register cleanup in Textual's app lifecycle
+- Add a `__del__` safety net that logs a warning if the client was not properly closed
+- Test the exit path: Ctrl+C, `q` key, and exception-during-render must all close the client
 
----
+**Warning signs:**
+- `ResourceWarning` in stderr on dashboard exit
+- `lsof -p <pid> | grep TCP` shows growing number of connections during development
+- Dashboard fails to start with "too many open files" after multiple restarts
 
-### Pitfall 14: Recovery Bounce -- Steering Off, Then Immediately Back On
-
-**What goes wrong:** Steering detects GREEN sustained for 3 seconds, disables steering (switches latency-sensitive traffic back to Spectrum). But the sudden influx of returned traffic re-congests Spectrum, autorate goes back to RED within 1-2 seconds, and steering re-enables. This creates a 5-8 second oscillation loop that the `FlapDetector` (4 toggles in 5 minutes) is too slow to catch.
-
-**Why it happens:** Recovery is based on congestion clearing, but congestion cleared BECAUSE traffic was offloaded to ATT. Returning traffic recreates the congestion. This is a fundamental feedback loop, not a tuning issue.
-
-**Consequences:** Latency-sensitive traffic oscillates between WANs every 5-8 seconds, causing connection disruptions.
-
-**Prevention:**
-- The existing `hold_down_duration_sec=30` in the ConfidenceController (line 279, `steering_confidence.py`) is specifically designed for this -- after steering is disabled, 30 seconds must pass before re-enabling
-- Verify that hold_down is enforced on the recovery path, not just the degrade path
-- Consider making hold_down configurable separately for initial degrade vs. re-degrade after recovery
-- The natural connection expiry mechanism (only new connections are steered, existing connections stay on ATT) already provides dampening -- document this explicitly
-
-**Detection:** If the `FlapDetector` engages within 5 minutes of the feature going live, the hold_down timer is insufficient.
-
-**Phase:** Testing phase, with simulated recovery scenarios.
+**Phase to address:**
+Data layer implementation. Part of the HTTP client setup code.
 
 ---
 
-### Pitfall 15: Configuration Sprawl
+## Technical Debt Patterns
 
-**What goes wrong:** Each pitfall above motivates a configuration option. The feature ends up adding 8+ new YAML parameters to `steering.yaml`, making the system unmanageable.
+Shortcuts that seem reasonable but create long-term problems.
 
-**Prevention:** Maximum 3 new config parameters:
-1. `wan_state.enabled` (bool, default: false)
-2. `wan_state.weight` (int, default: 20, range 0-50)
-3. `wan_state.staleness_threshold_sec` (float, default: 5.0)
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Import daemon modules directly for type hints | Reuse existing type definitions | Creates import dependency, dashboard cannot run without daemon installed | Never -- define dashboard-specific data models |
+| Hardcode endpoint URLs | Faster development | Cannot run from different machine or with non-standard ports | Never -- always use config/CLI args |
+| Use synchronous SQLite in async context | Simpler code, no thread worker needed | Blocks event loop on large queries (7-day range = 100K+ rows) | Acceptable for queries returning <100 rows |
+| Store all historical data in memory | Fast chart rendering | Memory grows unbounded, OOM after days | Only for demo/testing |
+| Single polling timer for all sources | Simpler timer management | One slow source blocks all updates | Never -- independent timers per source |
 
-Everything else (fusion rules, zone mapping, file path) should be derived or hardcoded with documented rationale. The file path is derived from existing `primary_state_file`. The fusion logic is an architectural decision, not a deployment parameter.
+## Integration Gotchas
 
-**Phase:** Config design in first phase. Lock it down early.
+Common mistakes when connecting to the existing wanctl infrastructure.
 
----
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Health endpoints (9101/9102) | Assuming endpoints are HTTP/1.1 with keep-alive | They use `http.server.HTTPServer` (HTTP/1.0 by default, one request per connection). Set `Connection: close` or accept new connection per poll. |
+| Health endpoints | Parsing response assuming fixed JSON schema | Health response includes dynamic fields (cycle_budget, wan_awareness). Use `.get()` with defaults for all fields. |
+| SQLite metrics DB | Opening read-write connection | MUST use `?mode=ro` URI. The MetricsWriter singleton in the daemon holds the write lock. A read-write connection from the dashboard will deadlock. |
+| SQLite metrics DB | Querying raw granularity for long time ranges | Raw data at 20 Hz = 72,000 rows/hour. Use `select_granularity()` logic (already in `reader.py`): <6h=raw, <24h=1m, <7d=5m, >=7d=1h |
+| `/metrics/history` API | Not URL-encoding query parameters | Duration format is strict (`1h`, `30m`, `7d`). Invalid format returns 400 error. |
+| State files | Reading state files directly instead of using health endpoint | State files are on tmpfs inside containers, inaccessible from outside. Use health endpoints -- they already expose all state file data. |
+| Steering endpoint (9102) | Assuming confidence score is always present | `confidence` section only exists when `ConfidenceController` is active. Missing in degraded states or cold start. |
 
-## Phase-Specific Warning Summary
+## Performance Traps
 
-| Phase Topic | Critical Pitfall | Moderate Pitfall | Prevention |
-|---|---|---|---|
-| Autorate state file modification | P1 (missing zone), P2 (dirty tracking regression) | P9 (backward compat) | Add zone to separate file or exclude from dirty tracking; add schema_version |
-| WAN state reader in steering | P3 (staleness/stuck states), P6 (hot loop I/O) | P11 (SOFT_RED mapping), P13 (disabled path) | 5s staleness threshold, stale=GREEN, same-file read, explicit zone mapping |
-| Signal fusion design | P4 (signal conflict), P5 (oscillation amplification) | P7 (over-engineering), P8 (hysteresis stacking) | ConfidenceWeights integration, WAN amplifies only, calculate pipeline latency |
-| Configuration | P15 (sprawl) | P9 (backward compat) | Max 3 new params, all fields defaulted, optional section |
-| Testing | P10 (isolation vs integration) | P14 (recovery bounce) | Signal combination matrix, end-to-end latency test, recovery scenario tests |
-| Observability | | P12 (health endpoint) | Add wan_state to health response |
+Patterns that work at small scale but fail as usage grows.
 
-## Key Architectural Constraint
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| fetchall() for historical queries | Works fine for 1h range | Paginate: use LIMIT/OFFSET or stream results. Use `/metrics/history?limit=1000` | >6h range at raw granularity (>432K rows) |
+| Re-rendering entire DataTable on every poll | Smooth at <50 rows | Use DataTable.update_cell() for individual cell updates, not clear()+add_rows() | >100 rows with 1s refresh |
+| JSON.dumps with indent=2 on health responses | Readable for debugging | Dashboard should parse, not pretty-print. Remove indent in production client. | N/A (minor, but unnecessary allocation) |
+| Creating new Sparkline widget on each data update | Simple code | Reuse widget, update `.data` reactive attribute only | Any refresh rate >0.5 Hz |
+| Polling both endpoints sequentially | Both respond in <10ms normally | Use asyncio.gather() to poll in parallel. Sequential polling doubles latency. | When one endpoint has high latency (100ms+) |
 
-The existing `ConfidenceController` and `compute_confidence()` in `steering_confidence.py` (lines 85-146) already provide the correct integration point. WAN state should be an additional input to `ConfidenceSignals` and an additional weight in `ConfidenceWeights`. This reuses all existing timer, flap detection, hold-down, and dry-run infrastructure. Creating any parallel decision system is the primary over-engineering risk.
+## Security Mistakes
 
-The steering daemon already reads autorate's state file every cycle for baseline RTT (`update_baseline_rtt()`, line 1313). The WAN zone read should piggyback on this same file read with zero additional I/O.
+Domain-specific security issues for a network monitoring dashboard.
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Exposing health endpoints on 0.0.0.0 to solve connectivity | Internal daemon state visible on network. Health response includes router connectivity state, WAN names, and IP-derived data. | Use SSH tunnels or Docker port mapping to loopback only. Never bind to 0.0.0.0. |
+| Storing endpoint credentials (SSH keys, passwords) in dashboard config | Credential exposure if config is committed to git | Use SSH agent forwarding. Dashboard config should reference key paths, not embed keys. Store config in `/etc/wanctl/dashboard.yaml` alongside existing secrets. |
+| Dashboard logging includes full health JSON responses | May contain router passwords if a future health endpoint leaks them (defense in depth) | Log only structured fields (status, uptime, rates), never raw JSON blobs |
+
+## UX Pitfalls
+
+Common user experience mistakes in TUI monitoring dashboards.
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Updating numbers every 50ms | Numbers blur together, impossible to read | Update at 1-2 Hz. Use color changes (green/yellow/red) for immediate state visibility. |
+| Showing raw RTT values without context | User sees "37.6ms" but does not know if this is good or bad | Show delta from baseline: "+2.1ms" with color coding. Show state name (GREEN) prominently. |
+| Wall of numbers without hierarchy | Information overload, user cannot find what matters | Lead with state (GREEN/YELLOW/RED) as large colored text. Details in collapsible sections. |
+| No keyboard shortcut help | User does not know how to navigate | Show key bindings in footer (Textual Footer widget). `?` opens help overlay. |
+| Historical view defaults to raw data | 7-day view loads 10M+ data points, dashboard freezes | Default to 1h view. Auto-select granularity. Show "loading..." for large queries. |
+| Tabbed layout hides critical state | User only sees Spectrum tab, misses ATT going RED | Show both WAN states in header/footer regardless of active tab. Use notification for state transitions. |
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **Health polling:** Verify behavior when endpoint returns 503 (degraded), not just 200. Dashboard should show degraded state, not treat it as an error.
+- [ ] **Sparkline:** Verify rendering with all-zero data, single data point, and negative values (RTT delta can be negative).
+- [ ] **Layout switch:** Verify widget state (scroll position, selected row, filter text) survives a side-by-side to tabbed transition.
+- [ ] **Exit cleanup:** Verify Ctrl+C, `q` key, and window close all restore terminal state (no corrupted terminal after exit). Textual handles this, but verify with tmux.
+- [ ] **Long running:** Run dashboard for 8+ hours, verify memory does not grow and UI remains responsive.
+- [ ] **Timezone handling:** Health endpoint returns ISO 8601 with UTC. Dashboard must display in local time. Verify across DST transitions.
+- [ ] **Empty database:** Dashboard starts before any metrics are recorded. Must show "no data" gracefully, not crash on empty query results.
+- [ ] **Stale display indicator:** When polling pauses (network issue), displayed values must show staleness (e.g., dim text, "last updated 30s ago"), not appear current.
+- [ ] **Terminal restore on crash:** If dashboard throws an unhandled exception, terminal must be restored to normal mode (no raw/cbreak mode artifacts).
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| P1: Blocking event loop | LOW | Replace synchronous HTTP client with httpx.AsyncClient. Mechanical change, test all polling paths. |
+| P2: Thread-unsafe UI updates | MEDIUM | Introduce message-based pattern (custom Message classes). Requires refactoring every worker. |
+| P3: Polling too fast | LOW | Change `set_interval()` values. Single-line fixes. |
+| P4: Unreachable endpoints | MEDIUM | Depends on chosen connectivity model. SSH tunnels require adding paramiko/asyncssh dependency. |
+| P5: SQLite locking | LOW | Add try/except with retry. Localized change in data layer. |
+| P6: Dashboard crashes daemon | HIGH | Requires package separation. Major restructuring if code is interleaved. |
+| P7: Unbounded sparkline data | LOW | Replace `list` with `deque(maxlen=N)`. Mechanical change. |
+| P8: Terminal compatibility | LOW | CSS theme adjustments, tmux config. No code changes. |
+| P9: Layout flicker | MEDIUM | Add hysteresis/debounce to resize handler. May require layout refactor. |
+| P10: No graceful degradation | HIGH | Requires rearchitecting data layer to be per-source. Difficult to retrofit. |
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| P1: Blocking event loop | Data layer (async HTTP client) | All HTTP calls use httpx.AsyncClient, zero synchronous imports |
+| P2: Thread-unsafe UI | Data layer (worker pattern) | All UI updates go through messages or call_from_thread, no direct widget mutation in workers |
+| P3: Polling too fast | Data layer (timer setup) | Polling intervals >= 1s, CPU usage <1% at idle |
+| P4: Unreachable endpoints | Architecture (connectivity model) | Dashboard successfully polls both containers from local machine |
+| P5: SQLite locking | Data layer (query wrapper) | Dashboard continues working during hourly maintenance window |
+| P6: Dashboard isolations | Project structure (package separation) | Dashboard has zero imports from wanctl core. Separate entry point. |
+| P7: Unbounded data | Widget implementation (deque) | 24-hour run shows flat memory usage |
+| P8: Terminal compatibility | Visual prototype | Dashboard renders correctly in bare terminal, tmux, and SSH+tmux |
+| P9: Layout flicker | Layout implementation | Rapid resize at breakpoint threshold causes zero flicker |
+| P10: Graceful degradation | Data layer (per-source polling) | Stopping one container leaves other WAN data fully functional |
+| P11: Resource leak | Data layer (client lifecycle) | Clean exit shows zero ResourceWarnings |
 
 ## Sources
 
-- Codebase: `src/wanctl/autorate_continuous.py` -- `save_state()` (line 1613), `WANControllerState` schema, dirty tracking
-- Codebase: `src/wanctl/wan_controller_state.py` -- `_is_state_changed()` (line 51), `save()` (line 104)
-- Codebase: `src/wanctl/steering/daemon.py` -- `BaselineLoader.load_baseline_rtt()` (line 575), `SteeringDaemon.run_cycle()` (line 1305), `update_baseline_rtt()` (line 1069)
-- Codebase: `src/wanctl/steering/steering_confidence.py` -- `compute_confidence()` (line 85), `ConfidenceWeights` (line 27), `TimerManager` (line 182)
-- Codebase: `src/wanctl/steering/congestion_assessment.py` -- `CongestionState` enum (line 15), `assess_congestion_state()` (line 50)
-- Codebase: `src/wanctl/state_utils.py` -- `atomic_write_json()` (line 20), `safe_json_load_file()` (line 132)
-- Codebase: `configs/steering.yaml` -- production config with confidence scoring dry-run enabled
-- [POSIX write() is not atomic in the way you might like](https://utcc.utoronto.ca/~cks/space/blog/unix/WriteNotVeryAtomic) -- confirms atomic rename is sufficient for cross-process state sharing (HIGH confidence)
-- [Understanding Control Valve Hysteresis](https://instrunexus.com/understanding-control-valve-hysteresis-deadband-response-time/) -- hysteresis stacking in control systems causes limit cycling (MEDIUM confidence)
-- [OPNsense Multi WAN documentation](https://docs.opnsense.org/manual/how-tos/multiwan.html) -- sticky connections and failover state management patterns (MEDIUM confidence)
+- Codebase: `src/wanctl/health_check.py` -- HTTPServer on 127.0.0.1:9101, health JSON schema, /metrics/history API
+- Codebase: `src/wanctl/steering/health.py` -- HTTPServer on 127.0.0.1:9102, steering-specific health fields
+- Codebase: `src/wanctl/storage/writer.py` -- MetricsWriter singleton, WAL mode, write lock, hourly maintenance
+- Codebase: `src/wanctl/storage/reader.py` -- read-only SQLite connection, query_metrics(), select_granularity()
+- Codebase: `src/wanctl/storage/schema.py` -- metrics table schema, stored metric names
+- [Textual Workers documentation](https://textual.textualize.io/guide/workers/) -- thread safety rules, call_from_thread, exclusive workers (HIGH confidence)
+- [Textual Sparkline widget](https://textual.textualize.io/widgets/sparkline/) -- reactive data, chunking behavior, height config (HIGH confidence)
+- [Textual Layout guide](https://textual.textualize.io/guide/layout/) -- fr units, grid, responsive design (HIGH confidence)
+- [Textual App API](https://textual.textualize.io/api/app/) -- HORIZONTAL_BREAKPOINTS, responsive CSS classes (HIGH confidence)
+- [SQLite WAL documentation](https://sqlite.org/wal.html) -- concurrent read/write, checkpoint locking behavior (HIGH confidence)
+- [SQLite concurrent writes and "database is locked" errors](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) -- checkpoint starvation, timeout tuning (MEDIUM confidence)
+- [textual-fastdatatable](https://github.com/tconbeer/textual-fastdatatable) -- DataTable performance limits with large datasets (MEDIUM confidence)
+- [Textual + tmux discussion #4003](https://github.com/Textualize/textual/discussions/4003) -- escape key delay, color support issues (MEDIUM confidence)
+- [aiohttp Client Reference](https://docs.aiohttp.org/en/stable/client_reference.html) -- session lifecycle, connection pool limits, timeout behavior (HIGH confidence)
+- [7 Things I've learned building a modern TUI Framework](https://www.textualize.io/blog/7-things-ive-learned-building-a-modern-tui-framework/) -- floating point layout, Unicode rendering challenges (MEDIUM confidence)
+
+---
+*Pitfalls research for: TUI dashboard addition to existing dual-WAN controller*
+*Researched: 2026-03-11*

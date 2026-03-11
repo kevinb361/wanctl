@@ -1,243 +1,287 @@
-# Technology Stack: WAN-Aware Steering Integration
+# Technology Stack: TUI Dashboard (wanctl-dashboard)
 
-**Project:** wanctl v1.11
-**Researched:** 2026-03-09
+**Project:** wanctl v1.14
+**Researched:** 2026-03-11
 **Overall confidence:** HIGH
 
-## Recommendation: Zero New Dependencies
+## Recommendation: Textual + httpx + Built-in Sparklines
 
-No new external libraries, frameworks, or tools are needed. Every primitive required for WAN-aware steering already exists in the codebase. This recommendation is based on thorough analysis of the three capability areas (inter-daemon state sharing, hysteresis/debounce, config schema extensions) against existing code.
+Three new runtime dependencies. No changes to existing daemon code for the core dashboard. The dashboard is a standalone TUI application that consumes existing HTTP health endpoints (ports 9101/9102) and reads from the existing SQLite metrics database.
 
-## Existing Stack (Validated, Reuse As-Is)
+## New Dependencies (Dashboard Only)
 
-| Component | Location | Reuse For |
-|-----------|----------|-----------|
-| Atomic JSON state file IPC | `state_utils.py:atomic_write_json()` | Autorate writes WAN congestion state, steering reads |
-| Safe file reader | `state_utils.py:safe_json_load_file()` | Read WAN state from state file (single read for both baseline + congestion) |
-| State file staleness check | `steering/daemon.py:BaselineLoader._check_staleness()` | Same staleness gate applies to WAN congestion data |
-| Streak-based hysteresis | `autorate_continuous.py:QueueController` | Counter-based sustained-signal detection (green_streak, red_streak pattern) |
-| Sample-count gates | `steering/daemon.py:_update_state_machine_unified()` | `red_count`/`good_count` with configurable thresholds |
-| Confidence scoring | `steering_confidence.py:compute_confidence()` | Add WAN state as new weighted signal (additive) |
-| Sustained detection | `steering_confidence.py` | SOFT_RED_sustained pattern (check last N history entries) |
-| Sustain timers | `steering_confidence.py:ConfidenceController` | Existing degrade/recovery timers gate confidence score |
-| Flap detection | `steering_confidence.py:FlapDetector` | Already prevents oscillation; WAN signal benefits automatically |
-| Dirty tracking | `wan_controller_state.py:WANControllerState._is_state_changed()` | Extend to include congestion dict |
-| Config schema validation | `config_base.py:validate_schema()` | Add `wan_state` section to SteeringConfig SCHEMA |
-| Health endpoint | `steering/health.py` | Add WAN state to existing congestion section |
-| Dataclass structs | `steering/congestion_assessment.py:StateThresholds` | Pattern for threshold configuration objects |
+### Core Framework
 
-## Capability Analysis
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| textual | >=8.0.0 | TUI framework | Dominant Python TUI framework. v8.1.1 current (2026-03-10). Built-in widgets cover 90% of dashboard needs: Sparkline, DataTable, TabbedContent, Digits, Header/Footer, RichLog. CSS-like styling, async-native event loop, `@work` decorator for background tasks. Python >=3.9 required (we use 3.12). Depends on Rich (already familiar ecosystem). |
+| httpx | >=0.28.0 | Async HTTP client | Polls health endpoints (9101/9102). Supports both sync and async APIs. Textual's own docs use httpx in worker examples. Lightweight (anyio, certifi, httpcore). Does NOT conflict with existing aiohttp in daemons -- dashboard is a separate process. |
 
-### 1. Inter-Daemon State Sharing
+### Why NOT aiohttp for the Dashboard
 
-**Need:** Autorate writes WAN congestion state (RED/YELLOW/SOFT_RED/GREEN); steering reads it.
+The existing daemons use aiohttp for their health servers, but the dashboard should use httpx because:
 
-**Mechanism:** Extend the existing atomic JSON state file that steering already reads.
+1. **httpx is lighter** -- no server-side bloat, pure client library
+2. **Textual integration** -- Textual docs and examples use httpx; the `@work` async worker pattern pairs naturally with `httpx.AsyncClient`
+3. **Process isolation** -- dashboard is a separate process, no dependency conflict
+4. **Simpler API** -- `async with httpx.AsyncClient() as client: resp = await client.get(url)` is cleaner than aiohttp's session management for a simple JSON GET
 
-**Current read path (steering/daemon.py lines 575-618):**
+### Why NOT requests
 
-1. `BaselineLoader.load_baseline_rtt()` calls `safe_json_load_file()` on `primary_state_file`
-2. Extracts `state["ewma"]["baseline_rtt"]`
-3. Validates bounds (C4 fix), checks staleness (STEER-03)
+The project already has `requests>=2.31.0` as a runtime dep (for RouterOS REST API). However:
 
-**v1.11 extension -- add congestion extraction to the same read:**
+1. **Blocking** -- `requests` is sync-only, requires `thread=True` workers in Textual
+2. **httpx is async-native** -- works with Textual's asyncio event loop directly via `@work` decorator (no thread overhead)
+3. **requests stays for daemon use** -- no conflict, both coexist fine
 
-1. Same `safe_json_load_file()` call (already happening, zero additional I/O)
-2. Also extract `state["congestion"]["dl_state"]` if present
-3. Return both baseline RTT and WAN congestion state
-4. Graceful fallback if `congestion` key missing (backward compat with old autorate)
+## Built-in Textual Widgets (No Extra Libraries)
 
-**Critical design constraint:** Do NOT add a second file read. The state file is already read once per steering cycle (500ms). Parse both values from the single existing read. This is why a `WANStateLoader` class that independently reads the file would be wrong -- it would double I/O.
+Textual provides everything needed for the dashboard without additional charting libraries.
 
-**Current autorate state JSON schema:**
-```json
-{
-  "download": {"green_streak": 0, "soft_red_streak": 0, "red_streak": 0, "current_rate": 940000000},
-  "upload": {"green_streak": 0, "soft_red_streak": 0, "red_streak": 0, "current_rate": 38000000},
-  "ewma": {"baseline_rtt": 24.5, "load_rtt": 25.1},
-  "last_applied": {"dl_rate": 940000000, "ul_rate": 38000000},
-  "timestamp": "2026-03-09T12:00:00"
-}
+| Widget | Dashboard Use | Notes |
+|--------|--------------|-------|
+| **Sparkline** | Bandwidth rate trends (DL/UL over time) | Built-in. Accepts `Sequence[float]`, reactive `data` attr auto-refreshes. Configurable `min_color`/`max_color` for gradient. Width determines bar count. |
+| **DataTable** | Steering decision log, metrics browser | Built-in. Rich content cells, sorting, cursor modes, zebra stripes, fixed columns. |
+| **TabbedContent** | Historical time range tabs (1h/6h/24h/7d) | Built-in. Programmatic switching via `active` attr. Dynamic add/remove panes. |
+| **Digits** | Large RTT / rate display | Built-in. 3x3 Unicode grid for prominent numbers. |
+| **Header / Footer** | App chrome with keybindings | Built-in. Footer auto-shows bound key actions. |
+| **Static / Label** | Congestion state indicators (GREEN/YELLOW/RED) | Built-in. Color via CSS classes. |
+| **RichLog** | Steering transition event log | Built-in. Scrollable, Rich-formatted log output. |
+| **ProgressBar** | Link utilization percentage | Built-in. |
+| **ContentSwitcher** | Adaptive layout (wide vs narrow) | Built-in. Programmatic child switching by ID. |
+| **LoadingIndicator** | Initial connection / data fetch | Built-in. |
+
+## Charting Libraries: NOT Needed
+
+| Library | Why Skip |
+|---------|----------|
+| **textual-plotext** (v1.0.1) | Wraps plotext (last updated Sep 2024, stagnant). Adds 2 deps (plotext + textual-plotext). The built-in Sparkline widget covers bandwidth trends. Full charts are overkill for a monitoring dashboard -- sparklines communicate rate changes effectively in constrained terminal space. |
+| **textual-plot** (v0.10.1) | Adds NumPy dependency (heavyweight for a TUI dashboard). Aimed at physics experiment plotting. Interactive zoom/pan is nice but unnecessary for time-series monitoring. NumPy is a ~30MB install -- disproportionate for sparklines. |
+| **plotext** (v5.3.2) | Standalone terminal plotting. If used directly, requires manual Canvas widget integration. Stagnant since Sep 2024. |
+
+**Decision rationale:** The dashboard needs to show rate trends over time. Sparkline does this with zero extra deps. If full charting is needed later, textual-plotext can be added incrementally -- but start without it. YAGNI.
+
+## Async Data Polling Pattern
+
+### Architecture
+
+```
+set_interval(2.0)  -->  @work(exclusive=True) async fetch  -->  update widgets
+     |                          |                                    |
+  Timer fires            httpx.AsyncClient.get()              self.query_one(Sparkline).data = [...]
+  every 2 sec            to localhost:9101/health             self.query_one(DataTable).clear()
+                         to localhost:9102/health             etc.
 ```
 
-**v1.11 extension (backward compatible, one new top-level key):**
-```json
-{
-  "download": {"green_streak": 0, ...},
-  "upload": {"green_streak": 0, ...},
-  "ewma": {"baseline_rtt": 24.5, "load_rtt": 25.1},
-  "last_applied": {"dl_rate": 940000000, "ul_rate": 38000000},
-  "congestion": {
-    "dl_state": "GREEN",
-    "ul_state": "GREEN",
-    "delta_ms": 1.2
-  },
-  "timestamp": "2026-03-09T12:00:00"
-}
-```
-
-**Why `congestion` as key:** Clean namespace, doesn't pollute existing sections. Mirrors steering health endpoint's `congestion` key. The `dl_state` is the primary signal (4-state model: GREEN/YELLOW/SOFT_RED/RED). The `ul_state` and `delta_ms` are for observability.
-
-**Backward compatibility:** Old steering code ignoring `congestion` key continues working. New steering code handles missing key gracefully (existing `safe_json_load_file` + dict `.get()` pattern).
-
-**Deriving dl_state:** The zone is already computed every cycle in `QueueController.adjust_4state()` which returns `(state, new_rate, transition_reason)`. The state string ("GREEN", "YELLOW", "SOFT_RED", "RED") is the exact value to write. No new computation needed.
-
-**Rejected alternatives:**
-
-| Alternative | Why Not |
-|-------------|---------|
-| Shared memory (mmap) | Overkill for 500ms reads. Adds complexity. File IPC proven at 50ms write cadence for 11 milestones. |
-| Unix domain sockets | Introduces server/client coupling. Current file approach is deliberately decoupled -- daemons restart independently. |
-| D-Bus / systemd notify | Heavy dependency for a single signal. Inappropriate for embedded/container deployment. |
-| Redis / memcached | External dependency on a production network controller is unacceptable. |
-| Named pipes (FIFO) | Blocking semantics unsuitable for real-time control loops. |
-| SQLite shared DB | Already have metrics in SQLite, but WAL mode fsync overhead per write exceeds JSON atomic rename. |
-| Separate WAN state file | Don't fragment state. Extend existing `{wan}_state.json`. Single file = single read = single atomic operation. |
-
-### 2. Hysteresis / Debounce Gate
-
-**Need:** Sustained WAN RED (~1s) triggers failover amplification; sustained GREEN (~3s) for recovery.
-
-**Mechanism:** Counter-based streak tracking -- identical to three existing patterns in the codebase.
-
-**Existing pattern instances:**
-
-| Location | Counter | Threshold | Purpose |
-|----------|---------|-----------|---------|
-| `autorate_continuous.py:QueueController` | `green_streak` / `red_streak` | `green_required` (default 3-5) | Rate step-up hysteresis |
-| `steering/daemon.py:_update_state_machine_unified()` | `red_count` / `good_count` | `red_samples_required` / `green_samples_required` | Steering state transitions |
-| `steering_confidence.py:compute_confidence()` | `cake_state_history[-3:]` | 3 consecutive cycles | SOFT_RED sustained detection |
-
-**v1.11 addition -- same pattern, new counters:**
-
-The WAN-state hysteresis uses the same counter structure. At steering's 500ms cycle rate:
-- `wan_red_threshold: 2` = ~1s sustained WAN RED (2 cycles x 500ms)
-- `wan_green_threshold: 6` = ~3s sustained WAN GREEN (6 cycles x 500ms)
-
-These are configurable via YAML (see section 3).
-
-**Integration approach:** Two options, both valid:
-
-**Option A: Inline in `_evaluate_degradation_condition()`** -- Add WAN state as an additional condition that can escalate YELLOW to RED-equivalent. ~15 lines. Keeps change minimal.
-
-**Option B: Via confidence scoring** -- Add WAN state as a weighted signal in `compute_confidence()`. Uses existing sustained-detection patterns (check last N entries of a history list). ~20 lines. Better for long-term architecture since confidence scoring is the strategic direction.
-
-**Recommendation: Option B (confidence scoring)** because:
-- Confidence controller already has sustain timers, flap detection, hold-down
-- WAN state benefits from all existing safeguards automatically
-- Aligns with the existing dry-run validation path
-- PROJECT.md says "WAN state is secondary/amplifying" -- weighted additive scoring naturally enforces this
-
-**Threshold math proving WAN is amplifier, not trigger:**
-- WAN RED (30 pts) alone: 30 < 55 steer threshold. Cannot trigger steering.
-- WAN RED (30) + CAKE YELLOW (10): 40 < 55. Still not enough.
-- WAN RED (30) + CAKE RED (50): 80 > 55. Steers. (Both signals agree.)
-- WAN RED (30) + CAKE YELLOW (10) + drops_increasing (10) + queue_high (10): 60 > 55. Multi-signal agreement.
-
-This preserves the invariant: **CAKE stats remain primary, WAN state amplifies/confirms.**
-
-**However,** the hysteresis gate should ALSO work in the non-confidence (legacy hysteresis) path via `_evaluate_degradation_condition()` so that WAN state is available regardless of `use_confidence_scoring` setting. This means both options are needed but Option A is simpler (a condition modifier, not a new state machine).
-
-### 3. Configuration Schema Extension
-
-**Need:** Configurable thresholds for WAN-state failover tuning in YAML.
-
-**Mechanism:** Extend `SteeringConfig._load_specific_fields()` and SCHEMA entries.
-
-**Proposed YAML section (follows existing `confidence:` pattern):**
-
-```yaml
-# WAN-aware steering (v1.11)
-wan_state:
-  enabled: false                   # Master toggle (safe default: disabled for rollout)
-  wan_red_threshold: 2             # Sustained WAN RED samples before amplifying (~1s at 500ms cycle)
-  wan_green_threshold: 6           # Sustained WAN GREEN samples before clearing (~3s at 500ms cycle)
-  weight_red: 30                   # Confidence score contribution for WAN RED
-  weight_soft_red: 15              # Confidence score contribution for WAN SOFT_RED
-  weight_yellow: 5                 # Confidence score contribution for WAN YELLOW
-  amplify_only: true               # WAN state amplifies CAKE signals, never acts alone
-  stale_threshold_sec: 10          # Ignore WAN state if autorate state file older than this
-```
-
-**Schema validation entries (follow existing pattern in `SteeringConfig`):**
+### Implementation Pattern
 
 ```python
-# Direct extension of existing SCHEMA list
-{"path": "wan_state.enabled", "type": bool, "required": False, "default": False},
-{"path": "wan_state.wan_red_threshold", "type": int, "required": False, "default": 2, "min": 1, "max": 20},
-{"path": "wan_state.wan_green_threshold", "type": int, "required": False, "default": 6, "min": 1, "max": 60},
-{"path": "wan_state.weight_red", "type": int, "required": False, "default": 30, "min": 0, "max": 100},
-{"path": "wan_state.weight_soft_red", "type": int, "required": False, "default": 15, "min": 0, "max": 100},
-{"path": "wan_state.weight_yellow", "type": int, "required": False, "default": 5, "min": 0, "max": 100},
-{"path": "wan_state.amplify_only", "type": bool, "required": False, "default": True},
-{"path": "wan_state.stale_threshold_sec", "type": (int, float), "required": False, "default": 10, "min": 1, "max": 300},
+from textual.app import App
+from textual.worker import work
+import httpx
+
+class DashboardApp(App):
+    def on_mount(self) -> None:
+        # Poll health endpoints every 2 seconds
+        self.set_interval(2.0, self.refresh_data)
+
+    def refresh_data(self) -> None:
+        """Trigger async data fetch."""
+        self.fetch_health_data()
+
+    @work(exclusive=True)
+    async def fetch_health_data(self) -> None:
+        """Fetch data from both health endpoints."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            try:
+                autorate = await client.get(f"{self.autorate_url}/health")
+                steering = await client.get(f"{self.steering_url}/health")
+                # Update widgets on the main thread (Textual handles this)
+                self.update_dashboard(autorate.json(), steering.json())
+            except httpx.ConnectError:
+                self.show_connection_error()
 ```
 
-**Why configurable weights:** Different ISPs have different RTT characteristics. Cable (Spectrum) has more volatile RTT than fiber. Portable controller architecture (CLAUDE.md: "All variability in config parameters (YAML)") requires external tuning.
+**Key design decisions:**
 
-**Why `enabled: false` default:** Safe rollout. Deploy code, validate in dry-run via confidence scoring, then enable in config. Same safe-by-default pattern as `confidence.dry_run: true`.
+1. **`exclusive=True`** -- cancels previous fetch if still running (prevents queue buildup if endpoint is slow)
+2. **2-second poll interval** -- human-readable refresh rate. Health endpoints return in <10ms locally. Too fast and terminal flickering becomes an issue.
+3. **Single `AsyncClient` per fetch** -- no persistent connection needed for localhost health checks at 0.5 req/s
+4. **Error handling** -- `httpx.ConnectError` when daemon not running; show degraded state, keep polling
 
-**State source:** Reuses the existing `cake_state_sources.primary` path. No need for a separate config field -- the WAN state lives in the same file that `BaselineLoader` already reads.
+### Historical Data (SQLite)
 
-## What NOT to Add
+For the metrics browser (historical view), use synchronous sqlite3 in a thread worker:
 
-| Temptation | Why Avoid |
-|------------|-----------|
-| New pip dependency | Zero new deps needed. Everything is stdlib + existing deps. |
-| Separate WAN state file | Don't fragment state. Extend existing `{wan}_state.json`. |
-| Message queue between daemons | File-based decoupling is a deliberate architectural choice. |
-| Complex state machine library | Counter-based hysteresis is ~20 lines. A library adds 10x complexity. |
-| Protocol buffers / msgpack | JSON is fast enough. `json.dump()` compact on 200-byte dict takes ~0.01ms. |
-| Configuration migration tool | New fields have defaults. Old configs work unchanged. |
-| Feature flag service | YAML `enabled: true/false` is the feature flag. |
-| New WANStateLoader class with own file I/O | Doubles file reads. Refactor `BaselineLoader` to return both values from single read. |
+```python
+@work(thread=True)
+def fetch_history(self, time_range: str) -> None:
+    """Query metrics DB in background thread."""
+    from wanctl.storage.reader import query_metrics, select_granularity
+    results = query_metrics(db_path=self.db_path, start_ts=start, end_ts=end)
+    self.call_from_thread(self.update_history_table, results)
+```
 
-## Estimated Code Volume
+**Why thread worker for SQLite:** The existing `query_metrics()` is synchronous (uses `sqlite3.connect` with `mode=ro`). Converting to aiosqlite would be a new dependency for marginal benefit. Thread worker keeps the existing reader code unchanged and prevents blocking the TUI event loop.
 
-| Addition | File(s) | Lines | Complexity |
-|----------|---------|-------|------------|
-| `congestion` dict in autorate state write | `wan_controller_state.py`, `autorate_continuous.py` | ~15 | Low |
-| Refactored BaselineLoader returns WAN state | `steering/daemon.py` | ~25 | Low |
-| WAN state hysteresis counters in steering state schema | `steering/daemon.py` | ~5 | Low |
-| WAN state integration in `_evaluate_degradation_condition()` | `steering/daemon.py` | ~15 | Low |
-| WAN state signal in `compute_confidence()` | `steering/steering_confidence.py` | ~20 | Low |
-| `wan_state` YAML config section + schema validation | `steering/daemon.py:SteeringConfig` | ~15 | Low |
-| Health endpoint WAN state exposure | `steering/health.py` | ~5 | Low |
-| **Total new production code** | | **~100** | **Low** |
+## Adaptive Layout Strategy
 
-All changes are in existing files. Zero new files needed.
+Textual does NOT support CSS media queries. Responsive layout requires Python-based handling.
+
+### Pattern: Resize Event + ContentSwitcher
+
+```python
+def on_resize(self, event: Resize) -> None:
+    """Switch layout based on terminal width."""
+    if event.size.width >= 120:
+        # Wide: side-by-side panels
+        self.query_one("#layout").styles.layout = "horizontal"
+    else:
+        # Narrow: stacked/tabbed
+        self.query_one("#layout").styles.layout = "vertical"
+```
+
+### Width Thresholds
+
+| Width | Layout | Rationale |
+|-------|--------|-----------|
+| >= 160 cols | Full: side-by-side WANs + sparklines + decision log | Standard wide terminal (4K monitor, tmux split) |
+| 120-159 cols | Compact: side-by-side WANs, sparklines below | Standard terminal window |
+| 80-119 cols | Stacked: WANs stacked vertically, tabs for history | Minimum usable terminal |
+| < 80 cols | Minimal: single WAN tab view, abbreviated data | SSH session, phone terminal |
+
+### Implementation Options
+
+1. **`on_resize` + `styles.layout`** -- Programmatically toggle between horizontal/vertical/grid
+2. **`ContentSwitcher`** -- Pre-build wide and narrow layouts, switch by ID
+3. **`TabbedContent` for narrow** -- When < 120 cols, switch from panels to tabs
+
+**Recommendation:** Use `on_resize` with `call_after_refresh` (because resize fires before layout redraws). Pre-build both layouts and show/hide based on width. This avoids widget recreation on every resize.
+
+## Integration Points with Existing System
+
+### Health Endpoints (Read-Only)
+
+| Endpoint | Port | Data Available |
+|----------|------|----------------|
+| Autorate `/health` | 9101 | baseline_rtt, load_rtt, dl/ul rates, dl/ul states, cycle_budget, disk_space, router_connectivity |
+| Autorate `/metrics/history` | 9101 | Historical metrics with time range, granularity, pagination |
+| Steering `/health` | 9102 | steering enabled/state/mode, congestion state, confidence score, wan_awareness, counters, thresholds |
+
+### SQLite Database (Read-Only)
+
+| Path | Access | Data |
+|------|--------|------|
+| `/var/lib/wanctl/metrics.db` | `sqlite3.connect("file:...?mode=ro")` | 10 metric types (RTT, rates, states, steering, WAN zone/weight/staleness) |
+
+**Critical:** Dashboard opens DB read-only. WAL mode in the writer allows concurrent reads. No locking issues.
+
+### Configurable Endpoints
+
+The dashboard must accept endpoint URLs and DB path as config:
+
+```yaml
+# ~/.config/wanctl-dashboard.yaml (or CLI args)
+autorate_url: "http://127.0.0.1:9101"
+steering_url: "http://127.0.0.1:9102"
+db_path: "/var/lib/wanctl/metrics.db"
+refresh_interval: 2.0
+```
+
+This allows running the dashboard from any machine (local, SSH tunnel, container).
 
 ## Installation
 
-**No changes to `pyproject.toml` dependencies.** No new packages on production containers.
+### Runtime (new dependencies)
 
 ```bash
-# Development (unchanged)
-uv sync
+# Add to pyproject.toml [project.optional-dependencies] or [project] dependencies
+# Option A: Optional dependency group (recommended -- dashboard is optional tool)
+pip install textual>=8.0.0 httpx>=0.28.0
 
-# Production (unchanged -- no new pip installs)
+# Option B: Add to main dependencies if dashboard ships with core
 ```
+
+### pyproject.toml Changes
+
+```toml
+# Recommended: optional dependency group
+[project.optional-dependencies]
+dashboard = [
+    "textual>=8.0.0",
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+wanctl-dashboard = "wanctl.dashboard.app:main"
+```
+
+**Why optional dependency group:** The dashboard is a development/operator tool, not needed on production containers running the daemons. Keeps production image lean. Install with `pip install wanctl[dashboard]` or `uv sync --extra dashboard`.
+
+### Dev Dependencies
+
+No additional dev dependencies. Textual includes `textual dev` tools in the main package. Testing uses existing pytest + pytest-cov.
+
+## Alternatives Considered
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Textual | curses/urwid | Textual has CSS styling, async-native, rich widget library. curses is low-level C binding. urwid is unmaintained. |
+| Textual | Rich Live | Rich Live is for simple auto-refreshing displays, not interactive TUIs with tabs/tables/keybindings. |
+| httpx | aiohttp | aiohttp is server+client; httpx is client-only and lighter. Textual examples use httpx. |
+| httpx | requests (existing dep) | requests is sync-only, requires thread workers. httpx is async-native for Textual's event loop. |
+| Built-in Sparkline | textual-plotext | Zero extra deps vs 2 extra deps. Sparkline sufficient for rate trends. |
+| Built-in Sparkline | textual-plot | Adds NumPy (~30MB). Overkill for monitoring sparklines. |
+| sqlite3 (thread worker) | aiosqlite | Avoids new dependency. Existing reader.py works unchanged. Thread worker is fine for infrequent history queries. |
+| Optional dep group | Core dependency | Dashboard not needed on headless production containers. |
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| aiosqlite | New dep for marginal benefit; existing reader.py is sync sqlite3 | `@work(thread=True)` with existing `query_metrics()` |
+| textual-plotext | Stagnant upstream (plotext), 2 extra deps | Built-in `Sparkline` widget |
+| textual-plot | NumPy dependency is disproportionate | Built-in `Sparkline` widget |
+| rich (explicit) | Already a transitive dep of textual | No action needed -- Rich renderables available automatically |
+| websockets | Health endpoints are HTTP request/response, not streaming | httpx polling with `set_interval` |
+| prometheus_client | PROJECT.md explicitly states "No external monitoring" | Built-in metrics via SQLite |
+| click / typer | Dashboard CLI is simple (few args) | `argparse` (stdlib, consistent with existing wanctl-history) |
+| pydantic | Config validation for dashboard is minimal (3-4 fields) | Simple dict + defaults |
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| textual>=8.0.0 | Python 3.9-3.14 | We use 3.12. v8.0.0 breaking change: `Select.BLANK` -> `Select.NULL` (irrelevant to dashboard). |
+| httpx>=0.28.0 | Python 3.8+ | Depends on anyio, certifi, httpcore. No conflicts with existing requests dep. |
+| textual>=8.0.0 | rich>=14.2.0 (transitive) | Textual pins its own Rich version. No manual Rich install needed. |
+| sqlite3 (stdlib) | Python 3.12 | WAL mode concurrent reads work with existing writer. No version concern. |
 
 ## Confidence Assessment
 
 | Area | Level | Reason |
 |------|-------|--------|
-| Inter-daemon state sharing | HIGH | Extending proven pattern used since v1.0, 11 milestones of production validation |
-| Hysteresis/debounce | HIGH | Reusing exact counter pattern from 3 existing implementations |
-| Config schema extension | HIGH | Following established BaseConfig/SCHEMA pattern with validate_field() |
-| Signal fusion via confidence scoring | HIGH | Additive weighted scoring already implemented; adding one more term |
-| Backward compatibility | HIGH | New JSON key + optional YAML section with defaults = non-breaking |
+| Textual framework | HIGH | v8.1.1 verified on PyPI (2026-03-10). Active development (10 releases in 2026). Well-documented. |
+| httpx for polling | HIGH | v0.28.1 verified on PyPI. Textual docs demonstrate httpx integration. Simple localhost GET requests. |
+| Built-in Sparkline | HIGH | Part of Textual since 2023. Documented API with reactive data updates. |
+| Adaptive layout | MEDIUM | Textual lacks CSS media queries -- requires Python `on_resize` handling. Pattern is documented but less ergonomic than web CSS. |
+| SQLite thread worker | HIGH | Existing `query_metrics()` works unchanged. Textual `@work(thread=True)` is well-documented pattern. |
+| Optional dep group | HIGH | Standard pyproject.toml feature. `pip install wanctl[dashboard]` is idiomatic Python. |
 
 ## Sources
 
-All from direct codebase analysis (no external sources needed for this milestone):
-- `src/wanctl/state_utils.py` -- atomic_write_json / safe_json_load_file (existing IPC)
-- `src/wanctl/wan_controller_state.py` -- WANControllerState.save() (writer, state schema)
-- `src/wanctl/autorate_continuous.py` -- QueueController.adjust_4state() (zone computation, state source)
-- `src/wanctl/steering/daemon.py` -- BaselineLoader (existing cross-daemon reader), SteeringDaemon._update_state_machine_unified() (decision point)
-- `src/wanctl/steering/congestion_assessment.py` -- StateThresholds, assess_congestion_state() (hysteresis pattern)
-- `src/wanctl/steering/steering_confidence.py` -- compute_confidence(), ConfidenceSignals (scoring integration point)
-- `src/wanctl/config_base.py` -- BaseConfig, validate_schema() (config extension pattern)
-- `configs/steering.yaml` -- production steering config (YAML structure)
-- `configs/spectrum.yaml` -- production autorate config (state source path)
-- `.planning/PROJECT.md` -- v1.11 feature requirements and constraints
+- [Textual official docs](https://textual.textualize.io/) -- Widget gallery, CSS guide, Workers guide, Sparkline API
+- [Textual GitHub releases](https://github.com/Textualize/textual/releases) -- v8.1.1 (2026-03-10) confirmed latest
+- [PyPI textual](https://pypi.org/project/textual/) -- v8.1.1, Python 3.9-3.14, rich>=14.2.0 dep
+- [PyPI httpx](https://pypi.org/project/httpx/) -- v0.28.1, Python 3.8+, anyio+certifi+httpcore deps
+- [PyPI textual-plotext](https://pypi.org/project/textual-plotext/) -- v1.0.1 (Nov 2024), evaluated and rejected
+- [PyPI textual-plot](https://pypi.org/project/textual-plot/) -- v0.10.1 (Feb 2026), evaluated and rejected (NumPy dep)
+- [PyPI plotext](https://pypi.org/project/plotext/) -- v5.3.2 (Sep 2024), stagnant upstream
+- [Textual Workers guide](https://textual.textualize.io/guide/workers/) -- @work decorator, exclusive workers, thread workers
+- [Textual Layout guide](https://textual.textualize.io/guide/layout/) -- Grid, horizontal, vertical layouts
+- [Textual Resize event](https://textual.textualize.io/events/resize/) -- size, virtual_size, container_size properties
+- Direct codebase analysis: health_check.py (port 9101 API), steering/health.py (port 9102 API), storage/reader.py (query_metrics), storage/schema.py (STORED_METRICS)
+
+---
+*Stack research for: wanctl v1.14 TUI Dashboard*
+*Researched: 2026-03-11*

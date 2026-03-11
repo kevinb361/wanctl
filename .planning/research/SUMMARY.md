@@ -1,170 +1,211 @@
 # Project Research Summary
 
-**Project:** wanctl v1.11 WAN-Aware Steering
-**Domain:** Inter-daemon signal fusion for dual-WAN congestion-aware failover
-**Researched:** 2026-03-09
+**Project:** wanctl v1.14 — TUI Dashboard (wanctl-dashboard)
+**Domain:** Real-time network monitoring TUI for existing dual-WAN controller
+**Researched:** 2026-03-11
 **Confidence:** HIGH
 
 ## Executive Summary
 
-WAN-aware steering closes a specific observability gap in wanctl's dual-daemon architecture: autorate measures ISP-level congestion via end-to-end RTT (the WAN path) and expresses it as a 4-state zone (GREEN/YELLOW/SOFT_RED/RED), but this signal is computed and discarded each cycle -- never persisted to the state file. Steering currently relies only on CAKE queue stats (local link congestion) and its own independent RTT measurement. When the ISP is congested but local CAKE queues are clean -- because CAKE is doing its job clamping bandwidth to floor -- steering has no reason to act. This is the exact scenario where rerouting latency-sensitive connections to the alternate WAN would help most, and v1.11 addresses it.
+The v1.14 milestone adds a standalone TUI dashboard that gives operators a live view of the dual-WAN controller's health without requiring SSH + curl. The research is unusually clean because the dashboard is a pure consumer of infrastructure that already exists: two HTTP health endpoints (ports 9101/9102), a `/metrics/history` API, and a SQLite metrics database. The recommended approach is Textual (Python TUI framework, v8.1.1) with httpx for async HTTP polling. Three new runtime dependencies (textual, httpx) ship as an optional dependency group so daemon containers stay lean. Zero changes to daemon code are needed for the initial build.
 
-The recommended approach requires zero new dependencies and approximately 100 lines of new production code, all in existing files. Autorate extends its state file with a `congestion.dl_state` field (already computed, currently discarded after logging). Steering reads this field from the same file it already opens every cycle for baseline RTT (zero additional I/O), filters it through a lightweight hysteresis gate, and feeds it into the existing `compute_confidence()` additive scoring pipeline. The WAN signal is strictly amplifying: WAN RED (30 points) alone cannot cross the steer threshold (55), requiring corroboration from at least one CAKE-based signal. All existing sustain timers, flap detection, hold-down, and dry-run infrastructure apply automatically.
+The recommended architecture is a separate process with no shared code or state with the daemons. All data flows through HTTP. The dashboard has a clear MVP boundary: a polling engine plus live status panels validating the concept, followed by sparklines and history browser adding operational value, with adaptive layout and steering decision log deferred as polish. The feature dependency graph is simple — the health polling engine is the single prerequisite for every live display widget, which makes phasing straightforward.
 
-The primary risks are dirty-tracking regression (adding a volatile field to the state dict could cause 20x write amplification), stale state causing phantom congestion (autorate crash leaves RED in the file indefinitely), and hysteresis stacking (each layer adds delay, potentially making the WAN-amplified path slower than CAKE-only). All three have concrete mitigations: exclude zone from dirty-tracking comparison, enforce a 5-second staleness threshold defaulting to GREEN, and read autorate's zone as-is without adding another hysteresis layer. The feature ships disabled by default (`wan_state.enabled: false`) for safe rollout, following the same pattern used for confidence scoring dry-run.
+The key risks are async event loop violations (using synchronous HTTP in a Textual app), missing graceful degradation when one daemon endpoint is unreachable, and the connectivity gap caused by health endpoints binding to 127.0.0.1 inside containers. All three risks are architectural in nature — they must be resolved in the data layer before building any widgets, because retrofitting them later requires rewriting every data access path.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new external libraries, frameworks, or tools are needed. Every primitive required for WAN-aware steering already exists in the codebase. The atomic JSON state file IPC (`state_utils.py:atomic_write_json()`), counter-based hysteresis (three existing pattern instances), additive confidence scoring (`steering_confidence.py:compute_confidence()`), and config schema validation (`config_base.py:validate_schema()`) are all proven patterns with 11 milestones of production validation. See `STACK.md` for full component inventory.
+The stack is minimal: Textual provides the TUI framework, async event loop, and all required widgets (Sparkline, DataTable, TabbedContent, Digits, Header/Footer, RichLog, ProgressBar, ContentSwitcher). httpx provides async HTTP for polling health endpoints. All historical data access goes through the existing `/metrics/history` HTTP API, avoiding the need for aiosqlite. The existing synchronous `query_metrics()` reader can be used from a `@work(thread=True)` worker if direct SQLite access is ever needed locally, but the HTTP path is preferred for remote deployments.
 
-**Core technologies (all existing, reuse as-is):**
-- `atomic_write_json()` / `safe_json_load_file()`: inter-daemon state sharing -- proven at 50ms write cadence for 11 milestones
-- `compute_confidence()` additive scoring: signal fusion point -- WAN state becomes one more weighted term
-- `SteeringConfig` SCHEMA validation: config extension point -- add `wan_state:` section with defaults
-- Counter-based streak tracking: hysteresis pattern -- identical to three existing implementations
+**Core technologies:**
+- `textual>=8.0.0`: TUI framework — async-native, CSS-based layout, rich built-in widget set, active development (10 releases in 2026 as of research date)
+- `httpx>=0.28.0`: Async HTTP client — pairs naturally with Textual's `@work` decorator, lighter than aiohttp for client-only use, used in Textual's own documentation examples
+- `sqlite3` (stdlib, thread worker): Historical data fallback — existing `query_metrics()` works unchanged, no new dependency needed
+- `argparse` (stdlib): CLI args — consistent with existing `wanctl-history` tool, no click/typer needed for a few flags
+
+**What to avoid adding:**
+- `textual-plotext` / `textual-plot`: stagnant upstream or NumPy-heavy; Textual's built-in Sparkline is sufficient for trend visualization
+- `aiosqlite`: new dependency with marginal benefit; thread worker plus existing reader is equivalent
+- `websockets`: health endpoints are request/response, not streaming; httpx polling with `set_interval` is correct
 
 ### Expected Features
 
-See `FEATURES.md` for full analysis including competitor comparison and signal priority model.
+**Must have (table stakes — P1, MVP launch):**
+- Health polling engine with configurable endpoint URLs and 1-2s refresh — foundation for all live features
+- Error handling for unreachable daemons — show inline "offline" state, keep polling, never crash
+- Per-WAN panels with color-coded congestion state (GREEN/YELLOW/SOFT_RED/RED) — primary visual
+- Current DL/UL rates and RTT (baseline/load/delta) per WAN — key numbers
+- Steering status with confidence score — the headline feature since v1.13 graduation
+- WAN awareness detail panel (zone, staleness, grace, contribution) — completes steering picture
+- Footer with discoverable keybindings (`q` quit, `r` refresh, Tab cycle) — mandatory for TUI usability
+- CLI args (`--autorate-url`, `--steering-url`, `--db-path`) — enables remote operation
 
-**Must have (table stakes):**
-- Autorate exports `congestion.dl_state` to state file -- foundation for all WAN awareness
-- Steering reads WAN zone from autorate state file (extends BaselineLoader)
-- Map autorate 4-state zone to confidence weights (WAN_RED=30, WAN_SOFT_RED=15)
-- Sustained WAN RED/GREEN via existing sustain timers -- transient filtering
-- CAKE remains primary signal (enforced by weight values: WAN alone < threshold)
-- YAML configuration with `wan_state.enabled: false` default
-- Graceful degradation when autorate unavailable (None = skip WAN weight)
-- Backward compatibility for pre-upgrade state files (`.get()` with defaults)
+**Should have (competitive value — P2, post-validation):**
+- Bandwidth sparklines (DL/UL per WAN, rolling deque buffer) — trend visibility btop-style
+- RTT delta sparkline with color gradient — early warning for congestion onset
+- Cycle budget utilization gauge — 50ms budget health at a glance
+- Digits widget headline (worst RTT delta or total bandwidth) — wall-display legibility
+- Historical metrics browser tab with time range selector (1/2/3/4 keys for 1h/6h/24h/7d) — post-mortem use case
+- Summary statistics for selected range (min/max/avg/p95/p99)
 
-**Should have (differentiators):**
-- SOFT_RED as pre-failure early warning (5-10s ahead of full RED, unique to wanctl)
-- Health endpoint exposes WAN awareness state, staleness, confidence contribution
-- SQLite metrics for WAN awareness events (post-hoc analysis)
-- Startup grace period (ignore WAN signal for first 30s after daemon start)
+**Defer (v1.15+ or explicit request):**
+- Adaptive layout (wide/narrow responsive) — start with fixed layout, add later
+- Steering decision log — requires new daemon ring-buffer API endpoint
+- Exportable clipboard views — operator convenience, not blocking
+- Custom refresh rate selection — 1-2s default is appropriate
 
-**Defer (v2+):**
-- Upload zone awareness -- download is the authoritative ISP health signal
-- RTT delta export in state file -- only if steering needs more granular WAN data
-- Asymmetric WAN-specific sustain timers -- only if shared timers prove too coarse
+**Anti-features (explicitly rejected):**
+- Live log tailing: 20Hz log volume is overwhelming; `journalctl -f` is purpose-built for this
+- Config editing from TUI: no audit trail, dangerous for production network controller
+- Sub-second dashboard refresh: no human or visual benefit at <200ms, wastes CPU
+- Full Grafana-style charts: terminal resolution makes them unreadable; sparklines are sufficient
 
 ### Architecture Approach
 
-The integration requires exactly 4 changes to the existing architecture: (1) autorate writes its congestion zone to the state file, (2) steering reads that zone from the same file it already reads for baseline RTT, (3) a small hysteresis gate (~60 lines) filters the raw zone before scoring, and (4) `compute_confidence()` gains WAN weight constants. No architectural spine changes. No new IPC mechanisms. No daemon coupling. The unidirectional data flow (autorate publishes, steering reads) is preserved. See `ARCHITECTURE.md` for full data flow diagrams and component inventory.
+The dashboard is a standalone `wanctl-dashboard` process that communicates exclusively via HTTP with the two daemon health endpoints. It has zero code imports from daemon modules. The `DataPoller` component manages async HTTP polling with connection pooling and per-endpoint error states. Textual reactive attributes propagate polled data to widgets. Historical data uses the existing `/metrics/history` API endpoint rather than direct SQLite access, enabling remote operation without filesystem coupling.
 
 **Major components:**
-1. **State File Extension** (autorate side) -- add `congestion: {dl_state, ul_state}` to existing JSON state dict
-2. **AutorateStateLoader** (renamed BaselineLoader) -- single file read returns both baseline_rtt and wan_dl_state
-3. **WANStateGate** (~60 lines, inline in daemon.py) -- Schmitt-trigger hysteresis filter for zone stability
-4. **Confidence scoring extension** -- `ConfidenceWeights.WAN_RED=30`, `WAN_SOFT_RED=15` in existing `compute_confidence()`
+1. `wanctl.dashboard.app` — Textual App subclass, entry point, timer and worker orchestration
+2. `wanctl.dashboard.poller` — `DataPoller`: persistent async httpx client, connection pooling, per-endpoint error states, exponential backoff retry
+3. `wanctl.dashboard.config` — `DashboardConfig`: separate YAML from daemon configs (no router credentials), CLI arg overrides
+4. `wanctl.dashboard.widgets/` — `WanStatusWidget`, `BandwidthChart`, `SteeringPanel`, `HistoryBrowser` — each self-contained, data via reactive attributes
+5. `wanctl.dashboard.styles/dashboard.tcss` — Textual CSS for layout, theming, color mapping
+
+**Key patterns:**
+- `@work(exclusive=True)` async workers for HTTP polling — prevents stale request queue buildup if endpoint is slow
+- Reactive data binding — widgets watch their `data` attribute, never know about HTTP
+- Message-based thread communication — `call_from_thread()` or `post_message()` for any SQLite thread workers
+- Independent per-endpoint polling timers — one endpoint being slow or down does not affect others
+- `collections.deque(maxlen=N)` for sparkline buffers — bounded memory regardless of runtime duration
+
+**Connectivity model:** Health endpoints bind to 127.0.0.1 inside Docker containers. For remote dashboard access, use SSH port forwarding (`ssh -L 9101:127.0.0.1:9101 cake-spectrum`) or add configurable `health.bind_address` to daemon YAML (one-line change, defaulting to 127.0.0.1 for security).
 
 ### Critical Pitfalls
 
-See `PITFALLS.md` for full analysis (15 pitfalls total: 5 critical, 6 moderate, 4 minor).
+1. **Blocking Textual event loop with synchronous HTTP** — Use `httpx.AsyncClient` exclusively. Never use `requests`, `urllib`, or any synchronous HTTP client in dashboard code. Retrofit cost is high (must rewrite every polling path). Must be architectural from day one.
 
-1. **Dirty-tracking write amplification** -- Adding volatile `dl_zone` to state dict triggers 20x more disk writes (every 50ms vs. every 1s). Exclude zone from dirty-tracking comparison or write zone changes only on transitions.
-2. **Stale state causing phantom congestion** -- Autorate crash leaves RED in state file. Enforce 5-second staleness threshold; stale state defaults to GREEN (fail-safe).
-3. **Signal conflict (CAKE GREEN + WAN RED)** -- WAN RED alone must NOT trigger steering. Enforced by weight values: WAN_RED(30) < steer_threshold(55). Only amplifies existing CAKE signals.
-4. **Oscillation amplification** -- Faster degrade path (WAN boosts score) with unchanged recovery creates asymmetry. WAN state should affect only confidence score, not hysteresis counters. Add invariant tests.
-5. **Hysteresis stacking** -- Layering WAN hysteresis on top of autorate's already-filtered zone adds delay. Read autorate zone as-is (already filtered by streak counters); avoid adding another sustained-cycle gate on the steering side.
+2. **No graceful degradation when one endpoint is unreachable** — Poll each data source independently with separate workers and timers. Show inline "offline + last-seen timestamp" per section, never a full-screen error overlay. Retrofit cost is high (requires rearchitecting data layer). Build this into the polling abstraction, not as a UI afterthought.
+
+3. **Health endpoints unreachable from local machine** — Endpoints bind to 127.0.0.1 inside containers. Decide connectivity model (SSH tunnel, Docker port mapping, or configurable bind address) before writing any polling code. SSH tunnel is the secure default; Docker port mapping is simpler for home network use.
+
+4. **Sparkline data accumulating without bounds** — Use `collections.deque(maxlen=N)` from the first data append. List-based accumulation causes linear memory growth and render slowdown after hours of runtime. Retrofit is mechanical but requires touching every data append site.
+
+5. **Thread-unsafe UI updates from SQLite workers** — Use `@work(thread=True)` for SQLite but communicate results exclusively via `post_message()` or `call_from_thread()`. Never set reactive attributes directly from a thread worker. Intermittent crashes are the symptom; detection is difficult post-hoc.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure (4 core phases + 1 optional):
+Based on the research, a 3-phase structure is recommended. The architecture research's 8-step build order maps naturally onto three phases with clear deliverables at each boundary.
 
-### Phase 1: State File Extension (Writer Side)
-**Rationale:** Every other feature depends on autorate publishing `congestion.dl_state`. This is the single foundation -- a ~15-line change in existing files with zero risk to steering.
-**Delivers:** Autorate state file contains congestion zone, backward-compatible, dirty-tracking preserved.
-**Addresses:** "Autorate exports dl_state" (P1 table stake), backward compatibility.
-**Avoids:** Pitfall 1 (missing zone), Pitfall 2 (dirty-tracking regression), Pitfall 9 (backward compat).
+### Phase 1: Foundation — Data Layer + Entry Point + Live Status
 
-### Phase 2: WAN State Reader + Hysteresis Gate (Reader Side)
-**Rationale:** Reader must exist before it can be wired into scoring. WANStateGate is testable in isolation. BaselineLoader rename to AutorateStateLoader eliminates the double-read anti-pattern.
-**Delivers:** AutorateStateLoader returns both baseline_rtt and wan_dl_state from single file read. WANStateGate filters zone through configurable hysteresis.
-**Addresses:** "Steering reads WAN state" (P1), graceful degradation, staleness detection.
-**Avoids:** Pitfall 3 (stale state), Pitfall 6 (hot-loop blocking), Pitfall 11 (SOFT_RED mapping), Pitfall 13 (disabled path).
+**Rationale:** The health polling engine is the prerequisite for every live display feature. Building it first (with correct async patterns, error handling, and connectivity) prevents the highest-cost pitfalls from being baked into the codebase. A minimal working dashboard — even one that just shows raw numbers — validates the end-to-end data flow before investing in polish.
 
-### Phase 3: Confidence Scoring + Signal Fusion
-**Rationale:** Depends on Phase 2 data model (ConfidenceSignals.wan_state field). This is the core logic: WAN zone becomes a weighted additive signal in the existing scoring pipeline.
-**Delivers:** WAN_RED and WAN_SOFT_RED confidence weights, signal fusion rules enforcing "CAKE primary, WAN amplifying", recovery eligibility check includes WAN state.
-**Addresses:** Confidence weight mapping (P1), sustained degradation/recovery (P1), SOFT_RED early warning (differentiator).
-**Avoids:** Pitfall 4 (signal conflict), Pitfall 5 (oscillation amplification), Pitfall 7 (over-engineering third state machine).
+**Delivers:**
+- Working `wanctl-dashboard` command that launches without error
+- `DashboardConfig` with YAML loading and CLI arg overrides (endpoint URLs, DB path)
+- `DataPoller` with persistent async httpx client, connection pooling, per-endpoint error states, retry with exponential backoff
+- Per-WAN live status panels: congestion state (color-coded), DL/UL rates, RTT (baseline/load/delta)
+- Steering status panel: enabled/disabled, confidence score, WAN awareness fields
+- Footer with discoverable keybindings
+- Graceful unreachable-daemon handling (inline "offline" state, continued polling)
+- pyproject.toml optional dependency group (`wanctl[dashboard]`) and entry point
 
-### Phase 4: Wiring + Config + Health + Testing
-**Rationale:** End-to-end wiring depends on all components existing. Config is the final enablement mechanism. Integration testing validates the full pipeline.
-**Delivers:** SteeringDaemon.run_cycle() wired to WAN state, YAML configuration, health endpoint exposure, full signal combination test matrix.
-**Addresses:** YAML configuration (P1), health endpoint (P2 differentiator), startup grace period (P2).
-**Avoids:** Pitfall 8 (hysteresis stacking -- end-to-end latency test), Pitfall 10 (testing isolation), Pitfall 14 (recovery bounce), Pitfall 15 (config sprawl).
+**Addresses (from FEATURES.md):** All P1 / table-stakes features
+**Avoids (from PITFALLS.md):** P1 (blocking event loop), P2 (thread-unsafe UI), P3 (polling too fast), P4 (unreachable endpoints), P6 (dashboard isolation), P10 (no graceful degradation), P11 (resource leak)
 
-### Phase 5 (Optional): Observability + Metrics
-**Rationale:** Only needed once WAN awareness is proven working in production. SQLite metrics enable post-hoc analysis of WAN signal effectiveness.
-**Delivers:** SQLite metrics for WAN awareness events, log format updates for WAN state decisions.
-**Addresses:** SQLite metrics recording (P2 differentiator).
+**Research flag:** Standard Textual patterns — well-documented with code examples, skip `/gsd:research-phase`
+
+### Phase 2: Visualization — Sparklines + Historical Browser
+
+**Rationale:** Once the polling foundation is proven and data flows correctly, sparkline charts are a low-risk addition (Textual built-in widget, just wire rolling buffer to existing polled data). The historical browser is higher complexity (query engine, time range selector, DataTable) but uses the existing `/metrics/history` API which was designed for this purpose.
+
+**Delivers:**
+- Bandwidth sparklines (DL/UL per WAN, rolling deque buffer, ~2 minute window at 1Hz)
+- RTT delta sparkline with min=green/max=red gradient
+- Cycle budget utilization gauge (existing health endpoint data, zero new daemon code)
+- Digits headline widget (worst RTT delta or aggregate bandwidth)
+- Historical metrics browser tab: time range selector (1/2/3/4 keys), DataTable with granularity-aware queries, summary statistics (min/max/avg/p95/p99)
+
+**Uses (from STACK.md):** Textual Sparkline widget, DataTable widget, TabbedContent widget, `@work(thread=True)` for SQLite if needed
+**Avoids (from PITFALLS.md):** P7 (unbounded sparkline data), P5 (SQLite locking), performance trap (fetchall for large time ranges)
+
+**Research flag:** Standard patterns for Sparkline and DataTable — skip `/gsd:research-phase`. The `/metrics/history` endpoint behavior (pagination, granularity auto-selection via existing `select_granularity()`) is well-understood from direct code inspection.
+
+### Phase 3: Polish — Adaptive Layout + Terminal Compatibility
+
+**Rationale:** Adaptive layout (wide/narrow responsive) and terminal compatibility (tmux, SSH) are quality-of-life improvements that do not block daily use. Deferred because they introduce the most Textual-specific complexity (resize events, CSS media queries, hysteresis) and are only worth the investment after the dashboard has proven its value in daily operation.
+
+**Delivers:**
+- Adaptive layout: side-by-side WAN panels at >= 120 columns, stacked/tabbed below 120
+- Resize hysteresis (20-column dead zone) to prevent layout flicker at breakpoint boundary
+- Terminal compatibility verification: bare terminal, tmux, SSH + tmux
+- `--no-color` / `--256-color` CLI fallback flags
+- Optionally: `health.bind_address` config option added to daemons (one-line change) for clean remote access without SSH tunnels
+
+**Avoids (from PITFALLS.md):** P8 (terminal compatibility), P9 (adaptive layout flicker)
+
+**Research flag:** Adaptive layout in Textual lacks CSS media queries — requires Python `on_resize` handler with debouncing. Pattern is documented but less ergonomic than web CSS. Consider a focused spike if layout design is complex.
 
 ### Phase Ordering Rationale
 
-- **Writer before reader:** Autorate must publish the zone before steering can consume it. The data dependency is strict. Phase 1 is also completely safe to deploy alone (steering ignores unknown state file keys).
-- **Reader before scoring:** The data model (AutorateSnapshot, WANStateGate) must exist before confidence scoring can reference it. Phase 2 is testable in isolation.
-- **Scoring before wiring:** Weight constants and fusion logic must be defined before the end-to-end run_cycle integration. Phase 3 has zero behavioral change until Phase 4 wires the wan_state field.
-- **Testing alongside wiring:** The signal combination matrix (PITFALLS.md Pitfall 10) must be validated during the wiring phase, not deferred. Phase 4 makes it live, controlled by `wan_state.enabled`.
-- **Observability last:** Metrics and health endpoint additions are valuable but not functionally required. They can ship after the core is stable.
+- **Data layer before widgets:** Every display widget depends on correct async polling. Building widgets on a synchronous polling foundation would require a complete rewrite of every data access call, not an incremental fix.
+- **Error handling before features:** Graceful degradation is architectural. Adding it after a working dashboard requires rearchitecting the data layer (high retrofit cost per PITFALLS.md P10 recovery cost: HIGH).
+- **Sparklines before history:** Sparklines reuse already-polled data with minimal new code (wire rolling deque to existing poll output). History browser is independent but more complex; comes after the live view is stable.
+- **Layout last:** Adaptive layout does not block any feature. A reasonable fixed layout (vertical stack or simple horizontal split) is sufficient for phases 1-2.
+- **Daemon code stays frozen:** The architecture research confirms zero daemon changes are needed for phases 1-2. Phase 3 may add `health.bind_address` as a one-line config change. No daemon architectural spine changes at any phase.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2 (Reader + Gate):** Dirty-tracking interaction requires profiling. Decision between same-file read vs. separate zone file impacts I/O characteristics. STACK.md recommends same-file (zero additional I/O), PITFALLS.md suggests separate file as alternative to avoid dirty-tracking regression. Resolve during phase planning.
-- **Phase 3 (Signal Fusion):** Weight values need scenario modeling. Research files propose slightly different ranges (FEATURES.md: 20-25 for WAN_RED; STACK.md: 30; ARCHITECTURE.md: 30). Settle on exact values during planning and validate with the signal combination test matrix.
+- **Phase 3 (adaptive layout):** Textual lacks CSS media queries; `on_resize` hysteresis and debouncing require careful design. If the layout design is ambitious (e.g., pre-built wide/narrow widget trees rather than CSS toggling), a research spike on Textual's ContentSwitcher and resize event patterns is worthwhile.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1 (State File):** Well-documented existing pattern. Adding a key to a JSON dict with dirty-tracking exclusion is straightforward.
-- **Phase 4 (Wiring + Config):** Config schema extension follows established BaseConfig/SCHEMA pattern. Health endpoint extension is a dict addition.
-- **Phase 5 (Observability):** MetricsWriter integration follows existing metric recording patterns.
+Phases with standard patterns (skip `/gsd:research-phase`):
+- **Phase 1:** Textual app skeleton, httpx async polling, pyproject.toml optional deps — all have code examples in Textual official docs and the patterns are well-established.
+- **Phase 2:** Sparkline widget API, DataTable, `/metrics/history` endpoint — endpoint designed for this use case and inspected directly in codebase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new dependencies. All from direct codebase analysis of proven patterns. |
-| Features | HIGH | Competitor analysis grounded in official docs (pfSense, OPNsense, MikroTik). Signal model validated against existing weight table. |
-| Architecture | HIGH | All findings from 16,493 LOC codebase analysis. Data flow traced through specific line numbers. Architectural spine compliance verified. |
-| Pitfalls | HIGH | 15 pitfalls identified from control systems principles + production failure modes. All mapped to specific code locations. |
+| Stack | HIGH | Textual v8.1.1 and httpx v0.28.1 verified on PyPI (2026-03-10). Textual docs demonstrate httpx integration explicitly. All version constraints verified. Widget APIs confirmed to cover 100% of dashboard needs without additional libraries. |
+| Features | HIGH | Health endpoints directly inspected in codebase. Every P1 feature maps to data already available in existing API responses. No speculation about available data — all fields confirmed in source. |
+| Architecture | HIGH | Existing endpoints (`/health`, `/metrics/history`) inspected at source level. DataPoller/reactive pattern is idiomatic Textual. HTTP-only approach eliminates SQLite cross-container complexity. Anti-patterns identified with specific failure modes. |
+| Pitfalls | HIGH | Grounded in direct codebase analysis (health server bind addresses, MetricsWriter WAL behavior, storage/reader.py) plus Textual framework documentation. Critical pitfalls are concrete, actionable, and mapped to specific recovery costs. |
 
 **Overall confidence:** HIGH
 
-This is the highest-confidence research possible: the entire milestone is wiring existing primitives together inside a mature, well-tested codebase. No external APIs, no new protocols, no unfamiliar libraries. Every integration point was traced to specific source lines.
-
 ### Gaps to Address
 
-- **Exact WAN_RED weight value:** Research files propose slightly different ranges (20-25 vs. 30). Resolve during Phase 3 planning by modeling the full signal combination matrix with both values. The difference is minor: both enforce "WAN alone < threshold."
-- **Same-file vs. separate-file for zone data:** STACK.md recommends extending the existing state file (zero additional I/O). PITFALLS.md notes dirty-tracking regression risk and suggests a separate file as an alternative. Resolve during Phase 1 planning by profiling dirty-tracking behavior with the zone field added.
-- **Hysteresis stacking latency budget:** PITFALLS.md (Pitfall 8) identifies a potential 3.6-3.7s end-to-end latency if all hysteresis layers compound. ARCHITECTURE.md recommends reading the zone as-is (already filtered). An integration test measuring wall-clock latency from congestion injection to steering activation is needed in Phase 4.
-- **Staleness threshold:** 5 seconds is proposed but has no production data backing. Phase 2 planning could analyze autorate state file write frequency to set this optimally.
+- **Connectivity model decision:** Three options exist (SSH tunnel, Docker port mapping, configurable bind address). The team should pick one before Phase 1 implementation begins. Recommendation: SSH tunnel as the documented secure default, Docker port mapping as a documented simpler alternative for home network use.
+- **Dashboard config file location:** Research recommends `~/.config/wanctl/dashboard.yaml` for user-facing config or `/etc/wanctl/dashboard.yaml` alongside daemon secrets. Confirm which pattern fits the deployment model before Phase 1 config implementation.
+- **Steering decision log feasibility:** This feature (P3, deferred) requires a new daemon endpoint exposing a ring buffer of transition events. The alternative (parse logs from TUI via SSH/journalctl) adds auth complexity. If this feature is desired in a future milestone, add a daemon-side ring-buffer API endpoint; do not add SSH handling to the dashboard.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis of `src/wanctl/` (16,493 LOC, 2,109 tests, 91%+ coverage)
-- `wan_controller_state.py` -- state persistence, dirty tracking
-- `autorate_continuous.py` -- zone computation, save_state(), run_cycle()
-- `steering/daemon.py` -- BaselineLoader, SteeringDaemon, run_cycle(), SteeringConfig
-- `steering/steering_confidence.py` -- ConfidenceWeights, ConfidenceSignals, compute_confidence()
-- `steering/congestion_assessment.py` -- CongestionState, assess_congestion_state()
-- `state_utils.py` -- atomic_write_json(), safe_json_load_file()
-- `configs/steering.yaml`, `configs/spectrum.yaml` -- production configuration
+
+- [Textual official docs](https://textual.textualize.io/) — Widget gallery, CSS guide, Workers guide, Sparkline API, Resize event, Layout guide
+- [PyPI textual](https://pypi.org/project/textual/) — v8.1.1 confirmed (2026-03-10), Python 3.9-3.14
+- [PyPI httpx](https://pypi.org/project/httpx/) — v0.28.1, Python 3.8+
+- [Textual GitHub releases](https://github.com/Textualize/textual/releases) — v8.1.1 (2026-03-10) confirmed latest
+- wanctl codebase: `health_check.py`, `steering/health.py`, `storage/reader.py`, `storage/writer.py`, `storage/schema.py`, `metrics.py`, `history.py` — direct inspection of all integration points
 
 ### Secondary (MEDIUM confidence)
-- pfSense gateway groups + failback bugs (#5090, #9054) -- competitor failover behavior
-- OPNsense Multi-WAN docs -- sticky connections, time_period evaluation
-- MikroTik Netwatch docs -- probe-based failover limitations
-- Juniper VRRP failover-delay -- asymmetric timer patterns
-- Fortinet convergence timers -- hold-up time semantics
 
-### Tertiary (LOW confidence)
-- Hysteresis stacking in control systems (instrunexus.com) -- general principle, applied by analogy
-- POSIX write atomicity (utcc.utoronto.ca) -- confirms atomic rename sufficiency
+- [SQLite WAL documentation](https://sqlite.org/wal.html) — concurrent read/write, checkpoint locking behavior
+- [NetWatch TUI](https://github.com/matthart1983/netwatch), btop, [awesome-tuis](https://github.com/rothgar/awesome-tuis) — TUI monitoring patterns and conventions
+- [HTTPX vs Requests vs AIOHTTP comparison](https://oxylabs.io/blog/httpx-vs-requests-vs-aiohttp) — library selection rationale
+- [Textual Workers guide](https://textual.textualize.io/guide/workers/) — thread safety rules, call_from_thread, exclusive workers
+- [Textual + tmux discussion #4003](https://github.com/Textualize/textual/discussions/4003) — escape key delay, color support issues (informs Phase 3 compatibility work)
+
+### Tertiary (evaluated and rejected)
+
+- [PyPI textual-plotext](https://pypi.org/project/textual-plotext/) — v1.0.1 (Nov 2024), stagnant upstream, rejected in favor of built-in Sparkline
+- [PyPI textual-plot](https://pypi.org/project/textual-plot/) — v0.10.1, NumPy dependency disproportionate for monitoring sparklines, rejected
+- [textual-fastdatatable](https://github.com/tconbeer/textual-fastdatatable) — evaluated for large DataTable performance, not needed at expected row counts
 
 ---
-*Research completed: 2026-03-09*
+*Research completed: 2026-03-11*
 *Ready for roadmap: yes*
