@@ -5,13 +5,16 @@ Tests the extracted methods for:
 - run_daemon_loop(): Daemon control loop (future plan)
 - execute_steering_transition(): Routing control (future plan)
 - update_ewma_smoothing(): EWMA smoothing (future plan)
+- _reload_dry_run_config(): SIGUSR1-triggered dry_run flag reload
 """
 
+import logging
 import threading
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
 
 class TestCollectCakeStats:
@@ -5374,3 +5377,228 @@ class TestCakeAwareDeprecation:
             SteeringConfig(config_path)
 
         assert not any("cake_aware" in msg for msg in caplog.messages)
+
+
+# =============================================================================
+# Tests for BaseConfig.config_file_path and dry_run hot-reload
+# =============================================================================
+
+
+class TestBaseConfigFilePath:
+    """Tests that BaseConfig stores the config_file_path attribute."""
+
+    def test_config_file_path_stored_after_init(self, tmp_path):
+        """BaseConfig stores config_file_path attribute after __init__."""
+        from wanctl.config_base import BaseConfig
+
+        config_data = {
+            "wan_name": "test",
+            "router": {
+                "host": "192.168.1.1",
+                "user": "admin",
+                "ssh_key": "/tmp/key",
+            },
+            "logging": {
+                "main_log": str(tmp_path / "main.log"),
+                "debug_log": str(tmp_path / "debug.log"),
+            },
+            "lock_file": str(tmp_path / "test.lock"),
+            "lock_timeout": 300,
+        }
+
+        config_path = tmp_path / "test_config.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+
+        config = BaseConfig(str(config_path))
+        assert hasattr(config, "config_file_path")
+        assert config.config_file_path == str(config_path)
+
+
+class TestDryRunReload:
+    """Tests for SteeringDaemon._reload_dry_run_config() method.
+
+    Verifies SIGUSR1-triggered reload of the dry_run flag from YAML
+    without restarting the daemon.
+    """
+
+    @pytest.fixture
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config from conftest.py."""
+        config = mock_steering_config
+        config.config_file_path = "/tmp/test_steering.yaml"
+        config.confidence_config = {
+            "dry_run": {"enabled": True},
+            "steer_threshold": 55,
+            "recovery_threshold": 15,
+            "sustain_duration_sec": 5,
+            "recovery_sustain_sec": 10,
+        }
+        config.use_confidence_scoring = True
+        return config
+
+    @pytest.fixture
+    def mock_daemon(self, mock_config):
+        """Create a minimal SteeringDaemon mock with _reload_dry_run_config."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        with patch.object(SteeringDaemon, "__init__", lambda self, *a, **k: None):
+            daemon = SteeringDaemon.__new__(SteeringDaemon)
+
+        daemon.config = mock_config
+        daemon.logger = MagicMock()
+        daemon.confidence_controller = MagicMock()
+        daemon.confidence_controller.dry_run = MagicMock()
+        daemon.confidence_controller.dry_run.enabled = True
+        return daemon
+
+    def test_reload_reads_yaml_and_updates_config_dict(self, tmp_path, mock_daemon):
+        """_reload_dry_run_config() re-reads YAML and updates config dict dry_run.enabled."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon.config.confidence_config["dry_run"]["enabled"] = True
+
+        mock_daemon._reload_dry_run_config()
+
+        assert mock_daemon.config.confidence_config["dry_run"]["enabled"] is False
+
+    def test_reload_updates_confidence_controller_dry_run(self, tmp_path, mock_daemon):
+        """_reload_dry_run_config() updates ConfidenceController.dry_run.enabled."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon.config.confidence_config["dry_run"]["enabled"] = True
+        mock_daemon.confidence_controller.dry_run.enabled = True
+
+        mock_daemon._reload_dry_run_config()
+
+        assert mock_daemon.confidence_controller.dry_run.enabled is False
+
+    def test_reload_toggles_true_to_false(self, tmp_path, mock_daemon):
+        """_reload_dry_run_config() toggles True->False correctly."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon.config.confidence_config["dry_run"]["enabled"] = True
+
+        mock_daemon._reload_dry_run_config()
+
+        assert mock_daemon.config.confidence_config["dry_run"]["enabled"] is False
+
+    def test_reload_toggles_false_to_true(self, tmp_path, mock_daemon):
+        """_reload_dry_run_config() toggles False->True correctly."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": True}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon.config.confidence_config["dry_run"]["enabled"] = False
+        mock_daemon.confidence_controller.dry_run.enabled = False
+
+        mock_daemon._reload_dry_run_config()
+
+        assert mock_daemon.config.confidence_config["dry_run"]["enabled"] is True
+        assert mock_daemon.confidence_controller.dry_run.enabled is True
+
+    def test_reload_logs_warning_with_old_and_new_values(self, tmp_path, mock_daemon):
+        """_reload_dry_run_config() logs WARNING with old and new values."""
+        config_path = tmp_path / "steering.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump({"confidence": {"dry_run": False}}, f)
+
+        mock_daemon.config.config_file_path = str(config_path)
+        mock_daemon.config.confidence_config["dry_run"]["enabled"] = True
+
+        mock_daemon._reload_dry_run_config()
+
+        mock_daemon.logger.warning.assert_called()
+        warn_msg = str(mock_daemon.logger.warning.call_args)
+        assert "True" in warn_msg
+        assert "False" in warn_msg
+
+    def test_reload_noop_when_confidence_controller_is_none(self, mock_daemon):
+        """_reload_dry_run_config() is no-op when confidence_controller is None (logs INFO)."""
+        mock_daemon.confidence_controller = None
+
+        mock_daemon._reload_dry_run_config()
+
+        mock_daemon.logger.info.assert_called()
+        info_msg = str(mock_daemon.logger.info.call_args)
+        assert "no-op" in info_msg or "not enabled" in info_msg
+
+    def test_reload_handles_yaml_read_error_gracefully(self, mock_daemon):
+        """_reload_dry_run_config() handles YAML read error gracefully (logs, no crash)."""
+        mock_daemon.config.config_file_path = "/nonexistent/path/steering.yaml"
+
+        # Should not raise
+        mock_daemon._reload_dry_run_config()
+
+        mock_daemon.logger.error.assert_called()
+
+    def test_run_daemon_loop_calls_reload_on_signal(self):
+        """run_daemon_loop calls _reload_dry_run_config when is_reload_requested() returns True."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        daemon = MagicMock()
+        daemon.run_cycle.return_value = True
+        config = MagicMock()
+        config.measurement_interval = 0.05
+        logger = MagicMock()
+        shutdown_event = threading.Event()
+
+        call_count = [0]
+
+        def side_effect_shutdown(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] >= 2:
+                shutdown_event.set()
+            return True
+
+        daemon.run_cycle.side_effect = side_effect_shutdown
+
+        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
+             patch("wanctl.steering.daemon.reset_reload_state") as mock_reset, \
+             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
+             patch("wanctl.steering.daemon.update_steering_health_status"), \
+             patch("wanctl.steering.daemon.notify_watchdog"), \
+             patch("wanctl.steering.daemon.notify_degraded"):
+            run_daemon_loop(daemon, config, logger, shutdown_event)
+
+        daemon._reload_dry_run_config.assert_called()
+
+    def test_run_daemon_loop_calls_reset_reload_state(self):
+        """run_daemon_loop calls reset_reload_state() after handling reload."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        daemon = MagicMock()
+        config = MagicMock()
+        config.measurement_interval = 0.05
+        logger = MagicMock()
+        shutdown_event = threading.Event()
+
+        call_count = [0]
+
+        def side_effect_shutdown(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] >= 2:
+                shutdown_event.set()
+            return True
+
+        daemon.run_cycle.side_effect = side_effect_shutdown
+
+        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
+             patch("wanctl.steering.daemon.reset_reload_state") as mock_reset, \
+             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
+             patch("wanctl.steering.daemon.update_steering_health_status"), \
+             patch("wanctl.steering.daemon.notify_watchdog"), \
+             patch("wanctl.steering.daemon.notify_degraded"):
+            run_daemon_loop(daemon, config, logger, shutdown_event)
+
+        mock_reset.assert_called()
