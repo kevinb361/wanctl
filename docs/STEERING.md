@@ -179,6 +179,72 @@ Without hysteresis, steering would rapidly toggle during marginal conditions. Th
 - Slow return to normal (30 seconds)
 - Stable operation during borderline conditions
 
+## Confidence-Based Steering
+
+Confidence scoring replaces the binary RED-triggers-steer model with a multi-signal weighted scoring system (0-100 scale). Signals include RTT delta, CAKE drops, queue depth, and WAN-aware zone data. Each signal contributes a weighted score, and steering activates only when the combined confidence exceeds the configured threshold.
+
+**Current mode:** LIVE (`dry_run: false`) -- confidence decisions actively route traffic.
+
+### How Confidence Scoring Works
+
+1. Each cycle, signals are collected and scored:
+   - RTT delta above threshold adds weight
+   - CAKE drops above zero add weight
+   - Queue depth above threshold adds weight
+   - WAN zone RED/SOFT_RED adds configurable weight (if WAN-aware enabled)
+2. Scores are summed into a confidence value (0-100)
+3. Steering activates when confidence exceeds `steer_threshold` (default: 55)
+4. Steering recovers when confidence drops below `recovery_threshold` (default: 20)
+5. Sustain timers prevent flapping (degrade: 2s, recovery: 3s)
+
+### SIGUSR1 Hot-Reload
+
+The steering daemon supports hot-reload of the `dry_run` flag via SIGUSR1. This allows toggling between live and dry-run mode without restarting the daemon.
+
+**Note:** SIGUSR1 only reloads the `dry_run` flag. All other config changes require a daemon restart.
+
+### Rollback to Dry-Run Mode
+
+To revert confidence steering to log-only mode without restarting the daemon:
+
+1. Edit the steering config:
+
+   ```bash
+   ssh cake-spectrum 'sudo sed -i "s/dry_run: false/dry_run: true/" /etc/wanctl/steering.yaml'
+   ```
+
+2. Send SIGUSR1 to reload:
+
+   ```bash
+   ssh cake-spectrum 'sudo kill -USR1 $(pgrep -f "steering.*--config")'
+   ```
+
+3. Verify via health endpoint:
+   ```bash
+   ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep mode'
+   # Should show: "mode": "dry_run"
+   ```
+
+To re-enable live mode:
+
+1. Edit: set `dry_run: false`
+
+   ```bash
+   ssh cake-spectrum 'sudo sed -i "s/dry_run: true/dry_run: false/" /etc/wanctl/steering.yaml'
+   ```
+
+2. Send SIGUSR1:
+
+   ```bash
+   ssh cake-spectrum 'sudo kill -USR1 $(pgrep -f "steering.*--config")'
+   ```
+
+3. Verify: health endpoint shows `"mode": "active"`
+   ```bash
+   ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep mode'
+   # Should show: "mode": "active"
+   ```
+
 ## Troubleshooting
 
 ### Steering Not Activating
