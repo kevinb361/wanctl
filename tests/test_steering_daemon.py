@@ -1236,15 +1236,14 @@ class TestUpdateEwmaSmoothing:
 class TestUnifiedStateMachine:
     """Tests for unified state machine (_update_state_machine_unified).
 
-    Tests behavioral equivalence between CAKE-aware and legacy modes:
-    - CAKE-aware: Assessment-based (RED/GREEN/YELLOW triggers)
-    - Legacy: Threshold-based (delta comparison)
+    Tests assessment-based state transitions:
+    - RED/GREEN/YELLOW congestion triggers
     - Counter management and state transitions
     - Asymmetric hysteresis preservation
     """
 
     @pytest.fixture
-    def mock_config_cake(self, mock_steering_config):
+    def mock_config(self, mock_steering_config):
         """Delegate to shared mock_steering_config with green_samples_required=3."""
         mock_steering_config.green_samples_required = 3
         return mock_steering_config
@@ -1285,13 +1284,13 @@ class TestUnifiedStateMachine:
         return MagicMock()
 
     @pytest.fixture
-    def daemon_cake(self, mock_config_cake, mock_state_mgr, mock_router, mock_logger):
-        """Create a SteeringDaemon in CAKE-aware mode."""
+    def daemon(self, mock_config, mock_state_mgr, mock_router, mock_logger):
+        """Create a SteeringDaemon with CakeStatsReader patched."""
         from wanctl.steering.daemon import SteeringDaemon
 
         with patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
-                config=mock_config_cake,
+                config=mock_config,
                 state=mock_state_mgr,
                 router=mock_router,
                 rtt_measurement=MagicMock(),
@@ -1301,10 +1300,10 @@ class TestUnifiedStateMachine:
         return daemon
 
     # =========================================================================
-    # CAKE-aware mode tests
+    # State machine tests
     # =========================================================================
 
-    def test_cake_red_assessment_increments_degrade_count(self, daemon_cake, mock_state_mgr):
+    def test_cake_red_assessment_increments_degrade_count(self, daemon, mock_state_mgr):
         """Test CAKE RED assessment increments red_count (degrade counter)."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1319,11 +1318,11 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
-            daemon_cake._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["red_count"] == 1
 
-    def test_cake_green_assessment_increments_recover_count(self, daemon_cake, mock_state_mgr):
+    def test_cake_green_assessment_increments_recover_count(self, daemon, mock_state_mgr):
         """Test CAKE GREEN assessment increments good_count (recover counter) in degraded state."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1338,11 +1337,11 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
-            daemon_cake._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["good_count"] == 1
 
-    def test_cake_yellow_resets_degrade_count(self, daemon_cake, mock_state_mgr):
+    def test_cake_yellow_resets_degrade_count(self, daemon, mock_state_mgr):
         """Test CAKE YELLOW assessment resets red_count without state change."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1357,14 +1356,14 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.YELLOW
         ):
-            result = daemon_cake._update_state_machine_unified(signals)
+            result = daemon._update_state_machine_unified(signals)
 
         assert result is False  # No state change
         assert mock_state_mgr.state["red_count"] == 0  # Counter reset
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
 
     def test_cake_transitions_to_degraded_after_threshold(
-        self, daemon_cake, mock_state_mgr, mock_router
+        self, daemon, mock_state_mgr, mock_router
     ):
         """Test CAKE transitions to DEGRADED after red_samples_required RED cycles."""
         from wanctl.steering.cake_stats import CongestionSignals
@@ -1380,7 +1379,7 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
-            result = daemon_cake._update_state_machine_unified(signals)
+            result = daemon._update_state_machine_unified(signals)
 
         assert result is True
         mock_router.enable_steering.assert_called_once()
@@ -1388,7 +1387,7 @@ class TestUnifiedStateMachine:
         assert mock_state_mgr.state["red_count"] == 0  # Reset after transition
 
     def test_cake_transitions_to_good_after_threshold(
-        self, daemon_cake, mock_state_mgr, mock_router
+        self, daemon, mock_state_mgr, mock_router
     ):
         """Test CAKE transitions to GOOD after green_samples_required GREEN cycles."""
         from wanctl.steering.cake_stats import CongestionSignals
@@ -1404,7 +1403,7 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
-            result = daemon_cake._update_state_machine_unified(signals)
+            result = daemon._update_state_machine_unified(signals)
 
         assert result is True
         mock_router.disable_steering.assert_called_once()
@@ -1415,7 +1414,7 @@ class TestUnifiedStateMachine:
     # Counter and state change tests
     # =========================================================================
 
-    def test_counter_reset_on_state_change_cake(self, daemon_cake, mock_state_mgr, mock_router):
+    def test_counter_reset_on_state_change(self, daemon, mock_state_mgr, mock_router):
         """Test counters reset on state change (CAKE mode)."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1431,14 +1430,14 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
-            daemon_cake._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         # Transition happened, both counters should be reset
         assert mock_state_mgr.state["red_count"] == 0
         # good_count is reset when we're degrading
         assert mock_state_mgr.state["good_count"] == 0
 
-    def test_state_normalization_handles_legacy_names(self, daemon_cake, mock_state_mgr):
+    def test_state_normalization_handles_legacy_names(self, daemon, mock_state_mgr):
         """Test state normalization handles legacy state names."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1454,19 +1453,19 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.GREEN
         ):
-            daemon_cake._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         # State should be normalized to config-driven name
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
 
     def test_metrics_recorded_on_transition_when_enabled(
-        self, daemon_cake, mock_state_mgr, mock_router
+        self, daemon, mock_state_mgr, mock_router
     ):
         """Test metrics recorded when transition occurs and metrics_enabled=True."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
 
-        daemon_cake.config.metrics_enabled = True
+        daemon.config.metrics_enabled = True
         mock_state_mgr.state["current_state"] = "SPECTRUM_GOOD"
         mock_state_mgr.state["red_count"] = 1
 
@@ -1478,11 +1477,11 @@ class TestUnifiedStateMachine:
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
             with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
-                daemon_cake._update_state_machine_unified(signals)
+                daemon._update_state_machine_unified(signals)
 
         mock_record.assert_called_once_with("spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED")
 
-    def test_congestion_state_stored_for_observability(self, daemon_cake, mock_state_mgr):
+    def test_congestion_state_stored_for_observability(self, daemon, mock_state_mgr):
         """Test congestion_state is stored in state for observability."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1497,7 +1496,7 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.YELLOW
         ):
-            daemon_cake._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         assert mock_state_mgr.state["congestion_state"] == "YELLOW"
 
@@ -1505,8 +1504,8 @@ class TestUnifiedStateMachine:
     # Asymmetric hysteresis tests
     # =========================================================================
 
-    def test_asymmetric_hysteresis_quick_degrade_slow_recover_cake(
-        self, mock_config_cake, mock_state_mgr, mock_router, mock_logger
+    def test_asymmetric_hysteresis_quick_degrade_slow_recover(
+        self, mock_config, mock_state_mgr, mock_router, mock_logger
     ):
         """Test asymmetric hysteresis: quick to degrade (2), slow to recover (3)."""
         from wanctl.steering.cake_stats import CongestionSignals
@@ -1514,12 +1513,12 @@ class TestUnifiedStateMachine:
         from wanctl.steering.daemon import SteeringDaemon
 
         # Configure asymmetric thresholds
-        mock_config_cake.red_samples_required = 2
-        mock_config_cake.green_samples_required = 5  # Higher = slower recovery
+        mock_config.red_samples_required = 2
+        mock_config.green_samples_required = 5  # Higher = slower recovery
 
         with patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
-                config=mock_config_cake,
+                config=mock_config,
                 state=mock_state_mgr,
                 router=mock_router,
                 rtt_measurement=MagicMock(),
@@ -1568,7 +1567,7 @@ class TestUnifiedStateMachine:
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
         mock_router.disable_steering.assert_called_once()
 
-    def test_router_failure_prevents_state_change(self, daemon_cake, mock_state_mgr, mock_router):
+    def test_router_failure_prevents_state_change(self, daemon, mock_state_mgr, mock_router):
         """Test router failure prevents state change."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1584,7 +1583,7 @@ class TestUnifiedStateMachine:
         with patch(
             "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
         ):
-            result = daemon_cake._update_state_machine_unified(signals)
+            result = daemon._update_state_machine_unified(signals)
 
         assert result is False
         # State unchanged
@@ -3106,14 +3105,14 @@ class TestRunCycle:
 
     Tests the main cycle execution including:
     - Full cycle success (baseline loads, RTT measured, EWMA updated, state machine runs)
-    - CAKE-aware mode vs legacy mode logging differences
+    - Cycle logging and observability
     - Failure paths (baseline RTT unavailable, RTT measurement fails)
     - Metrics integration
     """
 
     @pytest.fixture
-    def mock_config_cake(self, mock_steering_config):
-        """Delegate to shared mock_steering_config with CAKE run_cycle overrides."""
+    def mock_config(self, mock_steering_config):
+        """Delegate to shared mock_steering_config with run_cycle overrides."""
         mock_steering_config.green_samples_required = 3
         mock_steering_config.rtt_ewma_alpha = 0.3
         mock_steering_config.queue_ewma_alpha = 0.4
@@ -3158,13 +3157,13 @@ class TestRunCycle:
         return MagicMock()
 
     @pytest.fixture
-    def daemon_for_run_cycle(self, mock_config_cake, mock_state_mgr, mock_router, mock_logger):
+    def daemon_for_run_cycle(self, mock_config, mock_state_mgr, mock_router, mock_logger):
         """Create a SteeringDaemon with mocked dependencies for run_cycle testing."""
         from wanctl.steering.daemon import SteeringDaemon
 
         with patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
-                config=mock_config_cake,
+                config=mock_config,
                 state=mock_state_mgr,
                 router=mock_router,
                 rtt_measurement=MagicMock(),
@@ -4851,7 +4850,7 @@ class TestAnomalyCycleSkip:
     """
 
     @pytest.fixture
-    def mock_config_cake(self, mock_steering_config):
+    def mock_config(self, mock_steering_config):
         """Delegate to shared mock_steering_config with anomaly test overrides."""
         mock_steering_config.green_samples_required = 3
         mock_steering_config.rtt_ewma_alpha = 0.3
@@ -4889,13 +4888,13 @@ class TestAnomalyCycleSkip:
         return MagicMock()
 
     @pytest.fixture
-    def daemon_for_anomaly(self, mock_config_cake, mock_state_mgr, mock_logger):
+    def daemon_for_anomaly(self, mock_config, mock_state_mgr, mock_logger):
         """Create a SteeringDaemon for anomaly testing."""
         from wanctl.steering.daemon import SteeringDaemon
 
         with patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
-                config=mock_config_cake,
+                config=mock_config,
                 state=mock_state_mgr,
                 router=MagicMock(),
                 rtt_measurement=MagicMock(),
