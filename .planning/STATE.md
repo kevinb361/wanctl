@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Legacy Cleanup & Feature Graduation
-current_plan: Not started
-status: planning
-last_updated: "2026-03-11T14:04:03.286Z"
-last_activity: 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
+current_plan: Plan 1 of 2 complete
+status: executing
+last_updated: "2026-03-11T14:38:49Z"
+last_activity: 2026-03-11 -- Completed 71-01-PLAN.md (SIGUSR1 dry_run hot-reload, CONF-03 satisfied)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Session State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.13 Phase 70 complete - Legacy Test Cleanup done
+**Current focus:** v1.13 Phase 71 in progress - Confidence Graduation (1/2 plans done)
 
 ## Position
 
 **Milestone:** v1.13 Legacy Cleanup & Feature Graduation
-**Phase:** 70 of 72 (Legacy Test Cleanup) -- Complete (1/1 plans)
-**Current Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-11 -- Completed 70-01-PLAN.md (legacy test docstring/fixture cleanup, LGCY-06 satisfied)
+**Phase:** 71 of 72 (Confidence Graduation) -- In Progress (1/2 plans)
+**Current Plan:** Plan 1 of 2 complete
+**Status:** Executing
+**Last activity:** 2026-03-11 -- Completed 71-01-PLAN.md (SIGUSR1 dry_run hot-reload, CONF-03 satisfied)
 
 ## Accumulated Context
 
@@ -52,6 +52,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 - \_CYCLE_INTERVAL_SEC local constant in calibrate.py avoids import coupling to autorate_continuous
 - cake_aware warning placed in \_load_operational_mode (where mode dict is accessed)
 - Test fixture names reflect sole code path (no \_cake/\_legacy suffixes when only one mode exists)
+- SIGUSR1 reload mirrors shutdown event pattern (threading.Event, no logging in handler)
+- Only dry_run reloaded via SIGUSR1 -- all other config requires restart
 
 ### Known Issues
 
@@ -83,3 +85,4 @@ None.
 - 2026-03-11: Phase 69 complete -- Legacy Fallback Removal (2/2 plans, LGCY-03 + LGCY-04 + LGCY-07 satisfied)
 - 2026-03-11: Completed 70-01-PLAN.md -- legacy test docstring/fixture cleanup (LGCY-06 satisfied)
 - 2026-03-11: Phase 70 complete -- Legacy Test Cleanup (1/1 plans, LGCY-06 satisfied)
+- 2026-03-11: Completed 71-01-PLAN.md -- SIGUSR1 dry_run hot-reload (signal_utils reload event, BaseConfig.config_file_path, daemon reload handler, CONF-03 satisfied)

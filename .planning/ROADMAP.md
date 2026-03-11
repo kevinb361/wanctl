@@ -154,7 +154,7 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
 | 69. Legacy Fallback Removal | 2/2            | Complete    | 2026-03-11 |
 | 70. Legacy Test Cleanup     | 1/1            | Complete    | 2026-03-11 |
-| 71. Confidence Graduation   | 0/2            | Not started | -          |
+| 71. Confidence Graduation   | 1/2 | In Progress|  |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
 
 ### Completed Milestones
