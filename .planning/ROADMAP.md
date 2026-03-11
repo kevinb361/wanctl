@@ -113,7 +113,7 @@ Decimal phases appear between their surrounding integers in numeric order.
    **Plans**: 1 plan
    Plans:
 
-- [ ] 70-01-PLAN.md — Update stale docstrings, fixture names, and comments referencing retired CAKE-aware/legacy mode distinction (LGCY-06)
+- [x] 70-01-PLAN.md — Update stale docstrings, fixture names, and comments referencing retired CAKE-aware/legacy mode distinction (LGCY-06)
 
 ### Phase 71: Confidence Graduation
 
@@ -125,7 +125,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 1. Steering config on cake-spectrum has `dry_run: false` and the daemon is running with live confidence-based routing decisions
 2. Health endpoint on port 9102 shows confidence scores actively influencing steering decisions (not computed and discarded)
 3. Rollback to `dry_run: true` works without daemon restart and the procedure is documented
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+
+- [ ] 71-01-PLAN.md — SIGUSR1 hot-reload for dry_run flag (config reload without restart)
+- [ ] 71-02-PLAN.md — Production config graduation + rollback docs + deployment verification
 
 ### Phase 72: WAN-Aware Enablement
 
@@ -149,8 +153,8 @@ Phases execute in numeric order: 67 -> 68 -> 69 -> 70 -> 71 -> 72
 | 67. Production Config Audit | 1/1            | Complete    | 2026-03-11 |
 | 68. Dead Code Removal       | 2/2            | Complete    | 2026-03-11 |
 | 69. Legacy Fallback Removal | 2/2            | Complete    | 2026-03-11 |
-| 70. Legacy Test Cleanup     | 1/1 | Complete    | 2026-03-11 |
-| 71. Confidence Graduation   | 0/TBD          | Not started | -          |
+| 70. Legacy Test Cleanup     | 1/1            | Complete    | 2026-03-11 |
+| 71. Confidence Graduation   | 0/2            | Not started | -          |
 | 72. WAN-Aware Enablement    | 0/TBD          | Not started | -          |
 
 ### Completed Milestones
