@@ -356,7 +356,6 @@ Operational mode settings.
 
 | Field                    | Type    | Default | Description                        |
 | ------------------------ | ------- | ------- | ---------------------------------- |
-| `cake_aware`             | boolean | `true`  | Use multi-signal detection         |
 | `reset_counters`         | boolean | `true`  | Reset CAKE counters before reading |
 | `enable_yellow_state`    | boolean | `true`  | Enable YELLOW early warning        |
 | `use_confidence_scoring` | boolean | `false` | Enable confidence-based steering   |
