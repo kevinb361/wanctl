@@ -9,12 +9,53 @@ Consolidates common validation patterns used across the system:
 """
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from wanctl.config_base import ConfigValidationError
 
 # Default constants for baseline RTT validation
 MIN_SANE_BASELINE_RTT = 10  # milliseconds - minimum sane baseline
 MAX_SANE_BASELINE_RTT = 60  # milliseconds - maximum sane baseline
+
+
+def deprecate_param(
+    config: dict,
+    old_key: str,
+    new_key: str,
+    logger: logging.Logger,
+    transform_fn: Callable[[Any], Any] | None = None,
+) -> Any | None:
+    """Check for deprecated config parameter and translate to new name.
+
+    If old_key is present and new_key is absent, logs a deprecation warning
+    and returns the (optionally transformed) value. Callers should inject the
+    returned value under new_key so existing config-loading code picks it up.
+
+    Args:
+        config: Configuration dictionary to inspect.
+        old_key: Deprecated parameter name.
+        new_key: Modern replacement parameter name.
+        logger: Logger instance for deprecation warning.
+        transform_fn: Optional callable to convert old value to new semantics
+                       (e.g., alpha -> time_constant conversion).
+
+    Returns:
+        Translated value if old_key present and new_key absent, else None.
+    """
+    if old_key not in config:
+        return None
+    if new_key in config:
+        # Modern key takes precedence — no warning needed
+        return None
+
+    old_value = config[old_key]
+    translated = transform_fn(old_value) if transform_fn is not None else old_value
+    logger.warning(
+        f"Deprecated config parameter '{old_key}': use '{new_key}' instead "
+        f"(value translated: {translated})"
+    )
+    return translated
 
 
 def validate_bandwidth_order(
