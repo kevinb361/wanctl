@@ -3,6 +3,7 @@
 import logging
 import re
 import socket
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -224,11 +225,21 @@ class BaseConfig:
         router_host: RouterOS IP address
         router_user: RouterOS SSH username
         ssh_key: Path to SSH private key for RouterOS authentication
+        main_log: Path to main log file (INFO level)
+        debug_log: Path to debug log file (DEBUG level)
+        max_bytes: Maximum log file size before rotation (default 10MB)
+        backup_count: Number of rotated log copies to keep (default 3)
+        lock_file: Path to lock file (as pathlib.Path)
+        lock_timeout: Lock acquisition timeout in seconds
     """
 
     # Current schema version for configuration files
     # Increment when making breaking changes to config format
     CURRENT_SCHEMA_VERSION = "1.0"
+
+    # Default log rotation parameters
+    DEFAULT_LOG_MAX_BYTES = 10_485_760  # 10MB per log file
+    DEFAULT_LOG_BACKUP_COUNT = 3  # Keep 3 rotated copies
 
     # Base schema for fields present in all configs
     # Subclasses can define their own SCHEMA class attribute for additional fields
@@ -237,6 +248,28 @@ class BaseConfig:
         {"path": "router.host", "type": str, "required": True},
         {"path": "router.user", "type": str, "required": True},
         {"path": "router.ssh_key", "type": str, "required": True},
+        # Logging (shared by all daemons)
+        {"path": "logging.main_log", "type": str, "required": True},
+        {"path": "logging.debug_log", "type": str, "required": True},
+        {
+            "path": "logging.max_bytes",
+            "type": int,
+            "required": False,
+            "default": 10_485_760,
+            "min": 1_048_576,
+            "max": 104_857_600,
+        },
+        {
+            "path": "logging.backup_count",
+            "type": int,
+            "required": False,
+            "default": 3,
+            "min": 1,
+            "max": 10,
+        },
+        # Lock file (shared by all daemons)
+        {"path": "lock_file", "type": str, "required": True},
+        {"path": "lock_timeout", "type": int, "required": True, "min": 1, "max": 3600},
     ]
 
     # Subclasses override this to add component-specific schema
@@ -285,6 +318,17 @@ class BaseConfig:
         self.router_host = router["host"]
         self.router_user = router["user"]
         self.ssh_key = router["ssh_key"]
+
+        # Common logging fields (shared by all daemons)
+        logging_section = self.data.get("logging", {})
+        self.main_log = logging_section["main_log"]
+        self.debug_log = logging_section["debug_log"]
+        self.max_bytes = logging_section.get("max_bytes", self.DEFAULT_LOG_MAX_BYTES)
+        self.backup_count = logging_section.get("backup_count", self.DEFAULT_LOG_BACKUP_COUNT)
+
+        # Common lock fields (shared by all daemons)
+        self.lock_file = Path(self.data["lock_file"])
+        self.lock_timeout = self.data["lock_timeout"]
 
         # Load component-specific fields
         self._load_specific_fields()
