@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.12.0 (Deployment & Code Health) — shipped 2026-03-11
-**Tests:** 2,263 passing, 91%+ coverage
-**LOC:** ~16,993 Python (src/)
-**Milestones:** 13 shipped (v1.0-v1.12), 66 phases, 134 plans
+**Version:** v1.13.0 (Legacy Cleanup & Feature Graduation) — shipped 2026-03-11
+**Tests:** 2,300 passing, 91%+ coverage
+**LOC:** ~17,095 Python (src/)
+**Milestones:** 14 shipped (v1.0-v1.13), 72 phases, 144 plans
 
-**Previous:** v1.11 WAN-Aware Steering — WAN congestion zone fused into steering confidence scoring
-**Latest:** v1.12 Deployment & Code Health — deployment alignment, security hardening, config consolidation
+**Previous:** v1.12 Deployment & Code Health — deployment alignment, security hardening, config consolidation
+**Latest:** v1.13 Legacy Cleanup & Feature Graduation — dead code removal, legacy deprecation, confidence steering live, WAN-aware steering live
 
 ## Requirements
 
@@ -134,23 +134,24 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Dockerfile/dependency contract tests parametrized from pyproject.toml — v1.12
 - ✓ 18/18 requirements satisfied, audit passed — v1.12
 
+**v1.13 Legacy Cleanup & Feature Graduation:**
+
+- ✓ Production configs confirmed modern-only (zero legacy fallbacks exercised) — v1.13
+- ✓ cake_aware mode branching removed, CAKE three-state is sole code path — v1.13
+- ✓ 7 obsolete ISP-specific config files deleted — v1.13
+- ✓ deprecate_param() helper with warn+translate for 8 legacy config parameters — v1.13
+- ✓ Legacy config validation cleaned (validate_sample_counts 2-param API) — v1.13
+- ✓ RTT-only mode (cake_aware: false) retired with deprecation warning — v1.13
+- ✓ Test suite cleaned of vestigial legacy-mode fixtures and naming — v1.13
+- ✓ SIGUSR1 generalized hot-reload for dry_run and wan_state.enabled — v1.13
+- ✓ Confidence-based steering graduated to live mode (dry_run: false) — v1.13
+- ✓ WAN-aware steering enabled in production (wan_state.enabled: true) — v1.13
+- ✓ 4-step degradation verification passed (stale fallback, SIGUSR1 rollback, grace period re-trigger) — v1.13
+- ✓ 13/13 requirements satisfied — v1.13
+
 ### Active
 
-**Current Milestone: v1.13 Legacy Cleanup & Feature Graduation**
-
-**Goal:** Remove legacy code/config fallbacks, graduate confidence-based steering from dry-run to live, and enable WAN-aware steering in production.
-
-**Target features:**
-
-- Audit production configs and remove legacy parameter fallbacks
-- Remove dead code (old state machine methods, obsolete config files)
-- Graduate confidence-based steering from dry-run to live
-- Enable WAN-aware steering with production validation path
-
-**Ongoing:**
-
-- [ ] Confidence-based steering validation (enabled 2026-01-23, monitoring)
-- [ ] WAN-aware steering production validation (feature deployed disabled, awaiting enablement)
+(No active milestone — run `/gsd:new-milestone` to start next cycle)
 
 ### Deferred
 
@@ -281,6 +282,16 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Phase 66: Config extraction (BaseConfig consolidation, RotatingFileHandler, deployment contract tests)
 - 53 new tests (2,210 → 2,263 total)
 
+**v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
+
+- Phase 67: Production config audit (SSH-verified modern params on both containers)
+- Phase 68: Dead code removal (cake_aware branching eliminated, 7 obsolete config files deleted)
+- Phase 69: Legacy fallback removal (deprecate_param() helper, 8 params retired with warnings)
+- Phase 70: Legacy test cleanup (docstrings, fixture names, comments updated)
+- Phase 71: Confidence graduation (SIGUSR1 hot-reload, dry_run: false, production verified)
+- Phase 72: WAN-aware enablement (SIGUSR1 wan_state reload, 4-step degradation verification)
+- 37 new tests (2,263 → 2,300 total)
+
 ## Constraints
 
 - **Production deployment**: Running in home network — must maintain stability and reliability
@@ -325,7 +336,12 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | RotatingFileHandler with getattr defaults | Backward-compatible log rotation without config changes | ✓ 10MB/3 backups default | 2026-03-11 |
 | Password clearing after construction | Minimize credential lifetime in memory | ✓ Eager resolve + delete | 2026-03-10 |
 | Contract tests parametrized from source | Adding deps auto-creates test cases | ✓ 17 deployment tests | 2026-03-11 |
+| deprecate_param warn+translate pattern | Legacy params produce clear warnings, not silent fallback | ✓ 8 params retired | 2026-03-11 |
+| SIGUSR1 generalized hot-reload | Single signal reloads both dry_run and wan_state.enabled | ✓ Zero-downtime config toggle | 2026-03-11 |
+| Confidence steering live (dry_run: false) | Validated in dry-run since v1.2, all signals correct | ✓ Production active | 2026-03-11 |
+| WAN-aware steering live (wan_state.enabled: true) | 4-step degradation verification passed | ✓ Production active | 2026-03-11 |
+| Grace period re-trigger on SIGUSR1 re-enable | Safe ramp-up after operator toggle | ✓ 30s grace confirmed | 2026-03-11 |
 
 ---
 
-_Last updated: 2026-03-11 after v1.13 milestone started_
+_Last updated: 2026-03-11 after v1.13 milestone completed_

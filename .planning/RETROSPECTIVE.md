@@ -93,6 +93,91 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.12 — Deployment & Code Health
+
+**Shipped:** 2026-03-11
+**Phases:** 5 | **Plans:** 7
+
+### What Was Built
+
+- Deployment artifacts (Dockerfile, install.sh, deploy.sh) aligned with pyproject.toml as single source of truth
+- Dead code removed: pexpect dependency, dead subprocess import, stale timeout_total API
+- Security hardened: password clearing after construction, per-request SSL suppression, safe defaults
+- Fragile areas stabilized: state file schema contract tests, check_flapping contract
+- BaseConfig consolidation (6 common fields), RotatingFileHandler, 17 deployment contract tests
+
+### What Worked
+
+- Contract tests parametrized from pyproject.toml: adding a new dependency automatically creates a test case. Zero-effort regression protection.
+- BaseConfig consolidation eliminated the same 6 YAML-to-attribute lines duplicated in both daemon configs — single change point going forward.
+
+### What Was Inefficient
+
+- Nothing notable — straightforward cleanup milestone with well-scoped phases.
+
+### Patterns Established
+
+- Contract test parametrization: test inputs derived from canonical source files (pyproject.toml), so tests stay in sync automatically
+- BaseConfig with `_load_specific_fields()` hook: shared init, daemon-specific extension
+
+### Key Lessons
+
+1. Parametrized contract tests are nearly free to maintain — the test framework does the bookkeeping
+2. Config consolidation is best done after all config-related features ship (BaseConfig after WAN-aware config in v1.11)
+
+### Cost Observations
+
+- Model mix: predominantly Opus for planning/execution, Sonnet for research
+- Notable: 5 phases in 2 days — well-defined cleanup work executes fast
+
+---
+
+## Milestone: v1.13 — Legacy Cleanup & Feature Graduation
+
+**Shipped:** 2026-03-11
+**Phases:** 6 | **Plans:** 10
+
+### What Was Built
+
+- Production config audit confirming zero legacy fallbacks exercised
+- Dead code eliminated: cake_aware mode branching (119 lines), 7 obsolete config files
+- Centralized deprecate_param() helper with warn+translate for 8 legacy config parameters
+- SIGUSR1 generalized hot-reload for dry_run and wan_state.enabled
+- Confidence-based steering graduated from dry-run to live mode
+- WAN-aware steering enabled in production with 4-step degradation verification
+
+### What Worked
+
+- Production audit first (Phase 67) unblocked all subsequent phases with evidence — no guessing about what's legacy vs active
+- deprecate_param() dict injection pattern: zero structural change to existing config loading code, old if/elif/else chains absorb translated values naturally
+- SIGUSR1 reload mirrors the shutdown event pattern exactly — consistent mental model, easy to extend
+- 4-step production verification protocol (health, stale fallback, rollback, grace period) gave high confidence for enabling features
+
+### What Was Inefficient
+
+- Phase 67 (config audit) could have been done as a pre-milestone task rather than a full phase — it was 2 minutes of SSH work
+- 6 phases in a single day compressed context heavily. For milestones with operational checkpoints, spreading over 2 days would reduce pressure.
+
+### Patterns Established
+
+- Production graduation protocol: deploy code, verify health endpoint, test degradation paths, validate rollback, re-enable with grace period
+- SIGUSR1 multi-field reload: each `_reload_*_config` method reads YAML independently (no shared read), called sequentially from the daemon loop
+- deprecate_param warn+translate: centralized pattern for retiring config keys with clear migration messages
+
+### Key Lessons
+
+1. SSH evidence audits are fast and definitive — always audit production state before assuming what code paths are exercised
+2. Feature graduation is a multi-step operational process, not just a config change — degradation verification is essential
+3. Dict injection for deprecated params keeps structural risk near zero — the existing code paths don't change, they just receive translated values
+
+### Cost Observations
+
+- Model mix: predominantly Opus for planning/execution, Sonnet for research/verification
+- Sessions: 2 (milestone setup + phases 67-70, phases 71-72)
+- Notable: Entire milestone in 1 day (6 phases, 10 plans, 53 commits). Fastest multi-phase milestone by execution density.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -102,6 +187,8 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.9      | 3      | 6     | First icmplib optimization, profiling infrastructure         |
 | v1.10     | 8      | 15    | First milestone audit, gap closure workflow                  |
 | v1.11     | 4      | 8     | Cross-daemon feature with feature toggle, requirements-first |
+| v1.12     | 5      | 7     | Contract test parametrization, BaseConfig consolidation      |
+| v1.13     | 6      | 10    | Feature graduation protocol, SIGUSR1 generalized reload      |
 
 ### Cumulative Quality
 
@@ -110,9 +197,12 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.9      | 1,978 | 91%+     | 97        |
 | v1.10     | 2,109 | 91%+     | 131       |
 | v1.11     | 2,210 | 91%+     | 101       |
+| v1.12     | 2,263 | 91%+     | 53        |
+| v1.13     | 2,300 | 91%+     | 37        |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Profile/audit before optimizing — measure actual state vs. assumptions (v1.0 profiling, v1.10 audit)
+1. Profile/audit before optimizing — measure actual state vs. assumptions (v1.0 profiling, v1.10 audit, v1.13 production config audit)
 2. Gap closure as standard workflow — not an exception but an expected part of milestone completion (v1.10, v1.11)
-3. Feature toggles enable safe cross-component shipping — write data in component A, read in component B, behavior unchanged until enabled (v1.11)
+3. Feature toggles enable safe cross-component shipping — write data in component A, read in component B, behavior unchanged until enabled (v1.11, graduated in v1.13)
+4. Production graduation requires degradation verification — config changes aren't enough, validate failure paths before declaring "live" (v1.13)

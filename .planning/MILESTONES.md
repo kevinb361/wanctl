@@ -1,5 +1,35 @@
 # Project Milestones: wanctl
 
+## v1.13 Legacy Cleanup & Feature Graduation (Shipped: 2026-03-11)
+
+**Delivered:** Legacy code removal, config fallback retirement with deprecation warnings, and graduation of both confidence-based steering and WAN-aware steering from dry-run/disabled to production-live.
+
+**Phases completed:** 67-72 (10 plans total)
+
+**Key accomplishments:**
+
+- Production config audit confirmed all active configs use modern parameters exclusively — zero legacy fallbacks exercised
+- Dead code eliminated: cake_aware mode branching removed (119 lines), 7 obsolete ISP-specific config files deleted, CAKE three-state is now sole code path
+- Centralized `deprecate_param()` helper with warn+translate for 8 legacy config parameters — old names produce clear deprecation warnings
+- SIGUSR1 generalized hot-reload: single signal toggles both `dry_run` and `wan_state.enabled` without daemon restart
+- Confidence-based steering graduated from dry-run to live mode with production-verified SIGUSR1 rollback path
+- WAN-aware steering enabled in production with 4-step degradation verification (stale fallback, SIGUSR1 rollback, grace period re-trigger)
+
+**Stats:**
+
+- 6 phases, 10 plans
+- 53 commits, 57 files changed
+- +6,408 / -715 lines changed
+- 37 new tests (2,263 to 2,300)
+- 17,095 LOC Python (src/)
+- 1 day (2026-03-11)
+
+**Git range:** `v1.12..v1.13`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.12 Deployment & Code Health (Shipped: 2026-03-11)
 
 **Delivered:** Deployment alignment, dead code removal, security hardening, fragile area stabilization, and infrastructure consolidation for production hygiene.
