@@ -447,9 +447,10 @@ lock_timeout: 300
         assert config.alpha_baseline == 0.0005
 
     def test_alpha_load_raw_value_with_slow_warning(self, tmp_path, caplog):
-        """Test alpha_load raw value logs warning for slow time constant.
+        """Test alpha_load raw value logs deprecation warning and translates correctly.
 
-        Covers lines 376-384: alpha_load fallback with warning for slow TC.
+        alpha_load is now a deprecated param; deprecate_param translates it to
+        load_time_constant_sec and logs a deprecation warning.
         """
         import logging
 
@@ -499,11 +500,16 @@ lock_timeout: 300
         with caplog.at_level(logging.WARNING, logger="wanctl.autorate_continuous"):
             config = Config(str(config_file))
 
-        # Raw alpha_load should be used directly
+        # alpha_load should still compute to same value (translated through time_constant)
+        # alpha_load=0.001 -> TC=0.05/0.001=50 -> alpha=0.05/50=0.001
         assert config.alpha_load == 0.001
 
-        # Should log warning about slow time constant (0.05/0.001 = 50s > 5s)
-        assert any("alpha_load" in msg and "time constant" in msg for msg in caplog.messages)
+        # But baseline_time_constant_sec takes precedence over deprecated alpha_load,
+        # so no deprecation warning for alpha_load (modern key already present).
+        # Note: this config has BOTH baseline_time_constant_sec AND alpha_load,
+        # but alpha_load and load_time_constant_sec are a separate pair.
+        # Since load_time_constant_sec is NOT in config, deprecation warning fires.
+        assert any("Deprecated" in msg and "alpha_load" in msg for msg in caplog.messages)
 
     def test_alpha_load_raw_value_no_warning_for_fast(self, tmp_path, caplog):
         """Test alpha_load raw value does NOT warn for fast time constant.
@@ -665,6 +671,122 @@ lock_timeout: 300
             ValueError, match="must specify either load_time_constant_sec or alpha_load"
         ):
             Config(str(config_file))
+
+    def test_alpha_baseline_deprecation_warning_logged(self, tmp_path, caplog):
+        """Test that using alpha_baseline logs a deprecation warning."""
+        import logging
+
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    alpha_baseline: 0.0005
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_continuous"):
+            config = Config(str(config_file))
+
+        # Value should still be correct (round-trip through time_constant)
+        assert config.alpha_baseline == pytest.approx(0.0005)
+
+        # Deprecation warning should mention alpha_baseline and baseline_time_constant_sec
+        assert any(
+            "Deprecated" in msg and "alpha_baseline" in msg and "baseline_time_constant_sec" in msg
+            for msg in caplog.messages
+        )
+
+    def test_alpha_load_deprecation_warning_logged(self, tmp_path, caplog):
+        """Test that using alpha_load logs a deprecation warning."""
+        import logging
+
+        config_yaml = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    alpha_load: 0.1
+
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(config_yaml)
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_continuous"):
+            config = Config(str(config_file))
+
+        # Value should still be correct
+        assert config.alpha_load == pytest.approx(0.1)
+
+        # Deprecation warning for alpha_load
+        assert any(
+            "Deprecated" in msg and "alpha_load" in msg and "load_time_constant_sec" in msg
+            for msg in caplog.messages
+        )
 
 
 # =============================================================================

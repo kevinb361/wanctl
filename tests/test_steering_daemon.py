@@ -2568,6 +2568,101 @@ class TestSteeringConfig:
         assert str(config.primary_state_file) == "/run/wanctl/primary_state.json"
 
     # =========================================================================
+    # Legacy deprecation warning tests
+    # =========================================================================
+
+    def test_legacy_cake_state_sources_spectrum_warns(self, tmp_path, valid_config_dict, caplog):
+        """Test cake_state_sources.spectrum logs deprecation warning."""
+        import logging
+
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_state_sources"] = {
+            "spectrum": "/run/wanctl/legacy_spectrum_state.json"
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.steering.daemon"):
+            config = SteeringConfig(str(config_file))
+
+        assert str(config.primary_state_file) == "/run/wanctl/legacy_spectrum_state.json"
+        assert any(
+            "Deprecated" in msg and "spectrum" in msg and "primary" in msg
+            for msg in caplog.messages
+        )
+
+    def test_legacy_spectrum_download_warns(self, tmp_path, valid_config_dict, caplog):
+        """Test spectrum_download logs deprecation warning."""
+        import logging
+
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_queues"] = {
+            "spectrum_download": "WAN-Download-Legacy",
+            "primary_upload": "WAN-Upload-Spectrum",
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.steering.daemon"):
+            config = SteeringConfig(str(config_file))
+
+        assert config.primary_download_queue == "WAN-Download-Legacy"
+        assert any(
+            "Deprecated" in msg and "spectrum_download" in msg and "primary_download" in msg
+            for msg in caplog.messages
+        )
+
+    def test_legacy_spectrum_upload_warns(self, tmp_path, valid_config_dict, caplog):
+        """Test spectrum_upload logs deprecation warning."""
+        import logging
+
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_queues"] = {
+            "primary_download": "WAN-Download-Spectrum",
+            "spectrum_upload": "WAN-Upload-Legacy",
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.steering.daemon"):
+            config = SteeringConfig(str(config_file))
+
+        assert config.primary_upload_queue == "WAN-Upload-Legacy"
+        assert any(
+            "Deprecated" in msg and "spectrum_upload" in msg and "primary_upload" in msg
+            for msg in caplog.messages
+        )
+
+    def test_primary_download_no_deprecation_warning(self, tmp_path, valid_config_dict, caplog):
+        """Test modern primary_download does NOT log deprecation warning."""
+        import logging
+
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["cake_queues"] = {
+            "primary_download": "WAN-Download-Spectrum",
+            "primary_upload": "WAN-Upload-Spectrum",
+        }
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.steering.daemon"):
+            SteeringConfig(str(config_file))
+
+        assert not any("Deprecated" in msg for msg in caplog.messages)
+
+    # =========================================================================
     # Confidence config tests
     # =========================================================================
 

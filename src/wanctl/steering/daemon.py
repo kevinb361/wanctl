@@ -30,7 +30,7 @@ import traceback
 from pathlib import Path
 
 from ..config_base import BaseConfig, get_storage_config
-from ..config_validation_utils import validate_alpha
+from ..config_validation_utils import deprecate_param, validate_alpha
 from ..daemon_utils import check_cleanup_deadline
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
@@ -177,17 +177,19 @@ class SteeringConfig(BaseConfig):
 
     def _load_state_sources(self) -> None:
         """Load primary WAN state file path with legacy support."""
-        self.primary_state_file = Path(
-            self.data.get("cake_state_sources", {}).get(
-                "primary", f"/var/lib/wanctl/{self.primary_wan}_state.json"
-            )
-        )
+        logger = logging.getLogger(__name__)
+        sources = self.data.get("cake_state_sources", {})
 
-        # Legacy support: cake_state_sources.spectrum -> primary
-        if "cake_state_sources" in self.data:
-            sources = self.data["cake_state_sources"]
-            if "spectrum" in sources and "primary" not in sources:
-                self.primary_state_file = Path(sources["spectrum"])
+        # Deprecation: translate legacy cake_state_sources.spectrum -> primary
+        _primary_from_spectrum = deprecate_param(
+            sources, "spectrum", "primary", logger,
+        )
+        if _primary_from_spectrum is not None:
+            sources["primary"] = _primary_from_spectrum
+
+        self.primary_state_file = Path(
+            sources.get("primary", f"/var/lib/wanctl/{self.primary_wan}_state.json")
+        )
 
     def _load_mangle_config(self) -> None:
         """Load mangle rule configuration with validation."""
@@ -205,17 +207,31 @@ class SteeringConfig(BaseConfig):
 
     def _load_cake_queues(self) -> None:
         """Load CAKE queue names with legacy support and validation."""
+        logger = logging.getLogger(__name__)
         cake_queues = self.data.get("cake_queues", {})
         default_dl_queue = f"WAN-Download-{self.primary_wan.capitalize()}"
         default_ul_queue = f"WAN-Upload-{self.primary_wan.capitalize()}"
+
+        # Deprecation: translate legacy spectrum_download -> primary_download
+        _dl_from_spectrum = deprecate_param(
+            cake_queues, "spectrum_download", "primary_download", logger,
+        )
+        if _dl_from_spectrum is not None:
+            cake_queues["primary_download"] = _dl_from_spectrum
+
+        # Deprecation: translate legacy spectrum_upload -> primary_upload
+        _ul_from_spectrum = deprecate_param(
+            cake_queues, "spectrum_upload", "primary_upload", logger,
+        )
+        if _ul_from_spectrum is not None:
+            cake_queues["primary_upload"] = _ul_from_spectrum
+
         self.primary_download_queue = self.validate_identifier(
-            cake_queues.get(
-                "primary_download", cake_queues.get("spectrum_download", default_dl_queue)
-            ),
+            cake_queues.get("primary_download", default_dl_queue),
             "cake_queues.primary_download",
         )
         self.primary_upload_queue = self.validate_identifier(
-            cake_queues.get("primary_upload", cake_queues.get("spectrum_upload", default_ul_queue)),
+            cake_queues.get("primary_upload", default_ul_queue),
             "cake_queues.primary_upload",
         )
 

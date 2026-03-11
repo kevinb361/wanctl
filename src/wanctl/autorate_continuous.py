@@ -20,6 +20,7 @@ from typing import Any
 
 from wanctl.config_base import BaseConfig, get_storage_config
 from wanctl.config_validation_utils import (
+    deprecate_param,
     validate_bandwidth_order,
     validate_threshold_order,
 )
@@ -363,6 +364,22 @@ class Config(BaseConfig):
         # Formula: alpha = cycle_interval / time_constant
         logger = logging.getLogger(__name__)
         cycle_interval = CYCLE_INTERVAL_SECONDS
+
+        # Deprecation: translate legacy alpha_baseline -> baseline_time_constant_sec
+        _tc_from_baseline = deprecate_param(
+            thresh, "alpha_baseline", "baseline_time_constant_sec", logger,
+            transform_fn=lambda alpha: cycle_interval / alpha,
+        )
+        if _tc_from_baseline is not None:
+            thresh["baseline_time_constant_sec"] = _tc_from_baseline
+
+        # Deprecation: translate legacy alpha_load -> load_time_constant_sec
+        _tc_from_load = deprecate_param(
+            thresh, "alpha_load", "load_time_constant_sec", logger,
+            transform_fn=lambda alpha: cycle_interval / alpha,
+        )
+        if _tc_from_load is not None:
+            thresh["load_time_constant_sec"] = _tc_from_load
 
         # Baseline alpha: require either time_constant or raw alpha
         if "baseline_time_constant_sec" in thresh:
