@@ -57,24 +57,27 @@ class TestSignalUtils:
         assert is_shutdown_requested()
 
     def test_register_signal_handlers_with_sigterm(self):
-        """Test register_signal_handlers registers both SIGTERM and SIGINT."""
+        """Test register_signal_handlers registers SIGTERM, SIGINT, and SIGUSR1."""
         with patch("wanctl.signal_utils.signal.signal") as mock_signal:
             register_signal_handlers(include_sigterm=True)
 
-            # Should have registered both signals
-            assert mock_signal.call_count == 2
+            # Should have registered SIGTERM + SIGINT + SIGUSR1
+            assert mock_signal.call_count == 3
             calls = [call[0] for call in mock_signal.call_args_list]
             assert (signal.SIGTERM, _signal_handler) in calls
             assert (signal.SIGINT, _signal_handler) in calls
+            assert (signal.SIGUSR1, _reload_signal_handler) in calls
 
     def test_register_signal_handlers_without_sigterm(self):
         """Test register_signal_handlers with include_sigterm=False."""
         with patch("wanctl.signal_utils.signal.signal") as mock_signal:
             register_signal_handlers(include_sigterm=False)
 
-            # Should only register SIGINT
-            assert mock_signal.call_count == 1
-            mock_signal.assert_called_once_with(signal.SIGINT, _signal_handler)
+            # Should register SIGINT + SIGUSR1 (no SIGTERM)
+            assert mock_signal.call_count == 2
+            calls = [call[0] for call in mock_signal.call_args_list]
+            assert (signal.SIGINT, _signal_handler) in calls
+            assert (signal.SIGUSR1, _reload_signal_handler) in calls
 
     def test_get_shutdown_event_returns_module_event(self):
         """Test get_shutdown_event returns the module-level Event."""
