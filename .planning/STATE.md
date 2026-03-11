@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.14
 milestone_name: Operational Visibility
-current_plan: Not started
-status: roadmap_complete
-last_updated: "2026-03-11T19:00:00.000Z"
-last_activity: 2026-03-11 -- Roadmap created (3 phases, 27 requirements mapped)
+current_plan: Plan 2 of 3 in Phase 73
+status: executing
+last_updated: "2026-03-11T18:30:56.000Z"
+last_activity: 2026-03-11 -- Completed 73-01 (dashboard package infrastructure, config, poller)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Session State
@@ -20,24 +20,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.14 Operational Visibility -- Phase 73 Foundation (ready to plan)
+**Current focus:** v1.14 Operational Visibility -- Phase 73 Foundation (Plan 2 of 3)
 
 ## Position
 
 **Milestone:** v1.14 Operational Visibility
 **Phase:** 73 of 75 (Foundation)
-**Current Plan:** --
-**Status:** Ready to plan Phase 73
-**Last activity:** 2026-03-11 -- Roadmap created (3 phases, 27 requirements mapped)
+**Current Plan:** Plan 2 of 3 in Phase 73
+**Status:** Executing Phase 73
+**Last activity:** 2026-03-11 -- Completed 73-01 (dashboard package infrastructure, config, poller)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: --
-- Total execution time: --
+
+- Total plans completed: 1
+- Average duration: 8min
+- Total execution time: 8min
+
+| Phase | Plan | Duration | Tasks | Files |
+| ----- | ---- | -------- | ----- | ----- |
+| 73    | 01   | 8min     | 2     | 10    |
 
 ## Accumulated Context
 
@@ -49,6 +54,9 @@ Progress: [░░░░░░░░░░] 0%
 - Optional dependency group (`wanctl[dashboard]`) keeps daemon containers lean
 - Zero daemon code changes needed for phases 73-74
 - SSH tunnel as default connectivity model for remote dashboard access
+- Simple YAML config loader (not BaseConfig) for dashboard-specific config
+- httpx.AsyncClient passed into poll() for testability and lifecycle control
+- asyncio.run() in tests instead of pytest-asyncio (not in dev deps)
 
 ### Known Issues
 
@@ -69,3 +77,4 @@ None.
 
 - 2026-03-11: v1.14 milestone started -- Operational Visibility (TUI Dashboard)
 - 2026-03-11: Roadmap created -- 3 phases (73-75), 27 requirements mapped, ready for Phase 73 planning
+- 2026-03-11: Completed 73-01 -- Dashboard package infra, config, poller (30 tests, 8min)

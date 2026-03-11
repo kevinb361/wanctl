@@ -9,10 +9,10 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ### Polling & Data Layer
 
-- [ ] **POLL-01**: Dashboard polls autorate health endpoint with configurable URL and 1-2s refresh interval
-- [ ] **POLL-02**: Dashboard polls steering health endpoint with configurable URL and 1-2s refresh interval
-- [ ] **POLL-03**: Each endpoint polled independently -- one being unreachable does not affect others
-- [ ] **POLL-04**: Unreachable endpoint shows inline "offline" state with last-seen timestamp, continues polling with backoff
+- [x] **POLL-01**: Dashboard polls autorate health endpoint with configurable URL and 1-2s refresh interval
+- [x] **POLL-02**: Dashboard polls steering health endpoint with configurable URL and 1-2s refresh interval
+- [x] **POLL-03**: Each endpoint polled independently -- one being unreachable does not affect others
+- [x] **POLL-04**: Unreachable endpoint shows inline "offline" state with last-seen timestamp, continues polling with backoff
 
 ### Live Monitoring
 
@@ -46,10 +46,10 @@ Requirements for Operational Visibility milestone. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: `wanctl-dashboard` standalone CLI command via pyproject.toml entry point
-- [ ] **INFRA-02**: Dashboard deps (textual, httpx) as optional dependency group (`wanctl[dashboard]`)
-- [ ] **INFRA-03**: CLI args for endpoint URLs (`--autorate-url`, `--steering-url`) and DB path
-- [ ] **INFRA-04**: YAML config file for persistent dashboard settings
+- [x] **INFRA-01**: `wanctl-dashboard` standalone CLI command via pyproject.toml entry point
+- [x] **INFRA-02**: Dashboard deps (textual, httpx) as optional dependency group (`wanctl[dashboard]`)
+- [x] **INFRA-03**: CLI args for endpoint URLs (`--autorate-url`, `--steering-url`) and DB path
+- [x] **INFRA-04**: YAML config file for persistent dashboard settings
 - [ ] **INFRA-05**: Footer with discoverable keybindings (q quit, Tab cycle, number keys for ranges)
 
 ## Future Requirements
@@ -75,10 +75,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POLL-01 | Phase 73 | Pending |
-| POLL-02 | Phase 73 | Pending |
-| POLL-03 | Phase 73 | Pending |
-| POLL-04 | Phase 73 | Pending |
+| POLL-01 | Phase 73 | Complete |
+| POLL-02 | Phase 73 | Complete |
+| POLL-03 | Phase 73 | Complete |
+| POLL-04 | Phase 73 | Complete |
 | LIVE-01 | Phase 73 | Pending |
 | LIVE-02 | Phase 73 | Pending |
 | LIVE-03 | Phase 73 | Pending |
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LYOT-03 | Phase 75 | Pending |
 | LYOT-04 | Phase 75 | Pending |
 | LYOT-05 | Phase 75 | Pending |
-| INFRA-01 | Phase 73 | Pending |
-| INFRA-02 | Phase 73 | Pending |
-| INFRA-03 | Phase 73 | Pending |
-| INFRA-04 | Phase 73 | Pending |
+| INFRA-01 | Phase 73 | Complete |
+| INFRA-02 | Phase 73 | Complete |
+| INFRA-03 | Phase 73 | Complete |
+| INFRA-04 | Phase 73 | Complete |
 | INFRA-05 | Phase 73 | Pending |
 
 **Coverage:**
