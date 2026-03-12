@@ -51,11 +51,10 @@ Goal: Operator-facing CLI tools that catch misconfigurations before runtime and 
   3. Cross-field contradictions are caught: floor ordering violations, ceiling < floor, threshold misordering
   4. File and permission checks report missing log dirs, state dirs, and SSH key paths before daemon startup would discover them
   5. Exit code is 0 for clean configs, 1 when errors exist, 2 when only warnings exist
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 81-01: TBD
-- [ ] 81-02: TBD
+- [ ] 81-01-PLAN.md -- Complete wanctl-check-config CLI tool with all validation categories, tests, and production config verification
 
 ### Phase 82: Steering Config + Output Modes
 **Goal**: Operators can validate any wanctl config file without specifying its type, with machine-readable output for CI
@@ -97,7 +96,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. Config Validation Foundation | 0/? | Not started | - |
+| 81. Config Validation Foundation | 0/1 | Not started | - |
 | 82. Steering Config + Output Modes | 0/? | Not started | - |
 | 83. CAKE Qdisc Audit | 0/? | Not started | - |
 
