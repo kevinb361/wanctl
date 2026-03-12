@@ -1,12 +1,16 @@
 """Tests for webhook delivery: AlertFormatter Protocol, DiscordFormatter, WebhookDelivery."""
 
+import sqlite3
+import threading
 import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
-from wanctl.webhook_delivery import AlertFormatter, DiscordFormatter
+from wanctl.webhook_delivery import AlertFormatter, DiscordFormatter, WebhookDelivery
+from wanctl.storage.schema import ALERTS_SCHEMA
 
 
 class TestAlertFormatterProtocol:
@@ -302,3 +306,381 @@ class TestDiscordFormatterMention:
             mention_severity="warning",
         )
         assert "<@&789>" in result["content"]
+
+
+# ============================================================================
+# Task 2: WebhookDelivery tests
+# ============================================================================
+
+
+@pytest.fixture
+def mock_formatter() -> MagicMock:
+    """Create a mock AlertFormatter returning a valid Discord payload."""
+    formatter = MagicMock(spec=DiscordFormatter)
+    formatter.format.return_value = {
+        "username": "wanctl",
+        "content": "",
+        "embeds": [{"title": "Test", "color": 0x3498DB}],
+    }
+    return formatter
+
+
+@pytest.fixture
+def alerts_db() -> sqlite3.Connection:
+    """Create an in-memory SQLite database with alerts table."""
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(ALERTS_SCHEMA)
+    conn.commit()
+    return conn
+
+
+class TestWebhookDeliveryConstruction:
+    """WebhookDelivery constructed with formatter, URL, rate limit config."""
+
+    def test_construction_basic(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        assert delivery.delivery_failures == 0
+
+    def test_construction_with_rate_limit(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+            max_per_minute=10,
+        )
+        assert delivery.delivery_failures == 0
+
+    def test_construction_with_mention_params(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+            mention_role_id="123456",
+            mention_severity="warning",
+        )
+        assert delivery.delivery_failures == 0
+
+
+class TestWebhookDeliveryEmptyUrl:
+    """WebhookDelivery with empty/None URL silently skips."""
+
+    def test_empty_url_silently_skips(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(formatter=mock_formatter, webhook_url="")
+        delivery.deliver(None, "test_alert", "info", "spectrum", {})
+        mock_formatter.format.assert_not_called()
+
+    def test_none_url_silently_skips(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(formatter=mock_formatter, webhook_url=None)  # type: ignore[arg-type]
+        delivery.deliver(None, "test_alert", "info", "spectrum", {})
+        mock_formatter.format.assert_not_called()
+
+
+class TestWebhookDeliveryBackground:
+    """WebhookDelivery dispatches HTTP POST in a background thread."""
+
+    @patch("wanctl.webhook_delivery.threading.Thread")
+    def test_deliver_spawns_daemon_thread(
+        self, mock_thread_cls: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery.deliver(1, "test_alert", "warning", "spectrum", {"rtt": 25.3})
+        mock_thread_cls.assert_called_once()
+        call_kwargs = mock_thread_cls.call_args
+        assert call_kwargs[1]["daemon"] is True
+        mock_thread_cls.return_value.start.assert_called_once()
+
+
+class TestWebhookDeliveryRetry:
+    """WebhookDelivery retries on 5xx/timeout, stops on 4xx."""
+
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_success_on_first_attempt(
+        self, mock_post: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        # Call _do_deliver directly to test synchronously
+        delivery._do_deliver(1, "test_alert", "warning", "spectrum", {"rtt": 25.3})
+        assert mock_post.call_count == 1
+
+    @patch("wanctl.webhook_delivery.time.sleep")
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_retries_on_5xx(
+        self, mock_post: MagicMock, mock_sleep: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        """5xx triggers retry up to max_attempts."""
+        response_500 = MagicMock()
+        response_500.status_code = 500
+        http_error = requests.exceptions.HTTPError(response=response_500)
+        response_500.raise_for_status.side_effect = http_error
+
+        response_ok = MagicMock()
+        response_ok.status_code = 204
+        response_ok.raise_for_status.return_value = None
+
+        mock_post.side_effect = [response_500, response_ok]
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery._do_deliver(None, "test_alert", "warning", "spectrum", {})
+        assert mock_post.call_count == 2
+
+    @patch("wanctl.webhook_delivery.time.sleep")
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_retries_on_timeout(
+        self, mock_post: MagicMock, mock_sleep: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        """Timeout triggers retry."""
+        mock_post.side_effect = [
+            requests.exceptions.Timeout("timed out"),
+            MagicMock(status_code=204, raise_for_status=MagicMock(return_value=None)),
+        ]
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery._do_deliver(None, "test_alert", "warning", "spectrum", {})
+        assert mock_post.call_count == 2
+
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_no_retry_on_4xx(
+        self, mock_post: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        """4xx is permanent failure, no retry."""
+        response_400 = MagicMock()
+        response_400.status_code = 400
+        http_error = requests.exceptions.HTTPError(response=response_400)
+        response_400.raise_for_status.side_effect = http_error
+        mock_post.return_value = response_400
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery._do_deliver(None, "test_alert", "warning", "spectrum", {})
+        assert mock_post.call_count == 1
+
+    @patch("wanctl.webhook_delivery.time.sleep")
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_retry_exhaustion_increments_failures(
+        self, mock_post: MagicMock, mock_sleep: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        """After max retries exhausted, failure counter increments."""
+        response_500 = MagicMock()
+        response_500.status_code = 500
+        http_error = requests.exceptions.HTTPError(response=response_500)
+        response_500.raise_for_status.side_effect = http_error
+        mock_post.return_value = response_500
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery._do_deliver(None, "test_alert", "warning", "spectrum", {})
+        assert delivery.delivery_failures == 1
+
+    @patch("wanctl.webhook_delivery.time.sleep")
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_exponential_backoff_delays(
+        self, mock_post: MagicMock, mock_sleep: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        """Backoff doubles delay on each retry attempt."""
+        response_500 = MagicMock()
+        response_500.status_code = 500
+        http_error = requests.exceptions.HTTPError(response=response_500)
+        response_500.raise_for_status.side_effect = http_error
+        mock_post.return_value = response_500
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        delivery._do_deliver(None, "test_alert", "warning", "spectrum", {})
+        # 3 attempts = 2 sleeps (2s, 4s)
+        assert mock_sleep.call_count == 2
+        delays = [call.args[0] for call in mock_sleep.call_args_list]
+        assert delays[0] == pytest.approx(2.0)
+        assert delays[1] == pytest.approx(4.0)
+
+
+class TestWebhookDeliveryRateLimit:
+    """WebhookDelivery rate-limits webhook delivery."""
+
+    @patch("wanctl.webhook_delivery.threading.Thread")
+    def test_rate_limited_drops_delivery(
+        self, mock_thread_cls: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+            max_per_minute=1,
+        )
+        # First deliver goes through
+        delivery.deliver(None, "test_alert", "info", "spectrum", {})
+        assert mock_thread_cls.call_count == 1
+
+        # Second deliver is rate limited (dropped)
+        delivery.deliver(None, "test_alert_2", "info", "spectrum", {})
+        assert mock_thread_cls.call_count == 1  # Still 1, second was dropped
+
+
+class TestWebhookDeliveryStatus:
+    """WebhookDelivery updates delivery_status in SQLite."""
+
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_success_sets_delivered_status(
+        self, mock_post: MagicMock, mock_formatter: MagicMock, alerts_db: sqlite3.Connection
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        mock_writer = MagicMock()
+        mock_writer.connection = alerts_db
+
+        # Insert an alert row to update
+        alerts_db.execute(
+            "INSERT INTO alerts (id, timestamp, alert_type, severity, wan_name, details, delivery_status) "
+            "VALUES (1, 1000, 'test', 'info', 'spectrum', '{}', 'pending')"
+        )
+        alerts_db.commit()
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+            writer=mock_writer,
+        )
+        delivery._do_deliver(1, "test_alert", "info", "spectrum", {})
+
+        row = alerts_db.execute(
+            "SELECT delivery_status FROM alerts WHERE id = 1"
+        ).fetchone()
+        assert row[0] == "delivered"
+
+    @patch("wanctl.webhook_delivery.time.sleep")
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_failure_sets_failed_status(
+        self,
+        mock_post: MagicMock,
+        mock_sleep: MagicMock,
+        mock_formatter: MagicMock,
+        alerts_db: sqlite3.Connection,
+    ) -> None:
+        response_500 = MagicMock()
+        response_500.status_code = 500
+        http_error = requests.exceptions.HTTPError(response=response_500)
+        response_500.raise_for_status.side_effect = http_error
+        mock_post.return_value = response_500
+
+        mock_writer = MagicMock()
+        mock_writer.connection = alerts_db
+
+        alerts_db.execute(
+            "INSERT INTO alerts (id, timestamp, alert_type, severity, wan_name, details, delivery_status) "
+            "VALUES (1, 1000, 'test', 'info', 'spectrum', '{}', 'pending')"
+        )
+        alerts_db.commit()
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+            writer=mock_writer,
+        )
+        delivery._do_deliver(1, "test_alert", "info", "spectrum", {})
+
+        row = alerts_db.execute(
+            "SELECT delivery_status FROM alerts WHERE id = 1"
+        ).fetchone()
+        assert row[0] == "failed"
+
+
+class TestWebhookDeliveryNeverCrashes:
+    """WebhookDelivery catches all exceptions -- never propagates out of thread."""
+
+    @patch("wanctl.webhook_delivery.requests.post")
+    def test_unexpected_exception_caught(
+        self, mock_post: MagicMock, mock_formatter: MagicMock
+    ) -> None:
+        mock_post.side_effect = RuntimeError("unexpected chaos")
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        # Should not raise
+        delivery._do_deliver(None, "test_alert", "info", "spectrum", {})
+        assert delivery.delivery_failures == 1
+
+    def test_formatter_exception_caught(self, mock_formatter: MagicMock) -> None:
+        mock_formatter.format.side_effect = ValueError("bad format")
+
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/test",
+        )
+        # Should not raise
+        delivery._do_deliver(None, "test_alert", "info", "spectrum", {})
+        assert delivery.delivery_failures == 1
+
+
+class TestWebhookDeliveryUpdateUrl:
+    """WebhookDelivery.update_webhook_url() validates and updates URL."""
+
+    def test_valid_https_url_accepted(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/old",
+        )
+        delivery.update_webhook_url("https://discord.com/api/webhooks/new")
+        assert delivery._webhook_url == "https://discord.com/api/webhooks/new"
+
+    def test_http_url_rejected(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/old",
+        )
+        delivery.update_webhook_url("http://insecure.com/webhook")
+        # URL should not change
+        assert delivery._webhook_url == "https://discord.com/api/webhooks/old"
+
+    def test_empty_url_clears(self, mock_formatter: MagicMock) -> None:
+        delivery = WebhookDelivery(
+            formatter=mock_formatter,
+            webhook_url="https://discord.com/api/webhooks/old",
+        )
+        delivery.update_webhook_url("")
+        assert delivery._webhook_url == ""
+
+
+class TestAlertsSchemaDeliveryStatus:
+    """ALERTS_SCHEMA includes delivery_status column."""
+
+    def test_delivery_status_column_in_schema(self) -> None:
+        assert "delivery_status" in ALERTS_SCHEMA
+
+    def test_delivery_status_default_pending(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(ALERTS_SCHEMA)
+        conn.execute(
+            "INSERT INTO alerts (timestamp, alert_type, severity, wan_name, details) "
+            "VALUES (1000, 'test', 'info', 'spectrum', '{}')"
+        )
+        conn.commit()
+        row = conn.execute("SELECT delivery_status FROM alerts WHERE id = 1").fetchone()
+        assert row[0] == "pending"
+        conn.close()
