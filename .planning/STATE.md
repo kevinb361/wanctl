@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
 status: executing
-stopped_at: Completed 77-01-PLAN.md
-last_updated: "2026-03-12T12:42:22.103Z"
-last_activity: 2026-03-12 -- Completed 77-01-PLAN.md (webhook delivery core)
+stopped_at: Completed 77-02-PLAN.md
+last_updated: "2026-03-12T13:03:44.000Z"
+last_activity: 2026-03-12 -- Completed 77-02-PLAN.md (webhook integration wiring)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Session State
@@ -21,33 +21,34 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.15 Alerting & Notifications -- Phase 77 Plan 01 complete, Plan 02 next
+**Current focus:** v1.15 Alerting & Notifications -- Phase 77 complete, Phase 78 next
 
 ## Position
 
 **Milestone:** v1.15 Alerting & Notifications
 **Phase:** 77 of 80 (Webhook Delivery)
-**Plan:** 1 of 2 in current phase
+**Plan:** 2 of 2 in current phase (COMPLETE)
 **Status:** Executing
-**Last activity:** 2026-03-12 -- Completed 77-01-PLAN.md (webhook delivery core)
-**Last session:** 2026-03-12T12:42:22.099Z
-**Stopped at:** Completed 77-01-PLAN.md
+**Last activity:** 2026-03-12 -- Completed 77-02-PLAN.md (webhook integration wiring)
+**Last session:** 2026-03-12T13:03:44.000Z
+**Stopped at:** Completed 77-02-PLAN.md
 
-Progress: [████████░░] 75% (Phase 77)
+Progress: [██████████] 100% (Phase 77 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: 7.3 min
-- Total execution time: 0.37 hours
+- Total plans completed: 4
+- Average duration: 10.0 min
+- Total execution time: 0.67 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
 | 76    | 01   | 3min     | 1     | 3     |
 | 76    | 02   | 4min     | 1     | 3     |
 | 77    | 01   | 15min    | 2     | 4     |
+| 77    | 02   | 18min    | 1     | 5     |
 
 ## Accumulated Context
 
@@ -69,6 +70,11 @@ Progress: [████████░░] 75% (Phase 77)
 - RateLimiter reuse from rate_utils.py for webhook rate limiting
 - delivery_status column added to ALERTS_SCHEMA (pending/delivered/failed)
 - update_webhook_url validates https:// prefix, empty clears delivery
+- delivery_callback as optional Callable on AlertEngine (fire-then-deliver pattern)
+- \_persist_alert returns rowid for delivery tracking (alert_id passed to callback)
+- Webhook URL validation at daemon wiring layer, not config parsing layer
+- SIGUSR1 reload chain: dry_run + wan_state + webhook_url (three independent reloads)
+- conftest mock fixtures must explicitly set alerting_config=None (MagicMock truthy leakage fix)
 
 ### Known Issues
 
