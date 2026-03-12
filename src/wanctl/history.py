@@ -230,6 +230,57 @@ def format_summary(results: list[dict]) -> str:
     return "\n".join(output_lines)
 
 
+def format_alerts_table(results: list[dict]) -> str:
+    """Format alert query results as a table.
+
+    Args:
+        results: List of alert records from query_alerts()
+
+    Returns:
+        Formatted table string with Timestamp, Type, Severity, WAN, Details columns
+    """
+    headers = ["Timestamp", "Type", "Severity", "WAN", "Details"]
+    rows = []
+    for r in results:
+        details = r.get("details", "")
+        if isinstance(details, dict):
+            details = ", ".join(f"{k}={v}" for k, v in details.items())
+        details_str = str(details) if details else ""
+        # Truncate details to 60 chars for table display
+        if len(details_str) > 60:
+            details_str = details_str[:57] + "..."
+        rows.append(
+            [
+                format_timestamp(r["timestamp"]),
+                r["alert_type"],
+                r["severity"],
+                r["wan_name"],
+                details_str,
+            ]
+        )
+
+    return tabulate(rows, headers=headers, tablefmt="simple")
+
+
+def format_alerts_json(results: list[dict]) -> str:
+    """Format alert query results as JSON.
+
+    Converts timestamps to ISO strings for readability.
+
+    Args:
+        results: List of alert records from query_alerts()
+
+    Returns:
+        Pretty-printed JSON string
+    """
+    output = []
+    for r in results:
+        record = dict(r)
+        record["timestamp_iso"] = datetime.fromtimestamp(r["timestamp"]).isoformat()
+        output.append(record)
+    return json.dumps(output, indent=2)
+
+
 # =============================================================================
 # ARGUMENT PARSING
 # =============================================================================
@@ -281,6 +332,11 @@ Examples:
 
     # Filter options
     filter_group = parser.add_argument_group("Filters")
+    filter_group.add_argument(
+        "--alerts",
+        action="store_true",
+        help="Show fired alerts instead of metrics",
+    )
     filter_group.add_argument(
         "--metrics",
         metavar="NAMES",
@@ -353,6 +409,25 @@ def main() -> int:
         # Default: last 1 hour
         start_ts = now - 3600
         end_ts = now
+
+    # Alert query mode
+    if args.alerts:
+        from wanctl.storage.reader import query_alerts
+
+        results = query_alerts(
+            db_path=args.db,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            wan=args.wan,
+        )
+        if not results:
+            print("No alerts found for the specified time range.")
+            return 0
+        if args.json_output:
+            print(format_alerts_json(results))
+        else:
+            print(format_alerts_table(results))
+        return 0
 
     # Parse metrics filter
     metrics_list = None
