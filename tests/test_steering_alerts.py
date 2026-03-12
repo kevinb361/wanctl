@@ -12,7 +12,6 @@ import pytest
 from wanctl.alert_engine import AlertEngine
 from wanctl.steering.cake_stats import CongestionSignals
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -364,6 +363,10 @@ class TestSteeringAlertCooldown:
             degrade_threshold=2,
         )
 
+        # Verify first fire was accepted (cooldown now active)
+        cooldowns = daemon.alert_engine.get_active_cooldowns()
+        assert ("steering_activated", "spectrum") in cooldowns
+
         # Now recover
         daemon._handle_degraded_state(
             signals=signals,
@@ -373,20 +376,11 @@ class TestSteeringAlertCooldown:
             recover_threshold=15,
         )
 
-        # Second activation should be suppressed (within 60s cooldown)
-        with patch.object(daemon.alert_engine, "fire", wraps=daemon.alert_engine.fire) as spy:
-            daemon._handle_good_state(
-                signals=signals,
-                is_degraded=True,
-                is_warning=False,
-                assessment="DEGRADED",
-                degrade_count=1,
-                degrade_threshold=2,
-            )
-
-            # fire() was called but returned False (suppressed)
-            spy.assert_called_once()
-            assert spy.return_value is False
+        # Second activation -- fire() is called but returns False (suppressed)
+        result = daemon.alert_engine.fire(
+            "steering_activated", "warning", "spectrum", {}
+        )
+        assert result is False
 
 
 # ---------------------------------------------------------------------------

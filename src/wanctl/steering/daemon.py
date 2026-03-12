@@ -514,6 +514,23 @@ class SteeringConfig(BaseConfig):
                 self.alerting_config = None
                 return
 
+        # Validate default_sustained_sec (Phase 78: cross-daemon config symmetry)
+        default_sustained_sec = alerting.get("default_sustained_sec", 60)
+        if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
+            logger.warning(
+                f"alerting.default_sustained_sec must be int, got {type(default_sustained_sec).__name__}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+        if default_sustained_sec < 0:
+            logger.warning(
+                f"alerting.default_sustained_sec must be >= 0, got {default_sustained_sec}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+
         webhook_url = alerting.get("webhook_url", "")
 
         # Delivery config fields (Plan 77-02)
@@ -539,6 +556,7 @@ class SteeringConfig(BaseConfig):
             "enabled": True,
             "webhook_url": webhook_url,
             "default_cooldown_sec": default_cooldown_sec,
+            "default_sustained_sec": default_sustained_sec,
             "rules": rules,
             "mention_role_id": mention_role_id,
             "mention_severity": mention_severity,
@@ -1013,6 +1031,9 @@ class SteeringDaemon:
             self._webhook_delivery = None
             self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
 
+        # Steering activation timestamp for duration tracking (ALRT-02/ALRT-03)
+        self._steering_activated_time: float | None = None
+
         # Confidence-based steering controller (if enabled)
         self.confidence_controller: ConfidenceController | None = None
         if self.config.use_confidence_scoring and self.config.confidence_config:
@@ -1345,6 +1366,23 @@ class SteeringDaemon:
                     degrade_count = 0
                     state_changed = True
 
+                    # Fire steering_activated alert (ALRT-02)
+                    details: dict[str, object] = {
+                        "from_state": self.config.state_good,
+                        "to_state": self.config.state_degraded,
+                        "rtt_delta": signals.rtt_delta,
+                        "cake_drops": signals.cake_drops,
+                        "queue_depth": signals.queued_packets,
+                    }
+                    if self.confidence_controller:
+                        details["confidence_score"] = (
+                            self.confidence_controller.timer_state.confidence_score
+                        )
+                    self.alert_engine.fire(
+                        "steering_activated", "warning", self.config.primary_wan, details
+                    )
+                    self._steering_activated_time = time.monotonic()
+
         elif is_warning:
             degrade_count = 0
             self.logger.info(f"[{wan}_GOOD] [{assessment}] {signals} | early warning, no action")
@@ -1386,6 +1424,25 @@ class SteeringDaemon:
                 ):
                     recover_count = 0
                     state_changed = True
+
+                    # Fire steering_recovered alert (ALRT-03)
+                    duration_sec: float | None = None
+                    if self._steering_activated_time is not None:
+                        duration_sec = round(
+                            time.monotonic() - self._steering_activated_time, 1
+                        )
+                    recovery_details: dict[str, object] = {
+                        "from_state": self.config.state_degraded,
+                        "to_state": self.config.state_good,
+                        "duration_sec": duration_sec,
+                    }
+                    self.alert_engine.fire(
+                        "steering_recovered",
+                        "recovery",
+                        self.config.primary_wan,
+                        recovery_details,
+                    )
+                    self._steering_activated_time = None
         else:
             recover_count = 0
             self.logger.info(f"[{wan}_DEGRADED] [{assessment}] {signals} | still degraded")
