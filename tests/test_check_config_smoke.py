@@ -8,15 +8,7 @@ from wanctl.check_config import (
     KNOWN_AUTORATE_PATHS,
     CheckResult,
     Severity,
-    check_deprecated_params,
-    check_env_vars,
-    check_paths,
-    check_unknown_keys,
     create_parser,
-    format_results,
-    main,
-    validate_cross_fields,
-    validate_schema_fields,
 )
 
 
