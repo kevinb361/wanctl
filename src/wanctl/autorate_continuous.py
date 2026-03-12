@@ -2027,32 +2027,35 @@ class WANController:
         """
         now = time.monotonic()
 
+        # Shared config rule for both DL and UL flapping
+        flap_rule = self.alert_engine._rules.get("congestion_flapping", {})
+        flap_window = flap_rule.get("flap_window_sec", 120)
+        flap_threshold = flap_rule.get("flap_threshold", 30)
+        flap_severity = flap_rule.get("severity", "warning")
+
         # --- Download flapping ---
         if self._dl_prev_zone is not None and dl_zone != self._dl_prev_zone:
             self._dl_zone_transitions.append(now)
         self._dl_prev_zone = dl_zone
 
         # Prune old transitions outside window
-        dl_rule = self.alert_engine._rules.get("flapping_dl", {})
-        dl_window = dl_rule.get("flap_window_sec", 60)
         while self._dl_zone_transitions and (
-            now - self._dl_zone_transitions[0] > dl_window
+            now - self._dl_zone_transitions[0] > flap_window
         ):
             self._dl_zone_transitions.popleft()
 
-        dl_threshold = dl_rule.get("flap_threshold", 6)
-        if len(self._dl_zone_transitions) >= dl_threshold:
-            dl_severity = dl_rule.get("severity", "warning")
+        if len(self._dl_zone_transitions) >= flap_threshold:
             self.alert_engine.fire(
                 "flapping_dl",
-                dl_severity,
+                flap_severity,
                 self.wan_name,
                 {
                     "transition_count": len(self._dl_zone_transitions),
-                    "window_sec": dl_window,
+                    "window_sec": flap_window,
                     "current_zone": dl_zone,
                 },
             )
+            self._dl_zone_transitions.clear()
 
         # --- Upload flapping ---
         if self._ul_prev_zone is not None and ul_zone != self._ul_prev_zone:
@@ -2060,26 +2063,23 @@ class WANController:
         self._ul_prev_zone = ul_zone
 
         # Prune old transitions outside window
-        ul_rule = self.alert_engine._rules.get("flapping_ul", {})
-        ul_window = ul_rule.get("flap_window_sec", 60)
         while self._ul_zone_transitions and (
-            now - self._ul_zone_transitions[0] > ul_window
+            now - self._ul_zone_transitions[0] > flap_window
         ):
             self._ul_zone_transitions.popleft()
 
-        ul_threshold = ul_rule.get("flap_threshold", 6)
-        if len(self._ul_zone_transitions) >= ul_threshold:
-            ul_severity = ul_rule.get("severity", "warning")
+        if len(self._ul_zone_transitions) >= flap_threshold:
             self.alert_engine.fire(
                 "flapping_ul",
-                ul_severity,
+                flap_severity,
                 self.wan_name,
                 {
                     "transition_count": len(self._ul_zone_transitions),
-                    "window_sec": ul_window,
+                    "window_sec": flap_window,
                     "current_zone": ul_zone,
                 },
             )
+            self._ul_zone_transitions.clear()
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
