@@ -19,6 +19,7 @@ wanctl-calibrate = "wanctl.calibrate:main"
 wanctl-steering = "wanctl.steering.daemon:main"
 wanctl-history = "wanctl.history:main"
 wanctl-dashboard = "wanctl.dashboard.app:main"
+wanctl-check-config = "wanctl.check_config:main"
 
 [project.optional-dependencies]
 dashboard = ["textual>=0.50", "httpx>=0.27"]
