@@ -699,6 +699,7 @@ class TestContinuousAutoRateErrorHandling:
         mock_config.wan_name = "TestWAN"
         mock_config.lock_file = MagicMock()
         mock_config.lock_timeout = 10
+        mock_config.alerting_config = None
 
         mock_logger = MagicMock()
         MagicMock()

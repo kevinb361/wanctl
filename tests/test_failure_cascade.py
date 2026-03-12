@@ -242,6 +242,7 @@ class TestSteeringFailureCascade:
         mock_config.green_samples_required = 15
         mock_config.wan_state_config = None
         mock_config.confidence_config = None
+        mock_config.alerting_config = None
         mock_config.data = {}
 
         mock_state = MagicMock()
@@ -304,6 +305,7 @@ class TestSteeringFailureCascade:
         mock_config.green_samples_required = 15
         mock_config.wan_state_config = None
         mock_config.confidence_config = None
+        mock_config.alerting_config = None
         mock_config.data = {}
 
         mock_state = MagicMock()

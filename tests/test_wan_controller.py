@@ -1116,6 +1116,7 @@ class TestVerifyLocalConnectivity:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1240,6 +1241,7 @@ class TestVerifyTcpConnectivity:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1398,6 +1400,7 @@ class TestVerifyConnectivityFallback:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1539,6 +1542,7 @@ class TestStateLoadSave:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1788,6 +1792,7 @@ class TestMeasureRttMedianOfThree:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1976,6 +1981,7 @@ class TestBaselineRttBoundsRejection:
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
         config.state_file = MagicMock()
+        config.alerting_config = None
 
         router = MagicMock()
         router.set_limits.return_value = True

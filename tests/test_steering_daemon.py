@@ -4738,6 +4738,7 @@ class TestLegacyStateWarning:
         config.use_confidence_scoring = False
         config.confidence_config = None
         config.wan_state_config = None
+        config.alerting_config = None
         config.data = {}
 
         mock_logger = MagicMock()
@@ -5079,6 +5080,7 @@ class TestWanGracePeriodAndGating:
         config.use_confidence_scoring = False
         config.confidence_config = None
         config.wan_state_config = None
+        config.alerting_config = None
         config.data = {}
 
         with patch("wanctl.steering.daemon.CakeStatsReader"):
@@ -5115,6 +5117,7 @@ class TestWanGracePeriodAndGating:
         config.metrics_enabled = False
         config.use_confidence_scoring = False
         config.confidence_config = None
+        config.alerting_config = None
         # Config present but enabled=False
         config.wan_state_config = None
         config.data = {}
@@ -5534,6 +5537,7 @@ class TestDryRunReload:
         daemon.run_cycle.return_value = True
         config = MagicMock()
         config.measurement_interval = 0.05
+        config.alerting_config = None
         logger = MagicMock()
         shutdown_event = threading.Event()
 
@@ -5564,6 +5568,7 @@ class TestDryRunReload:
         daemon = MagicMock()
         config = MagicMock()
         config.measurement_interval = 0.05
+        config.alerting_config = None
         logger = MagicMock()
         shutdown_event = threading.Event()
 
