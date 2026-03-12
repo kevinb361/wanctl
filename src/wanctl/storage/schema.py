@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     alert_type TEXT NOT NULL,
     severity TEXT NOT NULL,
     wan_name TEXT NOT NULL,
-    details TEXT
+    details TEXT,
+    delivery_status TEXT DEFAULT 'pending'
 );
 
 -- Index for time-range queries on alerts

@@ -294,6 +294,7 @@ class TestAlertsSchema:
             "severity": "TEXT",
             "wan_name": "TEXT",
             "details": "TEXT",
+            "delivery_status": "TEXT",
         }
         assert columns == expected
         conn.close()

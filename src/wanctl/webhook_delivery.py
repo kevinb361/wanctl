@@ -13,10 +13,20 @@ Design principles:
 - Formatter Protocol allows new backends without modifying delivery code
 """
 
+from __future__ import annotations
+
 import logging
+import threading
 import time
-from datetime import datetime, timezone
-from typing import Any, Protocol, runtime_checkable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+import requests
+
+from wanctl.rate_utils import RateLimiter
+
+if TYPE_CHECKING:
+    from wanctl.storage.writer import MetricsWriter
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +147,7 @@ class DiscordFormatter:
             Dict payload for requests.post(url, json=payload).
         """
         now = int(time.time())
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         emoji = self.SEVERITY_EMOJI.get(severity, "\U0001f535")
         color = self.SEVERITY_COLORS.get(severity, 0x3498DB)
@@ -292,3 +302,262 @@ class DiscordFormatter:
         sev_order = cls.SEVERITY_ORDER.get(severity, 0)
         threshold_order = cls.SEVERITY_ORDER.get(mention_severity, 3)
         return sev_order >= threshold_order
+
+
+class WebhookDelivery:
+    """Non-blocking webhook delivery with retry, rate-limiting, and status tracking.
+
+    Dispatches HTTP POST to a webhook URL in a daemon thread so it never blocks
+    the 50ms control loop. Retries on transient failures (5xx, timeout) with
+    exponential backoff. Rate-limits to prevent Discord API abuse.
+
+    Attributes:
+        delivery_failures: Count of failed delivery attempts (for health endpoint).
+    """
+
+    # Retry configuration
+    _MAX_ATTEMPTS: int = 3
+    _INITIAL_DELAY: float = 2.0
+    _BACKOFF_FACTOR: float = 2.0
+
+    def __init__(
+        self,
+        formatter: AlertFormatter,
+        webhook_url: str | None,
+        max_per_minute: int = 20,
+        writer: MetricsWriter | None = None,
+        mention_role_id: str | None = None,
+        mention_severity: str = "critical",
+    ) -> None:
+        """Initialize WebhookDelivery.
+
+        Args:
+            formatter: AlertFormatter instance for payload generation.
+            webhook_url: Webhook URL for HTTP POST. Empty/None disables delivery.
+            max_per_minute: Maximum webhook deliveries per minute (rate limit).
+            writer: MetricsWriter instance for delivery_status updates. None disables.
+            mention_role_id: Optional Discord role ID for @mentions.
+            mention_severity: Minimum severity to trigger @mention.
+        """
+        self._formatter = formatter
+        self._webhook_url = webhook_url or ""
+        self._rate_limiter = RateLimiter(max_changes=max_per_minute, window_seconds=60)
+        self._writer = writer
+        self._mention_role_id = mention_role_id
+        self._mention_severity = mention_severity
+        self._delivery_failures = 0
+        self._lock = threading.Lock()
+
+    @property
+    def delivery_failures(self) -> int:
+        """Return count of failed delivery attempts."""
+        return self._delivery_failures
+
+    def deliver(
+        self,
+        alert_id: int | None,
+        alert_type: str,
+        severity: str,
+        wan_name: str,
+        details: dict[str, Any],
+    ) -> None:
+        """Submit delivery to a background thread (non-blocking).
+
+        Args:
+            alert_id: SQLite alert row ID for status updates. None skips status updates.
+            alert_type: Snake_case alert type.
+            severity: Alert severity.
+            wan_name: WAN identifier.
+            details: Alert details dict.
+        """
+        if not self._webhook_url:
+            return
+
+        if not self._rate_limiter.can_change():
+            logger.warning(
+                "Webhook rate limited, dropping delivery for %s", alert_type
+            )
+            return
+
+        self._rate_limiter.record_change()
+
+        thread = threading.Thread(
+            target=self._do_deliver,
+            args=(alert_id, alert_type, severity, wan_name, details),
+            daemon=True,
+        )
+        thread.start()
+
+    def _do_deliver(
+        self,
+        alert_id: int | None,
+        alert_type: str,
+        severity: str,
+        wan_name: str,
+        details: dict[str, Any],
+    ) -> None:
+        """Execute delivery with retry logic. Runs in daemon thread.
+
+        Never raises -- all exceptions caught and logged.
+
+        Args:
+            alert_id: SQLite alert row ID.
+            alert_type: Alert type.
+            severity: Alert severity.
+            wan_name: WAN identifier.
+            details: Alert details dict.
+        """
+        try:
+            payload = self._formatter.format(
+                alert_type,
+                severity,
+                wan_name,
+                details,
+                mention_role_id=self._mention_role_id,
+                mention_severity=self._mention_severity,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to format webhook payload for %s", alert_type, exc_info=True
+            )
+            with self._lock:
+                self._delivery_failures += 1
+            return
+
+        delay = self._INITIAL_DELAY
+
+        for attempt in range(1, self._MAX_ATTEMPTS + 1):
+            try:
+                response = requests.post(
+                    self._webhook_url, json=payload, timeout=10
+                )
+                response.raise_for_status()
+
+                # Success
+                if alert_id is not None:
+                    self._update_delivery_status(alert_id, "delivered")
+                logger.debug("Webhook delivered: %s (attempt %d)", alert_type, attempt)
+                return
+
+            except requests.exceptions.HTTPError as e:
+                status = (
+                    e.response.status_code
+                    if e.response is not None
+                    else 0
+                )
+                if 400 <= status < 500 and status != 408:
+                    # 4xx (except 408) = permanent failure, no retry
+                    logger.warning(
+                        "Webhook delivery failed (HTTP %d), not retrying: %s",
+                        status,
+                        alert_type,
+                    )
+                    with self._lock:
+                        self._delivery_failures += 1
+                    if alert_id is not None:
+                        self._update_delivery_status(alert_id, "failed")
+                    return
+
+                # 5xx or 408 = retryable
+                if attempt < self._MAX_ATTEMPTS:
+                    logger.warning(
+                        "Webhook delivery failed (HTTP %d), retrying in %.1fs: %s",
+                        status,
+                        delay,
+                        alert_type,
+                    )
+                    time.sleep(delay)
+                    delay *= self._BACKOFF_FACTOR
+                    continue
+
+                # Exhausted
+                logger.warning(
+                    "Webhook delivery failed after %d attempts: %s",
+                    self._MAX_ATTEMPTS,
+                    alert_type,
+                )
+                with self._lock:
+                    self._delivery_failures += 1
+                if alert_id is not None:
+                    self._update_delivery_status(alert_id, "failed")
+                return
+
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                if attempt < self._MAX_ATTEMPTS:
+                    logger.warning(
+                        "Webhook delivery error (%s), retrying in %.1fs: %s",
+                        type(e).__name__,
+                        delay,
+                        alert_type,
+                    )
+                    time.sleep(delay)
+                    delay *= self._BACKOFF_FACTOR
+                    continue
+
+                logger.warning(
+                    "Webhook delivery failed after %d attempts: %s",
+                    self._MAX_ATTEMPTS,
+                    alert_type,
+                )
+                with self._lock:
+                    self._delivery_failures += 1
+                if alert_id is not None:
+                    self._update_delivery_status(alert_id, "failed")
+                return
+
+            except Exception:
+                logger.warning(
+                    "Unexpected webhook delivery error for %s",
+                    alert_type,
+                    exc_info=True,
+                )
+                with self._lock:
+                    self._delivery_failures += 1
+                if alert_id is not None:
+                    self._update_delivery_status(alert_id, "failed")
+                return
+
+    def update_webhook_url(self, url: str) -> None:
+        """Update webhook URL (for SIGUSR1 config reload).
+
+        Validates https:// prefix for non-empty URLs. Logs warning if invalid.
+
+        Args:
+            url: New webhook URL. Empty string clears the URL (disabling delivery).
+        """
+        if not url:
+            self._webhook_url = ""
+            logger.info("Webhook URL cleared (delivery disabled)")
+            return
+
+        if not url.startswith("https://"):
+            logger.warning(
+                "Invalid webhook URL (must start with https://): %s", url[:50]
+            )
+            return
+
+        self._webhook_url = url
+        logger.info("Webhook URL updated")
+
+    def _update_delivery_status(self, alert_id: int, status: str) -> None:
+        """Update delivery_status in SQLite alerts table.
+
+        Never raises -- logs warning on failure.
+
+        Args:
+            alert_id: Alert row ID.
+            status: New status ("delivered" or "failed").
+        """
+        if self._writer is None:
+            return
+
+        try:
+            self._writer.connection.execute(
+                "UPDATE alerts SET delivery_status = ? WHERE id = ?",
+                (status, alert_id),
+            )
+            self._writer.connection.commit()
+        except Exception:
+            logger.warning(
+                "Failed to update delivery_status for alert %d", alert_id, exc_info=True
+            )
