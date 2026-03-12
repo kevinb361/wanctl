@@ -1,10 +1,11 @@
 """
 MetricsReader - Read-only query functions for metrics database.
 
-Provides query layer for CLI and API access to stored metrics data.
+Provides query layer for CLI and API access to stored metrics and alert data.
 All connections are read-only to prevent accidental modifications.
 """
 
+import json
 import logging
 import sqlite3
 from pathlib import Path
@@ -89,6 +90,95 @@ def query_metrics(
         cursor = conn.execute(sql, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+    except sqlite3.OperationalError as e:
+        # Table might not exist in empty database
+        logger.debug("Query failed: %s", e)
+        return []
+    finally:
+        conn.close()
+
+
+def query_alerts(
+    db_path: Path | str = DEFAULT_DB_PATH,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+    alert_type: str | None = None,
+    wan: str | None = None,
+) -> list[dict]:
+    """Query alerts from the database with optional filters.
+
+    Opens a read-only connection to prevent accidental writes.
+
+    Args:
+        db_path: Path to SQLite database file
+        start_ts: Start timestamp (inclusive), Unix seconds
+        end_ts: End timestamp (inclusive), Unix seconds
+        alert_type: Alert type to filter (e.g., "congestion_sustained")
+        wan: WAN name to filter (e.g., "spectrum", "att")
+
+    Returns:
+        List of dicts with keys: id, timestamp, alert_type, severity, wan_name,
+        details, delivery_status. Details JSON is parsed into dict.
+        Returns empty list if database doesn't exist or no data matches.
+    """
+    db_path = Path(db_path)
+
+    # Handle missing database gracefully
+    if not db_path.exists():
+        logger.debug("Database not found: %s", db_path)
+        return []
+
+    try:
+        # Open read-only connection
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+    except sqlite3.OperationalError as e:
+        logger.warning("Failed to open database: %s", e)
+        return []
+
+    try:
+        # Build query with optional filters
+        sql = """
+            SELECT id, timestamp, alert_type, severity, wan_name, details, delivery_status
+            FROM alerts
+            WHERE 1=1
+        """
+        params: list = []
+
+        if start_ts is not None:
+            sql += " AND timestamp >= ?"
+            params.append(start_ts)
+
+        if end_ts is not None:
+            sql += " AND timestamp <= ?"
+            params.append(end_ts)
+
+        if alert_type:
+            sql += " AND alert_type = ?"
+            params.append(alert_type)
+
+        if wan:
+            sql += " AND wan_name = ?"
+            params.append(wan)
+
+        sql += " ORDER BY timestamp DESC"
+
+        cursor = conn.execute(sql, params)
+        rows = cursor.fetchall()
+
+        # Parse details JSON for each row
+        results = []
+        for row in rows:
+            record = dict(row)
+            if record["details"]:
+                try:
+                    record["details"] = json.loads(record["details"])
+                except (json.JSONDecodeError, TypeError):
+                    pass  # Keep raw string on parse error
+            results.append(record)
+
+        return results
 
     except sqlite3.OperationalError as e:
         # Table might not exist in empty database

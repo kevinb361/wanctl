@@ -3,13 +3,12 @@
 import json
 import sqlite3
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pytest
 
 from wanctl.storage.reader import query_alerts
 from wanctl.storage.schema import create_tables
-
 
 # =============================================================================
 # FIXTURES
@@ -27,11 +26,46 @@ def alert_db(tmp_path):
 
     # Insert test alerts
     alerts = [
-        (now - 3600, "congestion_sustained", "warning", "spectrum", '{"direction": "download", "zone": "SOFT_RED"}', "delivered"),
-        (now - 1800, "congestion_sustained", "critical", "spectrum", '{"direction": "download", "zone": "RED"}', "delivered"),
-        (now - 900, "congestion_recovered", "recovery", "spectrum", '{"direction": "download", "duration_sec": 900}', "delivered"),
-        (now - 600, "steering_activated", "warning", "spectrum", '{"reason": "congestion"}', "pending"),
-        (now - 300, "connectivity_offline", "critical", "att", '{"consecutive_failures": 5}', "failed"),
+        (
+            now - 3600,
+            "congestion_sustained",
+            "warning",
+            "spectrum",
+            '{"direction": "download", "zone": "SOFT_RED"}',
+            "delivered",
+        ),
+        (
+            now - 1800,
+            "congestion_sustained",
+            "critical",
+            "spectrum",
+            '{"direction": "download", "zone": "RED"}',
+            "delivered",
+        ),
+        (
+            now - 900,
+            "congestion_recovered",
+            "recovery",
+            "spectrum",
+            '{"direction": "download", "duration_sec": 900}',
+            "delivered",
+        ),
+        (
+            now - 600,
+            "steering_activated",
+            "warning",
+            "spectrum",
+            '{"reason": "congestion"}',
+            "pending",
+        ),
+        (
+            now - 300,
+            "connectivity_offline",
+            "critical",
+            "att",
+            '{"consecutive_failures": 5}',
+            "failed",
+        ),
     ]
     for ts, atype, sev, wan, details, status in alerts:
         conn.execute(
@@ -135,7 +169,9 @@ class TestAlertsCLI:
         from wanctl.history import main
 
         db_path, _ = alert_db
-        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--alerts", "--last", "2h", "--db", str(db_path)])
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-history", "--alerts", "--last", "2h", "--db", str(db_path)]
+        )
         result = main()
         assert result == 0
         captured = capsys.readouterr()
@@ -148,20 +184,30 @@ class TestAlertsCLI:
         from wanctl.history import main
 
         db_path, _ = alert_db
-        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--alerts", "--last", "1h", "--db", str(db_path)])
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-history", "--alerts", "--last", "1h", "--db", str(db_path)]
+        )
         result = main()
         assert result == 0
         captured = capsys.readouterr()
         # Alerts at -3600 is exactly at boundary, -1800 is within
         # Should have some alerts (those within 1h)
-        assert "congestion" in captured.out.lower() or "steering" in captured.out.lower() or "connectivity" in captured.out.lower()
+        assert (
+            "congestion" in captured.out.lower()
+            or "steering" in captured.out.lower()
+            or "connectivity" in captured.out.lower()
+        )
 
     def test_alerts_json_output(self, alert_db, monkeypatch, capsys):
         """CLI --alerts --json outputs JSON array of alert records."""
         from wanctl.history import main
 
         db_path, _ = alert_db
-        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--alerts", "--last", "2h", "--json", "--db", str(db_path)])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["wanctl-history", "--alerts", "--last", "2h", "--json", "--db", str(db_path)],
+        )
         result = main()
         assert result == 0
         captured = capsys.readouterr()
@@ -181,7 +227,9 @@ class TestAlertsCLI:
         create_tables(conn)
         conn.close()
 
-        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--alerts", "--last", "1h", "--db", str(db_path)])
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-history", "--alerts", "--last", "1h", "--db", str(db_path)]
+        )
         result = main()
         assert result == 0
         captured = capsys.readouterr()
@@ -192,7 +240,9 @@ class TestAlertsCLI:
         from wanctl.history import main
 
         db_path, _ = alert_db
-        monkeypatch.setattr(sys, "argv", ["wanctl-history", "--alerts", "--last", "2h", "--db", str(db_path)])
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-history", "--alerts", "--last", "2h", "--db", str(db_path)]
+        )
         result = main()
         assert result == 0
         captured = capsys.readouterr()
