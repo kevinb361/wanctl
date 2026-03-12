@@ -1,91 +1,89 @@
-# Requirements: wanctl
+# Requirements: wanctl v1.16
 
-**Defined:** 2026-03-11
+**Defined:** 2026-03-12
 **Core Value:** Sub-second congestion detection with 50ms control loops
 
-## v1.15 Requirements
+## v1.16 Requirements
 
-Requirements for Alerting & Notifications milestone. Each maps to roadmap phases.
+Requirements for Validation & Operational Confidence milestone. Each maps to roadmap phases.
 
-### Alert Events
+### Config Validation
 
-- [x] **ALRT-01**: Autorate daemon fires alert when WAN stays in RED or SOFT_RED beyond configurable duration
-- [x] **ALRT-02**: Steering daemon fires alert when steering is activated (traffic rerouted to secondary)
-- [x] **ALRT-03**: Steering daemon fires alert when steering is deactivated (traffic returns to primary)
-- [x] **ALRT-04**: Daemon fires alert when health endpoint target becomes unreachable beyond configurable duration
-- [x] **ALRT-05**: Daemon fires alert when previously unreachable endpoint recovers
-- [x] **ALRT-06**: Autorate daemon fires alert when baseline RTT drifts beyond configurable threshold
-- [x] **ALRT-07**: Autorate daemon fires alert when rapid congestion state flapping is detected
+- [ ] **CVAL-01**: Operator can validate an autorate config file offline via `wanctl-check-config`
+- [ ] **CVAL-02**: Operator can validate a steering config file offline via `wanctl-check-config`
+- [ ] **CVAL-03**: Tool auto-detects config type (autorate vs steering) from file contents
+- [ ] **CVAL-04**: All validation errors are collected and reported (not just the first)
+- [ ] **CVAL-05**: Cross-field semantic validation catches contradictions (floor ordering, threshold ordering, ceiling < floor)
+- [ ] **CVAL-06**: File/permission checks verify referenced paths exist and are accessible (ssh_key, log dirs, state dirs)
+- [ ] **CVAL-07**: Environment variable resolution check warns when `${ROUTER_PASSWORD}` env var is unset
+- [ ] **CVAL-08**: Deprecated parameters are collected and surfaced prominently in output
+- [ ] **CVAL-09**: Steering cross-config validation verifies topology.primary_wan_config path exists and wan_name matches
+- [ ] **CVAL-10**: JSON output mode (`--json`) for scripting and CI integration
+- [ ] **CVAL-11**: Exit codes indicate result (0=pass, 1=errors, 2=warnings only)
 
-### Delivery
+### CAKE & Router Audit
 
-- [x] **DLVR-01**: Alerts delivered via Discord webhook with color-coded embeds (red=critical, yellow=warning, green=recovery)
-- [x] **DLVR-02**: Alert embeds include event type, severity, affected WAN, relevant metrics, and timestamp
-- [x] **DLVR-03**: Webhook delivery retries with backoff on transient HTTP failures
-- [x] **DLVR-04**: Generic webhook interface allows adding new formatters (ntfy.sh, etc.) without engine changes
-
-### Infrastructure
-
-- [x] **INFRA-01**: Per-event-type cooldown suppression with configurable duration per alert type
-- [x] **INFRA-02**: YAML `alerting:` configuration section with rules, thresholds, cooldowns, and webhook URL
-- [x] **INFRA-03**: Fired alerts persisted to SQLite with timestamp, type, severity, WAN, and details
-- [x] **INFRA-04**: Alert history queryable via `wanctl-history` CLI (e.g., `--alerts` flag)
-- [x] **INFRA-05**: Alerting disabled by default, opt-in via `alerting.enabled: true`
-- [x] **INFRA-06**: Health endpoint exposes alerting state (enabled, recent alert count, active cooldowns)
+- [ ] **CAKE-01**: `wanctl-check-cake` probes router connectivity (REST/SSH reachability and auth)
+- [ ] **CAKE-02**: Queue tree audit verifies queues exist with expected names and max-limit values
+- [ ] **CAKE-03**: CAKE qdisc type verification confirms queues use CAKE (not fq_codel or default)
+- [ ] **CAKE-04**: Config-vs-router diff shows expected vs actual values for each parameter
+- [ ] **CAKE-05**: Mangle rule existence check verifies steering mangle rule exists on router
 
 ## Future Requirements
 
-### Delivery
+Deferred to future milestone. Tracked but not in current roadmap.
+
+### Integration Probes
+
+- **INTG-01**: State file consistency check (valid JSON, expected keys, freshness)
+- **INTG-02**: SQLite integrity check (PRAGMA integrity_check on metrics.db)
+- **INTG-03**: Health endpoint probes (HTTP GET to 9101/9102 from CLI)
+- **INTG-04**: Daemon startup environment validation (fail-fast on bad config)
+
+### Delivery (from v1.15)
 
 - **DLVR-F01**: ntfy.sh push notification delivery
 - **DLVR-F02**: Generic HTTP POST with customizable payload template
 
-### Steering Event Log
-
-- **SEVT-01**: Steering decision log showing recent transitions with timestamps and reasons
-- **SEVT-02**: Daemon-side ring buffer API endpoint for transition events
-
 ## Out of Scope
 
-| Feature                        | Reason                                                           |
-| ------------------------------ | ---------------------------------------------------------------- |
-| ML-based anomaly detection     | Simple threshold/heuristic detection sufficient for home network |
-| Alert aggregation/grouping     | Per-event cooldown handles flood suppression adequately          |
-| Web UI for alert management    | CLI and YAML config sufficient                                   |
-| Email delivery                 | Discord/webhook covers notification needs                        |
-| Alert acknowledgment/silencing | Cooldowns handle suppression; operator intervention not needed   |
+| Feature | Reason |
+|---------|--------|
+| Config generation/wizard | `wanctl-calibrate` already handles initial setup |
+| Router config modification | Check tools are strictly read-only (production safety) |
+| Auto-fix/auto-repair | Too risky for production network config; report with fix instructions instead |
+| Schema migration tool | No v2.0 schema exists yet (YAGNI) |
+| Prometheus/OpenTelemetry export | Check tools run once and exit; not long-running processes |
+| Interactive/TUI mode for check tools | Dashboard already provides TUI; check tools should be pipe-friendly |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase    | Status   |
-| ----------- | -------- | -------- |
-| ALRT-01     | Phase 78 | Complete |
-| ALRT-02     | Phase 78 | Complete |
-| ALRT-03     | Phase 78 | Complete |
-| ALRT-04     | Phase 79 | Complete |
-| ALRT-05     | Phase 79 | Complete |
-| ALRT-06     | Phase 79 | Complete |
-| ALRT-07     | Phase 79 | Complete |
-| DLVR-01     | Phase 77 | Complete |
-| DLVR-02     | Phase 77 | Complete |
-| DLVR-03     | Phase 77 | Complete |
-| DLVR-04     | Phase 77 | Complete |
-| INFRA-01    | Phase 76 | Complete |
-| INFRA-02    | Phase 76 | Complete |
-| INFRA-03    | Phase 76 | Complete |
-| INFRA-04    | Phase 80 | Complete |
-| INFRA-05    | Phase 76 | Complete |
-| INFRA-06    | Phase 80 | Complete |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CVAL-01 | — | Pending |
+| CVAL-02 | — | Pending |
+| CVAL-03 | — | Pending |
+| CVAL-04 | — | Pending |
+| CVAL-05 | — | Pending |
+| CVAL-06 | — | Pending |
+| CVAL-07 | — | Pending |
+| CVAL-08 | — | Pending |
+| CVAL-09 | — | Pending |
+| CVAL-10 | — | Pending |
+| CVAL-11 | — | Pending |
+| CAKE-01 | — | Pending |
+| CAKE-02 | — | Pending |
+| CAKE-03 | — | Pending |
+| CAKE-04 | — | Pending |
+| CAKE-05 | — | Pending |
 
 **Coverage:**
-
-- v1.15 requirements: 17 total
-- Mapped to phases: 17
-- Unmapped: 0
+- v1.16 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 ⚠️
 
 ---
-
-_Requirements defined: 2026-03-11_
-_Last updated: 2026-03-12 after 78-02 completion_
+*Requirements defined: 2026-03-12*
+*Last updated: 2026-03-12 after initial definition*
