@@ -115,12 +115,12 @@ Plans:
 2. When a previously unreachable endpoint recovers, a WAN-recovery alert fires
 3. When baseline RTT drifts beyond a configurable threshold from its historical norm, a baseline-drift alert fires
 4. When rapid congestion state flapping is detected (frequent RED/GREEN transitions), a flapping alert fires
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 79-01: TBD
-- [ ] 79-02: TBD
+- [ ] 79-01-PLAN.md -- WAN offline/recovery detection with sustained timer and recovery gate
+- [ ] 79-02-PLAN.md -- Baseline RTT drift and congestion zone flapping detection
 
 ### Phase 80: Observability & CLI
 
@@ -172,7 +172,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 76. Alert Engine & Configuration  | 2/2            | Complete    | 2026-03-12 |
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
-| 79. Connectivity & Anomaly Alerts | 0/TBD          | Not started | -          |
+| 79. Connectivity & Anomaly Alerts | 0/2            | Planning    | -          |
 | 80. Observability & CLI           | 0/TBD          | Not started | -          |
 
 <details>
