@@ -76,11 +76,10 @@ Plans:
   2. Each embed includes event type, severity, affected WAN, relevant metrics, and timestamp
   3. Transient HTTP failures (5xx, timeout) trigger retry with exponential backoff; permanent failures (4xx) do not retry
   4. Adding a new delivery backend (e.g., ntfy.sh) requires only implementing a formatter class -- no engine changes
-**Plans**: TBD
+**Plans**: 2 plans
 
-Plans:
-- [ ] 77-01: TBD
-- [ ] 77-02: TBD
+- [ ] 77-01-PLAN.md -- Delivery subsystem: AlertFormatter Protocol, DiscordFormatter, WebhookDelivery with retry and rate-limit
+- [ ] 77-02-PLAN.md -- Daemon integration: delivery callback, config parsing, SIGUSR1 webhook_url reload
 
 ### Phase 78: Congestion & Steering Alerts
 **Goal**: Operator is notified when sustained congestion occurs or when steering reroutes/recovers traffic
@@ -157,7 +156,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 76. Alert Engine & Configuration | 2/2 | Complete    | 2026-03-12 |
-| 77. Webhook Delivery | 0/TBD | Not started | - |
+| 77. Webhook Delivery | 0/2 | Not started | - |
 | 78. Congestion & Steering Alerts | 0/TBD | Not started | - |
 | 79. Connectivity & Anomaly Alerts | 0/TBD | Not started | - |
 | 80. Observability & CLI | 0/TBD | Not started | - |
