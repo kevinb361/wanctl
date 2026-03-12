@@ -47,6 +47,27 @@ CREATE INDEX IF NOT EXISTS idx_metrics_granularity_time
     ON metrics(granularity, timestamp);
 """
 
+# SQL schema for alerts table with indexes for querying alert history
+ALERTS_SCHEMA: str = """
+-- Alerts table for alert event persistence
+CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    alert_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    wan_name TEXT NOT NULL,
+    details TEXT
+);
+
+-- Index for time-range queries on alerts
+CREATE INDEX IF NOT EXISTS idx_alerts_timestamp
+    ON alerts(timestamp);
+
+-- Composite index for querying alerts by type and WAN
+CREATE INDEX IF NOT EXISTS idx_alerts_type_wan
+    ON alerts(alert_type, wan_name, timestamp);
+"""
+
 
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create all tables and indexes from the schema.
@@ -58,4 +79,5 @@ def create_tables(conn: sqlite3.Connection) -> None:
         Uses IF NOT EXISTS so safe to call multiple times.
     """
     conn.executescript(METRICS_SCHEMA)
+    conn.executescript(ALERTS_SCHEMA)
     conn.commit()
