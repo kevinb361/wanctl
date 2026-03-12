@@ -190,6 +190,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
                 health["wans"].append(wan_health)
 
+        # Alerting state
+        alerting: dict[str, Any] = {"enabled": False, "fire_count": 0, "active_cooldowns": []}
+        if self.controller and self.controller.wan_controllers:
+            from wanctl.alert_engine import AlertEngine
+
+            ae = self.controller.wan_controllers[0]["controller"].alert_engine
+            if isinstance(ae, AlertEngine):
+                cooldowns = ae.get_active_cooldowns()
+                alerting = {
+                    "enabled": ae._enabled,
+                    "fire_count": ae.fire_count,
+                    "active_cooldowns": [
+                        {"type": k[0], "wan": k[1], "remaining_sec": round(v, 1)}
+                        for k, v in cooldowns.items()
+                    ],
+                }
+        health["alerting"] = alerting
+
         # Top-level router reachability aggregate
         health["router_reachable"] = all_routers_reachable
 

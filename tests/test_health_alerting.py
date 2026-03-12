@@ -2,9 +2,8 @@
 
 import json
 import socket
-import time
 import urllib.request
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -113,9 +112,26 @@ class TestAutorateHealthAlerting:
         wan_controller.baseline_rtt = 10.0
         wan_controller.load_rtt = 12.0
         wan_controller.router_connectivity.is_reachable = True
+        wan_controller.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "last_check": "2026-01-01T00:00:00Z",
+        }
         wan_controller._overrun_count = 0
         wan_controller._cycle_interval_ms = 50.0
         wan_controller._profiler.stats.return_value = None
+        # Mock download/upload for _get_current_state()
+        wan_controller.download.current_rate = 100_000_000
+        wan_controller.download.red_streak = 0
+        wan_controller.download.soft_red_streak = 0
+        wan_controller.download.soft_red_required = 3
+        wan_controller.download.green_streak = 5
+        wan_controller.download.green_required = 5
+        wan_controller.upload.current_rate = 20_000_000
+        wan_controller.upload.red_streak = 0
+        wan_controller.upload.soft_red_streak = 0
+        wan_controller.upload.soft_red_required = 3
+        wan_controller.upload.green_streak = 5
+        wan_controller.upload.green_required = 5
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, engine):
@@ -248,6 +264,10 @@ class TestSteeringHealthAlerting:
         daemon.config.green_samples_required = 5
         daemon.confidence_controller = None
         daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "last_check": "2026-01-01T00:00:00Z",
+        }
         daemon._profiler.stats.return_value = None
         daemon._overrun_count = 0
         daemon._cycle_interval_ms = 50.0
