@@ -4,7 +4,7 @@ milestone: v1.16
 milestone_name: Validation & Operational Confidence
 status: planning
 last_updated: "2026-03-12T20:12:55.237Z"
-last_activity: 2026-03-12 -- Completed 81-01-PLAN.md (config validation foundation)
+last_activity: 2026-03-12 - Completed quick task 7: Fix flapping alert bugs
 progress:
   total_phases: 3
   completed_phases: 2
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 **Phase:** 81 of 83 (Config Validation Foundation) -- COMPLETE
 **Plan:** 1 of 1 (complete)
 **Status:** Ready to plan
-**Last activity:** 2026-03-12 -- Completed 81-01-PLAN.md (config validation foundation)
+**Last activity:** 2026-03-12 - Completed quick task 7: Fix flapping alert bugs
 
 ## Accumulated Context
 
@@ -49,6 +49,12 @@ None.
 ### Blockers
 
 None.
+
+### Quick Tasks Completed
+
+| #   | Description                                                                                       | Date       | Commit  | Directory                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------- | ---------- | ------- | ------------------------------------------------------------------------------------------------- |
+| 7   | Fix flapping alert bugs: rule name mismatch, deque not cleared, threshold not calibrated for 20Hz | 2026-03-12 | 98f0dab | [7-fix-flapping-alert-bugs-rule-name-mismat](./quick/7-fix-flapping-alert-bugs-rule-name-mismat/) |
 
 ### Pending Todos
 
