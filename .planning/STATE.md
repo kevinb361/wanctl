@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
 status: completed
-stopped_at: Completed 80-02-PLAN.md
-last_updated: "2026-03-12T16:56:51.951Z"
+stopped_at: Completed 80-01-PLAN.md (health alerting)
+last_updated: "2026-03-12T16:57:37.665Z"
 last_activity: 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
 progress:
   total_phases: 5
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 **Plan:** 2 of 2 in current phase (COMPLETE)
 **Status:** Phase 80 complete
 **Last activity:** 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
-**Last session:** 2026-03-12T16:56:51.947Z
-**Stopped at:** Completed 80-02-PLAN.md
+**Last session:** 2026-03-12T16:57:37.661Z
+**Stopped at:** Completed 80-01-PLAN.md (health alerting)
 
 Progress: [██████████] 100% (Phase 80 complete)
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100% (Phase 80 complete)
 | 78    | 02   | 5min     | 1     | 2     |
 | 79    | 01   | 3min     | 1     | 2     |
 | 79    | 02   | 6min     | 2     | 2     |
+| 80    | 01   | 7min     | 1     | 4     |
 | 80    | 02   | 6min     | 1     | 3     |
 
 ## Accumulated Context
@@ -96,6 +97,9 @@ Progress: [██████████] 100% (Phase 80 complete)
 - query_alerts() follows identical pattern to query_metrics() (read-only conn, WHERE builder, ORDER DESC)
 - Details JSON parsed into dict with fallback to raw string on parse error
 - Alert table truncates details to 60 chars; JSON output includes full details plus ISO timestamp
+- isinstance(ae, AlertEngine) guard in health endpoints prevents MagicMock serialization errors
+- fire_count incremented after cooldown check, before persistence (counts intent, not storage)
+- Default alerting section with enabled=False when no controller attached
 
 ### Known Issues
 

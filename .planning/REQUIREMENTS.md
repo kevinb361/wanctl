@@ -31,7 +31,7 @@ Requirements for Alerting & Notifications milestone. Each maps to roadmap phases
 - [x] **INFRA-03**: Fired alerts persisted to SQLite with timestamp, type, severity, WAN, and details
 - [x] **INFRA-04**: Alert history queryable via `wanctl-history` CLI (e.g., `--alerts` flag)
 - [x] **INFRA-05**: Alerting disabled by default, opt-in via `alerting.enabled: true`
-- [ ] **INFRA-06**: Health endpoint exposes alerting state (enabled, recent alert count, active cooldowns)
+- [x] **INFRA-06**: Health endpoint exposes alerting state (enabled, recent alert count, active cooldowns)
 
 ## Future Requirements
 
@@ -77,7 +77,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03    | Phase 76 | Complete |
 | INFRA-04    | Phase 80 | Complete |
 | INFRA-05    | Phase 76 | Complete |
-| INFRA-06    | Phase 80 | Pending  |
+| INFRA-06    | Phase 80 | Complete |
 
 **Coverage:**
 
