@@ -19,10 +19,10 @@ Requirements for Alerting & Notifications milestone. Each maps to roadmap phases
 
 ### Delivery
 
-- [ ] **DLVR-01**: Alerts delivered via Discord webhook with color-coded embeds (red=critical, yellow=warning, green=recovery)
-- [ ] **DLVR-02**: Alert embeds include event type, severity, affected WAN, relevant metrics, and timestamp
-- [ ] **DLVR-03**: Webhook delivery retries with backoff on transient HTTP failures
-- [ ] **DLVR-04**: Generic webhook interface allows adding new formatters (ntfy.sh, etc.) without engine changes
+- [x] **DLVR-01**: Alerts delivered via Discord webhook with color-coded embeds (red=critical, yellow=warning, green=recovery)
+- [x] **DLVR-02**: Alert embeds include event type, severity, affected WAN, relevant metrics, and timestamp
+- [x] **DLVR-03**: Webhook delivery retries with backoff on transient HTTP failures
+- [x] **DLVR-04**: Generic webhook interface allows adding new formatters (ntfy.sh, etc.) without engine changes
 
 ### Infrastructure
 
@@ -68,10 +68,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALRT-05 | Phase 79 | Pending |
 | ALRT-06 | Phase 79 | Pending |
 | ALRT-07 | Phase 79 | Pending |
-| DLVR-01 | Phase 77 | Pending |
-| DLVR-02 | Phase 77 | Pending |
-| DLVR-03 | Phase 77 | Pending |
-| DLVR-04 | Phase 77 | Pending |
+| DLVR-01 | Phase 77 | Complete |
+| DLVR-02 | Phase 77 | Complete |
+| DLVR-03 | Phase 77 | Complete |
+| DLVR-04 | Phase 77 | Complete |
 | INFRA-01 | Phase 76 | Complete |
 | INFRA-02 | Phase 76 | Complete |
 | INFRA-03 | Phase 76 | Complete |
