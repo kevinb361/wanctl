@@ -101,6 +101,8 @@ def mock_autorate_config():
     # Queue names
     config.queue_down = "dl-spectrum"
     config.queue_up = "ul-spectrum"
+    # Alerting (disabled by default in tests)
+    config.alerting_config = None
     return config
 
 
@@ -134,4 +136,6 @@ def mock_steering_config():
     config.confidence_config = None
     # WAN-aware steering (disabled by default, SAFE-04)
     config.wan_state_config = None
+    # Alerting (disabled by default in tests)
+    config.alerting_config = None
     return config

@@ -12,9 +12,10 @@ Requirements: DLVR-01, DLVR-02, DLVR-03, DLVR-04.
 """
 
 import logging
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
 from wanctl.alert_engine import AlertEngine
 from wanctl.storage.writer import MetricsWriter
@@ -168,189 +169,242 @@ class TestAlertEngineDeliveryCallback:
         assert result is True
 
 
+# =============================================================================
+# HELPER: Config dict builders + YAML file creators
+# =============================================================================
+
+
+def _autorate_config_dict(alerting_config):
+    """Build a minimal valid autorate config dict with alerting section."""
+    cfg = {
+        "wan_name": "TestWAN",
+        "router": {
+            "host": "192.168.1.1",
+            "user": "admin",
+            "ssh_key": "/tmp/test_id_rsa",
+            "transport": "ssh",
+        },
+        "queues": {
+            "download": "cake-download",
+            "upload": "cake-upload",
+        },
+        "continuous_monitoring": {
+            "enabled": True,
+            "baseline_rtt_initial": 25.0,
+            "ping_hosts": ["1.1.1.1"],
+            "download": {
+                "floor_mbps": 400,
+                "ceiling_mbps": 920,
+                "step_up_mbps": 10,
+                "factor_down": 0.85,
+            },
+            "upload": {
+                "floor_mbps": 25,
+                "ceiling_mbps": 40,
+                "step_up_mbps": 1,
+                "factor_down": 0.85,
+            },
+            "thresholds": {
+                "target_bloat_ms": 15,
+                "warn_bloat_ms": 45,
+                "baseline_time_constant_sec": 60,
+                "load_time_constant_sec": 0.5,
+            },
+        },
+        "logging": {
+            "main_log": "/tmp/test_autorate.log",
+            "debug_log": "/tmp/test_autorate_debug.log",
+        },
+        "lock_file": "/tmp/test_autorate.lock",
+        "lock_timeout": 300,
+    }
+    if alerting_config:
+        cfg["alerting"] = alerting_config
+    return cfg
+
+
+def _steering_config_dict(alerting_config):
+    """Build a minimal valid steering config dict with alerting section."""
+    cfg = {
+        "wan_name": "TestWAN",
+        "router": {
+            "host": "192.168.1.1",
+            "user": "admin",
+            "ssh_key": "/tmp/test_id_rsa",
+            "transport": "ssh",
+        },
+        "topology": {
+            "primary_wan": "spectrum",
+            "primary_wan_config": "/etc/wanctl/spectrum.yaml",
+            "alternate_wan": "att",
+        },
+        "mangle_rule": {"comment": "ADAPTIVE-STEER"},
+        "measurement": {
+            "interval_seconds": 0.5,
+            "ping_host": "1.1.1.1",
+            "ping_count": 3,
+        },
+        "state": {
+            "file": "/var/lib/wanctl/steering_state.json",
+            "history_size": 240,
+        },
+        "logging": {
+            "main_log": "/var/log/wanctl/steering.log",
+            "debug_log": "/var/log/wanctl/steering_debug.log",
+        },
+        "lock_file": "/run/wanctl/steering.lock",
+        "lock_timeout": 60,
+        "thresholds": {
+            "bad_threshold_ms": 25.0,
+            "recovery_threshold_ms": 12.0,
+        },
+    }
+    if alerting_config:
+        cfg["alerting"] = alerting_config
+    return cfg
+
+
+def _make_autorate_config(tmp_path, alerting_config):
+    """Write YAML and create autorate Config from it."""
+    from wanctl.autorate_continuous import Config
+
+    config_file = tmp_path / "autorate.yaml"
+    config_file.write_text(yaml.dump(_autorate_config_dict(alerting_config)))
+    return Config(str(config_file))
+
+
+def _make_steering_config(tmp_path, alerting_config):
+    """Write YAML and create SteeringConfig from it."""
+    from wanctl.steering.daemon import SteeringConfig
+
+    config_file = tmp_path / "steering.yaml"
+    config_file.write_text(yaml.dump(_steering_config_dict(alerting_config)))
+    return SteeringConfig(str(config_file))
+
+
 class TestDaemonWebhookWiring:
     """Tests for WebhookDelivery construction in daemon __init__ methods."""
 
-    def _make_autorate_config_dict(self, alerting_config):
-        """Build a minimal valid autorate config dict with alerting section."""
-        return {
-            "wan_name": "TestWAN",
-            "router": {
-                "host": "192.168.1.1",
-                "user": "admin",
-                "ssh_key": "/tmp/test_id_rsa",
-                "transport": "ssh",
-            },
-            "queues": {
-                "download": "cake-download",
-                "upload": "cake-upload",
-            },
-            "continuous_monitoring": {
-                "enabled": True,
-                "baseline_rtt_initial": 25.0,
-                "ping_hosts": ["1.1.1.1"],
-                "download": {
-                    "floor_mbps": 400,
-                    "ceiling_mbps": 920,
-                    "step_up_mbps": 10,
-                    "factor_down": 0.85,
-                },
-                "upload": {
-                    "floor_mbps": 25,
-                    "ceiling_mbps": 40,
-                    "step_up_mbps": 1,
-                    "factor_down": 0.85,
-                },
-                "thresholds": {
-                    "target_bloat_ms": 15,
-                    "warn_bloat_ms": 45,
-                    "baseline_time_constant_sec": 60,
-                },
-            },
-            "thresholds": {
-                "green_rtt_ms": 3,
-                "yellow_rtt_ms": 10,
-                "red_rtt_ms": 20,
-            },
-            "alerting": alerting_config,
-        }
-
     def test_mention_role_id_parsed(self, tmp_path):
         """mention_role_id is parsed from alerting config."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
+        config = _make_autorate_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "https://discord.com/api/webhooks/test",
                 "default_cooldown_sec": 300,
                 "rules": {},
                 "mention_role_id": "123456789",
-            }
+            },
         )
-        config = Config(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["mention_role_id"] == "123456789"
 
     def test_mention_severity_parsed(self, tmp_path):
         """mention_severity is parsed from alerting config."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
+        config = _make_autorate_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "https://discord.com/api/webhooks/test",
                 "default_cooldown_sec": 300,
                 "rules": {},
                 "mention_severity": "warning",
-            }
+            },
         )
-        config = Config(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["mention_severity"] == "warning"
 
     def test_mention_severity_defaults_to_critical(self, tmp_path):
         """mention_severity defaults to 'critical' when absent."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
+        config = _make_autorate_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "",
                 "default_cooldown_sec": 300,
                 "rules": {},
-            }
+            },
         )
-        config = Config(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["mention_severity"] == "critical"
 
     def test_max_webhooks_per_minute_parsed(self, tmp_path):
         """max_webhooks_per_minute is parsed from alerting config."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
+        config = _make_autorate_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "",
                 "default_cooldown_sec": 300,
                 "rules": {},
                 "max_webhooks_per_minute": 10,
-            }
+            },
         )
-        config = Config(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["max_webhooks_per_minute"] == 10
 
     def test_max_webhooks_per_minute_defaults_to_20(self, tmp_path):
         """max_webhooks_per_minute defaults to 20 when absent."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
+        config = _make_autorate_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "",
                 "default_cooldown_sec": 300,
                 "rules": {},
-            }
+            },
         )
-        config = Config(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["max_webhooks_per_minute"] == 20
 
     def test_invalid_mention_role_id_ignored(self, tmp_path, caplog):
         """Non-string mention_role_id is ignored with warning."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
-            {
-                "enabled": True,
-                "webhook_url": "",
-                "default_cooldown_sec": 300,
-                "rules": {},
-                "mention_role_id": 12345,  # Not a string
-            }
-        )
         with caplog.at_level(logging.WARNING):
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config = _make_autorate_config(
+                tmp_path,
+                {
+                    "enabled": True,
+                    "webhook_url": "",
+                    "default_cooldown_sec": 300,
+                    "rules": {},
+                    "mention_role_id": 12345,
+                },
+            )
         assert config.alerting_config is not None
         assert config.alerting_config["mention_role_id"] is None
         assert "mention_role_id must be string" in caplog.text
 
     def test_invalid_mention_severity_defaults(self, tmp_path, caplog):
         """Invalid mention_severity defaults to 'critical' with warning."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
-            {
-                "enabled": True,
-                "webhook_url": "",
-                "default_cooldown_sec": 300,
-                "rules": {},
-                "mention_severity": "bogus",
-            }
-        )
         with caplog.at_level(logging.WARNING):
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config = _make_autorate_config(
+                tmp_path,
+                {
+                    "enabled": True,
+                    "webhook_url": "",
+                    "default_cooldown_sec": 300,
+                    "rules": {},
+                    "mention_severity": "bogus",
+                },
+            )
         assert config.alerting_config is not None
         assert config.alerting_config["mention_severity"] == "critical"
         assert "mention_severity invalid" in caplog.text
 
     def test_invalid_max_webhooks_defaults(self, tmp_path, caplog):
         """Invalid max_webhooks_per_minute defaults to 20 with warning."""
-        from wanctl.autorate_continuous import Config
-
-        cfg_dict = self._make_autorate_config_dict(
-            {
-                "enabled": True,
-                "webhook_url": "",
-                "default_cooldown_sec": 300,
-                "rules": {},
-                "max_webhooks_per_minute": -5,
-            }
-        )
         with caplog.at_level(logging.WARNING):
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config = _make_autorate_config(
+                tmp_path,
+                {
+                    "enabled": True,
+                    "webhook_url": "",
+                    "default_cooldown_sec": 300,
+                    "rules": {},
+                    "max_webhooks_per_minute": -5,
+                },
+            )
         assert config.alerting_config is not None
         assert config.alerting_config["max_webhooks_per_minute"] == 20
         assert "max_webhooks_per_minute invalid" in caplog.text
@@ -362,7 +416,7 @@ class TestDaemonWebhookWiring:
 
         MetricsWriter._reset_instance()
         try:
-            cfg_dict = self._make_autorate_config_dict(
+            cfg_dict = _autorate_config_dict(
                 {
                     "enabled": True,
                     "webhook_url": "https://discord.com/api/webhooks/test",
@@ -371,21 +425,19 @@ class TestDaemonWebhookWiring:
                 }
             )
             cfg_dict["storage"] = {"db_path": str(tmp_path / "test.db")}
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config_file = tmp_path / "autorate.yaml"
+            config_file.write_text(yaml.dump(cfg_dict))
+            config = Config(str(config_file))
 
-            with (
-                patch("wanctl.autorate_continuous.get_router_client_with_failover"),
-                patch("wanctl.autorate_continuous.RTTMeasurement"),
-            ):
-                mock_router = MagicMock()
-                mock_rtt = MagicMock()
-                controller = WANController(
-                    wan_name="spectrum",
-                    config=config,
-                    router=mock_router,
-                    rtt_measurement=mock_rtt,
-                    logger=logging.getLogger("test"),
-                )
+            mock_router = MagicMock()
+            mock_rtt = MagicMock()
+            controller = WANController(
+                wan_name="spectrum",
+                config=config,
+                router=mock_router,
+                rtt_measurement=mock_rtt,
+                logger=logging.getLogger("test"),
+            )
 
             assert hasattr(controller, "_webhook_delivery")
             assert isinstance(controller._webhook_delivery, WebhookDelivery)
@@ -399,7 +451,7 @@ class TestDaemonWebhookWiring:
 
         MetricsWriter._reset_instance()
         try:
-            cfg_dict = self._make_autorate_config_dict(
+            cfg_dict = _autorate_config_dict(
                 {
                     "enabled": True,
                     "webhook_url": "",
@@ -408,7 +460,9 @@ class TestDaemonWebhookWiring:
                 }
             )
             cfg_dict["storage"] = {"db_path": str(tmp_path / "test.db")}
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config_file = tmp_path / "autorate.yaml"
+            config_file.write_text(yaml.dump(cfg_dict))
+            config = Config(str(config_file))
 
             with caplog.at_level(logging.WARNING):
                 mock_router = MagicMock()
@@ -434,7 +488,7 @@ class TestDaemonWebhookWiring:
 
         MetricsWriter._reset_instance()
         try:
-            cfg_dict = self._make_autorate_config_dict(
+            cfg_dict = _autorate_config_dict(
                 {
                     "enabled": True,
                     "webhook_url": "http://insecure.example.com/hook",
@@ -443,7 +497,9 @@ class TestDaemonWebhookWiring:
                 }
             )
             cfg_dict["storage"] = {"db_path": str(tmp_path / "test.db")}
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config_file = tmp_path / "autorate.yaml"
+            config_file.write_text(yaml.dump(cfg_dict))
+            config = Config(str(config_file))
 
             with caplog.at_level(logging.WARNING):
                 mock_router = MagicMock()
@@ -468,11 +524,12 @@ class TestDaemonWebhookWiring:
 
         MetricsWriter._reset_instance()
         try:
-            cfg_dict = self._make_autorate_config_dict({})
-            # Remove alerting entirely
+            cfg_dict = _autorate_config_dict({})
             cfg_dict.pop("alerting", None)
             cfg_dict["storage"] = {"db_path": str(tmp_path / "test.db")}
-            config = Config(cfg_dict, config_path="/tmp/test.yaml")
+            config_file = tmp_path / "autorate.yaml"
+            config_file.write_text(yaml.dump(cfg_dict))
+            config = Config(str(config_file))
 
             mock_router = MagicMock()
             mock_rtt = MagicMock()
@@ -488,11 +545,10 @@ class TestDaemonWebhookWiring:
         finally:
             MetricsWriter._reset_instance()
 
-    def test_steering_config_parses_new_fields(self):
+    def test_steering_config_parses_new_fields(self, tmp_path):
         """SteeringConfig parses mention_role_id, mention_severity, max_webhooks_per_minute."""
-        from wanctl.steering.daemon import SteeringConfig
-
-        cfg_dict = _make_steering_config_dict(
+        config = _make_steering_config(
+            tmp_path,
             {
                 "enabled": True,
                 "webhook_url": "https://discord.com/api/webhooks/test",
@@ -501,9 +557,8 @@ class TestDaemonWebhookWiring:
                 "mention_role_id": "987654321",
                 "mention_severity": "warning",
                 "max_webhooks_per_minute": 15,
-            }
+            },
         )
-        config = SteeringConfig(cfg_dict, config_path="/tmp/test.yaml")
         assert config.alerting_config is not None
         assert config.alerting_config["mention_role_id"] == "987654321"
         assert config.alerting_config["mention_severity"] == "warning"
@@ -515,12 +570,10 @@ class TestSIGUSR1WebhookReload:
 
     def test_reload_webhook_url_reads_yaml(self, tmp_path):
         """_reload_webhook_url_config() reads alerting.webhook_url from YAML."""
-        import yaml
-
         from wanctl.steering.daemon import SteeringDaemon
 
         config_file = tmp_path / "steering.yaml"
-        yaml_data = _make_steering_config_dict(
+        yaml_data = _steering_config_dict(
             {
                 "enabled": True,
                 "webhook_url": "https://discord.com/api/webhooks/new",
@@ -549,17 +602,14 @@ class TestSIGUSR1WebhookReload:
 
     def test_reload_webhook_url_empty_yaml(self, tmp_path):
         """_reload_webhook_url_config() passes empty string when webhook_url absent."""
-        import yaml
-
         from wanctl.steering.daemon import SteeringDaemon
 
         config_file = tmp_path / "steering.yaml"
-        yaml_data = _make_steering_config_dict(
+        yaml_data = _steering_config_dict(
             {
                 "enabled": True,
                 "default_cooldown_sec": 300,
                 "rules": {},
-                # No webhook_url
             }
         )
         with open(config_file, "w") as f:
@@ -580,12 +630,10 @@ class TestSIGUSR1WebhookReload:
 
     def test_reload_webhook_url_no_webhook_delivery(self, tmp_path):
         """_reload_webhook_url_config() is no-op when _webhook_delivery is None."""
-        import yaml
-
         from wanctl.steering.daemon import SteeringDaemon
 
         config_file = tmp_path / "steering.yaml"
-        yaml_data = _make_steering_config_dict({})
+        yaml_data = _steering_config_dict({})
         with open(config_file, "w") as f:
             yaml.dump(yaml_data, f)
 
@@ -617,36 +665,3 @@ class TestSIGUSR1WebhookReload:
             daemon._reload_webhook_url_config()
 
         assert "Failed to reload webhook_url" in caplog.text
-
-
-# =============================================================================
-# HELPER: Minimal valid steering config dict
-# =============================================================================
-
-def _make_steering_config_dict(alerting_config):
-    """Build a minimal valid steering config dict with alerting section."""
-    cfg = {
-        "wan_name": "TestWAN",
-        "router": {
-            "host": "192.168.1.1",
-            "user": "admin",
-            "ssh_key": "/tmp/test_id_rsa",
-            "transport": "ssh",
-        },
-        "steering": {
-            "enabled": True,
-            "primary_wan": "spectrum",
-            "alternate_wan": "att",
-            "interval_sec": 2.0,
-        },
-        "thresholds": {
-            "green_rtt_ms": 3,
-            "yellow_rtt_ms": 10,
-            "red_rtt_ms": 20,
-            "rtt_ewma_alpha": 0.3,
-            "queue_ewma_alpha": 0.3,
-        },
-    }
-    if alerting_config:
-        cfg["alerting"] = alerting_config
-    return cfg
