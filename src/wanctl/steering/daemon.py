@@ -29,6 +29,7 @@ import time
 import traceback
 from pathlib import Path
 
+from ..alert_engine import AlertEngine
 from ..config_base import BaseConfig, get_storage_config
 from ..config_validation_utils import deprecate_param, validate_alpha
 from ..daemon_utils import check_cleanup_deadline
@@ -431,6 +432,98 @@ class SteeringConfig(BaseConfig):
             f"red_weight: {red_weight}, wan_override: {wan_override})"
         )
 
+    def _load_alerting_config(self) -> None:
+        """Load alerting configuration.
+
+        Validates the optional alerting: YAML section. Invalid config warns
+        and disables the feature (does not crash). Feature is disabled by
+        default per INFRA-05.
+
+        Sets self.alerting_config to a dict with all fields when valid and
+        enabled, or None when absent/disabled/invalid.
+        """
+        logger = logging.getLogger(__name__)
+        alerting = self.data.get("alerting", {})
+
+        if not alerting:
+            self.alerting_config = None
+            logger.info("Alerting: disabled (enable via alerting.enabled)")
+            return
+
+        # Validate 'enabled' field type
+        enabled = alerting.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                f"alerting.enabled must be bool, got {type(enabled).__name__}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+
+        if not enabled:
+            self.alerting_config = None
+            logger.info("Alerting: disabled (enable via alerting.enabled)")
+            return
+
+        # Validate default_cooldown_sec
+        default_cooldown_sec = alerting.get("default_cooldown_sec", 300)
+        if not isinstance(default_cooldown_sec, int) or isinstance(default_cooldown_sec, bool):
+            logger.warning(
+                f"alerting.default_cooldown_sec must be int, got {type(default_cooldown_sec).__name__}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+        if default_cooldown_sec < 0:
+            logger.warning(
+                f"alerting.default_cooldown_sec must be >= 0, got {default_cooldown_sec}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+
+        # Validate rules
+        rules = alerting.get("rules", {})
+        if not isinstance(rules, dict):
+            logger.warning(
+                f"alerting.rules must be a map, got {type(rules).__name__}; "
+                "disabling alerting"
+            )
+            self.alerting_config = None
+            return
+
+        # Validate each rule
+        valid_severities = {"info", "warning", "critical"}
+        for rule_name, rule in rules.items():
+            if not isinstance(rule, dict):
+                logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
+                self.alerting_config = None
+                return
+            severity = rule.get("severity")
+            if severity is None:
+                logger.warning(
+                    f"alerting.rules.{rule_name} missing required 'severity'; disabling alerting"
+                )
+                self.alerting_config = None
+                return
+            if severity not in valid_severities:
+                logger.warning(
+                    f"alerting.rules.{rule_name}.severity must be one of {valid_severities}, "
+                    f"got '{severity}'; disabling alerting"
+                )
+                self.alerting_config = None
+                return
+
+        webhook_url = alerting.get("webhook_url", "")
+
+        self.alerting_config = {
+            "enabled": True,
+            "webhook_url": webhook_url,
+            "default_cooldown_sec": default_cooldown_sec,
+            "rules": rules,
+        }
+        logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
+
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
         thresholds = self.data["thresholds"]
@@ -532,6 +625,9 @@ class SteeringConfig(BaseConfig):
         self._build_router_dict()  # Depends on router fields from _load_router_transport
         self._load_metrics_config()
         self._load_health_check_config()
+
+        # Alerting (optional, disabled by default per INFRA-05)
+        self._load_alerting_config()
 
 
 # =============================================================================
@@ -848,6 +944,23 @@ class SteeringDaemon:
         if db_path and isinstance(db_path, str):
             self._metrics_writer = MetricsWriter(Path(db_path))
             self.logger.info(f"Metrics storage enabled: {db_path}")
+
+        # =====================================================================
+        # ALERT ENGINE
+        # =====================================================================
+        # AlertEngine for per-event cooldown suppression and persistence.
+        # Instantiated from alerting_config (disabled by default).
+        # =====================================================================
+        ac = self.config.alerting_config
+        if ac:
+            self.alert_engine = AlertEngine(
+                enabled=True,
+                default_cooldown_sec=ac["default_cooldown_sec"],
+                rules=ac["rules"],
+                writer=self._metrics_writer,
+            )
+        else:
+            self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
 
         # Confidence-based steering controller (if enabled)
         self.confidence_controller: ConfidenceController | None = None

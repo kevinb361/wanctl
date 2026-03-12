@@ -18,7 +18,6 @@ import yaml
 from wanctl.autorate_continuous import Config
 from wanctl.steering.daemon import SteeringConfig
 
-
 # =============================================================================
 # FIXTURES - Minimal valid configs for each daemon
 # =============================================================================
@@ -425,12 +424,12 @@ class TestAlertEngineWiringSteering:
     def test_steering_daemon_has_alert_engine_when_enabled(self, tmp_path, steering_config_dict):
         """SteeringDaemon has alert_engine attribute when alerting is enabled."""
         from wanctl.alert_engine import AlertEngine
+        from wanctl.rtt_measurement import RTTMeasurement
         from wanctl.steering.daemon import (
             BaselineLoader,
             SteeringDaemon,
             SteeringStateManager,
         )
-        from wanctl.rtt_measurement import RTTMeasurement
 
         steering_config_dict["alerting"] = VALID_ALERTING.copy()
         config = _make_steering_config(tmp_path, steering_config_dict)
@@ -457,12 +456,12 @@ class TestAlertEngineWiringSteering:
     def test_steering_daemon_has_alert_engine_when_disabled(self, tmp_path, steering_config_dict):
         """SteeringDaemon has alert_engine (disabled) when alerting not configured."""
         from wanctl.alert_engine import AlertEngine
+        from wanctl.rtt_measurement import RTTMeasurement
         from wanctl.steering.daemon import (
             BaselineLoader,
             SteeringDaemon,
             SteeringStateManager,
         )
-        from wanctl.rtt_measurement import RTTMeasurement
 
         config = _make_steering_config(tmp_path, steering_config_dict)
 
