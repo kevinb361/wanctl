@@ -22,7 +22,6 @@ import pytest
 from wanctl.alert_engine import AlertEngine
 from wanctl.autorate_continuous import WANController
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
@@ -192,3 +191,333 @@ class TestBaselineDrift:
 
         # fire() still called (method is unconditional), but engine returns False
         mock_fire.assert_called_once()
+
+
+# =============================================================================
+# FLAPPING FIXTURE
+# =============================================================================
+
+
+@pytest.fixture
+def mock_flapping_controller():
+    """Create a lightweight mock WANController with flapping detection attributes.
+
+    Instead of constructing a full WANController (heavy), we build a mock
+    that has the exact attributes _check_flapping_alerts needs.
+    """
+    controller = MagicMock(spec=WANController)
+    controller.wan_name = "spectrum"
+    controller.logger = logging.getLogger("test.flapping")
+
+    # Alert engine (enabled, no persistence)
+    controller.alert_engine = AlertEngine(
+        enabled=True,
+        default_cooldown_sec=300,
+        rules={
+            "flapping_dl": {
+                "enabled": True,
+                "cooldown_sec": 300,
+                "severity": "warning",
+                "flap_threshold": 6,
+                "flap_window_sec": 60,
+            },
+            "flapping_ul": {
+                "enabled": True,
+                "cooldown_sec": 300,
+                "severity": "warning",
+                "flap_threshold": 6,
+                "flap_window_sec": 60,
+            },
+        },
+        writer=None,
+    )
+
+    # Flapping state (initialized like __init__)
+    controller._dl_zone_transitions = deque()
+    controller._ul_zone_transitions = deque()
+    controller._dl_prev_zone = None
+    controller._ul_prev_zone = None
+
+    # Bind the real method
+    controller._check_flapping_alerts = (
+        WANController._check_flapping_alerts.__get__(controller, WANController)
+    )
+
+    return controller
+
+
+# =============================================================================
+# CONGESTION ZONE FLAPPING - DOWNLOAD
+# =============================================================================
+
+
+class TestFlappingDL:
+    """Tests for download congestion zone flapping detection."""
+
+    def test_dl_flapping_fires_when_transitions_exceed_threshold(
+        self, mock_flapping_controller
+    ):
+        """DL zone transitions exceeding threshold in window fires flapping_dl."""
+        now = time.monotonic()
+
+        # Simulate 6 transitions in 60s (GREEN->RED->GREEN->RED->GREEN->RED->GREEN)
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # 6 transitions occurred (each zone change counts), should have fired
+        # Let's check by calling once more with a patched fire
+        with patch("time.monotonic", return_value=now + 40):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Should fire because we already had 6+ transitions
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "flapping_dl"
+        assert mock_fire.call_args[0][1] == "warning"
+
+    def test_dl_transitions_below_threshold_do_not_fire(self, mock_flapping_controller):
+        """Transitions below threshold do NOT fire."""
+        now = time.monotonic()
+
+        # Only 4 transitions (below threshold of 6)
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                with patch.object(
+                    mock_flapping_controller.alert_engine, "fire", return_value=True
+                ) as mock_fire:
+                    mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # fire should not have been called (only 4 transitions)
+        mock_fire.assert_not_called()
+
+    def test_dl_flapping_details_include_required_fields(
+        self, mock_flapping_controller
+    ):
+        """Flapping alert details include transition_count, window_sec, current_zone."""
+        now = time.monotonic()
+
+        # Generate 6 transitions rapidly
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Next transition should fire with details
+        with patch("time.monotonic", return_value=now + 40):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        details = mock_fire.call_args[0][3]
+        assert "transition_count" in details
+        assert details["window_sec"] == 60
+        assert details["current_zone"] == "RED"
+
+
+class TestFlappingUL:
+    """Tests for upload congestion zone flapping detection."""
+
+    def test_ul_flapping_fires_independently(self, mock_flapping_controller):
+        """UL zone transitions exceeding threshold fires flapping_ul independently."""
+        now = time.monotonic()
+
+        # Simulate 6 UL transitions while DL stays GREEN
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+        # Next UL transition should fire
+        with patch("time.monotonic", return_value=now + 40):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("GREEN", "RED")
+
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "flapping_ul"
+        assert mock_fire.call_args[0][1] == "warning"
+
+
+# =============================================================================
+# FLAPPING INDEPENDENCE
+# =============================================================================
+
+
+class TestFlappingIndependence:
+    """Tests for DL and UL flapping independence."""
+
+    def test_dl_flapping_does_not_affect_ul(self, mock_flapping_controller):
+        """DL flapping does NOT affect UL flapping detection."""
+        now = time.monotonic()
+
+        # Lots of DL transitions, UL stays GREEN
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN", "RED"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # UL should have 0 transitions
+        assert len(mock_flapping_controller._ul_zone_transitions) == 0
+
+
+# =============================================================================
+# FLAPPING COOLDOWN AND WINDOW
+# =============================================================================
+
+
+class TestFlappingCooldownAndWindow:
+    """Tests for flapping cooldown and sliding window."""
+
+    def test_flapping_respects_cooldown(self, mock_flapping_controller):
+        """flapping_dl respects cooldown suppression."""
+        now = time.monotonic()
+
+        # Generate enough transitions to fire
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Fire once (via real engine - it records cooldown)
+        with patch("time.monotonic", return_value=now + 40):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Clear transitions and generate more
+        mock_flapping_controller._dl_zone_transitions.clear()
+        zones2 = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones2):
+            with patch("time.monotonic", return_value=now + 50 + i * 2):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Second batch should be suppressed by cooldown
+        with patch("time.monotonic", return_value=now + 70):
+            result = mock_flapping_controller.alert_engine.fire(
+                "flapping_dl", "warning", "spectrum", {}
+            )
+
+        assert result is False  # Suppressed by cooldown
+
+    def test_old_transitions_pruned_outside_window(self, mock_flapping_controller):
+        """Old transitions outside the window are pruned (sliding window)."""
+        now = time.monotonic()
+
+        # Add 4 transitions at t=5..20 (recorded at now+5, now+10, now+15, now+20)
+        zones_old = ["GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones_old):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        assert len(mock_flapping_controller._dl_zone_transitions) == 4
+
+        # At t=120 (all transitions > 60s old), add 1 more transition
+        # prev_zone is GREEN (last in sequence), transition to RED
+        with patch("time.monotonic", return_value=now + 120):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # All old transitions pruned, only the new one at t=120 remains
+        assert len(mock_flapping_controller._dl_zone_transitions) == 1
+
+    def test_flapping_severity_configurable_via_rules(self, mock_flapping_controller):
+        """Flapping severity is configurable via per-rule severity."""
+        mock_flapping_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "flapping_dl": {
+                    "enabled": True,
+                    "cooldown_sec": 300,
+                    "severity": "critical",
+                    "flap_threshold": 6,
+                    "flap_window_sec": 60,
+                },
+            },
+            writer=None,
+        )
+
+        now = time.monotonic()
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        with patch("time.monotonic", return_value=now + 40):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        assert mock_fire.call_args[0][1] == "critical"
+
+    def test_per_rule_flap_threshold_override(self, mock_flapping_controller):
+        """Per-rule flap_threshold override works."""
+        mock_flapping_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "flapping_dl": {
+                    "enabled": True,
+                    "cooldown_sec": 300,
+                    "severity": "warning",
+                    "flap_threshold": 3,  # Lower threshold
+                    "flap_window_sec": 60,
+                },
+            },
+            writer=None,
+        )
+
+        now = time.monotonic()
+        # Only 3 transitions (would not fire with default 6, but should fire with 3)
+        zones = ["GREEN", "RED", "GREEN", "RED"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        with patch("time.monotonic", return_value=now + 20):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("GREEN", "GREEN")
+
+        # Should fire with 3 transitions (per-rule threshold is 3)
+        mock_fire.assert_called_once()
+
+    def test_per_rule_flap_window_sec_override(self, mock_flapping_controller):
+        """Per-rule flap_window_sec override works."""
+        mock_flapping_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "flapping_dl": {
+                    "enabled": True,
+                    "cooldown_sec": 300,
+                    "severity": "warning",
+                    "flap_threshold": 6,
+                    "flap_window_sec": 10,  # Short window
+                },
+            },
+            writer=None,
+        )
+
+        now = time.monotonic()
+        # 6 transitions but spread over 30s (outside 10s window)
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # At t=35, only transitions from t=25..35 should remain (2 transitions)
+        with patch("time.monotonic", return_value=now + 35):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Should NOT fire (only ~2 transitions in 10s window, need 6)
+        mock_fire.assert_not_called()
