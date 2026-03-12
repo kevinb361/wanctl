@@ -103,8 +103,9 @@ None.
 
 ### Pending Todos
 
-3 todos in `.planning/todos/pending/`:
+4 todos in `.planning/todos/pending/`:
 
 - Research IRTT as RTT measurement alternative (general) -- deferred to future milestone
 - Integration test for router communication (testing) -- low priority, contract tests added in v1.12
 - Narrow layout truncates WAN panel content (dashboard/ui) -- low priority, wide layout works fine
+- Investigate LXC container network optimizations (infrastructure) -- RTT accuracy depends on low-latency container networking
