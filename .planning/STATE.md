@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.16
 milestone_name: Validation & Operational Confidence
-status: ready_to_plan
-stopped_at: "Roadmap created, ready to plan Phase 81"
-last_updated: "2026-03-12T19:00:00.000Z"
-last_activity: 2026-03-12 -- Roadmap created (3 phases, 16 requirements mapped)
+status: executing
+last_updated: "2026-03-12T21:00:00.000Z"
+last_activity: 2026-03-12 -- Completed 81-01-PLAN.md (config validation foundation)
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Session State
@@ -21,15 +19,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.16 Phase 81 — Config Validation Foundation
+**Current focus:** v1.16 Phase 81 -- Config Validation Foundation (plan 1/1 complete)
 
 ## Position
 
 **Milestone:** v1.16 Validation & Operational Confidence
-**Phase:** 81 of 83 (Config Validation Foundation)
-**Plan:** --
-**Status:** Ready to plan
-**Last activity:** 2026-03-12 -- Roadmap created (3 phases, 16/16 requirements mapped)
+**Phase:** 81 of 83 (Config Validation Foundation) -- COMPLETE
+**Plan:** 1 of 1 (complete)
+**Status:** Phase 81 complete, ready for Phase 82
+**Last activity:** 2026-03-12 -- Completed 81-01-PLAN.md (config validation foundation)
 
 ## Accumulated Context
 
@@ -39,6 +37,10 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 - Two standalone CLI tools (check-config, check-cake) following wanctl-history pattern
 - Backward compat is primary constraint -- new validation must not reject existing production configs
 - Router probes are GET-only -- never modify router state from CLI tools
+- [81-01] Never instantiate Config() -- only access SCHEMA class attributes to avoid daemon side effects
+- [81-01] Env var ${VAR} unset is WARN not ERROR (environment-specific, not config bug)
+- [81-01] alerting.rules.\* sub-keys skip unknown-key checking (dynamic per-alert-type config)
+- [81-01] Exit codes follow ruff/mypy convention: 0=pass, 1=errors, 2=warnings-only
 
 ### Known Issues
 
