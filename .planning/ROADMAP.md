@@ -174,7 +174,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
 | 79. Connectivity & Anomaly Alerts | 2/2 | Complete    | 2026-03-12 |
-| 80. Observability & CLI           | 2/2 | Complete   | 2026-03-12 |
+| 80. Observability & CLI           | 2/2 | Complete    | 2026-03-12 |
 
 <details>
 <summary>v1.14 Operational Visibility (Phases 73-75) - SHIPPED 2026-03-11</summary>
