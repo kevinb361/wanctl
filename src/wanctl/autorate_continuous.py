@@ -15,6 +15,7 @@ import statistics
 import sys
 import time
 import traceback
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -1174,6 +1175,18 @@ class WANController:
         self._wan_offline_fired: bool = False
 
         # =====================================================================
+        # CONGESTION FLAPPING DETECTION (ALRT-07)
+        # =====================================================================
+        # Sliding window of zone transition timestamps per direction.
+        # Fires flapping_dl/flapping_ul when transitions exceed threshold
+        # within the configured window. DL and UL tracked independently.
+        # =====================================================================
+        self._dl_zone_transitions: deque[float] = deque()
+        self._ul_zone_transitions: deque[float] = deque()
+        self._dl_prev_zone: str | None = None
+        self._ul_prev_zone: str | None = None
+
+        # =====================================================================
         # PROFILING INSTRUMENTATION
         # =====================================================================
         # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
@@ -1668,6 +1681,9 @@ class WANController:
             # Baseline RTT drift detection (ALRT-06)
             self._check_baseline_drift()
 
+            # Congestion zone flapping detection (ALRT-07)
+            self._check_flapping_alerts(dl_zone, ul_zone)
+
             # Log decision
             self.logger.info(
                 f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
@@ -1995,6 +2011,73 @@ class WANController:
                     "current_baseline_ms": round(self.baseline_rtt, 2),
                     "reference_baseline_ms": round(reference, 2),
                     "drift_percent": round(drift_pct, 1),
+                },
+            )
+
+    def _check_flapping_alerts(self, dl_zone: str, ul_zone: str) -> None:
+        """Check for rapid congestion zone flapping and fire alerts (ALRT-07).
+
+        Tracks zone transitions per direction in a sliding time window.
+        Fires flapping_dl/flapping_ul when transitions exceed configured
+        threshold within the window. DL and UL are tracked independently.
+
+        Args:
+            dl_zone: Current download zone (GREEN/YELLOW/SOFT_RED/RED).
+            ul_zone: Current upload zone (GREEN/YELLOW/RED).
+        """
+        now = time.monotonic()
+
+        # --- Download flapping ---
+        if self._dl_prev_zone is not None and dl_zone != self._dl_prev_zone:
+            self._dl_zone_transitions.append(now)
+        self._dl_prev_zone = dl_zone
+
+        # Prune old transitions outside window
+        dl_rule = self.alert_engine._rules.get("flapping_dl", {})
+        dl_window = dl_rule.get("flap_window_sec", 60)
+        while self._dl_zone_transitions and (
+            now - self._dl_zone_transitions[0] > dl_window
+        ):
+            self._dl_zone_transitions.popleft()
+
+        dl_threshold = dl_rule.get("flap_threshold", 6)
+        if len(self._dl_zone_transitions) >= dl_threshold:
+            dl_severity = dl_rule.get("severity", "warning")
+            self.alert_engine.fire(
+                "flapping_dl",
+                dl_severity,
+                self.wan_name,
+                {
+                    "transition_count": len(self._dl_zone_transitions),
+                    "window_sec": dl_window,
+                    "current_zone": dl_zone,
+                },
+            )
+
+        # --- Upload flapping ---
+        if self._ul_prev_zone is not None and ul_zone != self._ul_prev_zone:
+            self._ul_zone_transitions.append(now)
+        self._ul_prev_zone = ul_zone
+
+        # Prune old transitions outside window
+        ul_rule = self.alert_engine._rules.get("flapping_ul", {})
+        ul_window = ul_rule.get("flap_window_sec", 60)
+        while self._ul_zone_transitions and (
+            now - self._ul_zone_transitions[0] > ul_window
+        ):
+            self._ul_zone_transitions.popleft()
+
+        ul_threshold = ul_rule.get("flap_threshold", 6)
+        if len(self._ul_zone_transitions) >= ul_threshold:
+            ul_severity = ul_rule.get("severity", "warning")
+            self.alert_engine.fire(
+                "flapping_ul",
+                ul_severity,
+                self.wan_name,
+                {
+                    "transition_count": len(self._ul_zone_transitions),
+                    "window_sec": ul_window,
+                    "current_zone": ul_zone,
                 },
             )
 
