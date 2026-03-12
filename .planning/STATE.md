@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
-status: planning
-stopped_at: Completed 79-02-PLAN.md (anomaly detection alerts)
-last_updated: "2026-03-12T16:27:10.111Z"
-last_activity: 2026-03-12 -- Completed 79-02-PLAN.md (anomaly detection alerts)
+status: completed
+stopped_at: Completed 80-02-PLAN.md
+last_updated: "2026-03-12T16:56:51.951Z"
+last_activity: 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 10
   percent: 100
 ---
 
@@ -21,27 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.15 Alerting & Notifications -- Phase 79 plan 2 of 2 complete
+**Current focus:** v1.15 Alerting & Notifications -- Phase 80 plan 2 of 2 complete
 
 ## Position
 
 **Milestone:** v1.15 Alerting & Notifications
-**Phase:** 79 of 80 (Connectivity Anomaly Alerts)
+**Phase:** 80 of 80 (Observability CLI)
 **Plan:** 2 of 2 in current phase (COMPLETE)
-**Status:** Ready to plan
-**Last activity:** 2026-03-12 -- Completed 79-02-PLAN.md (anomaly detection alerts)
-**Last session:** 2026-03-12T16:21:32Z
-**Stopped at:** Completed 79-02-PLAN.md (anomaly detection alerts)
+**Status:** Phase 80 complete
+**Last activity:** 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
+**Last session:** 2026-03-12T16:56:51.947Z
+**Stopped at:** Completed 80-02-PLAN.md
 
-Progress: [██████████] 100% (Phase 79 complete)
+Progress: [██████████] 100% (Phase 80 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
-- Average duration: 7.5 min
-- Total execution time: 1.00 hours
+- Total plans completed: 10
+- Average duration: 7.0 min
+- Total execution time: 1.17 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -53,6 +53,7 @@ Progress: [██████████] 100% (Phase 79 complete)
 | 78    | 02   | 5min     | 1     | 2     |
 | 79    | 01   | 3min     | 1     | 2     |
 | 79    | 02   | 6min     | 2     | 2     |
+| 80    | 02   | 6min     | 1     | 3     |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Progress: [██████████] 100% (Phase 79 complete)
 - Baseline drift uses absolute percentage (detects both ISP degradation and routing improvements)
 - Flapping uses simple deque of monotonic timestamps (lighter than FlapDetector from steering)
 - Per-rule overrides for drift_threshold_pct, flap_threshold, flap_window_sec
+- query_alerts() follows identical pattern to query_metrics() (read-only conn, WHERE builder, ORDER DESC)
+- Details JSON parsed into dict with fallback to raw string on parse error
+- Alert table truncates details to 60 chars; JSON output includes full details plus ISO timestamp
 
 ### Known Issues
 

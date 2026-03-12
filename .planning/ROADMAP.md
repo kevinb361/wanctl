@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 77: Webhook Delivery** - Discord webhook with color-coded embeds, retry with backoff, and generic formatter interface (completed 2026-03-12)
 - [x] **Phase 78: Congestion & Steering Alerts** - Sustained congestion detection in autorate and steering transition alerts in steering daemon (completed 2026-03-12)
 - [x] **Phase 79: Connectivity & Anomaly Alerts** - WAN offline/recovery detection, baseline drift, and congestion flapping alerts (completed 2026-03-12)
-- [ ] **Phase 80: Observability & CLI** - Health endpoint alerting state and wanctl-history --alerts query support
+- [x] **Phase 80: Observability & CLI** - Health endpoint alerting state and wanctl-history --alerts query support (completed 2026-03-12)
 
 ## Phase Details
 
@@ -174,7 +174,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
 | 79. Connectivity & Anomaly Alerts | 2/2 | Complete    | 2026-03-12 |
-| 80. Observability & CLI           | 0/2            | Not started | -          |
+| 80. Observability & CLI           | 2/2 | Complete   | 2026-03-12 |
 
 <details>
 <summary>v1.14 Operational Visibility (Phases 73-75) - SHIPPED 2026-03-11</summary>
