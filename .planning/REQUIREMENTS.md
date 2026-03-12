@@ -62,28 +62,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CVAL-01 | — | Pending |
-| CVAL-02 | — | Pending |
-| CVAL-03 | — | Pending |
-| CVAL-04 | — | Pending |
-| CVAL-05 | — | Pending |
-| CVAL-06 | — | Pending |
-| CVAL-07 | — | Pending |
-| CVAL-08 | — | Pending |
-| CVAL-09 | — | Pending |
-| CVAL-10 | — | Pending |
-| CVAL-11 | — | Pending |
-| CAKE-01 | — | Pending |
-| CAKE-02 | — | Pending |
-| CAKE-03 | — | Pending |
-| CAKE-04 | — | Pending |
-| CAKE-05 | — | Pending |
+| CVAL-01 | Phase 81 | Pending |
+| CVAL-02 | Phase 82 | Pending |
+| CVAL-03 | Phase 82 | Pending |
+| CVAL-04 | Phase 81 | Pending |
+| CVAL-05 | Phase 81 | Pending |
+| CVAL-06 | Phase 81 | Pending |
+| CVAL-07 | Phase 81 | Pending |
+| CVAL-08 | Phase 81 | Pending |
+| CVAL-09 | Phase 82 | Pending |
+| CVAL-10 | Phase 82 | Pending |
+| CVAL-11 | Phase 81 | Pending |
+| CAKE-01 | Phase 83 | Pending |
+| CAKE-02 | Phase 83 | Pending |
+| CAKE-03 | Phase 83 | Pending |
+| CAKE-04 | Phase 83 | Pending |
+| CAKE-05 | Phase 83 | Pending |
 
 **Coverage:**
 - v1.16 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after initial definition*
+*Last updated: 2026-03-12 after roadmap creation*

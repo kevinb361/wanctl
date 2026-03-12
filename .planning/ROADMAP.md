@@ -12,7 +12,13 @@ None
 
 ### Active
 
-(No active milestone — planning next)
+**v1.16 Validation & Operational Confidence** (Phases 81-83)
+
+Goal: Operator-facing CLI tools that catch misconfigurations before runtime and verify router queue state matches expectations.
+
+- [ ] **Phase 81: Config Validation Foundation** - Offline autorate config validation with structured error collection, cross-field checks, and exit codes
+- [ ] **Phase 82: Steering Config + Output Modes** - Steering config support, auto-detection, cross-config validation, and JSON output
+- [ ] **Phase 83: CAKE Qdisc Audit** - Read-only router probes comparing queue tree and CAKE parameters against config expectations
 
 ### Completed
 
@@ -33,7 +39,67 @@ None
 - [v1.1 Code Quality](milestones/v1.1-ROADMAP.md) (Phases 6-15) - SHIPPED 2026-01-14
 - [v1.0 Performance Optimization](milestones/v1.0-ROADMAP.md) (Phases 1-5) - SHIPPED 2026-01-13
 
+## Phase Details
+
+### Phase 81: Config Validation Foundation
+**Goal**: Operators can validate autorate config files offline and see all problems at once
+**Depends on**: Nothing (first phase of v1.16)
+**Requirements**: CVAL-01, CVAL-04, CVAL-05, CVAL-06, CVAL-07, CVAL-08, CVAL-11
+**Success Criteria** (what must be TRUE):
+  1. Operator runs `wanctl-check-config spectrum.yaml` and sees PASS/WARN/FAIL results for every check category (schema, cross-field, file paths, env vars, deprecated params)
+  2. All validation errors and warnings are collected and displayed together -- never short-circuits on first error
+  3. Cross-field contradictions are caught: floor ordering violations, ceiling < floor, threshold misordering
+  4. File and permission checks report missing log dirs, state dirs, and SSH key paths before daemon startup would discover them
+  5. Exit code is 0 for clean configs, 1 when errors exist, 2 when only warnings exist
+**Plans**: TBD
+
+Plans:
+- [ ] 81-01: TBD
+- [ ] 81-02: TBD
+
+### Phase 82: Steering Config + Output Modes
+**Goal**: Operators can validate any wanctl config file without specifying its type, with machine-readable output for CI
+**Depends on**: Phase 81
+**Requirements**: CVAL-02, CVAL-03, CVAL-09, CVAL-10
+**Success Criteria** (what must be TRUE):
+  1. Operator runs `wanctl-check-config steering.yaml` and gets steering-specific validation without needing a `--type` flag
+  2. Config type is auto-detected from YAML contents (autorate vs steering) with clear error if detection fails
+  3. Steering cross-config validation verifies that `topology.primary_wan_config` path exists and `wan_name` matches `topology.primary_wan`
+  4. `--json` flag produces structured JSON output suitable for scripting and CI pipelines
+**Plans**: TBD
+
+Plans:
+- [ ] 82-01: TBD
+- [ ] 82-02: TBD
+
+### Phase 83: CAKE Qdisc Audit
+**Goal**: Operators can verify their router's queue configuration matches what wanctl expects
+**Depends on**: Phase 81
+**Requirements**: CAKE-01, CAKE-02, CAKE-03, CAKE-04, CAKE-05
+**Success Criteria** (what must be TRUE):
+  1. Operator runs `wanctl-check-cake spectrum.yaml` and sees router connectivity status (REST/SSH reachability and authentication)
+  2. Queue tree audit reports whether expected queues exist with correct names and max-limit values
+  3. CAKE qdisc type verification confirms queues use CAKE (not fq_codel or default)
+  4. Config-vs-router diff shows expected vs actual values side-by-side for each parameter that differs
+  5. Mangle rule existence check verifies the steering mangle rule exists on the router
+**Plans**: TBD
+
+Plans:
+- [ ] 83-01: TBD
+- [ ] 83-02: TBD
+
 ## Progress
+
+### Active Milestone: v1.16 Validation & Operational Confidence
+
+**Execution Order:**
+Phases execute in numeric order: 81 -> 82 -> 83
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 81. Config Validation Foundation | 0/? | Not started | - |
+| 82. Steering Config + Output Modes | 0/? | Not started | - |
+| 83. CAKE Qdisc Audit | 0/? | Not started | - |
 
 ### Completed Milestones
 
