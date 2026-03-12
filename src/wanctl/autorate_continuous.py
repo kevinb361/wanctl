@@ -544,6 +544,25 @@ class Config(BaseConfig):
             self.alerting_config = None
             return
 
+        # Validate default_sustained_sec (congestion duration threshold)
+        default_sustained_sec = alerting.get("default_sustained_sec", 60)
+        if not isinstance(default_sustained_sec, int) or isinstance(
+            default_sustained_sec, bool
+        ):
+            logger.warning(
+                f"alerting.default_sustained_sec must be int, "
+                f"got {type(default_sustained_sec).__name__}; disabling alerting"
+            )
+            self.alerting_config = None
+            return
+        if default_sustained_sec < 0:
+            logger.warning(
+                f"alerting.default_sustained_sec must be >= 0, "
+                f"got {default_sustained_sec}; disabling alerting"
+            )
+            self.alerting_config = None
+            return
+
         # Validate rules
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
@@ -601,6 +620,7 @@ class Config(BaseConfig):
             "enabled": True,
             "webhook_url": webhook_url,
             "default_cooldown_sec": default_cooldown_sec,
+            "default_sustained_sec": default_sustained_sec,
             "rules": rules,
             "mention_role_id": mention_role_id,
             "mention_severity": mention_severity,
@@ -1127,6 +1147,23 @@ class WANController:
             self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
 
         # =====================================================================
+        # SUSTAINED CONGESTION TIMERS (ALRT-01)
+        # =====================================================================
+        # Monotonic timestamps tracking when DL/UL entered RED/SOFT_RED.
+        # Fires congestion_sustained_dl/ul after sustained_sec threshold.
+        # Fires congestion_recovered_dl/ul when zone clears IF sustained fired.
+        # =====================================================================
+        self._dl_congestion_start: float | None = None
+        self._ul_congestion_start: float | None = None
+        self._dl_sustained_fired: bool = False
+        self._ul_sustained_fired: bool = False
+        self._dl_last_congested_zone: str = "RED"
+        self._ul_last_congested_zone: str = "RED"
+        self._sustained_sec: int = (
+            ac.get("default_sustained_sec", 60) if ac else 60
+        )
+
+        # =====================================================================
         # PROFILING INSTRUMENTATION
         # =====================================================================
         # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
@@ -1609,8 +1646,11 @@ class WANController:
             )
             self._ul_zone = ul_zone
 
-            # Log decision
+            # Sustained congestion detection (ALRT-01)
             delta = self.load_rtt - self.baseline_rtt
+            self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
+
+            # Log decision
             self.logger.info(
                 f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
                 f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
@@ -1735,6 +1775,123 @@ class WANController:
             )
 
         return True
+
+    def _check_congestion_alerts(
+        self,
+        dl_zone: str,
+        ul_zone: str,
+        dl_rate: int,
+        ul_rate: int,
+        delta: float,
+    ) -> None:
+        """Check sustained congestion timers and fire alerts (ALRT-01).
+
+        Called each run_cycle() after zone assignment. Tracks how long each
+        direction has been in a congested zone (RED/SOFT_RED for DL, RED for UL).
+        Fires congestion_sustained_dl/ul after sustained_sec threshold. Fires
+        congestion_recovered_dl/ul when zone clears IF sustained alert had fired.
+
+        Args:
+            dl_zone: Current download zone (GREEN/YELLOW/SOFT_RED/RED).
+            ul_zone: Current upload zone (GREEN/YELLOW/RED).
+            dl_rate: Current download rate in bps.
+            ul_rate: Current upload rate in bps.
+            delta: Current RTT delta (load_rtt - baseline_rtt).
+        """
+        now = time.monotonic()
+
+        # --- Download congestion ---
+        dl_congested = dl_zone in ("RED", "SOFT_RED")
+        if dl_congested:
+            self._dl_last_congested_zone = dl_zone
+            if self._dl_congestion_start is None:
+                self._dl_congestion_start = now
+            elif not self._dl_sustained_fired:
+                # Check per-rule sustained_sec override
+                sustained_sec = self.alert_engine._rules.get(
+                    "congestion_sustained_dl", {}
+                ).get("sustained_sec", self._sustained_sec)
+                duration = now - self._dl_congestion_start
+                if duration >= sustained_sec:
+                    severity = "critical" if dl_zone == "RED" else "warning"
+                    fired = self.alert_engine.fire(
+                        "congestion_sustained_dl",
+                        severity,
+                        self.wan_name,
+                        {
+                            "zone": dl_zone,
+                            "dl_rate_mbps": dl_rate / 1e6,
+                            "ul_rate_mbps": ul_rate / 1e6,
+                            "rtt_ms": self.load_rtt,
+                            "delta_ms": delta,
+                            "duration_sec": round(duration, 1),
+                        },
+                    )
+                    if fired:
+                        self._dl_sustained_fired = True
+        else:
+            # Zone cleared (GREEN or YELLOW)
+            if self._dl_congestion_start is not None:
+                if self._dl_sustained_fired:
+                    duration = now - self._dl_congestion_start
+                    self.alert_engine.fire(
+                        "congestion_recovered_dl",
+                        "recovery",
+                        self.wan_name,
+                        {
+                            "recovered_from_zone": self._dl_last_congested_zone,
+                            "duration_sec": round(duration, 1),
+                            "dl_rate_mbps": dl_rate / 1e6,
+                            "ul_rate_mbps": ul_rate / 1e6,
+                        },
+                    )
+                self._dl_congestion_start = None
+                self._dl_sustained_fired = False
+
+        # --- Upload congestion ---
+        # UL is 3-state (GREEN/YELLOW/RED), only RED is congested
+        ul_congested = ul_zone == "RED"
+        if ul_congested:
+            if self._ul_congestion_start is None:
+                self._ul_congestion_start = now
+            elif not self._ul_sustained_fired:
+                sustained_sec = self.alert_engine._rules.get(
+                    "congestion_sustained_ul", {}
+                ).get("sustained_sec", self._sustained_sec)
+                duration = now - self._ul_congestion_start
+                if duration >= sustained_sec:
+                    fired = self.alert_engine.fire(
+                        "congestion_sustained_ul",
+                        "critical",
+                        self.wan_name,
+                        {
+                            "zone": ul_zone,
+                            "dl_rate_mbps": dl_rate / 1e6,
+                            "ul_rate_mbps": ul_rate / 1e6,
+                            "rtt_ms": self.load_rtt,
+                            "delta_ms": delta,
+                            "duration_sec": round(duration, 1),
+                        },
+                    )
+                    if fired:
+                        self._ul_sustained_fired = True
+        else:
+            if self._ul_congestion_start is not None:
+                if self._ul_sustained_fired:
+                    duration = now - self._ul_congestion_start
+                    self.alert_engine.fire(
+                        "congestion_recovered_ul",
+                        "recovery",
+                        self.wan_name,
+                        {
+                            "recovered_from_zone": "RED",
+                            "duration_sec": round(duration, 1),
+                            "dl_rate_mbps": dl_rate / 1e6,
+                            "ul_rate_mbps": ul_rate / 1e6,
+                        },
+                    )
+                self._ul_congestion_start = None
+                self._ul_sustained_fired = False
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:

@@ -24,7 +24,6 @@ import yaml
 from wanctl.alert_engine import AlertEngine
 from wanctl.autorate_continuous import Config
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
