@@ -1039,6 +1039,7 @@ class TestBaselineFreezeInvariant:
         mock_config.ping_hosts = ["1.1.1.1"]
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
+        mock_config.alerting_config = None
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1104,6 +1105,7 @@ class TestBaselineFreezeInvariant:
         mock_config.ping_hosts = ["1.1.1.1"]
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
+        mock_config.alerting_config = None
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1167,6 +1169,7 @@ class TestBaselineFreezeInvariant:
         mock_config.ping_hosts = ["1.1.1.1"]
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
+        mock_config.alerting_config = None
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()

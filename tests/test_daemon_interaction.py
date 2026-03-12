@@ -52,6 +52,7 @@ def make_loader(state_file: Path, logger: logging.Logger):
         config.primary_state_file = state_file
         config.baseline_rtt_min = baseline_rtt_min
         config.baseline_rtt_max = baseline_rtt_max
+        config.alerting_config = None
         return BaselineLoader(config=config, logger=logger)
 
     return _make
