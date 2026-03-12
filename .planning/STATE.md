@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
-status: planning
-stopped_at: Phase 79 context gathered
-last_updated: "2026-03-12T15:40:47.537Z"
-last_activity: 2026-03-12 -- Completed 78-02-PLAN.md (steering transition alerts)
+status: executing
+stopped_at: Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
+last_updated: "2026-03-12T16:18:00Z"
+last_activity: 2026-03-12 -- Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Session State
@@ -21,27 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.15 Alerting & Notifications -- Phase 78 plan 2 of 2 complete
+**Current focus:** v1.15 Alerting & Notifications -- Phase 79 plan 1 of 2 complete
 
 ## Position
 
 **Milestone:** v1.15 Alerting & Notifications
-**Phase:** 78 of 80 (Congestion & Steering Alerts)
-**Plan:** 2 of 2 in current phase (COMPLETE)
-**Status:** Ready to plan
-**Last activity:** 2026-03-12 -- Completed 78-02-PLAN.md (steering transition alerts)
-**Last session:** 2026-03-12T15:40:47.533Z
-**Stopped at:** Phase 79 context gathered
+**Phase:** 79 of 80 (Connectivity Anomaly Alerts)
+**Plan:** 1 of 2 in current phase
+**Status:** Executing
+**Last activity:** 2026-03-12 -- Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
+**Last session:** 2026-03-12T16:18:00Z
+**Stopped at:** Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
 
-Progress: [██████████] 100% (Phase 78 complete)
+Progress: [█████████░] 88% (Phase 79 plan 1/2)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: 8.5 min
-- Total execution time: 0.85 hours
+- Total plans completed: 7
+- Average duration: 7.7 min
+- Total execution time: 0.90 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -51,6 +51,7 @@ Progress: [██████████] 100% (Phase 78 complete)
 | 77    | 02   | 18min    | 1     | 5     |
 | 78    | 01   | 6min     | 1     | 2     |
 | 78    | 02   | 5min     | 1     | 2     |
+| 79    | 01   | 3min     | 1     | 2     |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Progress: [██████████] 100% (Phase 78 complete)
 - time.monotonic() for steering duration tracking (not ISO timestamp parsing from state file)
 - steering_recovered severity="recovery" for green Discord embed (consistent with congestion recovery)
 - default_sustained_sec in steering config for cross-daemon config structure symmetry
+- raw_measured_rtt captured before fallback processing for accurate connectivity alert tracking
+- \_check_connectivity_alerts called inside PerfTimer block before early return to track both online and offline cycles
 
 ### Known Issues
 

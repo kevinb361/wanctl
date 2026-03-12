@@ -12,8 +12,8 @@ Requirements for Alerting & Notifications milestone. Each maps to roadmap phases
 - [x] **ALRT-01**: Autorate daemon fires alert when WAN stays in RED or SOFT_RED beyond configurable duration
 - [x] **ALRT-02**: Steering daemon fires alert when steering is activated (traffic rerouted to secondary)
 - [x] **ALRT-03**: Steering daemon fires alert when steering is deactivated (traffic returns to primary)
-- [ ] **ALRT-04**: Daemon fires alert when health endpoint target becomes unreachable beyond configurable duration
-- [ ] **ALRT-05**: Daemon fires alert when previously unreachable endpoint recovers
+- [x] **ALRT-04**: Daemon fires alert when health endpoint target becomes unreachable beyond configurable duration
+- [x] **ALRT-05**: Daemon fires alert when previously unreachable endpoint recovers
 - [ ] **ALRT-06**: Autorate daemon fires alert when baseline RTT drifts beyond configurable threshold
 - [ ] **ALRT-07**: Autorate daemon fires alert when rapid congestion state flapping is detected
 
@@ -64,8 +64,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALRT-01     | Phase 78 | Complete |
 | ALRT-02     | Phase 78 | Complete |
 | ALRT-03     | Phase 78 | Complete |
-| ALRT-04     | Phase 79 | Pending  |
-| ALRT-05     | Phase 79 | Pending  |
+| ALRT-04     | Phase 79 | Complete |
+| ALRT-05     | Phase 79 | Complete |
 | ALRT-06     | Phase 79 | Pending  |
 | ALRT-07     | Phase 79 | Pending  |
 | DLVR-01     | Phase 77 | Complete |

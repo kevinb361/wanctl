@@ -172,7 +172,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 76. Alert Engine & Configuration  | 2/2            | Complete    | 2026-03-12 |
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
-| 79. Connectivity & Anomaly Alerts | 0/2            | Planning    | -          |
+| 79. Connectivity & Anomaly Alerts | 1/2 | In Progress|  |
 | 80. Observability & CLI           | 0/TBD          | Not started | -          |
 
 <details>
