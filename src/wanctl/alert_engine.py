@@ -15,6 +15,7 @@ Design principles:
 import json
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 from wanctl.storage.writer import MetricsWriter
@@ -35,6 +36,7 @@ class AlertEngine:
         _rules: Map of alert_type -> {enabled, cooldown_sec, severity}.
         _writer: MetricsWriter instance for SQLite persistence (None disables persistence).
         _cooldowns: Map of (type, wan) -> monotonic timestamp of last fire.
+        _delivery_callback: Optional callback invoked after successful fire().
     """
 
     def __init__(
@@ -43,6 +45,8 @@ class AlertEngine:
         default_cooldown_sec: int,
         rules: dict[str, dict],
         writer: MetricsWriter | None = None,
+        delivery_callback: Callable[[int | None, str, str, str, dict[str, Any]], None]
+        | None = None,
     ) -> None:
         """Initialize the alert engine.
 
@@ -51,11 +55,15 @@ class AlertEngine:
             default_cooldown_sec: Default cooldown between duplicate (type, wan) alerts.
             rules: Map of type_name -> {enabled, cooldown_sec, severity}.
             writer: MetricsWriter instance for SQLite persistence. None disables persistence.
+            delivery_callback: Optional callback invoked after fire() succeeds.
+                Receives (alert_id, alert_type, severity, wan_name, details).
+                Errors are caught and logged (never crash).
         """
         self._enabled = enabled
         self._default_cooldown_sec = default_cooldown_sec
         self._rules = rules
         self._writer = writer
+        self._delivery_callback = delivery_callback
         self._cooldowns: dict[tuple[str, str], float] = {}
 
     def fire(
@@ -92,7 +100,19 @@ class AlertEngine:
         self._cooldowns[(alert_type, wan_name)] = time.monotonic()
 
         # Persist to SQLite
-        self._persist_alert(alert_type, severity, wan_name, details)
+        alert_id = self._persist_alert(alert_type, severity, wan_name, details)
+
+        # Invoke delivery callback (webhook, etc.)
+        if self._delivery_callback is not None:
+            try:
+                self._delivery_callback(alert_id, alert_type, severity, wan_name, details)
+            except Exception:
+                logger.warning(
+                    "Delivery callback failed for %s on %s",
+                    alert_type,
+                    wan_name,
+                    exc_info=True,
+                )
 
         logger.info("Alert fired: %s [%s] on %s", alert_type, severity, wan_name)
         return True
@@ -123,7 +143,7 @@ class AlertEngine:
         severity: str,
         wan_name: str,
         details: dict[str, Any],
-    ) -> None:
+    ) -> int | None:
         """Persist alert event to SQLite alerts table.
 
         Never raises -- logs warning on failure to avoid crashing the daemon.
@@ -133,22 +153,27 @@ class AlertEngine:
             severity: Alert severity.
             wan_name: WAN identifier.
             details: Alert details dict (serialized to JSON).
+
+        Returns:
+            Row ID of the inserted alert, or None if no writer or on error.
         """
         if self._writer is None:
-            return
+            return None
 
         try:
             timestamp = int(time.time())
             details_json = json.dumps(details)
-            self._writer.connection.execute(
+            cursor = self._writer.connection.execute(
                 "INSERT INTO alerts (timestamp, alert_type, severity, wan_name, details) "
                 "VALUES (?, ?, ?, ?, ?)",
                 (timestamp, alert_type, severity, wan_name, details_json),
             )
+            return cursor.lastrowid
         except Exception:
             logger.warning(
                 "Failed to persist alert %s on %s", alert_type, wan_name, exc_info=True
             )
+            return None
 
     def get_active_cooldowns(self) -> dict[tuple[str, str], float]:
         """Return active cooldowns with seconds remaining.

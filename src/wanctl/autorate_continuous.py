@@ -578,11 +578,33 @@ class Config(BaseConfig):
 
         webhook_url = alerting.get("webhook_url", "")
 
+        # Delivery config fields (Plan 77-02)
+        mention_role_id = alerting.get("mention_role_id")
+        if mention_role_id is not None and not isinstance(mention_role_id, str):
+            logger.warning("alerting.mention_role_id must be string; ignoring")
+            mention_role_id = None
+
+        mention_severity = alerting.get("mention_severity", "critical")
+        if mention_severity not in ("info", "recovery", "warning", "critical"):
+            logger.warning(
+                f"alerting.mention_severity invalid: '{mention_severity}'; "
+                "defaulting to critical"
+            )
+            mention_severity = "critical"
+
+        max_webhooks_per_minute = alerting.get("max_webhooks_per_minute", 20)
+        if not isinstance(max_webhooks_per_minute, int) or max_webhooks_per_minute <= 0:
+            logger.warning("alerting.max_webhooks_per_minute invalid; defaulting to 20")
+            max_webhooks_per_minute = 20
+
         self.alerting_config = {
             "enabled": True,
             "webhook_url": webhook_url,
             "default_cooldown_sec": default_cooldown_sec,
             "rules": rules,
+            "mention_role_id": mention_role_id,
+            "mention_severity": mention_severity,
+            "max_webhooks_per_minute": max_webhooks_per_minute,
         }
         logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
 
@@ -1061,20 +1083,47 @@ class WANController:
             self.logger.info(f"{wan_name}: Metrics history enabled, db={db_path}")
 
         # =====================================================================
-        # ALERT ENGINE
+        # ALERT ENGINE + WEBHOOK DELIVERY
         # =====================================================================
         # AlertEngine for per-event cooldown suppression and persistence.
+        # WebhookDelivery for Discord notification dispatch (non-blocking).
         # Instantiated from alerting_config (disabled by default).
         # =====================================================================
         ac = self.config.alerting_config
         if ac:
+            # Validate webhook_url
+            url = ac["webhook_url"]
+            if url and not url.startswith("https://"):
+                self.logger.warning(
+                    "alerting.webhook_url must start with https://; delivery disabled"
+                )
+                url = ""
+            if not url:
+                self.logger.warning(
+                    "alerting.webhook_url not set; alerts will fire and persist "
+                    "but not deliver"
+                )
+
+            from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
+
+            formatter = DiscordFormatter(version="1.15.0", container_id=wan_name)
+            self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
+                formatter=formatter,
+                webhook_url=url,
+                max_per_minute=ac["max_webhooks_per_minute"],
+                writer=self._metrics_writer,
+                mention_role_id=ac["mention_role_id"],
+                mention_severity=ac["mention_severity"],
+            )
             self.alert_engine = AlertEngine(
                 enabled=True,
                 default_cooldown_sec=ac["default_cooldown_sec"],
                 rules=ac["rules"],
                 writer=self._metrics_writer,
+                delivery_callback=self._webhook_delivery.deliver,
             )
         else:
+            self._webhook_delivery = None
             self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
 
         # =====================================================================
