@@ -1,287 +1,264 @@
-# Technology Stack: TUI Dashboard (wanctl-dashboard)
+# Technology Stack: v1.16 Validation & Operational Confidence
 
-**Project:** wanctl v1.14
-**Researched:** 2026-03-11
+**Project:** wanctl v1.16
+**Researched:** 2026-03-12
 **Overall confidence:** HIGH
 
-## Recommendation: Textual + httpx + Built-in Sparklines
+## Recommendation: Zero New Dependencies
 
-Three new runtime dependencies. No changes to existing daemon code for the core dashboard. The dashboard is a standalone TUI application that consumes existing HTTP health endpoints (ports 9101/9102) and reads from the existing SQLite metrics database.
+This milestone requires no new runtime or dev dependencies. The existing codebase already has every building block needed for config validation, CAKE qdisc auditing, and read-only router integration probes. The research below explains what already exists, what to build on top of it, and why adding libraries would be counterproductive.
 
-## New Dependencies (Dashboard Only)
+---
 
-### Core Framework
+## Existing Stack (Already Sufficient)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| textual | >=8.0.0 | TUI framework | Dominant Python TUI framework. v8.1.1 current (2026-03-10). Built-in widgets cover 90% of dashboard needs: Sparkline, DataTable, TabbedContent, Digits, Header/Footer, RichLog. CSS-like styling, async-native event loop, `@work` decorator for background tasks. Python >=3.9 required (we use 3.12). Depends on Rich (already familiar ecosystem). |
-| httpx | >=0.28.0 | Async HTTP client | Polls health endpoints (9101/9102). Supports both sync and async APIs. Textual's own docs use httpx in worker examples. Lightweight (anyio, certifi, httpcore). Does NOT conflict with existing aiohttp in daemons -- dashboard is a separate process. |
+### Config Validation Infrastructure
 
-### Why NOT aiohttp for the Dashboard
+| Existing Component | Location | What It Provides |
+|---|---|---|
+| `BaseConfig` | `config_base.py` | Schema-driven validation with `BASE_SCHEMA` + subclass `SCHEMA`. `validate_schema()` aggregates errors. `validate_field()` handles type/range/choices. `validate_identifier()` / `validate_comment()` / `validate_ping_host()` for security. |
+| `ConfigValidationError` | `config_base.py` | Custom exception with multi-error formatting (`"N error(s):\n - ..."`) |
+| `validate_field()` | `config_base.py` | Single-field validation: type, required, min/max, choices, dot-notation path traversal |
+| `validate_schema()` | `config_base.py` | Multi-field batch validation: collects all errors before raising |
+| `validate_bandwidth_order()` | `config_validation_utils.py` | 4-state floor ordering: `floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling` |
+| `validate_threshold_order()` | `config_validation_utils.py` | Threshold ordering: `target < warn < hard_red` |
+| `validate_alpha()` | `config_validation_utils.py` | EWMA alpha range validation |
+| `validate_baseline_rtt()` | `config_validation_utils.py` | RTT sanity bounds (10-60ms) |
+| `validate_rtt_thresholds()` | `config_validation_utils.py` | RTT threshold ordering with defaults |
+| `validate_sample_counts()` | `config_validation_utils.py` | Sample count reasonableness |
+| `deprecate_param()` | `config_validation_utils.py` | Legacy parameter warn+translate |
+| `Config(BaseConfig)` | `autorate_continuous.py` | Autorate-specific config with SCHEMA |
+| `SteeringConfig(BaseConfig)` | `steering/daemon.py` | Steering-specific config with SCHEMA |
 
-The existing daemons use aiohttp for their health servers, but the dashboard should use httpx because:
+**Assessment:** The validation framework is mature. `validate_schema()` already collects errors, `validate_field()` handles type coercion (int-to-float), and `BaseConfig.__init__()` chains base + subclass schema validation. The gap is not infrastructure -- it is coverage (many config fields bypass schema validation and are loaded with raw `.get()` calls).
 
-1. **httpx is lighter** -- no server-side bloat, pure client library
-2. **Textual integration** -- Textual docs and examples use httpx; the `@work` async worker pattern pairs naturally with `httpx.AsyncClient`
-3. **Process isolation** -- dashboard is a separate process, no dependency conflict
-4. **Simpler API** -- `async with httpx.AsyncClient() as client: resp = await client.get(url)` is cleaner than aiohttp's session management for a simple JSON GET
+### Router Communication Infrastructure
 
-### Why NOT requests
+| Existing Component | Location | What It Provides |
+|---|---|---|
+| `RouterOSREST` | `routeros_rest.py` | REST API client with session, caching, queue/mangle operations. `get_queue_stats()` returns full queue properties. `test_connection()` hits `/system/resource`. |
+| `RouterOSSSH` | `routeros_ssh.py` | SSH client via paramiko. Persistent connection. `run_cmd()` with capture. |
+| `FailoverRouterClient` | `router_client.py` | REST-primary with SSH fallback, auto-restore. |
+| `RouterOSBackend` | `backends/routeros.py` | Abstract backend implementation. `get_queue_stats()`, `get_bandwidth()`, `test_connection()`. |
+| `CakeStatsReader` | `steering/cake_stats.py` | Reads CAKE queue stats via `/queue/tree print stats detail`. Parses both JSON (REST) and text (SSH). |
+| `RouterConnectivityState` | `router_connectivity.py` | Failure tracking, classification, outage duration. |
+| `CommandResult[T]` | `router_command_utils.py` | Typed result with `ok()`/`err()`, `unwrap()`, `map()`. |
 
-The project already has `requests>=2.31.0` as a runtime dep (for RouterOS REST API). However:
+**Assessment:** Everything needed for read-only router probes exists. `RouterOSREST` can already do `GET /rest/queue/tree`, `GET /rest/queue/type`, and `GET /rest/system/resource`. The gap is that there is no method to query queue types (CAKE parameters) specifically -- only queue tree entries. A simple `_request("GET", "/rest/queue/type", ...)` call is needed.
 
-1. **Blocking** -- `requests` is sync-only, requires `thread=True` workers in Textual
-2. **httpx is async-native** -- works with Textual's asyncio event loop directly via `@work` decorator (no thread overhead)
-3. **requests stays for daemon use** -- no conflict, both coexist fine
+### Test Infrastructure
 
-## Built-in Textual Widgets (No Extra Libraries)
+| Existing Component | Location | What It Provides |
+|---|---|---|
+| `pytest.mark.integration` | `tests/integration/conftest.py` | Registered marker for integration tests |
+| `pytest.mark.slow` | `tests/integration/conftest.py` | Registered marker for slow tests |
+| `--with-controller` | `tests/integration/conftest.py` | CLI option for SSH controller monitoring |
+| `--integration-output` | `tests/integration/conftest.py` | Output directory for integration results |
+| `check_dependencies` | `tests/integration/conftest.py` | Session fixture checking external tool availability |
+| Contract test pattern | `test_deployment_contracts.py` | Parametrize from `pyproject.toml` for auto-generated test cases |
 
-Textual provides everything needed for the dashboard without additional charting libraries.
+**Assessment:** The integration test framework exists but is oriented toward load testing (flent/netperf). For read-only router probes, we need a new marker (`pytest.mark.router` or `pytest.mark.probe`) and a fixture that provides a live `RouterOSREST` client from config. This is configuration, not library work.
 
-| Widget | Dashboard Use | Notes |
-|--------|--------------|-------|
-| **Sparkline** | Bandwidth rate trends (DL/UL over time) | Built-in. Accepts `Sequence[float]`, reactive `data` attr auto-refreshes. Configurable `min_color`/`max_color` for gradient. Width determines bar count. |
-| **DataTable** | Steering decision log, metrics browser | Built-in. Rich content cells, sorting, cursor modes, zebra stripes, fixed columns. |
-| **TabbedContent** | Historical time range tabs (1h/6h/24h/7d) | Built-in. Programmatic switching via `active` attr. Dynamic add/remove panes. |
-| **Digits** | Large RTT / rate display | Built-in. 3x3 Unicode grid for prominent numbers. |
-| **Header / Footer** | App chrome with keybindings | Built-in. Footer auto-shows bound key actions. |
-| **Static / Label** | Congestion state indicators (GREEN/YELLOW/RED) | Built-in. Color via CSS classes. |
-| **RichLog** | Steering transition event log | Built-in. Scrollable, Rich-formatted log output. |
-| **ProgressBar** | Link utilization percentage | Built-in. |
-| **ContentSwitcher** | Adaptive layout (wide vs narrow) | Built-in. Programmatic child switching by ID. |
-| **LoadingIndicator** | Initial connection / data fetch | Built-in. |
+---
 
-## Charting Libraries: NOT Needed
+## Why NOT Add New Libraries
 
-| Library | Why Skip |
-|---------|----------|
-| **textual-plotext** (v1.0.1) | Wraps plotext (last updated Sep 2024, stagnant). Adds 2 deps (plotext + textual-plotext). The built-in Sparkline widget covers bandwidth trends. Full charts are overkill for a monitoring dashboard -- sparklines communicate rate changes effectively in constrained terminal space. |
-| **textual-plot** (v0.10.1) | Adds NumPy dependency (heavyweight for a TUI dashboard). Aimed at physics experiment plotting. Interactive zoom/pan is nice but unnecessary for time-series monitoring. NumPy is a ~30MB install -- disproportionate for sparklines. |
-| **plotext** (v5.3.2) | Standalone terminal plotting. If used directly, requires manual Canvas widget integration. Stagnant since Sep 2024. |
+### Pydantic (REJECTED)
 
-**Decision rationale:** The dashboard needs to show rate trends over time. Sparkline does this with zero extra deps. If full charting is needed later, textual-plotext can be added incrementally -- but start without it. YAGNI.
+| Criterion | Assessment |
+|---|---|
+| **Current state** | `BaseConfig` + `validate_schema()` already provides typed validation with error aggregation |
+| **What Pydantic adds** | Automatic type coercion, nested model validation, JSON Schema export |
+| **What it costs** | ~10MB install, C extension (pydantic-core), new dep for production containers |
+| **Why reject** | The validation framework is complete. Adding Pydantic would require rewriting `BaseConfig`, `Config`, and `SteeringConfig` -- a massive refactor for no functional gain. The existing `validate_schema()` with `validate_field()` does the same thing Pydantic models do, just declaratively via dicts instead of classes. The project constraint ("No breaking changes") makes this a non-starter. |
 
-## Async Data Polling Pattern
+**Confidence:** HIGH -- The existing validation framework handles every case needed for v1.16. Pydantic would be a rewrite, not an improvement.
 
-### Architecture
+### Cerberus (REJECTED)
 
-```
-set_interval(2.0)  -->  @work(exclusive=True) async fetch  -->  update widgets
-     |                          |                                    |
-  Timer fires            httpx.AsyncClient.get()              self.query_one(Sparkline).data = [...]
-  every 2 sec            to localhost:9101/health             self.query_one(DataTable).clear()
-                         to localhost:9102/health             etc.
-```
+| Criterion | Assessment |
+|---|---|
+| **What it adds** | Schema-based validation without type classes |
+| **Why reject** | `validate_schema()` in `config_base.py` is already a Cerberus-like schema validator. Adding Cerberus would duplicate existing functionality with a different API. |
 
-### Implementation Pattern
+### JSON Schema / jsonschema library (REJECTED)
+
+| Criterion | Assessment |
+|---|---|
+| **What it adds** | Standards-based schema validation |
+| **Why reject** | YAML config validation with runtime type coercion (YAML parses `10` as int, not float) is poorly served by JSON Schema. The existing `validate_field()` already handles int-to-float coercion. JSON Schema adds complexity without solving the actual problem. |
+
+---
+
+## What to Build (Using Existing Stack)
+
+### 1. Config Validator CLI (`wanctl check-config`)
+
+**Technology:** stdlib `argparse` (consistent with `wanctl-history`), existing `BaseConfig` / `Config` / `SteeringConfig` classes.
+
+**Approach:** Instantiate the appropriate config class (which triggers validation in `__init__`), catch `ConfigValidationError`, format results for CLI output. Add cross-field validations that currently happen at runtime (e.g., queue names reference valid queue types, state file paths are writable, ping hosts are reachable).
+
+**New validation areas to cover using existing `validate_field()`:**
+
+| Config Section | Current State | What to Add |
+|---|---|---|
+| `queues.download` / `queues.upload` | Loaded via `.get()`, no schema | Add to SCHEMA with `validate_identifier()` |
+| `continuous_monitoring.download.*` | Ad-hoc validation in `Config.__init__` | Formalize via SCHEMA entries |
+| `continuous_monitoring.thresholds.*` | Partial (threshold ordering validated) | Complete the SCHEMA coverage |
+| `timeouts.*` | Loaded via `.get()` | Add min/max range to SCHEMA |
+| `state_file` / `state.file` | Loaded as raw string | Validate path writability |
+| `ping_hosts` | Loaded as list, `validate_ping_host()` exists | Iterate and validate each host |
+| `topology.*` | Loaded via `.get()` | Add to SteeringConfig SCHEMA |
+| `confidence.*` | Loaded via `.get()` with defaults | Add range validation to SCHEMA |
+| `wan_state.*` | Has runtime warn+disable | Formalize as SCHEMA entries |
+| `alerting.*` | Loaded via `.get()` | Add to SCHEMA |
+
+### 2. CAKE Qdisc Audit (`wanctl check-cake`)
+
+**Technology:** Existing `RouterOSREST` client (or `FailoverRouterClient`).
+
+**RouterOS REST API endpoints to query:**
+
+| Endpoint | Method | Purpose | Response |
+|---|---|---|---|
+| `GET /rest/queue/tree?name=<queue>` | GET | Get queue tree entry | JSON array with `queue` (type reference), `max-limit`, `parent`, etc. |
+| `GET /rest/queue/type?name=<type>` | GET | Get queue type definition | JSON array with CAKE params: `cake-bandwidth`, `cake-flowmode`, `cake-diffserv`, `cake-rtt`, `cake-overhead`, etc. |
+| `GET /rest/system/resource` | GET | Router identity/version check | JSON with `version`, `board-name`, etc. |
+
+**CAKE parameters to audit (from RouterOS `/queue/type`):**
+
+| Parameter | Expected For Cable (Spectrum) | Expected For DSL (ATT) | Why Check |
+|---|---|---|---|
+| `cake-overhead-scheme` | `docsis` or `ethernet` | `pppoe-ptm` or `pppoe-llc` | Wrong overhead causes throughput errors |
+| `cake-flowmode` | `triple-isolate` (default) | `triple-isolate` | Wrong mode affects fairness |
+| `cake-diffserv` | `diffserv3` or `diffserv4` | `diffserv3` or `diffserv4` | Mismatched diffserv wastes tins |
+| `cake-rtt` or `cake-rtt-scheme` | `internet` (~100ms) | `internet` | Wrong RTT causes AQM timing errors |
+| `cake-ack-filter` | depends on asymmetry | depends | Missing on asymmetric links hurts upload |
+| `cake-nat` | `true` if behind NAT | `true` if behind NAT | Missing NAT breaks per-flow fairness |
+| Queue `max-limit` | Matches `ceiling_mbps` from config | Matches config | Config/router mismatch = silent degradation |
+
+**Implementation:** New method on `RouterOSREST` to `GET /rest/queue/type` (trivial -- same pattern as `get_queue_stats()`). Compare returned CAKE parameters against expected values from wanctl config. Report mismatches.
+
+### 3. Integration Probes
+
+**Technology:** pytest with new `@pytest.mark.router` marker, existing router client infrastructure.
+
+**New marker and fixtures (in `tests/integration/conftest.py`):**
 
 ```python
-from textual.app import App
-from textual.worker import work
-import httpx
+# New marker
+config.addinivalue_line(
+    "markers",
+    "router: marks tests that probe a live router (deselect with '-m \"not router\"')",
+)
 
-class DashboardApp(App):
-    def on_mount(self) -> None:
-        # Poll health endpoints every 2 seconds
-        self.set_interval(2.0, self.refresh_data)
+# New CLI option
+parser.addoption(
+    "--router-config",
+    type=str,
+    default=None,
+    help="Path to wanctl config YAML for router probe tests",
+)
 
-    def refresh_data(self) -> None:
-        """Trigger async data fetch."""
-        self.fetch_health_data()
-
-    @work(exclusive=True)
-    async def fetch_health_data(self) -> None:
-        """Fetch data from both health endpoints."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            try:
-                autorate = await client.get(f"{self.autorate_url}/health")
-                steering = await client.get(f"{self.steering_url}/health")
-                # Update widgets on the main thread (Textual handles this)
-                self.update_dashboard(autorate.json(), steering.json())
-            except httpx.ConnectError:
-                self.show_connection_error()
+# New fixture
+@pytest.fixture(scope="session")
+def router_client(request):
+    """Provide a live RouterOSREST client from config."""
+    config_path = request.config.getoption("--router-config")
+    if config_path is None:
+        pytest.skip("--router-config not provided")
+    # ... create client from config
 ```
 
-**Key design decisions:**
+**Probes to implement (all read-only):**
 
-1. **`exclusive=True`** -- cancels previous fetch if still running (prevents queue buildup if endpoint is slow)
-2. **2-second poll interval** -- human-readable refresh rate. Health endpoints return in <10ms locally. Too fast and terminal flickering becomes an issue.
-3. **Single `AsyncClient` per fetch** -- no persistent connection needed for localhost health checks at 0.5 req/s
-4. **Error handling** -- `httpx.ConnectError` when daemon not running; show degraded state, keep polling
+| Probe | What It Tests | Router Command |
+|---|---|---|
+| REST connectivity | Can we reach the router REST API? | `GET /rest/system/resource` |
+| Queue tree exists | Do configured queues exist on router? | `GET /rest/queue/tree?name=<queue>` |
+| Queue type is CAKE | Is the queue type actually CAKE? | `GET /rest/queue/type?name=<type>` |
+| CAKE params match | Do CAKE params match expected config? | `GET /rest/queue/type?name=<type>` |
+| Mangle rule exists | Does the steering mangle rule exist? | `GET /rest/ip/firewall/mangle?comment=<comment>` |
+| State file readable | Can we read the state file? | Local filesystem |
+| State file valid JSON | Is the state file valid? | `json.loads()` |
 
-### Historical Data (SQLite)
+---
 
-For the metrics browser (historical view), use synchronous sqlite3 in a thread worker:
-
-```python
-@work(thread=True)
-def fetch_history(self, time_range: str) -> None:
-    """Query metrics DB in background thread."""
-    from wanctl.storage.reader import query_metrics, select_granularity
-    results = query_metrics(db_path=self.db_path, start_ts=start, end_ts=end)
-    self.call_from_thread(self.update_history_table, results)
-```
-
-**Why thread worker for SQLite:** The existing `query_metrics()` is synchronous (uses `sqlite3.connect` with `mode=ro`). Converting to aiosqlite would be a new dependency for marginal benefit. Thread worker keeps the existing reader code unchanged and prevents blocking the TUI event loop.
-
-## Adaptive Layout Strategy
-
-Textual does NOT support CSS media queries. Responsive layout requires Python-based handling.
-
-### Pattern: Resize Event + ContentSwitcher
-
-```python
-def on_resize(self, event: Resize) -> None:
-    """Switch layout based on terminal width."""
-    if event.size.width >= 120:
-        # Wide: side-by-side panels
-        self.query_one("#layout").styles.layout = "horizontal"
-    else:
-        # Narrow: stacked/tabbed
-        self.query_one("#layout").styles.layout = "vertical"
-```
-
-### Width Thresholds
-
-| Width | Layout | Rationale |
-|-------|--------|-----------|
-| >= 160 cols | Full: side-by-side WANs + sparklines + decision log | Standard wide terminal (4K monitor, tmux split) |
-| 120-159 cols | Compact: side-by-side WANs, sparklines below | Standard terminal window |
-| 80-119 cols | Stacked: WANs stacked vertically, tabs for history | Minimum usable terminal |
-| < 80 cols | Minimal: single WAN tab view, abbreviated data | SSH session, phone terminal |
-
-### Implementation Options
-
-1. **`on_resize` + `styles.layout`** -- Programmatically toggle between horizontal/vertical/grid
-2. **`ContentSwitcher`** -- Pre-build wide and narrow layouts, switch by ID
-3. **`TabbedContent` for narrow** -- When < 120 cols, switch from panels to tabs
-
-**Recommendation:** Use `on_resize` with `call_after_refresh` (because resize fires before layout redraws). Pre-build both layouts and show/hide based on width. This avoids widget recreation on every resize.
-
-## Integration Points with Existing System
-
-### Health Endpoints (Read-Only)
-
-| Endpoint | Port | Data Available |
-|----------|------|----------------|
-| Autorate `/health` | 9101 | baseline_rtt, load_rtt, dl/ul rates, dl/ul states, cycle_budget, disk_space, router_connectivity |
-| Autorate `/metrics/history` | 9101 | Historical metrics with time range, granularity, pagination |
-| Steering `/health` | 9102 | steering enabled/state/mode, congestion state, confidence score, wan_awareness, counters, thresholds |
-
-### SQLite Database (Read-Only)
-
-| Path | Access | Data |
-|------|--------|------|
-| `/var/lib/wanctl/metrics.db` | `sqlite3.connect("file:...?mode=ro")` | 10 metric types (RTT, rates, states, steering, WAN zone/weight/staleness) |
-
-**Critical:** Dashboard opens DB read-only. WAL mode in the writer allows concurrent reads. No locking issues.
-
-### Configurable Endpoints
-
-The dashboard must accept endpoint URLs and DB path as config:
-
-```yaml
-# ~/.config/wanctl-dashboard.yaml (or CLI args)
-autorate_url: "http://127.0.0.1:9101"
-steering_url: "http://127.0.0.1:9102"
-db_path: "/var/lib/wanctl/metrics.db"
-refresh_interval: 2.0
-```
-
-This allows running the dashboard from any machine (local, SSH tunnel, container).
-
-## Installation
-
-### Runtime (new dependencies)
-
-```bash
-# Add to pyproject.toml [project.optional-dependencies] or [project] dependencies
-# Option A: Optional dependency group (recommended -- dashboard is optional tool)
-pip install textual>=8.0.0 httpx>=0.28.0
-
-# Option B: Add to main dependencies if dashboard ships with core
-```
-
-### pyproject.toml Changes
+## New Entry Points
 
 ```toml
-# Recommended: optional dependency group
-[project.optional-dependencies]
-dashboard = [
-    "textual>=8.0.0",
-    "httpx>=0.28.0",
-]
-
+# pyproject.toml additions
 [project.scripts]
-wanctl-dashboard = "wanctl.dashboard.app:main"
+wanctl-check-config = "wanctl.check_config:main"
+wanctl-check-cake = "wanctl.check_cake:main"
 ```
 
-**Why optional dependency group:** The dashboard is a development/operator tool, not needed on production containers running the daemons. Keeps production image lean. Install with `pip install wanctl[dashboard]` or `uv sync --extra dashboard`.
+**Pattern:** Follow existing `wanctl-history` CLI pattern: `argparse` for argument parsing, config path as required argument, structured text output with exit codes (0=pass, 1=warnings, 2=errors).
 
-### Dev Dependencies
+---
 
-No additional dev dependencies. Textual includes `textual dev` tools in the main package. Testing uses existing pytest + pytest-cov.
+## Version Compatibility
+
+No new packages. All existing dependencies remain at current pinned versions.
+
+| Package | Current Pin | Milestone Use |
+|---|---|---|
+| `pyyaml>=6.0.1` | Config loading for validation | No change |
+| `requests>=2.31.0` | RouterOS REST API for CAKE audit | No change |
+| `paramiko>=3.4.0` | RouterOS SSH fallback for probes | No change |
+| `tabulate>=0.9.0` | CLI output formatting for check results | No change |
+| `pytest>=8.0.0` | Integration probe test framework | No change |
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Textual | curses/urwid | Textual has CSS styling, async-native, rich widget library. curses is low-level C binding. urwid is unmaintained. |
-| Textual | Rich Live | Rich Live is for simple auto-refreshing displays, not interactive TUIs with tabs/tables/keybindings. |
-| httpx | aiohttp | aiohttp is server+client; httpx is client-only and lighter. Textual examples use httpx. |
-| httpx | requests (existing dep) | requests is sync-only, requires thread workers. httpx is async-native for Textual's event loop. |
-| Built-in Sparkline | textual-plotext | Zero extra deps vs 2 extra deps. Sparkline sufficient for rate trends. |
-| Built-in Sparkline | textual-plot | Adds NumPy (~30MB). Overkill for monitoring sparklines. |
-| sqlite3 (thread worker) | aiosqlite | Avoids new dependency. Existing reader.py works unchanged. Thread worker is fine for infrequent history queries. |
-| Optional dep group | Core dependency | Dashboard not needed on headless production containers. |
+| Category | Recommended | Alternative | Why Not |
+|---|---|---|---|
+| Config validation | Extend existing `validate_schema()` | Pydantic BaseModel rewrite | Rewrite of 3 config classes for no functional gain. Production risk. |
+| Config validation | Extend existing `validate_schema()` | Cerberus schema library | Duplicates existing `validate_schema()` with different API. |
+| Config validation | Extend existing `validate_schema()` | JSON Schema / jsonschema | Poor YAML type coercion handling. Adds dependency. |
+| CAKE querying | Extend `RouterOSREST` with `get_queue_type()` | New library (routeros-api) | Project already has REST + SSH clients. Adding a third is waste. |
+| CLI framework | stdlib `argparse` | Click / Typer | Consistent with existing CLIs (`wanctl-history`). Simple subcommands. |
+| CLI output | `tabulate` (existing dep) | Rich console | tabulate is already a dep, sufficient for check results. |
+| Integration probes | pytest markers + fixtures | Standalone probe script | pytest infrastructure exists, markers/fixtures compose naturally. |
+
+---
 
 ## What NOT to Add
 
 | Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| aiosqlite | New dep for marginal benefit; existing reader.py is sync sqlite3 | `@work(thread=True)` with existing `query_metrics()` |
-| textual-plotext | Stagnant upstream (plotext), 2 extra deps | Built-in `Sparkline` widget |
-| textual-plot | NumPy dependency is disproportionate | Built-in `Sparkline` widget |
-| rich (explicit) | Already a transitive dep of textual | No action needed -- Rich renderables available automatically |
-| websockets | Health endpoints are HTTP request/response, not streaming | httpx polling with `set_interval` |
-| prometheus_client | PROJECT.md explicitly states "No external monitoring" | Built-in metrics via SQLite |
-| click / typer | Dashboard CLI is simple (few args) | `argparse` (stdlib, consistent with existing wanctl-history) |
-| pydantic | Config validation for dashboard is minimal (3-4 fields) | Simple dict + defaults |
+|---|---|---|
+| pydantic | Requires rewriting BaseConfig/Config/SteeringConfig. No functional gain. | Extend existing `validate_schema()` + `validate_field()` |
+| cerberus | Duplicates existing validation framework | Existing `validate_schema()` |
+| jsonschema | Poor YAML type coercion | Existing `validate_field()` with int-to-float handling |
+| routeros-api / librouteros | Third router client alongside REST + SSH | Extend `RouterOSREST` with one new GET method |
+| click / typer | Inconsistent with existing CLIs | `argparse` (stdlib) |
+| pytest-docker | Overkill for read-only probes against existing router | Live router fixture with `--router-config` |
+| rich (explicit) | Not needed for CLI tools | `tabulate` (existing dep) for structured output |
 
-## Version Compatibility
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| textual>=8.0.0 | Python 3.9-3.14 | We use 3.12. v8.0.0 breaking change: `Select.BLANK` -> `Select.NULL` (irrelevant to dashboard). |
-| httpx>=0.28.0 | Python 3.8+ | Depends on anyio, certifi, httpcore. No conflicts with existing requests dep. |
-| textual>=8.0.0 | rich>=14.2.0 (transitive) | Textual pins its own Rich version. No manual Rich install needed. |
-| sqlite3 (stdlib) | Python 3.12 | WAL mode concurrent reads work with existing writer. No version concern. |
+---
 
 ## Confidence Assessment
 
 | Area | Level | Reason |
-|------|-------|--------|
-| Textual framework | HIGH | v8.1.1 verified on PyPI (2026-03-10). Active development (10 releases in 2026). Well-documented. |
-| httpx for polling | HIGH | v0.28.1 verified on PyPI. Textual docs demonstrate httpx integration. Simple localhost GET requests. |
-| Built-in Sparkline | HIGH | Part of Textual since 2023. Documented API with reactive data updates. |
-| Adaptive layout | MEDIUM | Textual lacks CSS media queries -- requires Python `on_resize` handling. Pattern is documented but less ergonomic than web CSS. |
-| SQLite thread worker | HIGH | Existing `query_metrics()` works unchanged. Textual `@work(thread=True)` is well-documented pattern. |
-| Optional dep group | HIGH | Standard pyproject.toml feature. `pip install wanctl[dashboard]` is idiomatic Python. |
+|---|---|---|
+| Config validation approach | HIGH | Existing framework is mature (validate_schema, validate_field, BaseConfig). Just extending coverage. |
+| CAKE qdisc querying | HIGH | RouterOS REST API pattern is identical to existing `get_queue_stats()`. GET /rest/queue/type follows same endpoint structure. Verified via official MikroTik docs. |
+| Integration probes | HIGH | pytest marker/fixture infrastructure exists. New marker + fixture is configuration, not novel code. |
+| Zero new deps | HIGH | Every capability needed exists in the codebase or stdlib. |
+| RouterOS REST response format | MEDIUM | MikroTik docs confirm JSON response with string-encoded values and `.id` field. Exact CAKE parameter names in REST JSON response should be verified against live router (names may use hyphens vs underscores). |
+
+---
 
 ## Sources
 
-- [Textual official docs](https://textual.textualize.io/) -- Widget gallery, CSS guide, Workers guide, Sparkline API
-- [Textual GitHub releases](https://github.com/Textualize/textual/releases) -- v8.1.1 (2026-03-10) confirmed latest
-- [PyPI textual](https://pypi.org/project/textual/) -- v8.1.1, Python 3.9-3.14, rich>=14.2.0 dep
-- [PyPI httpx](https://pypi.org/project/httpx/) -- v0.28.1, Python 3.8+, anyio+certifi+httpcore deps
-- [PyPI textual-plotext](https://pypi.org/project/textual-plotext/) -- v1.0.1 (Nov 2024), evaluated and rejected
-- [PyPI textual-plot](https://pypi.org/project/textual-plot/) -- v0.10.1 (Feb 2026), evaluated and rejected (NumPy dep)
-- [PyPI plotext](https://pypi.org/project/plotext/) -- v5.3.2 (Sep 2024), stagnant upstream
-- [Textual Workers guide](https://textual.textualize.io/guide/workers/) -- @work decorator, exclusive workers, thread workers
-- [Textual Layout guide](https://textual.textualize.io/guide/layout/) -- Grid, horizontal, vertical layouts
-- [Textual Resize event](https://textual.textualize.io/events/resize/) -- size, virtual_size, container_size properties
-- Direct codebase analysis: health_check.py (port 9101 API), steering/health.py (port 9102 API), storage/reader.py (query_metrics), storage/schema.py (STORED_METRICS)
+- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) -- CAKE parameters: cake-bandwidth, cake-flowmode, cake-diffserv, cake-rtt, cake-overhead-scheme, etc.
+- [MikroTik Queue Tree Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues) -- Queue tree properties: name, parent, queue (type reference), max-limit, statistics fields
+- [MikroTik REST API Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API) -- GET/POST/PATCH patterns, JSON response format, filtering
+- [Queue Tree Properties Reference](https://mikrotikdocs.fyi/queues/queue-tree/) -- Full property list including read-only statistics
+- Direct codebase analysis: `config_base.py`, `config_validation_utils.py`, `routeros_rest.py`, `routeros_ssh.py`, `router_client.py`, `steering/cake_stats.py`, `backends/routeros.py`, `tests/integration/conftest.py`
 
 ---
-*Stack research for: wanctl v1.14 TUI Dashboard*
-*Researched: 2026-03-11*
+*Stack research for: wanctl v1.16 Validation & Operational Confidence*
+*Researched: 2026-03-12*

@@ -1,211 +1,171 @@
 # Project Research Summary
 
-**Project:** wanctl v1.14 — TUI Dashboard (wanctl-dashboard)
-**Domain:** Real-time network monitoring TUI for existing dual-WAN controller
-**Researched:** 2026-03-11
+**Project:** wanctl v1.16 — Validation & Operational Confidence
+**Domain:** Config validation CLI, CAKE qdisc auditing, read-only router integration probes for production dual-WAN controller
+**Researched:** 2026-03-12
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.14 milestone adds a standalone TUI dashboard that gives operators a live view of the dual-WAN controller's health without requiring SSH + curl. The research is unusually clean because the dashboard is a pure consumer of infrastructure that already exists: two HTTP health endpoints (ports 9101/9102), a `/metrics/history` API, and a SQLite metrics database. The recommended approach is Textual (Python TUI framework, v8.1.1) with httpx for async HTTP polling. Three new runtime dependencies (textual, httpx) ship as an optional dependency group so daemon containers stay lean. Zero changes to daemon code are needed for the initial build.
+v1.16 is an operational confidence milestone for a mature, production-grade codebase (20,140 LOC, 2,666 tests, 16 milestones shipped). The core goal is to give operators tools to verify that their wanctl config files are valid and that the router's CAKE queue configuration actually matches what wanctl expects — before problems surface at runtime. Unlike previous milestones that added new daemon features, this milestone adds only CLI tools and minor daemon startup hardening. No new runtime dependencies are required: the existing `BaseConfig`, `validate_schema()`, `RouterOSREST`, and `argparse`/`tabulate` stack is fully sufficient.
 
-The recommended architecture is a separate process with no shared code or state with the daemons. All data flows through HTTP. The dashboard has a clear MVP boundary: a polling engine plus live status panels validating the concept, followed by sparklines and history browser adding operational value, with adaptive layout and steering decision log deferred as polish. The feature dependency graph is simple — the health polling engine is the single prerequisite for every live display widget, which makes phasing straightforward.
+The recommended approach is two standalone CLI tools (`wanctl-check-config` and `wanctl-check-cake`) that reuse existing infrastructure without modifying daemon behavior. `wanctl-check-config` is offline — it validates YAML structure, types, value ranges, cross-field ordering, and file paths without touching the router. `wanctl-check-cake` connects to the router read-only, comparing queue tree and queue type parameters against config expectations. Both tools follow the `wanctl-history` CLI pattern (argparse, tabulate, --json, exit codes) and produce structured `ValidationResult` objects that are collected before reporting — so operators see all problems at once, not one at a time.
 
-The key risks are async event loop violations (using synchronous HTTP in a Textual app), missing graceful degradation when one daemon endpoint is unreachable, and the connectivity gap caused by health endpoints binding to 127.0.0.1 inside containers. All three risks are architectural in nature — they must be resolved in the data layer before building any widgets, because retrofitting them later requires rewriting every data access path.
+The dominant risk is backward compatibility: new validation rules must not reject existing production configs. The three production YAML files (`spectrum.yaml`, `att.yaml`, `steering.yaml`) evolved over 16 milestones and contain patterns new validators must tolerate (unknown keys, `${ROUTER_PASSWORD}` env var syntax, optional fields with legacy fallbacks). Every new validation rule must be warn-by-default, not fail-by-default. A second critical risk is ensuring router probes never enter the daemon startup path in a blocking or crash-inducing way — the 30s systemd WatchdogSec budget already has limited headroom with the 20s startup maintenance window.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is minimal: Textual provides the TUI framework, async event loop, and all required widgets (Sparkline, DataTable, TabbedContent, Digits, Header/Footer, RichLog, ProgressBar, ContentSwitcher). httpx provides async HTTP for polling health endpoints. All historical data access goes through the existing `/metrics/history` HTTP API, avoiding the need for aiosqlite. The existing synchronous `query_metrics()` reader can be used from a `@work(thread=True)` worker if direct SQLite access is ever needed locally, but the HTTP path is preferred for remote deployments.
+The existing stack needs zero new dependencies. `BaseConfig.validate_schema()` already provides typed multi-error collection; `RouterOSREST` already handles REST GET queries with auth and caching; `argparse` and `tabulate` are already used by `wanctl-history`. The only new infrastructure needed is a `ValidationResult` dataclass (CheckStatus: PASS/WARN/FAIL/SKIP, plus category, check name, message, expected, actual fields) added to `config_base.py`, and two new top-level modules registered as console_scripts.
 
 **Core technologies:**
-- `textual>=8.0.0`: TUI framework — async-native, CSS-based layout, rich built-in widget set, active development (10 releases in 2026 as of research date)
-- `httpx>=0.28.0`: Async HTTP client — pairs naturally with Textual's `@work` decorator, lighter than aiohttp for client-only use, used in Textual's own documentation examples
-- `sqlite3` (stdlib, thread worker): Historical data fallback — existing `query_metrics()` works unchanged, no new dependency needed
-- `argparse` (stdlib): CLI args — consistent with existing `wanctl-history` tool, no click/typer needed for a few flags
+- `config_base.py` (existing): BaseConfig, validate_schema(), validate_field() — the validation framework to extend, not replace
+- `config_validation_utils.py` (existing): Domain cross-field validators (validate_bandwidth_order, validate_threshold_order, validate_alpha, deprecate_param) — called from the CLI tool, not reimplemented
+- `routeros_rest.py` (existing): RouterOSREST GET requests — add one new `get_queue_type()` method for `/rest/queue/type`; same pattern as existing `get_queue_stats()`
+- `argparse` (stdlib): CLI entry point — consistent with existing `wanctl-history`; no click or typer needed
+- `tabulate` (existing dep): CLI output formatting — already in pyproject.toml; sufficient for check results
 
-**What to avoid adding:**
-- `textual-plotext` / `textual-plot`: stagnant upstream or NumPy-heavy; Textual's built-in Sparkline is sufficient for trend visualization
-- `aiosqlite`: new dependency with marginal benefit; thread worker plus existing reader is equivalent
-- `websockets`: health endpoints are request/response, not streaming; httpx polling with `set_interval` is correct
+Pydantic, cerberus, jsonschema, routeros-api, click, and rich were all explicitly evaluated and rejected. Adding any of them would require rewriting existing infrastructure for no functional gain.
 
 ### Expected Features
 
-**Must have (table stakes — P1, MVP launch):**
-- Health polling engine with configurable endpoint URLs and 1-2s refresh — foundation for all live features
-- Error handling for unreachable daemons — show inline "offline" state, keep polling, never crash
-- Per-WAN panels with color-coded congestion state (GREEN/YELLOW/SOFT_RED/RED) — primary visual
-- Current DL/UL rates and RTT (baseline/load/delta) per WAN — key numbers
-- Steering status with confidence score — the headline feature since v1.13 graduation
-- WAN awareness detail panel (zone, staleness, grace, contribution) — completes steering picture
-- Footer with discoverable keybindings (`q` quit, `r` refresh, Tab cycle) — mandatory for TUI usability
-- CLI args (`--autorate-url`, `--steering-url`, `--db-path`) — enables remote operation
+**Must have (table stakes):**
+- `wanctl-check-config <file>` standalone CLI — validates both autorate and steering configs offline, no router needed
+- Structured error collection (all errors reported, not just first) — using collect-then-report pattern
+- Cross-field semantic validation — floor ordering (`floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling`), threshold ordering, `steer_threshold > recovery_threshold`
+- File/permission checks — log dirs, state dirs, lock dirs, SSH key path (all checked before daemon discovers them at runtime)
+- Environment variable resolution check — `${ROUTER_PASSWORD}` treated as valid syntax, not a missing value
+- Exit codes for CI/CD — 0=pass, 1=fail, 2=warn-only
+- Human-readable output with severity levels (ERROR/WARNING/INFO)
+- `wanctl-check-cake` CLI — read-only router queue audit comparing config expectations vs router reality
 
-**Should have (competitive value — P2, post-validation):**
-- Bandwidth sparklines (DL/UL per WAN, rolling deque buffer) — trend visibility btop-style
-- RTT delta sparkline with color gradient — early warning for congestion onset
-- Cycle budget utilization gauge — 50ms budget health at a glance
-- Digits widget headline (worst RTT delta or total bandwidth) — wall-display legibility
-- Historical metrics browser tab with time range selector (1/2/3/4 keys for 1h/6h/24h/7d) — post-mortem use case
-- Summary statistics for selected range (min/max/avg/p95/p99)
+**Should have (differentiators):**
+- Config type auto-detection (autorate vs steering) — detect from YAML keys, no `--type` flag required
+- Mangle rule existence check (steering configs) — verify the steering rule exists on the router and matches `mangle_rule.comment`
+- Config diff output — "max-limit: 940Mbps (config) vs 500Mbps (router)" side-by-side comparison
+- JSON output mode (`--json`) — for scripting and CI pipelines, following `wanctl-history` pattern
+- Deprecated parameter report — surface `deprecate_param()` warnings prominently in CLI output, not buried in daemon logs
+- Optional router connectivity probe in `check-config` (`--probe` flag) — separated from offline validation
 
-**Defer (v1.15+ or explicit request):**
-- Adaptive layout (wide/narrow responsive) — start with fixed layout, add later
-- Steering decision log — requires new daemon ring-buffer API endpoint
-- Exportable clipboard views — operator convenience, not blocking
-- Custom refresh rate selection — 1-2s default is appropriate
-
-**Anti-features (explicitly rejected):**
-- Live log tailing: 20Hz log volume is overwhelming; `journalctl -f` is purpose-built for this
-- Config editing from TUI: no audit trail, dangerous for production network controller
-- Sub-second dashboard refresh: no human or visual benefit at <200ms, wastes CPU
-- Full Grafana-style charts: terminal resolution makes them unreadable; sparklines are sufficient
+**Defer (v2+):**
+- Config file generation/wizard (`wanctl-calibrate` already handles initial setup)
+- Schema migration tooling (no v2.0 schema defined, YAGNI)
+- Auto-fix/auto-repair (too risky for production network config)
+- Full network topology discovery (out of scope — probe only the resources wanctl manages)
+- Interactive TUI mode (plain text + JSON is sufficient for pipe-friendly tooling)
 
 ### Architecture Approach
 
-The dashboard is a standalone `wanctl-dashboard` process that communicates exclusively via HTTP with the two daemon health endpoints. It has zero code imports from daemon modules. The `DataPoller` component manages async HTTP polling with connection pooling and per-endpoint error states. Textual reactive attributes propagate polled data to widgets. Historical data uses the existing `/metrics/history` API endpoint rather than direct SQLite access, enabling remote operation without filesystem coupling.
+The new features are read-only inspection tools — one-shot CLI commands that load config, optionally probe the router, collect results, and exit. They never run as daemons. The architecture is two new flat modules (`check_config.py`, `check_cake.py`) following the established `history.py`/`calibrate.py` pattern, registered in `pyproject.toml` as console_scripts. A `ValidationResult` dataclass added to `config_base.py` is the shared result type. Daemon startup keeps its existing fail-fast behavior (raise ConfigValidationError); the CLI tools use a parallel collect-then-report path that calls the same underlying validators but wraps results differently.
 
 **Major components:**
-1. `wanctl.dashboard.app` — Textual App subclass, entry point, timer and worker orchestration
-2. `wanctl.dashboard.poller` — `DataPoller`: persistent async httpx client, connection pooling, per-endpoint error states, exponential backoff retry
-3. `wanctl.dashboard.config` — `DashboardConfig`: separate YAML from daemon configs (no router credentials), CLI arg overrides
-4. `wanctl.dashboard.widgets/` — `WanStatusWidget`, `BandwidthChart`, `SteeringPanel`, `HistoryBrowser` — each self-contained, data via reactive attributes
-5. `wanctl.dashboard.styles/dashboard.tcss` — Textual CSS for layout, theming, color mapping
+1. `check_config.py` (new) — CLI entry point: YAML parse -> schema validation -> cross-field checks -> file/permission checks -> optional probe -> collect results -> report with exit code
+2. `check_cake.py` (new) — CLI entry point: config load -> router client -> `/queue/tree` query -> `/queue/type` query -> comparison against config -> report with exit code
+3. `config_base.py` (modified, additive) — adds `ValidationResult` and `CheckStatus` dataclass; no changes to existing validation behavior
+4. `config_validation_utils.py` (minor modification) — add any cross-field validators not yet present; existing validators called as-is
 
-**Key patterns:**
-- `@work(exclusive=True)` async workers for HTTP polling — prevents stale request queue buildup if endpoint is slow
-- Reactive data binding — widgets watch their `data` attribute, never know about HTTP
-- Message-based thread communication — `call_from_thread()` or `post_message()` for any SQLite thread workers
-- Independent per-endpoint polling timers — one endpoint being slow or down does not affect others
-- `collections.deque(maxlen=N)` for sparkline buffers — bounded memory regardless of runtime duration
-
-**Connectivity model:** Health endpoints bind to 127.0.0.1 inside Docker containers. For remote dashboard access, use SSH port forwarding (`ssh -L 9101:127.0.0.1:9101 cake-spectrum`) or add configurable `health.bind_address` to daemon YAML (one-line change, defaulting to 127.0.0.1 for security).
+Key pattern distinction: `get_router_client()` (not `get_router_client_with_failover()`) for CLI tools. A one-shot probe should report clearly if the configured transport fails, not silently fall over. FailoverRouterClient is for long-running daemons.
 
 ### Critical Pitfalls
 
-1. **Blocking Textual event loop with synchronous HTTP** — Use `httpx.AsyncClient` exclusively. Never use `requests`, `urllib`, or any synchronous HTTP client in dashboard code. Retrofit cost is high (must rewrite every polling path). Must be architectural from day one.
+1. **New validation rejects existing production configs** — use warn-by-default for all new rules; never add "reject unknown keys" logic; run against actual `/etc/wanctl/*.yaml` before merging; use `--strict` flag for opt-in enforcement. Recovery is low-cost (remove the offending rule) but production outage while containers fail to restart is HIGH-pain.
 
-2. **No graceful degradation when one endpoint is unreachable** — Poll each data source independently with separate workers and timers. Show inline "offline + last-seen timestamp" per section, never a full-screen error overlay. Retrofit cost is high (requires rearchitecting data layer). Build this into the polling abstraction, not as a UI afterthought.
+2. **Router probes added to daemon startup path** — probes must be CLI tools only or post-startup advisory checks with a 3s timeout max; never blocking at startup; the 30s WatchdogSec budget with 20s startup maintenance already leaves only ~5-9s of headroom. Probe timeout default of 15s in the startup path would exceed the budget.
 
-3. **Health endpoints unreachable from local machine** — Endpoints bind to 127.0.0.1 inside containers. Decide connectivity model (SSH tunnel, Docker port mapping, or configurable bind address) before writing any polling code. SSH tunnel is the secure default; Docker port mapping is simpler for home network use.
+3. **Router probe accidentally writes to router** — all probe HTTP requests must use GET; create a read-only wrapper around RouterOSREST with no POST/PATCH methods; assert HTTP method is GET in tests. Recovery if router state is modified: HIGH cost (may require manual router config restore).
 
-4. **Sparkline data accumulating without bounds** — Use `collections.deque(maxlen=N)` from the first data append. List-based accumulation causes linear memory growth and render slowdown after hours of runtime. Retrofit is mechanical but requires touching every data append site.
+4. **CAKE audit queries only `/queue/tree`, missing CAKE parameters** — RouterOS has a two-level queue model: tree entries reference queue types, and CAKE parameters (cake-bandwidth, cake-rtt, cake-flowmode, etc.) live on `/queue/type`, not `/queue/tree`. The audit needs both queries. The existing `CakeStatsReader` only reads counters from the tree, not CAKE config from the type.
 
-5. **Thread-unsafe UI updates from SQLite workers** — Use `@work(thread=True)` for SQLite but communicate results exclusively via `post_message()` or `call_from_thread()`. Never set reactive attributes directly from a thread worker. Intermittent crashes are the symptom; detection is difficult post-hoc.
+5. **Unit mismatch in CAKE comparison** — config stores ceiling in Mbps, router returns `max-limit` in bps (as a string like `"940000000"`); CAKE RTT may be a preset name (`internet`) or raw ms value; define an explicit conversion table before writing any comparison logic.
 
 ## Implications for Roadmap
 
-Based on the research, a 3-phase structure is recommended. The architecture research's 8-step build order maps naturally onto three phases with clear deliverables at each boundary.
+Based on research, a 4-phase structure is recommended. Each phase delivers independently useful functionality and has a clear boundary.
 
-### Phase 1: Foundation — Data Layer + Entry Point + Live Status
+### Phase 1: Config Validation Foundation
+**Rationale:** Entirely offline, no router dependency. Establishes the `ValidationResult` type and collect-then-report pattern that all subsequent phases depend on. Backward compatibility must be the primary constraint — establish it here before any validation logic is written.
+**Delivers:** `wanctl-check-config` entry point for autorate configs; schema + cross-field + file checks; exit codes 0/1/2; structured text output with severity levels; `ValidationResult`/`CheckStatus` dataclass in `config_base.py`
+**Addresses (FEATURES.md):** All table-stakes features except steering config support and JSON output
+**Avoids (PITFALLS.md):** P1 (backward compat regression), P5 (incomplete schema coverage), P10 (CLI cannot resolve env var passwords), P11 (log noise in daemon)
 
-**Rationale:** The health polling engine is the prerequisite for every live display feature. Building it first (with correct async patterns, error handling, and connectivity) prevents the highest-cost pitfalls from being baked into the codebase. A minimal working dashboard — even one that just shows raw numbers — validates the end-to-end data flow before investing in polish.
+### Phase 2: Steering Config Support + Deprecated Param Report
+**Rationale:** Autorate and steering configs have different schemas; supporting both in a single CLI tool requires config type auto-detection. Deprecated param surfacing reuses existing `deprecate_param()` with output routing changes — low complexity, high operator value. JSON output and steering cross-validation complete the CLI feature set before moving to router-dependent work.
+**Delivers:** Steering config validation in `check-config`; config type auto-detection (from YAML keys); deprecated parameter report in CLI output; `--json` mode; cross-config steering cross-validation (topology.primary_wan_config resolves and `wan_name` matches `topology.primary_wan`)
+**Addresses (FEATURES.md):** Config type auto-detection, deprecated param report, JSON output, steering config coverage
+**Avoids (PITFALLS.md):** P1 (steering configs must also pass unchanged), P5 (schema coverage for steering-specific fields)
 
-**Delivers:**
-- Working `wanctl-dashboard` command that launches without error
-- `DashboardConfig` with YAML loading and CLI arg overrides (endpoint URLs, DB path)
-- `DataPoller` with persistent async httpx client, connection pooling, per-endpoint error states, retry with exponential backoff
-- Per-WAN live status panels: congestion state (color-coded), DL/UL rates, RTT (baseline/load/delta)
-- Steering status panel: enabled/disabled, confidence score, WAN awareness fields
-- Footer with discoverable keybindings
-- Graceful unreachable-daemon handling (inline "offline" state, continued polling)
-- pyproject.toml optional dependency group (`wanctl[dashboard]`) and entry point
+### Phase 3: CAKE Qdisc Audit
+**Rationale:** Router-dependent phase comes after the offline validation foundation is solid. Requires understanding the RouterOS two-level queue model and unit conversion. Uses `ValidationResult` from Phase 1. CAKE parameter names in REST JSON should be verified against the live RB5009 early in this phase.
+**Delivers:** `wanctl-check-cake` CLI; REST connectivity probe; queue tree audit (queue exists, uses CAKE type, max-limit matches config ceiling); queue type audit (CAKE parameters vs config expectations); mangle rule check for steering configs; config diff output (expected vs actual per field)
+**Addresses (FEATURES.md):** `wanctl-check-cake` table stake, router connectivity probe, CAKE type verification, mangle rule check, config diff differentiator
+**Avoids (PITFALLS.md):** P3 (read-only probes only — GET requests enforced architecturally), P4 (unit mismatch — explicit conversion table), P6 (probe failure never blocks daemon), P7 (both `/queue/tree` and `/queue/type` queried)
 
-**Addresses (from FEATURES.md):** All P1 / table-stakes features
-**Avoids (from PITFALLS.md):** P1 (blocking event loop), P2 (thread-unsafe UI), P3 (polling too fast), P4 (unreachable endpoints), P6 (dashboard isolation), P10 (no graceful degradation), P11 (resource leak)
-
-**Research flag:** Standard Textual patterns — well-documented with code examples, skip `/gsd:research-phase`
-
-### Phase 2: Visualization — Sparklines + Historical Browser
-
-**Rationale:** Once the polling foundation is proven and data flows correctly, sparkline charts are a low-risk addition (Textual built-in widget, just wire rolling buffer to existing polled data). The historical browser is higher complexity (query engine, time range selector, DataTable) but uses the existing `/metrics/history` API which was designed for this purpose.
-
-**Delivers:**
-- Bandwidth sparklines (DL/UL per WAN, rolling deque buffer, ~2 minute window at 1Hz)
-- RTT delta sparkline with min=green/max=red gradient
-- Cycle budget utilization gauge (existing health endpoint data, zero new daemon code)
-- Digits headline widget (worst RTT delta or aggregate bandwidth)
-- Historical metrics browser tab: time range selector (1/2/3/4 keys), DataTable with granularity-aware queries, summary statistics (min/max/avg/p95/p99)
-
-**Uses (from STACK.md):** Textual Sparkline widget, DataTable widget, TabbedContent widget, `@work(thread=True)` for SQLite if needed
-**Avoids (from PITFALLS.md):** P7 (unbounded sparkline data), P5 (SQLite locking), performance trap (fetchall for large time ranges)
-
-**Research flag:** Standard patterns for Sparkline and DataTable — skip `/gsd:research-phase`. The `/metrics/history` endpoint behavior (pagination, granularity auto-selection via existing `select_granularity()`) is well-understood from direct code inspection.
-
-### Phase 3: Polish — Adaptive Layout + Terminal Compatibility
-
-**Rationale:** Adaptive layout (wide/narrow responsive) and terminal compatibility (tmux, SSH) are quality-of-life improvements that do not block daily use. Deferred because they introduce the most Textual-specific complexity (resize events, CSS media queries, hysteresis) and are only worth the investment after the dashboard has proven its value in daily operation.
-
-**Delivers:**
-- Adaptive layout: side-by-side WAN panels at >= 120 columns, stacked/tabbed below 120
-- Resize hysteresis (20-column dead zone) to prevent layout flicker at breakpoint boundary
-- Terminal compatibility verification: bare terminal, tmux, SSH + tmux
-- `--no-color` / `--256-color` CLI fallback flags
-- Optionally: `health.bind_address` config option added to daemons (one-line change) for clean remote access without SSH tunnels
-
-**Avoids (from PITFALLS.md):** P8 (terminal compatibility), P9 (adaptive layout flicker)
-
-**Research flag:** Adaptive layout in Textual lacks CSS media queries — requires Python `on_resize` handler with debouncing. Pattern is documented but less ergonomic than web CSS. Consider a focused spike if layout design is complex.
+### Phase 4: Integration Probes + Daemon Startup Hardening
+**Rationale:** Polish and end-to-end coverage. Adding environment checks to daemon startup (`_validate_environment()`) makes config problems fail fast at startup rather than mid-cycle. State file and SQLite integrity checks complete the operational confidence picture. This phase is last because daemon startup modifications are the highest-risk changes — leaving them until validation patterns are proven by CLI tools is the right order.
+**Delivers:** `_validate_environment()` in both daemon Config classes (log dirs, state dirs, lock dirs, SSH key — fast <50ms); state file consistency check (valid JSON, expected keys, freshness — via health endpoint when daemon is running); SQLite PRAGMA integrity_check; optional `wanctl check-all` convenience wrapper
+**Addresses (FEATURES.md):** SQLite integrity check, health endpoint probe, state file check, daemon startup hardening
+**Avoids (PITFALLS.md):** P2 (environment checks are fast, not router probes), P8 (state file race — use health endpoint when daemon is running), P9 (coverage stays >=90%)
 
 ### Phase Ordering Rationale
 
-- **Data layer before widgets:** Every display widget depends on correct async polling. Building widgets on a synchronous polling foundation would require a complete rewrite of every data access call, not an incremental fix.
-- **Error handling before features:** Graceful degradation is architectural. Adding it after a working dashboard requires rearchitecting the data layer (high retrofit cost per PITFALLS.md P10 recovery cost: HIGH).
-- **Sparklines before history:** Sparklines reuse already-polled data with minimal new code (wire rolling deque to existing poll output). History browser is independent but more complex; comes after the live view is stable.
-- **Layout last:** Adaptive layout does not block any feature. A reasonable fixed layout (vertical stack or simple horizontal split) is sufficient for phases 1-2.
-- **Daemon code stays frozen:** The architecture research confirms zero daemon changes are needed for phases 1-2. Phase 3 may add `health.bind_address` as a one-line config change. No daemon architectural spine changes at any phase.
+- Phase 1 before Phase 2: `ValidationResult` and collect-then-report pattern must exist before adding more validation categories
+- Phase 2 before Phase 3: Steering config support and JSON output are needed before `check-cake` (which also produces steering-specific results in JSON)
+- Phase 3 before Phase 4: Router probe infrastructure establishes the read-only probe pattern; startup hardening reuses it conceptually but does not depend on it technically
+- Phase 4 last: Daemon startup modifications touch production-critical paths; they should be the last change after validation patterns are battle-tested by CLI tools
+- Daemon code stays frozen through Phases 1-3: zero daemon changes needed; Phase 4 adds only a new method call in Config.__init__, not changes to existing logic
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3 (adaptive layout):** Textual lacks CSS media queries; `on_resize` hysteresis and debouncing require careful design. If the layout design is ambitious (e.g., pre-built wide/narrow widget trees rather than CSS toggling), a research spike on Textual's ContentSwitcher and resize event patterns is worthwhile.
-
 Phases with standard patterns (skip `/gsd:research-phase`):
-- **Phase 1:** Textual app skeleton, httpx async polling, pyproject.toml optional deps — all have code examples in Textual official docs and the patterns are well-established.
-- **Phase 2:** Sparkline widget API, DataTable, `/metrics/history` endpoint — endpoint designed for this use case and inspected directly in codebase.
+- **Phase 1:** All patterns derived from existing codebase. BaseConfig, validate_schema, argparse, tabulate — established, no novel territory.
+- **Phase 2:** Same infrastructure, additive only. Config type detection is key inspection. deprecate_param output routing is minor.
+- **Phase 4:** `_validate_environment()` follows established BaseConfig pattern. sqlite3 PRAGMA is stdlib.
+
+Phases likely needing deeper research during planning:
+- **Phase 3:** RouterOS REST API response format for `/rest/queue/type` should be verified against the live RB5009 before finalizing comparison logic. CAKE parameter names in REST JSON (hyphenated vs underscored field names, presence of units in values like `"100ms"` vs `100`) are documented in MikroTik docs but the exact GET response format needs live confirmation. Record real responses as test fixtures early in this phase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Textual v8.1.1 and httpx v0.28.1 verified on PyPI (2026-03-10). Textual docs demonstrate httpx integration explicitly. All version constraints verified. Widget APIs confirmed to cover 100% of dashboard needs without additional libraries. |
-| Features | HIGH | Health endpoints directly inspected in codebase. Every P1 feature maps to data already available in existing API responses. No speculation about available data — all fields confirmed in source. |
-| Architecture | HIGH | Existing endpoints (`/health`, `/metrics/history`) inspected at source level. DataPoller/reactive pattern is idiomatic Textual. HTTP-only approach eliminates SQLite cross-container complexity. Anti-patterns identified with specific failure modes. |
-| Pitfalls | HIGH | Grounded in direct codebase analysis (health server bind addresses, MetricsWriter WAL behavior, storage/reader.py) plus Textual framework documentation. Critical pitfalls are concrete, actionable, and mapped to specific recovery costs. |
+| Stack | HIGH | Zero new deps confirmed. Explicit rejection of pydantic, cerberus, routeros-api, click, rich. Every needed capability mapped to an existing file and function. |
+| Features | HIGH | Grounded in codebase analysis of existing validate_config_mode, REST client methods, and wanctl-history patterns. All must-have features map to already-existing infrastructure. |
+| Architecture | HIGH | All patterns derived from existing codebase. CLI tool pattern (history.py, calibrate.py) is established. ValidationResult is a simple dataclass addition. Anti-patterns explicitly documented with specific failure modes. |
+| Pitfalls | HIGH | 12 pitfalls documented with specific code locations, warning signs, and recovery costs. Grounded in 16 milestones of accumulated system knowledge about production constraints (WatchdogSec, startup budget, flash wear, circuit breaker). |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Connectivity model decision:** Three options exist (SSH tunnel, Docker port mapping, configurable bind address). The team should pick one before Phase 1 implementation begins. Recommendation: SSH tunnel as the documented secure default, Docker port mapping as a documented simpler alternative for home network use.
-- **Dashboard config file location:** Research recommends `~/.config/wanctl/dashboard.yaml` for user-facing config or `/etc/wanctl/dashboard.yaml` alongside daemon secrets. Confirm which pattern fits the deployment model before Phase 1 config implementation.
-- **Steering decision log feasibility:** This feature (P3, deferred) requires a new daemon endpoint exposing a ring buffer of transition events. The alternative (parse logs from TUI via SSH/journalctl) adds auth complexity. If this feature is desired in a future milestone, add a daemon-side ring-buffer API endpoint; do not add SSH handling to the dashboard.
+- **RouterOS `/rest/queue/type` GET response format:** CAKE parameter names confirmed in MikroTik docs but exact JSON key format in a GET response (hyphenated vs underscored, unit encoding in string values) should be verified against the live RB5009 during Phase 3 planning. Record a real response early in implementation and use it as the canonical test fixture.
+- **Production config backward compatibility:** Research identifies this as the primary risk but cannot fully enumerate all edge cases in production YAML without running the validator. Phase 1 must include a validation run against actual `/etc/wanctl/*.yaml` before considering the phase complete.
+- **Startup budget measurement:** The 30s WatchdogSec limit and 20s startup maintenance budget are documented, but actual headroom is not measured. Phase 4 should include a startup timing measurement before and after adding `_validate_environment()` to verify the headroom assumption.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- [Textual official docs](https://textual.textualize.io/) — Widget gallery, CSS guide, Workers guide, Sparkline API, Resize event, Layout guide
-- [PyPI textual](https://pypi.org/project/textual/) — v8.1.1 confirmed (2026-03-10), Python 3.9-3.14
-- [PyPI httpx](https://pypi.org/project/httpx/) — v0.28.1, Python 3.8+
-- [Textual GitHub releases](https://github.com/Textualize/textual/releases) — v8.1.1 (2026-03-10) confirmed latest
-- wanctl codebase: `health_check.py`, `steering/health.py`, `storage/reader.py`, `storage/writer.py`, `storage/schema.py`, `metrics.py`, `history.py` — direct inspection of all integration points
+- Codebase: `src/wanctl/config_base.py` — BaseConfig, validate_schema, validate_field, SCHEMA pattern, ConfigValidationError
+- Codebase: `src/wanctl/config_validation_utils.py` — validate_bandwidth_order, validate_threshold_order, deprecate_param, validate_alpha
+- Codebase: `src/wanctl/autorate_continuous.py` — Config class, _load_specific_fields, validate_config_mode, startup sequence, max_seconds=20 budget
+- Codebase: `src/wanctl/routeros_rest.py` — RouterOSREST, _request, GET/PATCH usage, get_queue_stats pattern
+- Codebase: `src/wanctl/router_client.py` — get_router_client, FailoverRouterClient, _resolve_password
+- Codebase: `src/wanctl/steering/daemon.py` — SteeringConfig, SCHEMA, _load_specific_fields
+- Codebase: `src/wanctl/history.py`, `calibrate.py` — CLI tool patterns (argparse, tabulate, --json, exit codes)
+- Codebase: `systemd/wanctl@.service` — WatchdogSec=30s, StartLimitBurst=5/300s, EnvironmentFile semantics
+- Codebase: `src/wanctl/storage/maintenance.py` — run_startup_maintenance, watchdog_fn, max_seconds pattern
+- [MikroTik CAKE documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) — CAKE parameters: cake-bandwidth, cake-rtt, cake-diffserv, cake-flowmode, cake-overhead-scheme
+- [MikroTik REST API documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API) — GET=read-only, POST executes commands, 60s default timeout, JSON response format
+- [MikroTik Queues documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues) — queue tree vs queue type model, CAKE as queue type definition
 
 ### Secondary (MEDIUM confidence)
+- [Queue Tree Properties Reference (mikrotikdocs.fyi)](https://mikrotikdocs.fyi/queues/queue-tree/) — full queue tree property list including counters
+- [Python argparse documentation](https://docs.python.org/3/library/argparse.html) — subcommand and argument patterns
+- [tc-cake(8) Linux manual page](https://www.man7.org/linux/man-pages/man8/tc-cake.8.html) — CAKE parameter semantics and preset names
 
-- [SQLite WAL documentation](https://sqlite.org/wal.html) — concurrent read/write, checkpoint locking behavior
-- [NetWatch TUI](https://github.com/matthart1983/netwatch), btop, [awesome-tuis](https://github.com/rothgar/awesome-tuis) — TUI monitoring patterns and conventions
-- [HTTPX vs Requests vs AIOHTTP comparison](https://oxylabs.io/blog/httpx-vs-requests-vs-aiohttp) — library selection rationale
-- [Textual Workers guide](https://textual.textualize.io/guide/workers/) — thread safety rules, call_from_thread, exclusive workers
-- [Textual + tmux discussion #4003](https://github.com/Textualize/textual/discussions/4003) — escape key delay, color support issues (informs Phase 3 compatibility work)
-
-### Tertiary (evaluated and rejected)
-
-- [PyPI textual-plotext](https://pypi.org/project/textual-plotext/) — v1.0.1 (Nov 2024), stagnant upstream, rejected in favor of built-in Sparkline
-- [PyPI textual-plot](https://pypi.org/project/textual-plot/) — v0.10.1, NumPy dependency disproportionate for monitoring sparklines, rejected
-- [textual-fastdatatable](https://github.com/tconbeer/textual-fastdatatable) — evaluated for large DataTable performance, not needed at expected row counts
+### Tertiary (LOW confidence — verify during Phase 3)
+- RouterOS REST JSON field names for `/rest/queue/type` CAKE parameters — hyphen vs underscore formatting, unit encoding in string values, exact response structure needs live router verification
 
 ---
-*Research completed: 2026-03-11*
+*Research completed: 2026-03-12*
 *Ready for roadmap: yes*

@@ -1,434 +1,453 @@
-# Architecture Research: TUI Dashboard Integration
+# Architecture Patterns
 
-**Domain:** Real-time network monitoring TUI for existing dual-WAN controller
-**Researched:** 2026-03-11
-**Confidence:** HIGH
+**Domain:** Config validation, CAKE qdisc audit, router integration probes for dual-WAN controller
+**Researched:** 2026-03-12
+**Overall confidence:** HIGH (all patterns derived from existing codebase analysis)
 
-## System Overview
+## Current Architecture Summary
+
+The existing system has five layers:
 
 ```
-                     LOCAL MACHINE (or any host)
-  ┌──────────────────────────────────────────────────────────────┐
-  │                    wanctl-dashboard (TUI)                    │
-  │                                                              │
-  │  ┌────────────┐  ┌────────────┐  ┌────────────┐             │
-  │  │  Live View  │  │  History   │  │  Steering  │   Textual   │
-  │  │  (Tab 1)   │  │  (Tab 2)   │  │  (Tab 3)   │   App       │
-  │  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘             │
-  │        │               │               │                     │
-  │  ┌─────┴───────────────┴───────────────┴──────┐              │
-  │  │           DataPoller (async worker)         │              │
-  │  │     httpx.AsyncClient with connection pool  │              │
-  │  └────────────────┬───────────────────────────┘              │
-  └───────────────────│──────────────────────────────────────────┘
-                      │  HTTP (JSON)
-        ┌─────────────┴──────────────┐
-        │                            │
-        ▼                            ▼
-  ┌───────────┐              ┌───────────┐
-  │cake-spectrum│             │ cake-att  │        CONTAINERS
-  │           │              │           │        (Docker)
-  │ :9101     │              │ :9101     │
-  │ /health   │              │ /health   │
-  │ /metrics/ │              │           │
-  │  history  │              │           │
-  │           │              │           │
-  │ :9102     │              │           │
-  │ /health   │              │           │
-  │ (steering)│              │           │
-  └───────────┘              └───────────┘
+CLI Tools          wanctl-history, wanctl-dashboard, wanctl-calibrate
+                       |
+Daemons           autorate_continuous (ContinuousAutoRate)
+                  steering/daemon (SteeringDaemon)
+                       |
+Config            BaseConfig -> Config (autorate) / SteeringConfig (steering)
+                  config_validation_utils.py (domain validators)
+                       |
+Router Comm       router_client.py -> FailoverRouterClient
+                  routeros_rest.py / routeros_ssh.py
+                       |
+State/Storage     state_utils.py, storage/ (SQLite), health_check.py
 ```
 
-### Key Architectural Decision: HTTP-Only, No Direct SQLite
+Key patterns already established:
+- **BaseConfig + SCHEMA**: Declarative schema validation at config load time
+- **validate_schema()**: Collects all errors before raising
+- **ConfigValidationError**: Single exception type for all config failures
+- **CLI entry points**: `pyproject.toml [project.scripts]` mapping to `module:main`
+- **Router queries**: `client.run_cmd()` returning `(rc, stdout, stderr)` tuples
+- **Health endpoints**: JSON HTTP on ports 9101/9102
 
-The dashboard communicates with daemons exclusively via their existing HTTP health endpoints. **No direct SQLite access.**
+## Recommended Architecture for v1.16
 
-**Rationale:**
-1. SQLite databases live inside Docker containers at `/var/lib/wanctl/metrics.db`. Direct access would require volume mounts or container filesystem access -- fragile and deployment-specific.
-2. The `/metrics/history` endpoint already exists on port 9101 with time-range queries, granularity selection, pagination, and metric filtering. This API was built in v1.7 precisely for this use case.
-3. HTTP works identically whether the dashboard runs on the same machine, a different host, or even over SSH tunnels. Direct SQLite reads only work locally.
-4. WAL mode in SQLite supports concurrent readers, but cross-container reads over shared volumes introduce latency and locking edge cases that HTTP avoids.
-5. The health endpoints already aggregate controller state that would be complex to reconstruct from raw metrics (congestion state, confidence scores, WAN awareness, cycle budgets).
+### Principle: Validation Is a Library, Not a Daemon
 
-**What this means:** The dashboard is a pure consumer of existing APIs. Zero daemon-side code changes are needed for the initial build. Any future daemon-side additions (like a steering decision log endpoint) are additive, not structural.
+The new features are **read-only inspection tools** that reuse existing infrastructure. They do NOT run as daemons. They are CLI one-shot commands that load config, optionally probe the router, report findings, and exit.
 
-## Component Responsibilities
-
-| Component | Responsibility | New vs Existing |
-|-----------|----------------|-----------------|
-| `wanctl-dashboard` | TUI application entry point | **NEW** |
-| `DataPoller` | Async HTTP polling loop, connection management | **NEW** |
-| `DashboardConfig` | YAML config for endpoints, poll intervals, layout | **NEW** |
-| Health endpoint (autorate, :9101) | Live WAN state, rates, RTT, cycle budget | EXISTING |
-| Health endpoint (steering, :9102) | Steering state, confidence, WAN awareness | EXISTING |
-| `/metrics/history` endpoint (:9101) | Historical metrics with time-range queries | EXISTING |
-| Sparkline/PlotextPlot widgets | Bandwidth and RTT visualization | **NEW** (Textual built-in + textual-plotext) |
-| Live status panels | Congestion state, rates, baseline | **NEW** (Textual widgets) |
-| Steering log panel | Decision history with confidence scores | **NEW** (Textual widget, may need daemon endpoint) |
-
-## Recommended Project Structure
+### New Module Map
 
 ```
 src/wanctl/
-├── dashboard/                  # NEW: TUI dashboard package
-│   ├── __init__.py
-│   ├── app.py                  # Textual App subclass, entry point
-│   ├── config.py               # DashboardConfig (YAML loader)
-│   ├── poller.py               # DataPoller: async HTTP polling
-│   ├── models.py               # Dataclasses for health/metrics responses
-│   ├── screens/                # Textual Screen subclasses (if needed)
-│   │   └── __init__.py
-│   ├── widgets/                # Custom Textual widgets
-│   │   ├── __init__.py
-│   │   ├── wan_status.py       # Per-WAN status panel (state, rates, RTT)
-│   │   ├── bandwidth_chart.py  # Sparkline or PlotextPlot for DL/UL
-│   │   ├── steering_panel.py   # Steering state, confidence, WAN awareness
-│   │   └── history_browser.py  # Historical metrics with time-range selector
-│   └── styles/
-│       └── dashboard.tcss      # Textual CSS for layout and theming
-├── ... (existing modules unchanged)
+  config_base.py          [MODIFY] Add structured validation result type
+  config_validation_utils.py  [MODIFY] Add cross-field validators if needed
+  check_config.py         [NEW] wanctl-check-config CLI entry point
+  check_cake.py           [NEW] wanctl-check-cake CLI entry point + CAKE audit logic
+  validation/             [NEW, optional] Only if check_config.py exceeds ~300 lines
+    __init__.py
+    config_checker.py     Config validation orchestrator
+    cake_auditor.py       CAKE qdisc comparison logic
+    router_prober.py      Read-only router probes
 ```
 
-### Structure Rationale
+**Recommendation:** Start flat (check_config.py, check_cake.py at top level) and only extract a `validation/` subpackage if complexity warrants it. The existing codebase keeps CLI tools as single modules (history.py, calibrate.py) and this should follow the same pattern.
 
-- **`dashboard/` as subpackage of `wanctl`:** Shares the `wanctl` namespace for import consistency (`from wanctl.dashboard.app import DashboardApp`). Installed via the same `pyproject.toml` with an additional entry point. No separate package needed.
-- **`widgets/` separated from `app.py`:** Each widget is self-contained with its own data binding and rendering logic. Textual's composition model maps well to one-widget-per-file.
-- **`styles/` with TCSS file:** Textual CSS separates presentation from logic. The `.tcss` file handles layout, colors, and responsive breakpoints. This follows Textual's recommended pattern.
-- **`models.py` for response types:** Typed dataclasses for health endpoint responses provide IDE completion and catch API drift at parse time rather than deep in widget code.
-- **`poller.py` isolated:** The HTTP polling logic is independent of Textual. This makes it unit-testable without a running TUI and reusable if a web dashboard is ever built.
+### Component Boundaries
 
-## Architectural Patterns
+| Component | Responsibility | Communicates With | New/Modified |
+|-----------|---------------|-------------------|-------------|
+| `check_config.py` | CLI: load config, run all validators, report | BaseConfig, config_validation_utils | NEW |
+| `check_cake.py` | CLI: query router CAKE qdiscs, compare to config | router_client, BaseConfig | NEW |
+| `config_base.py` | Add `ValidationResult` dataclass, structured errors | (self-contained) | MODIFY |
+| `config_validation_utils.py` | Add cross-field and semantic validators | config_base | MODIFY (minor) |
+| `autorate_continuous.py` Config.__init__ | Call enhanced validation at startup | config_base | MODIFY (minor) |
+| `steering/daemon.py` SteeringConfig.__init__ | Call enhanced validation at startup | config_base | MODIFY (minor) |
 
-### Pattern 1: Async Polling with Textual Workers
+### Data Flow: `wanctl check-config`
 
-**What:** Use Textual's `set_interval()` to trigger periodic async HTTP fetches via `@work` decorator. The worker fetches from all endpoints concurrently using `httpx.AsyncClient`, then posts results as Textual messages.
+```
+CLI args (--config path)
+    |
+    v
+YAML load (yaml.safe_load)
+    |
+    v
+Schema validation (validate_schema with BASE_SCHEMA + SCHEMA)
+    |
+    v
+Cross-field validation (floor ordering, threshold ordering, etc.)
+    |
+    v
+File/path validation (log dirs exist, state dirs writable, SSH key readable)
+    |
+    v
+Optional: router connectivity probe (--probe flag)
+    |
+    v
+ValidationReport (list of ValidationResult: pass/warn/fail per check)
+    |
+    v
+Console output (colored table or plain text)
+    |
+    v
+Exit code (0 = all pass, 1 = any fail, 2 = warnings only)
+```
 
-**When to use:** For the live view tab that needs sub-second refresh rates.
+### Data Flow: `wanctl check-cake`
 
-**Trade-offs:** Simple and idiomatic. Textual handles cancellation on shutdown. The `exclusive=True` flag prevents stale request pileup if an endpoint is slow.
+```
+CLI args (--config path)
+    |
+    v
+Load config (reuse BaseConfig subclass or raw YAML + minimal validation)
+    |
+    v
+Create router client (get_router_client or get_router_client_with_failover)
+    |
+    v
+Query queue tree: /queue/tree/print where name="<queue_name>"
+    |
+    v
+Parse response: extract queue-type, max-limit, parent, etc.
+    |
+    v
+Compare against config expectations:
+  - Queue exists?
+  - Queue type is CAKE variant?
+  - Max-limit matches ceiling_mbps from config?
+  - Parent hierarchy correct?
+    |
+    v
+CakeAuditReport (list of checks with expected vs actual)
+    |
+    v
+Console output + exit code
+```
+
+### Data Flow: Startup Validation (Enhanced)
+
+```
+Daemon starts (autorate or steering)
+    |
+    v
+BaseConfig.__init__ (existing path, unchanged)
+    |
+    v
+_load_specific_fields() (existing path, unchanged)
+    |
+    v
+[NEW] _validate_environment()
+  - Log directory exists and is writable
+  - State file directory exists and is writable
+  - Lock file directory exists
+  - SSH key file exists (if SSH transport)
+    |
+    v
+[NEW] _validate_cross_field()
+  - floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling
+    (already done in _load_download_config, but consolidate)
+  - threshold ordering (already done, consolidate)
+    |
+    v
+On failure: log structured errors + sys.exit(1) [fail-fast]
+On success: continue to daemon loop (existing behavior)
+```
+
+## Patterns to Follow
+
+### Pattern 1: ValidationResult Dataclass
+
+Structured validation results that can be collected, filtered, and displayed.
+
+**What:** A simple result type that replaces ad-hoc string error collection.
+**When:** All validation checks should return this instead of raising immediately.
+**Why:** The CLI tools need to collect ALL problems and display them together, not stop at the first error.
 
 ```python
-from textual.app import App
-from textual.worker import Worker
-import httpx
+from dataclasses import dataclass
+from enum import Enum
 
-class DashboardApp(App):
-    def on_mount(self) -> None:
-        self.poll_interval = self.set_interval(
-            1.0, self.poll_endpoints
-        )
+class CheckStatus(Enum):
+    PASS = "pass"
+    WARN = "warn"
+    FAIL = "fail"
+    SKIP = "skip"
 
-    @work(exclusive=True)
-    async def poll_endpoints(self) -> None:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            autorate = await client.get(f"{self.config.autorate_url}/health")
-            steering = await client.get(f"{self.config.steering_url}/health")
-        self.post_message(HealthUpdate(
-            autorate=autorate.json(),
-            steering=steering.json(),
-        ))
+@dataclass(frozen=True, slots=True)
+    """Single validation check result."""
+    category: str      # "schema", "file", "router", "cake"
+    check: str         # Human-readable check name
+    status: CheckStatus
+    message: str       # Detail message
+    expected: str = "" # What was expected (for comparison displays)
+    actual: str = ""   # What was found
+
+    @property
+    def passed(self) -> bool:
+        return self.status in (CheckStatus.PASS, CheckStatus.SKIP)
 ```
 
-### Pattern 2: Connection Pooling with Persistent Client
+**Integration note:** This lives in `config_base.py` alongside `ConfigValidationError`. The existing `validate_schema()` continues to raise for daemon startup (fail-fast). The CLI tools use a parallel path that collects `ValidationResult` objects.
 
-**What:** Create a single `httpx.AsyncClient` instance at app startup rather than per-poll. Connection reuse eliminates TCP handshake overhead on every poll cycle.
+### Pattern 2: CLI Tool as Single Module
 
-**When to use:** Always. The dashboard polls 2-3 endpoints every 1-2 seconds. Without pooling, that is 6+ TCP connections per second.
+Follow the history.py and calibrate.py pattern: one module with `create_parser()` and `main()`.
 
-**Trade-offs:** Must handle client lifecycle (create on mount, close on shutdown). Must handle connection errors gracefully when a daemon is unreachable.
+**What:** Each CLI tool is a standalone module registered in `pyproject.toml`.
+**When:** Every new CLI command.
 
 ```python
-class DataPoller:
-    def __init__(self, endpoints: list[EndpointConfig]) -> None:
-        self._client: httpx.AsyncClient | None = None
-        self._endpoints = endpoints
+# check_config.py
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="wanctl-check-config",
+        description="Validate wanctl configuration files",
+    )
+    parser.add_argument("config", help="Path to YAML config file")
+    parser.add_argument("--probe", action="store_true",
+                       help="Test router connectivity (requires network)")
+    parser.add_argument("--json", action="store_true",
+                       help="Output results as JSON")
+    return parser
 
-    async def start(self) -> None:
-        self._client = httpx.AsyncClient(
-            timeout=httpx.Timeout(5.0, connect=2.0),
-            limits=httpx.Limits(max_connections=10),
-        )
-
-    async def stop(self) -> None:
-        if self._client:
-            await self._client.aclose()
-
-    async def poll_all(self) -> dict[str, dict]:
-        results = {}
-        for ep in self._endpoints:
-            try:
-                resp = await self._client.get(ep.health_url)
-                results[ep.name] = resp.json()
-            except httpx.RequestError:
-                results[ep.name] = {"status": "unreachable"}
-        return results
+def main() -> int:
+    parser = create_parser()
+    args = parser.parse_args()
+    # ... validation logic ...
+    return 0 if all_passed else 1
 ```
 
-### Pattern 3: Reactive Data Binding for Widget Updates
-
-**What:** Use Textual's reactive attributes to propagate polled data to widgets. When the poller posts a `HealthUpdate` message, the app handler updates reactive attributes on each widget, triggering automatic re-renders.
-
-**When to use:** For all live-updating widgets (status panels, sparklines, steering panel).
-
-**Trade-offs:** Clean separation between data flow and rendering. Widgets never know about HTTP -- they just watch their reactive `data` attribute change.
-
-```python
-from textual.reactive import reactive
-from textual.widgets import Static
-
-class WanStatusWidget(Static):
-    wan_data: reactive[dict | None] = reactive(None)
-
-    def watch_wan_data(self, data: dict | None) -> None:
-        if data is None:
-            self.update("[dim]Waiting for data...[/dim]")
-            return
-        state = data["download"]["state"]
-        rate = data["download"]["current_rate_mbps"]
-        self.update(f"DL: {rate} Mbps [{state}]")
-```
-
-### Pattern 4: Adaptive Layout with Terminal Width Detection
-
-**What:** Use Textual CSS media queries (or `on_resize` handler) to switch between side-by-side (wide terminal) and tabbed (narrow terminal) layouts.
-
-**When to use:** When the dashboard must work on both wide monitors and SSH sessions on laptops.
-
-**Trade-offs:** CSS-based approach is simpler but limited to what TCSS supports. Python-based `on_resize` gives full control but adds complexity. Start with CSS, fall back to Python if needed.
-
-```css
-/* dashboard.tcss */
-#wan-panels {
-    layout: horizontal;
-}
-
-/* Narrow terminal: stack vertically */
-@media (width < 100) {
-    #wan-panels {
-        layout: vertical;
-    }
-}
-```
-
-## Data Flow
-
-### Live Polling Flow
-
-```
-set_interval(1.0s)
-    |
-    v
-poll_endpoints() [@work(exclusive=True)]
-    |
-    +---> GET http://<autorate_host>:9101/health  --> JSON
-    +---> GET http://<steering_host>:9102/health  --> JSON
-    |
-    v
-HealthUpdate message posted to App
-    |
-    v
-on_health_update() handler
-    |
-    +---> wan_status.wan_data = response["wans"][0]
-    +---> steering_panel.steering_data = response["steering"]
-    +---> sparkline.data = append(sparkline.data, new_rate)
-    +---> connection_indicator.status = "connected"
-```
-
-### Historical Query Flow
-
-```
-User selects time range (1h / 6h / 24h / 7d)
-    |
-    v
-fetch_history() [@work]
-    |
-    v
-GET http://<autorate_host>:9101/metrics/history?range=1h&metrics=wanctl_rate_download_mbps
-    |
-    v
-HistoryUpdate message posted to App
-    |
-    v
-history_browser widget updates chart with response["data"]
-```
-
-### Connection State Flow
-
-```
-poll_endpoints() attempt
-    |
-    +-- success --> connection_status = "connected", update widgets
-    |
-    +-- httpx.ConnectError --> connection_status = "disconnected"
-    |                          show last-known data grayed out
-    |                          continue polling (will auto-reconnect)
-    |
-    +-- httpx.TimeoutException --> connection_status = "timeout"
-                                   increment error counter
-                                   continue polling
-```
-
-## Entry Point and Configuration
-
-### Entry Point (pyproject.toml addition)
-
+pyproject.toml addition:
 ```toml
 [project.scripts]
-wanctl-dashboard = "wanctl.dashboard.app:main"
+wanctl-check-config = "wanctl.check_config:main"
+wanctl-check-cake = "wanctl.check_cake:main"
 ```
 
-This follows the existing pattern: `wanctl`, `wanctl-calibrate`, `wanctl-steering`, `wanctl-history` are all defined the same way.
+### Pattern 3: Reuse Router Client for Read-Only Probes
 
-### Configuration (YAML)
+The existing `get_router_client_with_failover()` and `RouterOSREST` already handle connection, auth, and failover. CAKE audit just needs to issue `/queue/tree/print` commands.
 
-The dashboard needs its own minimal config. It does **not** reuse the autorate/steering YAML files (those contain router credentials and daemon-specific settings). A separate file keeps concerns clean.
+**What:** Create a temporary router client, query, close. No daemon loop.
+**When:** `wanctl check-cake` and `wanctl check-config --probe`.
 
-```yaml
-# /etc/wanctl/dashboard.yaml (or ~/.config/wanctl/dashboard.yaml)
-endpoints:
-  - name: "Spectrum"
-    autorate_url: "http://cake-spectrum:9101"
-    steering_url: "http://cake-spectrum:9102"
-  - name: "ATT"
-    autorate_url: "http://cake-att:9101"
+```python
+from wanctl.router_client import get_router_client
 
-polling:
-  live_interval_sec: 1.0      # How often to poll /health
-  history_interval_sec: 30.0   # How often to refresh history charts
+# Minimal config loading for router connection
+client = get_router_client(config, logger)
+try:
+    # Read-only probe: system identity
+    rc, out, err = client.run_cmd("/system/identity/print", capture=True)
+    if rc == 0:
+        results.append(ValidationResult("router", "connectivity", CheckStatus.PASS, ...))
 
-display:
-  theme: "dark"                # dark or light
-  sparkline_points: 120        # Number of data points in sparklines (2min at 1s)
+    # Read-only probe: queue tree listing
+    rc, out, err = client.run_cmd(
+        f'/queue/tree/print detail where name="{queue_name}"', capture=True
+    )
+    # Parse and compare...
+finally:
+    client.close()
 ```
 
-**Why separate config file:** The dashboard runs on a different machine (or at least a different process) than the daemons. It does not need router credentials, queue names, or bandwidth limits. It only needs endpoint URLs and display preferences.
+**Important:** Use `get_router_client()` (not `get_router_client_with_failover()`) for CLI tools. Failover adds complexity meant for long-running daemons. A one-shot probe should try the configured transport and report clearly if it fails.
 
-**Config loading:** Use `yaml.safe_load()` pattern. No need for `BaseConfig` subclassing -- the dashboard config is simpler (no router validation, no lock files, no logging rotation). A standalone `DashboardConfig` dataclass with YAML loading is sufficient.
+### Pattern 4: Collect-Then-Report (Not Fail-Fast)
 
-**CLI override pattern:**
+For CLI validation, collect ALL results before reporting. This is different from daemon startup where fail-fast via `ConfigValidationError` is correct.
 
-```bash
-# Use config file
-wanctl-dashboard --config /etc/wanctl/dashboard.yaml
+**What:** Run every check, accumulate results, then display summary.
+**When:** `wanctl check-config` and `wanctl check-cake`.
+**Why:** Users want to see ALL problems at once, not fix one, re-run, find another.
 
-# Quick single-endpoint use (no config file needed)
-wanctl-dashboard --url http://cake-spectrum:9101
+```python
+def check_config(config_path: str, probe: bool = False) -> list[ValidationResult]:
+    results: list[ValidationResult] = []
 
-# Override poll interval
-wanctl-dashboard --config dashboard.yaml --interval 2.0
+    # Phase 1: YAML parse
+    results.extend(_check_yaml_syntax(config_path))
+    if any(r.status == CheckStatus.FAIL for r in results):
+        return results  # Can't continue if YAML is broken
+
+    # Phase 2: Schema validation
+    results.extend(_check_schema(data))
+
+    # Phase 3: Cross-field validation
+    results.extend(_check_cross_field(data))
+
+    # Phase 4: Environment checks
+    results.extend(_check_environment(data))
+
+    # Phase 5: Optional router probe
+    if probe:
+        results.extend(_check_router_connectivity(data))
+
+    return results
 ```
 
-### Dependency Additions (pyproject.toml)
+### Pattern 5: Config Type Detection
 
-```toml
-[project.optional-dependencies]
-dashboard = [
-    "textual>=1.0.0",
-    "httpx>=0.27.0",
-    "textual-plotext>=0.2.0",
-]
+The CLI tool needs to determine whether a config file is for autorate or steering, since they have different schemas.
+
+**What:** Detect config type from content, then apply appropriate schema.
+**When:** `wanctl check-config` needs to validate any config file.
+
+```python
+def detect_config_type(data: dict) -> str:
+    """Detect config type from YAML content.
+
+    Returns "autorate" or "steering" based on distinctive keys.
+    """
+    if "topology" in data or "mangle_rule" in data:
+        return "steering"
+    if "continuous_monitoring" in data or "queues" in data:
+        return "autorate"
+    return "unknown"
 ```
 
-**Use optional dependencies:** The daemons run on constrained Docker containers and do not need Textual/httpx. Making dashboard deps optional means `pip install wanctl` gives the daemons, `pip install wanctl[dashboard]` adds the TUI. This keeps daemon containers lean.
+This avoids requiring users to specify `--type autorate` on the command line.
 
-## Handling Remote Deployment
+## Anti-Patterns to Avoid
 
-The architecture is inherently remote-capable because it uses HTTP:
+### Anti-Pattern 1: Modifying Daemon Startup to Use New Validation Path
 
-| Deployment | Configuration | Notes |
-|-----------|---------------|-------|
-| Same container | `http://127.0.0.1:9101` | Simplest, but containers lack terminal |
-| Same machine | `http://cake-spectrum:9101` (Docker DNS) | Most common. Dashboard runs on host. |
-| Remote machine | `http://192.168.1.X:9101` | Requires daemon bind to `0.0.0.0` or SSH tunnel |
-| SSH tunnel | `ssh -L 9101:localhost:9101 cake-spectrum` then `http://localhost:9101` | Secure remote access without exposing ports |
+**What:** Refactoring daemon Config.__init__ to use the new ValidationResult-based validation.
+**Why bad:** The daemon path is battle-tested and uses fail-fast (raise ConfigValidationError). Changing it risks production regressions. The CLI validation and daemon validation serve different purposes.
+**Instead:** The CLI tool uses its own collect-then-report validation path that calls the same underlying validators (validate_field, validate_bandwidth_order, etc.) but wraps results differently. Daemon startup keeps its existing raise-on-first-error behavior.
 
-**Current constraint:** Health servers bind to `127.0.0.1` by default (see `start_health_server()` and `start_steering_health_server()`). For remote dashboard access, either:
-1. Change bind address to `0.0.0.0` in daemon config (requires daemon config change)
-2. Use SSH port forwarding (no daemon changes needed)
-3. Add bind address to daemon YAML schema (clean solution, small daemon change)
+### Anti-Pattern 2: Creating a RouterProber That Wraps RouterClient
 
-**Recommendation:** Add `health.bind_address` to daemon YAML schema. Default remains `127.0.0.1` for security. Operators who want remote dashboard access explicitly set `0.0.0.0`. This is a one-line change per daemon and follows the existing config-driven pattern.
+**What:** Building an abstraction layer on top of the existing router client just for read-only queries.
+**Why bad:** Unnecessary indirection. The existing `client.run_cmd()` is already the right interface.
+**Instead:** Call `run_cmd()` directly in the check functions. Parse responses inline.
 
-## Integration Points
+### Anti-Pattern 3: Interactive Validation (Prompt to Fix)
 
-### Existing Endpoints Consumed
+**What:** Having `wanctl check-config` offer to fix problems interactively.
+**Why bad:** Complexity explosion, hard to test, not useful in containers/CI.
+**Instead:** Report problems with clear fix instructions. User edits config manually.
 
-| Endpoint | Port | Data Available | Dashboard Use |
-|----------|------|----------------|---------------|
-| `/health` (autorate) | 9101 | WAN status, rates, RTT, states, cycle budget, disk space, router connectivity | Live status panels |
-| `/metrics/history` (autorate) | 9101 | Time-series metrics with filtering and pagination | History charts |
-| `/health` (steering) | 9102 | Steering state, confidence, WAN awareness, thresholds, decision timing | Steering panel |
+### Anti-Pattern 4: Making CAKE Audit Part of Daemon Startup
 
-### Missing Endpoints (Future Additions)
+**What:** Running CAKE qdisc checks every time the daemon starts.
+**Why bad:** Adds latency to startup, requires router connectivity before daemon can run, creates chicken-and-egg with FailoverRouterClient.
+**Instead:** CAKE audit is a separate CLI tool run on-demand or during deployment verification.
 
-| Endpoint | Purpose | Priority |
-|----------|---------|----------|
-| `/health` on steering with `/metrics/history` | Steering metrics history (currently only autorate has it) | MEDIUM -- steering DB exists but no query endpoint |
-| `/steering/transitions` | Log of steering state transitions with timestamps | LOW -- can be derived from polling `/health` |
+## Integration Points: New vs Modified
 
-### Internal Boundaries
+### New Files
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| DashboardApp <-> DataPoller | Async method calls + Textual messages | Poller is owned by App, posts messages |
-| DataPoller <-> Daemons | HTTP GET (JSON responses) | httpx.AsyncClient with connection pooling |
-| App <-> Widgets | Textual reactive attributes | Widgets watch their data attributes |
-| Config <-> App | Read once at startup | DashboardConfig dataclass |
+| File | Purpose | Dependencies |
+|------|---------|-------------|
+| `src/wanctl/check_config.py` | CLI: `wanctl-check-config` | config_base, config_validation_utils |
+| `src/wanctl/check_cake.py` | CLI: `wanctl-check-cake` | config_base, router_client, routeros_rest |
 
-## Anti-Patterns
+### Modified Files
 
-### Anti-Pattern 1: Direct SQLite Access From Dashboard
+| File | Change | Risk |
+|------|--------|------|
+| `pyproject.toml` | Add 2 script entry points | LOW - additive only |
+| `config_base.py` | Add ValidationResult, CheckStatus | LOW - additive, no existing behavior changed |
+| `autorate_continuous.py` | Add `_validate_environment()` call in Config | LOW - new method, called after existing load |
+| `steering/daemon.py` | Add `_validate_environment()` call in SteeringConfig | LOW - same pattern |
 
-**What people do:** Mount daemon data volumes and read SQLite directly from the TUI process.
-**Why it is wrong:** Couples the dashboard to the daemon's filesystem layout. Breaks when running remotely. WAL mode concurrent access across container boundaries is fragile. The `/metrics/history` API exists for exactly this purpose.
-**Do this instead:** Use the HTTP `/metrics/history` endpoint for all historical data queries.
+### Unchanged Files (Reused As-Is)
 
-### Anti-Pattern 2: Sharing the Daemon Event Loop
+| File | How Reused |
+|------|-----------|
+| `config_validation_utils.py` | All existing validators called by check_config |
+| `router_client.py` | `get_router_client()` for CAKE audit probes |
+| `routeros_rest.py` | Queue tree queries via existing REST client |
+| `routeros_ssh.py` | Fallback transport (if user config says SSH) |
+| `router_command_utils.py` | `extract_field_value()` for parsing router output |
 
-**What people do:** Try to run the TUI inside the daemon process to share data structures.
-**Why it is wrong:** The daemons run 50ms control loops with strict timing. Textual's event loop has its own rendering cadence. Combining them creates priority inversion and jitter. Also, daemons run in Docker containers without terminals.
-**Do this instead:** Run the dashboard as a completely separate process. Communicate via HTTP.
+## CAKE Qdisc Audit: Router Query Details
 
-### Anti-Pattern 3: Polling Too Fast
+The RouterOS REST API returns queue tree entries with these relevant fields:
 
-**What people do:** Poll endpoints every 100ms to match the daemon's 50ms cycle.
-**Why it is wrong:** The health endpoints aggregate state -- they do not expose per-cycle data. Polling faster than 1s wastes CPU and network bandwidth with no new information. The health handler also holds the GIL during JSON serialization, so rapid polling adds measurable overhead to the daemon.
-**Do this instead:** Poll `/health` at 1-2s intervals for live view. Poll `/metrics/history` at 30-60s intervals for charts.
+```json
+{
+    ".id": "*1",
+    "name": "WAN-Download-Spectrum",
+    "queue": "cake-down-spectrum",
+    "max-limit": "940000000",
+    "parent": "global",
+    "disabled": "false",
+    "packets": "...",
+    "bytes": "..."
+}
+```
 
-### Anti-Pattern 4: Blocking HTTP in the UI Thread
+The `queue` field references the queue type (CAKE variant). The audit compares:
 
-**What people do:** Use synchronous `requests.get()` in a Textual event handler.
-**Why it is wrong:** Blocks the entire TUI rendering loop. If an endpoint is slow or unreachable, the UI freezes for the full timeout duration.
-**Do this instead:** Use `httpx.AsyncClient` with Textual's `@work(exclusive=True)` decorator. The async call runs in the background; the UI stays responsive.
+| Check | Expected (from config) | Actual (from router) |
+|-------|----------------------|---------------------|
+| Queue exists | `queues.download` | `/queue/tree/print` returns entry |
+| Queue type is CAKE | `cake-{down\|up}-{wan}` | `queue` field |
+| Max-limit in range | `floor_red_mbps..ceiling_mbps` | `max-limit` field |
+| Queue not disabled | `disabled: false` | `disabled` field |
 
-## Build Order (Dependency-Aware)
+For the upload queue, same checks with upload config values.
 
-The following order respects dependencies between components:
+Additionally, the mangle rule check (for steering configs):
 
-1. **Config + Entry Point** -- `DashboardConfig`, `app.py` skeleton, `pyproject.toml` entry point. No widgets yet, just prove the app launches.
-2. **DataPoller + Connection Management** -- `httpx.AsyncClient`, polling loop, error handling, reconnection. Test against live daemon endpoints. This is the foundation everything else depends on.
-3. **Live Status Widgets** -- `WanStatusWidget` showing congestion state, rates, RTT, baseline. Wire to poller output. Minimal layout (vertical stack).
-4. **Sparkline/Charts** -- Bandwidth sparklines using `Sparkline` widget. Accumulate polled rate data into a rolling buffer.
-5. **Steering Panel** -- Confidence scores, WAN awareness, steering state, decision timing. Consumes steering health endpoint data.
-6. **Layout and Tabs** -- `TabbedContent` with Live/History/Steering tabs. Responsive CSS for wide/narrow terminals. Keyboard navigation.
-7. **History Browser** -- Time-range selector, `/metrics/history` queries, chart rendering with `textual-plotext`.
-8. **Polish** -- Connection status indicator, error states, theming, help screen.
+| Check | Expected | Actual |
+|-------|----------|--------|
+| Rule exists | `mangle_rule.comment` | `/ip/firewall/mangle/print` |
+| Rule is disabled at rest | `disabled: yes` (steering off) | rule flags |
 
-**Rationale:** Phases 1-3 deliver a usable (if ugly) dashboard quickly. Phase 4-5 add visualization depth. Phase 6-7 add structure and historical analysis. Phase 8 is refinement.
+## Suggested Build Order
+
+Based on dependency analysis:
+
+### Phase 1: Config Validation Foundation
+1. Add `ValidationResult` and `CheckStatus` to `config_base.py`
+2. Build `check_config.py` with YAML parse + schema validation
+3. Add to `pyproject.toml` as `wanctl-check-config`
+4. Test: validate example configs, detect misconfigurations
+
+**Rationale:** No router dependency, all local. Validates the collect-then-report pattern.
+
+### Phase 2: Enhanced Config Validation + Startup Guards
+1. Add environment checks (directories, file permissions, SSH key)
+2. Add config type auto-detection (autorate vs steering)
+3. Add startup validation hooks to daemon Configs (`_validate_environment()`)
+4. Test: invalid paths, missing directories, permission errors
+
+**Rationale:** Still no router dependency. Adds fail-fast to daemon startup.
+
+### Phase 3: CAKE Qdisc Audit
+1. Build `check_cake.py` with router query + comparison logic
+2. Add `--probe` flag to `check_config.py` for optional router connectivity test
+3. Add to `pyproject.toml` as `wanctl-check-cake`
+4. Test: mock router responses, verify comparison logic
+
+**Rationale:** Requires router communication. Depends on Phase 1 for ValidationResult.
+
+### Phase 4: Integration Probes + Polish
+1. Add state file consistency checks to `check_config.py`
+2. Add mangle rule verification to `check_cake.py` (for steering configs)
+3. Add JSON output format for CI/scripting
+4. Test: end-to-end with real configs (no real router needed if mocked)
+
+**Rationale:** Polish and integration. Depends on Phases 1-3.
+
+## Scalability Considerations
+
+Not applicable. These are one-shot CLI tools that query a single router. Performance is not a concern. The router probes add at most 100-200ms of REST API calls.
 
 ## Sources
 
-- [Textual documentation](https://textual.textualize.io/) -- Framework reference (v8.1.1, 2026-03-10)
-- [Textual Workers guide](https://textual.textualize.io/guide/workers/) -- Background task patterns
-- [Textual Sparkline widget](https://textual.textualize.io/widgets/sparkline/) -- Built-in sparkline API
-- [Textual TabbedContent](https://textual.textualize.io/widgets/tabbed_content/) -- Tab navigation widget
-- [Textual CSS guide](https://textual.textualize.io/guide/CSS/) -- TCSS styling reference
-- [Textual-Plotext](https://github.com/Textualize/textual-plotext) -- Plotext charts in Textual
-- [httpx documentation](https://www.python-httpx.org/) -- Async HTTP client
-- [HTTPX vs Requests vs AIOHTTP comparison](https://oxylabs.io/blog/httpx-vs-requests-vs-aiohttp) -- Library comparison
-- Existing wanctl source: `health_check.py`, `steering/health.py`, `storage/reader.py`, `storage/writer.py`, `metrics.py`
-
----
-*Architecture research for: wanctl TUI dashboard integration*
-*Researched: 2026-03-11*
+- Codebase analysis: `config_base.py` (BaseConfig, validate_schema, SCHEMA pattern)
+- Codebase analysis: `config_validation_utils.py` (domain validators, deprecate_param)
+- Codebase analysis: `router_client.py` (get_router_client, FailoverRouterClient)
+- Codebase analysis: `routeros_rest.py` (REST queue tree operations)
+- Codebase analysis: `backends/routeros.py` (RouterOSBackend.test_connection)
+- Codebase analysis: `history.py`, `calibrate.py` (CLI tool patterns)
+- Codebase analysis: `alert_engine.py` (recent integration pattern reference)
+- Codebase analysis: `pyproject.toml` (entry point registration)
+- Codebase analysis: `steering.yaml.example`, `cable.yaml.example` (config structure)
+- Confidence: HIGH -- all patterns derived from existing code, no external research needed

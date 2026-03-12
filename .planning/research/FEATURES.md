@@ -1,211 +1,195 @@
-# Feature Research: wanctl TUI Dashboard
+# Feature Landscape
 
-**Domain:** Real-time network monitoring TUI for dual-WAN controller
-**Researched:** 2026-03-11
-**Confidence:** HIGH
+**Domain:** Config validation, CAKE qdisc auditing, and router integration probes for dual-WAN controller
+**Researched:** 2026-03-12
+**Existing codebase:** v1.15.0 (20,140 LOC, 2,666 tests, 16 milestones shipped)
 
-## Feature Landscape
+## Table Stakes
 
-### Table Stakes (Users Expect These)
+Features users expect from a validation/audit milestone. Missing any of these makes the milestone feel incomplete.
 
-Features an operator expects from a real-time network monitoring TUI. Missing any of these makes the dashboard feel like a toy.
+| Feature | Why Expected | Complexity | Dependencies |
+|---------|--------------|------------|--------------|
+| `wanctl check-config <file>` standalone CLI | Operators need to validate configs without starting daemons. Existing `--validate-config` is buried inside `wanctl` daemon binary and lacks steering config support. | Low | config_base.py, config_validation_utils.py |
+| Structured error collection (all errors, not just first) | Current `validate_schema()` collects errors already, but Config.__init__ calls validators sequentially and may short-circuit on the first `ConfigValidationError`. Operators need to see ALL issues in one pass. | Low | config_base.py `validate_schema()` (already collects) |
+| Cross-field validation (semantic checks beyond schema) | Schema validation catches type/range errors but misses semantic contradictions: e.g., `floor_red > floor_yellow`, threshold ordering, `ceiling < floor_green`, `steer_threshold < recovery_threshold`. Some of these exist in `config_validation_utils.py` but are called ad-hoc, not centrally. | Medium | config_validation_utils.py (existing validators), Config._load_specific_fields() |
+| File existence/permission checks | Config references external files (ssh_key, state_file parent, lock_file parent, log directories). A validation tool must verify these exist and are writable before the daemon discovers the problem at runtime. | Low | pathlib.Path checks |
+| Environment variable resolution check | REST password uses `${ROUTER_PASSWORD}` pattern. Validation should verify the env var exists (or at least warn) without exposing the value. | Low | router_client.py `_resolve_password()` pattern |
+| Exit codes for CI/CD integration | `wanctl check-config` must return 0 on success, non-zero on failure. Existing `validate_config_mode()` already does this. | Low | Trivial |
+| Human-readable output with severity levels | Errors (fatal), warnings (deprecated params, missing optional fields), info (computed defaults shown). Not just pass/fail. | Low | Print formatting |
+| `wanctl check-cake` router queue audit | Read-only probe comparing router queue tree config (queue type, max-limit, parent) against expected YAML config. This is the core "does my router match my config?" question. | Medium | router_client.py, routeros_rest.py `_handle_queue_tree_print()`, config loading |
+| State file consistency check | Verify state files exist, are valid JSON, contain expected keys, and are not stale (mtime). State corruption has been a real issue (v1.10 added safe JSON loading for this reason). | Low | state_utils.py `safe_read_json()` |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Live health status display | Operators open dashboards to see "is it healthy right now" -- the #1 reason to launch | LOW | Poll `/health` on both ports 9101 (autorate) and 9102 (steering). Already returns JSON with status, congestion state, rates, RTT, steering, confidence, WAN awareness. 1-2s refresh interval is standard for monitoring TUIs (htop, btop use ~1s). |
-| Color-coded congestion state | GREEN/YELLOW/SOFT_RED/RED are the core mental model; color is how operators process state at a glance | LOW | Map GREEN=green, YELLOW=yellow, SOFT_RED=magenta, RED=red. Textual CSS classes toggle per state. Both DL and UL states needed per WAN. |
-| Per-WAN panels showing rates + RTT | Dual-WAN is the whole point; operators need to compare both links side by side | LOW | Health endpoints already provide `baseline_rtt_ms`, `load_rtt_ms`, `download.current_rate_mbps`, `upload.current_rate_mbps` per WAN. Horizontal layout with two columns. |
-| Steering status and confidence | Steering is the headline feature since v1.13 graduation; operators need to know if/why traffic is rerouted | LOW | Health endpoint provides `steering.enabled`, `steering.state`, `steering.mode`, `confidence.primary`. Single widget or inline in a status bar. |
-| Keyboard navigation with discoverable bindings | TUI users expect keyboard-driven interaction; mouse-optional. Undiscoverable shortcuts = unusable | LOW | Textual Footer widget auto-displays keybindings. Use standard TUI conventions: `q` quit, `Tab` cycle focus, number keys for time ranges, `r` refresh. |
-| Footer with key hints | Every serious TUI (htop, btop, lazygit) has a footer bar showing available actions for the current context | LOW | Textual Footer widget does this automatically from app-level and widget-level Bindings. Zero custom code needed. |
-| Graceful error handling for unreachable daemons | Dashboard runs on a different machine than daemons; network errors are expected, not exceptional | MEDIUM | Show "unreachable" state per daemon with last-seen timestamp. Retry on interval. Never crash on ConnectionRefused or timeout. |
-| Configurable endpoint URLs | Dashboard connects remotely to daemon health endpoints; hardcoded localhost is useless for the primary use case (running from dev machine, monitoring containers) | LOW | CLI args: `--autorate-url`, `--steering-url`, `--db-path`. Also support a config file or env vars. |
+## Differentiators
 
-### Differentiators (Competitive Advantage)
+Features that go beyond basic validation and provide real operational confidence. Not strictly expected, but high value.
 
-Features that make this dashboard genuinely useful beyond a dumb status page. These are what justify building a TUI instead of just curling the health endpoints.
+| Feature | Value Proposition | Complexity | Dependencies |
+|---------|-------------------|------------|--------------|
+| Router connectivity probe (`check-cake --probe`) | Verify REST/SSH transport actually reaches the router and authenticates, before auditing queues. Uses existing `test_connection()` methods. | Low | routeros_rest.py `test_connection()`, RouterOSSSH equivalent |
+| CAKE queue type verification | Beyond max-limit, verify the queue tree entry actually uses CAKE qdisc (not fq_codel or default). RouterOS REST API returns `queue` field (e.g., "cake-rx/cake-tx"). Catches "I configured CAKE in wanctl but forgot to set it on the router." | Low | REST GET /queue/tree returns `queue` field |
+| Mangle rule existence check (steering config) | Verify the mangle rule referenced by `mangle_rule.comment` actually exists on the router. Catches "I deleted/renamed my steering rule." | Low | routeros_rest.py `_find_mangle_rule_id()` |
+| Config diff: running vs expected | Show side-by-side comparison of what the router currently has vs what the config expects. Output like: `max-limit: 940000000 (expected) vs 500000000 (actual)`. | Medium | Requires parsing both config and router response |
+| Steering config cross-validation | Steering config references `topology.primary_wan_config` (a path to the autorate config). Validate that file exists AND its `wan_name` matches `topology.primary_wan`. Cross-config consistency. | Low | Path resolution + Config() loading |
+| Deprecated parameter report | Collect all deprecation warnings triggered during config load into a structured list. Currently these go to logging only. A CLI tool should surface them prominently. | Low | deprecate_param() already detects, just needs output routing |
+| JSON output mode (`--json`) | Machine-readable output for scripting, monitoring integration, CI pipelines. Follow the pattern of `wanctl-history --json`. | Low | json.dumps formatting |
+| Health endpoint integration probe | Verify the health HTTP endpoints (9101/9102) respond correctly from the CLI. Catches "daemon is running but health server failed to bind." | Low | HTTP GET to localhost:port/health |
+| SQLite database integrity check | Existing auto-rebuild on corruption (v1.10), but a CLI check that runs `PRAGMA integrity_check` and reports without waiting for runtime discovery. | Low | sqlite3 module, storage config |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Bandwidth sparkline charts | Visual trend of DL/UL rates over time reveals patterns (congestion windows, recovery curves) that raw numbers hide. This is what btop/netwatch do well. | MEDIUM | Textual has a native Sparkline widget. Feed it a rolling buffer of rate values from health polling. One sparkline per direction per WAN = 4 sparklines. Buffer last ~60 data points (1 per poll at 1s = 1 minute of history). |
-| RTT delta sparkline | RTT delta is the core congestion signal; seeing it trend up before state changes to RED gives operators early warning | MEDIUM | Same Sparkline widget. `load_rtt_ms - baseline_rtt_ms` computed client-side from health response. Color the sparkline min=green, max=red for intuitive reading. |
-| Historical metrics browser | Operators investigate past incidents ("what happened at 3am?"). Live view alone is insufficient for post-mortem analysis. | HIGH | Query `/metrics/history?range=1h` API or read SQLite directly. Requires time range selection UI, data table for results, and summary statistics. This is a separate tab/view from the live dashboard. |
-| Time range selector (1h/6h/24h/7d) | Standard in every monitoring tool (Grafana, Datadog, btop). Operators think in time windows. | LOW | Keyboard shortcuts: `1`=1h, `2`=6h, `3`=24h, `4`=7d. Display current range in header. Triggers re-query of metrics history. Granularity auto-selected (already implemented in `select_granularity()`). |
-| Steering decision log | When steering toggles, operators want to understand WHY -- confidence score, WAN zone, which signal tipped the balance | MEDIUM | New: requires daemon-side change to expose recent transition events. Currently only `last_transition_time` and `time_in_state_seconds` are in health response. Need a small ring buffer of last N transitions with reasons. Alternatively, parse daemon logs. |
-| WAN awareness detail panel | WAN-aware steering (v1.13) has rich state: zone, staleness, grace period, confidence contribution, degrade timer. Operators need this during incidents. | LOW | All data already in steering health endpoint `wan_awareness` section. Just needs a dedicated widget to display it clearly. |
-| Adaptive layout (wide vs narrow) | Operators use different terminal sizes. Side-by-side WANs on wide terminals, stacked/tabbed on narrow ones. | MEDIUM | Textual supports CSS breakpoints for responsive classes. Set breakpoint around 120 columns: wide = horizontal layout, narrow = TabbedContent with per-WAN tabs. |
-| Digits widget for headline numbers | Large, prominent display of the most important number (current DL rate, RTT delta) catches the eye immediately, like a wall display | LOW | Textual Digits widget renders numbers in 3x3 Unicode. Use for current aggregate bandwidth or worst-case RTT delta at the top of the dashboard. |
-| Cycle budget utilization | Operators care whether the 50ms cycle budget is being met. Utilization creeping toward 100% predicts performance degradation before it manifests. | LOW | Health endpoints already return `cycle_budget.utilization_pct`, `cycle_budget.cycle_time_ms.avg/p95/p99`, `cycle_budget.overrun_count`. Display as a progress bar or gauge. |
+## Anti-Features
 
-### Anti-Features (Commonly Requested, Often Problematic)
+Features to explicitly NOT build in this milestone.
 
-Features that seem good but would create complexity, maintenance burden, or UX problems for this specific tool.
-
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Live log tailing from daemons | "I want to see what the daemon is doing" | Requires SSH/journalctl access from dashboard, adding auth complexity. Log volume at 20Hz is overwhelming (20 lines/sec). Mixing logs with metrics creates information overload. | Show last 5-10 steering transitions in a dedicated event log panel. For deep log analysis, operators already use `journalctl -u wanctl@spectrum -f` which is purpose-built. |
-| Editable configuration from TUI | "Let me tweak thresholds without SSH" | Config changes to a production network controller from a remote TUI are dangerous. No approval workflow, no audit trail, easy fat-finger mistakes. SIGUSR1 reload already covers the safe toggle cases (dry_run, wan_state.enabled). | Read-only config display showing current thresholds. Link to docs for how to change them. |
-| Mouse-primary interaction | "Modern UIs should be mouse-driven" | Operators SSH into machines and use terminals where mouse support is inconsistent. Mouse-first designs break on tmux, screen, and most remote terminals. | Keyboard-first with mouse as optional enhancement. Textual supports both natively. |
-| Sub-second dashboard refresh | "Match the 50ms cycle interval" | Dashboard polls over HTTP; network latency + rendering overhead makes sub-1s refresh pointless and wasteful. Human perception cannot process 20Hz numerical updates. | 1-2 second refresh for live status. Sparklines accumulate history visually, so operators see trends even at lower refresh rates. |
-| Full Grafana-style graphing | "I want line charts with zoom and pan" | Terminal resolution is ~200x50 characters. Complex charts are unreadable. Adds massive rendering complexity for marginal value in a TUI. | Sparklines for trends, DataTable for exact values, summary stats for aggregates. If full graphing is needed, export to a proper tool (Grafana, browser). |
-| Multi-instance monitoring | "Monitor multiple deployments from one dashboard" | Scope explosion: different configs, different WAN counts, different versions. Increases complexity 3-5x for a use case that may never materialize. | Design data fetching to accept configurable URLs (already planned). Running multiple dashboard instances in tmux panes is simpler and more flexible. |
-| Prometheus/Grafana integration from dashboard | "Push metrics from dashboard to Prometheus" | Dashboard is a read-only consumer. Adding metric push from the dashboard creates a circular dependency and blurs responsibilities. | Daemons already expose `/metrics` in Prometheus format on port 9100. Dashboard should remain a pure consumer. |
-| Persistent dashboard state | "Remember my preferred time range and layout" | Config file management for a monitoring tool is overhead. Operators launch, look, and close. State persistence adds complexity for marginal value. | Sensible defaults (1h range, auto layout). CLI args for customization. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Config file generation/wizard | The `wanctl-calibrate` tool already does interactive config creation. Adding another generation path creates confusion about which is canonical. | Point users to `wanctl-calibrate` for initial setup; `check-config` is for ongoing validation. |
+| Router config modification from CLI | Validation and audit tools MUST be read-only. No queue setting, no mangle rule toggling. This is a core safety principle for a production network controller. | Use clear naming (`check-*`) and document read-only behavior. The existing daemons handle all writes. |
+| Auto-fix/auto-repair | Tempting to have `check-config --fix` that patches deprecated params or creates missing dirs. Too risky for production network config. Miscorrections break things worse. | Report problems with specific fix instructions. Let the operator decide. |
+| Full network topology discovery | Probing all router interfaces, all queue trees, all mangle rules to build a complete picture. Out of scope -- we only care about the specific queues and rules wanctl manages. | Scope probes to exactly the resources referenced in the config file. |
+| Schema migration tool | Config has `schema_version: "1.0"` and a placeholder for future migration. Building migration logic before there is a v2.0 schema is YAGNI. | Keep the version field, document it, but do not build migration machinery yet. |
+| Prometheus/OpenTelemetry export from check tools | Check tools run once and exit. They are not long-running processes that need metrics export. | Return exit codes and structured output. Monitoring tools can parse JSON output if needed. |
+| Interactive/TUI mode for check tools | The dashboard already provides TUI. Check tools should be simple CLI with text output, suitable for `ssh container 'wanctl check-config ...'`. | Plain text + optional JSON. Keep it pipe-friendly. |
 
 ## Feature Dependencies
 
 ```
-[Health Polling Engine]
-    |-- requires --> [Configurable Endpoint URLs]
-    |-- feeds ----> [Live Status Display]
-    |                   |-- feeds --> [Color-Coded States]
-    |                   |-- feeds --> [Per-WAN Panels]
-    |                   |-- feeds --> [Steering Status]
-    |                   |-- feeds --> [WAN Awareness Panel]
-    |                   |-- feeds --> [Cycle Budget Gauge]
-    |                   '-- feeds --> [Sparkline Charts] (rolling buffer)
-    |
-    '-- feeds ----> [Digits Headline Widget]
+check-config (standalone CLI)
+  +-- Schema validation (existing validate_schema)
+  +-- Cross-field validation (partially existing in config_validation_utils.py)
+  +-- File/permission checks (new)
+  +-- Env var resolution check (new, uses existing pattern)
+  +-- Deprecated param collection (existing deprecate_param, new output routing)
+  +-- Steering config cross-validation (new)
 
-[Metrics Query Engine]
-    |-- requires --> [SQLite DB Path Config] OR [HTTP /metrics/history]
-    |-- feeds ----> [Historical Metrics Browser]
-    |                   |-- requires --> [Time Range Selector]
-    |                   '-- requires --> [DataTable Display]
-    |
-    '-- feeds ----> [Summary Statistics]
+check-cake (router audit CLI)
+  +-- Router connectivity probe (uses existing test_connection)
+  +-- Queue tree read (uses existing REST GET /queue/tree)
+  +-- Queue type verification (CAKE vs other)
+  +-- Max-limit comparison (config vs router)
+  +-- Mangle rule existence (steering only)
+  +-- Config diff output (new formatting)
 
-[Adaptive Layout]
-    |-- requires --> [Per-WAN Panels] (content to arrange)
-    '-- enhances -> [All display widgets]
-
-[Keyboard Navigation]
-    |-- requires --> [Footer Key Hints]
-    '-- enhances -> [All interactive features]
-
-[Error Handling]
-    '-- enhances -> [Health Polling Engine] (resilience)
-
-[Steering Decision Log]
-    '-- requires --> [New Daemon API] (ring buffer of transitions)
+Both tools share:
+  +-- Config loading (BaseConfig subclasses)
+  +-- Structured result collection (new: list of Check results with severity)
+  +-- Output formatting (text + JSON modes)
+  +-- Exit code logic (0=pass, 1=fail, 2=warn-only)
 ```
 
-### Dependency Notes
+## Implementation Notes
 
-- **Health Polling Engine is the foundation:** Every live display feature depends on periodic HTTP polling of health endpoints. Build this first with proper error handling.
-- **Sparkline Charts require the polling engine plus a rolling buffer:** The buffer accumulates data points from successive polls. Sparklines are useless without time-series data, so they come after the basic polling is working.
-- **Historical Metrics Browser is independent of live polling:** It queries SQLite directly or via HTTP API. Can be built as a separate tab/view that does not share state with the live dashboard.
-- **Time Range Selector requires Historical Metrics Browser:** The selector is meaningless without a history view to apply it to.
-- **Adaptive Layout enhances but does not block:** Can start with a fixed layout and add responsiveness later. The content widgets do not depend on the layout being adaptive.
-- **Steering Decision Log requires daemon changes:** This is the only feature requiring server-side work. Can be deferred to a later phase or implemented with a simpler "parse recent logs" approach.
+### Existing Foundations (leverage, do not rebuild)
 
-## MVP Definition
+1. **`validate_config_mode()`** in autorate_continuous.py -- already does basic config-load-and-print for autorate configs. This is the starting point for `check-config`, but needs: (a) steering config support, (b) structured error collection, (c) cross-field checks, (d) file existence checks, (e) standalone entry point.
 
-### Launch With (v1.14.0 core)
+2. **`BaseConfig.validate_schema()` + `validate_field()`** -- schema-driven validation already collects all errors before raising. This pattern is good; extend it, do not replace it.
 
-Minimum viable dashboard -- validates that a TUI adds value over `curl` + `jq`.
+3. **`deprecate_param()`** -- already detects and warns about deprecated params. Route warnings to a collection list instead of (only) to the logger.
 
-- [ ] Health polling engine with configurable URLs and 1-2s refresh -- the data backbone
-- [ ] Error handling for unreachable daemons -- dashboard runs remotely, errors are expected
-- [ ] Per-WAN status panels with color-coded congestion state -- the primary visual
-- [ ] Current rates (DL/UL) and RTT (baseline/load/delta) per WAN -- the key numbers
-- [ ] Steering status with confidence score -- the headline feature operators care about
-- [ ] WAN awareness detail (zone, staleness, grace, contribution) -- completes the steering picture
-- [ ] Footer with discoverable keybindings -- makes it usable
-- [ ] `q` to quit, `r` to force refresh -- minimum keyboard interaction
-- [ ] CLI args for endpoint URLs and DB path -- makes it deployable
+4. **`routeros_rest.py` GET /queue/tree** -- already implemented for reading queue data. The `_handle_queue_tree_print()` method returns JSON with all queue fields including `queue` (qdisc type), `max-limit`, `parent`, `name`, `disabled`.
 
-### Add After Validation (v1.14.x)
+5. **`test_connection()`** -- exists on both RouterOSREST and RouterOSBackend. Use for connectivity probes.
 
-Features that make the dashboard genuinely powerful, added once the core is working and the data flow is proven.
+6. **`FailoverRouterClient`** -- check-cake should use the single-transport factory (`get_router_client`) not the failover wrapper, since we want to test the specific transport, not silently fail over.
 
-- [ ] Bandwidth sparkline charts (DL/UL per WAN) -- once polling buffer is stable
-- [ ] RTT delta sparkline with color gradient -- visual early warning for congestion
-- [ ] Cycle budget utilization display -- progress bar or gauge per daemon
-- [ ] Digits widget for headline metric (e.g., worst RTT delta or total bandwidth) -- visual impact
-- [ ] Historical metrics browser tab with DataTable -- investigation use case
-- [ ] Time range selector (1/2/3/4 keys for 1h/6h/24h/7d) -- standard monitoring UX
-- [ ] Summary statistics for selected time range -- min/max/avg/p95/p99
+7. **Contract test pattern** from v1.12 -- parametrize checks from config so adding new queue names or mangle rules auto-creates validation cases.
 
-### Future Consideration (v1.15+)
+### New Code Needed
 
-Features to defer until the dashboard is battle-tested in daily use.
+1. **`CheckResult` dataclass** -- severity (ERROR/WARNING/INFO), category, message, context. Shared between both tools.
 
-- [ ] Adaptive layout (wide/narrow responsive) -- nice but not blocking; start with a reasonable fixed layout
-- [ ] Steering decision log (requires daemon ring buffer API) -- needs server-side work
-- [ ] Exportable views (copy current state to clipboard as JSON/text) -- operator convenience
-- [ ] Custom refresh rate selection -- currently hardcoded 1-2s is fine
+2. **`wanctl-check-config` entry point** in pyproject.toml -- new console_scripts entry.
 
-## Feature Prioritization Matrix
+3. **`wanctl-check-cake` entry point** -- separate tool, separate entry point. Requires router access (unlike check-config which is offline).
 
-| Feature | User Value | Implementation Cost | Priority | Depends On |
-|---------|------------|---------------------|----------|------------|
-| Health polling engine | HIGH | MEDIUM | P1 | -- |
-| Error handling (unreachable daemons) | HIGH | LOW | P1 | Polling engine |
-| Per-WAN status panels | HIGH | LOW | P1 | Polling engine |
-| Color-coded congestion states | HIGH | LOW | P1 | Status panels |
-| Rates + RTT display | HIGH | LOW | P1 | Status panels |
-| Steering status + confidence | HIGH | LOW | P1 | Polling engine |
-| WAN awareness panel | MEDIUM | LOW | P1 | Polling engine |
-| Footer + keybindings | HIGH | LOW | P1 | -- |
-| CLI args (URLs, DB path) | HIGH | LOW | P1 | -- |
-| Bandwidth sparklines | HIGH | MEDIUM | P2 | Polling engine + buffer |
-| RTT delta sparkline | HIGH | MEDIUM | P2 | Polling engine + buffer |
-| Cycle budget display | MEDIUM | LOW | P2 | Polling engine |
-| Digits headline widget | MEDIUM | LOW | P2 | Polling engine |
-| Historical metrics browser | MEDIUM | HIGH | P2 | SQLite/HTTP query |
-| Time range selector | MEDIUM | LOW | P2 | Historical browser |
-| Summary statistics | MEDIUM | LOW | P2 | Historical browser |
-| Adaptive layout | LOW | MEDIUM | P3 | All display widgets |
-| Steering decision log | MEDIUM | HIGH | P3 | Daemon API changes |
-| Export to clipboard | LOW | LOW | P3 | Any display |
-| Custom refresh rate | LOW | LOW | P3 | Polling engine |
+4. **`config_checker.py`** module -- centralized validation logic extracted from daemon-specific validate_config_mode. Takes a config path, returns list of CheckResults.
 
-**Priority key:**
-- P1: Must have for launch -- validates the dashboard concept
-- P2: Should have -- makes it genuinely useful for daily operations
-- P3: Nice to have -- polish and edge cases
+5. **`router_auditor.py`** module -- read-only router probing. Takes config, queries router, compares expected vs actual.
 
-## Existing Infrastructure Mapping
+### RouterOS REST API Details for Queue Audit
 
-What wanctl already provides that the dashboard consumes directly:
+The RouterOS REST API GET /queue/tree returns JSON objects with these relevant fields:
+- `.id` -- internal ID (e.g., "*1")
+- `name` -- queue name (e.g., "WAN-Download-Spectrum")
+- `parent` -- parent queue or interface
+- `queue` -- qdisc type string (e.g., "cake-rx/cake-tx", "default", "fq-codel-default")
+- `max-limit` -- bandwidth limit in bps (string in JSON, even though numeric)
+- `disabled` -- "true" or "false" (string)
+- `packets`, `bytes`, `dropped`, `queued-packets`, `queued-bytes` -- counters
 
-| Dashboard Need | Existing Source | Endpoint/Path | Data Available |
-|---------------|----------------|---------------|----------------|
-| Autorate health | `health_check.py` | `GET :9101/health` | status, uptime, version, per-WAN rates/RTT/state, cycle_budget, disk_space, router_connectivity |
-| Steering health | `steering/health.py` | `GET :9102/health` | status, steering state/mode, congestion, confidence, wan_awareness (zone, staleness, grace, contribution, degrade_timer), cycle_budget |
-| Historical metrics | `storage/reader.py` | `GET :9101/metrics/history?range=1h` | timestamp, wan_name, metric_name, value, labels, granularity; auto-granularity selection |
-| Metrics catalog | `storage/schema.py` | N/A (reference) | 10 stored metrics: rtt_ms, rtt_baseline_ms, rtt_delta_ms, rate_download_mbps, rate_upload_mbps, state, steering_enabled, wan_zone, wan_weight, wan_staleness_sec |
-| Prometheus metrics | `metrics.py` | `GET :9100/metrics` | Prometheus text exposition format; gauges + counters |
-| CLI history queries | `history.py` | CLI tool | Table, JSON, summary output formats with time range and WAN filtering |
+The `queue` field is critical for CAKE verification. If it does not contain "cake", the queue tree is not using CAKE qdisc.
 
-## Competitor Feature Analysis
+### CLI Pattern
 
-| Feature | btop/htop (system monitor) | NetWatch (Rust net TUI) | Grafana (web dashboard) | wanctl-dashboard (our approach) |
-|---------|---------------------------|------------------------|------------------------|-------------------------------|
-| Live status | Per-process CPU/mem | Per-interface RX/TX | Time-series panels | Per-WAN congestion state + rates |
-| Charts | Sparklines, bar charts | 60s sparkline history | Full line/bar/gauge | Sparklines for trends, Digits for headlines |
-| History | None (live only) | None (live only) | Full time-series DB | SQLite metrics with auto-granularity |
-| Navigation | Number keys toggle sections | Vim-style filtering | Mouse/click | Number keys for time range, Tab for focus |
-| Layout | Fixed multi-panel | Fixed panels | Fully configurable | Fixed layout, adaptive as P3 |
-| Refresh | ~1s | Real-time | Configurable | 1-2s poll interval |
-| Color coding | CPU/mem thresholds | Protocol types | Alert rules | Congestion state (GREEN/YELLOW/SOFT_RED/RED) |
-| Remote access | Local only | Local only | Web browser | SSH + terminal (configurable endpoints) |
+Follow existing CLI patterns in the project:
+- `wanctl-history` uses argparse, tabulate for output, `--json` flag
+- `wanctl-dashboard` uses Textual
+- `wanctl-calibrate` uses argparse, interactive mode
+
+The check tools should follow the `wanctl-history` pattern (non-interactive, argparse, tabulate, --json).
+
+```
+wanctl-check-config /etc/wanctl/spectrum.yaml
+wanctl-check-config /etc/wanctl/spectrum.yaml /etc/wanctl/steering.yaml
+wanctl-check-config --json /etc/wanctl/*.yaml
+
+wanctl-check-cake --config /etc/wanctl/spectrum.yaml
+wanctl-check-cake --config /etc/wanctl/steering.yaml --json
+```
+
+## MVP Recommendation
+
+### Phase 1: Config Validation CLI (offline, no router needed)
+
+Prioritize:
+1. **Standalone `wanctl-check-config` entry point** -- both autorate and steering config support
+2. **Structured error collection** -- all errors surfaced, not just first
+3. **Cross-field semantic validation** -- floor ordering, threshold ordering, parameter interactions
+4. **File/permission checks** -- ssh_key, log dirs, state file dirs, lock file dirs
+5. **Env var resolution check** -- ${ROUTER_PASSWORD} existence
+6. **Deprecated param report** -- collected and surfaced prominently
+7. **Exit codes** -- 0/1/2 for CI/CD
+
+Defer to Phase 2: JSON output mode, steering cross-validation (needs both config files)
+
+### Phase 2: CAKE Queue Audit (requires router access)
+
+Prioritize:
+1. **Router connectivity probe** -- REST/SSH reachability and auth
+2. **Queue tree audit** -- queue exists, uses CAKE, max-limit matches
+3. **Mangle rule check** (steering config) -- rule exists and matches comment
+4. **Config vs router diff output** -- expected vs actual comparison
+
+Defer to Phase 3: Health endpoint probes, SQLite integrity, state file checks
+
+### Phase 3: Integration Probes (end-to-end operational checks)
+
+1. **State file consistency** -- valid JSON, expected keys, freshness
+2. **SQLite integrity** -- PRAGMA integrity_check on metrics.db
+3. **Health endpoint probes** -- HTTP GET to ports 9101/9102
+4. **Cross-config steering validation** -- verify topology references resolve
+
+## Complexity Assessment
+
+| Feature | New Code | Existing Code Reused | Test Effort |
+|---------|----------|---------------------|-------------|
+| check-config CLI | ~200 LOC | BaseConfig, validate_schema, deprecate_param | ~40 tests |
+| Cross-field validation | ~100 LOC | config_validation_utils.py validators | ~30 tests |
+| File/permission checks | ~50 LOC | pathlib only | ~15 tests |
+| Env var check | ~20 LOC | _resolve_password pattern | ~5 tests |
+| check-cake connectivity | ~50 LOC | test_connection() | ~10 tests |
+| Queue tree audit | ~150 LOC | REST GET, config loading | ~30 tests |
+| Mangle rule check | ~30 LOC | _find_mangle_rule_id() | ~10 tests |
+| Config diff output | ~100 LOC | New formatting | ~15 tests |
+| State file check | ~50 LOC | safe_read_json() | ~10 tests |
+| SQLite integrity | ~30 LOC | sqlite3.connect | ~5 tests |
+| **Total estimate** | **~780 LOC** | **Heavy reuse** | **~170 tests** |
 
 ## Sources
 
-- [Textual framework documentation](https://textual.textualize.io/) -- widget gallery, layout guide, CSS, workers
-- [Textual Sparkline widget](https://textual.textualize.io/widgets/sparkline/) -- data format, styling, reactive updates
-- [Textual TabbedContent widget](https://textual.textualize.io/widgets/tabbed_content/) -- tab navigation, pane management
-- [Textual Digits widget](https://textual.textualize.io/widgets/digits/) -- large number display
-- [Textual Workers guide](https://textual.textualize.io/guide/workers/) -- async HTTP polling without blocking UI
-- [Textual Layout guide](https://textual.textualize.io/guide/layout/) -- horizontal, vertical, grid, docking systems
-- [NetWatch TUI](https://github.com/matthart1983/netwatch) -- network monitoring TUI patterns (sparkline history, interface panels)
-- [btop system monitor](https://linuxblog.io/btop-the-htop-alternative/) -- keyboard navigation conventions, section toggling
-- [awesome-tuis curated list](https://github.com/rothgar/awesome-tuis) -- ecosystem survey of TUI tools and patterns
-- [Real Python Textual tutorial](https://realpython.com/python-textual/) -- practical Textual development patterns
-- wanctl existing code: `health_check.py`, `steering/health.py`, `metrics.py`, `history.py`, `storage/schema.py`, `storage/reader.py` (HIGH confidence -- direct code inspection)
-
----
-*Feature research for: wanctl TUI dashboard (v1.14)*
-*Researched: 2026-03-11*
+- Codebase analysis: config_base.py, config_validation_utils.py, router_client.py, routeros_rest.py, autorate_continuous.py (validate_config_mode), steering/daemon.py (SteeringConfig)
+- [MikroTik RouterOS REST API documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
+- [MikroTik CAKE documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE)
+- [MikroTik Queue Tree documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues)
+- [Python argparse documentation](https://docs.python.org/3/library/argparse.html)
+- [tc-cake(8) Linux manual page](https://www.man7.org/linux/man-pages/man8/tc-cake.8.html)
