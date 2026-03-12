@@ -61,11 +61,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. YAML `alerting:` section is parsed with rules, thresholds, cooldowns, and webhook URL
   4. Alerting is disabled by default; setting `alerting.enabled: true` activates the engine
   5. Invalid alerting config warns and disables the feature (never crashes the daemon)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 76-01: TBD
-- [ ] 76-02: TBD
+- [ ] 76-01-PLAN.md -- AlertEngine core class with per-event cooldown and SQLite persistence
+- [ ] 76-02-PLAN.md -- YAML alerting config parsing and daemon wiring
 
 ### Phase 77: Webhook Delivery
 **Goal**: Fired alerts reach the operator via Discord with rich, color-coded embeds and the delivery layer is extensible
@@ -156,7 +156,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 76. Alert Engine & Configuration | 0/TBD | Not started | - |
+| 76. Alert Engine & Configuration | 0/2 | Not started | - |
 | 77. Webhook Delivery | 0/TBD | Not started | - |
 | 78. Congestion & Steering Alerts | 0/TBD | Not started | - |
 | 79. Connectivity & Anomaly Alerts | 0/TBD | Not started | - |
