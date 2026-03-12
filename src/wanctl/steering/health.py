@@ -271,6 +271,21 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 wan_awareness["zone"] = self.daemon._wan_zone
             health["wan_awareness"] = wan_awareness
 
+            # Alerting state
+            from wanctl.alert_engine import AlertEngine
+
+            ae = self.daemon.alert_engine
+            if isinstance(ae, AlertEngine):
+                cooldowns = ae.get_active_cooldowns()
+                health["alerting"] = {
+                    "enabled": ae._enabled,
+                    "fire_count": ae.fire_count,
+                    "active_cooldowns": [
+                        {"type": k[0], "wan": k[1], "remaining_sec": round(v, 1)}
+                        for k, v in cooldowns.items()
+                    ],
+                }
+
         # Top-level router reachability
         health["router_reachable"] = router_reachable
 

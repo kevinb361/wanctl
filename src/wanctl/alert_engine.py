@@ -65,6 +65,12 @@ class AlertEngine:
         self._writer = writer
         self._delivery_callback = delivery_callback
         self._cooldowns: dict[tuple[str, str], float] = {}
+        self._fire_count: int = 0
+
+    @property
+    def fire_count(self) -> int:
+        """Total number of alerts fired (not suppressed) since startup."""
+        return self._fire_count
 
     def fire(
         self,
@@ -96,8 +102,9 @@ class AlertEngine:
         if self._is_cooled_down(alert_type, wan_name):
             return False
 
-        # Record cooldown timestamp
+        # Record cooldown timestamp and increment fire count
         self._cooldowns[(alert_type, wan_name)] = time.monotonic()
+        self._fire_count += 1
 
         # Persist to SQLite
         alert_id = self._persist_alert(alert_type, severity, wan_name, details)
