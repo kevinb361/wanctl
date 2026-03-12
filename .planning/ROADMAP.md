@@ -90,11 +90,11 @@ Plans:
   2. When the steering daemon activates steering (traffic rerouted to secondary), a steering-activated alert fires
   3. When steering deactivates (traffic returns to primary), a steering-recovered alert fires
   4. All three alert types respect per-event cooldown suppression and persist to SQLite
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 78-01: TBD
-- [ ] 78-02: TBD
+- [ ] 78-01-PLAN.md -- Sustained congestion detection with DL/UL timers, recovery alerts, and default_sustained_sec config
+- [ ] 78-02-PLAN.md -- Steering transition alerts with activation/recovery context and duration tracking
 
 ### Phase 79: Connectivity & Anomaly Alerts
 **Goal**: Operator is notified of WAN health issues and anomalous RTT behavior
@@ -157,7 +157,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 |-------|----------------|--------|-----------|
 | 76. Alert Engine & Configuration | 2/2 | Complete    | 2026-03-12 |
 | 77. Webhook Delivery | 2/2 | Complete    | 2026-03-12 |
-| 78. Congestion & Steering Alerts | 0/TBD | Not started | - |
+| 78. Congestion & Steering Alerts | 0/2 | Not started | - |
 | 79. Connectivity & Anomaly Alerts | 0/TBD | Not started | - |
 | 80. Observability & CLI | 0/TBD | Not started | - |
 
