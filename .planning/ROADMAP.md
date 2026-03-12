@@ -132,11 +132,12 @@ Plans:
 1. Health endpoint includes an `alerting` section showing enabled status, recent alert count, and active cooldowns
 2. `wanctl-history --alerts` displays fired alerts with timestamp, type, severity, WAN, and details
 3. Alert history is filterable by time range (consistent with existing --last flag)
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 80-01: TBD
+- [ ] 80-01-PLAN.md -- Health endpoint alerting section (enabled, fire_count, active_cooldowns)
+- [ ] 80-02-PLAN.md -- wanctl-history --alerts CLI with query_alerts() reader
 
 ## Progress
 
@@ -173,7 +174,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
 | 79. Connectivity & Anomaly Alerts | 2/2 | Complete    | 2026-03-12 |
-| 80. Observability & CLI           | 0/TBD          | Not started | -          |
+| 80. Observability & CLI           | 0/2            | Not started | -          |
 
 <details>
 <summary>v1.14 Operational Visibility (Phases 73-75) - SHIPPED 2026-03-11</summary>
