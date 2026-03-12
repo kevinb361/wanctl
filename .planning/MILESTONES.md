@@ -1,5 +1,34 @@
 # Project Milestones: wanctl
 
+## v1.15 Alerting & Notifications (Shipped: 2026-03-12)
+
+**Delivered:** Proactive alerting system with Discord webhook delivery, per-event cooldown suppression, and 7 alert types covering congestion, steering, connectivity, and anomaly events.
+
+**Phases completed:** 76-80 (10 plans total)
+
+**Key accomplishments:**
+
+- AlertEngine embedded in both daemons with per-event (type, WAN) cooldown suppression and SQLite persistence, disabled by default
+- Discord webhook delivery with color-coded severity embeds (red/yellow/green), retry with exponential backoff, and extensible AlertFormatter Protocol
+- Sustained congestion detection with independent DL/UL timers, zone-dependent severity (RED=critical, SOFT_RED=warning), and recovery gate
+- Steering transition alerts tracking activation/recovery with duration, confidence score, and WAN context
+- WAN offline/recovery detection, baseline RTT drift alerts (>25% deviation), and congestion zone flapping detection (6+ transitions in 5min)
+- Health endpoint alerting section (enabled, fire_count, active_cooldowns) and `wanctl-history --alerts` CLI with time-range filtering
+
+**Stats:**
+
+- 5 phases, 10 plans
+- 31 commits
+- 221 new tests (2,445 to 2,666)
+- 20,140 LOC Python (src/)
+- 1 day (2026-03-12)
+
+**Git range:** `v1.14..v1.15`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.14 Operational Visibility (Shipped: 2026-03-11)
 
 **Delivered:** Full TUI dashboard (`wanctl-dashboard`) for real-time monitoring and historical analysis of both WAN links with adaptive layout and terminal compatibility.

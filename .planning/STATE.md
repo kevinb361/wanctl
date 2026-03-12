@@ -4,7 +4,7 @@ milestone: v1.15
 milestone_name: Alerting & Notifications
 status: completed
 stopped_at: Completed 80-01-PLAN.md (health alerting)
-last_updated: "2026-03-12T17:01:48.901Z"
+last_updated: "2026-03-12T17:11:14.905Z"
 last_activity: 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
 progress:
   total_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 **Milestone:** v1.15 Alerting & Notifications
 **Phase:** 80 of 80 (Observability CLI)
 **Plan:** 2 of 2 in current phase (COMPLETE)
-**Status:** Milestone complete
+**Status:** v1.15 milestone complete
 **Last activity:** 2026-03-12 -- Completed 80-02-PLAN.md (alert history CLI)
 **Last session:** 2026-03-12T16:57:37.661Z
 **Stopped at:** Completed 80-01-PLAN.md (health alerting)

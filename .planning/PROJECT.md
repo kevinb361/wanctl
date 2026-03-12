@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.14.0 (Operational Visibility) — shipped 2026-03-11
-**Tests:** 2,445 passing, 91%+ coverage
-**LOC:** ~18,393 Python (src/), including 1,289 LOC dashboard module
-**Milestones:** 15 shipped (v1.0-v1.14), 75 phases, 151 plans
+**Version:** v1.15.0 (Alerting & Notifications) — shipped 2026-03-12
+**Tests:** 2,666 passing, 91%+ coverage
+**LOC:** ~20,140 Python (src/)
+**Milestones:** 16 shipped (v1.0-v1.15), 80 phases, 161 plans
 
-**Previous:** v1.13 Legacy Cleanup & Feature Graduation — dead code removal, legacy deprecation, confidence steering live, WAN-aware steering live
-**Latest:** v1.14 Operational Visibility — TUI dashboard with live monitoring, sparklines, history browser, responsive layout
+**Previous:** v1.14 Operational Visibility — TUI dashboard with live monitoring, sparklines, history browser
+**Latest:** v1.15 Alerting & Notifications — Discord alerts for congestion, steering, connectivity, anomalies with per-event cooldown and SQLite history
 
 ## Requirements
 
@@ -160,22 +160,22 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Terminal compatibility (--no-color, --256-color, tmux/SSH verified) — v1.14
 - ✓ 27/27 requirements satisfied — v1.14
 
+**v1.15 Alerting & Notifications:**
+
+- ✓ AlertEngine with per-event (type, WAN) cooldown suppression and SQLite persistence — v1.15
+- ✓ Discord webhook delivery with color-coded severity embeds and retry with backoff — v1.15
+- ✓ Sustained congestion alerts (DL/UL independent timers, recovery gate) — v1.15
+- ✓ Steering transition alerts (activation/recovery with duration and context) — v1.15
+- ✓ WAN offline/recovery, baseline drift, and congestion flapping detection — v1.15
+- ✓ YAML alerting config with rules, thresholds, cooldowns, webhook URL — v1.15
+- ✓ Health endpoint alerting section and `wanctl-history --alerts` CLI — v1.15
+- ✓ Alerting disabled by default, opt-in via alerting.enabled — v1.15
+- ✓ SIGUSR1 reload chain extended for webhook_url hot-reload — v1.15
+- ✓ 17/17 requirements satisfied — v1.15
+
 ### Active
 
-**Current Milestone: v1.15 Alerting & Notifications**
-
-**Goal:** Proactive alerting when wanctl detects noteworthy events, delivered via Discord webhook with per-event cooldown suppression.
-
-**Target features:**
-
-- Alert engine embedded in both daemons with configurable per-event cooldowns
-- Sustained congestion alerts (RED/SOFT_RED beyond threshold duration)
-- Steering transition alerts (traffic rerouted or recovered)
-- WAN offline/degraded alerts (health endpoint unreachable, connectivity lost)
-- Anomaly detection alerts (baseline drift, RTT spikes, flapping)
-- Discord webhook delivery with color-coded severity embeds
-- YAML alerting configuration (rules, thresholds, cooldowns, webhook URLs)
-- Alert history persisted to SQLite for review
+(No active milestone — planning next)
 
 ### Deferred
 
@@ -314,6 +314,16 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - 145 new dashboard tests (2,300 → 2,445 total)
 - Post-milestone: sparkline rate normalization and zero-anchor fix for visual consistency
 
+**v1.15 Alerting & Notifications (2026-03-12):**
+
+- Phase 76: Alert engine core (AlertEngine class, per-event cooldown, SQLite persistence, YAML config parsing)
+- Phase 77: Webhook delivery (AlertFormatter Protocol, DiscordFormatter, WebhookDelivery with retry/rate-limit, SIGUSR1 webhook_url reload)
+- Phase 78: Congestion & steering alerts (sustained congestion DL/UL timers, steering activation/recovery with duration)
+- Phase 79: Connectivity & anomaly alerts (WAN offline/recovery, baseline drift, congestion flapping)
+- Phase 80: Observability & CLI (health endpoint alerting section, wanctl-history --alerts)
+- 221 new tests (2,445 → 2,666 total)
+- Deployed to production with Discord webhook delivery verified
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -379,7 +389,14 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Bounded deques (maxlen=120) for sparklines | Constant memory regardless of dashboard uptime | ✓ ~2min rolling window | 2026-03-11 |
 | Dual autorate pollers for multi-container | Each container has its own health endpoint | ✓ Independent polling + backoff | 2026-03-11 |
 | Sparkline zero-anchor for consistent rendering | Textual min==max renders as flat line | ✓ Both WANs show full bars | 2026-03-11 |
+| Alert engine embedded in both daemons | Not standalone process — fires in control loop context | ✓ Zero IPC overhead | 2026-03-12 |
+| Per-event (type, WAN) cooldown key | Independent suppression per alert type per WAN | ✓ Fine-grained control | 2026-03-12 |
+| AlertFormatter Protocol for delivery | New backends (ntfy.sh) need only a formatter class | ✓ Extensible, no engine changes | 2026-03-12 |
+| Inline retry in WebhookDelivery | Cleaner thread-context control than decorator | ✓ Background thread dispatch | 2026-03-12 |
+| fire_count before persistence | Counts intent, not storage success | ✓ Accurate even if SQLite fails | 2026-03-12 |
+| Alerting disabled by default | No behavioral change on upgrade | ✓ Explicit opt-in required | 2026-03-12 |
+| SIGUSR1 chain: dry_run + wan_state + webhook | Three independent reloads from single signal | ✓ Zero-downtime config toggle | 2026-03-12 |
 
 ---
 
-_Last updated: 2026-03-11 after v1.15 milestone started_
+_Last updated: 2026-03-12 after v1.15 milestone completion_
