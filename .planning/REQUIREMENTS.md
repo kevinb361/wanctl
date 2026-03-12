@@ -27,10 +27,10 @@ Requirements for Alerting & Notifications milestone. Each maps to roadmap phases
 ### Infrastructure
 
 - [x] **INFRA-01**: Per-event-type cooldown suppression with configurable duration per alert type
-- [ ] **INFRA-02**: YAML `alerting:` configuration section with rules, thresholds, cooldowns, and webhook URL
+- [x] **INFRA-02**: YAML `alerting:` configuration section with rules, thresholds, cooldowns, and webhook URL
 - [x] **INFRA-03**: Fired alerts persisted to SQLite with timestamp, type, severity, WAN, and details
 - [ ] **INFRA-04**: Alert history queryable via `wanctl-history` CLI (e.g., `--alerts` flag)
-- [ ] **INFRA-05**: Alerting disabled by default, opt-in via `alerting.enabled: true`
+- [x] **INFRA-05**: Alerting disabled by default, opt-in via `alerting.enabled: true`
 - [ ] **INFRA-06**: Health endpoint exposes alerting state (enabled, recent alert count, active cooldowns)
 
 ## Future Requirements
@@ -73,10 +73,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DLVR-03 | Phase 77 | Pending |
 | DLVR-04 | Phase 77 | Pending |
 | INFRA-01 | Phase 76 | Complete |
-| INFRA-02 | Phase 76 | Pending |
+| INFRA-02 | Phase 76 | Complete |
 | INFRA-03 | Phase 76 | Complete |
 | INFRA-04 | Phase 80 | Pending |
-| INFRA-05 | Phase 76 | Pending |
+| INFRA-05 | Phase 76 | Complete |
 | INFRA-06 | Phase 80 | Pending |
 
 **Coverage:**
