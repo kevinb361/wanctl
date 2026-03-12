@@ -14,8 +14,8 @@ Requirements for Alerting & Notifications milestone. Each maps to roadmap phases
 - [x] **ALRT-03**: Steering daemon fires alert when steering is deactivated (traffic returns to primary)
 - [x] **ALRT-04**: Daemon fires alert when health endpoint target becomes unreachable beyond configurable duration
 - [x] **ALRT-05**: Daemon fires alert when previously unreachable endpoint recovers
-- [ ] **ALRT-06**: Autorate daemon fires alert when baseline RTT drifts beyond configurable threshold
-- [ ] **ALRT-07**: Autorate daemon fires alert when rapid congestion state flapping is detected
+- [x] **ALRT-06**: Autorate daemon fires alert when baseline RTT drifts beyond configurable threshold
+- [x] **ALRT-07**: Autorate daemon fires alert when rapid congestion state flapping is detected
 
 ### Delivery
 
@@ -66,8 +66,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALRT-03     | Phase 78 | Complete |
 | ALRT-04     | Phase 79 | Complete |
 | ALRT-05     | Phase 79 | Complete |
-| ALRT-06     | Phase 79 | Pending  |
-| ALRT-07     | Phase 79 | Pending  |
+| ALRT-06     | Phase 79 | Complete |
+| ALRT-07     | Phase 79 | Complete |
 | DLVR-01     | Phase 77 | Complete |
 | DLVR-02     | Phase 77 | Complete |
 | DLVR-03     | Phase 77 | Complete |

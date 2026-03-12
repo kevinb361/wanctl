@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 76: Alert Engine & Configuration** - Core alert engine with per-event cooldown, YAML config, SQLite persistence, and disabled-by-default gate (completed 2026-03-12)
 - [x] **Phase 77: Webhook Delivery** - Discord webhook with color-coded embeds, retry with backoff, and generic formatter interface (completed 2026-03-12)
 - [x] **Phase 78: Congestion & Steering Alerts** - Sustained congestion detection in autorate and steering transition alerts in steering daemon (completed 2026-03-12)
-- [ ] **Phase 79: Connectivity & Anomaly Alerts** - WAN offline/recovery detection, baseline drift, and congestion flapping alerts
+- [x] **Phase 79: Connectivity & Anomaly Alerts** - WAN offline/recovery detection, baseline drift, and congestion flapping alerts (completed 2026-03-12)
 - [ ] **Phase 80: Observability & CLI** - Health endpoint alerting state and wanctl-history --alerts query support
 
 ## Phase Details
@@ -172,7 +172,7 @@ Phases execute in numeric order: 76 -> 77 -> 78 -> 79 -> 80
 | 76. Alert Engine & Configuration  | 2/2            | Complete    | 2026-03-12 |
 | 77. Webhook Delivery              | 2/2            | Complete    | 2026-03-12 |
 | 78. Congestion & Steering Alerts  | 2/2            | Complete    | 2026-03-12 |
-| 79. Connectivity & Anomaly Alerts | 1/2 | In Progress|  |
+| 79. Connectivity & Anomaly Alerts | 2/2 | Complete   | 2026-03-12 |
 | 80. Observability & CLI           | 0/TBD          | Not started | -          |
 
 <details>

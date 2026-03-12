@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
 status: executing
-stopped_at: Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
-last_updated: "2026-03-12T16:18:00Z"
-last_activity: 2026-03-12 -- Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
+stopped_at: Completed 79-02-PLAN.md (anomaly detection alerts)
+last_updated: "2026-03-12T16:21:32Z"
+last_activity: 2026-03-12 -- Completed 79-02-PLAN.md (anomaly detection alerts)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -21,27 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.15 Alerting & Notifications -- Phase 79 plan 1 of 2 complete
+**Current focus:** v1.15 Alerting & Notifications -- Phase 79 plan 2 of 2 complete
 
 ## Position
 
 **Milestone:** v1.15 Alerting & Notifications
 **Phase:** 79 of 80 (Connectivity Anomaly Alerts)
-**Plan:** 1 of 2 in current phase
+**Plan:** 2 of 2 in current phase (COMPLETE)
 **Status:** Executing
-**Last activity:** 2026-03-12 -- Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
-**Last session:** 2026-03-12T16:18:00Z
-**Stopped at:** Completed 79-01-PLAN.md (connectivity offline/recovery alerts)
+**Last activity:** 2026-03-12 -- Completed 79-02-PLAN.md (anomaly detection alerts)
+**Last session:** 2026-03-12T16:21:32Z
+**Stopped at:** Completed 79-02-PLAN.md (anomaly detection alerts)
 
-Progress: [█████████░] 88% (Phase 79 plan 1/2)
+Progress: [██████████] 100% (Phase 79 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
-- Average duration: 7.7 min
-- Total execution time: 0.90 hours
+- Total plans completed: 8
+- Average duration: 7.5 min
+- Total execution time: 1.00 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -52,6 +52,7 @@ Progress: [█████████░] 88% (Phase 79 plan 1/2)
 | 78    | 01   | 6min     | 1     | 2     |
 | 78    | 02   | 5min     | 1     | 2     |
 | 79    | 01   | 3min     | 1     | 2     |
+| 79    | 02   | 6min     | 2     | 2     |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Progress: [█████████░] 88% (Phase 79 plan 1/2)
 - default_sustained_sec in steering config for cross-daemon config structure symmetry
 - raw_measured_rtt captured before fallback processing for accurate connectivity alert tracking
 - \_check_connectivity_alerts called inside PerfTimer block before early return to track both online and offline cycles
+- Baseline drift uses absolute percentage (detects both ISP degradation and routing improvements)
+- Flapping uses simple deque of monotonic timestamps (lighter than FlapDetector from steering)
+- Per-rule overrides for drift_threshold_pct, flap_threshold, flap_window_sec
 
 ### Known Issues
 
