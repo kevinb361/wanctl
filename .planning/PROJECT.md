@@ -175,7 +175,17 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — planning next)
+## Current Milestone: v1.16 Validation & Operational Confidence
+
+**Goal:** Ensure the system is configured correctly, the router matches expectations, and misconfigurations get caught early rather than silently degrading.
+
+**Target features:**
+
+- Structured config validation at startup (fail-fast on misconfigurations)
+- `wanctl check-config` CLI tool for manual config validation
+- CAKE qdisc audit (verify router parameters match expectations for cable/DSL links)
+- Read-only integration probes against production router (REST connectivity, CAKE qdiscs, state file consistency)
+- `wanctl check-cake` command to compare router state vs expected config
 
 ### Deferred
 
@@ -399,4 +409,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-12 after v1.15 milestone completion_
+_Last updated: 2026-03-12 after v1.16 milestone started_
