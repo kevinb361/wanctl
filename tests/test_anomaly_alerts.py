@@ -214,14 +214,7 @@ def mock_flapping_controller():
         enabled=True,
         default_cooldown_sec=300,
         rules={
-            "flapping_dl": {
-                "enabled": True,
-                "cooldown_sec": 300,
-                "severity": "warning",
-                "flap_threshold": 6,
-                "flap_window_sec": 60,
-            },
-            "flapping_ul": {
+            "congestion_flapping": {
                 "enabled": True,
                 "cooldown_sec": 300,
                 "severity": "warning",
@@ -430,7 +423,7 @@ class TestFlappingCooldownAndWindow:
             enabled=True,
             default_cooldown_sec=300,
             rules={
-                "flapping_dl": {
+                "congestion_flapping": {
                     "enabled": True,
                     "cooldown_sec": 300,
                     "severity": "critical",
@@ -461,7 +454,7 @@ class TestFlappingCooldownAndWindow:
             enabled=True,
             default_cooldown_sec=300,
             rules={
-                "flapping_dl": {
+                "congestion_flapping": {
                     "enabled": True,
                     "cooldown_sec": 300,
                     "severity": "warning",
@@ -494,7 +487,7 @@ class TestFlappingCooldownAndWindow:
             enabled=True,
             default_cooldown_sec=300,
             rules={
-                "flapping_dl": {
+                "congestion_flapping": {
                     "enabled": True,
                     "cooldown_sec": 300,
                     "severity": "warning",
@@ -521,3 +514,149 @@ class TestFlappingCooldownAndWindow:
 
         # Should NOT fire (only ~2 transitions in 10s window, need 6)
         mock_fire.assert_not_called()
+
+
+# =============================================================================
+# FLAPPING DEQUE CLEARING
+# =============================================================================
+
+
+class TestFlappingDequeClear:
+    """Tests that deques are cleared after flapping alert fires."""
+
+    def test_dl_deque_cleared_after_fire(self, mock_flapping_controller):
+        """After DL flapping alert fires, _dl_zone_transitions deque is empty."""
+        now = time.monotonic()
+
+        # Generate 6 transitions to exceed threshold
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Trigger one more to fire the alert
+        with patch("time.monotonic", return_value=now + 40):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Deque should be cleared after firing
+        assert len(mock_flapping_controller._dl_zone_transitions) == 0
+
+    def test_ul_deque_cleared_after_fire(self, mock_flapping_controller):
+        """After UL flapping alert fires, _ul_zone_transitions deque is empty."""
+        now = time.monotonic()
+
+        # Generate 6 UL transitions to exceed threshold
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+        # Trigger one more to fire the alert
+        with patch("time.monotonic", return_value=now + 40):
+            mock_flapping_controller._check_flapping_alerts("GREEN", "RED")
+
+        # Deque should be cleared after firing
+        assert len(mock_flapping_controller._ul_zone_transitions) == 0
+
+    def test_no_refire_after_cooldown_expires(self, mock_flapping_controller):
+        """After deque clear + cooldown expiry, no immediate re-fire (deque was cleared)."""
+        now = time.monotonic()
+
+        # Generate 6 transitions to fire
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Fire the alert
+        with patch("time.monotonic", return_value=now + 40):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Advance past cooldown (300s) with no new transitions
+        with patch("time.monotonic", return_value=now + 400):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                # Same zone as last (RED), no transition
+                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Should NOT fire: deque was cleared, no new transitions added
+        mock_fire.assert_not_called()
+
+
+# =============================================================================
+# FLAPPING DEFAULT VALUES
+# =============================================================================
+
+
+class TestFlappingDefaults:
+    """Tests for default threshold and window when no rule configured."""
+
+    def test_default_threshold_is_30(self, mock_flapping_controller):
+        """With empty rules, default threshold is 30 (not 6)."""
+        mock_flapping_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={},
+            writer=None,
+        )
+
+        now = time.monotonic()
+
+        # Generate 29 transitions (below new default of 30)
+        zone = "GREEN"
+        for i in range(29):
+            next_zone = "RED" if zone == "GREEN" else "GREEN"
+            with patch("time.monotonic", return_value=now + i * 0.5):
+                with patch.object(
+                    mock_flapping_controller.alert_engine, "fire", return_value=True
+                ) as mock_fire:
+                    mock_flapping_controller._check_flapping_alerts(next_zone, "GREEN")
+            zone = next_zone
+
+        # 29 transitions should NOT fire (threshold is 30)
+        mock_fire.assert_not_called()
+
+        # 30th transition should fire
+        next_zone = "RED" if zone == "GREEN" else "GREEN"
+        with patch("time.monotonic", return_value=now + 29 * 0.5):
+            with patch.object(
+                mock_flapping_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire:
+                mock_flapping_controller._check_flapping_alerts(next_zone, "GREEN")
+
+        mock_fire.assert_called_once()
+
+    def test_default_window_is_120(self, mock_flapping_controller):
+        """With empty rules, default window is 120s (not 60s)."""
+        mock_flapping_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={},
+            writer=None,
+        )
+
+        now = time.monotonic()
+
+        # Add transitions at t=0..10 (4 transitions)
+        zones_old = ["GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones_old):
+            with patch("time.monotonic", return_value=now + i * 2.5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        assert len(mock_flapping_controller._dl_zone_transitions) == 4
+
+        # At t=100 (within 120s window but outside old 60s), transitions should remain
+        with patch("time.monotonic", return_value=now + 100):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+
+        # Old transitions at t=2.5..10 are still within 120s window from t=100
+        # Plus the new transition at t=100 = 5 total
+        assert len(mock_flapping_controller._dl_zone_transitions) == 5
+
+        # At t=130 (beyond 120s from t=0..10), old transitions should be pruned
+        with patch("time.monotonic", return_value=now + 130):
+            mock_flapping_controller._check_flapping_alerts("GREEN", "GREEN")
+
+        # Only transitions from t=100 and t=130 should remain
+        assert len(mock_flapping_controller._dl_zone_transitions) == 2
