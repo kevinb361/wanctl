@@ -1164,6 +1164,16 @@ class WANController:
         )
 
         # =====================================================================
+        # CONNECTIVITY ALERT TIMERS (ALRT-04, ALRT-05)
+        # =====================================================================
+        # Monotonic timestamp tracking when all ICMP targets became unreachable.
+        # Fires wan_offline after sustained_sec threshold (default 30s).
+        # Fires wan_recovered when ICMP returns IF wan_offline had fired.
+        # =====================================================================
+        self._connectivity_offline_start: float | None = None
+        self._wan_offline_fired: bool = False
+
+        # =====================================================================
         # PROFILING INSTRUMENTATION
         # =====================================================================
         # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
@@ -1587,6 +1597,7 @@ class WANController:
         rtt_early_return: bool | None = None  # None=continue, True/False=return value
         with PerfTimer("autorate_rtt_measurement", self.logger) as rtt_timer:
             measured_rtt = self.measure_rtt()
+            raw_measured_rtt = measured_rtt  # Capture before fallback (ALRT-04/05)
 
             # Handle ICMP failure with fallback connectivity checks
             if measured_rtt is None:
@@ -1605,6 +1616,10 @@ class WANController:
                         f"{self.icmp_unavailable_cycles} cycles"
                     )
                     self.icmp_unavailable_cycles = 0
+
+            # WAN connectivity alerts (ALRT-04, ALRT-05) -- uses raw RTT
+            # before fallback so we track actual ICMP reachability
+            self._check_connectivity_alerts(raw_measured_rtt)
 
         if rtt_early_return is not None:
             self._record_profiling(rtt_timer.elapsed_ms, 0.0, 0.0, cycle_start)
@@ -1649,6 +1664,9 @@ class WANController:
             # Sustained congestion detection (ALRT-01)
             delta = self.load_rtt - self.baseline_rtt
             self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
+
+            # Baseline RTT drift detection (ALRT-06)
+            self._check_baseline_drift()
 
             # Log decision
             self.logger.info(
@@ -1892,6 +1910,93 @@ class WANController:
                     )
                 self._ul_congestion_start = None
                 self._ul_sustained_fired = False
+
+    def _check_connectivity_alerts(self, measured_rtt: float | None) -> None:
+        """Check WAN connectivity and fire offline/recovery alerts (ALRT-04, ALRT-05).
+
+        Called each run_cycle() with the raw measured RTT (before fallback processing).
+        Tracks how long all ICMP targets have been unreachable. Fires wan_offline
+        after sustained_sec threshold (default 30s). Fires wan_recovered when ICMP
+        returns IF wan_offline had fired (recovery gate).
+
+        Args:
+            measured_rtt: Raw RTT from measure_rtt(), None if all targets unreachable.
+        """
+        now = time.monotonic()
+
+        if measured_rtt is None:
+            # All ICMP targets unreachable
+            if self._connectivity_offline_start is None:
+                self._connectivity_offline_start = now
+            elif not self._wan_offline_fired:
+                # Check per-rule sustained_sec override
+                sustained_sec = self.alert_engine._rules.get(
+                    "wan_offline", {}
+                ).get("sustained_sec", self._sustained_sec)
+                duration = now - self._connectivity_offline_start
+                if duration >= sustained_sec:
+                    fired = self.alert_engine.fire(
+                        "wan_offline",
+                        "critical",
+                        self.wan_name,
+                        {
+                            "duration_sec": round(duration, 1),
+                            "ping_targets": len(self.ping_hosts),
+                            "last_known_rtt": round(self.load_rtt, 1),
+                        },
+                    )
+                    if fired:
+                        self._wan_offline_fired = True
+        else:
+            # ICMP recovered
+            if self._connectivity_offline_start is not None:
+                if self._wan_offline_fired:
+                    duration = now - self._connectivity_offline_start
+                    self.alert_engine.fire(
+                        "wan_recovered",
+                        "recovery",
+                        self.wan_name,
+                        {
+                            "outage_duration_sec": round(duration, 1),
+                            "current_rtt": round(measured_rtt, 1),
+                            "ping_targets": len(self.ping_hosts),
+                        },
+                    )
+                self._connectivity_offline_start = None
+                self._wan_offline_fired = False
+
+    def _check_baseline_drift(self) -> None:
+        """Check if baseline RTT has drifted beyond threshold from initial (ALRT-06).
+
+        Compares the EWMA baseline_rtt against the config-set baseline_rtt_initial.
+        Fires baseline_drift alert when absolute percentage drift exceeds threshold.
+        Cooldown suppression in AlertEngine handles re-fire naturally.
+
+        Uses absolute percentage so both upward drift (ISP degradation) and
+        downward drift (routing change) are detected.
+        """
+        reference = self.config.baseline_rtt_initial
+        if reference <= 0:
+            return
+
+        drift_pct = abs(self.baseline_rtt - reference) / reference * 100.0
+
+        # Per-rule threshold override (default 50%)
+        threshold = self.alert_engine._rules.get("baseline_drift", {}).get(
+            "drift_threshold_pct", 50
+        )
+
+        if drift_pct >= threshold:
+            self.alert_engine.fire(
+                "baseline_drift",
+                "warning",
+                self.wan_name,
+                {
+                    "current_baseline_ms": round(self.baseline_rtt, 2),
+                    "reference_baseline_ms": round(reference, 2),
+                    "drift_percent": round(drift_pct, 1),
+                },
+            )
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
