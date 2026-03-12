@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.15
 milestone_name: Alerting & Notifications
-status: planning
-stopped_at: Phase 78 context gathered
-last_updated: "2026-03-12T14:17:40.194Z"
-last_activity: 2026-03-12 -- Completed 77-02-PLAN.md (webhook integration wiring)
+status: executing
+stopped_at: Completed 78-02-PLAN.md
+last_updated: "2026-03-12T14:39:00.000Z"
+last_activity: 2026-03-12 -- Completed 78-02-PLAN.md (steering transition alerts)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 6
   percent: 100
 ---
 
@@ -21,27 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.15 Alerting & Notifications -- Phase 77 complete, Phase 78 next
+**Current focus:** v1.15 Alerting & Notifications -- Phase 78 plan 2 of 2 complete
 
 ## Position
 
 **Milestone:** v1.15 Alerting & Notifications
-**Phase:** 77 of 80 (Webhook Delivery)
+**Phase:** 78 of 80 (Congestion & Steering Alerts)
 **Plan:** 2 of 2 in current phase (COMPLETE)
-**Status:** Ready to plan
-**Last activity:** 2026-03-12 -- Completed 77-02-PLAN.md (webhook integration wiring)
-**Last session:** 2026-03-12T14:17:40.188Z
-**Stopped at:** Phase 78 context gathered
+**Status:** Executing
+**Last activity:** 2026-03-12 -- Completed 78-02-PLAN.md (steering transition alerts)
+**Last session:** 2026-03-12T14:39:00Z
+**Stopped at:** Completed 78-02-PLAN.md
 
-Progress: [██████████] 100% (Phase 77 complete)
+Progress: [██████████] 100% (Phase 78 complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: 10.0 min
-- Total execution time: 0.67 hours
+- Total plans completed: 6
+- Average duration: 8.5 min
+- Total execution time: 0.85 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -49,6 +49,8 @@ Progress: [██████████] 100% (Phase 77 complete)
 | 76    | 02   | 4min     | 1     | 3     |
 | 77    | 01   | 15min    | 2     | 4     |
 | 77    | 02   | 18min    | 1     | 5     |
+| 78    | 01   | 6min     | 1     | 2     |
+| 78    | 02   | 5min     | 1     | 2     |
 
 ## Accumulated Context
 
@@ -75,6 +77,14 @@ Progress: [██████████] 100% (Phase 77 complete)
 - Webhook URL validation at daemon wiring layer, not config parsing layer
 - SIGUSR1 reload chain: dry_run + wan_state + webhook_url (three independent reloads)
 - conftest mock fixtures must explicitly set alerting_config=None (MagicMock truthy leakage fix)
+- DL congested = RED or SOFT_RED; UL congested = RED only (3-state model)
+- RED->SOFT_RED shares congestion timer; GREEN/YELLOW clears timer
+- Recovery gate: congestion_recovered only fires if congestion_sustained fired first
+- Zone-dependent severity: RED=critical, SOFT_RED=warning, recovery=recovery
+- Per-rule sustained_sec override via rules dict (same pattern as cooldown_sec)
+- time.monotonic() for steering duration tracking (not ISO timestamp parsing from state file)
+- steering_recovered severity="recovery" for green Discord embed (consistent with congestion recovery)
+- default_sustained_sec in steering config for cross-daemon config structure symmetry
 
 ### Known Issues
 
