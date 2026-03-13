@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.16
 milestone_name: Validation & Operational Confidence
 status: planning
-last_updated: "2026-03-12T20:12:55.237Z"
-last_activity: 2026-03-12 - Completed quick task 7: Fix flapping alert bugs
+last_updated: "2026-03-13T01:17:23.000Z"
+last_activity: 2026-03-13 - Completed quick task 8: Fix flapping alert cooldown key and dwell filter
 progress:
   total_phases: 3
   completed_phases: 2
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 **Phase:** 81 of 83 (Config Validation Foundation) -- COMPLETE
 **Plan:** 1 of 1 (complete)
 **Status:** Ready to plan
-**Last activity:** 2026-03-12 - Completed quick task 7: Fix flapping alert bugs
+**Last activity:** 2026-03-13 - Completed quick task 8: Fix flapping alert cooldown key and dwell filter
 
 ## Accumulated Context
 
@@ -55,6 +55,7 @@ None.
 | #   | Description                                                                                       | Date       | Commit  | Directory                                                                                         |
 | --- | ------------------------------------------------------------------------------------------------- | ---------- | ------- | ------------------------------------------------------------------------------------------------- |
 | 7   | Fix flapping alert bugs: rule name mismatch, deque not cleared, threshold not calibrated for 20Hz | 2026-03-12 | 98f0dab | [7-fix-flapping-alert-bugs-rule-name-mismat](./quick/7-fix-flapping-alert-bugs-rule-name-mismat/) |
+| 8   | Fix flapping alert cooldown key mismatch and add dwell filter for zone blips                      | 2026-03-13 | f6babcc | [8-fix-flapping-alert-detection-cooldown-ke](./quick/8-fix-flapping-alert-detection-cooldown-ke/) |
 
 ### Pending Todos
 
