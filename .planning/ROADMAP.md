@@ -89,12 +89,11 @@ Plans:
 3. CAKE qdisc type verification confirms queues use CAKE (not fq_codel or default)
 4. Config-vs-router diff shows expected vs actual values side-by-side for each parameter that differs
 5. Mangle rule existence check verifies the steering mangle rule exists on the router
-   **Plans**: TBD
+   **Plans**: 1 plan
 
 Plans:
 
-- [ ] 83-01: TBD
-- [ ] 83-02: TBD
+- [ ] 83-01-PLAN.md -- Router audit CLI with connectivity, queue tree, CAKE type, max-limit diff, and mangle rule checks
 
 ## Progress
 
@@ -107,7 +106,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | ---------------------------------- | -------------- | ----------- | ---------- |
 | 81. Config Validation Foundation   | 1/1            | Complete    | 2026-03-12 |
 | 82. Steering Config + Output Modes | 2/2            | Complete    | 2026-03-13 |
-| 83. CAKE Qdisc Audit               | 0/?            | Not started | -          |
+| 83. CAKE Qdisc Audit               | 0/1            | Not started | -          |
 
 ### Completed Milestones
 
