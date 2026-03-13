@@ -178,17 +178,121 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.14 — Operational Visibility
+
+**Shipped:** 2026-03-11
+**Phases:** 3 | **Plans:** 7
+
+### What Was Built
+
+- Full TUI dashboard (`wanctl-dashboard`) with live per-WAN panels, sparklines, cycle gauge
+- Async dual-poller for multi-container WAN monitoring with independent backoff
+- Historical metrics browser with time range selector and summary stats
+- Responsive layout with resize hysteresis, terminal compatibility flags
+
+### What Worked
+
+- Rich Text renderer + Widget wrapper pattern enabled 133 tests without App.run_test() async machinery
+- Dashboard as pure HTTP consumer (zero daemon imports) prevented code coupling
+- Bounded deques (maxlen=120) for sparklines gave constant memory regardless of uptime
+
+### What Was Inefficient
+
+- Sparkline zero-anchor fix required post-milestone commit — Textual's min==max flat-line behavior should have been caught during Phase 74 testing
+
+### Key Lessons
+
+1. Pure-consumer dashboard pattern (all data via HTTP health endpoints) is the right architecture for operational tools
+2. Test rendering output (Rich Text), not widget internals — faster, more stable tests
+
+---
+
+## Milestone: v1.15 — Alerting & Notifications
+
+**Shipped:** 2026-03-12
+**Phases:** 5 | **Plans:** 10
+
+### What Was Built
+
+- AlertEngine with per-event (type, WAN) cooldown and SQLite persistence
+- Discord webhook delivery with color-coded embeds, retry/backoff, rate limiting
+- 7 alert types: sustained congestion (DL/UL), steering transitions, WAN offline/recovery, baseline drift, congestion flapping
+- Health endpoint alerting section and `wanctl-history --alerts` CLI
+
+### What Worked
+
+- AlertFormatter Protocol made delivery backend-agnostic — adding ntfy.sh later needs only a new formatter class
+- fire_count before persistence counts intent, not storage success — accurate even if SQLite fails
+- fire-then-deliver pattern: control loop never blocks on webhook delivery
+
+### What Was Inefficient
+
+- Quick tasks 7 and 8 (flapping alert bugs) identified issues that should have been caught by the research phase — dwell filtering and 20Hz threshold calibration were foreseeable
+- isinstance(ae, AlertEngine) guard needed for MagicMock safety in health endpoints — defensive coding around test infrastructure
+
+### Key Lessons
+
+1. Alert thresholds must be calibrated for actual polling frequency — 20Hz (50ms interval) means raw counts are 20x what they'd be at 1Hz
+2. Dwell filtering prevents noisy zone transitions from triggering flapping alerts — always consider the signal stability, not just the threshold
+
+---
+
+## Milestone: v1.16 — Validation & Operational Confidence
+
+**Shipped:** 2026-03-13
+**Phases:** 3 | **Plans:** 4
+
+### What Was Built
+
+- `wanctl-check-config` CLI for offline config validation (autorate + steering) with 6 categories
+- Auto-detection of config type from YAML contents, cross-config topology validation
+- JSON output mode for CI/scripting integration
+- `wanctl-check-cake` CLI for live router CAKE queue audit (connectivity, queue tree, CAKE type, max-limit diff, mangle rules)
+
+### What Worked
+
+- Reusable CheckResult/Severity data model shared between both CLI tools — consistent output format
+- SCHEMA class attribute access (never instantiate Config()) avoids daemon side effects (locks, log dirs)
+- TDD discipline: RED phase caught design issues early (e.g., exit code semantics)
+
+### What Was Inefficient
+
+- Nothing notable — well-scoped milestone with clear boundaries. 3 phases, 4 plans, shipped in 2 days.
+
+### Patterns Established
+
+- Config validation as standalone CLI tools following wanctl-history pattern (argparse, exit codes, --json/--no-color)
+- SimpleNamespace wrapping for router config dict — enables factory functions without daemon imports
+- SCHEMA-only config introspection — validate structure without instantiating the runtime object
+
+### Key Lessons
+
+1. CLI tools that share a data model (CheckResult) produce consistent output with minimal effort
+2. Never instantiate daemon config classes in validation tools — use class-level SCHEMA attributes only
+3. Max-limit differences are informational (not errors) since CAKE dynamically adjusts during congestion
+
+### Cost Observations
+
+- Model mix: Opus for execution, Sonnet for verification
+- Sessions: 2 (phases 81-82, phase 83 + milestone completion)
+- Notable: Fastest milestone by wall-clock (2 days, 4 plans). Well-defined research + existing patterns (check_config → check_cake reuse).
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
 
-| Milestone | Phases | Plans | Key Change                                                   |
-| --------- | ------ | ----- | ------------------------------------------------------------ |
-| v1.9      | 3      | 6     | First icmplib optimization, profiling infrastructure         |
-| v1.10     | 8      | 15    | First milestone audit, gap closure workflow                  |
-| v1.11     | 4      | 8     | Cross-daemon feature with feature toggle, requirements-first |
-| v1.12     | 5      | 7     | Contract test parametrization, BaseConfig consolidation      |
-| v1.13     | 6      | 10    | Feature graduation protocol, SIGUSR1 generalized reload      |
+| Milestone | Phases | Plans | Key Change                                                    |
+| --------- | ------ | ----- | ------------------------------------------------------------- |
+| v1.9      | 3      | 6     | First icmplib optimization, profiling infrastructure          |
+| v1.10     | 8      | 15    | First milestone audit, gap closure workflow                   |
+| v1.11     | 4      | 8     | Cross-daemon feature with feature toggle, requirements-first  |
+| v1.12     | 5      | 7     | Contract test parametrization, BaseConfig consolidation       |
+| v1.13     | 6      | 10    | Feature graduation protocol, SIGUSR1 generalized reload       |
+| v1.14     | 3      | 7     | TUI dashboard, pure-consumer pattern, Rich Text testing       |
+| v1.15     | 5      | 10    | Alert engine, Protocol formatters, fire-then-deliver          |
+| v1.16     | 3      | 4     | CLI validation tools, shared data model, SCHEMA introspection |
 
 ### Cumulative Quality
 
@@ -199,6 +303,9 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.11     | 2,210 | 91%+     | 101       |
 | v1.12     | 2,263 | 91%+     | 53        |
 | v1.13     | 2,300 | 91%+     | 37        |
+| v1.14     | 2,445 | 91%+     | 145       |
+| v1.15     | 2,666 | 91%+     | 221       |
+| v1.16     | 2,823 | 91%+     | 157       |
 
 ### Top Lessons (Verified Across Milestones)
 

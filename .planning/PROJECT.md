@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.15.0 (Alerting & Notifications) — shipped 2026-03-12
-**Tests:** 2,666 passing, 91%+ coverage
-**LOC:** ~20,140 Python (src/)
-**Milestones:** 16 shipped (v1.0-v1.15), 80 phases, 161 plans
+**Version:** v1.16.0 (Validation & Operational Confidence) — shipped 2026-03-13
+**Tests:** 2,823 passing, 91%+ coverage
+**LOC:** ~22,180 Python (src/)
+**Milestones:** 17 shipped (v1.0-v1.16), 83 phases, 170 plans
 
-**Previous:** v1.14 Operational Visibility — TUI dashboard with live monitoring, sparklines, history browser
-**Latest:** v1.15 Alerting & Notifications — Discord alerts for congestion, steering, connectivity, anomalies with per-event cooldown and SQLite history
+**Previous:** v1.15 Alerting & Notifications — Discord alerts for congestion, steering, connectivity, anomalies
+**Latest:** v1.16 Validation & Operational Confidence — CLI tools for offline config validation and live router CAKE queue audit
 
 ## Requirements
 
@@ -173,19 +173,21 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ SIGUSR1 reload chain extended for webhook_url hot-reload — v1.15
 - ✓ 17/17 requirements satisfied — v1.15
 
+**v1.16 Validation & Operational Confidence:**
+
+- ✓ `wanctl-check-config` CLI tool for offline config validation (autorate + steering) — v1.16
+- ✓ Auto-detection of config type from YAML contents — v1.16
+- ✓ 6 validation categories (schema, cross-field, unknown keys, paths, env vars, deprecated) — v1.16
+- ✓ Cross-config topology validation (primary_wan_config path + wan_name match) — v1.16
+- ✓ JSON output mode for CI/scripting integration — v1.16
+- ✓ `wanctl-check-cake` CLI tool for live router CAKE queue audit — v1.16
+- ✓ Router connectivity, queue tree, CAKE type, max-limit diff, mangle rule validators — v1.16
+- ✓ Reusable CheckResult/Severity data model shared between CLI tools — v1.16
+- ✓ 16/16 requirements satisfied — v1.16
+
 ### Active
 
-## Current Milestone: v1.16 Validation & Operational Confidence
-
-**Goal:** Ensure the system is configured correctly, the router matches expectations, and misconfigurations get caught early rather than silently degrading.
-
-**Target features:**
-
-- Structured config validation at startup (fail-fast on misconfigurations)
-- `wanctl check-config` CLI tool for manual config validation
-- CAKE qdisc audit (verify router parameters match expectations for cable/DSL links)
-- Read-only integration probes against production router (REST connectivity, CAKE qdiscs, state file consistency)
-- `wanctl check-cake` command to compare router state vs expected config
+(No active milestone — run `/gsd:new-milestone` to start next)
 
 ### Deferred
 
@@ -334,6 +336,15 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - 221 new tests (2,445 → 2,666 total)
 - Deployed to production with Discord webhook delivery verified
 
+**v1.16 Validation & Operational Confidence (2026-03-12 → 2026-03-13):**
+
+- Phase 81: Config validation foundation (`wanctl-check-config` with 6 categories, CheckResult model)
+- Phase 82: Steering config support (auto-detection, cross-config topology checks, JSON output)
+- Phase 83: CAKE qdisc audit (`wanctl-check-cake` with connectivity, queue tree, CAKE type, max-limit, mangle)
+- 157 new tests (2,666 → 2,823 total)
+- Key: Never instantiate Config() in check tools — use SCHEMA class attributes only
+- Key: SimpleNamespace wraps router config dict for RouterOSREST.from_config() compatibility
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -406,7 +417,11 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | fire_count before persistence | Counts intent, not storage success | ✓ Accurate even if SQLite fails | 2026-03-12 |
 | Alerting disabled by default | No behavioral change on upgrade | ✓ Explicit opt-in required | 2026-03-12 |
 | SIGUSR1 chain: dry_run + wan_state + webhook | Three independent reloads from single signal | ✓ Zero-downtime config toggle | 2026-03-12 |
+| Never instantiate Config() in check tools | Avoid daemon side effects (locks, log dirs) | ✓ SCHEMA class attrs only | 2026-03-12 |
+| CheckResult/Severity shared data model | Consistent output format across CLI tools | ✓ Both tools import from check_config | 2026-03-13 |
+| SimpleNamespace for router config wrapping | get_router_client() needs attr access, not dict | ✓ No daemon imports needed | 2026-03-13 |
+| Max-limit diff as informational PASS | max-limit changes dynamically during congestion | ✓ Not flagged as error | 2026-03-13 |
 
 ---
 
-_Last updated: 2026-03-12 after v1.16 milestone started_
+_Last updated: 2026-03-13 after v1.16 milestone_

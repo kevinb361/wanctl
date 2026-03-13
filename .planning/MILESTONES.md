@@ -1,5 +1,34 @@
 # Project Milestones: wanctl
 
+## v1.16 Validation & Operational Confidence (Shipped: 2026-03-13)
+
+**Delivered:** Operator-facing CLI tools that catch misconfigurations before runtime and verify router queue state matches expectations.
+
+**Phases completed:** 81-83 (4 plans total)
+
+**Key accomplishments:**
+
+- `wanctl-check-config` CLI tool for offline config validation with 6 categories (schema, cross-field, unknown keys, paths, env vars, deprecated params)
+- Auto-detection of config type (autorate vs steering) from YAML contents without `--type` flag
+- Steering-specific validation with cross-config topology checks (primary_wan_config path existence, wan_name match)
+- JSON output mode (`--json`) for CI/scripting integration with structured category/severity/suggestion output
+- `wanctl-check-cake` CLI tool for live router CAKE queue audit (connectivity, queue tree, CAKE type, max-limit diff, mangle rules)
+- Reusable CheckResult/Severity data model shared between both CLI tools
+
+**Stats:**
+
+- 3 phases, 4 plans
+- 32 commits
+- 157 new tests (2,666 to 2,823)
+- 22,180 LOC Python (src/)
+- 2 days (2026-03-12 to 2026-03-13)
+
+**Git range:** `v1.15..v1.16`
+
+**What's next:** Next milestone planning.
+
+---
+
 ## v1.15 Alerting & Notifications (Shipped: 2026-03-12)
 
 **Delivered:** Proactive alerting system with Discord webhook delivery, per-event cooldown suppression, and 7 alert types covering congestion, steering, connectivity, and anomaly events.
