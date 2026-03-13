@@ -1,453 +1,531 @@
 # Architecture Patterns
 
-**Domain:** Config validation, CAKE qdisc audit, router integration probes for dual-WAN controller
-**Researched:** 2026-03-12
-**Overall confidence:** HIGH (all patterns derived from existing codebase analysis)
+**Domain:** CAKE parameter optimization (auto-fix) + bufferbloat benchmarking for existing wanctl CLI tools
+**Researched:** 2026-03-13
+**Overall confidence:** HIGH (existing codebase patterns well-understood, RouterOS REST API verified, flent CLI interface confirmed)
 
-## Current Architecture Summary
+## Recommended Architecture
 
-The existing system has five layers:
-
-```
-CLI Tools          wanctl-history, wanctl-dashboard, wanctl-calibrate
-                       |
-Daemons           autorate_continuous (ContinuousAutoRate)
-                  steering/daemon (SteeringDaemon)
-                       |
-Config            BaseConfig -> Config (autorate) / SteeringConfig (steering)
-                  config_validation_utils.py (domain validators)
-                       |
-Router Comm       router_client.py -> FailoverRouterClient
-                  routeros_rest.py / routeros_ssh.py
-                       |
-State/Storage     state_utils.py, storage/ (SQLite), health_check.py
-```
-
-Key patterns already established:
-- **BaseConfig + SCHEMA**: Declarative schema validation at config load time
-- **validate_schema()**: Collects all errors before raising
-- **ConfigValidationError**: Single exception type for all config failures
-- **CLI entry points**: `pyproject.toml [project.scripts]` mapping to `module:main`
-- **Router queries**: `client.run_cmd()` returning `(rc, stdout, stderr)` tuples
-- **Health endpoints**: JSON HTTP on ports 9101/9102
-
-## Recommended Architecture for v1.16
-
-### Principle: Validation Is a Library, Not a Daemon
-
-The new features are **read-only inspection tools** that reuse existing infrastructure. They do NOT run as daemons. They are CLI one-shot commands that load config, optionally probe the router, report findings, and exit.
-
-### New Module Map
+### High-Level: Extend check_cake + add optimizer module + add benchmark tool
 
 ```
 src/wanctl/
-  config_base.py          [MODIFY] Add structured validation result type
-  config_validation_utils.py  [MODIFY] Add cross-field validators if needed
-  check_config.py         [NEW] wanctl-check-config CLI entry point
-  check_cake.py           [NEW] wanctl-check-cake CLI entry point + CAKE audit logic
-  validation/             [NEW, optional] Only if check_config.py exceeds ~300 lines
-    __init__.py
-    config_checker.py     Config validation orchestrator
-    cake_auditor.py       CAKE qdisc comparison logic
-    router_prober.py      Read-only router probes
+  check_cake.py          [MODIFY] -- add --fix/--yes flags, sub-optimal detection
+  cake_optimizer.py      [NEW]    -- CAKE parameter analysis + REST API apply
+  benchmark.py           [NEW]    -- flent/netperf RRUL wrapper, grading, storage
+  routeros_rest.py       [MODIFY] -- add queue type read/write methods
+  storage/schema.py      [MODIFY] -- add benchmarks table
+  storage/reader.py      [MODIFY] -- add benchmark query function
+  history.py             [MODIFY] -- add --benchmarks subcommand
+  check_config.py        [READ-ONLY] -- imports CheckResult/Severity (no changes)
 ```
 
-**Recommendation:** Start flat (check_config.py, check_cake.py at top level) and only extract a `validation/` subpackage if complexity warrants it. The existing codebase keeps CLI tools as single modules (history.py, calibrate.py) and this should follow the same pattern.
+### Design Principle: Extend, Don't Restructure
+
+check_cake.py already connects to the router, audits queue tree entries, and reports CheckResult items. The auto-fix feature extends this by:
+1. Reading queue type parameters (not just queue tree entries)
+2. Comparing against known-optimal CAKE settings
+3. Optionally applying changes via REST API PATCH
+
+The benchmarking tool is fully independent -- it wraps flent, grades results, and stores them in SQLite. Zero coupling to check_cake or the autorate daemon.
 
 ### Component Boundaries
 
 | Component | Responsibility | Communicates With | New/Modified |
-|-----------|---------------|-------------------|-------------|
-| `check_config.py` | CLI: load config, run all validators, report | BaseConfig, config_validation_utils | NEW |
-| `check_cake.py` | CLI: query router CAKE qdiscs, compare to config | router_client, BaseConfig | NEW |
-| `config_base.py` | Add `ValidationResult` dataclass, structured errors | (self-contained) | MODIFY |
-| `config_validation_utils.py` | Add cross-field and semantic validators | config_base | MODIFY (minor) |
-| `autorate_continuous.py` Config.__init__ | Call enhanced validation at startup | config_base | MODIFY (minor) |
-| `steering/daemon.py` SteeringConfig.__init__ | Call enhanced validation at startup | config_base | MODIFY (minor) |
+|-----------|---------------|-------------------|--------------|
+| `check_cake.py` (CLI) | CLI entry, `--fix` flag routing, user confirmation | cake_optimizer, routeros_rest | MODIFY |
+| `cake_optimizer.py` | Optimal CAKE params, diff analysis, apply logic | routeros_rest | NEW |
+| `benchmark.py` (CLI) | flent subprocess wrapper, result parsing, grading, storage | flent (subprocess), storage | NEW |
+| `routeros_rest.py` | Queue type GET/PATCH via REST API | MikroTik router | MODIFY |
+| `storage/schema.py` | Benchmark results table schema | SQLite | MODIFY |
+| `storage/reader.py` | Benchmark query functions | SQLite | MODIFY |
+| `history.py` | `--benchmarks` query/display | storage/reader | MODIFY |
 
-### Data Flow: `wanctl check-config`
-
-```
-CLI args (--config path)
-    |
-    v
-YAML load (yaml.safe_load)
-    |
-    v
-Schema validation (validate_schema with BASE_SCHEMA + SCHEMA)
-    |
-    v
-Cross-field validation (floor ordering, threshold ordering, etc.)
-    |
-    v
-File/path validation (log dirs exist, state dirs writable, SSH key readable)
-    |
-    v
-Optional: router connectivity probe (--probe flag)
-    |
-    v
-ValidationReport (list of ValidationResult: pass/warn/fail per check)
-    |
-    v
-Console output (colored table or plain text)
-    |
-    v
-Exit code (0 = all pass, 1 = any fail, 2 = warnings only)
-```
-
-### Data Flow: `wanctl check-cake`
+### Data Flow: Auto-Fix
 
 ```
-CLI args (--config path)
-    |
-    v
-Load config (reuse BaseConfig subclass or raw YAML + minimal validation)
-    |
-    v
-Create router client (get_router_client or get_router_client_with_failover)
-    |
-    v
-Query queue tree: /queue/tree/print where name="<queue_name>"
-    |
-    v
-Parse response: extract queue-type, max-limit, parent, etc.
-    |
-    v
-Compare against config expectations:
-  - Queue exists?
-  - Queue type is CAKE variant?
-  - Max-limit matches ceiling_mbps from config?
-  - Parent hierarchy correct?
-    |
-    v
-CakeAuditReport (list of checks with expected vs actual)
-    |
-    v
-Console output + exit code
+User runs: wanctl-check-cake spectrum.yaml --fix
+
+1. check_cake.py parses YAML, creates router client       (existing)
+2. check_cake.py calls run_audit()                         (existing)
+3. check_cake.py calls cake_optimizer.analyze_queue_types() (NEW)
+   a. Reads queue type from router: GET /rest/queue/type?name=<type_name>
+   b. Compares each CAKE parameter against OPTIMAL_CAKE_PARAMS
+   c. Returns list[CakeRecommendation] with current/recommended/rationale
+4. Recommendations displayed as CheckResult items          (NEW)
+5. If --fix AND recommendations exist:                     (NEW)
+   a. Displays proposed changes with before/after
+   b. Prompts for confirmation (unless --yes)
+   c. Calls cake_optimizer.apply_recommendations(client, recs)
+   d. PATCH /rest/queue/type/<id> {param: value}
+   e. Reports success/failure per parameter
 ```
 
-### Data Flow: Startup Validation (Enhanced)
+### Data Flow: Benchmark
 
 ```
-Daemon starts (autorate or steering)
-    |
-    v
-BaseConfig.__init__ (existing path, unchanged)
-    |
-    v
-_load_specific_fields() (existing path, unchanged)
-    |
-    v
-[NEW] _validate_environment()
-  - Log directory exists and is writable
-  - State file directory exists and is writable
-  - Lock file directory exists
-  - SSH key file exists (if SSH transport)
-    |
-    v
-[NEW] _validate_cross_field()
-  - floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling
-    (already done in _load_download_config, but consolidate)
-  - threshold ordering (already done, consolidate)
-    |
-    v
-On failure: log structured errors + sys.exit(1) [fail-fast]
-On success: continue to daemon loop (existing behavior)
+User runs: wanctl-benchmark --host <netperf_server> --duration 30
+
+1. Validate prerequisites (flent and netperf installed)
+2. Build flent command: flent rrul -H <host> -l <duration> -o <output.json.gz>
+3. Run via subprocess.run() with timeout
+4. Parse gzipped JSON result file
+5. Extract key metrics: avg dl/ul speed, avg/p95/p99 RTT under load
+6. Compute latency increase: loaded_rtt - idle_rtt
+7. Grade: A (<5ms increase), B (5-30ms), C (>30ms)
+8. Store in SQLite benchmarks table
+9. Display summary with grade, comparison to previous run if available
+```
+
+## Critical Architectural Decision: Queue Type vs Queue Tree
+
+**CAKE parameters live on the queue type object (`/queue/type`), NOT on queue tree entries (`/queue/tree`).**
+
+The queue tree entry references a queue type by name (e.g., `queue=cake-down-spectrum`) and only controls `max-limit`. The actual CAKE knobs (diffserv, flowmode, nat, ack-filter, wash, rtt, overhead) are properties of the queue type.
+
+This means:
+- Current `routeros_rest.py` has queue tree methods but NO queue type methods
+- Auto-fix must add `get_queue_type()` and `set_queue_type_params()` to RouterOSREST
+- The queue type name is extracted from the queue tree entry's `queue` field (already read during audit)
+- REST API endpoint: `GET/PATCH /rest/queue/type`
+
+**Confidence:** HIGH -- verified via MikroTik CAKE docs and Queues docs
+
+### RouterOS REST API: Queue Type Endpoints
+
+```
+# List all queue types
+GET /rest/queue/type
+
+# Get specific queue type by name
+GET /rest/queue/type?name=cake-down-spectrum
+
+# Update queue type parameters by ID
+PATCH /rest/queue/type/*3
+Content-Type: application/json
+{
+    "cake-diffserv": "diffserv4",
+    "cake-flowmode": "triple-isolate",
+    "cake-nat": "yes"
+}
+```
+
+The `_find_resource_id()` method in routeros_rest.py already supports this pattern -- it searches any endpoint with any filter key. Queue type lookup follows the exact same pattern as queue tree and mangle rule lookups:
+
+```python
+self._queue_type_id_cache: dict[str, str] = {}
+
+def _find_queue_type_id(self, type_name: str) -> str | None:
+    return self._find_resource_id(
+        endpoint="queue/type",
+        filter_key="name",
+        filter_value=type_name,
+        cache=self._queue_type_id_cache,
+    )
+```
+
+## New Code: Component Specifications
+
+### cake_optimizer.py
+
+```python
+"""CAKE queue type optimization for MikroTik RouterOS.
+
+Analyzes CAKE qdisc parameters on the router, compares against optimal
+settings, and optionally applies corrections via REST API.
+
+Works with queue TYPE objects (/queue/type), not queue TREE entries.
+
+Key types:
+- OPTIMAL_CAKE_PARAMS: known-good defaults for home WAN CAKE
+- CakeRecommendation: what to change, why, current vs recommended
+- analyze_queue_types(): read router state, compute recommendations
+- apply_recommendations(): PATCH queue type via REST API
+"""
+
+@dataclass
+class CakeRecommendation:
+    queue_type_name: str
+    parameter: str
+    current_value: str
+    recommended_value: str
+    rationale: str
+
+# Optimal parameters for home WAN CAKE -- link-independent defaults
+OPTIMAL_CAKE_PARAMS: dict[str, tuple[str, str]] = {
+    "cake-diffserv": ("diffserv4", "4-tin priority separation for mixed traffic"),
+    "cake-flowmode": ("triple-isolate", "Per-flow fairness with host isolation"),
+    "cake-nat": ("yes", "NAT-aware flow tracking behind home router"),
+    "cake-ack-filter": ("ack-filter", "Reduce ACK overhead on asymmetric links"),
+    "cake-wash": ("yes", "Clear untrusted DSCP markings from ISP"),
+}
+
+# Link-type-dependent parameters -- these MUST come from config, not hardcoded
+# cake-overhead-scheme: cable=docsis, DSL=varies, fiber=ethernet
+# cake-rtt-scheme: depends on ISP baseline latency
+# cake-atm: only for DSL/ATM links
+LINK_DEPENDENT_PARAMS: set[str] = {
+    "cake-overhead-scheme", "cake-overhead", "cake-rtt-scheme",
+    "cake-rtt", "cake-atm", "cake-mpu",
+}
+
+def analyze_queue_types(
+    client,  # RouterOSREST
+    queue_type_names: list[str],
+    overrides: dict[str, str] | None = None,
+) -> list[CakeRecommendation]:
+    """Read queue type params from router, compare against optimal."""
+
+def apply_recommendations(
+    client,  # RouterOSREST
+    recommendations: list[CakeRecommendation],
+) -> list[CheckResult]:
+    """Apply recommended CAKE params via PATCH to queue type."""
+```
+
+### routeros_rest.py Additions (2 methods + 1 cache)
+
+```python
+# In __init__:
+self._queue_type_id_cache: dict[str, str] = {}
+
+def get_queue_type(self, type_name: str) -> dict | None:
+    """Get queue type configuration including CAKE parameters.
+
+    GET /rest/queue/type?name=<type_name>
+    Returns full queue type object with all CAKE parameters.
+    """
+
+def set_queue_type_params(self, type_name: str, params: dict[str, str]) -> bool:
+    """Update CAKE parameters on a queue type.
+
+    Finds type by name, then PATCH /rest/queue/type/<id> with params.
+    Returns True if all updates succeeded.
+    """
+```
+
+These follow the exact same pattern as existing `get_queue_stats()` and `_handle_queue_tree_set()`.
+
+### benchmark.py
+
+```python
+"""Bufferbloat benchmarking via flent/netperf RRUL test.
+
+Wraps flent CLI to run Realtime Response Under Load (RRUL) tests,
+parses gzipped JSON results, grades bufferbloat severity, and stores
+results in SQLite for before/after comparison.
+
+Usage:
+    wanctl-benchmark --host <netperf_server>
+    wanctl-benchmark --host <netperf_server> --duration 60
+    wanctl-benchmark --host <netperf_server> --json
+    wanctl-benchmark --history
+    wanctl-benchmark --history --last 7d
+"""
+
+@dataclass
+class BenchmarkResult:
+    timestamp: int
+    duration_sec: int
+    avg_download_mbps: float
+    avg_upload_mbps: float
+    avg_rtt_idle_ms: float
+    avg_rtt_loaded_ms: float
+    p95_rtt_loaded_ms: float
+    p99_rtt_loaded_ms: float
+    latency_increase_ms: float   # loaded - idle
+    grade: str                   # A, B, or C
+    raw_data_path: str           # path to gzipped JSON file
+    wan_name: str
+    notes: str
+
+class FlentRunner:
+    """Subprocess wrapper for flent RRUL tests."""
+
+    def check_prerequisites(self) -> list[CheckResult]:
+        """Verify flent and netperf are installed and available."""
+
+    def run_rrul(self, host: str, duration: int, output_dir: str) -> Path:
+        """Run flent rrul test, return path to result JSON.gz file."""
+
+    def parse_results(self, result_path: Path) -> BenchmarkResult:
+        """Parse gzipped JSON output, extract key latency/throughput metrics."""
+
+def grade_result(latency_increase_ms: float) -> str:
+    """A/B/C grade based on latency increase under load.
+    A: <5ms, B: 5-30ms, C: >30ms
+    """
+```
+
+### storage/schema.py Addition
+
+```sql
+-- Benchmarks table for bufferbloat test results
+CREATE TABLE IF NOT EXISTS benchmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    wan_name TEXT NOT NULL,
+    duration_sec INTEGER NOT NULL,
+    avg_download_mbps REAL,
+    avg_upload_mbps REAL,
+    avg_rtt_idle_ms REAL,
+    avg_rtt_loaded_ms REAL,
+    p95_rtt_loaded_ms REAL,
+    p99_rtt_loaded_ms REAL,
+    latency_increase_ms REAL NOT NULL,
+    grade TEXT NOT NULL,
+    raw_data_path TEXT,
+    notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_benchmarks_timestamp
+    ON benchmarks(timestamp);
+CREATE INDEX IF NOT EXISTS idx_benchmarks_wan
+    ON benchmarks(wan_name, timestamp);
+```
+
+### pyproject.toml Changes
+
+```toml
+[project.scripts]
+# ... existing entries ...
+wanctl-benchmark = "wanctl.benchmark:main"
+
+[project.optional-dependencies]
+benchmark = ["flent"]  # optional, checked at runtime
+```
+
+## check_cake.py Changes (Detailed)
+
+Changes are additive -- no modifications to existing audit functions.
+
+### 1. CLI Parser Updates
+
+```python
+# In create_parser():
+parser.add_argument("--fix", action="store_true",
+    help="Apply recommended CAKE parameter optimizations")
+parser.add_argument("--yes", action="store_true",
+    help="Skip confirmation prompt (use with --fix)")
+```
+
+### 2. New Optimization Section in main()
+
+After `run_audit()` completes and before formatting output:
+
+```python
+# After audit, run optimization analysis
+if config_type == "autorate":
+    queue_type_names = _extract_queue_type_names(client, queue_names)
+    recommendations = analyze_queue_types(client, queue_type_names, overrides)
+
+    # Add recommendations as CheckResult items
+    for rec in recommendations:
+        results.append(CheckResult(
+            "Optimization", rec.parameter, Severity.WARN,
+            f"{rec.parameter}={rec.current_value} (recommended: {rec.recommended_value})",
+            suggestion=rec.rationale,
+        ))
+
+    # Apply if --fix
+    if args.fix and recommendations:
+        if not args.yes:
+            confirm = input("Apply recommended changes? [y/N] ")
+            if confirm.lower() != 'y':
+                print("Aborted.")
+                return 0
+        fix_results = apply_recommendations(client, recommendations)
+        results.extend(fix_results)
+```
+
+### 3. New Helper: Extract Queue Type Names
+
+The queue tree audit already reads queue entries via `get_queue_stats()`. The `queue` field in the response contains the queue type name. Add a helper to extract it:
+
+```python
+def _extract_queue_type_names(client, queue_names: dict[str, str]) -> list[str]:
+    """Extract queue type names from queue tree entries."""
+    type_names = []
+    for direction in ("download", "upload"):
+        name = queue_names.get(direction, "")
+        if name:
+            stats = client.get_queue_stats(name)
+            if stats and "queue" in stats:
+                type_names.append(stats["queue"])
+    return type_names
 ```
 
 ## Patterns to Follow
 
-### Pattern 1: ValidationResult Dataclass
+### Pattern 1: SimpleNamespace Config Wrapping (established in check_cake.py)
 
-Structured validation results that can be collected, filtered, and displayed.
-
-**What:** A simple result type that replaces ad-hoc string error collection.
-**When:** All validation checks should return this instead of raising immediately.
-**Why:** The CLI tools need to collect ALL problems and display them together, not stop at the first error.
+**What:** Wrap raw YAML dict in SimpleNamespace for RouterOSREST.from_config()
+**When:** Any CLI tool needing router connectivity without daemon Config()
+**Why:** Avoids daemon side effects (lock files, log dirs, systemd checks)
 
 ```python
-from dataclasses import dataclass
-from enum import Enum
-
-class CheckStatus(Enum):
-    PASS = "pass"
-    WARN = "warn"
-    FAIL = "fail"
-    SKIP = "skip"
-
-@dataclass(frozen=True, slots=True)
-    """Single validation check result."""
-    category: str      # "schema", "file", "router", "cake"
-    check: str         # Human-readable check name
-    status: CheckStatus
-    message: str       # Detail message
-    expected: str = "" # What was expected (for comparison displays)
-    actual: str = ""   # What was found
-
-    @property
-    def passed(self) -> bool:
-        return self.status in (CheckStatus.PASS, CheckStatus.SKIP)
+router_cfg = _extract_router_config(data)
+ns = SimpleNamespace(**router_cfg)
+client = RouterOSREST.from_config(ns, logger)
 ```
 
-**Integration note:** This lives in `config_base.py` alongside `ConfigValidationError`. The existing `validate_schema()` continues to raise for daemon startup (fail-fast). The CLI tools use a parallel path that collects `ValidationResult` objects.
+### Pattern 2: CheckResult for All Output (established in check_config.py)
 
-### Pattern 2: CLI Tool as Single Module
-
-Follow the history.py and calibrate.py pattern: one module with `create_parser()` and `main()`.
-
-**What:** Each CLI tool is a standalone module registered in `pyproject.toml`.
-**When:** Every new CLI command.
+**What:** Every finding is a CheckResult with category/severity/message/suggestion
+**When:** Any check, recommendation, or fix result
+**Why:** Consistent formatting across CLI tools, --json and --quiet support
 
 ```python
-# check_config.py
-def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="wanctl-check-config",
-        description="Validate wanctl configuration files",
-    )
-    parser.add_argument("config", help="Path to YAML config file")
-    parser.add_argument("--probe", action="store_true",
-                       help="Test router connectivity (requires network)")
-    parser.add_argument("--json", action="store_true",
-                       help="Output results as JSON")
-    return parser
-
-def main() -> int:
-    parser = create_parser()
-    args = parser.parse_args()
-    # ... validation logic ...
-    return 0 if all_passed else 1
+CheckResult("Optimization", "cake-diffserv", Severity.WARN,
+    "cake-diffserv=besteffort (recommended: diffserv4)",
+    suggestion="4-tin priority separation for mixed traffic")
 ```
 
-pyproject.toml addition:
-```toml
-[project.scripts]
-wanctl-check-config = "wanctl.check_config:main"
-wanctl-check-cake = "wanctl.check_cake:main"
-```
+### Pattern 3: Read-Before-Write Safety for Router Mutations
 
-### Pattern 3: Reuse Router Client for Read-Only Probes
-
-The existing `get_router_client_with_failover()` and `RouterOSREST` already handle connection, auth, and failover. CAKE audit just needs to issue `/queue/tree/print` commands.
-
-**What:** Create a temporary router client, query, close. No daemon loop.
-**When:** `wanctl check-cake` and `wanctl check-config --probe`.
+**What:** Always read current state, show diff, require confirmation before writing
+**When:** Any router configuration change (--fix flag)
+**Why:** Production safety -- this is a live network device
 
 ```python
-from wanctl.router_client import get_router_client
-
-# Minimal config loading for router connection
-client = get_router_client(config, logger)
-try:
-    # Read-only probe: system identity
-    rc, out, err = client.run_cmd("/system/identity/print", capture=True)
-    if rc == 0:
-        results.append(ValidationResult("router", "connectivity", CheckStatus.PASS, ...))
-
-    # Read-only probe: queue tree listing
-    rc, out, err = client.run_cmd(
-        f'/queue/tree/print detail where name="{queue_name}"', capture=True
-    )
-    # Parse and compare...
-finally:
-    client.close()
+# 1. Read current
+current = client.get_queue_type(type_name)
+# 2. Compute diff
+recommendations = analyze(current, optimal)
+# 3. Display diff
+for r in recommendations:
+    print(f"  {r.parameter}: {r.current_value} -> {r.recommended_value}")
+# 4. Confirm (unless --yes)
+if not args.yes:
+    confirm = input("Apply changes? [y/N] ")
+# 5. Apply
+results = apply_recommendations(client, recommendations)
 ```
 
-**Important:** Use `get_router_client()` (not `get_router_client_with_failover()`) for CLI tools. Failover adds complexity meant for long-running daemons. A one-shot probe should try the configured transport and report clearly if it fails.
+### Pattern 4: Subprocess for External Tools
 
-### Pattern 4: Collect-Then-Report (Not Fail-Fast)
-
-For CLI validation, collect ALL results before reporting. This is different from daemon startup where fail-fast via `ConfigValidationError` is correct.
-
-**What:** Run every check, accumulate results, then display summary.
-**When:** `wanctl check-config` and `wanctl check-cake`.
-**Why:** Users want to see ALL problems at once, not fix one, re-run, find another.
+**What:** Run flent via subprocess.run() with timeout and output capture
+**When:** External tool integration where no stable Python API exists
+**Why:** Clean process isolation, timeout control, exit code handling
 
 ```python
-def check_config(config_path: str, probe: bool = False) -> list[ValidationResult]:
-    results: list[ValidationResult] = []
+result = subprocess.run(
+    ["flent", "rrul", "-H", host, "-l", str(duration), "-o", output_path],
+    capture_output=True, text=True, timeout=duration + 30,
+)
+if result.returncode != 0:
+    # Handle failure
+```
 
-    # Phase 1: YAML parse
-    results.extend(_check_yaml_syntax(config_path))
-    if any(r.status == CheckStatus.FAIL for r in results):
-        return results  # Can't continue if YAML is broken
+### Pattern 5: Optional Dependencies with Runtime Check
 
-    # Phase 2: Schema validation
-    results.extend(_check_schema(data))
+**What:** flent/netperf are optional -- check at runtime, not import time
+**When:** benchmark.py prerequisite validation
+**Why:** wanctl installs without flent; benchmarking is opt-in
 
-    # Phase 3: Cross-field validation
-    results.extend(_check_cross_field(data))
-
-    # Phase 4: Environment checks
-    results.extend(_check_environment(data))
-
-    # Phase 5: Optional router probe
-    if probe:
-        results.extend(_check_router_connectivity(data))
-
+```python
+def check_prerequisites(self) -> list[CheckResult]:
+    results = []
+    for tool in ("flent", "netperf"):
+        if shutil.which(tool) is None:
+            results.append(CheckResult(
+                "Prerequisites", tool, Severity.ERROR,
+                f"{tool} not found in PATH",
+                suggestion=f"Install: sudo apt install {tool}"))
     return results
 ```
 
-### Pattern 5: Config Type Detection
-
-The CLI tool needs to determine whether a config file is for autorate or steering, since they have different schemas.
-
-**What:** Detect config type from content, then apply appropriate schema.
-**When:** `wanctl check-config` needs to validate any config file.
-
-```python
-def detect_config_type(data: dict) -> str:
-    """Detect config type from YAML content.
-
-    Returns "autorate" or "steering" based on distinctive keys.
-    """
-    if "topology" in data or "mangle_rule" in data:
-        return "steering"
-    if "continuous_monitoring" in data or "queues" in data:
-        return "autorate"
-    return "unknown"
-```
-
-This avoids requiring users to specify `--type autorate` on the command line.
-
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Modifying Daemon Startup to Use New Validation Path
+### Anti-Pattern 1: Instantiating Config() in CLI Tools
 
-**What:** Refactoring daemon Config.__init__ to use the new ValidationResult-based validation.
-**Why bad:** The daemon path is battle-tested and uses fail-fast (raise ConfigValidationError). Changing it risks production regressions. The CLI validation and daemon validation serve different purposes.
-**Instead:** The CLI tool uses its own collect-then-report validation path that calls the same underlying validators (validate_field, validate_bandwidth_order, etc.) but wraps results differently. Daemon startup keeps its existing raise-on-first-error behavior.
+**What:** Creating Config() or SteeringConfig() in check/benchmark tools
+**Why bad:** Config constructors create lock files, set up log dirs, check systemd
+**Instead:** Use SCHEMA class attributes for validation, SimpleNamespace for router config
 
-### Anti-Pattern 2: Creating a RouterProber That Wraps RouterClient
+### Anti-Pattern 2: Modifying Queue Tree for CAKE Parameters
 
-**What:** Building an abstraction layer on top of the existing router client just for read-only queries.
-**Why bad:** Unnecessary indirection. The existing `client.run_cmd()` is already the right interface.
-**Instead:** Call `run_cmd()` directly in the check functions. Parse responses inline.
+**What:** Trying to set CAKE params via `/queue/tree` PATCH
+**Why bad:** CAKE parameters live on the queue TYPE, not the tree entry. Queue tree only has `queue` (type reference) and `max-limit`
+**Instead:** Read queue tree to get type name, then GET/PATCH `/queue/type`
 
-### Anti-Pattern 3: Interactive Validation (Prompt to Fix)
+### Anti-Pattern 3: Importing flent as a Python Module
 
-**What:** Having `wanctl check-config` offer to fix problems interactively.
-**Why bad:** Complexity explosion, hard to test, not useful in containers/CI.
-**Instead:** Report problems with clear fix instructions. User edits config manually.
+**What:** `from flent import ...` or direct API calls
+**Why bad:** flent has no stable public Python API; internal structure changes between versions
+**Instead:** Subprocess wrapper, parse gzipped JSON output file
 
-### Anti-Pattern 4: Making CAKE Audit Part of Daemon Startup
+### Anti-Pattern 4: Hardcoding Link-Dependent CAKE Parameters
 
-**What:** Running CAKE qdisc checks every time the daemon starts.
-**Why bad:** Adds latency to startup, requires router connectivity before daemon can run, creates chicken-and-egg with FailoverRouterClient.
-**Instead:** CAKE audit is a separate CLI tool run on-demand or during deployment verification.
+**What:** Putting cake-overhead-scheme or cake-rtt-scheme in OPTIMAL_CAKE_PARAMS
+**Why bad:** These depend on link type: cable=docsis, DSL=pppoe-ptm, fiber=ethernet
+**Instead:** Provide link-independent defaults only; link-dependent params come from YAML config overrides via `optimization:` section
 
-## Integration Points: New vs Modified
+### Anti-Pattern 5: Auto-Applying Without Confirmation
 
-### New Files
+**What:** `--fix` silently applying changes without showing what will change
+**Why bad:** Production network device. Wrong CAKE params disrupt traffic
+**Instead:** Show diff, require `--yes` for non-interactive mode, log all changes
 
-| File | Purpose | Dependencies |
-|------|---------|-------------|
-| `src/wanctl/check_config.py` | CLI: `wanctl-check-config` | config_base, config_validation_utils |
-| `src/wanctl/check_cake.py` | CLI: `wanctl-check-cake` | config_base, router_client, routeros_rest |
+## CAKE Parameters Reference (RouterOS)
 
-### Modified Files
-
-| File | Change | Risk |
-|------|--------|------|
-| `pyproject.toml` | Add 2 script entry points | LOW - additive only |
-| `config_base.py` | Add ValidationResult, CheckStatus | LOW - additive, no existing behavior changed |
-| `autorate_continuous.py` | Add `_validate_environment()` call in Config | LOW - new method, called after existing load |
-| `steering/daemon.py` | Add `_validate_environment()` call in SteeringConfig | LOW - same pattern |
-
-### Unchanged Files (Reused As-Is)
-
-| File | How Reused |
-|------|-----------|
-| `config_validation_utils.py` | All existing validators called by check_config |
-| `router_client.py` | `get_router_client()` for CAKE audit probes |
-| `routeros_rest.py` | Queue tree queries via existing REST client |
-| `routeros_ssh.py` | Fallback transport (if user config says SSH) |
-| `router_command_utils.py` | `extract_field_value()` for parsing router output |
-
-## CAKE Qdisc Audit: Router Query Details
-
-The RouterOS REST API returns queue tree entries with these relevant fields:
-
-```json
-{
-    ".id": "*1",
-    "name": "WAN-Download-Spectrum",
-    "queue": "cake-down-spectrum",
-    "max-limit": "940000000",
-    "parent": "global",
-    "disabled": "false",
-    "packets": "...",
-    "bytes": "..."
-}
-```
-
-The `queue` field references the queue type (CAKE variant). The audit compares:
-
-| Check | Expected (from config) | Actual (from router) |
-|-------|----------------------|---------------------|
-| Queue exists | `queues.download` | `/queue/tree/print` returns entry |
-| Queue type is CAKE | `cake-{down\|up}-{wan}` | `queue` field |
-| Max-limit in range | `floor_red_mbps..ceiling_mbps` | `max-limit` field |
-| Queue not disabled | `disabled: false` | `disabled` field |
-
-For the upload queue, same checks with upload config values.
-
-Additionally, the mangle rule check (for steering configs):
-
-| Check | Expected | Actual |
-|-------|----------|--------|
-| Rule exists | `mangle_rule.comment` | `/ip/firewall/mangle/print` |
-| Rule is disabled at rest | `disabled: yes` (steering off) | rule flags |
+| Parameter | REST API Key | Default | Values | Link-Dependent? |
+|-----------|-------------|---------|--------|-----------------|
+| Flow mode | cake-flowmode | flowblind | flowblind, srchost, dsthost, hosts, flows, dual-srchost, dual-dsthost, triple-isolate | No |
+| DiffServ | cake-diffserv | besteffort | besteffort, precedence, diffserv3, diffserv4, diffserv8 | No |
+| NAT | cake-nat | no | yes, no | No |
+| ACK filter | cake-ack-filter | off | off, ack-filter, ack-filter-aggressive | No |
+| Wash | cake-wash | no | yes, no | No |
+| RTT scheme | cake-rtt-scheme | internet | datacentre, lan, metro, regional, internet, oceanic, satellite | YES |
+| RTT manual | cake-rtt | (from scheme) | milliseconds | YES |
+| Overhead scheme | cake-overhead-scheme | ethernet | ethernet, docsis, pppoe-ptm, bridged-ptm, etc. | YES |
+| Overhead manual | cake-overhead | (from scheme) | -64 to 256 bytes | YES |
+| ATM | cake-atm | off | on, off | YES (DSL only) |
+| MPU | cake-mpu | 0 | bytes | YES |
+| Bandwidth | cake-bandwidth-limit | (from queue) | Mbps | No (managed by autorate) |
 
 ## Suggested Build Order
 
-Based on dependency analysis:
+### Phase 1: Optimizer Foundation
 
-### Phase 1: Config Validation Foundation
-1. Add `ValidationResult` and `CheckStatus` to `config_base.py`
-2. Build `check_config.py` with YAML parse + schema validation
-3. Add to `pyproject.toml` as `wanctl-check-config`
-4. Test: validate example configs, detect misconfigurations
+1. Add `get_queue_type()` and `set_queue_type_params()` to routeros_rest.py
+2. Create `cake_optimizer.py` with OPTIMAL_CAKE_PARAMS, CakeRecommendation, analyze logic
+3. Tests: mock router responses, verify recommendation generation
 
-**Rationale:** No router dependency, all local. Validates the collect-then-report pattern.
+**Rationale:** Builds the core optimization engine. Independent of CLI changes.
 
-### Phase 2: Enhanced Config Validation + Startup Guards
-1. Add environment checks (directories, file permissions, SSH key)
-2. Add config type auto-detection (autorate vs steering)
-3. Add startup validation hooks to daemon Configs (`_validate_environment()`)
-4. Test: invalid paths, missing directories, permission errors
+### Phase 2: Auto-Fix Integration
 
-**Rationale:** Still no router dependency. Adds fail-fast to daemon startup.
+1. Add `--fix` / `--yes` flags to check_cake.py
+2. Wire optimization analysis into main() after audit
+3. Add apply flow with confirmation
+4. Tests: end-to-end CLI with --fix, mock router, verify PATCH calls
 
-### Phase 3: CAKE Qdisc Audit
-1. Build `check_cake.py` with router query + comparison logic
-2. Add `--probe` flag to `check_config.py` for optional router connectivity test
-3. Add to `pyproject.toml` as `wanctl-check-cake`
-4. Test: mock router responses, verify comparison logic
+**Rationale:** Depends on Phase 1 optimizer. Extends existing CLI tool.
 
-**Rationale:** Requires router communication. Depends on Phase 1 for ValidationResult.
+### Phase 3: Benchmarking
 
-### Phase 4: Integration Probes + Polish
-1. Add state file consistency checks to `check_config.py`
-2. Add mangle rule verification to `check_cake.py` (for steering configs)
-3. Add JSON output format for CI/scripting
-4. Test: end-to-end with real configs (no real router needed if mocked)
+1. Create benchmark.py with FlentRunner, BenchmarkResult, grading
+2. Add benchmarks table to storage/schema.py
+3. Add query_benchmarks() to storage/reader.py
+4. Add --benchmarks to history.py
+5. Register wanctl-benchmark in pyproject.toml
+6. Tests: mock subprocess, verify parsing/grading, verify SQLite storage
 
-**Rationale:** Polish and integration. Depends on Phases 1-3.
+**Rationale:** Fully independent of Phases 1-2. Can be built in parallel.
 
-## Scalability Considerations
-
-Not applicable. These are one-shot CLI tools that query a single router. Performance is not a concern. The router probes add at most 100-200ms of REST API calls.
+### Phase ordering rationale:
+- Phase 1 before Phase 2: optimizer module must exist before CLI can call it
+- Phase 3 independent: benchmarking has zero dependency on optimization
+- All phases share: CheckResult output model, SQLite storage patterns
 
 ## Sources
 
-- Codebase analysis: `config_base.py` (BaseConfig, validate_schema, SCHEMA pattern)
-- Codebase analysis: `config_validation_utils.py` (domain validators, deprecate_param)
-- Codebase analysis: `router_client.py` (get_router_client, FailoverRouterClient)
-- Codebase analysis: `routeros_rest.py` (REST queue tree operations)
-- Codebase analysis: `backends/routeros.py` (RouterOSBackend.test_connection)
-- Codebase analysis: `history.py`, `calibrate.py` (CLI tool patterns)
-- Codebase analysis: `alert_engine.py` (recent integration pattern reference)
-- Codebase analysis: `pyproject.toml` (entry point registration)
-- Codebase analysis: `steering.yaml.example`, `cable.yaml.example` (config structure)
-- Confidence: HIGH -- all patterns derived from existing code, no external research needed
+- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE)
+- [MikroTik Queues Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues)
+- [MikroTik REST API Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
+- [Flent Documentation - Options](https://flent.org/options.html)
+- [Flent Documentation - Tests](https://flent.org/tests.html)
+- [RRUL Test Suite - Bufferbloat.net](https://www.bufferbloat.net/projects/codel/wiki/RRUL_test_suite/)
+- [Flent Output Formats](https://flent.org/output-formats.html)
+- Existing codebase: check_cake.py, routeros_rest.py, check_config.py, router_client.py, storage/schema.py, history.py

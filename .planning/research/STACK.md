@@ -1,264 +1,334 @@
-# Technology Stack: v1.16 Validation & Operational Confidence
+# Stack Research: v1.17 CAKE Optimization & Benchmarking
 
-**Project:** wanctl v1.16
-**Researched:** 2026-03-12
-**Overall confidence:** HIGH
+**Project:** wanctl v1.17
+**Researched:** 2026-03-13
+**Confidence:** HIGH
 
-## Recommendation: Zero New Dependencies
+## Executive Summary
 
-This milestone requires no new runtime or dev dependencies. The existing codebase already has every building block needed for config validation, CAKE qdisc auditing, and read-only router integration probes. The research below explains what already exists, what to build on top of it, and why adding libraries would be counterproductive.
+This milestone has two distinct capabilities:
 
----
+1. **CAKE auto-fix** -- Extend existing `wanctl-check-cake` with `--fix` flag to apply optimal CAKE queue type parameters via the RouterOS REST API. Zero new dependencies. The existing `RouterOSREST` class already supports PATCH operations on queue tree; extending to `/rest/queue/type/{id}` is mechanical.
 
-## Existing Stack (Already Sufficient)
+2. **Bufferbloat benchmarking CLI** -- Wrap flent/netperf into a new `wanctl-benchmark` CLI tool that runs RRUL tests, grades results (A/B/C/D/F), and stores results in SQLite for before/after comparison. The integration test framework (`tests/integration/framework/`) already has `FlentGenerator`, `NetperfGenerator`, `LoadProfile`, `SLAChecker` -- the new tool promotes this framework code to a user-facing CLI. Zero new Python package dependencies (flent and netperf are system binaries invoked via subprocess).
 
-### Config Validation Infrastructure
-
-| Existing Component | Location | What It Provides |
-|---|---|---|
-| `BaseConfig` | `config_base.py` | Schema-driven validation with `BASE_SCHEMA` + subclass `SCHEMA`. `validate_schema()` aggregates errors. `validate_field()` handles type/range/choices. `validate_identifier()` / `validate_comment()` / `validate_ping_host()` for security. |
-| `ConfigValidationError` | `config_base.py` | Custom exception with multi-error formatting (`"N error(s):\n - ..."`) |
-| `validate_field()` | `config_base.py` | Single-field validation: type, required, min/max, choices, dot-notation path traversal |
-| `validate_schema()` | `config_base.py` | Multi-field batch validation: collects all errors before raising |
-| `validate_bandwidth_order()` | `config_validation_utils.py` | 4-state floor ordering: `floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling` |
-| `validate_threshold_order()` | `config_validation_utils.py` | Threshold ordering: `target < warn < hard_red` |
-| `validate_alpha()` | `config_validation_utils.py` | EWMA alpha range validation |
-| `validate_baseline_rtt()` | `config_validation_utils.py` | RTT sanity bounds (10-60ms) |
-| `validate_rtt_thresholds()` | `config_validation_utils.py` | RTT threshold ordering with defaults |
-| `validate_sample_counts()` | `config_validation_utils.py` | Sample count reasonableness |
-| `deprecate_param()` | `config_validation_utils.py` | Legacy parameter warn+translate |
-| `Config(BaseConfig)` | `autorate_continuous.py` | Autorate-specific config with SCHEMA |
-| `SteeringConfig(BaseConfig)` | `steering/daemon.py` | Steering-specific config with SCHEMA |
-
-**Assessment:** The validation framework is mature. `validate_schema()` already collects errors, `validate_field()` handles type coercion (int-to-float), and `BaseConfig.__init__()` chains base + subclass schema validation. The gap is not infrastructure -- it is coverage (many config fields bypass schema validation and are loaded with raw `.get()` calls).
-
-### Router Communication Infrastructure
-
-| Existing Component | Location | What It Provides |
-|---|---|---|
-| `RouterOSREST` | `routeros_rest.py` | REST API client with session, caching, queue/mangle operations. `get_queue_stats()` returns full queue properties. `test_connection()` hits `/system/resource`. |
-| `RouterOSSSH` | `routeros_ssh.py` | SSH client via paramiko. Persistent connection. `run_cmd()` with capture. |
-| `FailoverRouterClient` | `router_client.py` | REST-primary with SSH fallback, auto-restore. |
-| `RouterOSBackend` | `backends/routeros.py` | Abstract backend implementation. `get_queue_stats()`, `get_bandwidth()`, `test_connection()`. |
-| `CakeStatsReader` | `steering/cake_stats.py` | Reads CAKE queue stats via `/queue/tree print stats detail`. Parses both JSON (REST) and text (SSH). |
-| `RouterConnectivityState` | `router_connectivity.py` | Failure tracking, classification, outage duration. |
-| `CommandResult[T]` | `router_command_utils.py` | Typed result with `ok()`/`err()`, `unwrap()`, `map()`. |
-
-**Assessment:** Everything needed for read-only router probes exists. `RouterOSREST` can already do `GET /rest/queue/tree`, `GET /rest/queue/type`, and `GET /rest/system/resource`. The gap is that there is no method to query queue types (CAKE parameters) specifically -- only queue tree entries. A simple `_request("GET", "/rest/queue/type", ...)` call is needed.
-
-### Test Infrastructure
-
-| Existing Component | Location | What It Provides |
-|---|---|---|
-| `pytest.mark.integration` | `tests/integration/conftest.py` | Registered marker for integration tests |
-| `pytest.mark.slow` | `tests/integration/conftest.py` | Registered marker for slow tests |
-| `--with-controller` | `tests/integration/conftest.py` | CLI option for SSH controller monitoring |
-| `--integration-output` | `tests/integration/conftest.py` | Output directory for integration results |
-| `check_dependencies` | `tests/integration/conftest.py` | Session fixture checking external tool availability |
-| Contract test pattern | `test_deployment_contracts.py` | Parametrize from `pyproject.toml` for auto-generated test cases |
-
-**Assessment:** The integration test framework exists but is oriented toward load testing (flent/netperf). For read-only router probes, we need a new marker (`pytest.mark.router` or `pytest.mark.probe`) and a fixture that provides a live `RouterOSREST` client from config. This is configuration, not library work.
+**Bottom line: Zero new Python package dependencies for either feature.** Both build on existing infrastructure.
 
 ---
 
-## Why NOT Add New Libraries
+## Recommended Stack
 
-### Pydantic (REJECTED)
+### Core Technologies (Already Present -- No Changes)
 
-| Criterion | Assessment |
-|---|---|
-| **Current state** | `BaseConfig` + `validate_schema()` already provides typed validation with error aggregation |
-| **What Pydantic adds** | Automatic type coercion, nested model validation, JSON Schema export |
-| **What it costs** | ~10MB install, C extension (pydantic-core), new dep for production containers |
-| **Why reject** | The validation framework is complete. Adding Pydantic would require rewriting `BaseConfig`, `Config`, and `SteeringConfig` -- a massive refactor for no functional gain. The existing `validate_schema()` with `validate_field()` does the same thing Pydantic models do, just declaratively via dicts instead of classes. The project constraint ("No breaking changes") makes this a non-starter. |
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| Python | 3.12 | Runtime | Existing |
+| requests | >=2.31.0 | RouterOS REST API calls (PATCH to `/rest/queue/type/{id}`) | Existing dep |
+| PyYAML | >=6.0.1 | Config file parsing, benchmark profile loading | Existing dep |
+| SQLite (stdlib) | 3.12 built-in | Benchmark result storage for before/after comparison | Existing pattern (metrics_storage.py) |
+| subprocess (stdlib) | 3.12 built-in | Invoke flent/netperf binaries | Existing pattern (load_generator.py) |
 
-**Confidence:** HIGH -- The existing validation framework handles every case needed for v1.16. Pydantic would be a rewrite, not an improvement.
+### System-Level Tools (External Binaries, NOT Python Packages)
 
-### Cerberus (REJECTED)
+| Tool | Version | Purpose | Installation | Confidence |
+|------|---------|---------|-------------|------------|
+| flent | >=2.2.0 | RRUL test orchestration (wraps netperf + ping concurrently) | `apt install flent` or `pip install flent` (system, not venv) | HIGH |
+| netperf | >=2.6 | TCP/UDP throughput generation for RRUL tests | `apt install netperf` (already in Dockerfile) | HIGH |
+| ping/fping | system | ICMP RTT measurement during RRUL | `iputils-ping` (already in Dockerfile) | HIGH |
 
-| Criterion | Assessment |
-|---|---|
-| **What it adds** | Schema-based validation without type classes |
-| **Why reject** | `validate_schema()` in `config_base.py` is already a Cerberus-like schema validator. Adding Cerberus would duplicate existing functionality with a different API. |
+**Critical distinction:** flent and netperf are CLI tools invoked via `subprocess.Popen`, not imported as Python libraries. They must be installed on the system running benchmarks (development machine or container), NOT in the project's venv. The project already has `netperf` in the Dockerfile and the integration test framework already wraps both tools.
 
-### JSON Schema / jsonschema library (REJECTED)
+### Existing Code to Reuse (Not New Dependencies)
 
-| Criterion | Assessment |
-|---|---|
-| **What it adds** | Standards-based schema validation |
-| **Why reject** | YAML config validation with runtime type coercion (YAML parses `10` as int, not float) is poorly served by JSON Schema. The existing `validate_field()` already handles int-to-float coercion. JSON Schema adds complexity without solving the actual problem. |
+| Component | Location | What It Provides for v1.17 |
+|-----------|----------|---------------------------|
+| `RouterOSREST` | `routeros_rest.py` | `_request()` PATCH method, `_find_resource_id()` with caching, session management |
+| `CheckResult` / `Severity` | `check_config.py` | Shared result model for audit output |
+| `check_cake.py` | `check_cake.py` | All audit logic: queue tree, CAKE type, max-limit, mangle rules |
+| `_create_audit_client()` | `check_cake.py` | SimpleNamespace router client creation pattern |
+| `FlentGenerator` | `tests/integration/framework/load_generator.py` | Flent subprocess wrapper, output collection |
+| `NetperfGenerator` | `tests/integration/framework/load_generator.py` | Netperf subprocess wrapper, fallback |
+| `LoadProfile` | `tests/integration/framework/load_generator.py` | YAML-based test profile loading |
+| `SLAChecker` / `SLAConfig` | `tests/integration/framework/sla_checker.py` | Pass/fail evaluation against thresholds |
+| RRUL profiles | `tests/integration/profiles/*.yaml` | Pre-configured RRUL test definitions |
+| `MetricsWriter` | `metrics_storage.py` | SQLite storage singleton pattern |
 
 ---
 
-## What to Build (Using Existing Stack)
+## New Code Needed (NOT New Libraries)
 
-### 1. Config Validator CLI (`wanctl check-config`)
+### Feature 1: CAKE Auto-Fix (`--fix` Flag)
 
-**Technology:** stdlib `argparse` (consistent with `wanctl-history`), existing `BaseConfig` / `Config` / `SteeringConfig` classes.
+**What changes:**
 
-**Approach:** Instantiate the appropriate config class (which triggers validation in `__init__`), catch `ConfigValidationError`, format results for CLI output. Add cross-field validations that currently happen at runtime (e.g., queue names reference valid queue types, state file paths are writable, ping hosts are reachable).
+1. **`routeros_rest.py`** -- Add `get_queue_type()` and `set_queue_type_params()` methods:
+   - `GET /rest/queue/type?name={type_name}` to read current CAKE queue type parameters
+   - `PATCH /rest/queue/type/{id}` to modify CAKE parameters (cake-diffserv, cake-flowmode, cake-overhead, cake-rtt, etc.)
+   - Follow existing `_find_resource_id()` pattern with `_queue_type_id_cache`
 
-**New validation areas to cover using existing `validate_field()`:**
+2. **`check_cake.py`** -- Extend with:
+   - New `--fix` CLI flag
+   - `check_cake_params()` function that detects sub-optimal settings (e.g., wrong overhead for DOCSIS/VDSL2, missing NAT flag, wrong flowmode)
+   - `apply_fixes()` function that PATCHes only the parameters that differ from optimal
+   - Dry-run output showing what would change before applying
 
-| Config Section | Current State | What to Add |
-|---|---|---|
-| `queues.download` / `queues.upload` | Loaded via `.get()`, no schema | Add to SCHEMA with `validate_identifier()` |
-| `continuous_monitoring.download.*` | Ad-hoc validation in `Config.__init__` | Formalize via SCHEMA entries |
-| `continuous_monitoring.thresholds.*` | Partial (threshold ordering validated) | Complete the SCHEMA coverage |
-| `timeouts.*` | Loaded via `.get()` | Add min/max range to SCHEMA |
-| `state_file` / `state.file` | Loaded as raw string | Validate path writability |
-| `ping_hosts` | Loaded as list, `validate_ping_host()` exists | Iterate and validate each host |
-| `topology.*` | Loaded via `.get()` | Add to SteeringConfig SCHEMA |
-| `confidence.*` | Loaded via `.get()` with defaults | Add range validation to SCHEMA |
-| `wan_state.*` | Has runtime warn+disable | Formalize as SCHEMA entries |
-| `alerting.*` | Loaded via `.get()` | Add to SCHEMA |
+3. **New YAML config section** -- Optional `cake_optimization:` block in autorate config:
+   ```yaml
+   cake_optimization:
+     download:
+       overhead: "docsis"     # or exact bytes, or "pppoe-ptm"
+       flowmode: "triple-isolate"
+       diffserv: "diffserv4"
+       nat: true
+       ack_filter: true
+       rtt: "internet"       # or exact ms value
+     upload:
+       overhead: "docsis"
+       flowmode: "triple-isolate"
+       diffserv: "diffserv4"
+       nat: true
+       ack_filter: true
+   ```
 
-### 2. CAKE Qdisc Audit (`wanctl check-cake`)
+**RouterOS REST API for Queue Types:**
 
-**Technology:** Existing `RouterOSREST` client (or `FailoverRouterClient`).
+The queue type parameters are at `/rest/queue/type/{id}`, separate from queue tree entries at `/rest/queue/tree/{id}`. A queue tree entry references a queue type by name (the `queue` field). The CAKE-specific parameters (cake-bandwidth, cake-diffserv, cake-flowmode, cake-overhead, etc.) live on the queue type object, not the queue tree entry.
 
-**RouterOS REST API endpoints to query:**
-
-| Endpoint | Method | Purpose | Response |
-|---|---|---|---|
-| `GET /rest/queue/tree?name=<queue>` | GET | Get queue tree entry | JSON array with `queue` (type reference), `max-limit`, `parent`, etc. |
-| `GET /rest/queue/type?name=<type>` | GET | Get queue type definition | JSON array with CAKE params: `cake-bandwidth`, `cake-flowmode`, `cake-diffserv`, `cake-rtt`, `cake-overhead`, etc. |
-| `GET /rest/system/resource` | GET | Router identity/version check | JSON with `version`, `board-name`, etc. |
-
-**CAKE parameters to audit (from RouterOS `/queue/type`):**
-
-| Parameter | Expected For Cable (Spectrum) | Expected For DSL (ATT) | Why Check |
-|---|---|---|---|
-| `cake-overhead-scheme` | `docsis` or `ethernet` | `pppoe-ptm` or `pppoe-llc` | Wrong overhead causes throughput errors |
-| `cake-flowmode` | `triple-isolate` (default) | `triple-isolate` | Wrong mode affects fairness |
-| `cake-diffserv` | `diffserv3` or `diffserv4` | `diffserv3` or `diffserv4` | Mismatched diffserv wastes tins |
-| `cake-rtt` or `cake-rtt-scheme` | `internet` (~100ms) | `internet` | Wrong RTT causes AQM timing errors |
-| `cake-ack-filter` | depends on asymmetry | depends | Missing on asymmetric links hurts upload |
-| `cake-nat` | `true` if behind NAT | `true` if behind NAT | Missing NAT breaks per-flow fairness |
-| Queue `max-limit` | Matches `ceiling_mbps` from config | Matches config | Config/router mismatch = silent degradation |
-
-**Implementation:** New method on `RouterOSREST` to `GET /rest/queue/type` (trivial -- same pattern as `get_queue_stats()`). Compare returned CAKE parameters against expected values from wanctl config. Report mismatches.
-
-### 3. Integration Probes
-
-**Technology:** pytest with new `@pytest.mark.router` marker, existing router client infrastructure.
-
-**New marker and fixtures (in `tests/integration/conftest.py`):**
-
-```python
-# New marker
-config.addinivalue_line(
-    "markers",
-    "router: marks tests that probe a live router (deselect with '-m \"not router\"')",
-)
-
-# New CLI option
-parser.addoption(
-    "--router-config",
-    type=str,
-    default=None,
-    help="Path to wanctl config YAML for router probe tests",
-)
-
-# New fixture
-@pytest.fixture(scope="session")
-def router_client(request):
-    """Provide a live RouterOSREST client from config."""
-    config_path = request.config.getoption("--router-config")
-    if config_path is None:
-        pytest.skip("--router-config not provided")
-    # ... create client from config
+REST API pattern:
+```
+GET  /rest/queue/type?name=cake-down-spectrum  -->  [{".id": "*5", "name": "cake-down-spectrum", "kind": "cake", "cake-diffserv": "diffserv3", ...}]
+PATCH /rest/queue/type/*5  body: {"cake-diffserv": "diffserv4", "cake-overhead": "docsis"}
 ```
 
-**Probes to implement (all read-only):**
+All values are JSON strings (even numbers), per RouterOS REST API convention.
 
-| Probe | What It Tests | Router Command |
-|---|---|---|
-| REST connectivity | Can we reach the router REST API? | `GET /rest/system/resource` |
-| Queue tree exists | Do configured queues exist on router? | `GET /rest/queue/tree?name=<queue>` |
-| Queue type is CAKE | Is the queue type actually CAKE? | `GET /rest/queue/type?name=<type>` |
-| CAKE params match | Do CAKE params match expected config? | `GET /rest/queue/type?name=<type>` |
-| Mangle rule exists | Does the steering mangle rule exist? | `GET /rest/ip/firewall/mangle?comment=<comment>` |
-| State file readable | Can we read the state file? | Local filesystem |
-| State file valid JSON | Is the state file valid? | `json.loads()` |
+### Feature 2: Bufferbloat Benchmarking CLI (`wanctl-benchmark`)
 
----
+**What changes:**
 
-## New Entry Points
+1. **New `benchmark.py`** -- CLI entry point:
+   - `wanctl-benchmark run` -- Execute RRUL test with profile
+   - `wanctl-benchmark grade` -- Grade a previous result file
+   - `wanctl-benchmark compare` -- Compare two results (before/after)
+   - `wanctl-benchmark history` -- Show stored results
 
-```toml
-# pyproject.toml additions
-[project.scripts]
-wanctl-check-config = "wanctl.check_config:main"
-wanctl-check-cake = "wanctl.check_cake:main"
-```
+2. **Promote integration framework code** -- Move relevant parts of `tests/integration/framework/` into `src/wanctl/`:
+   - `load_generator.py` (FlentGenerator, NetperfGenerator, LoadProfile) -- or import from tests
+   - SLA/grading logic adapted for CLI use
 
-**Pattern:** Follow existing `wanctl-history` CLI pattern: `argparse` for argument parsing, config path as required argument, structured text output with exit codes (0=pass, 1=warnings, 2=errors).
+3. **Grading system** based on industry standard (Waveform/DSLReports):
 
----
+   | Grade | Latency Increase Under Load | Meaning |
+   |-------|----------------------------|---------|
+   | A+ | < 5ms | Excellent -- virtually no bufferbloat |
+   | A | < 15ms | Great -- minimal bufferbloat |
+   | B | < 30ms | Good -- acceptable for gaming |
+   | C | < 60ms | Fair -- noticeable lag under load |
+   | D | < 200ms | Poor -- significant bufferbloat |
+   | F | >= 200ms | Failing -- severe bufferbloat |
 
-## Version Compatibility
+   Grade is computed from: `p90_latency_under_load - baseline_latency`
 
-No new packages. All existing dependencies remain at current pinned versions.
+4. **SQLite storage** -- Follow existing `MetricsWriter` pattern:
+   - `benchmark_results` table: timestamp, wan_name, profile, grade, p50/p90/p95/p99 latency, throughput, baseline_rtt, raw_data_path
+   - `query_benchmarks()` for history and comparison
 
-| Package | Current Pin | Milestone Use |
-|---|---|---|
-| `pyyaml>=6.0.1` | Config loading for validation | No change |
-| `requests>=2.31.0` | RouterOS REST API for CAKE audit | No change |
-| `paramiko>=3.4.0` | RouterOS SSH fallback for probes | No change |
-| `tabulate>=0.9.0` | CLI output formatting for check results | No change |
-| `pytest>=8.0.0` | Integration probe test framework | No change |
-
----
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|---|---|---|---|
-| Config validation | Extend existing `validate_schema()` | Pydantic BaseModel rewrite | Rewrite of 3 config classes for no functional gain. Production risk. |
-| Config validation | Extend existing `validate_schema()` | Cerberus schema library | Duplicates existing `validate_schema()` with different API. |
-| Config validation | Extend existing `validate_schema()` | JSON Schema / jsonschema | Poor YAML type coercion handling. Adds dependency. |
-| CAKE querying | Extend `RouterOSREST` with `get_queue_type()` | New library (routeros-api) | Project already has REST + SSH clients. Adding a third is waste. |
-| CLI framework | stdlib `argparse` | Click / Typer | Consistent with existing CLIs (`wanctl-history`). Simple subcommands. |
-| CLI output | `tabulate` (existing dep) | Rich console | tabulate is already a dep, sufficient for check results. |
-| Integration probes | pytest markers + fixtures | Standalone probe script | pytest infrastructure exists, markers/fixtures compose naturally. |
+5. **Flent output parsing** -- Read `.flent.gz` files (gzipped JSON):
+   ```python
+   import gzip, json
+   with gzip.open(path, "rt") as f:
+       data = json.load(f)
+   # data contains: x_values, results, metadata, raw_values
+   ```
 
 ---
 
 ## What NOT to Add
 
 | Avoid | Why | Use Instead |
-|---|---|---|
-| pydantic | Requires rewriting BaseConfig/Config/SteeringConfig. No functional gain. | Extend existing `validate_schema()` + `validate_field()` |
-| cerberus | Duplicates existing validation framework | Existing `validate_schema()` |
-| jsonschema | Poor YAML type coercion | Existing `validate_field()` with int-to-float handling |
-| routeros-api / librouteros | Third router client alongside REST + SSH | Extend `RouterOSREST` with one new GET method |
-| click / typer | Inconsistent with existing CLIs | `argparse` (stdlib) |
-| pytest-docker | Overkill for read-only probes against existing router | Live router fixture with `--router-config` |
-| rich (explicit) | Not needed for CLI tools | `tabulate` (existing dep) for structured output |
+|-------|-----|-------------|
+| `flent` as pip dependency | It's a system CLI tool, not a library to import. Installing in venv would pull matplotlib, PyQt5, and other heavy GUI deps. | Invoke via `subprocess.Popen` (existing pattern) |
+| `iperf3` Python bindings | Adds complexity without benefit -- flent already wraps iperf3 if needed | Let flent handle tool selection |
+| `matplotlib` / plotting libs | Report generation is text-based (CLI output, JSON). Plots are a user concern, not a daemon concern | Text-based grades and tabulate output |
+| New HTTP client (httpx) | Only needed for dashboard (optional dep). REST API calls use `requests` session | `requests` (existing) |
+| `dataclasses-json` / `pydantic` | Existing CheckResult/Severity model works. Project pattern is plain dataclasses + manual serialization | Existing patterns |
+| `click` / `typer` | CLI framework. Project uses `argparse` everywhere. Stay consistent | `argparse` (existing pattern) |
+| `rich` for CLI output | Project CLI tools use plain print + ANSI codes via format_results(). Stay consistent | Existing `format_results()` pattern |
 
 ---
 
-## Confidence Assessment
+## Installation Changes
 
-| Area | Level | Reason |
-|---|---|---|
-| Config validation approach | HIGH | Existing framework is mature (validate_schema, validate_field, BaseConfig). Just extending coverage. |
-| CAKE qdisc querying | HIGH | RouterOS REST API pattern is identical to existing `get_queue_stats()`. GET /rest/queue/type follows same endpoint structure. Verified via official MikroTik docs. |
-| Integration probes | HIGH | pytest marker/fixture infrastructure exists. New marker + fixture is configuration, not novel code. |
-| Zero new deps | HIGH | Every capability needed exists in the codebase or stdlib. |
-| RouterOS REST response format | MEDIUM | MikroTik docs confirm JSON response with string-encoded values and `.id` field. Exact CAKE parameter names in REST JSON response should be verified against live router (names may use hyphens vs underscores). |
+### pyproject.toml
+
+```toml
+# NO changes to [project.dependencies] -- zero new runtime deps
+
+# New CLI entry point only:
+[project.scripts]
+wanctl-benchmark = "wanctl.benchmark:main"
+# ... existing scripts unchanged
+```
+
+### Dockerfile
+
+```dockerfile
+# Already has netperf. Add flent for benchmark capability:
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssh-client \
+    iputils-ping \
+    netperf \
+    flent \          # NEW: for wanctl-benchmark RRUL tests
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+```
+
+**Note:** flent in apt may be older than PyPI version. For containers that need benchmarking, `pip install flent` (system pip, not venv) gets 2.2.0. But benchmarking will primarily run from the development machine, not from production containers -- production containers run the daemon, not benchmarks.
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| subprocess flent | Import flent as Python module | flent's internal API is not stable or documented for programmatic use. subprocess is the correct integration pattern (flent's own docs say "wrapper around netperf") |
+| RouterOS REST PATCH | RouterOS SSH commands | REST is 2x faster, already preferred transport, and PATCH is simpler than parsing SSH output. SSH fallback exists if REST fails. |
+| SQLite for benchmark storage | JSON files | SQLite enables querying, comparison, history. Consistent with existing metrics_storage.py pattern. JSON files would need custom indexing. |
+| Extend check_cake.py with --fix | New standalone tool | Reuses all existing audit logic, client creation, output formatting. --fix is a natural extension of audit (audit finds problems, --fix resolves them). |
+| Text-based grading | HTML/PDF reports | CLI tool. Text output is grep-able, pipe-able, consistent with wanctl-history and wanctl-check-config patterns. |
+
+---
+
+## RouterOS REST API: Queue Type Parameters
+
+These are the CAKE-specific parameters settable via `PATCH /rest/queue/type/{id}`:
+
+| Parameter | Type | Values | Purpose |
+|-----------|------|--------|---------|
+| `cake-bandwidth` | string | e.g. "100M", "50k" | Bandwidth shaper limit |
+| `cake-diffserv` | string | besteffort, precedence, diffserv3, diffserv4, diffserv8 | Traffic classification tins |
+| `cake-flowmode` | string | flowblind, srchost, dsthost, hosts, flows, dual-srchost, dual-dsthost, triple-isolate | Flow isolation mode |
+| `cake-nat` | string | "true"/"false" | NAT awareness for flow isolation |
+| `cake-ack-filter` | string | "none", "filter", "aggressive" | TCP ACK optimization |
+| `cake-overhead` | string | bytes (-64 to 256) or keyword | Per-packet overhead compensation |
+| `cake-atm` | string | "none", "atm", "ptm" | ATM/PTM cell framing |
+| `cake-mpu` | string | bytes | Minimum packet unit |
+| `cake-rtt` | string | ms value or keyword | Target RTT for AQM |
+| `cake-wash` | string | "true"/"false" | Clear external DSCP markings |
+| `cake-memlimit` | string | bytes | Memory limit for queues |
+| `cake-autorate-ingress` | string | "true"/"false" | Dynamic bandwidth adjustment |
+
+**Overhead keywords** (shorthand for overhead + ATM/PTM + MPU):
+- `raw` -- no overhead compensation
+- `conservative` -- safe default (48 bytes overhead)
+- `ethernet` -- standard Ethernet (14 byte overhead, 84 byte MPU)
+- `ether-vlan` -- Ethernet with VLAN tag
+- `pppoe-ptm` -- PPPoE over PTM (for VDSL2/ATT)
+- `docsis` -- DOCSIS cable modem (for Spectrum)
+- `bridged-ptm` -- bridged PTM
+- `pppoa-vcmux` -- PPPoA over ATM
+
+**Confidence:** HIGH -- verified against official MikroTik CAKE documentation.
+
+---
+
+## Optimal CAKE Settings Per Link Type
+
+### Spectrum (DOCSIS Cable)
+
+| Parameter | Optimal Value | Rationale |
+|-----------|--------------|-----------|
+| cake-overhead | Use `docsis` keyword | DOCSIS framing has specific per-packet overhead that differs from Ethernet |
+| cake-flowmode | `triple-isolate` | Best flow isolation for residential multi-device use |
+| cake-diffserv | `diffserv4` | 4-tin priority (voice, video, best-effort, bulk) -- matches typical home traffic |
+| cake-nat | `true` | NAT is used (router does NAT before CAKE sees packets) |
+| cake-ack-filter | `filter` | Reduces ACK overhead on asymmetric cable (high DL, low UL) |
+| cake-rtt | `internet` (100ms) or measured value | Default is appropriate for cable |
+| cake-wash | `true` | Clear external DSCP markings (ISP may not honor them) |
+
+### ATT (VDSL2)
+
+| Parameter | Optimal Value | Rationale |
+|-----------|--------------|-----------|
+| cake-overhead | Use `pppoe-ptm` keyword (if PPPoE) or `bridged-ptm` (if bridged) | VDSL2 uses PTM framing, PPPoE adds overhead |
+| cake-flowmode | `triple-isolate` | Best flow isolation |
+| cake-diffserv | `diffserv4` | 4-tin priority |
+| cake-nat | `true` | NAT is used |
+| cake-ack-filter | `filter` | Helpful on asymmetric DSL |
+| cake-rtt | `internet` or measured baseline | Appropriate for DSL |
+| cake-wash | `true` | Clear external DSCP markings |
+
+**Confidence:** MEDIUM -- overhead keywords are well-documented, but the exact optimal combination depends on actual link characteristics. The `--fix` tool should show a diff before applying and allow `--dry-run` preview.
+
+---
+
+## Version Compatibility
+
+| Component | Compatible With | Notes |
+|-----------|-----------------|-------|
+| RouterOS REST API for queue/type | RouterOS >= 7.1beta3 | CAKE queue types available since this version |
+| flent 2.2.0 | Python 3.6+ | System install, not project dep |
+| netperf 2.6+ | Ubuntu 22.04+ | Already in Dockerfile |
+| requests (existing) | RouterOS REST API | PATCH method for queue/type is standard REST |
+
+---
+
+## Integration Points
+
+### Auto-Fix Integration with Existing Code
+
+```
+check_cake.py (existing)
+  |-- _create_audit_client()     --> creates RouterOSREST or RouterOSSSH
+  |-- check_queue_tree()          --> verifies queue exists, type is CAKE
+  |-- check_connectivity()        --> verifies router reachable
+  |
+  NEW:
+  |-- check_cake_params()         --> reads queue type params, compares to optimal
+  |-- apply_cake_fixes()          --> PATCHes queue type with optimal params
+  |-- main() + --fix flag         --> orchestrates audit + optional fix
+
+routeros_rest.py (existing)
+  |-- _find_resource_id()         --> generic ID lookup with caching
+  |-- _request("PATCH", ...)      --> HTTP PATCH with SSL handling
+  |
+  NEW:
+  |-- get_queue_type()            --> GET /rest/queue/type?name={name}
+  |-- set_queue_type_params()     --> PATCH /rest/queue/type/{id}
+```
+
+### Benchmark Integration with Existing Code
+
+```
+tests/integration/framework/ (existing, test code)
+  |-- FlentGenerator              --> subprocess flent wrapper
+  |-- NetperfGenerator            --> subprocess netperf wrapper
+  |-- LoadProfile.from_yaml()     --> profile loading
+  |-- SLAChecker                  --> pass/fail evaluation
+
+NEW src/wanctl/benchmark.py:
+  |-- Promoted/adapted framework code for CLI use
+  |-- BenchmarkResult dataclass   --> grade + stats + metadata
+  |-- BenchmarkStorage            --> SQLite persistence (follows MetricsWriter pattern)
+  |-- grade_result()              --> A+/A/B/C/D/F grading
+  |-- main()                      --> argparse CLI
+```
 
 ---
 
 ## Sources
 
-- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) -- CAKE parameters: cake-bandwidth, cake-flowmode, cake-diffserv, cake-rtt, cake-overhead-scheme, etc.
-- [MikroTik Queue Tree Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues) -- Queue tree properties: name, parent, queue (type reference), max-limit, statistics fields
-- [MikroTik REST API Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API) -- GET/POST/PATCH patterns, JSON response format, filtering
-- [Queue Tree Properties Reference](https://mikrotikdocs.fyi/queues/queue-tree/) -- Full property list including read-only statistics
-- Direct codebase analysis: `config_base.py`, `config_validation_utils.py`, `routeros_rest.py`, `routeros_ssh.py`, `router_client.py`, `steering/cake_stats.py`, `backends/routeros.py`, `tests/integration/conftest.py`
+- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) -- CAKE parameters, overhead keywords, queue type options (HIGH confidence)
+- [MikroTik Queue Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/328088/Queues) -- queue type vs queue tree distinction (HIGH confidence)
+- [MikroTik REST API Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API) -- PATCH method, URL structure, JSON body format (HIGH confidence)
+- [Flent Official Site](https://flent.org/) -- test descriptions, CLI options, output formats (HIGH confidence)
+- [Flent on PyPI](https://pypi.org/project/flent/) -- version 2.2.0, Python 3 only (HIGH confidence)
+- [Flent man page](https://manpages.debian.org/testing/flent/flent.1.en.html) -- CLI options -f, -o, -l, -H (HIGH confidence)
+- [Bufferbloat.net RRUL Spec](https://www.bufferbloat.net/projects/bloat/wiki/RRUL_Spec/) -- RRUL test methodology (HIGH confidence)
+- [Waveform Bufferbloat Test](https://www.waveform.com/tools/bufferbloat) -- grading criteria (A < 5ms, B < 30ms, etc.) (MEDIUM confidence -- proprietary thresholds)
+- Existing wanctl integration test framework (`tests/integration/framework/`) -- already-implemented flent/netperf wrappers (HIGH confidence, verified in codebase)
+- Existing `routeros_rest.py` -- PATCH operations, resource ID caching (HIGH confidence, verified in codebase)
 
 ---
-*Stack research for: wanctl v1.16 Validation & Operational Confidence*
-*Researched: 2026-03-12*
+*Stack research for: wanctl v1.17 CAKE Optimization & Benchmarking*
+*Researched: 2026-03-13*
