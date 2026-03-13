@@ -907,3 +907,209 @@ class TestExitCodes:
             os.environ.pop("ROUTER_PASSWORD", None)
             result = main()
         assert result == 1
+
+
+# =============================================================================
+# TestGetQueueTypes -- RouterOSREST.get_queue_types()
+# =============================================================================
+
+
+class TestGetQueueTypes:
+    """Test get_queue_types() method on RouterOSREST."""
+
+    def _make_client(self):
+        """Create a RouterOSREST instance with mocked session."""
+        from wanctl.routeros_rest import RouterOSREST
+
+        client = RouterOSREST(
+            host="10.10.99.1",
+            user="admin",
+            password="test",  # pragma: allowlist secret
+            port=443,
+            verify_ssl=False,
+            timeout=15,
+        )
+        return client
+
+    def test_returns_dict_on_success(self):
+        """get_queue_types returns dict with cake-* fields when type exists."""
+        client = self._make_client()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = [
+            {
+                ".id": "*A",
+                "name": "cake-down-spectrum",
+                "kind": "cake",
+                "cake-flowmode": "triple-isolate",
+                "cake-diffserv": "diffserv4",
+                "cake-nat": "yes",
+                "cake-ack-filter": "filter",
+                "cake-wash": "yes",
+                "cake-overhead": "18",
+                "cake-overhead-scheme": "none",
+                "cake-rtt": "100ms",
+                "cake-rtt-scheme": "internet",
+            }
+        ]
+
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            result = client.get_queue_types("cake-down-spectrum")
+
+        assert result is not None
+        assert result["name"] == "cake-down-spectrum"
+        assert result["cake-flowmode"] == "triple-isolate"
+        assert result["cake-nat"] == "yes"
+        # Verify correct endpoint and params
+        mock_req.assert_called_once()
+        call_args = mock_req.call_args
+        assert "queue/type" in call_args[0][1]
+        assert call_args[1]["params"] == {"name": "cake-down-spectrum"}
+
+    def test_returns_none_on_empty_list(self):
+        """get_queue_types returns None when type not found (empty list)."""
+        client = self._make_client()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = []
+
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.get_queue_types("nonexistent")
+
+        assert result is None
+
+    def test_returns_none_on_request_exception(self):
+        """get_queue_types returns None on requests.RequestException."""
+        import requests
+
+        client = self._make_client()
+
+        with patch.object(
+            client, "_request", side_effect=requests.RequestException("timeout")
+        ):
+            result = client.get_queue_types("cake-down-spectrum")
+
+        assert result is None
+
+    def test_calls_correct_endpoint(self):
+        """get_queue_types calls GET /rest/queue/type with name param."""
+        client = self._make_client()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = [{"name": "test", ".id": "*1"}]
+
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.get_queue_types("test-type")
+
+        mock_req.assert_called_once_with(
+            "GET",
+            f"{client.base_url}/queue/type",
+            params={"name": "test-type"},
+            timeout=client.timeout,
+        )
+
+
+# =============================================================================
+# TestOptimalDefaults -- CAKE optimal constants
+# =============================================================================
+
+
+class TestOptimalDefaults:
+    """Test OPTIMAL_CAKE_DEFAULTS and OPTIMAL_WASH constants."""
+
+    def test_optimal_cake_defaults_has_four_keys(self):
+        """OPTIMAL_CAKE_DEFAULTS has exactly 4 link-independent params."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS
+
+        assert len(OPTIMAL_CAKE_DEFAULTS) == 4
+
+    def test_optimal_cake_defaults_flowmode(self):
+        """cake-flowmode optimal is triple-isolate."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS
+
+        assert OPTIMAL_CAKE_DEFAULTS["cake-flowmode"] == "triple-isolate"
+
+    def test_optimal_cake_defaults_diffserv(self):
+        """cake-diffserv optimal is diffserv4."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS
+
+        assert OPTIMAL_CAKE_DEFAULTS["cake-diffserv"] == "diffserv4"
+
+    def test_optimal_cake_defaults_nat(self):
+        """cake-nat optimal is yes."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS
+
+        assert OPTIMAL_CAKE_DEFAULTS["cake-nat"] == "yes"
+
+    def test_optimal_cake_defaults_ack_filter(self):
+        """cake-ack-filter optimal is filter (RouterOS 'enabled' value)."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS
+
+        assert OPTIMAL_CAKE_DEFAULTS["cake-ack-filter"] == "filter"
+
+    def test_optimal_wash_upload(self):
+        """OPTIMAL_WASH upload is yes."""
+        from wanctl.check_cake import OPTIMAL_WASH
+
+        assert OPTIMAL_WASH["upload"] == "yes"
+
+    def test_optimal_wash_download(self):
+        """OPTIMAL_WASH download is no."""
+        from wanctl.check_cake import OPTIMAL_WASH
+
+        assert OPTIMAL_WASH["download"] == "no"
+
+    def test_optimal_wash_has_two_keys(self):
+        """OPTIMAL_WASH has exactly upload and download."""
+        from wanctl.check_cake import OPTIMAL_WASH
+
+        assert set(OPTIMAL_WASH.keys()) == {"upload", "download"}
+
+    def test_all_values_are_strings(self):
+        """All values in both dicts are strings (RouterOS REST API format)."""
+        from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS, OPTIMAL_WASH
+
+        for val in OPTIMAL_CAKE_DEFAULTS.values():
+            assert isinstance(val, str)
+        for val in OPTIMAL_WASH.values():
+            assert isinstance(val, str)
+
+
+# =============================================================================
+# TestExtractCakeOptimization -- config extractor
+# =============================================================================
+
+
+class TestExtractCakeOptimization:
+    """Test _extract_cake_optimization() config extractor."""
+
+    def test_extracts_present_config(self):
+        """Returns dict when cake_optimization section exists."""
+        from wanctl.check_cake import _extract_cake_optimization
+
+        data = {
+            "cake_optimization": {
+                "overhead": 18,
+                "rtt": "100ms",
+            }
+        }
+        result = _extract_cake_optimization(data)
+        assert result is not None
+        assert result["overhead"] == 18
+        assert result["rtt"] == "100ms"
+
+    def test_returns_none_when_absent(self):
+        """Returns None when cake_optimization key is absent."""
+        from wanctl.check_cake import _extract_cake_optimization
+
+        data = {"router": {"host": "10.10.99.1"}}
+        result = _extract_cake_optimization(data)
+        assert result is None
+
+    def test_returns_none_when_value_is_none(self):
+        """Returns None when cake_optimization value is None (empty YAML key)."""
+        from wanctl.check_cake import _extract_cake_optimization
+
+        data = {"cake_optimization": None}
+        result = _extract_cake_optimization(data)
+        assert result is None
