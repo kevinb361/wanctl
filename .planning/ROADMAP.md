@@ -16,7 +16,7 @@ None
 
 Goal: Automated CAKE queue type parameter optimization via `--fix` flag and bufferbloat benchmarking with A-F grading and before/after comparison.
 
-- [ ] **Phase 84: CAKE Detection & Optimizer Foundation** - Detect sub-optimal CAKE queue type parameters via REST API with diff output and link-aware config
+- [x] **Phase 84: CAKE Detection & Optimizer Foundation** - Detect sub-optimal CAKE queue type parameters via REST API with diff output and link-aware config
 - [ ] **Phase 85: Auto-Fix CLI Integration** - Apply recommended CAKE parameters to router via `--fix` flag with safety checks and rollback snapshot
 - [ ] **Phase 86: Bufferbloat Benchmarking** - Run RRUL bufferbloat tests via `wanctl-benchmark` wrapping flent with A-F grading
 - [ ] **Phase 87: Benchmark Storage & Comparison** - Store benchmark results in SQLite and compare before/after optimization
@@ -60,7 +60,7 @@ Goal: Automated CAKE queue type parameter optimization via `--fix` flag and buff
 Plans:
 
 - [x] 84-01-PLAN.md -- Router data layer: get_queue_types() method, optimal defaults constants, cake_optimization config extractor
-- [ ] 84-02-PLAN.md -- Check logic: check_cake_params(), check_link_params(), pipeline wiring, KNOWN_AUTORATE_PATHS update
+- [x] 84-02-PLAN.md -- Check logic: check_cake_params(), check_link_params(), pipeline wiring, KNOWN_AUTORATE_PATHS update
 
 ### Phase 85: Auto-Fix CLI Integration
 
@@ -126,12 +126,12 @@ Plans:
 Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 (Phase 86 is independent of 84-85 but sequenced after for simplicity)
 
-| Phase                                     | Plans Complete | Status      | Completed |
-| ----------------------------------------- | -------------- | ----------- | --------- |
-| 84. CAKE Detection & Optimizer Foundation | 1/2            | In progress | -         |
-| 85. Auto-Fix CLI Integration              | 0/?            | Not started | -         |
-| 86. Bufferbloat Benchmarking              | 0/?            | Not started | -         |
-| 87. Benchmark Storage & Comparison        | 0/?            | Not started | -         |
+| Phase                                     | Plans Complete | Status      | Completed  |
+| ----------------------------------------- | -------------- | ----------- | ---------- |
+| 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
+| 85. Auto-Fix CLI Integration              | 0/?            | Not started | -          |
+| 86. Bufferbloat Benchmarking              | 0/?            | Not started | -          |
+| 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
 
 ### Completed Milestones
 

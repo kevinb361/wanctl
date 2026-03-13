@@ -4,12 +4,12 @@ milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
 status: executing
 last_updated: "2026-03-13"
-last_activity: 2026-03-13 - Completed 84-01 (data retrieval layer)
+last_activity: 2026-03-13 - Completed 84-02 (CAKE param detection logic)
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Session State
@@ -25,25 +25,25 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
 **Phase:** 84 of 87 (CAKE Detection & Optimizer Foundation)
-**Plan:** 01 of 84 complete (data retrieval layer)
-**Status:** Executing Phase 84
-**Last activity:** 2026-03-13 -- Completed 84-01 (data retrieval layer)
+**Plan:** 02 of 02 complete (CAKE param detection logic)
+**Status:** Phase 84 Complete
+**Last activity:** 2026-03-13 -- Completed 84-02 (CAKE param detection logic)
 
-Progress: [#.........] 10%
+Progress: [##........] 20%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 12min
-- Total execution time: 0.2 hours
+- Total plans completed: 2
+- Average duration: 34min
+- Total execution time: 1.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| 84    | 1     | 12min | 12min    |
+| 84    | 2     | 68min | 34min    |
 
 ## Accumulated Context
 
@@ -52,6 +52,9 @@ Progress: [#.........] 10%
 - get_queue_types() follows exact get_queue_stats() pattern (GET with name filter, return first item or None)
 - cake-ack-filter optimal value is "filter" (RouterOS REST API representation of enabled)
 - OPTIMAL_WASH is direction-dependent: upload=yes (strip before ISP), download=no (preserve for LAN WMM)
+- INFO-level results mapped to Severity.PASS (no INFO in enum, consistent with max-limit informational PASS pattern)
+- \_skippable_categories() helper extracts skip-list logic, avoids duplication between env var and connectivity failure paths
+- Step 3.5 re-fetches queue stats rather than modifying check_queue_tree() return signature
 
 ### Known Issues
 

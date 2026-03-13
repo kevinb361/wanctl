@@ -7,11 +7,11 @@
 
 ### CAKE Parameter Detection
 
-- [ ] **CAKE-01**: Operator can see sub-optimal CAKE queue type parameters flagged with severity and rationale
+- [x] **CAKE-01**: Operator can see sub-optimal CAKE queue type parameters flagged with severity and rationale
 - [x] **CAKE-02**: Detection reads queue type params from router via REST API (`GET /rest/queue/type`)
-- [ ] **CAKE-03**: Detection compares link-independent params (flowmode, nat, ack-filter, wash, diffserv) against known-optimal defaults
+- [x] **CAKE-03**: Detection compares link-independent params (flowmode, nat, ack-filter, wash, diffserv) against known-optimal defaults
 - [x] **CAKE-04**: Detection compares link-dependent params (overhead, RTT) against values specified in YAML config
-- [ ] **CAKE-05**: Detection shows diff output of current vs recommended values for each sub-optimal parameter
+- [x] **CAKE-05**: Detection shows diff output of current vs recommended values for each sub-optimal parameter
 
 ### CAKE Auto-Fix
 
@@ -66,11 +66,11 @@
 
 | Requirement | Phase    | Status   |
 | ----------- | -------- | -------- |
-| CAKE-01     | Phase 84 | Pending  |
+| CAKE-01     | Phase 84 | Complete |
 | CAKE-02     | Phase 84 | Complete |
-| CAKE-03     | Phase 84 | Pending  |
+| CAKE-03     | Phase 84 | Complete |
 | CAKE-04     | Phase 84 | Complete |
-| CAKE-05     | Phase 84 | Pending  |
+| CAKE-05     | Phase 84 | Complete |
 | FIX-01      | Phase 85 | Pending  |
 | FIX-02      | Phase 85 | Pending  |
 | FIX-03      | Phase 85 | Pending  |
