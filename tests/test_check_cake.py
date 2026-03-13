@@ -751,6 +751,46 @@ class TestCLI:
         args = parser.parse_args(["test.yaml", "-q"])
         assert args.quiet is True
 
+    def test_parser_accepts_fix_flag(self):
+        """Parser accepts --fix flag."""
+        from wanctl.check_cake import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml", "--fix"])
+        assert args.fix is True
+
+    def test_parser_fix_default_false(self):
+        """--fix defaults to False."""
+        from wanctl.check_cake import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml"])
+        assert args.fix is False
+
+    def test_parser_accepts_yes_flag(self):
+        """Parser accepts --yes flag."""
+        from wanctl.check_cake import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml", "--yes"])
+        assert args.yes is True
+
+    def test_parser_accepts_yes_short_form(self):
+        """Parser accepts -y short form for --yes."""
+        from wanctl.check_cake import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml", "-y"])
+        assert args.yes is True
+
+    def test_parser_yes_default_false(self):
+        """--yes defaults to False."""
+        from wanctl.check_cake import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml"])
+        assert args.yes is False
+
     def test_main_clean_config_returns_0(self, tmp_path):
         """Clean config with passing router -> exit code 0."""
         from wanctl.check_cake import main
@@ -2415,3 +2455,190 @@ class TestFixFlow:
         error_results = [r for r in results if r.severity == Severity.ERROR and "--yes" in r.message]
         assert len(error_results) >= 1
         client.set_queue_type_params.assert_not_called()
+
+
+# =============================================================================
+# TestFixCLI -- main() with --fix flag
+# =============================================================================
+
+
+class TestFixCLI:
+    """Test main() with --fix flag integration."""
+
+    def test_fix_calls_run_fix_instead_of_run_audit(self, tmp_path):
+        """main() with --fix calls run_fix instead of run_audit."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        fix_result = CheckResult("Fix", "status", Severity.PASS, "Nothing to fix")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[fix_result]) as mock_run_fix,
+            patch("wanctl.check_cake.run_audit") as mock_run_audit,
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes", "--no-color"]),
+        ):
+            result = main()
+
+        mock_run_fix.assert_called_once()
+        mock_run_audit.assert_not_called()
+        assert result == 0
+
+    def test_fix_passes_yes_and_json_flags(self, tmp_path):
+        """main() passes --yes and --json flags through to run_fix."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        fix_result = CheckResult("Fix", "status", Severity.PASS, "Nothing to fix")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[fix_result]) as mock_run_fix,
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes", "--json"]),
+        ):
+            main()
+
+        call_kwargs = mock_run_fix.call_args
+        assert call_kwargs[1]["yes"] is True or call_kwargs[0][3] is True
+        assert call_kwargs[1]["json_mode"] is True or call_kwargs[0][4] is True
+
+    def test_fix_nothing_to_fix_returns_0(self, tmp_path):
+        """--fix with nothing to fix returns exit code 0."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        fix_result = CheckResult("Fix", "status", Severity.PASS, "All optimal")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[fix_result]),
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes"]),
+        ):
+            result = main()
+        assert result == 0
+
+    def test_fix_with_apply_error_returns_1(self, tmp_path):
+        """--fix with apply error returns exit code 1."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        error_result = CheckResult("Fix Applied (download)", "nat", Severity.ERROR, "Failed to apply")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[error_result]),
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes"]),
+        ):
+            result = main()
+        assert result == 1
+
+    def test_fix_extracts_wan_name_from_data(self, tmp_path):
+        """main() passes wan_name from config data to run_fix."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        fix_result = CheckResult("Fix", "status", Severity.PASS, "Nothing to fix")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[fix_result]) as mock_run_fix,
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes"]),
+        ):
+            main()
+
+        call_kwargs = mock_run_fix.call_args
+        assert call_kwargs[1]["wan_name"] == "spectrum" or call_kwargs[0][5] == "spectrum"
+
+    def test_without_fix_uses_run_audit(self, tmp_path):
+        """main() without --fix uses run_audit (existing behavior unchanged)."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        audit_result = CheckResult("Queue Tree", "download", Severity.PASS, "Queue exists")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_audit", return_value=[audit_result]) as mock_audit,
+            patch("wanctl.check_cake.run_fix") as mock_fix,
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--no-color"]),
+        ):
+            main()
+
+        mock_audit.assert_called_once()
+        mock_fix.assert_not_called()
+
+
+# =============================================================================
+# TestFixJson -- --fix --json integration
+# =============================================================================
+
+
+class TestFixJson:
+    """Test --fix with --json output mode."""
+
+    def test_fix_json_yes_produces_valid_json(self, tmp_path, capsys):
+        """--fix --json --yes produces valid JSON output."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        fix_result = CheckResult("Fix", "status", Severity.PASS, "All optimal -- nothing to fix")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[fix_result]),
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--yes", "--json"]),
+        ):
+            main()
+
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert "config_type" in parsed
+        assert "result" in parsed
+
+    def test_fix_json_without_yes_returns_error(self, tmp_path):
+        """--fix --json without --yes returns error (exit code 1)."""
+        from wanctl.check_cake import main
+
+        data = _autorate_config_data()
+        config_file = _write_config(tmp_path, data)
+
+        mock_client = MagicMock()
+        error_result = CheckResult("Fix", "mode", Severity.ERROR,
+                                   "Fix in --json mode requires --yes flag")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
+            patch("wanctl.check_cake.run_fix", return_value=[error_result]),
+            patch("sys.argv", ["wanctl-check-cake", config_file, "--fix", "--json"]),
+        ):
+            result = main()
+        assert result == 1
