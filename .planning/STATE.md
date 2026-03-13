@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
 status: executing
-last_updated: "2026-03-13T20:46:26Z"
-last_activity: 2026-03-13 -- Completed 86-01 (benchmark data model & grade computation)
+last_updated: "2026-03-13T21:03:05Z"
+last_activity: 2026-03-13 -- Completed 86-02 (benchmark CLI tool)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 75
 ---
 
 # Session State
@@ -25,20 +25,20 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Position
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
-**Phase:** 86 of 87 (Bufferbloat Benchmarking)
-**Plan:** 01 of 02 complete (benchmark data model & grade computation)
+**Phase:** 86 of 87 (Bufferbloat Benchmarking) -- COMPLETE
+**Plan:** 02 of 02 complete (benchmark CLI tool)
 **Status:** Executing
-**Last activity:** 2026-03-13 -- Completed 86-01 (benchmark data model & grade computation)
+**Last activity:** 2026-03-13 -- Completed 86-02 (benchmark CLI tool)
 
-Progress: [#####.....] 50%
+Progress: [########..] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 25min
-- Total execution time: 2.1 hours
+- Total plans completed: 6
+- Average duration: 23min
+- Total execution time: 2.3 hours
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ Progress: [#####.....] 50%
 | ----- | ----- | ----- | -------- |
 | 84    | 2     | 68min | 34min    |
 | 85    | 2     | 51min | 25min    |
-| 86    | 1     | 3min  | 3min     |
+| 86    | 2     | 17min | 8min     |
 
 ## Accumulated Context
 
@@ -70,6 +70,11 @@ Progress: [#####.....] 50%
 - GRADE_THRESHOLDS as list[tuple[float, str]] with strict less-than comparison for grade boundaries
 - Both download and upload latency use same ICMP ping series (RRUL Pitfall 1 -- separate fields for future directional tests)
 - statistics.quantiles(n=100) for P50/P95/P99 (index 49/94/98)
+- check_prerequisites returns (checks, baseline_rtt) tuple to pass baseline to run_benchmark
+- Server connectivity probed via 1s netperf TCP_STREAM (validates server + network path)
+- Daemon detection warns to stderr but does not block benchmark
+- run_benchmark timeout = duration + 30s for flent subprocess overhead
+- Quick mode note only shown for duration <= 10s
 
 ### Known Issues
 
