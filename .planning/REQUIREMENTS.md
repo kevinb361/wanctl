@@ -18,7 +18,7 @@ Requirements for Validation & Operational Confidence milestone. Each maps to roa
 - [x] **CVAL-07**: Environment variable resolution check warns when `${ROUTER_PASSWORD}` env var is unset
 - [x] **CVAL-08**: Deprecated parameters are collected and surfaced prominently in output
 - [x] **CVAL-09**: Steering cross-config validation verifies topology.primary_wan_config path exists and wan_name matches
-- [ ] **CVAL-10**: JSON output mode (`--json`) for scripting and CI integration
+- [x] **CVAL-10**: JSON output mode (`--json`) for scripting and CI integration
 - [x] **CVAL-11**: Exit codes indicate result (0=pass, 1=errors, 2=warnings only)
 
 ### CAKE & Router Audit
@@ -47,43 +47,45 @@ Deferred to future milestone. Tracked but not in current roadmap.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Config generation/wizard | `wanctl-calibrate` already handles initial setup |
-| Router config modification | Check tools are strictly read-only (production safety) |
-| Auto-fix/auto-repair | Too risky for production network config; report with fix instructions instead |
-| Schema migration tool | No v2.0 schema exists yet (YAGNI) |
-| Prometheus/OpenTelemetry export | Check tools run once and exit; not long-running processes |
-| Interactive/TUI mode for check tools | Dashboard already provides TUI; check tools should be pipe-friendly |
+| Feature                              | Reason                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| Config generation/wizard             | `wanctl-calibrate` already handles initial setup                              |
+| Router config modification           | Check tools are strictly read-only (production safety)                        |
+| Auto-fix/auto-repair                 | Too risky for production network config; report with fix instructions instead |
+| Schema migration tool                | No v2.0 schema exists yet (YAGNI)                                             |
+| Prometheus/OpenTelemetry export      | Check tools run once and exit; not long-running processes                     |
+| Interactive/TUI mode for check tools | Dashboard already provides TUI; check tools should be pipe-friendly           |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| CVAL-01 | Phase 81 | Complete |
-| CVAL-02 | Phase 82 | Complete |
-| CVAL-03 | Phase 82 | Complete |
-| CVAL-04 | Phase 81 | Complete |
-| CVAL-05 | Phase 81 | Complete |
-| CVAL-06 | Phase 81 | Complete |
-| CVAL-07 | Phase 81 | Complete |
-| CVAL-08 | Phase 81 | Complete |
-| CVAL-09 | Phase 82 | Complete |
-| CVAL-10 | Phase 82 | Pending |
-| CVAL-11 | Phase 81 | Complete |
-| CAKE-01 | Phase 83 | Pending |
-| CAKE-02 | Phase 83 | Pending |
-| CAKE-03 | Phase 83 | Pending |
-| CAKE-04 | Phase 83 | Pending |
-| CAKE-05 | Phase 83 | Pending |
+| Requirement | Phase    | Status   |
+| ----------- | -------- | -------- |
+| CVAL-01     | Phase 81 | Complete |
+| CVAL-02     | Phase 82 | Complete |
+| CVAL-03     | Phase 82 | Complete |
+| CVAL-04     | Phase 81 | Complete |
+| CVAL-05     | Phase 81 | Complete |
+| CVAL-06     | Phase 81 | Complete |
+| CVAL-07     | Phase 81 | Complete |
+| CVAL-08     | Phase 81 | Complete |
+| CVAL-09     | Phase 82 | Complete |
+| CVAL-10     | Phase 82 | Complete |
+| CVAL-11     | Phase 81 | Complete |
+| CAKE-01     | Phase 83 | Pending  |
+| CAKE-02     | Phase 83 | Pending  |
+| CAKE-03     | Phase 83 | Pending  |
+| CAKE-04     | Phase 83 | Pending  |
+| CAKE-05     | Phase 83 | Pending  |
 
 **Coverage:**
+
 - v1.16 requirements: 16 total
 - Mapped to phases: 16
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after roadmap creation*
+
+_Requirements defined: 2026-03-12_
+_Last updated: 2026-03-12 after roadmap creation_

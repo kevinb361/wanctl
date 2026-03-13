@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.16
 milestone_name: Validation & Operational Confidence
 status: executing
-last_updated: "2026-03-13T02:43:00.000Z"
-last_activity: 2026-03-13 - Completed 82-01 steering config validation
+last_updated: "2026-03-13T02:56:00.000Z"
+last_activity: 2026-03-13 - Completed 82-02 JSON output mode
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Session State
@@ -19,15 +19,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.16 Phase 82 -- Steering Config + Output Modes (plan 1/2 complete)
+**Current focus:** v1.16 Phase 82 -- Steering Config + Output Modes (2/2 plans complete)
 
 ## Position
 
 **Milestone:** v1.16 Validation & Operational Confidence
-**Phase:** 82 of 83 (Steering Config + Output Modes) -- IN PROGRESS
-**Plan:** 1 of 2 (82-01 complete, 82-02 pending)
+**Phase:** 82 of 83 (Steering Config + Output Modes) -- COMPLETE
+**Plan:** 2 of 2 (82-01 complete, 82-02 complete)
 **Status:** Executing
-**Last activity:** 2026-03-13 - Completed 82-01 steering config validation
+**Last activity:** 2026-03-13 - Completed 82-02 JSON output mode
 
 ## Accumulated Context
 
@@ -45,6 +45,10 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 - [82-01] KNOWN_STEERING_PATHS: ~100 paths from SCHEMA + imperative loads + legacy + future
 - [82-01] Cross-config depth: file existence + wan_name match only (no recursive validation)
 - [82-01] format_results config_type param defaults to "autorate" for backward compat
+- [82-02] --json replaces text output entirely (only JSON on stdout, no headers/summary)
+- [82-02] --json and --quiet are independent (--quiet only affects text mode)
+- [82-02] JSON suggestion key omitted when None (not set to null)
+- [82-02] severity values are lowercase enum values (pass, warn, error)
 
 ### Known Issues
 

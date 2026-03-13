@@ -17,7 +17,7 @@ None
 Goal: Operator-facing CLI tools that catch misconfigurations before runtime and verify router queue state matches expectations.
 
 - [x] **Phase 81: Config Validation Foundation** - Offline autorate config validation with structured error collection, cross-field checks, and exit codes
-- [ ] **Phase 82: Steering Config + Output Modes** - Steering config support, auto-detection, cross-config validation, and JSON output
+- [x] **Phase 82: Steering Config + Output Modes** - Steering config support, auto-detection, cross-config validation, and JSON output
 - [ ] **Phase 83: CAKE Qdisc Audit** - Read-only router probes comparing queue tree and CAKE parameters against config expectations
 
 ### Completed
@@ -74,8 +74,8 @@ Plans:
 
 Plans:
 
-- [ ] 82-01-PLAN.md -- Steering validation, auto-detection, cross-config checks, and --type flag
-- [ ] 82-02-PLAN.md -- JSON output mode (--json) for CI/scripting integration
+- [x] 82-01-PLAN.md -- Steering validation, auto-detection, cross-config checks, and --type flag
+- [x] 82-02-PLAN.md -- JSON output mode (--json) for CI/scripting integration
 
 ### Phase 83: CAKE Qdisc Audit
 
@@ -106,7 +106,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | Phase                              | Plans Complete | Status      | Completed  |
 | ---------------------------------- | -------------- | ----------- | ---------- |
 | 81. Config Validation Foundation   | 1/1            | Complete    | 2026-03-12 |
-| 82. Steering Config + Output Modes | 1/2 | In Progress|  |
+| 82. Steering Config + Output Modes | 2/2            | Complete    | 2026-03-13 |
 | 83. CAKE Qdisc Audit               | 0/?            | Not started | -          |
 
 ### Completed Milestones
@@ -123,7 +123,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | v1.8 Resilience & Robustness         | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene              | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability                   | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24  | 5     | Complete | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20  | 5     | Complete | 2026-01-14 |
