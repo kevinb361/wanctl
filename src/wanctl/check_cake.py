@@ -592,12 +592,28 @@ def check_mangle_rule(client: object, mangle_comment: str) -> list[CheckResult]:
 # =============================================================================
 
 
+def _skippable_categories(config_type: str) -> list[str]:
+    """Return categories to skip when router is unreachable."""
+    categories = [
+        "Queue Tree",
+        "CAKE Type",
+        "CAKE Params (download)",
+        "CAKE Params (upload)",
+        "Link Params (download)",
+        "Link Params (upload)",
+    ]
+    if config_type == "steering":
+        categories.append("Mangle Rule")
+    return categories
+
+
 def run_audit(data: dict, config_type: str, client: object | None) -> list[CheckResult]:
     """Run all audit checks in order.
 
     1. Environment variable check
     2. Connectivity -- if ERROR, skip remaining with 'Skipped: router unreachable'
     3. Queue tree audit (CAKE-02, CAKE-03, CAKE-04)
+    3.5. CAKE queue type parameter checks
     4. Mangle rule check (CAKE-05, steering only)
 
     Args:
@@ -619,10 +635,7 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
     # If env var check has errors, skip connectivity (can't authenticate)
     if any(r.severity == Severity.ERROR for r in env_results) or client is None:
         if any(r.severity == Severity.ERROR for r in env_results):
-            remaining = ["Queue Tree", "CAKE Type"]
-            if config_type == "steering":
-                remaining.append("Mangle Rule")
-            for category in remaining:
+            for category in _skippable_categories(config_type):
                 results.append(
                     CheckResult(
                         category,
@@ -642,10 +655,7 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
 
     # If connectivity failed, skip remaining checks
     if any(r.severity == Severity.ERROR for r in connectivity_results):
-        remaining = ["Queue Tree", "CAKE Type"]
-        if config_type == "steering":
-            remaining.append("Mangle Rule")
-        for category in remaining:
+        for category in _skippable_categories(config_type):
             results.append(
                 CheckResult(
                     category,
@@ -660,6 +670,36 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
     queue_names = _extract_queue_names(data, config_type)
     ceilings = _extract_ceilings(data, config_type)
     results.extend(check_queue_tree(client, queue_names, ceilings, config_type))
+
+    # 3.5 CAKE queue type parameter checks
+    cake_config = _extract_cake_optimization(data)
+    for direction in ("download", "upload"):
+        queue_name = queue_names.get(direction, "")
+        if not queue_name:
+            continue
+        # Get queue tree entry to extract queue type name
+        stats = client.get_queue_stats(queue_name)
+        if stats is None:
+            continue
+        queue_type_name = stats.get("queue", "")
+        if not queue_type_name or not queue_type_name.startswith("cake"):
+            continue
+        # Fetch queue type details
+        queue_type_data = client.get_queue_types(queue_type_name)
+        if queue_type_data is None:
+            results.append(
+                CheckResult(
+                    f"CAKE Params ({direction})",
+                    "queue_type",
+                    Severity.ERROR,
+                    f"Queue type not found: {queue_type_name}",
+                    suggestion="Verify queue type exists on router",
+                )
+            )
+            continue
+        # Run checks
+        results.extend(check_cake_params(queue_type_data, direction))
+        results.extend(check_link_params(queue_type_data, direction, cake_config))
 
     # 4. Mangle rule check (CAKE-05, steering only)
     if config_type == "steering":

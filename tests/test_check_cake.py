@@ -762,6 +762,13 @@ class TestCLI:
         mock_client.get_queue_stats.side_effect = [
             _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
             _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+            # Step 3.5 re-fetches queue stats
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+        ]
+        mock_client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
 
         with (
@@ -802,6 +809,12 @@ class TestCLI:
         mock_client.get_queue_stats.side_effect = [
             _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
             _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+        ]
+        mock_client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
 
         with (
@@ -828,6 +841,12 @@ class TestCLI:
         mock_client.get_queue_stats.side_effect = [
             _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
             _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+        ]
+        mock_client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
         mock_client._find_mangle_rule_id.return_value = None
 
@@ -864,6 +883,12 @@ class TestExitCodes:
         mock_client.get_queue_stats.side_effect = [
             _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
             _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+        ]
+        mock_client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
 
         with (
@@ -1347,3 +1372,211 @@ class TestCheckLinkParams:
             _optimal_queue_type_data("upload"), "upload", cake_config
         )
         assert all(r.category == "Link Params (upload)" for r in ul_results)
+
+
+# =============================================================================
+# TestRunAuditCakeParams -- pipeline integration
+# =============================================================================
+
+
+def _queue_type_response(
+    name: str = "cake-down-spectrum",
+    flowmode: str = "triple-isolate",
+    diffserv: str = "diffserv4",
+    nat: str = "yes",
+    ack_filter: str = "filter",
+    wash: str = "no",
+    overhead: str = "18",
+    rtt: str = "100ms",
+) -> dict:
+    """Return a mock RouterOS queue type response dict."""
+    return {
+        ".id": "*A",
+        "name": name,
+        "kind": "cake",
+        "cake-flowmode": flowmode,
+        "cake-diffserv": diffserv,
+        "cake-nat": nat,
+        "cake-ack-filter": ack_filter,
+        "cake-wash": wash,
+        "cake-overhead": overhead,
+        "cake-rtt": rtt,
+        "cake-rtt-scheme": "internet",
+    }
+
+
+class TestRunAuditCakeParams:
+    """Test CAKE param checks wired into run_audit() pipeline."""
+
+    def test_audit_includes_cake_param_checks(self):
+        """run_audit includes CAKE Params and Link Params results."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = True
+        # First call per direction for check_queue_tree, second for step 3.5
+        client.get_queue_stats.side_effect = [
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+            # Step 3.5 re-fetches queue stats
+            _queue_response("WAN-Download-Spectrum", "cake-down-spectrum", "940000000"),
+            _queue_response("WAN-Upload-Spectrum", "cake-up-spectrum", "38000000"),
+        ]
+        client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
+        ]
+
+        data = _autorate_config_data()
+        data["cake_optimization"] = {"overhead": 18, "rtt": "100ms"}
+
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        # Should have CAKE Params results
+        cake_param_results = [r for r in results if r.category.startswith("CAKE Params")]
+        assert len(cake_param_results) >= 10  # 5 per direction
+
+        # Should have Link Params results
+        link_param_results = [r for r in results if r.category.startswith("Link Params")]
+        assert len(link_param_results) >= 4  # 2 per direction (overhead + rtt)
+
+    def test_audit_skips_cake_params_when_not_cake_type(self):
+        """Queue type not starting with 'cake' -> no CAKE Params results."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = True
+        client.get_queue_stats.side_effect = [
+            # check_queue_tree calls
+            _queue_response("DL", "fq_codel", "940000000"),
+            _queue_response("UL", "fq_codel", "38000000"),
+            # step 3.5 re-fetches
+            _queue_response("DL", "fq_codel", "940000000"),
+            _queue_response("UL", "fq_codel", "38000000"),
+        ]
+
+        data = _autorate_config_data()
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        cake_param_results = [r for r in results if r.category.startswith("CAKE Params")]
+        assert len(cake_param_results) == 0
+        # get_queue_types should NOT have been called
+        client.get_queue_types.assert_not_called()
+
+    def test_audit_skips_cake_params_on_connectivity_failure(self):
+        """Connectivity failure skips CAKE Params and Link Params categories."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = False
+
+        data = _autorate_config_data()
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        skipped = [r for r in results if "Skipped" in r.message]
+        skipped_cats = {r.category for r in skipped}
+        assert "CAKE Params (download)" in skipped_cats
+        assert "CAKE Params (upload)" in skipped_cats
+        assert "Link Params (download)" in skipped_cats
+        assert "Link Params (upload)" in skipped_cats
+
+    def test_audit_handles_missing_queue_type(self):
+        """get_queue_types returns None -> ERROR result."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = True
+        client.get_queue_stats.side_effect = [
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+            # step 3.5 re-fetches
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+        ]
+        client.get_queue_types.return_value = None
+
+        data = _autorate_config_data()
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        cake_errors = [
+            r
+            for r in results
+            if r.category.startswith("CAKE Params") and r.severity == Severity.ERROR
+        ]
+        assert len(cake_errors) >= 2  # one per direction
+        assert any("Queue type not found" in r.message for r in cake_errors)
+
+    def test_audit_link_params_skipped_when_no_config(self):
+        """No cake_optimization in data -> INFO message for link params."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = True
+        client.get_queue_stats.side_effect = [
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+        ]
+        client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no"),
+            _queue_type_response("cake-up-spectrum", wash="yes"),
+        ]
+
+        data = _autorate_config_data()
+        # No cake_optimization key
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        link_results = [r for r in results if r.category.startswith("Link Params")]
+        assert len(link_results) >= 2  # one INFO per direction
+        assert all("cake_optimization" in r.message for r in link_results)
+
+    def test_audit_link_params_with_config(self):
+        """cake_optimization present -> overhead/rtt checks run."""
+        from wanctl.check_cake import run_audit
+
+        client = MagicMock()
+        client.test_connection.return_value = True
+        client.get_queue_stats.side_effect = [
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+            _queue_response("DL", "cake-down-spectrum", "940000000"),
+            _queue_response("UL", "cake-up-spectrum", "38000000"),
+        ]
+        client.get_queue_types.side_effect = [
+            _queue_type_response("cake-down-spectrum", wash="no", overhead="18", rtt="100ms"),
+            _queue_type_response("cake-up-spectrum", wash="yes", overhead="18", rtt="100ms"),
+        ]
+
+        data = _autorate_config_data()
+        data["cake_optimization"] = {"overhead": 18, "rtt": "100ms"}
+
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", client)
+
+        link_results = [r for r in results if r.category.startswith("Link Params")]
+        # Should have overhead + rtt for each direction = 4 results
+        assert len(link_results) == 4
+        assert all(r.severity == Severity.PASS for r in link_results)
+
+
+# =============================================================================
+# TestKnownPaths -- KNOWN_AUTORATE_PATHS includes cake_optimization
+# =============================================================================
+
+
+class TestKnownPaths:
+    """Test KNOWN_AUTORATE_PATHS includes cake_optimization paths."""
+
+    def test_cake_optimization_paths_in_known_autorate(self):
+        """cake_optimization, cake_optimization.overhead, cake_optimization.rtt in KNOWN_AUTORATE_PATHS."""
+        from wanctl.check_config import KNOWN_AUTORATE_PATHS
+
+        assert "cake_optimization" in KNOWN_AUTORATE_PATHS
+        assert "cake_optimization.overhead" in KNOWN_AUTORATE_PATHS
+        assert "cake_optimization.rtt" in KNOWN_AUTORATE_PATHS

@@ -166,6 +166,10 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "alerting.default_cooldown_sec",
     "alerting.default_sustained_sec",
     "alerting.rules",
+    # CAKE optimization (for wanctl-check-cake link-dependent param checks)
+    "cake_optimization",
+    "cake_optimization.overhead",
+    "cake_optimization.rtt",
     # Schema version
     "schema_version",
 }
