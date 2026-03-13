@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.alert_engine import AlertEngine
-from wanctl.autorate_continuous import WANController
+from wanctl.autorate_continuous import CYCLE_INTERVAL_SECONDS, WANController
 
 # =============================================================================
 # FIXTURES
@@ -220,6 +220,7 @@ def mock_flapping_controller():
                 "severity": "warning",
                 "flap_threshold": 6,
                 "flap_window_sec": 60,
+                "min_hold_sec": 0,
             },
         },
         writer=None,
@@ -230,6 +231,8 @@ def mock_flapping_controller():
     controller._ul_zone_transitions = deque()
     controller._dl_prev_zone = None
     controller._ul_prev_zone = None
+    controller._dl_zone_hold = 0
+    controller._ul_zone_hold = 0
 
     # Bind the real method
     controller._check_flapping_alerts = (
@@ -640,3 +643,353 @@ class TestFlappingDefaults:
 
         # Only transitions from t=100 and t=131 should remain
         assert len(mock_flapping_controller._dl_zone_transitions) == 2
+
+
+# =============================================================================
+# FLAPPING COOLDOWN KEY FIX
+# =============================================================================
+
+
+class TestFlappingCooldownKeyFix:
+    """Tests for rule_key parameter in fire() for correct cooldown lookup."""
+
+    def test_fire_with_rule_key_uses_parent_rule_cooldown(self):
+        """fire("flapping_dl", rule_key="congestion_flapping") uses congestion_flapping's cooldown_sec (600)."""
+        engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                    "severity": "warning",
+                },
+            },
+            writer=None,
+        )
+
+        # First fire succeeds
+        result = engine.fire(
+            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
+        )
+        assert result is True
+
+        # At t+500s (within 600s cooldown): should be suppressed
+        with patch("time.monotonic", return_value=time.monotonic() + 500):
+            result = engine.fire(
+                "flapping_dl",
+                "warning",
+                "spectrum",
+                {},
+                rule_key="congestion_flapping",
+            )
+        assert result is False
+
+        # At t+700s (beyond 600s cooldown): should fire again
+        with patch("time.monotonic", return_value=time.monotonic() + 700):
+            result = engine.fire(
+                "flapping_dl",
+                "warning",
+                "spectrum",
+                {},
+                rule_key="congestion_flapping",
+            )
+        assert result is True
+
+    def test_fire_without_rule_key_uses_alert_type_for_lookup(self):
+        """fire() without rule_key still uses alert_type for rule lookup (backward compat)."""
+        engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "baseline_drift": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                    "severity": "warning",
+                },
+            },
+            writer=None,
+        )
+
+        # First fire succeeds
+        result = engine.fire("baseline_drift", "warning", "spectrum", {})
+        assert result is True
+
+        # At t+400s (within 600s cooldown): should be suppressed
+        with patch("time.monotonic", return_value=time.monotonic() + 400):
+            result = engine.fire("baseline_drift", "warning", "spectrum", {})
+        assert result is False
+
+    def test_is_cooled_down_respects_rule_key(self):
+        """_is_cooled_down uses rule_key for cooldown config lookup."""
+        engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                },
+            },
+            writer=None,
+        )
+
+        # Fire with rule_key
+        engine.fire(
+            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
+        )
+
+        # _is_cooled_down should use congestion_flapping's 600s cooldown, not default 300s
+        with patch("time.monotonic", return_value=time.monotonic() + 400):
+            assert (
+                engine._is_cooled_down(
+                    "flapping_dl", "spectrum", rule_key="congestion_flapping"
+                )
+                is True
+            )
+
+    def test_get_active_cooldowns_uses_rule_key_mapping(self):
+        """get_active_cooldowns uses rule_key map for correct cooldown_sec lookup."""
+        engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                },
+            },
+            writer=None,
+        )
+
+        # Fire with rule_key mapping
+        engine.fire(
+            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
+        )
+
+        # Active cooldowns should use 600s from congestion_flapping rule
+        with patch("time.monotonic", return_value=time.monotonic() + 400):
+            cooldowns = engine.get_active_cooldowns()
+            # flapping_dl should still be active (400s < 600s cooldown)
+            assert ("flapping_dl", "spectrum") in cooldowns
+            remaining = cooldowns[("flapping_dl", "spectrum")]
+            # ~200s remaining (600 - 400)
+            assert 150 < remaining < 250
+
+    def test_fire_with_rule_key_checks_parent_rule_enabled(self):
+        """fire() with rule_key checks the parent rule's enabled gate."""
+        engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": False,
+                    "cooldown_sec": 600,
+                },
+            },
+            writer=None,
+        )
+
+        # Should be suppressed because congestion_flapping rule is disabled
+        result = engine.fire(
+            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
+        )
+        assert result is False
+
+    def test_check_flapping_alerts_passes_rule_key(self):
+        """_check_flapping_alerts passes rule_key='congestion_flapping' to fire()."""
+        controller = MagicMock(spec=WANController)
+        controller.wan_name = "spectrum"
+        controller.logger = logging.getLogger("test.flapping")
+        controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                    "severity": "warning",
+                    "flap_threshold": 6,
+                    "flap_window_sec": 60,
+                    "min_hold_sec": 0,
+                },
+            },
+            writer=None,
+        )
+        controller._dl_zone_transitions = deque()
+        controller._ul_zone_transitions = deque()
+        controller._dl_prev_zone = None
+        controller._ul_prev_zone = None
+        controller._dl_zone_hold = 0
+        controller._ul_zone_hold = 0
+        controller._check_flapping_alerts = (
+            WANController._check_flapping_alerts.__get__(controller, WANController)
+        )
+
+        now = time.monotonic()
+
+        with patch.object(
+            controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=now + i * 5):
+                    controller._check_flapping_alerts(zone, "GREEN")
+
+        mock_fire.assert_called_once()
+        # Verify rule_key kwarg was passed
+        assert mock_fire.call_args.kwargs.get("rule_key") == "congestion_flapping"
+
+
+# =============================================================================
+# FLAPPING DWELL FILTER
+# =============================================================================
+
+
+class TestFlappingDwellFilter:
+    """Tests for dwell filter that rejects single-cycle zone blips."""
+
+    @pytest.fixture
+    def dwell_controller(self):
+        """Controller with min_hold_sec=1.0 for dwell filter testing."""
+        controller = MagicMock(spec=WANController)
+        controller.wan_name = "spectrum"
+        controller.logger = logging.getLogger("test.dwell")
+        controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={
+                "congestion_flapping": {
+                    "enabled": True,
+                    "cooldown_sec": 600,
+                    "severity": "warning",
+                    "flap_threshold": 6,
+                    "flap_window_sec": 120,
+                    "min_hold_sec": 1.0,
+                },
+            },
+            writer=None,
+        )
+        controller._dl_zone_transitions = deque()
+        controller._ul_zone_transitions = deque()
+        controller._dl_prev_zone = None
+        controller._ul_prev_zone = None
+        controller._dl_zone_hold = 0
+        controller._ul_zone_hold = 0
+        controller._check_flapping_alerts = (
+            WANController._check_flapping_alerts.__get__(controller, WANController)
+        )
+        return controller
+
+    def test_single_cycle_blips_do_not_count(self, dwell_controller):
+        """Zone changes where departing zone held < min_hold_cycles do NOT count."""
+        now = time.monotonic()
+
+        # At 50ms cycle, min_hold_sec=1.0 => min_hold_cycles=20
+        # Rapid blips: GREEN(1 cycle)->YELLOW(1 cycle)->GREEN(1 cycle)->YELLOW...
+        # Each zone held only 1 cycle (< 20), so NO transitions should count
+        with patch.object(
+            dwell_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for i in range(40):
+                zone = "GREEN" if i % 2 == 0 else "YELLOW"
+                with patch("time.monotonic", return_value=now + i * 0.05):
+                    dwell_controller._check_flapping_alerts(zone, "GREEN")
+
+        # No transitions should have been recorded (all blips)
+        assert len(dwell_controller._dl_zone_transitions) == 0
+        mock_fire.assert_not_called()
+
+    def test_sustained_zone_change_counts(self, dwell_controller):
+        """Zone held >= min_hold_cycles then changed counts as a transition."""
+        now = time.monotonic()
+
+        # min_hold_cycles = 1.0 / 0.05 = 20
+        # Hold GREEN for 25 cycles, then switch to YELLOW
+        with patch.object(
+            dwell_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            # 25 cycles of GREEN (builds hold counter)
+            for i in range(25):
+                with patch("time.monotonic", return_value=now + i * 0.05):
+                    dwell_controller._check_flapping_alerts("GREEN", "GREEN")
+
+            # Switch to YELLOW (GREEN was held 25 >= 20 min_hold_cycles, counts!)
+            with patch("time.monotonic", return_value=now + 25 * 0.05):
+                dwell_controller._check_flapping_alerts("YELLOW", "GREEN")
+
+        # One transition should be recorded
+        assert len(dwell_controller._dl_zone_transitions) == 1
+
+    def test_min_hold_sec_configurable(self, dwell_controller):
+        """min_hold_sec is read from congestion_flapping rule config."""
+        # Override to 0.5s (10 cycles at 50ms)
+        dwell_controller.alert_engine._rules["congestion_flapping"]["min_hold_sec"] = (
+            0.5
+        )
+
+        now = time.monotonic()
+
+        # Hold GREEN for 12 cycles (>= 10 min_hold_cycles for 0.5s)
+        for i in range(12):
+            with patch("time.monotonic", return_value=now + i * 0.05):
+                dwell_controller._check_flapping_alerts("GREEN", "GREEN")
+
+        # Switch to YELLOW (held 12 >= 10, should count)
+        with patch("time.monotonic", return_value=now + 12 * 0.05):
+            dwell_controller._check_flapping_alerts("YELLOW", "GREEN")
+
+        assert len(dwell_controller._dl_zone_transitions) == 1
+
+    def test_min_hold_cycles_calculation(self):
+        """At 50ms cycle (CYCLE_INTERVAL_SECONDS=0.05), min_hold_sec=1.0 => min_hold_cycles=20."""
+        min_hold_sec = 1.0
+        min_hold_cycles = max(1, int(min_hold_sec / CYCLE_INTERVAL_SECONDS))
+        assert CYCLE_INTERVAL_SECONDS == 0.05
+        assert min_hold_cycles == 20
+
+    def test_rapid_blips_do_not_accumulate_transitions(self, dwell_controller):
+        """Rapid GREEN->YELLOW->GREEN blips (1-2 cycles each) do not accumulate."""
+        now = time.monotonic()
+
+        # 100 rapid zone changes (50 pairs), each zone held only 1 cycle
+        with patch.object(
+            dwell_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for i in range(100):
+                zone = "GREEN" if i % 2 == 0 else "YELLOW"
+                with patch("time.monotonic", return_value=now + i * 0.05):
+                    dwell_controller._check_flapping_alerts(zone, "GREEN")
+
+        # Zero transitions (all below min_hold_cycles=20)
+        assert len(dwell_controller._dl_zone_transitions) == 0
+        mock_fire.assert_not_called()
+
+    def test_sustained_yellow_then_green_counts_one_transition(self, dwell_controller):
+        """Sustained YELLOW (held 25+ cycles) then change to GREEN counts as one transition."""
+        now = time.monotonic()
+        t = 0.0
+
+        # First establish GREEN as prev_zone (hold 25 cycles)
+        for i in range(25):
+            with patch("time.monotonic", return_value=now + t):
+                dwell_controller._check_flapping_alerts("GREEN", "GREEN")
+            t += 0.05
+
+        # Switch to YELLOW (GREEN held 25 >= 20, counts as transition)
+        with patch("time.monotonic", return_value=now + t):
+            dwell_controller._check_flapping_alerts("YELLOW", "GREEN")
+        t += 0.05
+
+        # Hold YELLOW for 25 cycles
+        for i in range(25):
+            with patch("time.monotonic", return_value=now + t):
+                dwell_controller._check_flapping_alerts("YELLOW", "GREEN")
+            t += 0.05
+
+        # Switch back to GREEN (YELLOW held 25 >= 20, counts as second transition)
+        with patch("time.monotonic", return_value=now + t):
+            dwell_controller._check_flapping_alerts("GREEN", "GREEN")
+
+        # Two transitions total (GREEN->YELLOW and YELLOW->GREEN)
+        assert len(dwell_controller._dl_zone_transitions) == 2
