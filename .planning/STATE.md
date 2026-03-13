@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: ready_to_plan
+status: executing
 last_updated: "2026-03-13"
-last_activity: 2026-03-13 - Roadmap created (4 phases, 23 requirements)
+last_activity: 2026-03-13 - Completed 84-01 (data retrieval layer)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Session State
@@ -25,30 +25,33 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
 **Phase:** 84 of 87 (CAKE Detection & Optimizer Foundation)
-**Plan:** Not started (ready to plan)
-**Status:** Ready to plan Phase 84
-**Last activity:** 2026-03-13 -- Roadmap created
+**Plan:** 01 of 84 complete (data retrieval layer)
+**Status:** Executing Phase 84
+**Last activity:** 2026-03-13 -- Completed 84-01 (data retrieval layer)
 
-Progress: [..........] 0%
+Progress: [#.........] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+
+- Total plans completed: 1
+- Average duration: 12min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
+| ----- | ----- | ----- | -------- |
+| 84    | 1     | 12min | 12min    |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(New milestone -- no decisions yet)
+- get_queue_types() follows exact get_queue_stats() pattern (GET with name filter, return first item or None)
+- cake-ack-filter optimal value is "filter" (RouterOS REST API representation of enabled)
+- OPTIMAL_WASH is direction-dependent: upload=yes (strip before ISP), download=no (preserve for LAN WMM)
 
 ### Known Issues
 

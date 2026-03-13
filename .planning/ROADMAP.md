@@ -44,65 +44,77 @@ Goal: Automated CAKE queue type parameter optimization via `--fix` flag and buff
 ## Phase Details
 
 ### Phase 84: CAKE Detection & Optimizer Foundation
+
 **Goal**: Operator can see exactly which CAKE queue type parameters are sub-optimal, with severity, rationale, and recommended values
 **Depends on**: Nothing (first phase of v1.17; builds on existing `wanctl-check-cake` from v1.16)
 **Requirements**: CAKE-01, CAKE-02, CAKE-03, CAKE-04, CAKE-05
 **Success Criteria** (what must be TRUE):
-  1. Running `wanctl-check-cake spectrum.yaml` flags sub-optimal CAKE parameters with severity (ERROR/WARNING/INFO) and human-readable rationale
-  2. Detection reads queue type parameters from the router via REST `GET /rest/queue/type` (not queue tree) using new `get_queue_type()` method on RouterOSREST
-  3. Link-independent parameters (flowmode, nat, ack-filter, wash, diffserv) are compared against known-optimal defaults without any additional config
-  4. Link-dependent parameters (overhead, RTT) are compared against values from a `cake_optimization:` YAML config block -- never auto-detected from WAN name
-  5. Each sub-optimal parameter shows a diff of current value vs recommended value
-**Plans**: 2 plans
+
+1. Running `wanctl-check-cake spectrum.yaml` flags sub-optimal CAKE parameters with severity (ERROR/WARNING/INFO) and human-readable rationale
+2. Detection reads queue type parameters from the router via REST `GET /rest/queue/type` (not queue tree) using new `get_queue_type()` method on RouterOSREST
+3. Link-independent parameters (flowmode, nat, ack-filter, wash, diffserv) are compared against known-optimal defaults without any additional config
+4. Link-dependent parameters (overhead, RTT) are compared against values from a `cake_optimization:` YAML config block -- never auto-detected from WAN name
+5. Each sub-optimal parameter shows a diff of current value vs recommended value
+   **Plans**: 2 plans
 
 Plans:
-- [ ] 84-01-PLAN.md -- Router data layer: get_queue_types() method, optimal defaults constants, cake_optimization config extractor
+
+- [x] 84-01-PLAN.md -- Router data layer: get_queue_types() method, optimal defaults constants, cake_optimization config extractor
 - [ ] 84-02-PLAN.md -- Check logic: check_cake_params(), check_link_params(), pipeline wiring, KNOWN_AUTORATE_PATHS update
 
 ### Phase 85: Auto-Fix CLI Integration
+
 **Goal**: Operator can apply recommended CAKE parameters to a production router safely with confirmation, rollback snapshot, and daemon coordination
 **Depends on**: Phase 84
 **Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, FIX-06, FIX-07
 **Success Criteria** (what must be TRUE):
-  1. Running `wanctl-check-cake spectrum.yaml --fix` shows proposed changes as a before/after diff and prompts for confirmation before applying
-  2. Fix applies changes via REST PATCH to `/rest/queue/type/{id}` using new `set_queue_type_params()` method and reports success/failure per parameter as CheckResult items
-  3. Fix refuses to proceed when the wanctl daemon is running (lock file check at `/run/wanctl/*.lock`), with a clear message telling operator to stop the daemon first
-  4. A JSON snapshot of current parameter values is saved to a timestamped file before any changes are applied, enabling manual rollback
-  5. `--yes` bypasses interactive confirmation and `--json` outputs structured results for scripting
-**Plans**: TBD
+
+1. Running `wanctl-check-cake spectrum.yaml --fix` shows proposed changes as a before/after diff and prompts for confirmation before applying
+2. Fix applies changes via REST PATCH to `/rest/queue/type/{id}` using new `set_queue_type_params()` method and reports success/failure per parameter as CheckResult items
+3. Fix refuses to proceed when the wanctl daemon is running (lock file check at `/run/wanctl/*.lock`), with a clear message telling operator to stop the daemon first
+4. A JSON snapshot of current parameter values is saved to a timestamped file before any changes are applied, enabling manual rollback
+5. `--yes` bypasses interactive confirmation and `--json` outputs structured results for scripting
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 85-01: TBD
 - [ ] 85-02: TBD
 
 ### Phase 86: Bufferbloat Benchmarking
+
 **Goal**: Operator can run standardized RRUL bufferbloat tests and get an actionable A-F grade for download and upload latency under load
 **Depends on**: Nothing (independent of Phases 84-85)
 **Requirements**: BENCH-01, BENCH-02, BENCH-03, BENCH-04, BENCH-05, BENCH-06, BENCH-07
 **Success Criteria** (what must be TRUE):
-  1. Running `wanctl-benchmark run` executes an RRUL bufferbloat test via flent subprocess and reports separate download and upload grades (A+ through F)
-  2. If flent or netperf are not installed, the tool exits with clear install instructions (package names and commands, not a Python traceback)
-  3. Netperf server connectivity is verified with a 3s timeout before starting the full test -- fast failure instead of waiting 60s
-  4. `--quick` mode runs a 10-second test for fast iteration during tuning; `--server` overrides the default netperf server host
-  5. Benchmark output shows latency percentiles (P50/P95/P99) and throughput alongside the letter grade
-**Plans**: TBD
+
+1. Running `wanctl-benchmark run` executes an RRUL bufferbloat test via flent subprocess and reports separate download and upload grades (A+ through F)
+2. If flent or netperf are not installed, the tool exits with clear install instructions (package names and commands, not a Python traceback)
+3. Netperf server connectivity is verified with a 3s timeout before starting the full test -- fast failure instead of waiting 60s
+4. `--quick` mode runs a 10-second test for fast iteration during tuning; `--server` overrides the default netperf server host
+5. Benchmark output shows latency percentiles (P50/P95/P99) and throughput alongside the letter grade
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 86-01: TBD
 - [ ] 86-02: TBD
 
 ### Phase 87: Benchmark Storage & Comparison
+
 **Goal**: Operator can store benchmark results and compare before/after optimization to prove CAKE tuning worked
 **Depends on**: Phase 86
 **Requirements**: STOR-01, STOR-02, STOR-03, STOR-04
 **Success Criteria** (what must be TRUE):
-  1. Benchmark results are automatically stored in SQLite (`benchmarks` table) with timestamp, WAN name, grade, latency percentiles, and throughput
-  2. Running `wanctl-benchmark compare` shows grade delta and latency improvement between two runs (typically before and after CAKE optimization)
-  3. Running `wanctl-benchmark history` or `wanctl-history --benchmarks` lists past benchmark results with time-range filtering
-  4. Each stored result includes metadata (netperf server, test duration, daemon running status) so non-comparable runs can be identified
-**Plans**: TBD
+
+1. Benchmark results are automatically stored in SQLite (`benchmarks` table) with timestamp, WAN name, grade, latency percentiles, and throughput
+2. Running `wanctl-benchmark compare` shows grade delta and latency improvement between two runs (typically before and after CAKE optimization)
+3. Running `wanctl-benchmark history` or `wanctl-history --benchmarks` lists past benchmark results with time-range filtering
+4. Each stored result includes metadata (netperf server, test duration, daemon running status) so non-comparable runs can be identified
+   **Plans**: TBD
 
 Plans:
+
 - [ ] 87-01: TBD
 - [ ] 87-02: TBD
 
@@ -114,18 +126,18 @@ Plans:
 Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 (Phase 86 is independent of 84-85 but sequenced after for simplicity)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 84. CAKE Detection & Optimizer Foundation | 0/2 | Not started | - |
-| 85. Auto-Fix CLI Integration | 0/? | Not started | - |
-| 86. Bufferbloat Benchmarking | 0/? | Not started | - |
-| 87. Benchmark Storage & Comparison | 0/? | Not started | - |
+| Phase                                     | Plans Complete | Status      | Completed |
+| ----------------------------------------- | -------------- | ----------- | --------- |
+| 84. CAKE Detection & Optimizer Foundation | 1/2            | In progress | -         |
+| 85. Auto-Fix CLI Integration              | 0/?            | Not started | -         |
+| 86. Bufferbloat Benchmarking              | 0/?            | Not started | -         |
+| 87. Benchmark Storage & Comparison        | 0/?            | Not started | -         |
 
 ### Completed Milestones
 
 | Milestone                            | Phases | Plans | Status   | Shipped    |
 | ------------------------------------ | ------ | ----- | -------- | ---------- |
-| v1.16 Validation & Op. Confidence   | 81-83  | 4     | Complete | 2026-03-13 |
+| v1.16 Validation & Op. Confidence    | 81-83  | 4     | Complete | 2026-03-13 |
 | v1.15 Alerting & Notifications       | 76-80  | 10    | Complete | 2026-03-12 |
 | v1.14 Operational Visibility         | 73-75  | 7     | Complete | 2026-03-11 |
 | v1.13 Legacy Cleanup & Feature Grad. | 67-72  | 10    | Complete | 2026-03-11 |
