@@ -1580,3 +1580,137 @@ class TestKnownPaths:
         assert "cake_optimization" in KNOWN_AUTORATE_PATHS
         assert "cake_optimization.overhead" in KNOWN_AUTORATE_PATHS
         assert "cake_optimization.rtt" in KNOWN_AUTORATE_PATHS
+
+
+# =============================================================================
+# TestSetQueueTypeParams -- RouterOSREST.set_queue_type_params()
+# =============================================================================
+
+
+class TestSetQueueTypeParams:
+    """Test set_queue_type_params() method on RouterOSREST."""
+
+    def _make_client(self):
+        """Create a RouterOSREST instance with mocked session."""
+        from wanctl.routeros_rest import RouterOSREST
+
+        client = RouterOSREST(
+            host="10.10.99.1",
+            user="admin",
+            password="test",  # pragma: allowlist secret
+            port=443,
+            verify_ssl=False,
+            timeout=15,
+        )
+        return client
+
+    def test_success_finds_id_and_patches(self):
+        """set_queue_type_params finds ID via GET, PATCHes to /queue/type/{id}, returns True."""
+        client = self._make_client()
+        # Mock GET response for finding ID
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = [{"name": "cake-down-spectrum", ".id": "*A"}]
+        # Mock PATCH response
+        patch_resp = MagicMock()
+        patch_resp.ok = True
+
+        with patch.object(client, "_request", side_effect=[get_resp, patch_resp]) as mock_req:
+            result = client.set_queue_type_params("cake-down-spectrum", {"cake-nat": "yes"})
+
+        assert result is True
+        # Verify GET to find ID
+        get_call = mock_req.call_args_list[0]
+        assert get_call[0][0] == "GET"
+        assert "queue/type" in get_call[0][1]
+        assert get_call[1]["params"] == {"name": "cake-down-spectrum"}
+        # Verify PATCH with correct endpoint and payload
+        patch_call = mock_req.call_args_list[1]
+        assert patch_call[0][0] == "PATCH"
+        assert "/queue/type/*A" in patch_call[0][1]
+        assert patch_call[1]["json"] == {"cake-nat": "yes"}
+
+    def test_returns_false_when_type_not_found(self):
+        """Returns False when queue type not found (empty GET response)."""
+        client = self._make_client()
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = []
+
+        with patch.object(client, "_request", return_value=get_resp):
+            result = client.set_queue_type_params("nonexistent", {"cake-nat": "yes"})
+
+        assert result is False
+
+    def test_returns_false_on_patch_failure(self):
+        """Returns False on PATCH failure (non-200 status)."""
+        client = self._make_client()
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = [{"name": "cake-down-spectrum", ".id": "*A"}]
+        patch_resp = MagicMock()
+        patch_resp.ok = False
+        patch_resp.status_code = 400
+
+        with patch.object(client, "_request", side_effect=[get_resp, patch_resp]):
+            result = client.set_queue_type_params("cake-down-spectrum", {"cake-nat": "yes"})
+
+        assert result is False
+
+    def test_returns_false_on_request_exception(self):
+        """Returns False on RequestException."""
+        import requests
+
+        client = self._make_client()
+        # GET to find ID succeeds
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = [{"name": "cake-down-spectrum", ".id": "*A"}]
+
+        with patch.object(
+            client,
+            "_request",
+            side_effect=[get_resp, requests.RequestException("timeout")],
+        ):
+            result = client.set_queue_type_params("cake-down-spectrum", {"cake-nat": "yes"})
+
+        assert result is False
+
+    def test_all_values_in_patch_body_are_strings(self):
+        """All values in PATCH body are strings (never int/bool)."""
+        client = self._make_client()
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = [{"name": "cake-down-spectrum", ".id": "*A"}]
+        patch_resp = MagicMock()
+        patch_resp.ok = True
+
+        params = {"cake-overhead": "18", "cake-rtt": "100ms", "cake-nat": "yes"}
+        with patch.object(client, "_request", side_effect=[get_resp, patch_resp]) as mock_req:
+            client.set_queue_type_params("cake-down-spectrum", params)
+
+        patch_call = mock_req.call_args_list[1]
+        json_payload = patch_call[1]["json"]
+        for val in json_payload.values():
+            assert isinstance(val, str), f"Value {val!r} is not a string"
+
+    def test_uses_queue_type_endpoint_not_tree(self):
+        """Uses correct endpoint /queue/type (not /queue/tree)."""
+        client = self._make_client()
+        get_resp = MagicMock()
+        get_resp.ok = True
+        get_resp.json.return_value = [{"name": "cake-down-spectrum", ".id": "*A"}]
+        patch_resp = MagicMock()
+        patch_resp.ok = True
+
+        with patch.object(client, "_request", side_effect=[get_resp, patch_resp]) as mock_req:
+            client.set_queue_type_params("cake-down-spectrum", {"cake-nat": "yes"})
+
+        # GET should use /queue/type
+        get_url = mock_req.call_args_list[0][0][1]
+        assert "/queue/type" in get_url
+        assert "/queue/tree" not in get_url
+        # PATCH should use /queue/type/{id}
+        patch_url = mock_req.call_args_list[1][0][1]
+        assert "/queue/type/" in patch_url
+        assert "/queue/tree/" not in patch_url
