@@ -66,6 +66,7 @@ class AlertEngine:
         self._delivery_callback = delivery_callback
         self._cooldowns: dict[tuple[str, str], float] = {}
         self._fire_count: int = 0
+        self._rule_key_map: dict[str, str] = {}
 
     @property
     def fire_count(self) -> int:
@@ -78,6 +79,8 @@ class AlertEngine:
         severity: str,
         wan_name: str,
         details: dict[str, Any],
+        *,
+        rule_key: str | None = None,
     ) -> bool:
         """Fire an alert event, subject to enabled gates and cooldown suppression.
 
@@ -86,6 +89,9 @@ class AlertEngine:
             severity: Alert severity ("info", "warning", "critical").
             wan_name: WAN identifier (e.g., "spectrum", "att").
             details: Structured dict with alert-specific data (JSON-serializable).
+            rule_key: Optional parent rule key for config lookup. When provided,
+                uses this key instead of alert_type for rule enabled/cooldown lookup.
+                The cooldown dict key remains (alert_type, wan_name).
 
         Returns:
             True if alert fired (not suppressed), False if suppressed or disabled.
@@ -93,13 +99,17 @@ class AlertEngine:
         if not self._enabled:
             return False
 
-        # Check per-rule enabled gate
-        rule = self._rules.get(alert_type, {})
+        # Store rule_key mapping for get_active_cooldowns()
+        if rule_key is not None:
+            self._rule_key_map[alert_type] = rule_key
+
+        # Check per-rule enabled gate (use rule_key for config lookup)
+        rule = self._rules.get(rule_key or alert_type, {})
         if rule.get("enabled") is False:
             return False
 
         # Check cooldown suppression
-        if self._is_cooled_down(alert_type, wan_name):
+        if self._is_cooled_down(alert_type, wan_name, rule_key=rule_key):
             return False
 
         # Record cooldown timestamp and increment fire count
@@ -124,12 +134,19 @@ class AlertEngine:
         logger.info("Alert fired: %s [%s] on %s", alert_type, severity, wan_name)
         return True
 
-    def _is_cooled_down(self, alert_type: str, wan_name: str) -> bool:
+    def _is_cooled_down(
+        self,
+        alert_type: str,
+        wan_name: str,
+        *,
+        rule_key: str | None = None,
+    ) -> bool:
         """Check if (type, wan) is still within cooldown window.
 
         Args:
             alert_type: Alert type identifier.
             wan_name: WAN identifier.
+            rule_key: Optional parent rule key for cooldown config lookup.
 
         Returns:
             True if within cooldown (should suppress), False if cooldown expired or never fired.
@@ -139,7 +156,8 @@ class AlertEngine:
         if last_fire is None:
             return False
 
-        cooldown_sec = self._rules.get(alert_type, {}).get(
+        lookup_key = rule_key or alert_type
+        cooldown_sec = self._rules.get(lookup_key, {}).get(
             "cooldown_sec", self._default_cooldown_sec
         )
         return (time.monotonic() - last_fire) < cooldown_sec
@@ -194,7 +212,9 @@ class AlertEngine:
 
         for key, last_fire in self._cooldowns.items():
             alert_type = key[0]
-            cooldown_sec = self._rules.get(alert_type, {}).get(
+            # Use rule_key mapping if available (e.g., flapping_dl -> congestion_flapping)
+            lookup_key = self._rule_key_map.get(alert_type, alert_type)
+            cooldown_sec = self._rules.get(lookup_key, {}).get(
                 "cooldown_sec", self._default_cooldown_sec
             )
             remaining = cooldown_sec - (now - last_fire)

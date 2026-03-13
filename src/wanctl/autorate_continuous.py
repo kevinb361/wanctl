@@ -1185,6 +1185,8 @@ class WANController:
         self._ul_zone_transitions: deque[float] = deque()
         self._dl_prev_zone: str | None = None
         self._ul_prev_zone: str | None = None
+        self._dl_zone_hold: int = 0  # cycles current DL zone has been held
+        self._ul_zone_hold: int = 0  # cycles current UL zone has been held
 
         # =====================================================================
         # PROFILING INSTRUMENTATION
@@ -2033,9 +2035,22 @@ class WANController:
         flap_threshold = flap_rule.get("flap_threshold", 30)
         flap_severity = flap_rule.get("severity", "warning")
 
+        # Dwell filter: only count transitions where departing zone was held
+        # long enough to be a real state, not a single-cycle blip.
+        min_hold_sec = flap_rule.get("min_hold_sec", 1.0)
+        if min_hold_sec <= 0:
+            min_hold_cycles = 0
+        else:
+            min_hold_cycles = max(1, int(min_hold_sec / CYCLE_INTERVAL_SECONDS))
+
         # --- Download flapping ---
         if self._dl_prev_zone is not None and dl_zone != self._dl_prev_zone:
-            self._dl_zone_transitions.append(now)
+            # Only count transition if departing zone was held long enough
+            if self._dl_zone_hold >= min_hold_cycles:
+                self._dl_zone_transitions.append(now)
+            self._dl_zone_hold = 0
+        else:
+            self._dl_zone_hold += 1
         self._dl_prev_zone = dl_zone
 
         # Prune old transitions outside window
@@ -2054,12 +2069,18 @@ class WANController:
                     "window_sec": flap_window,
                     "current_zone": dl_zone,
                 },
+                rule_key="congestion_flapping",
             )
             self._dl_zone_transitions.clear()
 
         # --- Upload flapping ---
         if self._ul_prev_zone is not None and ul_zone != self._ul_prev_zone:
-            self._ul_zone_transitions.append(now)
+            # Only count transition if departing zone was held long enough
+            if self._ul_zone_hold >= min_hold_cycles:
+                self._ul_zone_transitions.append(now)
+            self._ul_zone_hold = 0
+        else:
+            self._ul_zone_hold += 1
         self._ul_prev_zone = ul_zone
 
         # Prune old transitions outside window
@@ -2078,6 +2099,7 @@ class WANController:
                     "window_sec": flap_window,
                     "current_zone": ul_zone,
                 },
+                rule_key="congestion_flapping",
             )
             self._ul_zone_transitions.clear()
 
