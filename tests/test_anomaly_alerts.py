@@ -422,6 +422,7 @@ class TestFlappingCooldownAndWindow:
                     "severity": "critical",
                     "flap_threshold": 6,
                     "flap_window_sec": 60,
+                    "min_hold_sec": 0,
                 },
             },
             writer=None,
@@ -451,6 +452,7 @@ class TestFlappingCooldownAndWindow:
                     "severity": "warning",
                     "flap_threshold": 3,  # Lower threshold
                     "flap_window_sec": 60,
+                    "min_hold_sec": 0,
                 },
             },
             writer=None,
@@ -482,6 +484,7 @@ class TestFlappingCooldownAndWindow:
                     "severity": "warning",
                     "flap_threshold": 6,
                     "flap_window_sec": 10,  # Short window
+                    "min_hold_sec": 0,
                 },
             },
             writer=None,
@@ -575,7 +578,7 @@ class TestFlappingDefaults:
         mock_flapping_controller.alert_engine = AlertEngine(
             enabled=True,
             default_cooldown_sec=300,
-            rules={},
+            rules={"congestion_flapping": {"min_hold_sec": 0}},
             writer=None,
         )
 
@@ -614,7 +617,7 @@ class TestFlappingDefaults:
         mock_flapping_controller.alert_engine = AlertEngine(
             enabled=True,
             default_cooldown_sec=300,
-            rules={},
+            rules={"congestion_flapping": {"min_hold_sec": 0}},
             writer=None,
         )
 
@@ -908,7 +911,7 @@ class TestFlappingDwellFilter:
         # Hold GREEN for 25 cycles, then switch to YELLOW
         with patch.object(
             dwell_controller.alert_engine, "fire", return_value=True
-        ) as mock_fire:
+        ):
             # 25 cycles of GREEN (builds hold counter)
             for i in range(25):
                 with patch("time.monotonic", return_value=now + i * 0.05):
@@ -971,7 +974,7 @@ class TestFlappingDwellFilter:
         t = 0.0
 
         # First establish GREEN as prev_zone (hold 25 cycles)
-        for i in range(25):
+        for _ in range(25):
             with patch("time.monotonic", return_value=now + t):
                 dwell_controller._check_flapping_alerts("GREEN", "GREEN")
             t += 0.05
@@ -982,7 +985,7 @@ class TestFlappingDwellFilter:
         t += 0.05
 
         # Hold YELLOW for 25 cycles
-        for i in range(25):
+        for _ in range(25):
             with patch("time.monotonic", return_value=now + t):
                 dwell_controller._check_flapping_alerts("YELLOW", "GREEN")
             t += 0.05
