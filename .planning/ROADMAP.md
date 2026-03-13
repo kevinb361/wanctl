@@ -53,11 +53,11 @@ Goal: Automated CAKE queue type parameter optimization via `--fix` flag and buff
   3. Link-independent parameters (flowmode, nat, ack-filter, wash, diffserv) are compared against known-optimal defaults without any additional config
   4. Link-dependent parameters (overhead, RTT) are compared against values from a `cake_optimization:` YAML config block -- never auto-detected from WAN name
   5. Each sub-optimal parameter shows a diff of current value vs recommended value
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 84-01: TBD
-- [ ] 84-02: TBD
+- [ ] 84-01-PLAN.md -- Router data layer: get_queue_types() method, optimal defaults constants, cake_optimization config extractor
+- [ ] 84-02-PLAN.md -- Check logic: check_cake_params(), check_link_params(), pipeline wiring, KNOWN_AUTORATE_PATHS update
 
 ### Phase 85: Auto-Fix CLI Integration
 **Goal**: Operator can apply recommended CAKE parameters to a production router safely with confirmation, rollback snapshot, and daemon coordination
@@ -116,7 +116,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 84. CAKE Detection & Optimizer Foundation | 0/? | Not started | - |
+| 84. CAKE Detection & Optimizer Foundation | 0/2 | Not started | - |
 | 85. Auto-Fix CLI Integration | 0/? | Not started | - |
 | 86. Bufferbloat Benchmarking | 0/? | Not started | - |
 | 87. Benchmark Storage & Comparison | 0/? | Not started | - |
