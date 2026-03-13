@@ -130,7 +130,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | ----------------------------------------- | -------------- | ----------- | ---------- |
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
 | 85. Auto-Fix CLI Integration              | 2/2 | Complete    | 2026-03-13 |
-| 86. Bufferbloat Benchmarking              | 0/2            | Not started | -          |
+| 86. Bufferbloat Benchmarking              | 1/2 | In Progress|  |
 | 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
 
 ### Completed Milestones

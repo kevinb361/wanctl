@@ -28,8 +28,8 @@
 - [ ] **BENCH-01**: Operator can run RRUL bufferbloat test via `wanctl-benchmark` CLI wrapping flent
 - [ ] **BENCH-02**: Benchmark checks prerequisites (flent, netperf installed) with clear install instructions on failure
 - [ ] **BENCH-03**: Benchmark checks netperf server connectivity before starting full test
-- [ ] **BENCH-04**: Benchmark grades results A+ through F using industry-standard latency-increase thresholds
-- [ ] **BENCH-05**: Benchmark reports separate download and upload bufferbloat grades
+- [x] **BENCH-04**: Benchmark grades results A+ through F using industry-standard latency-increase thresholds
+- [x] **BENCH-05**: Benchmark reports separate download and upload bufferbloat grades
 - [ ] **BENCH-06**: Benchmark supports `--quick` mode for fast 10s iteration during tuning
 - [ ] **BENCH-07**: Benchmark supports `--server` flag to specify netperf server host
 
@@ -81,8 +81,8 @@
 | BENCH-01    | Phase 86 | Pending  |
 | BENCH-02    | Phase 86 | Pending  |
 | BENCH-03    | Phase 86 | Pending  |
-| BENCH-04    | Phase 86 | Pending  |
-| BENCH-05    | Phase 86 | Pending  |
+| BENCH-04    | Phase 86 | Complete |
+| BENCH-05    | Phase 86 | Complete |
 | BENCH-06    | Phase 86 | Pending  |
 | BENCH-07    | Phase 86 | Pending  |
 | STOR-01     | Phase 87 | Pending  |

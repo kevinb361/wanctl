@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: planning
-last_updated: "2026-03-13T19:59:31.055Z"
-last_activity: 2026-03-13 -- Completed 85-02 (fix orchestration & CLI integration)
+status: executing
+last_updated: "2026-03-13T20:46:26Z"
+last_activity: 2026-03-13 -- Completed 86-01 (benchmark data model & grade computation)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 40
+  total_plans: 6
+  completed_plans: 5
+  percent: 50
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 85 - Auto-Fix CLI Integration
+**Current focus:** Phase 86 - Bufferbloat Benchmarking
 
 ## Position
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
-**Phase:** 85 of 87 (Auto-Fix CLI Integration)
-**Plan:** 02 of 02 complete (fix orchestration & CLI)
-**Status:** Ready to plan
-**Last activity:** 2026-03-13 -- Completed 85-02 (fix orchestration & CLI integration)
+**Phase:** 86 of 87 (Bufferbloat Benchmarking)
+**Plan:** 01 of 02 complete (benchmark data model & grade computation)
+**Status:** Executing
+**Last activity:** 2026-03-13 -- Completed 86-01 (benchmark data model & grade computation)
 
-Progress: [####......] 40%
+Progress: [#####.....] 50%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: 30min
-- Total execution time: 2.0 hours
+- Total plans completed: 5
+- Average duration: 25min
+- Total execution time: 2.1 hours
 
 **By Phase:**
 
@@ -46,6 +46,7 @@ Progress: [####......] 40%
 | ----- | ----- | ----- | -------- |
 | 84    | 2     | 68min | 34min    |
 | 85    | 2     | 51min | 25min    |
+| 86    | 1     | 3min  | 3min     |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Progress: [####......] 40%
 - \_confirm_apply() safe default: empty/anything = No, only y/yes = Yes
 - \_apply_changes() sends single PATCH per queue type (RouterOS PATCH is atomic per resource)
 - Fix cancelled by user returns PASS severity (user choice, not failure)
+- GRADE_THRESHOLDS as list[tuple[float, str]] with strict less-than comparison for grade boundaries
+- Both download and upload latency use same ICMP ping series (RRUL Pitfall 1 -- separate fields for future directional tests)
+- statistics.quantiles(n=100) for P50/P95/P99 (index 49/94/98)
 
 ### Known Issues
 
