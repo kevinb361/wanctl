@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
 status: executing
-last_updated: "2026-03-13T18:50:24Z"
-last_activity: 2026-03-13 -- Completed 85-01 (fix infrastructure primitives)
+last_updated: "2026-03-13T19:32:32Z"
+last_activity: 2026-03-13 -- Completed 85-02 (fix orchestration & CLI integration)
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 30
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
+  percent: 40
 ---
 
 # Session State
@@ -26,26 +26,26 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
 **Phase:** 85 of 87 (Auto-Fix CLI Integration)
-**Plan:** 01 of 02 complete (fix infrastructure primitives)
-**Status:** Executing
-**Last activity:** 2026-03-13 -- Completed 85-01 (fix infrastructure primitives)
+**Plan:** 02 of 02 complete (fix orchestration & CLI)
+**Status:** Phase 85 Complete
+**Last activity:** 2026-03-13 -- Completed 85-02 (fix orchestration & CLI integration)
 
-Progress: [###.......] 30%
+Progress: [####......] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: 27min
-- Total execution time: 1.3 hours
+- Total plans completed: 4
+- Average duration: 30min
+- Total execution time: 2.0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 84    | 2     | 68min | 34min    |
-| 85    | 1     | 13min | 13min    |
+| 85    | 2     | 51min | 25min    |
 
 ## Accumulated Context
 
@@ -61,6 +61,11 @@ Progress: [###.......] 30%
 - Snapshots use json.dump (not atomic_write_json) since they are one-shot archival writes
 - \_extract_changes_for_direction returns (actual, expected) tuples for both display and PATCH payload derivation
 - datetime.UTC alias used instead of timezone.utc for Python 3.11+ modern style (ruff UP017)
+- run_fix() overwrites queue_names with queue type names for PATCH targeting (set_queue_type_params needs queue type name, not queue tree name)
+- \_show_diff_table() prints to stderr so --json stdout stays clean for piping
+- \_confirm_apply() safe default: empty/anything = No, only y/yes = Yes
+- \_apply_changes() sends single PATCH per queue type (RouterOS PATCH is atomic per resource)
+- Fix cancelled by user returns PASS severity (user choice, not failure)
 
 ### Known Issues
 

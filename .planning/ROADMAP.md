@@ -17,7 +17,7 @@ None
 Goal: Automated CAKE queue type parameter optimization via `--fix` flag and bufferbloat benchmarking with A-F grading and before/after comparison.
 
 - [x] **Phase 84: CAKE Detection & Optimizer Foundation** - Detect sub-optimal CAKE queue type parameters via REST API with diff output and link-aware config
-- [ ] **Phase 85: Auto-Fix CLI Integration** - Apply recommended CAKE parameters to router via `--fix` flag with safety checks and rollback snapshot
+- [x] **Phase 85: Auto-Fix CLI Integration** - Apply recommended CAKE parameters to router via `--fix` flag with safety checks and rollback snapshot (completed 2026-03-13)
 - [ ] **Phase 86: Bufferbloat Benchmarking** - Run RRUL bufferbloat tests via `wanctl-benchmark` wrapping flent with A-F grading
 - [ ] **Phase 87: Benchmark Storage & Comparison** - Store benchmark results in SQLite and compare before/after optimization
 
@@ -129,7 +129,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | Phase                                     | Plans Complete | Status      | Completed  |
 | ----------------------------------------- | -------------- | ----------- | ---------- |
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
-| 85. Auto-Fix CLI Integration              | 1/2 | In Progress|  |
+| 85. Auto-Fix CLI Integration              | 2/2 | Complete   | 2026-03-13 |
 | 86. Bufferbloat Benchmarking              | 0/?            | Not started | -          |
 | 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
 

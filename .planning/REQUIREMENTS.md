@@ -15,13 +15,13 @@
 
 ### CAKE Auto-Fix
 
-- [ ] **FIX-01**: Operator can apply recommended CAKE parameters to router via `--fix` flag
+- [x] **FIX-01**: Operator can apply recommended CAKE parameters to router via `--fix` flag
 - [x] **FIX-02**: Fix applies changes via REST API PATCH to `/rest/queue/type/{id}` (not queue tree)
-- [ ] **FIX-03**: Fix shows before/after diff and requires confirmation (unless `--yes`)
+- [x] **FIX-03**: Fix shows before/after diff and requires confirmation (unless `--yes`)
 - [x] **FIX-04**: Fix refuses to apply if wanctl daemon is running (lock file check)
 - [x] **FIX-05**: Fix saves parameter snapshot (current values) to JSON before applying changes
-- [ ] **FIX-06**: Fix results reported as CheckResult items with success/failure per parameter
-- [ ] **FIX-07**: Fix supports `--json` output mode for scripting
+- [x] **FIX-06**: Fix results reported as CheckResult items with success/failure per parameter
+- [x] **FIX-07**: Fix supports `--json` output mode for scripting
 
 ### Bufferbloat Benchmarking
 
@@ -71,13 +71,13 @@
 | CAKE-03     | Phase 84 | Complete |
 | CAKE-04     | Phase 84 | Complete |
 | CAKE-05     | Phase 84 | Complete |
-| FIX-01      | Phase 85 | Pending  |
+| FIX-01      | Phase 85 | Complete |
 | FIX-02      | Phase 85 | Complete |
-| FIX-03      | Phase 85 | Pending  |
+| FIX-03      | Phase 85 | Complete |
 | FIX-04      | Phase 85 | Complete |
 | FIX-05      | Phase 85 | Complete |
-| FIX-06      | Phase 85 | Pending  |
-| FIX-07      | Phase 85 | Pending  |
+| FIX-06      | Phase 85 | Complete |
+| FIX-07      | Phase 85 | Complete |
 | BENCH-01    | Phase 86 | Pending  |
 | BENCH-02    | Phase 86 | Pending  |
 | BENCH-03    | Phase 86 | Pending  |
