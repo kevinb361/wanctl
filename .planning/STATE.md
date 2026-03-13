@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: planning
-last_updated: "2026-03-13T12:12:45.807Z"
-last_activity: 2026-03-13 -- Completed 84-02 (CAKE param detection logic)
+status: executing
+last_updated: "2026-03-13T18:50:24Z"
+last_activity: 2026-03-13 -- Completed 85-01 (fix infrastructure primitives)
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 20
+  total_plans: 3
+  completed_plans: 3
+  percent: 30
 ---
 
 # Session State
@@ -20,31 +20,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 84 - CAKE Detection & Optimizer Foundation
+**Current focus:** Phase 85 - Auto-Fix CLI Integration
 
 ## Position
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
-**Phase:** 84 of 87 (CAKE Detection & Optimizer Foundation)
-**Plan:** 02 of 02 complete (CAKE param detection logic)
-**Status:** Ready to plan
-**Last activity:** 2026-03-13 -- Completed 84-02 (CAKE param detection logic)
+**Phase:** 85 of 87 (Auto-Fix CLI Integration)
+**Plan:** 01 of 02 complete (fix infrastructure primitives)
+**Status:** Executing
+**Last activity:** 2026-03-13 -- Completed 85-01 (fix infrastructure primitives)
 
-Progress: [##........] 20%
+Progress: [###.......] 30%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
-- Average duration: 34min
-- Total execution time: 1.1 hours
+- Total plans completed: 3
+- Average duration: 27min
+- Total execution time: 1.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 84    | 2     | 68min | 34min    |
+| 85    | 1     | 13min | 13min    |
 
 ## Accumulated Context
 
@@ -56,6 +57,10 @@ Progress: [##........] 20%
 - INFO-level results mapped to Severity.PASS (no INFO in enum, consistent with max-limit informational PASS pattern)
 - \_skippable_categories() helper extracts skip-list logic, avoids duplication between env var and connectivity failure paths
 - Step 3.5 re-fetches queue stats rather than modifying check_queue_tree() return signature
+- set_queue_type_params uses inline GET+PATCH (not \_find_resource_id cache) for infrequent queue type writes
+- Snapshots use json.dump (not atomic_write_json) since they are one-shot archival writes
+- \_extract_changes_for_direction returns (actual, expected) tuples for both display and PATCH payload derivation
+- datetime.UTC alias used instead of timezone.utc for Python 3.11+ modern style (ruff UP017)
 
 ### Known Issues
 
