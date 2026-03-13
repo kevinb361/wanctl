@@ -18,9 +18,12 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 import yaml
@@ -32,6 +35,8 @@ from wanctl.check_config import (
     format_results,
     format_results_json,
 )
+from wanctl.lock_utils import is_process_alive, read_lock_pid
+from wanctl.path_utils import ensure_directory_exists
 
 # =============================================================================
 # CAKE OPTIMAL DEFAULTS
@@ -55,6 +60,14 @@ OPTIMAL_WASH: dict[str, str] = {
     "upload": "yes",
     "download": "no",
 }
+
+# =============================================================================
+# FIX INFRASTRUCTURE CONSTANTS
+# =============================================================================
+
+LOCK_DIR = Path("/run/wanctl")
+SNAPSHOT_DIR = Path("/var/lib/wanctl/snapshots")
+MAX_SNAPSHOTS = 20
 
 # =============================================================================
 # CONFIG EXTRACTION (pure functions)
@@ -718,6 +731,152 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
             )
 
     return results
+
+
+# =============================================================================
+# FIX INFRASTRUCTURE
+# =============================================================================
+
+
+def check_daemon_lock() -> list[CheckResult]:
+    """Check if a wanctl daemon is currently running via lock files.
+
+    Globs /run/wanctl/*.lock and checks each lock file's PID for liveness.
+    A running daemon must be stopped before applying fixes to avoid conflicts
+    with the autorate controller's queue management.
+
+    Returns:
+        List with single CheckResult: PASS if no live daemon, ERROR if daemon running.
+    """
+    if not LOCK_DIR.exists():
+        return [
+            CheckResult(
+                "Daemon Lock",
+                "lock_check",
+                Severity.PASS,
+                "No wanctl daemon lock files found",
+            )
+        ]
+
+    lock_files = list(LOCK_DIR.glob("*.lock"))
+    for lock_file in lock_files:
+        pid = read_lock_pid(lock_file)
+        if pid is not None and is_process_alive(pid):
+            wan_name = lock_file.stem
+            return [
+                CheckResult(
+                    "Daemon Lock",
+                    "lock_check",
+                    Severity.ERROR,
+                    f"wanctl daemon is running (PID {pid}, lock: {lock_file.name})",
+                    suggestion=f"Stop the daemon first: systemctl stop wanctl@{wan_name}",
+                )
+            ]
+
+    return [
+        CheckResult(
+            "Daemon Lock",
+            "lock_check",
+            Severity.PASS,
+            "No running wanctl daemon detected",
+        )
+    ]
+
+
+def _save_snapshot(queue_type_data: dict[str, dict], wan_name: str) -> Path:
+    """Save current queue type parameters as a JSON snapshot.
+
+    Creates a timestamped snapshot in SNAPSHOT_DIR for rollback purposes.
+    Automatically prunes old snapshots beyond MAX_SNAPSHOTS.
+
+    Args:
+        queue_type_data: Dict mapping queue type names to their parameter dicts.
+        wan_name: WAN name for file naming (e.g., "spectrum").
+
+    Returns:
+        Path to the created snapshot file.
+    """
+    ensure_directory_exists(SNAPSHOT_DIR)
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    filename = f"{timestamp}_{wan_name}.json"
+    snapshot_path = SNAPSHOT_DIR / filename
+
+    snapshot = {
+        "queue_types": queue_type_data,
+        "timestamp": timestamp,
+        "wan_name": wan_name,
+    }
+
+    with open(snapshot_path, "w") as f:
+        json.dump(snapshot, f, indent=2)
+
+    _prune_snapshots(wan_name)
+    return snapshot_path
+
+
+def _prune_snapshots(wan_name: str) -> None:
+    """Remove oldest snapshot files when count exceeds MAX_SNAPSHOTS.
+
+    Only prunes snapshots matching the given WAN name. Files are sorted
+    by name (timestamp prefix ensures chronological order).
+
+    Args:
+        wan_name: WAN name to filter snapshots (e.g., "spectrum").
+    """
+    if not SNAPSHOT_DIR.exists():
+        return
+
+    files = sorted(SNAPSHOT_DIR.glob(f"*_{wan_name}.json"))
+    while len(files) > MAX_SNAPSHOTS:
+        oldest = files.pop(0)
+        oldest.unlink()
+
+
+def _extract_changes_for_direction(
+    queue_type_data: dict, direction: str, cake_config: dict | None
+) -> dict[str, tuple[str, str]]:
+    """Derive sub-optimal params by comparing router data against optimal defaults.
+
+    Compares each key in OPTIMAL_CAKE_DEFAULTS and OPTIMAL_WASH against
+    queue_type_data. When cake_config is provided, also compares overhead
+    and rtt. Returns only the mismatches.
+
+    Args:
+        queue_type_data: Router queue type response dict.
+        direction: "download" or "upload".
+        cake_config: cake_optimization config section, or None.
+
+    Returns:
+        Dict of {param_key: (actual_value, expected_value)} for mismatches.
+        Empty dict if all params are optimal.
+    """
+    changes: dict[str, tuple[str, str]] = {}
+
+    # Check link-independent CAKE defaults
+    for key, expected in OPTIMAL_CAKE_DEFAULTS.items():
+        actual = queue_type_data.get(key, "")
+        if actual != expected:
+            changes[key] = (actual, expected)
+
+    # Check wash (direction-dependent)
+    expected_wash = OPTIMAL_WASH[direction]
+    actual_wash = queue_type_data.get("cake-wash", "")
+    if actual_wash != expected_wash:
+        changes["cake-wash"] = (actual_wash, expected_wash)
+
+    # Check overhead and rtt (only when cake_config is provided)
+    if cake_config is not None:
+        expected_overhead = str(cake_config.get("overhead", ""))
+        actual_overhead = queue_type_data.get("cake-overhead", "")
+        if actual_overhead != expected_overhead:
+            changes["cake-overhead"] = (actual_overhead, expected_overhead)
+
+        expected_rtt = str(cake_config.get("rtt", ""))
+        actual_rtt = queue_type_data.get("cake-rtt", "")
+        if actual_rtt != expected_rtt:
+            changes["cake-rtt"] = (actual_rtt, expected_rtt)
+
+    return changes
 
 
 # =============================================================================
