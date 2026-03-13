@@ -74,12 +74,12 @@ Plans:
 3. Fix refuses to proceed when the wanctl daemon is running (lock file check at `/run/wanctl/*.lock`), with a clear message telling operator to stop the daemon first
 4. A JSON snapshot of current parameter values is saved to a timestamped file before any changes are applied, enabling manual rollback
 5. `--yes` bypasses interactive confirmation and `--json` outputs structured results for scripting
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 85-01: TBD
-- [ ] 85-02: TBD
+- [ ] 85-01-PLAN.md -- Fix infrastructure: set_queue_type_params() PATCH method, daemon lock check, snapshot persistence, change extraction
+- [ ] 85-02-PLAN.md -- Fix orchestration: run_fix() flow, diff table, confirmation, CLI --fix/--yes flags
 
 ### Phase 86: Bufferbloat Benchmarking
 
@@ -129,7 +129,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | Phase                                     | Plans Complete | Status      | Completed  |
 | ----------------------------------------- | -------------- | ----------- | ---------- |
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
-| 85. Auto-Fix CLI Integration              | 0/?            | Not started | -          |
+| 85. Auto-Fix CLI Integration              | 0/2            | Not started | -          |
 | 86. Bufferbloat Benchmarking              | 0/?            | Not started | -          |
 | 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
 
