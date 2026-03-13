@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import difflib
+import json
 import os
 import re
 import stat
@@ -1238,6 +1239,52 @@ def format_results(
     return "\n".join(lines)
 
 
+def format_results_json(results: list[CheckResult], config_type: str) -> str:
+    """Format validation results as JSON for CI/scripting.
+
+    Returns a JSON string with config_type, result word, error/warning counts,
+    and all results grouped by category. All results are included (pass, warn,
+    error) regardless of any --quiet flag. No ANSI codes are emitted.
+
+    Args:
+        results: List of CheckResult from all validators.
+        config_type: Detected or overridden config type ("autorate" or "steering").
+
+    Returns:
+        JSON string (indented for readability).
+    """
+    error_count = sum(1 for r in results if r.severity == Severity.ERROR)
+    warn_count = sum(1 for r in results if r.severity == Severity.WARN)
+
+    if error_count > 0:
+        result_word = "FAIL"
+    elif warn_count > 0:
+        result_word = "WARN"
+    else:
+        result_word = "PASS"
+
+    # Group results by category preserving insertion order
+    categories: dict[str, list[dict]] = {}
+    for r in results:
+        check: dict = {
+            "field": r.field,
+            "severity": r.severity.value,
+            "message": r.message,
+        }
+        if r.suggestion is not None:
+            check["suggestion"] = r.suggestion
+        categories.setdefault(r.category, []).append(check)
+
+    output = {
+        "config_type": config_type,
+        "result": result_word,
+        "errors": error_count,
+        "warnings": warn_count,
+        "categories": categories,
+    }
+    return json.dumps(output, indent=2)
+
+
 # =============================================================================
 # CLI
 # =============================================================================
@@ -1261,6 +1308,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-q", "--quiet", action="store_true", help="Only show warnings and errors"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output results as JSON"
     )
     return parser
 
@@ -1307,9 +1357,12 @@ def main() -> int:
         results = _run_autorate_validators(data)
 
     # Format and print
-    output = format_results(
-        results, no_color=args.no_color, quiet=args.quiet, config_type=config_type
-    )
+    if args.json:
+        output = format_results_json(results, config_type=config_type)
+    else:
+        output = format_results(
+            results, no_color=args.no_color, quiet=args.quiet, config_type=config_type
+        )
     print(output)
 
     # Determine exit code
