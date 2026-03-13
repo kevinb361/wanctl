@@ -10,14 +10,14 @@ Requirements for Validation & Operational Confidence milestone. Each maps to roa
 ### Config Validation
 
 - [x] **CVAL-01**: Operator can validate an autorate config file offline via `wanctl-check-config`
-- [ ] **CVAL-02**: Operator can validate a steering config file offline via `wanctl-check-config`
-- [ ] **CVAL-03**: Tool auto-detects config type (autorate vs steering) from file contents
+- [x] **CVAL-02**: Operator can validate a steering config file offline via `wanctl-check-config`
+- [x] **CVAL-03**: Tool auto-detects config type (autorate vs steering) from file contents
 - [x] **CVAL-04**: All validation errors are collected and reported (not just the first)
 - [x] **CVAL-05**: Cross-field semantic validation catches contradictions (floor ordering, threshold ordering, ceiling < floor)
 - [x] **CVAL-06**: File/permission checks verify referenced paths exist and are accessible (ssh_key, log dirs, state dirs)
 - [x] **CVAL-07**: Environment variable resolution check warns when `${ROUTER_PASSWORD}` env var is unset
 - [x] **CVAL-08**: Deprecated parameters are collected and surfaced prominently in output
-- [ ] **CVAL-09**: Steering cross-config validation verifies topology.primary_wan_config path exists and wan_name matches
+- [x] **CVAL-09**: Steering cross-config validation verifies topology.primary_wan_config path exists and wan_name matches
 - [ ] **CVAL-10**: JSON output mode (`--json`) for scripting and CI integration
 - [x] **CVAL-11**: Exit codes indicate result (0=pass, 1=errors, 2=warnings only)
 
@@ -63,14 +63,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CVAL-01 | Phase 81 | Complete |
-| CVAL-02 | Phase 82 | Pending |
-| CVAL-03 | Phase 82 | Pending |
+| CVAL-02 | Phase 82 | Complete |
+| CVAL-03 | Phase 82 | Complete |
 | CVAL-04 | Phase 81 | Complete |
 | CVAL-05 | Phase 81 | Complete |
 | CVAL-06 | Phase 81 | Complete |
 | CVAL-07 | Phase 81 | Complete |
 | CVAL-08 | Phase 81 | Complete |
-| CVAL-09 | Phase 82 | Pending |
+| CVAL-09 | Phase 82 | Complete |
 | CVAL-10 | Phase 82 | Pending |
 | CVAL-11 | Phase 81 | Complete |
 | CAKE-01 | Phase 83 | Pending |

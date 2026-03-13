@@ -106,7 +106,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | Phase                              | Plans Complete | Status      | Completed  |
 | ---------------------------------- | -------------- | ----------- | ---------- |
 | 81. Config Validation Foundation   | 1/1            | Complete    | 2026-03-12 |
-| 82. Steering Config + Output Modes | 0/2            | Not started | -          |
+| 82. Steering Config + Output Modes | 1/2 | In Progress|  |
 | 83. CAKE Qdisc Audit               | 0/?            | Not started | -          |
 
 ### Completed Milestones

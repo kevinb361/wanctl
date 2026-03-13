@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.16
 milestone_name: Validation & Operational Confidence
-status: planning
-last_updated: "2026-03-13T01:17:23.000Z"
-last_activity: 2026-03-13 - Completed quick task 8: Fix flapping alert cooldown key and dwell filter
+status: executing
+last_updated: "2026-03-13T02:43:00.000Z"
+last_activity: 2026-03-13 - Completed 82-01 steering config validation
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Session State
@@ -19,15 +19,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.16 Phase 81 -- Config Validation Foundation (plan 1/1 complete)
+**Current focus:** v1.16 Phase 82 -- Steering Config + Output Modes (plan 1/2 complete)
 
 ## Position
 
 **Milestone:** v1.16 Validation & Operational Confidence
-**Phase:** 81 of 83 (Config Validation Foundation) -- COMPLETE
-**Plan:** 1 of 1 (complete)
-**Status:** Ready to plan
-**Last activity:** 2026-03-13 - Completed quick task 8: Fix flapping alert cooldown key and dwell filter
+**Phase:** 82 of 83 (Steering Config + Output Modes) -- IN PROGRESS
+**Plan:** 1 of 2 (82-01 complete, 82-02 pending)
+**Status:** Executing
+**Last activity:** 2026-03-13 - Completed 82-01 steering config validation
 
 ## Accumulated Context
 
@@ -41,6 +41,10 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 - [81-01] Env var ${VAR} unset is WARN not ERROR (environment-specific, not config bug)
 - [81-01] alerting.rules.\* sub-keys skip unknown-key checking (dynamic per-alert-type config)
 - [81-01] Exit codes follow ruff/mypy convention: 0=pass, 1=errors, 2=warnings-only
+- [82-01] detect_config_type raises ValueError (not SystemExit) for testability; main() catches
+- [82-01] KNOWN_STEERING_PATHS: ~100 paths from SCHEMA + imperative loads + legacy + future
+- [82-01] Cross-config depth: file existence + wan_name match only (no recursive validation)
+- [82-01] format_results config_type param defaults to "autorate" for backward compat
 
 ### Known Issues
 
