@@ -1113,3 +1113,237 @@ class TestExtractCakeOptimization:
         data = {"cake_optimization": None}
         result = _extract_cake_optimization(data)
         assert result is None
+
+
+# =============================================================================
+# TestCheckCakeParams -- CAKE param detection
+# =============================================================================
+
+
+def _optimal_queue_type_data(direction: str = "download") -> dict:
+    """Return a queue type dict with all optimal CAKE params."""
+    from wanctl.check_cake import OPTIMAL_CAKE_DEFAULTS, OPTIMAL_WASH
+
+    data = dict(OPTIMAL_CAKE_DEFAULTS)
+    data["cake-wash"] = OPTIMAL_WASH[direction]
+    data["name"] = f"cake-{direction}-spectrum"
+    data[".id"] = "*A"
+    data["cake-overhead"] = "18"
+    data["cake-rtt"] = "100ms"
+    return data
+
+
+class TestCheckCakeParams:
+    """Test check_cake_params() for link-independent CAKE param detection."""
+
+    def test_all_optimal_returns_pass(self):
+        """All params match optimal defaults -> all PASS results."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        results = check_cake_params(data, "download")
+        assert all(r.severity == Severity.PASS for r in results)
+        assert len(results) == 5  # 4 defaults + wash
+
+    def test_suboptimal_flowmode_returns_warning(self):
+        """flowmode=dual-srchost -> WARNING with diff message."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-flowmode"] = "dual-srchost"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert len(warnings) >= 1
+        assert any("dual-srchost -> triple-isolate" in r.message for r in warnings)
+
+    def test_suboptimal_diffserv_returns_warning(self):
+        """diffserv=diffserv3 -> WARNING with diff message."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-diffserv"] = "diffserv3"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("diffserv3 -> diffserv4" in r.message for r in warnings)
+
+    def test_suboptimal_nat_returns_warning(self):
+        """nat=no -> WARNING with diff message."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-nat"] = "no"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("no -> yes" in r.message for r in warnings)
+
+    def test_suboptimal_ack_filter_returns_warning(self):
+        """ack-filter=none -> WARNING with diff message."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-ack-filter"] = "none"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("none -> filter" in r.message for r in warnings)
+
+    def test_wash_upload_suboptimal_returns_warning(self):
+        """wash=no on upload -> WARNING (ISP ignores DSCP rationale)."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("upload")
+        data["cake-wash"] = "no"
+        results = check_cake_params(data, "upload")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("no -> yes" in r.message for r in warnings)
+        # Verify rationale mentions ISP
+        assert any("ISP" in r.suggestion for r in warnings if r.suggestion)
+
+    def test_wash_download_suboptimal_returns_warning(self):
+        """wash=yes on download -> WARNING (preserve DSCP for LAN/WMM rationale)."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-wash"] = "yes"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("yes -> no" in r.message for r in warnings)
+        # Verify rationale mentions DSCP/LAN/WMM
+        assert any("DSCP" in r.suggestion for r in warnings if r.suggestion)
+
+    def test_wash_upload_optimal_returns_pass(self):
+        """wash=yes on upload -> PASS."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("upload")
+        results = check_cake_params(data, "upload")
+        wash_results = [r for r in results if "wash" in r.message]
+        assert all(r.severity == Severity.PASS for r in wash_results)
+
+    def test_wash_download_optimal_returns_pass(self):
+        """wash=no on download -> PASS."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        results = check_cake_params(data, "download")
+        wash_results = [r for r in results if "wash" in r.message]
+        assert all(r.severity == Severity.PASS for r in wash_results)
+
+    def test_category_includes_direction(self):
+        """Category string includes direction (download or upload)."""
+        from wanctl.check_cake import check_cake_params
+
+        dl_results = check_cake_params(_optimal_queue_type_data("download"), "download")
+        assert all(r.category == "CAKE Params (download)" for r in dl_results)
+
+        ul_results = check_cake_params(_optimal_queue_type_data("upload"), "upload")
+        assert all(r.category == "CAKE Params (upload)" for r in ul_results)
+
+    def test_diff_format_in_message(self):
+        """Sub-optimal param shows 'current -> recommended' pattern in message."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-flowmode"] = "dual-srchost"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert any("->" in r.message for r in warnings)
+
+    def test_suggestion_present_on_warning(self):
+        """WARNING results have a rationale in suggestion field."""
+        from wanctl.check_cake import check_cake_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-nat"] = "no"
+        results = check_cake_params(data, "download")
+        warnings = [r for r in results if r.severity == Severity.WARN]
+        assert all(r.suggestion is not None and len(r.suggestion) > 0 for r in warnings)
+
+
+# =============================================================================
+# TestCheckLinkParams -- link-dependent param detection
+# =============================================================================
+
+
+class TestCheckLinkParams:
+    """Test check_link_params() for link-dependent CAKE param detection."""
+
+    def test_matching_overhead_and_rtt_returns_pass(self):
+        """Overhead and RTT match config -> PASS."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        results = check_link_params(data, "download", cake_config)
+        assert all(r.severity == Severity.PASS for r in results)
+        assert len(results) == 2  # overhead + rtt
+
+    def test_wrong_overhead_returns_error(self):
+        """Overhead mismatch -> ERROR with diff message."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-overhead"] = "44"
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        results = check_link_params(data, "download", cake_config)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) >= 1
+        assert any("44 -> 18" in r.message for r in errors)
+
+    def test_wrong_rtt_returns_error(self):
+        """RTT mismatch -> ERROR with diff message."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-rtt"] = "200ms"
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        results = check_link_params(data, "download", cake_config)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) >= 1
+        assert any("200ms -> 100ms" in r.message for r in errors)
+
+    def test_no_config_returns_info(self):
+        """cake_config=None -> INFO result about missing config."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        results = check_link_params(data, "download", None)
+        assert len(results) == 1
+        assert results[0].severity == Severity.PASS  # INFO-level mapped to PASS
+        assert "cake_optimization" in results[0].message
+
+    def test_integer_overhead_compared_as_string(self):
+        """YAML int 18 compared as string against router '18' -> PASS."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-overhead"] = "18"
+        cake_config = {"overhead": 18, "rtt": "100ms"}  # int from YAML
+        results = check_link_params(data, "download", cake_config)
+        overhead_results = [r for r in results if "overhead" in r.message]
+        assert all(r.severity == Severity.PASS for r in overhead_results)
+
+    def test_rtt_string_comparison(self):
+        """YAML '100ms' matches router '100ms' -> PASS."""
+        from wanctl.check_cake import check_link_params
+
+        data = _optimal_queue_type_data("download")
+        data["cake-rtt"] = "100ms"
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        results = check_link_params(data, "download", cake_config)
+        rtt_results = [r for r in results if "rtt" in r.message]
+        assert all(r.severity == Severity.PASS for r in rtt_results)
+
+    def test_category_includes_direction(self):
+        """Category string includes direction."""
+        from wanctl.check_cake import check_link_params
+
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        dl_results = check_link_params(
+            _optimal_queue_type_data("download"), "download", cake_config
+        )
+        assert all(r.category == "Link Params (download)" for r in dl_results)
+
+        ul_results = check_link_params(
+            _optimal_queue_type_data("upload"), "upload", cake_config
+        )
+        assert all(r.category == "Link Params (upload)" for r in ul_results)
