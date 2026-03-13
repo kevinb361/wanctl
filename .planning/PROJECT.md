@@ -187,7 +187,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start next)
+## Current Milestone: v1.17 CAKE Optimization & Benchmarking
+
+**Goal:** Enhance CAKE qdisc management with sub-optimal setting detection, auto-fix via REST API, and latency-under-load benchmarking using flent/netperf.
+
+**Target features:**
+
+- Extend `wanctl-check-cake` to detect sub-optimal settings (not just config mismatches)
+- Auto-apply optimal CAKE parameters to router via REST API (`--fix` flag)
+- Wrap flent/netperf for latency-under-load (RRUL) bufferbloat testing
+- Grade bufferbloat results (A/B/C) and store for before/after comparison
 
 ### Deferred
 
@@ -424,4 +433,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-13 after v1.16 milestone_
+_Last updated: 2026-03-13 after v1.17 milestone start_

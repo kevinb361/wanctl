@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.16
-milestone_name: Validation & Operational Confidence
-status: archived
+milestone: v1.17
+milestone_name: CAKE Optimization & Benchmarking
+status: defining_requirements
 last_updated: "2026-03-13"
-last_activity: 2026-03-13 - Archived v1.16 milestone
+last_activity: 2026-03-13 - Milestone v1.17 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Session State
@@ -19,19 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.17
 
 ## Position
 
-**Milestone:** v1.16 Validation & Operational Confidence -- ARCHIVED
-**Status:** Between milestones — run `/gsd:new-milestone` to start next
-**Last activity:** 2026-03-13 - Archived v1.16 milestone
+**Milestone:** v1.17 CAKE Optimization & Benchmarking
+**Phase:** Not started (defining requirements)
+**Status:** Defining requirements
+**Last activity:** 2026-03-13 — Milestone v1.17 started
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(Cleared — v1.16 decisions archived to milestones/v1.16-ROADMAP.md and PROJECT.md)
+(New milestone — no decisions yet)
 
 ### Known Issues
 
