@@ -11,6 +11,7 @@ Covers all phase requirements:
 import json
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -1925,3 +1926,492 @@ class TestExtractChanges:
 
         assert "cake-overhead" not in changes
         assert "cake-rtt" not in changes
+
+
+# =============================================================================
+# TestShowDiffTable -- _show_diff_table()
+# =============================================================================
+
+
+class TestShowDiffTable:
+    """Test _show_diff_table() for printing proposed changes."""
+
+    def test_prints_table_with_columns(self, capsys):
+        """Prints table with Parameter | Current | Recommended columns."""
+        from wanctl.check_cake import _show_diff_table
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        total = _show_diff_table(changes, queue_names)
+
+        captured = capsys.readouterr()
+        assert "Parameter" in captured.err
+        assert "Current" in captured.err
+        assert "Recommended" in captured.err
+        assert total == 2
+
+    def test_strips_cake_prefix_from_param_names(self, capsys):
+        """Strips 'cake-' prefix from parameter names for display."""
+        from wanctl.check_cake import _show_diff_table
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        _show_diff_table(changes, queue_names)
+
+        captured = capsys.readouterr()
+        # Should display "nat" not "cake-nat"
+        assert "nat" in captured.err
+        # Should NOT have "cake-nat" as a display name (just "nat")
+        lines = captured.err.split("\n")
+        param_lines = [l for l in lines if "nat" in l and "cake-down" not in l]
+        assert any("nat" in l for l in param_lines)
+
+    def test_groups_by_direction(self, capsys):
+        """Prints separate section per direction with queue name."""
+        from wanctl.check_cake import _show_diff_table
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes")},
+            "upload": {"cake-wash": ("no", "yes")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        total = _show_diff_table(changes, queue_names)
+
+        captured = capsys.readouterr()
+        assert "cake-down-spectrum" in captured.err
+        assert "cake-up-spectrum" in captured.err
+        assert "download" in captured.err
+        assert "upload" in captured.err
+        assert total == 2
+
+    def test_returns_total_change_count(self):
+        """Returns total number of changes across all directions."""
+        from wanctl.check_cake import _show_diff_table
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("x", "y")},
+            "upload": {"cake-wash": ("no", "yes")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        total = _show_diff_table(changes, queue_names)
+        assert total == 3
+
+    def test_prints_to_stderr(self, capsys):
+        """Table output goes to stderr, not stdout."""
+        from wanctl.check_cake import _show_diff_table
+
+        changes = {"download": {"cake-nat": ("no", "yes")}}
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        _show_diff_table(changes, queue_names)
+
+        captured = capsys.readouterr()
+        assert captured.out == ""  # Nothing on stdout
+        assert len(captured.err) > 0  # Something on stderr
+
+
+# =============================================================================
+# TestConfirmApply -- _confirm_apply()
+# =============================================================================
+
+
+class TestConfirmApply:
+    """Test _confirm_apply() for user confirmation prompt."""
+
+    def test_returns_true_on_y(self):
+        """Returns True on 'y' input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="y"):
+            assert _confirm_apply(3) is True
+
+    def test_returns_true_on_Y(self):
+        """Returns True on 'Y' input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="Y"):
+            assert _confirm_apply(3) is True
+
+    def test_returns_true_on_yes(self):
+        """Returns True on 'yes' input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="yes"):
+            assert _confirm_apply(3) is True
+
+    def test_returns_true_on_YES(self):
+        """Returns True on 'YES' input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="YES"):
+            assert _confirm_apply(3) is True
+
+    def test_returns_false_on_n(self):
+        """Returns False on 'n' input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="n"):
+            assert _confirm_apply(3) is False
+
+    def test_returns_false_on_empty(self):
+        """Returns False on empty input (safe default)."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value=""):
+            assert _confirm_apply(3) is False
+
+    def test_returns_false_on_anything_else(self):
+        """Returns False on arbitrary input."""
+        from wanctl.check_cake import _confirm_apply
+
+        with patch("builtins.input", return_value="maybe"):
+            assert _confirm_apply(3) is False
+
+
+# =============================================================================
+# TestApplyChanges -- _apply_changes()
+# =============================================================================
+
+
+class TestApplyChanges:
+    """Test _apply_changes() for applying PATCH to router."""
+
+    def test_success_returns_pass_per_param(self):
+        """On success, returns PASS CheckResult per changed param."""
+        from wanctl.check_cake import _apply_changes
+
+        client = MagicMock()
+        client.set_queue_type_params.return_value = True
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        results = _apply_changes(client, changes, queue_names)
+
+        assert len(results) == 2
+        assert all(r.severity == Severity.PASS for r in results)
+        assert all("Fix Applied (download)" in r.category for r in results)
+
+    def test_single_patch_per_queue_type(self):
+        """Sends single PATCH per queue type, not per param."""
+        from wanctl.check_cake import _apply_changes
+
+        client = MagicMock()
+        client.set_queue_type_params.return_value = True
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        _apply_changes(client, changes, queue_names)
+
+        # Should be called once for download direction (all params in one call)
+        assert client.set_queue_type_params.call_count == 1
+        call_args = client.set_queue_type_params.call_args
+        assert call_args[0][0] == "cake-down-spectrum"
+        assert call_args[0][1] == {"cake-nat": "yes", "cake-flowmode": "triple-isolate"}
+
+    def test_failure_returns_error_per_param(self):
+        """On failure, returns ERROR CheckResult per param in that direction."""
+        from wanctl.check_cake import _apply_changes
+
+        client = MagicMock()
+        client.set_queue_type_params.return_value = False
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        results = _apply_changes(client, changes, queue_names)
+
+        assert len(results) == 2
+        assert all(r.severity == Severity.ERROR for r in results)
+        assert all("Fix Applied (download)" in r.category for r in results)
+
+    def test_category_includes_direction(self):
+        """Category is 'Fix Applied ({direction})'."""
+        from wanctl.check_cake import _apply_changes
+
+        client = MagicMock()
+        client.set_queue_type_params.return_value = True
+
+        changes = {
+            "upload": {"cake-wash": ("no", "yes")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        results = _apply_changes(client, changes, queue_names)
+
+        assert len(results) == 1
+        assert results[0].category == "Fix Applied (upload)"
+
+    def test_handles_both_directions(self):
+        """Applies changes to both download and upload when both have changes."""
+        from wanctl.check_cake import _apply_changes
+
+        client = MagicMock()
+        client.set_queue_type_params.return_value = True
+
+        changes = {
+            "download": {"cake-nat": ("no", "yes")},
+            "upload": {"cake-wash": ("no", "yes")},
+        }
+        queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
+        results = _apply_changes(client, changes, queue_names)
+
+        assert client.set_queue_type_params.call_count == 2
+        assert len(results) == 2
+        categories = {r.category for r in results}
+        assert "Fix Applied (download)" in categories
+        assert "Fix Applied (upload)" in categories
+
+
+# =============================================================================
+# TestFixFlow -- run_fix() orchestration
+# =============================================================================
+
+
+class TestFixFlow:
+    """Test run_fix() orchestrator for the complete fix flow."""
+
+    def _make_client(self, queue_type_data_dl=None, queue_type_data_ul=None, patch_ok=True):
+        """Create a mock client with queue type data responses."""
+        client = MagicMock()
+        # Default: sub-optimal download, optimal upload
+        if queue_type_data_dl is None:
+            queue_type_data_dl = _optimal_queue_type_data("download")
+            queue_type_data_dl["cake-nat"] = "no"  # Sub-optimal
+        if queue_type_data_ul is None:
+            queue_type_data_ul = _optimal_queue_type_data("upload")
+
+        def get_queue_stats_side_effect(name):
+            if "Download" in name or "down" in name.lower():
+                return {"queue": "cake-down-spectrum", "max-limit": "940000000", "name": name, ".id": "*1"}
+            if "Upload" in name or "up" in name.lower():
+                return {"queue": "cake-up-spectrum", "max-limit": "38000000", "name": name, ".id": "*2"}
+            return None
+
+        def get_queue_types_side_effect(name):
+            if "down" in name.lower():
+                return queue_type_data_dl
+            if "up" in name.lower():
+                return queue_type_data_ul
+            return None
+
+        client.get_queue_stats.side_effect = get_queue_stats_side_effect
+        client.get_queue_types.side_effect = get_queue_types_side_effect
+        client.set_queue_type_params.return_value = patch_ok
+        client.test_connection.return_value = True
+        return client
+
+    def test_blocks_when_daemon_running(self):
+        """Returns ERROR when daemon lock check fails."""
+        from wanctl.check_cake import run_fix
+
+        client = self._make_client()
+        data = _autorate_config_data()
+
+        lock_result = CheckResult("Daemon Lock", "lock_check", Severity.ERROR,
+                                  "wanctl daemon is running (PID 1234)",
+                                  suggestion="Stop daemon first")
+
+        with patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_result]):
+            results = run_fix(data, "autorate", client)
+
+        assert any(r.severity == Severity.ERROR and "daemon" in r.message.lower() for r in results)
+        # Should NOT call set_queue_type_params
+        client.set_queue_type_params.assert_not_called()
+
+    def test_nothing_to_fix_returns_pass(self):
+        """Returns PASS result when all params are optimal."""
+        from wanctl.check_cake import run_fix
+
+        # All optimal for both directions
+        dl = _optimal_queue_type_data("download")
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+        with patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        # Should contain a "nothing to fix" message
+        nothing_results = [r for r in results if "nothing to fix" in r.message.lower() or "optimal" in r.message.lower()]
+        assert len(nothing_results) >= 1
+        assert nothing_results[0].severity == Severity.PASS
+        client.set_queue_type_params.assert_not_called()
+
+    def test_calls_save_snapshot_before_apply(self, tmp_path):
+        """Calls _save_snapshot() before applying changes."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"  # Sub-optimal
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+        call_order = []
+
+        original_save = None
+        def mock_save(*args, **kwargs):
+            call_order.append("snapshot")
+            return tmp_path / "test_snapshot.json"
+
+        def mock_set_params(*args, **kwargs):
+            call_order.append("apply")
+            return True
+
+        client.set_queue_type_params.side_effect = mock_set_params
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._save_snapshot", side_effect=mock_save) as mock_snap,
+            patch("wanctl.check_cake.run_audit", return_value=[]),
+        ):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        mock_snap.assert_called_once()
+        assert call_order.index("snapshot") < call_order.index("apply")
+
+    def test_calls_set_queue_type_params_with_correct_params(self):
+        """Calls set_queue_type_params with correct params per queue type."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"  # Sub-optimal
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake.run_audit", return_value=[]),
+        ):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        client.set_queue_type_params.assert_called_once_with(
+            "cake-down-spectrum", {"cake-nat": "yes"}
+        )
+
+    def test_single_patch_per_queue_type(self):
+        """Sends single PATCH per queue type (all changed params in one call)."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"
+        dl["cake-flowmode"] = "dual-srchost"
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake.run_audit", return_value=[]),
+        ):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        # Single PATCH call with both params
+        assert client.set_queue_type_params.call_count == 1
+        call_args = client.set_queue_type_params.call_args
+        assert call_args[0][1] == {"cake-nat": "yes", "cake-flowmode": "triple-isolate"}
+
+    def test_reruns_audit_after_apply(self):
+        """Re-runs run_audit after applying and includes verification results."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+        verify_result = CheckResult("CAKE Params (download)", "nat", Severity.PASS, "nat: yes (optimal)")
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake.run_audit", return_value=[verify_result]) as mock_audit,
+        ):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        mock_audit.assert_called_once()
+        # Verification result should be in output
+        assert any(r.message == "nat: yes (optimal)" for r in results)
+
+    def test_skips_confirmation_when_yes_true(self):
+        """Does not prompt when yes=True."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake.run_audit", return_value=[]),
+            patch("wanctl.check_cake._confirm_apply") as mock_confirm,
+        ):
+            results = run_fix(data, "autorate", client, yes=True)
+
+        mock_confirm.assert_not_called()
+
+    def test_cancelled_returns_pass_result(self):
+        """Returns user-cancelled result when confirmation declined."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+
+        with (
+            patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
+            patch("wanctl.check_cake._confirm_apply", return_value=False),
+            patch("wanctl.check_cake._show_diff_table", return_value=1),
+        ):
+            results = run_fix(data, "autorate", client, yes=False)
+
+        cancelled = [r for r in results if "cancel" in r.message.lower()]
+        assert len(cancelled) >= 1
+        assert cancelled[0].severity == Severity.PASS
+        client.set_queue_type_params.assert_not_called()
+
+    def test_json_mode_requires_yes(self):
+        """Returns ERROR when json_mode=True and yes=False."""
+        from wanctl.check_cake import run_fix
+
+        dl = _optimal_queue_type_data("download")
+        dl["cake-nat"] = "no"
+        ul = _optimal_queue_type_data("upload")
+        client = self._make_client(queue_type_data_dl=dl, queue_type_data_ul=ul)
+        data = _autorate_config_data()
+
+        lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
+
+        with patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]):
+            results = run_fix(data, "autorate", client, yes=False, json_mode=True)
+
+        error_results = [r for r in results if r.severity == Severity.ERROR and "--yes" in r.message]
+        assert len(error_results) >= 1
+        client.set_queue_type_params.assert_not_called()
