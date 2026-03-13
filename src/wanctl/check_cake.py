@@ -370,6 +370,164 @@ def check_queue_tree(
 
 
 # =============================================================================
+# CAKE PARAM CHECKS
+# =============================================================================
+
+# Rationale strings for sub-optimal link-independent params.
+_RATIONALE: dict[str, str] = {
+    "cake-flowmode": "Sub-optimal: triple-isolate provides per-host + per-flow isolation for multi-device networks",
+    "cake-diffserv": "Sub-optimal: diffserv4 provides 4-tier priority (Bulk / Best Effort / Video / Voice)",
+    "cake-nat": "Sub-optimal: NAT-aware host isolation is required behind NAT routers",
+    "cake-ack-filter": "Sub-optimal: ACK filtering compresses TCP ACKs to save upload bandwidth",
+}
+
+
+def check_cake_params(queue_type_data: dict, direction: str) -> list[CheckResult]:
+    """Check link-independent CAKE parameters against optimal defaults.
+
+    Compares 4 fixed params (flowmode, diffserv, nat, ack-filter) plus
+    direction-dependent wash against OPTIMAL_CAKE_DEFAULTS and OPTIMAL_WASH.
+
+    Returns PASS for optimal, WARNING for sub-optimal with rationale.
+    """
+    results: list[CheckResult] = []
+    category = f"CAKE Params ({direction})"
+
+    # Check fixed link-independent params
+    for key, expected in OPTIMAL_CAKE_DEFAULTS.items():
+        actual = queue_type_data.get(key, "")
+        short_name = key.removeprefix("cake-")
+        if actual == expected:
+            results.append(
+                CheckResult(
+                    category,
+                    short_name,
+                    Severity.PASS,
+                    f"{short_name}: {actual} (optimal)",
+                )
+            )
+        else:
+            results.append(
+                CheckResult(
+                    category,
+                    short_name,
+                    Severity.WARN,
+                    f"{short_name}: {actual} -> {expected}",
+                    suggestion=_RATIONALE.get(key, "Sub-optimal value"),
+                )
+            )
+
+    # Check wash (direction-dependent)
+    expected_wash = OPTIMAL_WASH[direction]
+    actual_wash = queue_type_data.get("cake-wash", "")
+    if actual_wash == expected_wash:
+        results.append(
+            CheckResult(
+                category,
+                "wash",
+                Severity.PASS,
+                f"wash: {actual_wash} (optimal)",
+            )
+        )
+    else:
+        if direction == "upload":
+            wash_rationale = (
+                "Sub-optimal: sends DSCP marks to ISP that ignores them; "
+                "wash is safe because CAKE classifies before stripping"
+            )
+        else:
+            wash_rationale = (
+                "Sub-optimal: clears your own DSCP marks before "
+                "LAN/WiFi WMM devices see them"
+            )
+        results.append(
+            CheckResult(
+                category,
+                "wash",
+                Severity.WARN,
+                f"wash: {actual_wash} -> {expected_wash}",
+                suggestion=wash_rationale,
+            )
+        )
+
+    return results
+
+
+def check_link_params(
+    queue_type_data: dict, direction: str, cake_config: dict | None
+) -> list[CheckResult]:
+    """Check link-dependent CAKE parameters against YAML config values.
+
+    Compares overhead and rtt from router queue type data against
+    cake_optimization config section. Returns ERROR for mismatch, PASS
+    for match, or informational PASS if no config section present.
+    """
+    results: list[CheckResult] = []
+
+    if cake_config is None:
+        results.append(
+            CheckResult(
+                "Link Params",
+                "config",
+                Severity.PASS,
+                "No cake_optimization config -- add cake_optimization: "
+                "section to check overhead and rtt",
+            )
+        )
+        return results
+
+    category = f"Link Params ({direction})"
+
+    # Compare overhead (YAML int -> str for comparison)
+    expected_overhead = str(cake_config.get("overhead", ""))
+    actual_overhead = queue_type_data.get("cake-overhead", "")
+    if actual_overhead == expected_overhead:
+        results.append(
+            CheckResult(
+                category,
+                "overhead",
+                Severity.PASS,
+                f"overhead: {actual_overhead} (optimal)",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                category,
+                "overhead",
+                Severity.ERROR,
+                f"overhead: {actual_overhead} -> {expected_overhead}",
+                suggestion="Wrong overhead wastes bandwidth or causes incorrect shaping",
+            )
+        )
+
+    # Compare rtt (YAML str/int -> str for comparison)
+    expected_rtt = str(cake_config.get("rtt", ""))
+    actual_rtt = queue_type_data.get("cake-rtt", "")
+    if actual_rtt == expected_rtt:
+        results.append(
+            CheckResult(
+                category,
+                "rtt",
+                Severity.PASS,
+                f"rtt: {actual_rtt} (optimal)",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                category,
+                "rtt",
+                Severity.ERROR,
+                f"rtt: {actual_rtt} -> {expected_rtt}",
+                suggestion="Incorrect RTT hint affects CAKE shaper response time",
+            )
+        )
+
+    return results
+
+
+# =============================================================================
 # MANGLE RULE (CAKE-05)
 # =============================================================================
 
