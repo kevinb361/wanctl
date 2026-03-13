@@ -1,9 +1,10 @@
-"""Tests for wanctl.benchmark -- grade computation, flent parsing, result assembly."""
+"""Tests for wanctl.benchmark -- grade computation, flent parsing, result assembly, CLI."""
 
 import gzip
 import json
+import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -322,3 +323,280 @@ class TestBuildResult:
         result = build_result(data, baseline_rtt=10.0, server="s", duration=10)
         mock_datetime.now.assert_called_once_with(UTC)
         assert result.timestamp == "2026-03-13T20:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# Task 1: Prerequisite checks, server connectivity, daemon warning
+# ---------------------------------------------------------------------------
+
+
+class TestServerConnectivity:
+    """Verify check_server_connectivity probes server via netperf and measures baseline RTT."""
+
+    @patch("wanctl.benchmark.parse_ping_output")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_reachable_server(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+        """Server reachable: netperf succeeds, ping measures baseline RTT."""
+        from wanctl.benchmark import check_server_connectivity
+
+        # netperf probe succeeds
+        mock_run.return_value = MagicMock(returncode=0)
+        # ping returns RTT values
+        mock_parse_ping.return_value = [23.0, 25.0, 22.0, 24.0, 26.0]
+
+        reachable, baseline = check_server_connectivity("netperf.bufferbloat.net")
+        assert reachable is True
+        assert baseline == 22.0  # min of ping values
+
+        # Verify netperf was called first
+        netperf_call = mock_run.call_args_list[0]
+        assert "netperf" in netperf_call[0][0][0]
+        assert "-H" in netperf_call[0][0]
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_unreachable_server_nonzero(self, mock_run: MagicMock) -> None:
+        """Server unreachable: netperf returns non-zero."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.return_value = MagicMock(returncode=1)
+
+        reachable, baseline = check_server_connectivity("bad.server.com")
+        assert reachable is False
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_unreachable_server_timeout(self, mock_run: MagicMock) -> None:
+        """Server unreachable: netperf times out."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="netperf", timeout=3)
+
+        reachable, baseline = check_server_connectivity("slow.server.com")
+        assert reachable is False
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_netperf_not_found(self, mock_run: MagicMock) -> None:
+        """Server check returns False when netperf binary is missing."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.side_effect = FileNotFoundError
+
+        reachable, baseline = check_server_connectivity("any.server.com")
+        assert reachable is False
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.parse_ping_output")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_ping_returns_empty(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+        """Reachable but ping fails: baseline RTT is 0.0."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.return_value = MagicMock(returncode=0)
+        mock_parse_ping.return_value = []
+
+        reachable, baseline = check_server_connectivity("netperf.bufferbloat.net")
+        assert reachable is True
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.parse_ping_output")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_custom_timeout(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+        """Custom timeout passed to subprocess.run."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.return_value = MagicMock(returncode=0)
+        mock_parse_ping.return_value = [10.0]
+
+        check_server_connectivity("server", timeout=5)
+        netperf_call = mock_run.call_args_list[0]
+        assert netperf_call[1]["timeout"] == 5
+
+
+class TestPrerequisites:
+    """Verify check_prerequisites detects missing binaries with apt install instructions."""
+
+    @patch("wanctl.benchmark.check_server_connectivity")
+    @patch("wanctl.benchmark.shutil.which")
+    def test_all_present_server_reachable(
+        self, mock_which: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Both binaries found, server reachable: 3 items all True."""
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.side_effect = lambda x: f"/usr/bin/{x}"
+        mock_server.return_value = (True, 23.0)
+
+        checks, baseline = check_prerequisites("netperf.bufferbloat.net")
+        assert len(checks) == 3
+        assert all(passed for _, passed, _ in checks)
+        assert baseline == 23.0
+        # Server detail includes baseline RTT
+        server_check = [c for c in checks if c[0] == "server"][0]
+        assert "23" in server_check[2]
+        assert "reachable" in server_check[2]
+
+    @patch("wanctl.benchmark.shutil.which")
+    def test_flent_missing(self, mock_which: MagicMock) -> None:
+        """Missing flent: returns fail with apt install instruction."""
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.side_effect = lambda x: None if x == "flent" else f"/usr/bin/{x}"
+
+        checks, baseline = check_prerequisites("netperf.bufferbloat.net")
+        flent_check = [c for c in checks if c[0] == "flent"][0]
+        assert flent_check[1] is False
+        assert "sudo apt install flent" in flent_check[2]
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.shutil.which")
+    def test_netperf_missing(self, mock_which: MagicMock) -> None:
+        """Missing netperf: returns fail with apt install instruction."""
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.side_effect = lambda x: None if x == "netperf" else f"/usr/bin/{x}"
+
+        checks, baseline = check_prerequisites("netperf.bufferbloat.net")
+        netperf_check = [c for c in checks if c[0] == "netperf"][0]
+        assert netperf_check[1] is False
+        assert "sudo apt install netperf" in netperf_check[2]
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.shutil.which")
+    def test_both_missing(self, mock_which: MagicMock) -> None:
+        """Both binaries missing: 2 fail items, no server check."""
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.return_value = None
+
+        checks, baseline = check_prerequisites("netperf.bufferbloat.net")
+        assert len(checks) == 2
+        assert all(not passed for _, passed, _ in checks)
+        assert baseline == 0.0
+
+    @patch("wanctl.benchmark.check_server_connectivity")
+    @patch("wanctl.benchmark.shutil.which")
+    def test_server_unreachable(
+        self, mock_which: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Both binaries present but server unreachable."""
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.side_effect = lambda x: f"/usr/bin/{x}"
+        mock_server.return_value = (False, 0.0)
+
+        checks, baseline = check_prerequisites("bad.server.com")
+        server_check = [c for c in checks if c[0] == "server"][0]
+        assert server_check[1] is False
+        assert "unreachable" in server_check[2]
+        assert baseline == 0.0
+
+
+class TestDaemonWarning:
+    """Verify check_daemon_running detects running wanctl daemons via lock files."""
+
+    @patch("wanctl.benchmark.is_process_alive")
+    @patch("wanctl.benchmark.read_lock_pid")
+    @patch("wanctl.benchmark.glob.glob")
+    def test_daemon_running(
+        self, mock_glob: MagicMock, mock_read_pid: MagicMock, mock_alive: MagicMock
+    ) -> None:
+        """Running daemon detected via lock file with alive PID."""
+        from wanctl.benchmark import check_daemon_running
+
+        mock_glob.return_value = ["/run/wanctl/spectrum.lock"]
+        mock_read_pid.return_value = 1234
+        mock_alive.return_value = True
+
+        running, detail = check_daemon_running()
+        assert running is True
+        assert "1234" in detail
+        assert "running" in detail.lower()
+
+    @patch("wanctl.benchmark.glob.glob")
+    def test_no_lock_files(self, mock_glob: MagicMock) -> None:
+        """No lock files: daemon not running."""
+        from wanctl.benchmark import check_daemon_running
+
+        mock_glob.return_value = []
+
+        running, detail = check_daemon_running()
+        assert running is False
+        assert detail == ""
+
+    @patch("wanctl.benchmark.is_process_alive")
+    @patch("wanctl.benchmark.read_lock_pid")
+    @patch("wanctl.benchmark.glob.glob")
+    def test_stale_lock(
+        self, mock_glob: MagicMock, mock_read_pid: MagicMock, mock_alive: MagicMock
+    ) -> None:
+        """Lock file exists but process is dead: not running."""
+        from wanctl.benchmark import check_daemon_running
+
+        mock_glob.return_value = ["/run/wanctl/spectrum.lock"]
+        mock_read_pid.return_value = 9999
+        mock_alive.return_value = False
+
+        running, detail = check_daemon_running()
+        assert running is False
+        assert detail == ""
+
+    @patch("wanctl.benchmark.read_lock_pid")
+    @patch("wanctl.benchmark.glob.glob")
+    def test_lock_no_pid(
+        self, mock_glob: MagicMock, mock_read_pid: MagicMock
+    ) -> None:
+        """Lock file exists but PID cannot be read: not running."""
+        from wanctl.benchmark import check_daemon_running
+
+        mock_glob.return_value = ["/run/wanctl/spectrum.lock"]
+        mock_read_pid.return_value = None
+
+        running, detail = check_daemon_running()
+        assert running is False
+        assert detail == ""
+
+
+class TestPrintPrerequisites:
+    """Verify _print_prerequisites outputs checklist to stderr."""
+
+    def test_all_pass_no_color(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """All checks pass: [OK] markers printed to stderr."""
+        from wanctl.benchmark import _print_prerequisites
+
+        checks = [
+            ("flent", True, "found at /usr/bin/flent"),
+            ("netperf", True, "found at /usr/bin/netperf"),
+            ("server", True, "reachable (23ms baseline)"),
+        ]
+        _print_prerequisites(checks, color=False)
+        captured = capsys.readouterr()
+        assert "[OK]" in captured.err
+        assert "flent" in captured.err
+        assert "netperf" in captured.err
+        assert "server" in captured.err
+
+    def test_fail_marker(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Failed check: [FAIL] marker printed to stderr."""
+        from wanctl.benchmark import _print_prerequisites
+
+        checks = [
+            ("flent", False, "not found -- install with: sudo apt install flent"),
+        ]
+        _print_prerequisites(checks, color=False)
+        captured = capsys.readouterr()
+        assert "[FAIL]" in captured.err
+        assert "flent" in captured.err
+
+    def test_color_output(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Color mode: ANSI escape codes present in output."""
+        from wanctl.benchmark import _print_prerequisites
+
+        checks = [
+            ("flent", True, "found at /usr/bin/flent"),
+            ("netperf", False, "not found -- install with: sudo apt install netperf"),
+        ]
+        _print_prerequisites(checks, color=True)
+        captured = capsys.readouterr()
+        # Check for ANSI color codes (green=32, red=31)
+        assert "\033[" in captured.err
