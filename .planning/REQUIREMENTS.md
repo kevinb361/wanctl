@@ -23,11 +23,11 @@ Requirements for Validation & Operational Confidence milestone. Each maps to roa
 
 ### CAKE & Router Audit
 
-- [ ] **CAKE-01**: `wanctl-check-cake` probes router connectivity (REST/SSH reachability and auth)
-- [ ] **CAKE-02**: Queue tree audit verifies queues exist with expected names and max-limit values
-- [ ] **CAKE-03**: CAKE qdisc type verification confirms queues use CAKE (not fq_codel or default)
-- [ ] **CAKE-04**: Config-vs-router diff shows expected vs actual values for each parameter
-- [ ] **CAKE-05**: Mangle rule existence check verifies steering mangle rule exists on router
+- [x] **CAKE-01**: `wanctl-check-cake` probes router connectivity (REST/SSH reachability and auth)
+- [x] **CAKE-02**: Queue tree audit verifies queues exist with expected names and max-limit values
+- [x] **CAKE-03**: CAKE qdisc type verification confirms queues use CAKE (not fq_codel or default)
+- [x] **CAKE-04**: Config-vs-router diff shows expected vs actual values for each parameter
+- [x] **CAKE-05**: Mangle rule existence check verifies steering mangle rule exists on router
 
 ## Future Requirements
 
@@ -73,11 +73,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CVAL-09     | Phase 82 | Complete |
 | CVAL-10     | Phase 82 | Complete |
 | CVAL-11     | Phase 81 | Complete |
-| CAKE-01     | Phase 83 | Pending  |
-| CAKE-02     | Phase 83 | Pending  |
-| CAKE-03     | Phase 83 | Pending  |
-| CAKE-04     | Phase 83 | Pending  |
-| CAKE-05     | Phase 83 | Pending  |
+| CAKE-01     | Phase 83 | Complete |
+| CAKE-02     | Phase 83 | Complete |
+| CAKE-03     | Phase 83 | Complete |
+| CAKE-04     | Phase 83 | Complete |
+| CAKE-05     | Phase 83 | Complete |
 
 **Coverage:**
 

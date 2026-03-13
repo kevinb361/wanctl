@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.16
 milestone_name: Validation & Operational Confidence
-status: planning
-last_updated: "2026-03-13T03:01:42.580Z"
-last_activity: 2026-03-13 - Completed 82-02 JSON output mode
+status: complete
+last_updated: "2026-03-13T05:12:00.000Z"
+last_activity: 2026-03-13 - Completed 83-01 CAKE qdisc audit CLI tool
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Session State
@@ -19,15 +19,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.16 Phase 82 -- Steering Config + Output Modes (2/2 plans complete)
+**Current focus:** v1.16 Phase 83 -- CAKE Qdisc Audit (1/1 plans complete) -- MILESTONE COMPLETE
 
 ## Position
 
-**Milestone:** v1.16 Validation & Operational Confidence
-**Phase:** 82 of 83 (Steering Config + Output Modes) -- COMPLETE
-**Plan:** 2 of 2 (82-01 complete, 82-02 complete)
-**Status:** Ready to plan
-**Last activity:** 2026-03-13 - Completed 82-02 JSON output mode
+**Milestone:** v1.16 Validation & Operational Confidence -- COMPLETE
+**Phase:** 83 of 83 (CAKE Qdisc Audit) -- COMPLETE
+**Plan:** 1 of 1 (83-01 complete)
+**Status:** Milestone complete
+**Last activity:** 2026-03-13 - Completed 83-01 CAKE qdisc audit CLI tool
 
 ## Accumulated Context
 
@@ -49,6 +49,11 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 - [82-02] --json and --quiet are independent (--quiet only affects text mode)
 - [82-02] JSON suggestion key omitted when None (not set to null)
 - [82-02] severity values are lowercase enum values (pass, warn, error)
+- [83-01] SimpleNamespace wraps extracted router config dict for get_router_client() compatibility
+- [83-01] Max-limit diff shows informational PASS note (not ERROR) since max-limit changes dynamically during congestion
+- [83-01] Steering configs skip max-limit comparison entirely (no ceiling config)
+- [83-01] SSH connectivity falls back to run_cmd when test_connection() unavailable
+- [83-01] Mangle rule check via REST uses \_find_mangle_rule_id, SSH uses print where comment filter
 
 ### Known Issues
 

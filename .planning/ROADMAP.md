@@ -18,7 +18,7 @@ Goal: Operator-facing CLI tools that catch misconfigurations before runtime and 
 
 - [x] **Phase 81: Config Validation Foundation** - Offline autorate config validation with structured error collection, cross-field checks, and exit codes
 - [x] **Phase 82: Steering Config + Output Modes** - Steering config support, auto-detection, cross-config validation, and JSON output
-- [ ] **Phase 83: CAKE Qdisc Audit** - Read-only router probes comparing queue tree and CAKE parameters against config expectations
+- [x] **Phase 83: CAKE Qdisc Audit** - Read-only router probes comparing queue tree and CAKE parameters against config expectations
 
 ### Completed
 
@@ -93,7 +93,7 @@ Plans:
 
 Plans:
 
-- [ ] 83-01-PLAN.md -- Router audit CLI with connectivity, queue tree, CAKE type, max-limit diff, and mangle rule checks
+- [x] 83-01-PLAN.md -- Router audit CLI with connectivity, queue tree, CAKE type, max-limit diff, and mangle rule checks
 
 ## Progress
 
@@ -102,11 +102,11 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 81 -> 82 -> 83
 
-| Phase                              | Plans Complete | Status      | Completed  |
-| ---------------------------------- | -------------- | ----------- | ---------- |
-| 81. Config Validation Foundation   | 1/1            | Complete    | 2026-03-12 |
-| 82. Steering Config + Output Modes | 2/2            | Complete    | 2026-03-13 |
-| 83. CAKE Qdisc Audit               | 0/1            | Not started | -          |
+| Phase                              | Plans Complete | Status   | Completed  |
+| ---------------------------------- | -------------- | -------- | ---------- |
+| 81. Config Validation Foundation   | 1/1            | Complete | 2026-03-12 |
+| 82. Steering Config + Output Modes | 2/2            | Complete | 2026-03-13 |
+| 83. CAKE Qdisc Audit               | 1/1            | Complete | 2026-03-13 |
 
 ### Completed Milestones
 
@@ -129,7 +129,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | v1.1 Code Quality                    | 6-15   | 30    | Complete | 2026-01-14 |
 | v1.0 Performance Optimization        | 1-5    | 8     | Complete | 2026-01-13 |
 
-**Total:** 80 phases complete, 161 plans across 16 milestones
+**Total:** 83 phases complete, 166 plans across 16 milestones
 
 <details>
 <summary>v1.15 Alerting & Notifications (Phases 76-80) - SHIPPED 2026-03-12</summary>
