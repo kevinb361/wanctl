@@ -1,8 +1,8 @@
 """Bufferbloat benchmarking via flent RRUL test.
 
-Provides data model, grade computation, and flent result parsing for the
-``wanctl-benchmark`` CLI tool.  This module contains the pure-logic foundation;
-CLI orchestration (subprocess calls, argument parsing) lives in Plan 02.
+Provides the ``wanctl-benchmark`` CLI tool: prerequisite checking (flent,
+netperf), server connectivity probing, subprocess orchestration of
+``flent rrul``, grade computation, and formatted output display.
 
 Grade thresholds are based on average latency increase (mean latency under
 load minus baseline RTT):
@@ -10,16 +10,19 @@ load minus baseline RTT):
     A+ < 5ms, A < 15ms, B < 30ms, C < 60ms, D < 200ms, F >= 200ms
 """
 
-import argparse  # noqa: F401 -- used by Plan 02 CLI
+import glob
 import gzip
 import json
-import shutil  # noqa: F401 -- used by Plan 02 prerequisite checks
+import shutil
 import statistics
-import subprocess  # noqa: F401  # nosec B404 -- used by Plan 02 to invoke flent/netperf
-import sys  # noqa: F401 -- used by Plan 02 CLI
-import tempfile  # noqa: F401 -- used by Plan 02 for flent output
+import subprocess  # nosec B404
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
+
+from wanctl.lock_utils import is_process_alive, read_lock_pid
+from wanctl.rtt_measurement import parse_ping_output
 
 # ---------------------------------------------------------------------------
 # Grade computation
@@ -178,3 +181,119 @@ def build_result(
         duration=duration,
         timestamp=datetime.now(UTC).isoformat(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Prerequisite checks and server connectivity
+# ---------------------------------------------------------------------------
+
+
+def check_server_connectivity(
+    server: str, timeout: int = 3
+) -> tuple[bool, float]:
+    """Probe *server* via a 1-second netperf TCP_STREAM, then measure baseline RTT.
+
+    Returns ``(reachable, baseline_rtt_ms)``.  If the probe fails or times
+    out, returns ``(False, 0.0)``.
+    """
+    try:
+        result = subprocess.run(  # nosec B603 -- hardcoded netperf invocation
+            ["netperf", "-H", server, "-t", "TCP_STREAM", "-l", "1"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode != 0:
+            return (False, 0.0)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return (False, 0.0)
+
+    # Measure baseline RTT via ping
+    try:
+        ping_result = subprocess.run(  # nosec B603 -- hardcoded ping invocation
+            ["ping", "-c", "5", "-i", "0.2", server],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        rtts = parse_ping_output(ping_result.stdout)
+        if rtts:
+            return (True, min(rtts))
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    return (True, 0.0)
+
+
+def check_prerequisites(
+    server: str,
+) -> tuple[list[tuple[str, bool, str]], float]:
+    """Check that flent and netperf are installed, then probe *server*.
+
+    Returns ``(checks, baseline_rtt)`` where *checks* is a list of
+    ``(name, passed, detail)`` tuples and *baseline_rtt* is the measured
+    baseline RTT in milliseconds (0.0 if not measured).
+    """
+    checks: list[tuple[str, bool, str]] = []
+    baseline_rtt = 0.0
+
+    flent_path = shutil.which("flent")
+    if flent_path:
+        checks.append(("flent", True, f"found at {flent_path}"))
+    else:
+        checks.append(
+            ("flent", False, "not found -- install with: sudo apt install flent")
+        )
+
+    netperf_path = shutil.which("netperf")
+    if netperf_path:
+        checks.append(("netperf", True, f"found at {netperf_path}"))
+    else:
+        checks.append(
+            ("netperf", False, "not found -- install with: sudo apt install netperf")
+        )
+
+    # Only check server if both binaries present
+    if flent_path and netperf_path:
+        reachable, baseline_rtt = check_server_connectivity(server)
+        if reachable:
+            checks.append(
+                ("server", True, f"reachable ({baseline_rtt:.0f}ms baseline)")
+            )
+        else:
+            checks.append(("server", False, f"{server} unreachable (3s timeout)"))
+            baseline_rtt = 0.0
+
+    return (checks, baseline_rtt)
+
+
+def check_daemon_running() -> tuple[bool, str]:
+    """Check if a wanctl daemon is currently running via lock files.
+
+    Returns ``(running, detail)``.  If running, detail includes the PID.
+    """
+    lock_files = glob.glob("/run/wanctl/*.lock")
+    for lock_file in lock_files:
+        pid = read_lock_pid(Path(lock_file))
+        if pid is not None and is_process_alive(pid):
+            return (True, f"wanctl daemon is running (PID {pid})")
+    return (False, "")
+
+
+def _print_prerequisites(
+    checks: list[tuple[str, bool, str]], color: bool
+) -> None:
+    """Print prerequisite checklist to stderr.
+
+    Uses green/red ANSI colors when *color* is ``True``.
+    """
+    green = "\033[32m" if color else ""
+    red = "\033[31m" if color else ""
+    reset = "\033[0m" if color else ""
+
+    for name, passed, detail in checks:
+        if passed:
+            marker = f"{green}[OK]{reset}"
+        else:
+            marker = f"{red}[FAIL]{reset}"
+        print(f"  {marker} {name}: {detail}", file=sys.stderr)
