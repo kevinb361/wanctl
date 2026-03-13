@@ -832,6 +832,216 @@ def _prune_snapshots(wan_name: str) -> None:
         oldest.unlink()
 
 
+def _show_diff_table(
+    changes_by_direction: dict[str, dict[str, tuple[str, str]]],
+    queue_names: dict[str, str],
+) -> int:
+    """Print proposed parameter changes as a table grouped by direction.
+
+    Outputs to stderr so --json stdout stays clean.
+
+    Args:
+        changes_by_direction: Dict mapping direction to {param: (current, recommended)}.
+        queue_names: Dict mapping direction to queue type name.
+
+    Returns:
+        Total number of parameter changes across all directions.
+    """
+    total = 0
+    for direction, changes in changes_by_direction.items():
+        if not changes:
+            continue
+        queue_name = queue_names.get(direction, "unknown")
+        print(f"\nProposed changes for {queue_name} ({direction}):", file=sys.stderr)
+        print(f"  {'Parameter':<20} {'Current':<20} {'Recommended':<20}", file=sys.stderr)
+        print(f"  {'-' * 20} {'-' * 20} {'-' * 20}", file=sys.stderr)
+        for key, (current, recommended) in changes.items():
+            display_name = key.removeprefix("cake-")
+            print(f"  {display_name:<20} {current:<20} {recommended:<20}", file=sys.stderr)
+            total += 1
+    return total
+
+
+def _confirm_apply(total_changes: int) -> bool:
+    """Prompt user to confirm applying changes.
+
+    Args:
+        total_changes: Number of changes to apply.
+
+    Returns:
+        True if user confirms, False otherwise. Default (empty) is False.
+    """
+    response = input(f"Apply {total_changes} changes? [y/N] ")
+    return response.strip().lower() in ("y", "yes")
+
+
+def _apply_changes(
+    client: object,
+    changes_by_direction: dict[str, dict[str, tuple[str, str]]],
+    queue_names: dict[str, str],
+) -> list[CheckResult]:
+    """Apply parameter changes to router via PATCH.
+
+    Sends a single PATCH per queue type (all changed params in one call).
+    RouterOS PATCH is atomic per resource.
+
+    Args:
+        client: Router client with set_queue_type_params method.
+        changes_by_direction: Dict mapping direction to {param: (current, recommended)}.
+        queue_names: Dict mapping direction to queue type name.
+
+    Returns:
+        List of CheckResult: PASS per param on success, ERROR per param on failure.
+    """
+    results: list[CheckResult] = []
+
+    for direction, changes in changes_by_direction.items():
+        if not changes:
+            continue
+        queue_name = queue_names.get(direction, "unknown")
+        category = f"Fix Applied ({direction})"
+
+        # Build params dict: {key: recommended_value}
+        params = {key: recommended for key, (_current, recommended) in changes.items()}
+
+        # Single PATCH per queue type
+        success = client.set_queue_type_params(queue_name, params)
+
+        for key, (_current, recommended) in changes.items():
+            display_name = key.removeprefix("cake-")
+            if success:
+                results.append(
+                    CheckResult(
+                        category,
+                        display_name,
+                        Severity.PASS,
+                        f"{display_name}: applied {recommended}",
+                    )
+                )
+            else:
+                results.append(
+                    CheckResult(
+                        category,
+                        display_name,
+                        Severity.ERROR,
+                        f"{display_name}: failed to apply {recommended}",
+                    )
+                )
+
+    return results
+
+
+def run_fix(
+    data: dict,
+    config_type: str,
+    client: object,
+    yes: bool = False,
+    json_mode: bool = False,
+    wan_name: str = "",
+) -> list[CheckResult]:
+    """Orchestrate the complete fix flow: lock -> audit -> diff -> confirm -> snapshot -> apply -> verify.
+
+    Args:
+        data: Parsed YAML config data.
+        config_type: 'autorate' or 'steering'.
+        client: Router client instance.
+        yes: If True, skip confirmation prompt.
+        json_mode: If True, output mode is JSON (requires yes=True).
+        wan_name: WAN name for snapshot naming.
+
+    Returns:
+        List of all CheckResult from the fix flow.
+    """
+    results: list[CheckResult] = []
+
+    # 1. Check daemon lock
+    lock_results = check_daemon_lock()
+    results.extend(lock_results)
+    if any(r.severity == Severity.ERROR for r in lock_results):
+        return results
+
+    # 2. Gather changes by direction (same data-fetching as step 3.5 in run_audit)
+    queue_names = _extract_queue_names(data, config_type)
+    cake_config = _extract_cake_optimization(data)
+    changes_by_direction: dict[str, dict[str, tuple[str, str]]] = {}
+    queue_type_data_by_direction: dict[str, dict] = {}
+
+    for direction in ("download", "upload"):
+        queue_name = queue_names.get(direction, "")
+        if not queue_name:
+            continue
+        stats = client.get_queue_stats(queue_name)
+        if stats is None:
+            continue
+        queue_type_name = stats.get("queue", "")
+        if not queue_type_name or not queue_type_name.startswith("cake"):
+            continue
+        queue_type_data = client.get_queue_types(queue_type_name)
+        if queue_type_data is None:
+            continue
+
+        # Store queue type name in queue_names for PATCH targeting
+        queue_names[direction] = queue_type_name
+        queue_type_data_by_direction[queue_type_name] = queue_type_data
+
+        changes = _extract_changes_for_direction(queue_type_data, direction, cake_config)
+        if changes:
+            changes_by_direction[direction] = changes
+
+    # 3. Nothing to fix?
+    if not changes_by_direction:
+        results.append(
+            CheckResult(
+                "Fix",
+                "status",
+                Severity.PASS,
+                "All CAKE parameters are optimal -- nothing to fix.",
+            )
+        )
+        return results
+
+    # 4. JSON mode requires --yes
+    if json_mode and not yes:
+        results.append(
+            CheckResult(
+                "Fix",
+                "mode",
+                Severity.ERROR,
+                "Fix in --json mode requires --yes flag",
+                suggestion="Add --yes flag: wanctl-check-cake config.yaml --fix --yes --json",
+            )
+        )
+        return results
+
+    # 5. Confirmation
+    if not yes:
+        _show_diff_table(changes_by_direction, queue_names)
+        if not _confirm_apply(sum(len(c) for c in changes_by_direction.values())):
+            results.append(
+                CheckResult(
+                    "Fix",
+                    "status",
+                    Severity.PASS,
+                    "Fix cancelled by user.",
+                )
+            )
+            return results
+
+    # 6. Save snapshot
+    snapshot_path = _save_snapshot(queue_type_data_by_direction, wan_name or "unknown")
+    print(f"Snapshot saved: {snapshot_path}", file=sys.stderr)
+
+    # 7. Apply changes
+    apply_results = _apply_changes(client, changes_by_direction, queue_names)
+    results.extend(apply_results)
+
+    # 8. Re-run audit for verification
+    verify_results = run_audit(data, config_type, client)
+    results.extend(verify_results)
+
+    return results
+
+
 def _extract_changes_for_direction(
     queue_type_data: dict, direction: str, cake_config: dict | None
 ) -> dict[str, tuple[str, str]]:
