@@ -15,7 +15,7 @@ import gzip
 import json
 import shutil  # noqa: F401 -- used by Plan 02 prerequisite checks
 import statistics
-import subprocess  # nosec B404 -- used by Plan 02 to invoke flent/netperf
+import subprocess  # noqa: F401  # nosec B404 -- used by Plan 02 to invoke flent/netperf
 import sys  # noqa: F401 -- used by Plan 02 CLI
 import tempfile  # noqa: F401 -- used by Plan 02 for flent output
 from dataclasses import dataclass
@@ -92,7 +92,7 @@ def parse_flent_results(gz_path: str) -> dict:
     series name) and ``"metadata"``.
     """
     with gzip.open(gz_path, "rt") as f:
-        return json.load(f)  # type: ignore[no-any-return]
+        return json.load(f)
 
 
 def extract_latency_stats(data: dict, baseline_rtt: float) -> dict:
