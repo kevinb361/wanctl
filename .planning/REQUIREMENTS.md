@@ -66,35 +66,35 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAKE-01 | — | Pending |
-| CAKE-02 | — | Pending |
-| CAKE-03 | — | Pending |
-| CAKE-04 | — | Pending |
-| CAKE-05 | — | Pending |
-| FIX-01 | — | Pending |
-| FIX-02 | — | Pending |
-| FIX-03 | — | Pending |
-| FIX-04 | — | Pending |
-| FIX-05 | — | Pending |
-| FIX-06 | — | Pending |
-| FIX-07 | — | Pending |
-| BENCH-01 | — | Pending |
-| BENCH-02 | — | Pending |
-| BENCH-03 | — | Pending |
-| BENCH-04 | — | Pending |
-| BENCH-05 | — | Pending |
-| BENCH-06 | — | Pending |
-| BENCH-07 | — | Pending |
-| STOR-01 | — | Pending |
-| STOR-02 | — | Pending |
-| STOR-03 | — | Pending |
-| STOR-04 | — | Pending |
+| CAKE-01 | Phase 84 | Pending |
+| CAKE-02 | Phase 84 | Pending |
+| CAKE-03 | Phase 84 | Pending |
+| CAKE-04 | Phase 84 | Pending |
+| CAKE-05 | Phase 84 | Pending |
+| FIX-01 | Phase 85 | Pending |
+| FIX-02 | Phase 85 | Pending |
+| FIX-03 | Phase 85 | Pending |
+| FIX-04 | Phase 85 | Pending |
+| FIX-05 | Phase 85 | Pending |
+| FIX-06 | Phase 85 | Pending |
+| FIX-07 | Phase 85 | Pending |
+| BENCH-01 | Phase 86 | Pending |
+| BENCH-02 | Phase 86 | Pending |
+| BENCH-03 | Phase 86 | Pending |
+| BENCH-04 | Phase 86 | Pending |
+| BENCH-05 | Phase 86 | Pending |
+| BENCH-06 | Phase 86 | Pending |
+| BENCH-07 | Phase 86 | Pending |
+| STOR-01 | Phase 87 | Pending |
+| STOR-02 | Phase 87 | Pending |
+| STOR-03 | Phase 87 | Pending |
+| STOR-04 | Phase 87 | Pending |
 
 **Coverage:**
 - v1.17 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 (pending roadmap creation)
+- Mapped to phases: 23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation*

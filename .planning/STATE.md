@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-03-13"
-last_activity: 2026-03-13 - Milestone v1.17 started
+last_activity: 2026-03-13 - Roadmap created (4 phases, 23 requirements)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,24 +19,41 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining requirements for v1.17
+**Current focus:** Phase 84 - CAKE Detection & Optimizer Foundation
 
 ## Position
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
-**Phase:** Not started (defining requirements)
-**Status:** Defining requirements
-**Last activity:** 2026-03-13 — Milestone v1.17 started
+**Phase:** 84 of 87 (CAKE Detection & Optimizer Foundation)
+**Plan:** Not started (ready to plan)
+**Status:** Ready to plan Phase 84
+**Last activity:** 2026-03-13 -- Roadmap created
+
+Progress: [..........] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(New milestone — no decisions yet)
+(New milestone -- no decisions yet)
 
 ### Known Issues
 
-None.
+- RouterOS REST JSON field names for `/rest/queue/type` CAKE parameters need live router verification during Phase 84
+- ATT BGW320 passthrough mode (bridged-ptm vs pppoe-ptm) needs explicit config -- cannot auto-detect
 
 ### Blockers
 
