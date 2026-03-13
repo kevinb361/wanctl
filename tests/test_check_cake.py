@@ -1714,3 +1714,214 @@ class TestSetQueueTypeParams:
         patch_url = mock_req.call_args_list[1][0][1]
         assert "/queue/type/" in patch_url
         assert "/queue/tree/" not in patch_url
+
+
+# =============================================================================
+# TestDaemonLock -- check_daemon_lock()
+# =============================================================================
+
+
+class TestDaemonLock:
+    """Test check_daemon_lock() for detecting running wanctl daemon."""
+
+    def test_pass_when_lock_dir_does_not_exist(self, tmp_path):
+        """Returns PASS when /run/wanctl/ does not exist."""
+        from wanctl.check_cake import check_daemon_lock
+
+        fake_run_dir = tmp_path / "run" / "wanctl"
+        # Directory does not exist
+        with patch("wanctl.check_cake.LOCK_DIR", fake_run_dir):
+            results = check_daemon_lock()
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.PASS
+        assert results[0].category == "Daemon Lock"
+
+    def test_pass_when_lock_files_have_dead_pid(self, tmp_path):
+        """Returns PASS when lock files exist but PID is dead."""
+        from wanctl.check_cake import check_daemon_lock
+
+        fake_run_dir = tmp_path / "run" / "wanctl"
+        fake_run_dir.mkdir(parents=True)
+        lock_file = fake_run_dir / "spectrum.lock"
+        lock_file.write_text("99999\n")
+
+        with (
+            patch("wanctl.check_cake.LOCK_DIR", fake_run_dir),
+            patch("wanctl.check_cake.read_lock_pid", return_value=99999),
+            patch("wanctl.check_cake.is_process_alive", return_value=False),
+        ):
+            results = check_daemon_lock()
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.PASS
+
+    def test_error_when_lock_file_has_live_pid(self, tmp_path):
+        """Returns ERROR when lock file has live PID, with suggestion to stop daemon."""
+        from wanctl.check_cake import check_daemon_lock
+
+        fake_run_dir = tmp_path / "run" / "wanctl"
+        fake_run_dir.mkdir(parents=True)
+        lock_file = fake_run_dir / "spectrum.lock"
+        lock_file.write_text("12345\n")
+
+        with (
+            patch("wanctl.check_cake.LOCK_DIR", fake_run_dir),
+            patch("wanctl.check_cake.read_lock_pid", return_value=12345),
+            patch("wanctl.check_cake.is_process_alive", return_value=True),
+        ):
+            results = check_daemon_lock()
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert results[0].category == "Daemon Lock"
+        assert results[0].field == "lock_check"
+        assert "stop" in results[0].suggestion.lower() or "Stop" in results[0].suggestion
+
+
+# =============================================================================
+# TestSnapshot -- _save_snapshot() and _prune_snapshots()
+# =============================================================================
+
+
+class TestSnapshot:
+    """Test _save_snapshot() and _prune_snapshots()."""
+
+    def test_save_snapshot_writes_json_file(self, tmp_path):
+        """_save_snapshot writes JSON to snapshots dir with correct structure."""
+        from wanctl.check_cake import _save_snapshot
+
+        queue_data = {
+            "cake-down-spectrum": {
+                ".id": "*A",
+                "name": "cake-down-spectrum",
+                "cake-flowmode": "triple-isolate",
+            }
+        }
+
+        with patch("wanctl.check_cake.SNAPSHOT_DIR", tmp_path):
+            path = _save_snapshot(queue_data, "spectrum")
+
+        assert path.exists()
+        assert path.suffix == ".json"
+        assert "spectrum" in path.name
+
+        content = json.loads(path.read_text())
+        assert "queue_types" in content
+        assert "timestamp" in content
+        assert "wan_name" in content
+        assert content["wan_name"] == "spectrum"
+
+    def test_prune_snapshots_removes_oldest(self, tmp_path):
+        """_prune_snapshots removes oldest files when count exceeds MAX_SNAPSHOTS."""
+        from wanctl.check_cake import _prune_snapshots
+
+        # Create 25 snapshot files (MAX_SNAPSHOTS = 20)
+        for i in range(25):
+            ts = f"20260313T{i:06d}Z"
+            f = tmp_path / f"{ts}_spectrum.json"
+            f.write_text("{}")
+
+        with patch("wanctl.check_cake.SNAPSHOT_DIR", tmp_path):
+            _prune_snapshots("spectrum")
+
+        remaining = list(tmp_path.glob("*_spectrum.json"))
+        assert len(remaining) == 20
+
+    def test_prune_keeps_files_for_other_wans(self, tmp_path):
+        """_prune_snapshots only prunes files matching the specified WAN name."""
+        from wanctl.check_cake import _prune_snapshots
+
+        # Create 25 spectrum files and 5 att files
+        for i in range(25):
+            ts = f"20260313T{i:06d}Z"
+            f = tmp_path / f"{ts}_spectrum.json"
+            f.write_text("{}")
+        for i in range(5):
+            ts = f"20260313T{i:06d}Z"
+            f = tmp_path / f"{ts}_att.json"
+            f.write_text("{}")
+
+        with patch("wanctl.check_cake.SNAPSHOT_DIR", tmp_path):
+            _prune_snapshots("spectrum")
+
+        spectrum_remaining = list(tmp_path.glob("*_spectrum.json"))
+        att_remaining = list(tmp_path.glob("*_att.json"))
+        assert len(spectrum_remaining) == 20
+        assert len(att_remaining) == 5  # Untouched
+
+
+# =============================================================================
+# TestExtractChanges -- _extract_changes_for_direction()
+# =============================================================================
+
+
+class TestExtractChanges:
+    """Test _extract_changes_for_direction()."""
+
+    def test_returns_empty_when_all_optimal(self):
+        """Returns empty dict when all params are optimal."""
+        from wanctl.check_cake import _extract_changes_for_direction
+
+        data = _optimal_queue_type_data("download")
+        changes = _extract_changes_for_direction(data, "download", None)
+        assert changes == {}
+
+    def test_returns_changes_for_suboptimal_params(self):
+        """Returns {key: (current, recommended)} for each sub-optimal param."""
+        from wanctl.check_cake import _extract_changes_for_direction
+
+        data = _optimal_queue_type_data("download")
+        data["cake-nat"] = "no"
+        data["cake-flowmode"] = "dual-srchost"
+        changes = _extract_changes_for_direction(data, "download", None)
+
+        assert "cake-nat" in changes
+        assert changes["cake-nat"] == ("no", "yes")
+        assert "cake-flowmode" in changes
+        assert changes["cake-flowmode"] == ("dual-srchost", "triple-isolate")
+
+    def test_includes_wash_with_direction_dependent_value(self):
+        """Includes wash with direction-dependent expected value."""
+        from wanctl.check_cake import _extract_changes_for_direction
+
+        # Upload with wrong wash
+        data = _optimal_queue_type_data("upload")
+        data["cake-wash"] = "no"
+        changes = _extract_changes_for_direction(data, "upload", None)
+        assert "cake-wash" in changes
+        assert changes["cake-wash"] == ("no", "yes")
+
+        # Download with wrong wash
+        data2 = _optimal_queue_type_data("download")
+        data2["cake-wash"] = "yes"
+        changes2 = _extract_changes_for_direction(data2, "download", None)
+        assert "cake-wash" in changes2
+        assert changes2["cake-wash"] == ("yes", "no")
+
+    def test_includes_overhead_and_rtt_when_cake_config_present(self):
+        """Includes overhead and rtt when cake_config is present."""
+        from wanctl.check_cake import _extract_changes_for_direction
+
+        data = _optimal_queue_type_data("download")
+        data["cake-overhead"] = "44"
+        data["cake-rtt"] = "200ms"
+        cake_config = {"overhead": 18, "rtt": "100ms"}
+        changes = _extract_changes_for_direction(data, "download", cake_config)
+
+        assert "cake-overhead" in changes
+        assert changes["cake-overhead"] == ("44", "18")
+        assert "cake-rtt" in changes
+        assert changes["cake-rtt"] == ("200ms", "100ms")
+
+    def test_skips_overhead_rtt_when_no_cake_config(self):
+        """Skips overhead/rtt when cake_config is None."""
+        from wanctl.check_cake import _extract_changes_for_direction
+
+        data = _optimal_queue_type_data("download")
+        data["cake-overhead"] = "44"  # Wrong but should be ignored
+        data["cake-rtt"] = "200ms"    # Wrong but should be ignored
+        changes = _extract_changes_for_direction(data, "download", None)
+
+        assert "cake-overhead" not in changes
+        assert "cake-rtt" not in changes
