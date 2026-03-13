@@ -93,12 +93,12 @@ Plans:
 3. Netperf server connectivity is verified with a 3s timeout before starting the full test -- fast failure instead of waiting 60s
 4. `--quick` mode runs a 10-second test for fast iteration during tuning; `--server` overrides the default netperf server host
 5. Benchmark output shows latency percentiles (P50/P95/P99) and throughput alongside the letter grade
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 86-01: TBD
-- [ ] 86-02: TBD
+- [ ] 86-01-PLAN.md -- Data model, grade computation, and flent result parsing (BenchmarkResult, compute_grade, extract functions)
+- [ ] 86-02-PLAN.md -- CLI tool, prerequisites, subprocess orchestration, output formatting, entry point
 
 ### Phase 87: Benchmark Storage & Comparison
 
@@ -130,7 +130,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | ----------------------------------------- | -------------- | ----------- | ---------- |
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
 | 85. Auto-Fix CLI Integration              | 2/2 | Complete    | 2026-03-13 |
-| 86. Bufferbloat Benchmarking              | 0/?            | Not started | -          |
+| 86. Bufferbloat Benchmarking              | 0/2            | Not started | -          |
 | 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
 
 ### Completed Milestones
