@@ -70,12 +70,12 @@ Plans:
 2. Config type is auto-detected from YAML contents (autorate vs steering) with clear error if detection fails
 3. Steering cross-config validation verifies that `topology.primary_wan_config` path exists and `wan_name` matches `topology.primary_wan`
 4. `--json` flag produces structured JSON output suitable for scripting and CI pipelines
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 82-01: TBD
-- [ ] 82-02: TBD
+- [ ] 82-01-PLAN.md -- Steering validation, auto-detection, cross-config checks, and --type flag
+- [ ] 82-02-PLAN.md -- JSON output mode (--json) for CI/scripting integration
 
 ### Phase 83: CAKE Qdisc Audit
 
@@ -106,7 +106,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | Phase                              | Plans Complete | Status      | Completed  |
 | ---------------------------------- | -------------- | ----------- | ---------- |
 | 81. Config Validation Foundation   | 1/1            | Complete    | 2026-03-12 |
-| 82. Steering Config + Output Modes | 0/?            | Not started | -          |
+| 82. Steering Config + Output Modes | 0/2            | Not started | -          |
 | 83. CAKE Qdisc Audit               | 0/?            | Not started | -          |
 
 ### Completed Milestones
@@ -123,7 +123,7 @@ Phases execute in numeric order: 81 -> 82 -> 83
 | v1.8 Resilience & Robustness         | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.5 Quality & Hygiene              | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability                   | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24  | 5     | Complete | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20  | 5     | Complete | 2026-01-14 |
