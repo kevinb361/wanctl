@@ -1,17 +1,21 @@
 """Comprehensive tests for wanctl-check-config CLI tool.
 
-Covers all 7 phase requirements:
+Covers all phase requirements:
   CVAL-01: CLI validates config offline
+  CVAL-02: Steering config validation
+  CVAL-03: Auto-detection of config type
   CVAL-04: All errors collected (not just first)
   CVAL-05: Cross-field semantic validation
   CVAL-06: File/permission checks
   CVAL-07: Env var resolution warnings
   CVAL-08: Deprecated parameter surfacing
+  CVAL-09: Cross-config validation
   CVAL-11: Exit codes 0/1/2
 """
 
 import sys
 
+import pytest
 import yaml
 
 from wanctl.check_config import (
@@ -20,12 +24,18 @@ from wanctl.check_config import (
     check_deprecated_params,
     check_env_vars,
     check_paths,
+    check_steering_cross_config,
+    check_steering_deprecated_params,
+    check_steering_unknown_keys,
     check_unknown_keys,
     create_parser,
+    detect_config_type,
     format_results,
     main,
     validate_cross_fields,
     validate_schema_fields,
+    validate_steering_cross_fields,
+    validate_steering_schema_fields,
 )
 
 # =============================================================================
@@ -537,3 +547,327 @@ class TestOutputFormat:
         ]
         output = format_results(results, no_color=True)
         assert "-> fix it" in output
+
+    def test_summary_includes_config_type_steering(self):
+        results = [
+            CheckResult("Test", "field", Severity.PASS, "ok"),
+        ]
+        output = format_results(results, no_color=True, config_type="steering")
+        assert "steering config" in output
+
+    def test_summary_includes_config_type_autorate(self):
+        results = [
+            CheckResult("Test", "field", Severity.PASS, "ok"),
+        ]
+        output = format_results(results, no_color=True, config_type="autorate")
+        assert "autorate config" in output
+
+
+# =============================================================================
+# STEERING CONFIG FIXTURE
+# =============================================================================
+
+
+def _valid_steering_data() -> dict:
+    """Return a minimal valid steering config dict.
+
+    All required BASE_SCHEMA + SteeringConfig.SCHEMA fields present.
+    """
+    return {
+        "wan_name": "steering",
+        "router": {
+            "host": "10.0.0.1",
+            "user": "admin",
+            "ssh_key": "/tmp/fake_key",
+            "transport": "rest",
+            "password": "${ROUTER_PASSWORD}",
+        },
+        "topology": {
+            "primary_wan": "spectrum",
+            "primary_wan_config": "/etc/wanctl/spectrum.yaml",
+            "alternate_wan": "att",
+        },
+        "mangle_rule": {
+            "comment": "ADAPTIVE: Steer latency-sensitive to ATT",
+        },
+        "measurement": {
+            "interval_seconds": 0.5,
+            "ping_host": "1.1.1.1",
+            "ping_count": 3,
+        },
+        "state": {
+            "file": "/var/lib/wanctl/steering_state.json",
+            "history_size": 240,
+        },
+        "thresholds": {
+            "bad_threshold_ms": 25.0,
+            "recovery_threshold_ms": 12.0,
+        },
+        "logging": {
+            "main_log": "/tmp/test.log",
+            "debug_log": "/tmp/test_debug.log",
+        },
+        "lock_file": "/tmp/test.lock",
+        "lock_timeout": 60,
+    }
+
+
+# =============================================================================
+# TestConfigTypeDetection (CVAL-03)
+# =============================================================================
+
+
+class TestConfigTypeDetection:
+    """Test config type auto-detection."""
+
+    def test_topology_key_returns_steering(self):
+        data = _valid_steering_data()
+        assert detect_config_type(data) == "steering"
+
+    def test_continuous_monitoring_key_returns_autorate(self):
+        data = _valid_config_data()
+        assert detect_config_type(data) == "autorate"
+
+    def test_both_keys_raises_value_error(self):
+        data = _valid_config_data()
+        data["topology"] = {"primary_wan": "wan1"}
+        with pytest.raises(ValueError, match="ambiguous"):
+            detect_config_type(data)
+
+    def test_neither_key_raises_value_error(self):
+        data = {"wan_name": "test", "router": {"host": "1.2.3.4"}}
+        with pytest.raises(ValueError, match="could not determine"):
+            detect_config_type(data)
+
+    def test_type_flag_overrides_detection(self, tmp_path, monkeypatch):
+        """--type autorate forces autorate validation on a steering config."""
+        config = _valid_steering_data()
+        config["logging"]["main_log"] = str(tmp_path / "test.log")
+        config["logging"]["debug_log"] = str(tmp_path / "debug.log")
+        config_path = _write_config(tmp_path, config)
+
+        monkeypatch.setattr(
+            sys, "argv",
+            ["wanctl-check-config", config_path, "--no-color", "--type", "autorate"],
+        )
+        # Should not crash -- runs autorate validators (may produce errors, that's OK)
+        result = main()
+        assert isinstance(result, int)
+
+
+# =============================================================================
+# TestSteeringValidation (CVAL-02)
+# =============================================================================
+
+
+class TestSteeringValidation:
+    """Test steering-specific schema validation."""
+
+    def test_valid_steering_config_no_errors(self):
+        data = _valid_steering_data()
+        results = validate_steering_schema_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 0
+
+    def test_missing_topology_primary_wan_produces_error(self):
+        data = _valid_steering_data()
+        del data["topology"]["primary_wan"]
+        results = validate_steering_schema_fields(data)
+        errors = [
+            r for r in results
+            if r.severity == Severity.ERROR and "topology.primary_wan" in r.field
+        ]
+        assert len(errors) == 1
+
+    def test_unknown_steering_key_produces_warn_with_suggestion(self):
+        data = _valid_steering_data()
+        data["measuremnt"] = {"interval_seconds": 0.5}  # typo
+        results = check_steering_unknown_keys(data)
+        warns = [
+            r for r in results
+            if r.severity == Severity.WARN and "measuremnt" in r.field
+        ]
+        assert len(warns) >= 1
+        assert "did you mean" in (warns[0].suggestion or "").lower()
+
+    def test_production_steering_yaml_no_unknown_keys(self):
+        """Production steering.yaml must produce zero unknown-key warnings."""
+        with open("configs/steering.yaml") as f:
+            data = yaml.safe_load(f)
+        results = check_steering_unknown_keys(data)
+        warns = [r for r in results if r.severity == Severity.WARN]
+        assert len(warns) == 0, f"False positive warnings: {[w.message for w in warns]}"
+
+    def test_alerting_rules_subkeys_not_flagged_steering(self):
+        """Dynamic alerting.rules.* sub-keys not flagged in steering."""
+        data = _valid_steering_data()
+        data["alerting"] = {
+            "enabled": True,
+            "webhook_url": "https://example.com",
+            "rules": {
+                "congestion_download": {
+                    "severity": "warning",
+                    "cooldown_sec": 300,
+                },
+            },
+        }
+        results = check_steering_unknown_keys(data)
+        warns = [
+            r for r in results
+            if r.severity == Severity.WARN and "alerting" in r.field
+        ]
+        assert len(warns) == 0
+
+
+# =============================================================================
+# TestSteeringCrossField
+# =============================================================================
+
+
+class TestSteeringCrossField:
+    """Test steering-specific cross-field validation."""
+
+    def test_recovery_ge_steer_threshold_produces_error(self):
+        """recovery_threshold >= steer_threshold when use_confidence_scoring=true."""
+        data = _valid_steering_data()
+        data["mode"] = {"use_confidence_scoring": True}
+        data["confidence"] = {
+            "steer_threshold": 55,
+            "recovery_threshold": 60,  # >= steer_threshold
+        }
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) >= 1
+        assert "recovery_threshold" in errors[0].message
+
+    def test_valid_threshold_ordering_produces_pass(self):
+        data = _valid_steering_data()
+        data["mode"] = {"use_confidence_scoring": True}
+        data["confidence"] = {
+            "steer_threshold": 55,
+            "recovery_threshold": 20,
+        }
+        results = validate_steering_cross_fields(data)
+        passes = [r for r in results if r.severity == Severity.PASS and "confidence" in r.field.lower()]
+        assert len(passes) >= 1
+
+    def test_interval_below_005_produces_warn(self):
+        data = _valid_steering_data()
+        data["measurement"]["interval_seconds"] = 0.01
+        results = validate_steering_cross_fields(data)
+        warns = [
+            r for r in results
+            if r.severity == Severity.WARN and "interval" in r.field
+        ]
+        assert len(warns) == 1
+
+    def test_history_window_below_30s_produces_warn(self):
+        data = _valid_steering_data()
+        data["measurement"]["interval_seconds"] = 0.5
+        data["state"]["history_size"] = 10  # 10 * 0.5 = 5s < 30s
+        results = validate_steering_cross_fields(data)
+        warns = [
+            r for r in results
+            if r.severity == Severity.WARN and "history_size" in r.field
+        ]
+        assert len(warns) == 1
+
+
+# =============================================================================
+# TestSteeringDeprecated
+# =============================================================================
+
+
+class TestSteeringDeprecated:
+    """Test steering deprecated parameter detection."""
+
+    def test_mode_cake_aware_produces_warn(self):
+        data = _valid_steering_data()
+        data["mode"] = {"cake_aware": True}
+        results = check_steering_deprecated_params(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "cake_aware" in r.field]
+        assert len(warns) == 1
+
+    def test_cake_state_sources_spectrum_produces_warn(self):
+        data = _valid_steering_data()
+        data["cake_state_sources"] = {"spectrum": "/run/wanctl/spectrum_state.json"}
+        results = check_steering_deprecated_params(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "spectrum" in r.field]
+        assert len(warns) == 1
+
+    def test_cake_queues_spectrum_download_produces_warn(self):
+        data = _valid_steering_data()
+        data["cake_queues"] = {"spectrum_download": "WAN-Download-Spectrum"}
+        results = check_steering_deprecated_params(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "spectrum_download" in r.field]
+        assert len(warns) == 1
+
+
+# =============================================================================
+# TestCrossConfigValidation (CVAL-09)
+# =============================================================================
+
+
+class TestCrossConfigValidation:
+    """Test steering cross-config validation."""
+
+    def test_missing_primary_wan_config_file_produces_warn(self):
+        data = _valid_steering_data()
+        data["topology"]["primary_wan_config"] = "/nonexistent/spectrum.yaml"
+        results = check_steering_cross_config(data)
+        warns = [
+            r for r in results
+            if r.severity == Severity.WARN and "primary_wan_config" in r.field
+        ]
+        assert len(warns) == 1
+
+    def test_file_exists_wan_name_matches_produces_pass(self, tmp_path):
+        ref_config = tmp_path / "spectrum.yaml"
+        ref_config.write_text(yaml.dump({"wan_name": "spectrum"}))
+        data = _valid_steering_data()
+        data["topology"]["primary_wan"] = "spectrum"
+        data["topology"]["primary_wan_config"] = str(ref_config)
+        results = check_steering_cross_config(data)
+        passes = [r for r in results if r.severity == Severity.PASS]
+        assert len(passes) >= 1  # file exists + wan_name match
+
+    def test_file_exists_wan_name_mismatches_produces_error(self, tmp_path):
+        ref_config = tmp_path / "spectrum.yaml"
+        ref_config.write_text(yaml.dump({"wan_name": "att"}))
+        data = _valid_steering_data()
+        data["topology"]["primary_wan"] = "spectrum"
+        data["topology"]["primary_wan_config"] = str(ref_config)
+        results = check_steering_cross_config(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 1
+        assert "mismatch" in errors[0].message
+
+    def test_file_exists_no_wan_name_key_produces_warn(self, tmp_path):
+        ref_config = tmp_path / "spectrum.yaml"
+        ref_config.write_text(yaml.dump({"router": {"host": "1.2.3.4"}}))
+        data = _valid_steering_data()
+        data["topology"]["primary_wan_config"] = str(ref_config)
+        results = check_steering_cross_config(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "wan_name" in r.field]
+        assert len(warns) == 1
+
+    def test_file_exists_invalid_yaml_produces_warn(self, tmp_path):
+        ref_config = tmp_path / "spectrum.yaml"
+        ref_config.write_text("key: [unclosed bracket\n  bad: {indent")
+        data = _valid_steering_data()
+        data["topology"]["primary_wan_config"] = str(ref_config)
+        results = check_steering_cross_config(data)
+        warns = [r for r in results if r.severity == Severity.WARN]
+        assert len(warns) >= 1
+
+    def test_file_unreadable_produces_warn(self, tmp_path):
+        ref_config = tmp_path / "spectrum.yaml"
+        ref_config.write_text(yaml.dump({"wan_name": "spectrum"}))
+        ref_config.chmod(0o000)
+        data = _valid_steering_data()
+        data["topology"]["primary_wan_config"] = str(ref_config)
+        results = check_steering_cross_config(data)
+        warns = [r for r in results if r.severity == Severity.WARN]
+        assert len(warns) >= 1
+        # Cleanup permissions for tmp_path cleanup
+        ref_config.chmod(0o644)
