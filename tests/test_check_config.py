@@ -13,6 +13,7 @@ Covers all phase requirements:
   CVAL-11: Exit codes 0/1/2
 """
 
+import json
 import sys
 
 import pytest
@@ -31,6 +32,7 @@ from wanctl.check_config import (
     create_parser,
     detect_config_type,
     format_results,
+    format_results_json,
     main,
     validate_cross_fields,
     validate_schema_fields,
@@ -871,3 +873,251 @@ class TestCrossConfigValidation:
         assert len(warns) >= 1
         # Cleanup permissions for tmp_path cleanup
         ref_config.chmod(0o644)
+
+
+# =============================================================================
+# TestJsonOutput (CVAL-10)
+# =============================================================================
+
+
+class TestJsonOutput:
+    """Test JSON output mode for CI/scripting integration."""
+
+    def test_json_output_has_top_level_keys(self):
+        """JSON output contains config_type, result, errors, warnings, categories."""
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.PASS, "wan_name: valid"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert "config_type" in data
+        assert "result" in data
+        assert "errors" in data
+        assert "warnings" in data
+        assert "categories" in data
+
+    def test_json_config_type_matches_detected_type_steering(self):
+        results = [
+            CheckResult("Schema Validation", "topology", Severity.PASS, "topology: valid"),
+        ]
+        output = format_results_json(results, config_type="steering")
+        data = json.loads(output)
+        assert data["config_type"] == "steering"
+
+    def test_json_config_type_matches_detected_type_autorate(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.PASS, "wan_name: valid"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert data["config_type"] == "autorate"
+
+    def test_json_result_pass_when_no_errors_or_warnings(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.PASS, "wan_name: valid"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert data["result"] == "PASS"
+
+    def test_json_result_warn_when_warnings_only(self):
+        results = [
+            CheckResult("Unknown Keys", "typo_key", Severity.WARN, "Unknown config key: typo_key"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert data["result"] == "WARN"
+
+    def test_json_result_fail_when_errors(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.ERROR, "wan_name: missing"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert data["result"] == "FAIL"
+
+    def test_json_errors_and_warnings_are_integer_counts(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.ERROR, "missing"),
+            CheckResult("Schema Validation", "router.host", Severity.ERROR, "wrong type"),
+            CheckResult("Unknown Keys", "typo_key", Severity.WARN, "unknown key"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert data["errors"] == 2
+        assert data["warnings"] == 1
+        assert isinstance(data["errors"], int)
+        assert isinstance(data["warnings"], int)
+
+    def test_json_categories_is_dict_with_category_keys(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.PASS, "wan_name: valid"),
+            CheckResult("Cross-field Checks", "floors", Severity.PASS, "floors: valid"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert isinstance(data["categories"], dict)
+        assert "Schema Validation" in data["categories"]
+        assert "Cross-field Checks" in data["categories"]
+
+    def test_json_check_objects_have_required_keys(self):
+        results = [
+            CheckResult("Schema Validation", "wan_name", Severity.PASS, "wan_name: valid"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        checks = data["categories"]["Schema Validation"]
+        assert len(checks) == 1
+        check = checks[0]
+        assert "field" in check
+        assert "severity" in check
+        assert "message" in check
+
+    def test_json_suggestion_present_when_not_none(self):
+        results = [
+            CheckResult("Test", "field", Severity.WARN, "warning", suggestion="fix it"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        check = data["categories"]["Test"][0]
+        assert check["suggestion"] == "fix it"
+
+    def test_json_suggestion_omitted_when_none(self):
+        results = [
+            CheckResult("Test", "field", Severity.PASS, "ok"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        check = data["categories"]["Test"][0]
+        assert "suggestion" not in check
+
+    def test_json_severity_values_are_lowercase_strings(self):
+        results = [
+            CheckResult("Test", "f1", Severity.PASS, "ok"),
+            CheckResult("Test", "f2", Severity.WARN, "warn"),
+            CheckResult("Test", "f3", Severity.ERROR, "err"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        severities = [c["severity"] for c in data["categories"]["Test"]]
+        assert severities == ["pass", "warn", "error"]
+
+    def test_json_all_results_included_not_filtered(self):
+        """All results (pass, warn, error) appear in JSON output."""
+        results = [
+            CheckResult("Cat1", "f1", Severity.PASS, "pass msg"),
+            CheckResult("Cat1", "f2", Severity.WARN, "warn msg"),
+            CheckResult("Cat1", "f3", Severity.ERROR, "error msg"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        data = json.loads(output)
+        assert len(data["categories"]["Cat1"]) == 3
+
+    def test_json_output_is_valid_json(self):
+        results = [
+            CheckResult("Test", "field", Severity.PASS, "ok"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        # Should not raise
+        parsed = json.loads(output)
+        assert isinstance(parsed, dict)
+
+    def test_json_output_has_no_ansi_escape_codes(self):
+        results = [
+            CheckResult("Test", "field", Severity.ERROR, "error msg"),
+            CheckResult("Test", "f2", Severity.WARN, "warn msg"),
+            CheckResult("Test", "f3", Severity.PASS, "pass msg"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        assert "\033[" not in output
+
+    def test_json_exit_code_0_for_clean_config(self, tmp_path, monkeypatch):
+        config = _valid_config_data()
+        config["logging"]["main_log"] = str(tmp_path / "test.log")
+        config["logging"]["debug_log"] = str(tmp_path / "debug.log")
+        config["router"]["ssh_key"] = str(tmp_path / "key")
+        config["router"]["transport"] = "rest"
+        config["router"]["password"] = "plaintext"
+        config_path = _write_config(tmp_path, config)
+
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", config_path, "--json"]
+        )
+        result = main()
+        assert result == 0
+
+    def test_json_exit_code_1_for_config_with_errors(self, tmp_path, monkeypatch):
+        config = _valid_config_data()
+        del config["wan_name"]  # Missing required field -> ERROR
+        config["router"]["password"] = "plaintext"
+        config_path = _write_config(tmp_path, config)
+
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", config_path, "--json"]
+        )
+        result = main()
+        assert result == 1
+
+    def test_json_exit_code_2_for_warnings_only(self, tmp_path, monkeypatch):
+        config = _valid_config_data()
+        config["logging"]["main_log"] = str(tmp_path / "test.log")
+        config["logging"]["debug_log"] = str(tmp_path / "debug.log")
+        config["router"]["ssh_key"] = str(tmp_path / "key")
+        config["router"]["transport"] = "rest"
+        del config["continuous_monitoring"]["thresholds"]["baseline_time_constant_sec"]
+        config["continuous_monitoring"]["thresholds"]["alpha_baseline"] = 0.005
+        config["router"]["password"] = "plaintext"
+        config_path = _write_config(tmp_path, config)
+
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", config_path, "--json"]
+        )
+        result = main()
+        assert result == 2
+
+    def test_json_and_quiet_are_independent(self, tmp_path, monkeypatch, capsys):
+        """--json output unchanged by --quiet."""
+        config = _valid_config_data()
+        config["logging"]["main_log"] = str(tmp_path / "test.log")
+        config["logging"]["debug_log"] = str(tmp_path / "debug.log")
+        config["router"]["ssh_key"] = str(tmp_path / "key")
+        config["router"]["transport"] = "rest"
+        config["router"]["password"] = "plaintext"
+        config_path = _write_config(tmp_path, config)
+
+        # Run with --json only
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", config_path, "--json"]
+        )
+        main()
+        json_only = capsys.readouterr().out.strip()
+
+        # Run with --json --quiet
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", config_path, "--json", "-q"]
+        )
+        main()
+        json_quiet = capsys.readouterr().out.strip()
+
+        # Both should produce identical JSON
+        assert json.loads(json_only) == json.loads(json_quiet)
+
+    def test_json_pipe_friendly(self):
+        """json.loads(output)["result"] works for piping."""
+        results = [
+            CheckResult("Test", "field", Severity.PASS, "ok"),
+        ]
+        output = format_results_json(results, config_type="autorate")
+        assert json.loads(output)["result"] == "PASS"
+
+    def test_json_cli_flag_parsed(self):
+        """--json flag is recognized by parser."""
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml", "--json"])
+        assert args.json is True
+
+    def test_json_cli_flag_default_false(self):
+        """--json defaults to False."""
+        parser = create_parser()
+        args = parser.parse_args(["test.yaml"])
+        assert args.json is False
