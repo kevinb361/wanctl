@@ -1,8 +1,9 @@
-"""Live router audit for CAKE queue configuration.
+"""Live router audit and auto-fix for CAKE queue configuration.
 
 Connects to a MikroTik router and verifies CAKE queue tree setup,
 qdisc types, max-limit values, and mangle rules against what the
-wanctl config expects. Strictly read-only -- never modifies router state.
+wanctl config expects. With --fix, applies recommended CAKE parameters
+to the router after confirmation.
 
 Auto-detects config type (autorate vs steering) and runs appropriate
 validators. Reports results in the same category-grouped format as
@@ -15,6 +16,9 @@ Usage:
     wanctl-check-cake spectrum.yaml --no-color
     wanctl-check-cake spectrum.yaml --json
     wanctl-check-cake spectrum.yaml -q
+    wanctl-check-cake spectrum.yaml --fix
+    wanctl-check-cake spectrum.yaml --fix --yes
+    wanctl-check-cake spectrum.yaml --fix --yes --json
 """
 
 import argparse
@@ -1137,6 +1141,17 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-color", action="store_true", help="Disable colored output")
     parser.add_argument("-q", "--quiet", action="store_true", help="Only show warnings and errors")
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply recommended CAKE parameters to router",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompt (required with --fix --json)",
+    )
     return parser
 
 
@@ -1193,7 +1208,18 @@ def main() -> int:
             return 1
 
     try:
-        results = run_audit(data, config_type, client)
+        if args.fix:
+            wan_name = data.get("wan_name", "unknown")
+            results = run_fix(
+                data,
+                config_type,
+                client,
+                yes=args.yes,
+                json_mode=args.json,
+                wan_name=wan_name,
+            )
+        else:
+            results = run_audit(data, config_type, client)
     finally:
         if client is not None and hasattr(client, "close"):
             client.close()
