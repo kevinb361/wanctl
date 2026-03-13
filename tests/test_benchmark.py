@@ -600,3 +600,481 @@ class TestPrintPrerequisites:
         captured = capsys.readouterr()
         # Check for ANSI color codes (green=32, red=31)
         assert "\033[" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# Task 2: CLI orchestration, flent subprocess, output formatting, entry point
+# ---------------------------------------------------------------------------
+
+
+def _make_benchmark_result(**overrides: object):  # noqa: ANN201
+    """Helper to create a BenchmarkResult with sensible defaults."""
+    from wanctl.benchmark import BenchmarkResult
+
+    defaults = dict(
+        download_grade="A+",
+        upload_grade="A+",
+        download_latency_avg=3.2,
+        download_latency_p50=2.8,
+        download_latency_p95=8.1,
+        download_latency_p99=12.4,
+        upload_latency_avg=3.2,
+        upload_latency_p50=2.8,
+        upload_latency_p95=8.1,
+        upload_latency_p99=12.4,
+        download_throughput=94.2,
+        upload_throughput=11.3,
+        baseline_rtt=23.1,
+        server="netperf.bufferbloat.net",
+        duration=60,
+        timestamp="2026-03-13T21:00:00+00:00",
+    )
+    defaults.update(overrides)
+    return BenchmarkResult(**defaults)  # type: ignore[arg-type]
+
+
+class TestRunBenchmark:
+    """Verify run_benchmark orchestrates flent subprocess and returns BenchmarkResult."""
+
+    @patch("wanctl.benchmark.build_result")
+    @patch("wanctl.benchmark.parse_flent_results")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_successful_run(
+        self,
+        mock_run: MagicMock,
+        mock_parse: MagicMock,
+        mock_build: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Successful flent run returns BenchmarkResult."""
+        from wanctl.benchmark import run_benchmark
+
+        mock_run.return_value = MagicMock(returncode=0)
+        mock_parse.return_value = SAMPLE_FLENT_DATA
+        expected = _make_benchmark_result()
+        mock_build.return_value = expected
+
+        result = run_benchmark("netperf.bufferbloat.net", 60, baseline_rtt=23.1)
+        assert result is expected
+
+        # Verify flent was called with correct args
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "flent"
+        assert "rrul" in cmd
+        assert "-H" in cmd
+        assert "-l" in cmd
+        assert "60" in cmd
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_flent_failure(self, mock_run: MagicMock) -> None:
+        """Flent returns non-zero: run_benchmark returns None."""
+        from wanctl.benchmark import run_benchmark
+
+        mock_run.return_value = MagicMock(returncode=1, stderr="flent error")
+
+        result = run_benchmark("server", 60, baseline_rtt=20.0)
+        assert result is None
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_flent_timeout(self, mock_run: MagicMock) -> None:
+        """Flent times out: run_benchmark returns None."""
+        from wanctl.benchmark import run_benchmark
+
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="flent", timeout=90)
+
+        result = run_benchmark("server", 60, baseline_rtt=20.0)
+        assert result is None
+
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_timeout_value(self, mock_run: MagicMock) -> None:
+        """subprocess.run timeout = duration + 30."""
+        from wanctl.benchmark import run_benchmark
+
+        mock_run.return_value = MagicMock(returncode=1, stderr="")
+
+        run_benchmark("server", 60, baseline_rtt=20.0)
+        assert mock_run.call_args[1]["timeout"] == 90  # 60 + 30
+
+
+class TestQuickMode:
+    """Verify --quick passes -l 10 to flent."""
+
+    @patch("wanctl.benchmark.build_result")
+    @patch("wanctl.benchmark.parse_flent_results")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_quick_duration(
+        self,
+        mock_run: MagicMock,
+        mock_parse: MagicMock,
+        mock_build: MagicMock,
+    ) -> None:
+        """Quick mode passes duration=10 to flent."""
+        from wanctl.benchmark import run_benchmark
+
+        mock_run.return_value = MagicMock(returncode=0)
+        mock_parse.return_value = SAMPLE_FLENT_DATA
+        mock_build.return_value = _make_benchmark_result(duration=10)
+
+        run_benchmark("server", 10, baseline_rtt=20.0)
+
+        cmd = mock_run.call_args[0][0]
+        assert "10" in cmd
+
+
+class TestFormatGradeDisplay:
+    """Verify format_grade_display produces readable output with grades and detail."""
+
+    def test_contains_grades(self) -> None:
+        """Output contains download and upload grade letters."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result(download_grade="A+", upload_grade="A+")
+        output = format_grade_display(result, color=False)
+        assert "A+" in output
+        assert "Download" in output
+        assert "Upload" in output
+
+    def test_contains_latency_detail(self) -> None:
+        """Output contains latency percentiles."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result()
+        output = format_grade_display(result, color=False)
+        assert "Avg" in output or "avg" in output.lower()
+        assert "P50" in output or "p50" in output.lower()
+        assert "P95" in output or "p95" in output.lower()
+        assert "P99" in output or "p99" in output.lower()
+
+    def test_contains_throughput(self) -> None:
+        """Output contains throughput values."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result(download_throughput=94.2, upload_throughput=11.3)
+        output = format_grade_display(result, color=False)
+        assert "94.2" in output
+        assert "11.3" in output
+        assert "Mbps" in output
+
+    def test_contains_baseline_info(self) -> None:
+        """Output contains baseline RTT and server info."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result(
+            baseline_rtt=23.1, server="netperf.bufferbloat.net", duration=60
+        )
+        output = format_grade_display(result, color=False)
+        assert "23.1" in output
+        assert "netperf.bufferbloat.net" in output
+        assert "60" in output
+
+    def test_quick_mode_note(self) -> None:
+        """Quick mode (10s duration) adds accuracy note."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result(duration=10)
+        output = format_grade_display(result, color=False)
+        assert "quick" in output.lower() or "Quick" in output
+
+    def test_no_quick_note_for_60s(self) -> None:
+        """60s test does not show quick mode note."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result(duration=60)
+        output = format_grade_display(result, color=False)
+        assert "quick" not in output.lower()
+
+    def test_color_output_has_ansi(self) -> None:
+        """Color mode: output contains ANSI escape codes."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result()
+        output = format_grade_display(result, color=True)
+        assert "\033[" in output
+
+    def test_no_color_output_no_ansi(self) -> None:
+        """No-color mode: output has no ANSI escape codes."""
+        from wanctl.benchmark import format_grade_display
+
+        result = _make_benchmark_result()
+        output = format_grade_display(result, color=False)
+        assert "\033[" not in output
+
+
+class TestFormatJson:
+    """Verify format_json outputs valid JSON with all BenchmarkResult fields."""
+
+    def test_valid_json(self) -> None:
+        """Output is valid JSON."""
+        from wanctl.benchmark import format_json
+
+        result = _make_benchmark_result()
+        output = format_json(result)
+        parsed = json.loads(output)
+        assert isinstance(parsed, dict)
+
+    def test_all_fields_present(self) -> None:
+        """JSON contains all 16 BenchmarkResult fields."""
+        from wanctl.benchmark import format_json
+
+        result = _make_benchmark_result()
+        output = format_json(result)
+        parsed = json.loads(output)
+        assert parsed["download_grade"] == "A+"
+        assert parsed["upload_grade"] == "A+"
+        assert parsed["download_latency_avg"] == 3.2
+        assert parsed["baseline_rtt"] == 23.1
+        assert parsed["server"] == "netperf.bufferbloat.net"
+        assert parsed["duration"] == 60
+        assert len(parsed) == 16
+
+
+class TestCreateParser:
+    """Verify argparse parser has all expected arguments."""
+
+    def test_has_server_flag(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--server", "custom.server.com"])
+        assert args.server == "custom.server.com"
+
+    def test_server_default(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args([])
+        assert args.server == "netperf.bufferbloat.net"
+
+    def test_has_quick_flag(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--quick"])
+        assert args.quick is True
+
+    def test_has_json_flag(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--json"])
+        assert args.json is True
+
+    def test_has_no_color_flag(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--no-color"])
+        assert args.no_color is True
+
+    def test_defaults(self) -> None:
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args([])
+        assert args.quick is False
+        assert args.json is False
+        assert args.no_color is False
+
+
+class TestMain:
+    """Verify main() orchestrates full CLI flow."""
+
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_success_flow(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Full success: prerequisites pass, benchmark runs, grade displayed."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        expected_result = _make_benchmark_result()
+        mock_run.return_value = expected_result
+        mock_format.return_value = "Download: A+   Upload: A+"
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 0
+
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_prerequisite_failure(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+    ) -> None:
+        """Prerequisites fail: returns exit code 1."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", False, "not found -- install with: sudo apt install flent")],
+            0.0,
+        )
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 1
+
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_benchmark_failure(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """Flent fails: returns exit code 1."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = None
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 1
+
+    @patch("wanctl.benchmark.format_json")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_json_output(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format_json: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--json flag outputs JSON to stdout."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format_json.return_value = '{"download_grade": "A+"}'
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--json"]):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "A+" in captured.out
+
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_daemon_warning_printed(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """Daemon running: warning printed but test proceeds."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (True, "wanctl daemon is running (PID 1234)")
+        mock_run.return_value = _make_benchmark_result()
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        # Warning printed but test still runs and succeeds
+        assert exit_code == 0
+
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_quick_mode_sets_duration(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """--quick sets duration to 10."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--quick"]):
+            main()
+
+        # Verify run_benchmark was called with duration=10
+        mock_run.assert_called_once()
+        assert mock_run.call_args[1].get("duration", mock_run.call_args[0][1]) == 10
+
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_custom_server(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """--server passes custom server to check_prerequisites and run_benchmark."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+
+        with patch(
+            "wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--server", "custom.host"]
+        ):
+            main()
+
+        mock_prereqs.assert_called_once_with("custom.host")
+        assert mock_run.call_args[0][0] == "custom.host"

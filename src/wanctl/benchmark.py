@@ -10,6 +10,8 @@ load minus baseline RTT):
     A+ < 5ms, A < 15ms, B < 30ms, C < 60ms, D < 200ms, F >= 200ms
 """
 
+import argparse
+import dataclasses
 import glob
 import gzip
 import json
@@ -17,6 +19,7 @@ import shutil
 import statistics
 import subprocess  # nosec B404
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -297,3 +300,209 @@ def _print_prerequisites(
         else:
             marker = f"{red}[FAIL]{reset}"
         print(f"  {marker} {name}: {detail}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Benchmark orchestration
+# ---------------------------------------------------------------------------
+
+
+def run_benchmark(
+    server: str,
+    duration: int,
+    *,
+    baseline_rtt: float = 0.0,
+) -> BenchmarkResult | None:
+    """Run an RRUL benchmark test via ``flent`` and return the result.
+
+    Creates a temporary directory for the flent output file, runs
+    ``flent rrul``, parses the results, and returns a :class:`BenchmarkResult`.
+    Returns ``None`` if flent fails or times out.
+    """
+    tmpdir = tempfile.mkdtemp(prefix="wanctl-benchmark-")
+    output_path = str(Path(tmpdir) / "result.flent.gz")
+
+    cmd = ["flent", "rrul", "-H", server, "-l", str(duration), "-o", output_path]
+
+    print(f"Running RRUL test ({duration}s)...", file=sys.stderr)
+
+    try:
+        result = subprocess.run(  # nosec B603 -- hardcoded flent invocation
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=duration + 30,
+        )
+        if result.returncode != 0:
+            print(f"flent failed: {result.stderr}", file=sys.stderr)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            return None
+    except subprocess.TimeoutExpired:
+        print(f"flent timed out after {duration + 30}s", file=sys.stderr)
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        return None
+
+    # Parse result BEFORE cleaning up tmpdir (gz file is there)
+    try:
+        data = parse_flent_results(output_path)
+        benchmark_result = build_result(data, baseline_rtt, server, duration)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return benchmark_result
+
+
+# ---------------------------------------------------------------------------
+# Output formatting
+# ---------------------------------------------------------------------------
+
+# Grade color mapping: grade -> ANSI color code
+_GRADE_COLORS: dict[str, str] = {
+    "A+": "32",  # green
+    "A": "32",
+    "B": "33",  # yellow
+    "C": "33",
+    "D": "31",  # red
+    "F": "31",
+}
+
+
+def _colorize(text: str, grade: str, color: bool) -> str:
+    """Wrap *text* in ANSI color based on grade if *color* is True."""
+    if not color:
+        return text
+    code = _GRADE_COLORS.get(grade, "0")
+    return f"\033[{code}m{text}\033[0m"
+
+
+def format_grade_display(result: BenchmarkResult, color: bool) -> str:
+    """Format a BenchmarkResult as a human-readable grade display.
+
+    Shows grade prominently with color, followed by latency and throughput
+    detail.
+    """
+    lines: list[str] = []
+
+    # Grade line
+    dl_grade = _colorize(result.download_grade, result.download_grade, color)
+    ul_grade = _colorize(result.upload_grade, result.upload_grade, color)
+    lines.append(f"Download: {dl_grade}   Upload: {ul_grade}")
+    lines.append("")
+
+    # Latency detail
+    lines.append("Latency under load (increase over baseline):")
+    lines.append(
+        f"  Download -- Avg: {result.download_latency_avg:.1f}ms"
+        f"   P50: {result.download_latency_p50:.1f}ms"
+        f"   P95: {result.download_latency_p95:.1f}ms"
+        f"   P99: {result.download_latency_p99:.1f}ms"
+    )
+    lines.append(
+        f"  Upload   -- Avg: {result.upload_latency_avg:.1f}ms"
+        f"   P50: {result.upload_latency_p50:.1f}ms"
+        f"   P95: {result.upload_latency_p95:.1f}ms"
+        f"   P99: {result.upload_latency_p99:.1f}ms"
+    )
+    lines.append("")
+
+    # Throughput
+    lines.append("Throughput:")
+    lines.append(
+        f"  Download: {result.download_throughput:.1f} Mbps"
+        f"   Upload: {result.upload_throughput:.1f} Mbps"
+    )
+    lines.append("")
+
+    # Baseline info
+    lines.append(
+        f"Baseline RTT: {result.baseline_rtt:.1f}ms"
+        f"   Server: {result.server}"
+        f"   Duration: {result.duration}s"
+    )
+
+    # Quick mode note
+    if result.duration <= 10:
+        lines.append("")
+        lines.append(
+            "Note: Quick mode (10s) -- grades may be less accurate"
+            " than full 60s test"
+        )
+
+    return "\n".join(lines)
+
+
+def format_json(result: BenchmarkResult) -> str:
+    """Format a BenchmarkResult as indented JSON."""
+    return json.dumps(dataclasses.asdict(result), indent=2)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def create_parser() -> argparse.ArgumentParser:
+    """Create the argument parser for ``wanctl-benchmark``."""
+    parser = argparse.ArgumentParser(
+        prog="wanctl-benchmark",
+        description="Run RRUL bufferbloat test and grade results",
+    )
+    parser.add_argument(
+        "--server",
+        default="netperf.bufferbloat.net",
+        help="Netperf server host (default: netperf.bufferbloat.net)",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Run 10s quick test instead of 60s full test",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    return parser
+
+
+def main() -> int:
+    """Entry point for ``wanctl-benchmark``."""
+    parser = create_parser()
+    args = parser.parse_args()
+
+    duration = 10 if args.quick else 60
+    use_color = not args.no_color and sys.stderr.isatty()
+
+    # Check prerequisites
+    checks, baseline_rtt = check_prerequisites(args.server)
+    _print_prerequisites(checks, use_color)
+
+    if any(not passed for _, passed, _ in checks):
+        return 1
+
+    # Daemon warning
+    running, detail = check_daemon_running()
+    if running:
+        print(f"WARNING: {detail}", file=sys.stderr)
+        print(
+            "Benchmark results may be affected by running daemon.",
+            file=sys.stderr,
+        )
+
+    # Run benchmark
+    result = run_benchmark(args.server, duration, baseline_rtt=baseline_rtt)
+    if result is None:
+        return 1
+
+    # Output results
+    if args.json:
+        print(format_json(result))
+    else:
+        print(format_grade_display(result, use_color))
+
+    return 0
