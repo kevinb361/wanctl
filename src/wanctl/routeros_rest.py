@@ -701,6 +701,58 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
+    def set_queue_type_params(self, type_name: str, params: dict[str, str]) -> bool:
+        """Set queue type parameters via REST API PATCH.
+
+        Finds the queue type by name via GET, then PATCHes the specified
+        parameters. Used by wanctl-check-cake --fix to correct sub-optimal
+        CAKE qdisc parameters on the router.
+
+        CRITICAL: All param values MUST be strings. RouterOS REST API
+        rejects non-string values in PATCH body.
+
+        Args:
+            type_name: Name of the queue type (e.g., "cake-down-spectrum")
+            params: Dict of parameter names to string values to set
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Find the queue type ID via GET /queue/type?name=...
+        url = f"{self.base_url}/queue/type"
+        try:
+            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
+            if not resp.ok or not resp.json():
+                self.logger.error(f"Queue type not found: {type_name}")
+                return False
+            items = resp.json()
+            if not items:
+                self.logger.error(f"Queue type not found: {type_name}")
+                return False
+            type_id = items[0].get(".id")
+            if not type_id:
+                self.logger.error(f"Queue type has no .id: {type_name}")
+                return False
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error finding queue type: {e}")
+            return False
+
+        # PATCH the queue type with the new params
+        patch_url = f"{self.base_url}/queue/type/{type_id}"
+        try:
+            resp = self._request("PATCH", patch_url, json=params, timeout=self.timeout)
+            if resp.ok:
+                self.logger.debug(f"Queue type {type_name} updated: {params}")
+                return True
+            else:
+                self.logger.error(
+                    f"Failed to set queue type params: {resp.status_code}"
+                )
+                return False
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return False
+
     def test_connection(self) -> bool:
         """Test connectivity to the router REST API.
 
