@@ -671,6 +671,36 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
+    def get_queue_types(self, type_name: str) -> dict | None:
+        """Get queue type parameters by name.
+
+        Fetches CAKE queue type configuration from /rest/queue/type.
+        This is a different endpoint from /rest/queue/tree -- queue types
+        define the qdisc parameters (flowmode, diffserv, nat, etc.) while
+        queue tree entries reference queue types by name.
+
+        Args:
+            type_name: Name of the queue type (e.g., "cake-down-spectrum")
+
+        Returns:
+            Dict with queue type parameters or None on failure/not found
+        """
+        url = f"{self.base_url}/queue/type"
+
+        try:
+            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
+
+            if resp.ok and resp.json():
+                items = resp.json()
+                if items:
+                    return items[0]
+
+            return None
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return None
+
     def test_connection(self) -> bool:
         """Test connectivity to the router REST API.
 

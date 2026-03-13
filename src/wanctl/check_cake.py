@@ -34,6 +34,29 @@ from wanctl.check_config import (
 )
 
 # =============================================================================
+# CAKE OPTIMAL DEFAULTS
+# =============================================================================
+
+# Link-independent optimal CAKE parameters.
+# Values are RouterOS REST API string representations.
+# cake-ack-filter: "yes" in discussion = "filter" in RouterOS (the enabled value).
+OPTIMAL_CAKE_DEFAULTS: dict[str, str] = {
+    "cake-flowmode": "triple-isolate",
+    "cake-diffserv": "diffserv4",
+    "cake-nat": "yes",
+    "cake-ack-filter": "filter",
+}
+
+# Direction-dependent wash optimal values.
+# Upload: wash=yes (strip DSCP before ISP -- ISP ignores marks anyway;
+#   CAKE classifies BEFORE washing so diffserv4 still works).
+# Download: wash=no (preserve DSCP marks for LAN/WiFi WMM QoS).
+OPTIMAL_WASH: dict[str, str] = {
+    "upload": "yes",
+    "download": "no",
+}
+
+# =============================================================================
 # CONFIG EXTRACTION (pure functions)
 # =============================================================================
 
@@ -116,6 +139,23 @@ def _extract_mangle_comment(data: dict) -> str | None:
     """Extract mangle rule comment from steering config data."""
     mangle = data.get("mangle_rule", {})
     return mangle.get("comment")
+
+
+def _extract_cake_optimization(data: dict) -> dict | None:
+    """Extract cake_optimization config section from raw YAML data.
+
+    Returns the cake_optimization dict if present and non-None,
+    or None if the key is absent or its value is None (empty YAML key).
+
+    Expected config format:
+        cake_optimization:
+            overhead: 18
+            rtt: 100ms
+    """
+    value = data.get("cake_optimization")
+    if value is not None and isinstance(value, dict):
+        return value
+    return None
 
 
 # =============================================================================
