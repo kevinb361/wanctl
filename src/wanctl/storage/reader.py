@@ -188,6 +188,84 @@ def query_alerts(
         conn.close()
 
 
+def query_benchmarks(
+    db_path: Path | str = DEFAULT_DB_PATH,
+    start_ts: str | None = None,
+    end_ts: str | None = None,
+    wan: str | None = None,
+    limit: int | None = None,
+    ids: list[int] | None = None,
+) -> list[dict]:
+    """Query benchmark results from the database with optional filters.
+
+    Opens a read-only connection to prevent accidental writes.
+
+    Args:
+        db_path: Path to SQLite database file.
+        start_ts: Start timestamp (inclusive), ISO 8601 string.
+        end_ts: End timestamp (inclusive), ISO 8601 string.
+        wan: WAN name to filter (e.g. ``"spectrum"``).
+        limit: Maximum number of rows to return.
+        ids: List of benchmark IDs to fetch (for compare-by-ID).
+
+    Returns:
+        List of dicts with all benchmark columns.
+        Returns empty list if database or table doesn't exist.
+    """
+    db_path = Path(db_path)
+
+    if not db_path.exists():
+        logger.debug("Database not found: %s", db_path)
+        return []
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+    except sqlite3.OperationalError as e:
+        logger.warning("Failed to open database: %s", e)
+        return []
+
+    try:
+        sql = """
+            SELECT *
+            FROM benchmarks
+            WHERE 1=1
+        """
+        params: list = []
+
+        if start_ts is not None:
+            sql += " AND timestamp >= ?"
+            params.append(start_ts)
+
+        if end_ts is not None:
+            sql += " AND timestamp <= ?"
+            params.append(end_ts)
+
+        if wan:
+            sql += " AND wan_name = ?"
+            params.append(wan)
+
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            sql += f" AND id IN ({placeholders})"
+            params.extend(ids)
+
+        sql += " ORDER BY timestamp DESC"
+
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+
+        cursor = conn.execute(sql, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    except sqlite3.OperationalError as e:
+        logger.debug("Query failed: %s", e)
+        return []
+    finally:
+        conn.close()
+
+
 def compute_summary(values: list[float]) -> dict:
     """Compute summary statistics for a list of values.
 

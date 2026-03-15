@@ -25,6 +25,7 @@ from wanctl.storage.downsampler import (
 from wanctl.storage.maintenance import run_startup_maintenance
 from wanctl.storage.reader import (
     compute_summary,
+    query_benchmarks,
     query_metrics,
     select_granularity,
 )
@@ -34,7 +35,12 @@ from wanctl.storage.retention import (
     cleanup_old_metrics,
     vacuum_if_needed,
 )
-from wanctl.storage.schema import METRICS_SCHEMA, STORED_METRICS, create_tables
+from wanctl.storage.schema import (
+    BENCHMARKS_SCHEMA,
+    METRICS_SCHEMA,
+    STORED_METRICS,
+    create_tables,
+)
 from wanctl.storage.writer import DEFAULT_DB_PATH, MetricsWriter
 
 __all__ = [
@@ -43,11 +49,13 @@ __all__ = [
     "DEFAULT_DB_PATH",
     # Reader
     "query_metrics",
+    "query_benchmarks",
     "compute_summary",
     "select_granularity",
     # Config snapshot
     "record_config_snapshot",
     # Schema
+    "BENCHMARKS_SCHEMA",
     "METRICS_SCHEMA",
     "STORED_METRICS",
     "create_tables",

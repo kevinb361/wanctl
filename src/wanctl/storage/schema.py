@@ -70,6 +70,42 @@ CREATE INDEX IF NOT EXISTS idx_alerts_type_wan
 """
 
 
+# SQL schema for benchmarks table storing bufferbloat benchmark results
+BENCHMARKS_SCHEMA: str = """
+-- Benchmarks table for bufferbloat benchmark results
+CREATE TABLE IF NOT EXISTS benchmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    wan_name TEXT NOT NULL,
+    download_grade TEXT,
+    upload_grade TEXT,
+    download_latency_avg REAL,
+    download_latency_p50 REAL,
+    download_latency_p95 REAL,
+    download_latency_p99 REAL,
+    upload_latency_avg REAL,
+    upload_latency_p50 REAL,
+    upload_latency_p95 REAL,
+    upload_latency_p99 REAL,
+    download_throughput REAL,
+    upload_throughput REAL,
+    baseline_rtt REAL,
+    server TEXT,
+    duration INTEGER,
+    daemon_running INTEGER NOT NULL DEFAULT 0,
+    label TEXT
+);
+
+-- Index for time-range queries on benchmarks
+CREATE INDEX IF NOT EXISTS idx_benchmarks_timestamp
+    ON benchmarks(timestamp);
+
+-- Composite index for WAN + time queries
+CREATE INDEX IF NOT EXISTS idx_benchmarks_wan
+    ON benchmarks(wan_name, timestamp);
+"""
+
+
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create all tables and indexes from the schema.
 
@@ -81,4 +117,5 @@ def create_tables(conn: sqlite3.Connection) -> None:
     """
     conn.executescript(METRICS_SCHEMA)
     conn.executescript(ALERTS_SCHEMA)
+    conn.executescript(BENCHMARKS_SCHEMA)
     conn.commit()
