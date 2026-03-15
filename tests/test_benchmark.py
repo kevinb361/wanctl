@@ -1692,3 +1692,384 @@ class TestMainAutoStore:
             main()
 
         assert mock_store.call_args[1]["daemon_running"] is True
+
+
+# ---------------------------------------------------------------------------
+# Plan 02, Task 1: compute_deltas, format_comparison, run_compare
+# ---------------------------------------------------------------------------
+
+
+def _make_benchmark_row(**overrides: object) -> dict:
+    """Helper to create a benchmark row dict (as returned by query_benchmarks)."""
+    defaults: dict = dict(
+        id=1,
+        timestamp="2026-03-15T12:00:00+00:00",
+        wan_name="spectrum",
+        download_grade="C",
+        upload_grade="C",
+        download_latency_avg=45.0,
+        download_latency_p50=42.0,
+        download_latency_p95=60.0,
+        download_latency_p99=75.0,
+        upload_latency_avg=45.0,
+        upload_latency_p50=42.0,
+        upload_latency_p95=60.0,
+        upload_latency_p99=75.0,
+        download_throughput=90.0,
+        upload_throughput=10.0,
+        baseline_rtt=25.0,
+        server="netperf.bufferbloat.net",
+        duration=60,
+        daemon_running=0,
+        label=None,
+    )
+    defaults.update(overrides)
+    return defaults
+
+
+class TestComputeDeltas:
+    """Verify compute_deltas() computes after - before for numeric fields."""
+
+    def test_basic_delta(self) -> None:
+        """Delta computation returns after - before for all numeric fields."""
+        from wanctl.benchmark import compute_deltas
+
+        before = _make_benchmark_row(
+            download_latency_avg=45.0,
+            upload_latency_avg=45.0,
+            download_throughput=90.0,
+            upload_throughput=10.0,
+            baseline_rtt=25.0,
+        )
+        after = _make_benchmark_row(
+            download_latency_avg=10.0,
+            upload_latency_avg=10.0,
+            download_throughput=95.0,
+            upload_throughput=11.0,
+            baseline_rtt=24.0,
+        )
+        deltas = compute_deltas(before, after)
+
+        assert deltas["download_latency_avg"] == pytest.approx(-35.0)
+        assert deltas["upload_latency_avg"] == pytest.approx(-35.0)
+        assert deltas["download_throughput"] == pytest.approx(5.0)
+        assert deltas["upload_throughput"] == pytest.approx(1.0)
+        assert deltas["baseline_rtt"] == pytest.approx(-1.0)
+
+    def test_all_numeric_fields_present(self) -> None:
+        """Delta dict contains all expected numeric fields."""
+        from wanctl.benchmark import compute_deltas
+
+        before = _make_benchmark_row()
+        after = _make_benchmark_row()
+        deltas = compute_deltas(before, after)
+
+        expected_keys = {
+            "download_latency_avg", "download_latency_p50",
+            "download_latency_p95", "download_latency_p99",
+            "upload_latency_avg", "upload_latency_p50",
+            "upload_latency_p95", "upload_latency_p99",
+            "download_throughput", "upload_throughput",
+            "baseline_rtt",
+        }
+        assert set(deltas.keys()) == expected_keys
+
+    def test_zero_delta_same_values(self) -> None:
+        """Identical before/after yields zero deltas."""
+        from wanctl.benchmark import compute_deltas
+
+        row = _make_benchmark_row()
+        deltas = compute_deltas(row, row)
+        for v in deltas.values():
+            assert v == pytest.approx(0.0)
+
+
+class TestFormatComparison:
+    """Verify format_comparison() produces readable comparison output."""
+
+    def _get_before_after(self) -> tuple[dict, dict]:
+        before = _make_benchmark_row(
+            id=1,
+            download_grade="C",
+            upload_grade="C",
+            download_latency_avg=45.0,
+            download_latency_p50=42.0,
+            download_latency_p95=60.0,
+            download_latency_p99=75.0,
+            upload_latency_avg=45.0,
+            upload_latency_p50=42.0,
+            upload_latency_p95=60.0,
+            upload_latency_p99=75.0,
+            download_throughput=90.0,
+            upload_throughput=10.0,
+            baseline_rtt=25.0,
+            server="netperf.bufferbloat.net",
+            duration=60,
+            timestamp="2026-03-15T10:00:00+00:00",
+        )
+        after = _make_benchmark_row(
+            id=2,
+            download_grade="A+",
+            upload_grade="A+",
+            download_latency_avg=3.0,
+            download_latency_p50=2.5,
+            download_latency_p95=5.0,
+            download_latency_p99=7.0,
+            upload_latency_avg=3.0,
+            upload_latency_p50=2.5,
+            upload_latency_p95=5.0,
+            upload_latency_p99=7.0,
+            download_throughput=95.0,
+            upload_throughput=11.0,
+            baseline_rtt=24.0,
+            server="netperf.bufferbloat.net",
+            duration=60,
+            timestamp="2026-03-15T12:00:00+00:00",
+        )
+        return before, after
+
+    def test_contains_grade_arrow(self) -> None:
+        """Output shows grade transition like 'C -> A+'."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        assert "C" in output
+        assert "A+" in output
+        assert "->" in output
+
+    def test_contains_latency_deltas(self) -> None:
+        """Output contains latency delta values with sign."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        # Negative latency delta (improvement)
+        assert "-42.0" in output or "-42.00" in output or "-42.0ms" in output
+
+    def test_contains_throughput(self) -> None:
+        """Output contains throughput section."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        assert "Throughput" in output or "throughput" in output
+        assert "Mbps" in output
+
+    def test_contains_metadata(self) -> None:
+        """Output contains baseline RTT, server, run IDs."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        assert "Baseline RTT" in output or "baseline" in output.lower()
+        assert "#1" in output
+        assert "#2" in output
+
+    def test_no_color_no_ansi(self) -> None:
+        """No-color mode: output has no ANSI escape codes."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        assert "\033[" not in output
+
+    def test_improved_latency_shows_negative_delta(self) -> None:
+        """Improved latency (lower after) shows negative delta."""
+        from wanctl.benchmark import compute_deltas, format_comparison
+
+        before, after = self._get_before_after()
+        deltas = compute_deltas(before, after)
+        output = format_comparison(before, after, deltas, color=False)
+        # Avg latency went from 45.0 to 3.0, delta = -42.0
+        assert "-" in output  # negative sign present
+
+
+class TestRunCompare:
+    """Verify run_compare() fetches and compares benchmark runs."""
+
+    def _setup_db(self, tmp_path: Path) -> Path:
+        """Create a test DB with two benchmark entries and return the path."""
+        from wanctl.benchmark import store_benchmark
+
+        db = tmp_path / "test.db"
+        r1 = _make_benchmark_result(
+            download_grade="C",
+            upload_grade="C",
+            download_latency_avg=45.0,
+            upload_latency_avg=45.0,
+            download_throughput=90.0,
+            upload_throughput=10.0,
+            timestamp="2026-03-15T10:00:00+00:00",
+        )
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        r2 = _make_benchmark_result(
+            download_grade="A+",
+            upload_grade="A+",
+            download_latency_avg=3.0,
+            upload_latency_avg=3.0,
+            download_throughput=95.0,
+            upload_throughput=11.0,
+            timestamp="2026-03-15T12:00:00+00:00",
+        )
+        store_benchmark(r2, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        return db
+
+    def test_default_compare_latest_vs_previous(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Default compare (no IDs) compares latest 2 runs."""
+        from wanctl.benchmark import main
+
+        db = self._setup_db(tmp_path)
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "C" in captured.out
+        assert "A+" in captured.out
+        assert "->" in captured.out
+
+    def test_compare_with_specific_ids(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Compare with specific IDs shows those runs."""
+        from wanctl.benchmark import main
+
+        db = self._setup_db(tmp_path)
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare", "1", "2"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "#1" in captured.out
+        assert "#2" in captured.out
+
+    def test_error_fewer_than_2_results(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Fewer than 2 results: error message and return 1."""
+        from wanctl.benchmark import main, store_benchmark
+
+        db = tmp_path / "test.db"
+        r1 = _make_benchmark_result()
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "2" in captured.err or "two" in captured.err.lower()
+
+    def test_error_missing_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Specific ID not found: error and return 1."""
+        from wanctl.benchmark import main
+
+        db = self._setup_db(tmp_path)
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare", "1", "999"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "999" in captured.err or "not found" in captured.err.lower()
+
+    def test_comparability_warning_different_server(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Different servers: warning to stderr but compare succeeds."""
+        from wanctl.benchmark import main, store_benchmark
+
+        db = tmp_path / "test.db"
+        r1 = _make_benchmark_result(
+            server="server-a.com",
+            timestamp="2026-03-15T10:00:00+00:00",
+        )
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        r2 = _make_benchmark_result(
+            server="server-b.com",
+            timestamp="2026-03-15T12:00:00+00:00",
+        )
+        store_benchmark(r2, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "server" in captured.err.lower() or "Server" in captured.err
+
+    def test_comparability_warning_different_duration(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Different durations: warning to stderr but compare succeeds."""
+        from wanctl.benchmark import main, store_benchmark
+
+        db = tmp_path / "test.db"
+        r1 = _make_benchmark_result(
+            duration=10,
+            timestamp="2026-03-15T10:00:00+00:00",
+        )
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        r2 = _make_benchmark_result(
+            duration=60,
+            timestamp="2026-03-15T12:00:00+00:00",
+        )
+        store_benchmark(r2, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "compare"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "duration" in captured.err.lower() or "Duration" in captured.err
+
+    def test_json_output(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--json outputs structured JSON with before/after/deltas."""
+        from wanctl.benchmark import main
+
+        db = self._setup_db(tmp_path)
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--json", "compare"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert "before" in parsed
+        assert "after" in parsed
+        assert "deltas" in parsed
