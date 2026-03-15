@@ -637,6 +637,7 @@ def _make_benchmark_result(**overrides: object):  # noqa: ANN201
 class TestRunBenchmark:
     """Verify run_benchmark orchestrates flent subprocess and returns BenchmarkResult."""
 
+    @patch("wanctl.benchmark.glob.glob")
     @patch("wanctl.benchmark.build_result")
     @patch("wanctl.benchmark.parse_flent_results")
     @patch("wanctl.benchmark.subprocess.run")
@@ -645,12 +646,14 @@ class TestRunBenchmark:
         mock_run: MagicMock,
         mock_parse: MagicMock,
         mock_build: MagicMock,
+        mock_glob: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Successful flent run returns BenchmarkResult."""
         from wanctl.benchmark import run_benchmark
 
         mock_run.return_value = MagicMock(returncode=0)
+        mock_glob.return_value = ["/tmp/wanctl-benchmark-xyz/rrul-test.flent.gz"]
         mock_parse.return_value = SAMPLE_FLENT_DATA
         expected = _make_benchmark_result()
         mock_build.return_value = expected
@@ -658,13 +661,14 @@ class TestRunBenchmark:
         result = run_benchmark("netperf.bufferbloat.net", 60, baseline_rtt=23.1)
         assert result is expected
 
-        # Verify flent was called with correct args
+        # Verify flent was called with correct args including -D flag
         cmd = mock_run.call_args[0][0]
         assert cmd[0] == "flent"
         assert "rrul" in cmd
         assert "-H" in cmd
         assert "-l" in cmd
         assert "60" in cmd
+        assert "-D" in cmd
 
     @patch("wanctl.benchmark.subprocess.run")
     def test_flent_failure(self, mock_run: MagicMock) -> None:

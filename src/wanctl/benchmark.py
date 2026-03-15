@@ -418,9 +418,10 @@ def run_benchmark(
     Returns ``None`` if flent fails or times out.
     """
     tmpdir = tempfile.mkdtemp(prefix="wanctl-benchmark-")
-    output_path = str(Path(tmpdir) / "result.flent.gz")
 
-    cmd = ["flent", "rrul", "-H", server, "-l", str(duration), "-o", output_path]
+    # Use -D (data dir) instead of -o: flent writes its own auto-named
+    # .flent.gz file into the specified directory.
+    cmd = ["flent", "rrul", "-H", server, "-l", str(duration), "-D", tmpdir]
 
     print(f"Running RRUL test ({duration}s)...", file=sys.stderr)
 
@@ -439,6 +440,14 @@ def run_benchmark(
         print(f"flent timed out after {duration + 30}s", file=sys.stderr)
         shutil.rmtree(tmpdir, ignore_errors=True)
         return None
+
+    # Find the gzipped data file flent created
+    gz_files = glob.glob(str(Path(tmpdir) / "*.flent.gz"))
+    if not gz_files:
+        print("flent did not produce a data file", file=sys.stderr)
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        return None
+    output_path = gz_files[0]
 
     # Parse result BEFORE cleaning up tmpdir (gz file is there)
     try:
@@ -1007,3 +1016,7 @@ def main() -> int:
         print(format_grade_display(result, use_color))
 
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
