@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: planning
-last_updated: "2026-03-13T21:22:14.682Z"
-last_activity: 2026-03-13 -- Completed 86-02 (benchmark CLI tool)
+status: executing
+last_updated: "2026-03-15T18:39:20Z"
+last_activity: 2026-03-15 -- Completed 87-01 (benchmark storage & auto-store)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 75
+  total_plans: 8
+  completed_plans: 7
+  percent: 87
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 86 - Bufferbloat Benchmarking
+**Current focus:** Phase 87 - Benchmark Storage & Comparison
 
 ## Position
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
-**Phase:** 86 of 87 (Bufferbloat Benchmarking) -- COMPLETE
-**Plan:** 02 of 02 complete (benchmark CLI tool)
-**Status:** Ready to plan
-**Last activity:** 2026-03-13 -- Completed 86-02 (benchmark CLI tool)
+**Phase:** 87 of 87 (Benchmark Storage & Comparison)
+**Plan:** 01 of 02 complete (benchmark storage & auto-store)
+**Status:** Executing
+**Last activity:** 2026-03-15 -- Completed 87-01 (benchmark storage & auto-store)
 
-Progress: [########..] 75%
+Progress: [########.] 87%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: 23min
-- Total execution time: 2.3 hours
+- Total plans completed: 7
+- Average duration: 21min
+- Total execution time: 2.4 hours
 
 **By Phase:**
 
@@ -47,6 +47,7 @@ Progress: [########..] 75%
 | 84    | 2     | 68min | 34min    |
 | 85    | 2     | 51min | 25min    |
 | 86    | 2     | 17min | 8min     |
+| 87    | 1     | 6min  | 6min     |
 
 ## Accumulated Context
 
@@ -75,6 +76,11 @@ Progress: [########..] 75%
 - Daemon detection warns to stderr but does not block benchmark
 - run_benchmark timeout = duration + 30s for flent subprocess overhead
 - Quick mode note only shown for duration <= 10s
+- Benchmarks table uses flat columns (no JSON blob) for direct SQL filtering
+- ISO 8601 TEXT timestamp in benchmarks (not INTEGER) for lexicographic ordering
+- Auto-store executes before output display so result persists even if display fails
+- detect_wan_name() uses socket.gethostname() with cake- prefix convention
+- Subparser stubs return 0 (Plan 02 replaces with real handlers)
 
 ### Known Issues
 

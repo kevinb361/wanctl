@@ -115,7 +115,7 @@ Plans:
 
 Plans:
 
-- [ ] 87-01-PLAN.md -- Storage layer: BENCHMARKS_SCHEMA, store_benchmark(), query_benchmarks(), auto-store wiring, subparser skeleton
+- [x] 87-01-PLAN.md -- Storage layer: BENCHMARKS_SCHEMA, store_benchmark(), query_benchmarks(), auto-store wiring, subparser skeleton
 - [ ] 87-02-PLAN.md -- Compare and history subcommands: grade delta display, color-coded metrics, tabulated history, time-range filtering
 
 ## Progress
@@ -129,9 +129,9 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | Phase                                     | Plans Complete | Status      | Completed  |
 | ----------------------------------------- | -------------- | ----------- | ---------- |
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
-| 85. Auto-Fix CLI Integration              | 2/2 | Complete    | 2026-03-13 |
-| 86. Bufferbloat Benchmarking              | 2/2 | Complete    | 2026-03-13 |
-| 87. Benchmark Storage & Comparison        | 0/2            | Not started | -          |
+| 85. Auto-Fix CLI Integration              | 2/2            | Complete    | 2026-03-13 |
+| 86. Bufferbloat Benchmarking              | 2/2            | Complete    | 2026-03-13 |
+| 87. Benchmark Storage & Comparison        | 1/2            | In progress | -          |
 
 ### Completed Milestones
 
