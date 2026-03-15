@@ -1334,3 +1334,361 @@ class TestQueryBenchmarks:
         rows = query_benchmarks(db_path=db)
         timestamps = [r["timestamp"] for r in rows]
         assert timestamps == sorted(timestamps, reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# Task 2 (Phase 87-01): Auto-store wiring, detect_wan_name, subparser skeleton
+# ---------------------------------------------------------------------------
+
+
+class TestDetectWanName:
+    """Verify detect_wan_name() extracts WAN name from container hostname."""
+
+    @patch("wanctl.benchmark.socket.gethostname")
+    def test_cake_spectrum(self, mock_host: MagicMock) -> None:
+        """hostname 'cake-spectrum' -> 'spectrum'."""
+        from wanctl.benchmark import detect_wan_name
+
+        mock_host.return_value = "cake-spectrum"
+        assert detect_wan_name() == "spectrum"
+
+    @patch("wanctl.benchmark.socket.gethostname")
+    def test_cake_att(self, mock_host: MagicMock) -> None:
+        """hostname 'cake-att' -> 'att'."""
+        from wanctl.benchmark import detect_wan_name
+
+        mock_host.return_value = "cake-att"
+        assert detect_wan_name() == "att"
+
+    @patch("wanctl.benchmark.socket.gethostname")
+    def test_unknown_hostname(self, mock_host: MagicMock) -> None:
+        """hostname 'myhost' -> 'unknown'."""
+        from wanctl.benchmark import detect_wan_name
+
+        mock_host.return_value = "myhost"
+        assert detect_wan_name() == "unknown"
+
+
+class TestCreateParserSubcommands:
+    """Verify argparse subparser skeleton for compare/history subcommands."""
+
+    def test_bare_invocation(self) -> None:
+        """Bare invocation: args.command is None (backward compatible)."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args([])
+        assert args.command is None
+
+    def test_wan_flag(self) -> None:
+        """--wan flag parses correctly."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--wan", "spectrum"])
+        assert args.wan == "spectrum"
+
+    def test_wan_default_none(self) -> None:
+        """--wan default is None (auto-detect)."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args([])
+        assert args.wan is None
+
+    def test_label_flag(self) -> None:
+        """--label flag parses correctly."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--label", "before-fix"])
+        assert args.label == "before-fix"
+
+    def test_label_default_none(self) -> None:
+        """--label default is None."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args([])
+        assert args.label is None
+
+    def test_db_flag(self) -> None:
+        """--db flag parses as Path."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--db", "/tmp/test.db"])
+        assert args.db == Path("/tmp/test.db")
+
+    def test_compare_subcommand(self) -> None:
+        """'compare' subcommand parses with IDs."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["compare", "1", "2"])
+        assert args.command == "compare"
+        assert args.ids == [1, 2]
+
+    def test_history_subcommand(self) -> None:
+        """'history' subcommand parses."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["history"])
+        assert args.command == "history"
+
+    def test_history_with_wan(self) -> None:
+        """'history --wan spectrum' parses correctly."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["history", "--wan", "spectrum"])
+        assert args.command == "history"
+        assert args.hist_wan == "spectrum"
+
+    def test_existing_flags_still_work(self) -> None:
+        """Existing --server/--quick/--json/--no-color still work."""
+        from wanctl.benchmark import create_parser
+
+        parser = create_parser()
+        args = parser.parse_args(["--server", "custom.host", "--quick", "--json", "--no-color"])
+        assert args.server == "custom.host"
+        assert args.quick is True
+        assert args.json is True
+        assert args.no_color is True
+        assert args.command is None
+
+
+class TestMainAutoStore:
+    """Verify main() auto-stores benchmark result after successful run."""
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_auto_store_called(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """store_benchmark called after successful run."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        expected_result = _make_benchmark_result()
+        mock_run.return_value = expected_result
+        mock_format.return_value = "Download: A+"
+        mock_detect.return_value = "spectrum"
+        mock_store.return_value = 42
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 0
+        mock_store.assert_called_once()
+        call_kwargs = mock_store.call_args
+        assert call_kwargs[1]["wan_name"] == "spectrum"
+        assert call_kwargs[1]["daemon_running"] is False
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_auto_store_failure_does_not_affect_exit(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """store_benchmark returning None does not affect exit code 0."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format.return_value = "Download: A+"
+        mock_detect.return_value = "spectrum"
+        mock_store.return_value = None  # store failed
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 0
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_auto_store_stderr_message(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Auto-store success prints 'Result stored (#N)' to stderr."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format.return_value = "Download: A+"
+        mock_detect.return_value = "spectrum"
+        mock_store.return_value = 42
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            main()
+
+        # stderr is mocked, but print(file=sys.stderr) goes to mock_stderr.write
+        # Check the write calls
+        stderr_writes = [
+            str(call) for call in mock_stderr.write.call_args_list
+        ]
+        assert any("Result stored (#42)" in w for w in stderr_writes)
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_auto_store_with_wan_flag(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """--wan flag overrides auto-detected WAN name."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format.return_value = "Download: A+"
+        mock_store.return_value = 1
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--wan", "att"]):
+            main()
+
+        # detect_wan_name should NOT be called when --wan is provided
+        mock_detect.assert_not_called()
+        assert mock_store.call_args[1]["wan_name"] == "att"
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_auto_store_with_label(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """--label flag passed to store_benchmark."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (False, "")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format.return_value = "Download: A+"
+        mock_detect.return_value = "spectrum"
+        mock_store.return_value = 1
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--label", "after-fix"],
+        ):
+            main()
+
+        assert mock_store.call_args[1]["label"] == "after-fix"
+
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.detect_wan_name")
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_daemon_running")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_daemon_running_passed_to_store(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_daemon: MagicMock,
+        mock_run: MagicMock,
+        mock_format: MagicMock,
+        mock_detect: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """daemon_running status passed to store_benchmark."""
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [("flent", True, "found"), ("netperf", True, "found"), ("server", True, "ok")],
+            23.0,
+        )
+        mock_daemon.return_value = (True, "wanctl daemon is running (PID 1234)")
+        mock_run.return_value = _make_benchmark_result()
+        mock_format.return_value = "Download: A+"
+        mock_detect.return_value = "spectrum"
+        mock_store.return_value = 1
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            main()
+
+        assert mock_store.call_args[1]["daemon_running"] is True
