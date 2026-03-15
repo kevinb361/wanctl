@@ -15,7 +15,9 @@ import dataclasses
 import glob
 import gzip
 import json
+import logging
 import shutil
+import sqlite3
 import statistics
 import subprocess  # nosec B404
 import sys
@@ -26,6 +28,10 @@ from pathlib import Path
 
 from wanctl.lock_utils import is_process_alive, read_lock_pid
 from wanctl.rtt_measurement import parse_ping_output
+from wanctl.storage.schema import create_tables
+from wanctl.storage.writer import DEFAULT_DB_PATH
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Grade computation
@@ -84,6 +90,93 @@ class BenchmarkResult:
     server: str
     duration: int
     timestamp: str
+
+
+def store_benchmark(
+    result: BenchmarkResult,
+    wan_name: str,
+    daemon_running: bool,
+    label: str | None = None,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> int | None:
+    """Persist a benchmark result to SQLite and return its row ID.
+
+    Creates the database and parent directory if they do not exist.
+    Calls :func:`create_tables` before inserting to handle pre-Phase-87
+    databases that lack the ``benchmarks`` table.
+
+    Args:
+        result: Benchmark result to store.
+        wan_name: WAN identifier (e.g. ``"spectrum"``).
+        daemon_running: Whether a wanctl daemon was running during the test.
+        label: Optional user-supplied label for the run.
+        db_path: Path to the SQLite database file.
+
+    Returns:
+        The row ID of the inserted record, or ``None`` on error.
+    """
+    try:
+        db_path = Path(db_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        conn = sqlite3.connect(db_path)
+        try:
+            create_tables(conn)
+
+            fields = dataclasses.asdict(result)
+            conn.execute(
+                """
+                INSERT INTO benchmarks (
+                    timestamp, wan_name,
+                    download_grade, upload_grade,
+                    download_latency_avg, download_latency_p50,
+                    download_latency_p95, download_latency_p99,
+                    upload_latency_avg, upload_latency_p50,
+                    upload_latency_p95, upload_latency_p99,
+                    download_throughput, upload_throughput,
+                    baseline_rtt, server, duration,
+                    daemon_running, label
+                ) VALUES (
+                    ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?,
+                    ?, ?, ?,
+                    ?, ?
+                )
+                """,
+                (
+                    fields["timestamp"],
+                    wan_name,
+                    fields["download_grade"],
+                    fields["upload_grade"],
+                    fields["download_latency_avg"],
+                    fields["download_latency_p50"],
+                    fields["download_latency_p95"],
+                    fields["download_latency_p99"],
+                    fields["upload_latency_avg"],
+                    fields["upload_latency_p50"],
+                    fields["upload_latency_p95"],
+                    fields["upload_latency_p99"],
+                    fields["download_throughput"],
+                    fields["upload_throughput"],
+                    fields["baseline_rtt"],
+                    fields["server"],
+                    fields["duration"],
+                    int(daemon_running),
+                    label,
+                ),
+            )
+            conn.commit()
+            return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception:
+        logger.warning("Failed to store benchmark result", exc_info=True)
+        return None
 
 
 # ---------------------------------------------------------------------------
