@@ -2073,3 +2073,210 @@ class TestRunCompare:
         assert "before" in parsed
         assert "after" in parsed
         assert "deltas" in parsed
+
+
+# ---------------------------------------------------------------------------
+# Plan 02, Task 2: format_history, run_history
+# ---------------------------------------------------------------------------
+
+
+class TestFormatHistory:
+    """Verify format_history() produces tabulated table of past runs."""
+
+    def test_formats_table_with_all_columns(self) -> None:
+        """Output table contains ID, Timestamp, WAN, Grade, Avg Latency, DL Mbps, Label."""
+        from wanctl.benchmark import format_history
+
+        rows = [
+            _make_benchmark_row(
+                id=1,
+                timestamp="2026-03-15T12:00:00+00:00",
+                wan_name="spectrum",
+                download_grade="A+",
+                download_latency_avg=3.2,
+                download_throughput=94.2,
+                label="before-fix",
+            ),
+        ]
+        output = format_history(rows, color=False)
+        assert "1" in output
+        assert "spectrum" in output
+        assert "A+" in output
+        assert "3.2" in output
+        assert "94.2" in output
+        assert "before-fix" in output
+        assert "ID" in output
+        assert "Timestamp" in output
+        assert "WAN" in output
+        assert "Grade" in output
+
+    def test_empty_list_returns_message(self) -> None:
+        """Empty list returns 'No benchmark results found.'."""
+        from wanctl.benchmark import format_history
+
+        output = format_history([], color=False)
+        assert output == "No benchmark results found."
+
+    def test_grade_colorized_when_color_true(self) -> None:
+        """Grade column is colorized when color=True."""
+        from wanctl.benchmark import format_history
+
+        rows = [_make_benchmark_row(download_grade="A+")]
+        output = format_history(rows, color=True)
+        assert "\033[" in output
+
+    def test_label_column_shows_blank_for_none(self) -> None:
+        """Label column shows empty string when label is None."""
+        from wanctl.benchmark import format_history
+
+        rows = [_make_benchmark_row(label=None)]
+        output = format_history(rows, color=False)
+        # Table should still render without error
+        assert "ID" in output
+
+    def test_timestamp_formatted_without_seconds(self) -> None:
+        """Timestamp shows as YYYY-MM-DD HH:MM (no seconds)."""
+        from wanctl.benchmark import format_history
+
+        rows = [_make_benchmark_row(timestamp="2026-03-15T14:30:45+00:00")]
+        output = format_history(rows, color=False)
+        assert "2026-03-15 14:30" in output
+        # Seconds should not appear
+        assert ":45" not in output
+
+
+class TestRunHistory:
+    """Verify run_history() fetches and displays benchmark history."""
+
+    def _insert_benchmarks(self, db: Path, count: int = 3) -> None:
+        """Insert count benchmark rows into db."""
+        from wanctl.benchmark import store_benchmark
+
+        for i in range(count):
+            ts = f"2026-03-1{i + 3}T12:00:00+00:00"
+            r = _make_benchmark_result(timestamp=ts)
+            store_benchmark(r, wan_name="spectrum", daemon_running=False, db_path=db)
+
+    def test_lists_all_stored_results(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """History lists all stored results."""
+        from wanctl.benchmark import main
+
+        db = tmp_path / "test.db"
+        self._insert_benchmarks(db, count=3)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "history"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "spectrum" in captured.out
+        assert "A+" in captured.out
+
+    def test_wan_filter(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--wan filters by WAN name."""
+        from wanctl.benchmark import main, store_benchmark
+
+        db = tmp_path / "test.db"
+        r1 = _make_benchmark_result(timestamp="2026-03-15T10:00:00+00:00")
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+        r2 = _make_benchmark_result(timestamp="2026-03-15T12:00:00+00:00")
+        store_benchmark(r2, wan_name="att", daemon_running=False, db_path=db)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "history", "--wan", "att"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "att" in captured.out
+        # spectrum should not appear in the data rows (may appear in headers)
+        lines = captured.out.strip().split("\n")
+        data_lines = [l for l in lines[2:] if l.strip()]  # skip header + separator
+        for line in data_lines:
+            assert "spectrum" not in line
+
+    def test_json_output(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--json outputs list of result dicts."""
+        from wanctl.benchmark import main
+
+        db = tmp_path / "test.db"
+        self._insert_benchmarks(db, count=2)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--json", "history"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert isinstance(parsed, list)
+        assert len(parsed) == 2
+
+    def test_empty_db_shows_message(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Empty DB shows 'No benchmark results found.'."""
+        from wanctl.benchmark import main, store_benchmark
+
+        # Create an empty DB with the benchmarks table
+        db = tmp_path / "test.db"
+        r = _make_benchmark_result()
+        store_benchmark(r, wan_name="spectrum", daemon_running=False, db_path=db)
+        # Now delete the row
+        import sqlite3 as _sq
+
+        conn = _sq.connect(db)
+        conn.execute("DELETE FROM benchmarks")
+        conn.commit()
+        conn.close()
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "history"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert "No benchmark results found" in captured.out
+
+    def test_last_filter(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--last filters by time range (recent results only)."""
+        from wanctl.benchmark import main, store_benchmark
+
+        db = tmp_path / "test.db"
+        # Insert a very old result
+        r1 = _make_benchmark_result(timestamp="2020-01-01T00:00:00+00:00")
+        store_benchmark(r1, wan_name="spectrum", daemon_running=False, db_path=db)
+        # Insert a recent result (now)
+        from datetime import UTC, datetime
+
+        now_ts = datetime.now(UTC).isoformat()
+        r2 = _make_benchmark_result(timestamp=now_ts)
+        store_benchmark(r2, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        with patch(
+            "wanctl.benchmark.sys.argv",
+            ["wanctl-benchmark", "--db", str(db), "--no-color", "history", "--last", "1h"],
+        ):
+            exit_code = main()
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        # Old 2020 result should be filtered out
+        assert "2020" not in captured.out
