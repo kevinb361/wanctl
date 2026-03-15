@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from wanctl.storage.schema import (
+    BENCHMARKS_SCHEMA,
     METRICS_SCHEMA,
     STORED_METRICS,
     create_tables,
@@ -190,3 +191,145 @@ class TestCreateTables:
         # Verify default
         cursor = memory_db.execute("SELECT granularity FROM metrics")
         assert cursor.fetchone()[0] == "raw"
+
+
+class TestBenchmarksSchema:
+    """Tests for BENCHMARKS_SCHEMA constant and benchmarks table creation."""
+
+    def test_schema_is_string(self):
+        """BENCHMARKS_SCHEMA is a non-empty string."""
+        assert isinstance(BENCHMARKS_SCHEMA, str)
+        assert len(BENCHMARKS_SCHEMA) > 0
+
+    def test_schema_creates_benchmarks_table(self):
+        """Schema contains CREATE TABLE for benchmarks."""
+        assert "CREATE TABLE IF NOT EXISTS benchmarks" in BENCHMARKS_SCHEMA
+
+    def test_schema_has_required_columns(self):
+        """Schema defines all 19 required columns."""
+        required = [
+            "id INTEGER PRIMARY KEY",
+            "timestamp TEXT NOT NULL",
+            "wan_name TEXT NOT NULL",
+            "download_grade TEXT",
+            "upload_grade TEXT",
+            "download_latency_avg REAL",
+            "download_latency_p50 REAL",
+            "download_latency_p95 REAL",
+            "download_latency_p99 REAL",
+            "upload_latency_avg REAL",
+            "upload_latency_p50 REAL",
+            "upload_latency_p95 REAL",
+            "upload_latency_p99 REAL",
+            "download_throughput REAL",
+            "upload_throughput REAL",
+            "baseline_rtt REAL",
+            "server TEXT",
+            "duration INTEGER",
+            "daemon_running INTEGER",
+            "label TEXT",
+        ]
+        for col in required:
+            assert col in BENCHMARKS_SCHEMA, f"Missing column: {col}"
+
+    def test_schema_has_indexes(self):
+        """Schema creates timestamp and WAN indexes."""
+        assert "idx_benchmarks_timestamp" in BENCHMARKS_SCHEMA
+        assert "idx_benchmarks_wan" in BENCHMARKS_SCHEMA
+
+    @pytest.fixture
+    def memory_db(self):
+        """Provide an in-memory SQLite connection."""
+        conn = sqlite3.connect(":memory:")
+        yield conn
+        conn.close()
+
+    def test_create_tables_creates_benchmarks_table(self, memory_db):
+        """create_tables() creates benchmarks table alongside metrics/alerts."""
+        create_tables(memory_db)
+
+        cursor = memory_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='benchmarks'"
+        )
+        result = cursor.fetchone()
+        assert result is not None
+        assert result[0] == "benchmarks"
+
+    def test_benchmarks_columns(self, memory_db):
+        """Benchmarks table has correct column names and types."""
+        create_tables(memory_db)
+
+        cursor = memory_db.execute("PRAGMA table_info(benchmarks)")
+        columns = {row[1]: row[2] for row in cursor.fetchall()}
+
+        expected = {
+            "id": "INTEGER",
+            "timestamp": "TEXT",
+            "wan_name": "TEXT",
+            "download_grade": "TEXT",
+            "upload_grade": "TEXT",
+            "download_latency_avg": "REAL",
+            "download_latency_p50": "REAL",
+            "download_latency_p95": "REAL",
+            "download_latency_p99": "REAL",
+            "upload_latency_avg": "REAL",
+            "upload_latency_p50": "REAL",
+            "upload_latency_p95": "REAL",
+            "upload_latency_p99": "REAL",
+            "download_throughput": "REAL",
+            "upload_throughput": "REAL",
+            "baseline_rtt": "REAL",
+            "server": "TEXT",
+            "duration": "INTEGER",
+            "daemon_running": "INTEGER",
+            "label": "TEXT",
+        }
+        assert columns == expected
+
+    def test_benchmarks_indexes(self, memory_db):
+        """create_tables() creates both benchmark indexes."""
+        create_tables(memory_db)
+
+        cursor = memory_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_benchmarks%'"
+        )
+        indexes = {row[0] for row in cursor.fetchall()}
+        assert indexes == {"idx_benchmarks_timestamp", "idx_benchmarks_wan"}
+
+    def test_benchmarks_insert(self, memory_db):
+        """Benchmarks table accepts valid inserts."""
+        create_tables(memory_db)
+
+        memory_db.execute(
+            """
+            INSERT INTO benchmarks (
+                timestamp, wan_name, download_grade, upload_grade,
+                download_latency_avg, download_latency_p50, download_latency_p95,
+                download_latency_p99, upload_latency_avg, upload_latency_p50,
+                upload_latency_p95, upload_latency_p99, download_throughput,
+                upload_throughput, baseline_rtt, server, duration,
+                daemon_running, label
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "2026-03-15T12:00:00+00:00", "spectrum", "A+", "A+",
+                3.2, 2.8, 8.1, 12.4, 3.2, 2.8, 8.1, 12.4,
+                94.2, 11.3, 23.1, "netperf.bufferbloat.net", 60,
+                0, None,
+            ),
+        )
+        memory_db.commit()
+
+        cursor = memory_db.execute("SELECT COUNT(*) FROM benchmarks")
+        assert cursor.fetchone()[0] == 1
+
+    def test_benchmarks_idempotent(self, memory_db):
+        """create_tables can be called multiple times safely with benchmarks."""
+        create_tables(memory_db)
+        create_tables(memory_db)
+        create_tables(memory_db)
+
+        cursor = memory_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='benchmarks'"
+        )
+        assert cursor.fetchone() is not None
