@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.17
 milestone_name: CAKE Optimization & Benchmarking
-status: executing
-last_updated: "2026-03-15T18:39:20Z"
-last_activity: 2026-03-15 -- Completed 87-01 (benchmark storage & auto-store)
+status: complete
+last_updated: "2026-03-15T18:53:39Z"
+last_activity: 2026-03-15 -- Completed 87-02 (compare & history subcommands) -- v1.17 COMPLETE
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
-  percent: 87
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -26,19 +26,19 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Milestone:** v1.17 CAKE Optimization & Benchmarking
 **Phase:** 87 of 87 (Benchmark Storage & Comparison)
-**Plan:** 01 of 02 complete (benchmark storage & auto-store)
-**Status:** Executing
-**Last activity:** 2026-03-15 -- Completed 87-01 (benchmark storage & auto-store)
+**Plan:** 02 of 02 complete (compare & history subcommands)
+**Status:** Complete -- v1.17 CAKE Optimization & Benchmarking DONE
+**Last activity:** 2026-03-15 -- Completed 87-02 (compare & history subcommands)
 
-Progress: [########.] 87%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
-- Average duration: 21min
-- Total execution time: 2.4 hours
+- Total plans completed: 8
+- Average duration: 20min
+- Total execution time: 2.6 hours
 
 **By Phase:**
 
@@ -47,7 +47,7 @@ Progress: [########.] 87%
 | 84    | 2     | 68min | 34min    |
 | 85    | 2     | 51min | 25min    |
 | 86    | 2     | 17min | 8min     |
-| 87    | 1     | 6min  | 6min     |
+| 87    | 2     | 16min | 8min     |
 
 ## Accumulated Context
 
@@ -81,6 +81,11 @@ Progress: [########.] 87%
 - Auto-store executes before output display so result persists even if display fails
 - detect_wan_name() uses socket.gethostname() with cake- prefix convention
 - Subparser stubs return 0 (Plan 02 replaces with real handlers)
+- Negative latency delta = green (improved), positive = red; inverted for throughput
+- Grade improvement detected via ordered index comparison (F < D < C < B < A < A+)
+- Comparability warnings (different server/duration) go to stderr, don't block comparison
+- History --wan uses hist_wan dest to avoid shadowing global --wan flag
+- run_compare with 0 IDs fetches latest 2; with 2 IDs fetches those specific runs
 
 ### Known Issues
 

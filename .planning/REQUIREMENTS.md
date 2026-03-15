@@ -36,8 +36,8 @@
 ### Benchmark Storage & Comparison
 
 - [x] **STOR-01**: Benchmark results stored in SQLite with timestamp, WAN name, grade, latency percentiles, throughput
-- [ ] **STOR-02**: Operator can compare before/after results showing grade delta and latency improvement
-- [ ] **STOR-03**: Operator can query benchmark history with time-range filtering
+- [x] **STOR-02**: Operator can compare before/after results showing grade delta and latency improvement
+- [x] **STOR-03**: Operator can query benchmark history with time-range filtering
 - [x] **STOR-04**: Benchmark results include metadata (server, duration, daemon status) for comparability
 
 ## Future Requirements
@@ -86,8 +86,8 @@
 | BENCH-06    | Phase 86 | Complete |
 | BENCH-07    | Phase 86 | Complete |
 | STOR-01     | Phase 87 | Complete |
-| STOR-02     | Phase 87 | Pending  |
-| STOR-03     | Phase 87 | Pending  |
+| STOR-02     | Phase 87 | Complete |
+| STOR-03     | Phase 87 | Complete |
 | STOR-04     | Phase 87 | Complete |
 
 **Coverage:**
