@@ -1,7 +1,8 @@
-"""Tests for wanctl.benchmark -- grade computation, flent parsing, result assembly, CLI."""
+"""Tests for wanctl.benchmark -- grade computation, flent parsing, result assembly, CLI, storage."""
 
 import gzip
 import json
+import sqlite3
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -1078,3 +1079,258 @@ class TestMain:
 
         mock_prereqs.assert_called_once_with("custom.host")
         assert mock_run.call_args[0][0] == "custom.host"
+
+
+# ---------------------------------------------------------------------------
+# Task 1 (Phase 87-01): store_benchmark() and query_benchmarks()
+# ---------------------------------------------------------------------------
+
+
+class TestStoreBenchmark:
+    """Verify store_benchmark() persists BenchmarkResult to SQLite."""
+
+    def test_store_returns_row_id(self, tmp_path: Path) -> None:
+        """store_benchmark returns integer row ID on success."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        db = tmp_path / "test.db"
+        row_id = store_benchmark(result, wan_name="spectrum", daemon_running=False, db_path=db)
+        assert isinstance(row_id, int)
+        assert row_id >= 1
+
+    def test_store_all_fields_correct(self, tmp_path: Path) -> None:
+        """Stored row contains all BenchmarkResult fields plus metadata."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result(
+            download_grade="B",
+            upload_grade="B",
+            download_latency_avg=25.0,
+            download_latency_p50=22.0,
+            download_latency_p95=35.0,
+            download_latency_p99=42.0,
+            upload_latency_avg=25.0,
+            upload_latency_p50=22.0,
+            upload_latency_p95=35.0,
+            upload_latency_p99=42.0,
+            download_throughput=450.0,
+            upload_throughput=22.5,
+            baseline_rtt=20.0,
+            server="test.example.com",
+            duration=60,
+            timestamp="2026-03-15T12:00:00+00:00",
+        )
+        db = tmp_path / "test.db"
+        store_benchmark(result, wan_name="att", daemon_running=True, label="before-fix", db_path=db)
+
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM benchmarks WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row["wan_name"] == "att"
+        assert row["download_grade"] == "B"
+        assert row["upload_grade"] == "B"
+        assert row["download_latency_avg"] == 25.0
+        assert row["download_throughput"] == 450.0
+        assert row["upload_throughput"] == 22.5
+        assert row["baseline_rtt"] == 20.0
+        assert row["server"] == "test.example.com"
+        assert row["duration"] == 60
+        assert row["daemon_running"] == 1
+        assert row["label"] == "before-fix"
+        assert row["timestamp"] == "2026-03-15T12:00:00+00:00"
+
+    def test_store_returns_none_on_error(self, tmp_path: Path) -> None:
+        """store_benchmark returns None on error (e.g., read-only path)."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        # Use a path under /dev/null to trigger error
+        row_id = store_benchmark(
+            result, wan_name="spectrum", daemon_running=False,
+            db_path=Path("/dev/null/impossible/test.db"),
+        )
+        assert row_id is None
+
+    def test_store_creates_parent_directory(self, tmp_path: Path) -> None:
+        """store_benchmark creates parent directory if it doesn't exist."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        db = tmp_path / "sub" / "dir" / "test.db"
+        row_id = store_benchmark(result, wan_name="spectrum", daemon_running=False, db_path=db)
+        assert row_id is not None
+        assert db.exists()
+
+    def test_store_label_none(self, tmp_path: Path) -> None:
+        """store_benchmark handles label=None."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        db = tmp_path / "test.db"
+        store_benchmark(result, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT label FROM benchmarks WHERE id = 1").fetchone()
+        conn.close()
+        assert row["label"] is None
+
+    def test_store_label_value(self, tmp_path: Path) -> None:
+        """store_benchmark handles label with a value."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        db = tmp_path / "test.db"
+        store_benchmark(
+            result, wan_name="spectrum", daemon_running=False,
+            label="before-fix", db_path=db,
+        )
+
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT label FROM benchmarks WHERE id = 1").fetchone()
+        conn.close()
+        assert row["label"] == "before-fix"
+
+    def test_store_daemon_running_bool_to_int(self, tmp_path: Path) -> None:
+        """store_benchmark converts bool daemon_running to integer (0 or 1)."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result()
+        db = tmp_path / "test.db"
+        store_benchmark(result, wan_name="spectrum", daemon_running=True, db_path=db)
+
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT daemon_running FROM benchmarks WHERE id = 1").fetchone()
+        conn.close()
+        assert row["daemon_running"] == 1
+
+
+class TestQueryBenchmarks:
+    """Verify query_benchmarks() reads stored benchmark results with filters."""
+
+    def _insert_benchmark(
+        self, db: Path, wan: str = "spectrum", ts: str = "2026-03-15T12:00:00+00:00",
+        label: str | None = None,
+    ) -> int:
+        """Helper to insert a benchmark row and return its ID."""
+        from wanctl.benchmark import store_benchmark
+
+        result = _make_benchmark_result(timestamp=ts)
+        row_id = store_benchmark(
+            result, wan_name=wan, daemon_running=False,
+            label=label, db_path=db,
+        )
+        assert row_id is not None
+        return row_id
+
+    def test_returns_stored_results(self, tmp_path: Path) -> None:
+        """query_benchmarks returns list of dicts from stored results."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        self._insert_benchmark(db)
+
+        rows = query_benchmarks(db_path=db)
+        assert len(rows) == 1
+        assert rows[0]["wan_name"] == "spectrum"
+        assert rows[0]["download_grade"] == "A+"
+
+    def test_filters_by_wan(self, tmp_path: Path) -> None:
+        """query_benchmarks filters by WAN name."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        self._insert_benchmark(db, wan="spectrum")
+        self._insert_benchmark(db, wan="att")
+
+        rows = query_benchmarks(db_path=db, wan="att")
+        assert len(rows) == 1
+        assert rows[0]["wan_name"] == "att"
+
+    def test_filters_by_start_ts(self, tmp_path: Path) -> None:
+        """query_benchmarks filters by start timestamp."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        self._insert_benchmark(db, ts="2026-03-14T12:00:00+00:00")
+        self._insert_benchmark(db, ts="2026-03-15T12:00:00+00:00")
+
+        rows = query_benchmarks(db_path=db, start_ts="2026-03-15T00:00:00+00:00")
+        assert len(rows) == 1
+        assert rows[0]["timestamp"] == "2026-03-15T12:00:00+00:00"
+
+    def test_filters_by_end_ts(self, tmp_path: Path) -> None:
+        """query_benchmarks filters by end timestamp."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        self._insert_benchmark(db, ts="2026-03-14T12:00:00+00:00")
+        self._insert_benchmark(db, ts="2026-03-15T12:00:00+00:00")
+
+        rows = query_benchmarks(db_path=db, end_ts="2026-03-14T23:59:59+00:00")
+        assert len(rows) == 1
+        assert rows[0]["timestamp"] == "2026-03-14T12:00:00+00:00"
+
+    def test_filters_by_ids(self, tmp_path: Path) -> None:
+        """query_benchmarks filters by list of IDs."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        id1 = self._insert_benchmark(db, ts="2026-03-14T12:00:00+00:00")
+        self._insert_benchmark(db, ts="2026-03-15T12:00:00+00:00")
+        id3 = self._insert_benchmark(db, ts="2026-03-16T12:00:00+00:00")
+
+        rows = query_benchmarks(db_path=db, ids=[id1, id3])
+        assert len(rows) == 2
+        returned_ids = {r["id"] for r in rows}
+        assert returned_ids == {id1, id3}
+
+    def test_returns_empty_on_missing_db(self, tmp_path: Path) -> None:
+        """query_benchmarks returns [] when database doesn't exist."""
+        from wanctl.storage.reader import query_benchmarks
+
+        rows = query_benchmarks(db_path=tmp_path / "nonexistent.db")
+        assert rows == []
+
+    def test_returns_empty_on_missing_table(self, tmp_path: Path) -> None:
+        """query_benchmarks returns [] when benchmarks table doesn't exist."""
+        from wanctl.storage.reader import query_benchmarks
+
+        # Create DB with metrics table only (no benchmarks)
+        db = tmp_path / "test.db"
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE metrics (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
+        rows = query_benchmarks(db_path=db)
+        assert rows == []
+
+    def test_limit(self, tmp_path: Path) -> None:
+        """query_benchmarks respects limit parameter."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        for i in range(5):
+            self._insert_benchmark(db, ts=f"2026-03-1{i}T12:00:00+00:00")
+
+        rows = query_benchmarks(db_path=db, limit=2)
+        assert len(rows) == 2
+
+    def test_order_by_timestamp_desc(self, tmp_path: Path) -> None:
+        """query_benchmarks returns results ordered by timestamp DESC."""
+        from wanctl.storage.reader import query_benchmarks
+
+        db = tmp_path / "test.db"
+        self._insert_benchmark(db, ts="2026-03-13T12:00:00+00:00")
+        self._insert_benchmark(db, ts="2026-03-15T12:00:00+00:00")
+        self._insert_benchmark(db, ts="2026-03-14T12:00:00+00:00")
+
+        rows = query_benchmarks(db_path=db)
+        timestamps = [r["timestamp"] for r in rows]
+        assert timestamps == sorted(timestamps, reverse=True)
