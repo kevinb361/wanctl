@@ -111,12 +111,12 @@ Plans:
 2. Running `wanctl-benchmark compare` shows grade delta and latency improvement between two runs (typically before and after CAKE optimization)
 3. Running `wanctl-benchmark history` or `wanctl-history --benchmarks` lists past benchmark results with time-range filtering
 4. Each stored result includes metadata (netperf server, test duration, daemon running status) so non-comparable runs can be identified
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 87-01: TBD
-- [ ] 87-02: TBD
+- [ ] 87-01-PLAN.md -- Storage layer: BENCHMARKS_SCHEMA, store_benchmark(), query_benchmarks(), auto-store wiring, subparser skeleton
+- [ ] 87-02-PLAN.md -- Compare and history subcommands: grade delta display, color-coded metrics, tabulated history, time-range filtering
 
 ## Progress
 
@@ -131,7 +131,7 @@ Phases execute in numeric order: 84 -> 85 -> 86 -> 87
 | 84. CAKE Detection & Optimizer Foundation | 2/2            | Complete    | 2026-03-13 |
 | 85. Auto-Fix CLI Integration              | 2/2 | Complete    | 2026-03-13 |
 | 86. Bufferbloat Benchmarking              | 2/2 | Complete    | 2026-03-13 |
-| 87. Benchmark Storage & Comparison        | 0/?            | Not started | -          |
+| 87. Benchmark Storage & Comparison        | 0/2            | Not started | -          |
 
 ### Completed Milestones
 
