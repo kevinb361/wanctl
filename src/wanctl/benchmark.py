@@ -17,6 +17,7 @@ import gzip
 import json
 import logging
 import shutil
+import socket
 import sqlite3
 import statistics
 import subprocess  # nosec B404
@@ -26,6 +27,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from wanctl.history import parse_duration, parse_timestamp
 from wanctl.lock_utils import is_process_alive, read_lock_pid
 from wanctl.rtt_measurement import parse_ping_output
 from wanctl.storage.schema import create_tables
@@ -530,16 +532,40 @@ def format_json(result: BenchmarkResult) -> str:
 
 
 # ---------------------------------------------------------------------------
+# WAN name detection
+# ---------------------------------------------------------------------------
+
+
+def detect_wan_name() -> str:
+    """Auto-detect WAN name from the container hostname.
+
+    Container hostnames follow the ``cake-<wan>`` convention (e.g.
+    ``cake-spectrum``, ``cake-att``).  Returns ``"unknown"`` if the
+    hostname does not match.
+    """
+    hostname = socket.gethostname()
+    if hostname.startswith("cake-"):
+        return hostname[5:]
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create the argument parser for ``wanctl-benchmark``."""
+    """Create the argument parser for ``wanctl-benchmark``.
+
+    Supports bare invocation (run benchmark) and subcommands
+    ``compare`` / ``history`` (Plan 02 stubs).
+    """
     parser = argparse.ArgumentParser(
         prog="wanctl-benchmark",
         description="Run RRUL bufferbloat test and grade results",
     )
+
+    # Global flags (apply to bare invocation and subcommands)
     parser.add_argument(
         "--server",
         default="netperf.bufferbloat.net",
@@ -560,6 +586,65 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disable colored output",
     )
+
+    # Storage flags
+    parser.add_argument(
+        "--wan",
+        default=None,
+        help="WAN name for stored result (default: auto-detect from hostname)",
+    )
+    parser.add_argument(
+        "--label",
+        default=None,
+        help="Optional label for the stored result (e.g. 'before-fix')",
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=DEFAULT_DB_PATH,
+        help="Database path (default: %(default)s)",
+    )
+
+    # Subcommands (stubs -- Plan 02 implements handlers)
+    sub = parser.add_subparsers(dest="command")
+
+    compare_p = sub.add_parser("compare", help="Compare two benchmark runs")
+    compare_p.add_argument(
+        "ids",
+        nargs="*",
+        type=int,
+        help="Benchmark IDs to compare",
+    )
+
+    history_p = sub.add_parser("history", help="List past benchmark runs")
+    history_p.add_argument(
+        "--last",
+        type=parse_duration,
+        default=None,
+        help="Show benchmarks from last duration (e.g. 24h, 7d)",
+    )
+    history_p.add_argument(
+        "--from",
+        dest="from_ts",
+        type=parse_timestamp,
+        default=None,
+        help="Start timestamp (ISO 8601 or 'YYYY-MM-DD HH:MM')",
+    )
+    history_p.add_argument(
+        "--to",
+        dest="to_ts",
+        type=parse_timestamp,
+        default=None,
+        help="End timestamp (ISO 8601 or 'YYYY-MM-DD HH:MM')",
+    )
+    history_p.add_argument(
+        "--wan",
+        dest="hist_wan",
+        metavar="NAME",
+        default=None,
+        help="Filter by WAN name",
+    )
+
     return parser
 
 
@@ -568,6 +653,15 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
+    # Route subcommands (Plan 02 replaces these stubs)
+    if args.command == "compare":
+        print("Not implemented yet", file=sys.stderr)
+        return 0
+    if args.command == "history":
+        print("Not implemented yet", file=sys.stderr)
+        return 0
+
+    # Bare invocation: run benchmark
     duration = 10 if args.quick else 60
     use_color = not args.no_color and sys.stderr.isatty()
 
@@ -591,6 +685,18 @@ def main() -> int:
     result = run_benchmark(args.server, duration, baseline_rtt=baseline_rtt)
     if result is None:
         return 1
+
+    # Auto-store result to SQLite
+    wan_name = args.wan or detect_wan_name()
+    row_id = store_benchmark(
+        result,
+        wan_name=wan_name,
+        daemon_running=running,
+        label=args.label,
+        db_path=args.db,
+    )
+    if row_id is not None:
+        print(f"Result stored (#{row_id})", file=sys.stderr)
 
     # Output results
     if args.json:
