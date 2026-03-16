@@ -197,7 +197,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(None — planning next milestone)
+## Current Milestone: v1.18 Measurement Quality
+
+**Goal:** Improve RTT measurement accuracy and signal quality through IRTT integration, container networking optimization, and smarter signal processing.
+
+**Target features:**
+
+- IRTT as supplemental RTT source alongside icmplib (dual signal, UDP + ICMP)
+- Container networking audit and optimization (veth/bridge latency characterization)
+- RTT signal quality improvements (outlier filtering, jitter tracking, confidence intervals)
+- IRTT server: self-hosted on Dallas (104.200.21.31) + public reflectors
 
 ### Deferred
 
@@ -455,4 +464,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-16 after v1.17 milestone completion_
+_Last updated: 2026-03-16 after v1.18 milestone start_
