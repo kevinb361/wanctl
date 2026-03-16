@@ -29,6 +29,8 @@ from wanctl.config_validation_utils import (
 from wanctl.daemon_utils import check_cleanup_deadline
 from wanctl.error_handling import handle_errors
 from wanctl.health_check import start_health_server, update_health_status
+from wanctl.irtt_measurement import IRTTMeasurement
+from wanctl.irtt_thread import IRTTThread
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
 from wanctl.metrics import (
@@ -1337,6 +1339,18 @@ class WANController:
         self._last_signal_result: SignalResult | None = None
 
         # =====================================================================
+        # IRTT OBSERVATION MODE (Phase 90)
+        # =====================================================================
+        # Background IRTT thread reference (set by main() if IRTT active).
+        # Protocol correlation tracks ICMP/UDP RTT ratio for deprioritization
+        # detection.  First detection logs at INFO, repeat at DEBUG, recovery
+        # at INFO.
+        # =====================================================================
+        self._irtt_thread: IRTTThread | None = None  # Set by main() if IRTT active
+        self._irtt_correlation: float | None = None
+        self._irtt_deprioritization_logged: bool = False
+
+        # =====================================================================
         # SUSTAINED CONGESTION TIMERS (ALRT-01)
         # =====================================================================
         # Monotonic timestamps tracking when DL/UL entered RED/SOFT_RED.
@@ -1764,6 +1778,45 @@ class WANController:
             self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
             return (False, None)
 
+    def _check_protocol_correlation(self, ratio: float) -> None:
+        """Check ICMP/UDP RTT ratio for protocol deprioritization (IRTT-07).
+
+        Thresholds:
+        - ratio > 1.5: ICMP deprioritized (ISP throttling ICMP)
+        - ratio < 0.67: UDP deprioritized (ISP throttling UDP)
+        - 0.67-1.5: Normal correlation
+        """
+        deprioritized = ratio > 1.5 or ratio < 0.67
+
+        if deprioritized:
+            if ratio > 1.5:
+                interpretation = "ICMP deprioritized"
+            else:
+                interpretation = "UDP deprioritized"
+
+            if not self._irtt_deprioritization_logged:
+                irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
+                udp_rtt = irtt_result.rtt_mean_ms if irtt_result else 0.0
+                self.logger.info(
+                    f"{self.wan_name}: Protocol deprioritization detected: "
+                    f"ICMP/UDP ratio={ratio:.2f} ({interpretation}), "
+                    f"ICMP={self.load_rtt:.1f}ms, UDP={udp_rtt:.1f}ms"
+                )
+                self._irtt_deprioritization_logged = True
+            else:
+                self.logger.debug(
+                    f"{self.wan_name}: Protocol ratio={ratio:.2f}"
+                )
+        else:
+            if self._irtt_deprioritization_logged:
+                self.logger.info(
+                    f"{self.wan_name}: Protocol correlation recovered, "
+                    f"ratio={ratio:.2f}"
+                )
+                self._irtt_deprioritization_logged = False
+
+        self._irtt_correlation = ratio
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -1882,6 +1935,29 @@ class WANController:
 
             # Congestion zone flapping detection (ALRT-07)
             self._check_flapping_alerts(dl_zone, ul_zone)
+
+            # IRTT observation mode: read cached result + protocol correlation (IRTT-03, IRTT-07)
+            irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
+            if irtt_result is not None:
+                age = time.monotonic() - irtt_result.timestamp
+                cadence = self._irtt_thread._cadence_sec if self._irtt_thread else 10.0
+                self.logger.debug(
+                    f"{self.wan_name}: IRTT RTT={irtt_result.rtt_mean_ms:.1f}ms, "
+                    f"IPDV={irtt_result.ipdv_mean_ms:.1f}ms, "
+                    f"loss_up={irtt_result.send_loss:.1f}%, "
+                    f"loss_down={irtt_result.receive_loss:.1f}%, "
+                    f"age={age:.1f}s"
+                )
+                # Protocol correlation (IRTT-07) -- skip stale results (>3x cadence)
+                if age <= cadence * 3 and irtt_result.rtt_mean_ms > 0 and self.load_rtt > 0:
+                    ratio = self.load_rtt / irtt_result.rtt_mean_ms
+                    self._check_protocol_correlation(ratio)
+                elif age > cadence * 3:
+                    self._irtt_correlation = None
+                    self.logger.debug(
+                        f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
+                        f"skipping correlation"
+                    )
 
             # Log decision
             self.logger.info(
@@ -2693,6 +2769,27 @@ def _start_servers(
     return metrics_server, health_server
 
 
+def _start_irtt_thread(
+    controller: "ContinuousAutoRate",
+) -> IRTTThread | None:
+    """Start IRTT background measurement thread if IRTT is available.
+
+    Returns None if IRTT is disabled or unavailable.
+    """
+    first_config = controller.wan_controllers[0]["config"]
+    logger = controller.wan_controllers[0]["logger"]
+
+    measurement = IRTTMeasurement(first_config.irtt_config, logger)
+    if not measurement.is_available():
+        return None
+
+    shutdown_event = get_shutdown_event()
+    cadence_sec = first_config.irtt_config.get("cadence_sec", 10.0)
+    thread = IRTTThread(measurement, cadence_sec, shutdown_event, logger)
+    thread.start()
+    return thread
+
+
 def main() -> int | None:
     """Main entry point for continuous CAKE auto-tuning daemon.
 
@@ -2784,6 +2881,13 @@ def main() -> int | None:
 
     # Start optional servers (metrics, health check)
     metrics_server, health_server = _start_servers(controller)
+
+    # Start IRTT background measurement thread (if configured)
+    irtt_thread = _start_irtt_thread(controller)
+
+    # Pass irtt_thread reference to each WAN controller
+    for wan_info in controller.wan_controllers:
+        wan_info["controller"]._irtt_thread = irtt_thread
 
     # Log startup
     for wan_info in controller.wan_controllers:
@@ -2924,6 +3028,15 @@ def main() -> int | None:
             except Exception:
                 pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
         check_cleanup_deadline("state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+
+        # 0.5. Stop IRTT background thread
+        t0 = time.monotonic()
+        if irtt_thread is not None:
+            try:
+                irtt_thread.stop()
+            except Exception as e:
+                _cleanup_log.debug(f"Error stopping IRTT thread: {e}")
+        check_cleanup_deadline("irtt_thread", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
 
         # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:

@@ -29,6 +29,18 @@ from wanctl.signal_utils import reset_shutdown_state
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _mock_irtt_thread():
+    """Prevent IRTT thread from starting during entry point tests.
+
+    Entry point tests use MagicMock configs where irtt_config is a MagicMock,
+    causing IRTTThread to start with invalid cadence_sec.  Patching
+    _start_irtt_thread to return None avoids this.
+    """
+    with patch("wanctl.autorate_continuous._start_irtt_thread", return_value=None):
+        yield
+
+
 @pytest.fixture
 def valid_config_yaml() -> str:
     """Minimal valid YAML config string for autorate_continuous."""
