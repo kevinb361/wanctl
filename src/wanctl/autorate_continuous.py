@@ -49,7 +49,7 @@ from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import clear_router_password, get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
-from wanctl.signal_processing import SignalProcessor
+from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -1240,7 +1240,7 @@ class WANController:
             logger=logger,
         )
         # Store last signal result for future Phase 92 metrics/health endpoint
-        self._last_signal_result = None
+        self._last_signal_result: SignalResult | None = None
 
         # =====================================================================
         # SUSTAINED CONGESTION TIMERS (ALRT-01)
