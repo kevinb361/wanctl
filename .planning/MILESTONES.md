@@ -1,5 +1,14 @@
 # Project Milestones: wanctl
 
+## v1.17 CAKE Optimization & Benchmarking (Shipped: 2026-03-16)
+
+**Phases completed:** 4 phases, 8 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.16 Validation & Operational Confidence (Shipped: 2026-03-13)
 
 **Delivered:** Operator-facing CLI tools that catch misconfigurations before runtime and verify router queue state matches expectations.

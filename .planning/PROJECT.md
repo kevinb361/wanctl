@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.16.0 (Validation & Operational Confidence) — shipped 2026-03-13
-**Tests:** 2,823 passing, 91%+ coverage
-**LOC:** ~22,180 Python (src/)
-**Milestones:** 17 shipped (v1.0-v1.16), 83 phases, 170 plans
+**Version:** v1.17.0 (CAKE Optimization & Benchmarking) — shipped 2026-03-16
+**Tests:** ~2,893 passing, 91%+ coverage
+**LOC:** ~24,056 Python (src/)
+**Milestones:** 18 shipped (v1.0-v1.17), 87 phases, 178 plans
 
-**Previous:** v1.15 Alerting & Notifications — Discord alerts for congestion, steering, connectivity, anomalies
-**Latest:** v1.16 Validation & Operational Confidence — CLI tools for offline config validation and live router CAKE queue audit
+**Previous:** v1.16 Validation & Operational Confidence — CLI tools for offline config validation and live router CAKE queue audit
+**Latest:** v1.17 CAKE Optimization & Benchmarking — detect/fix sub-optimal CAKE params, RRUL bufferbloat benchmarking with grade computation, storage, and before/after comparison
 
 ## Requirements
 
@@ -185,18 +185,19 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Reusable CheckResult/Severity data model shared between CLI tools — v1.16
 - ✓ 16/16 requirements satisfied — v1.16
 
+**v1.17 CAKE Optimization & Benchmarking:**
+
+- ✓ Sub-optimal CAKE parameter detection with severity and rationale — v1.17
+- ✓ Auto-fix CAKE params via REST API (`wanctl-check-cake --fix`) with snapshot rollback — v1.17
+- ✓ RRUL bufferbloat benchmarking via flent (`wanctl-benchmark`) with A+-F grading — v1.17
+- ✓ Benchmark result storage in SQLite with auto-store on every run — v1.17
+- ✓ Before/after comparison (`wanctl-benchmark compare`) with color-coded grade deltas — v1.17
+- ✓ Benchmark history with time-range filtering (`wanctl-benchmark history`) — v1.17
+- ✓ 23/23 requirements satisfied — v1.17
+
 ### Active
 
-## Current Milestone: v1.17 CAKE Optimization & Benchmarking
-
-**Goal:** Enhance CAKE qdisc management with sub-optimal setting detection, auto-fix via REST API, and latency-under-load benchmarking using flent/netperf.
-
-**Target features:**
-
-- Extend `wanctl-check-cake` to detect sub-optimal settings (not just config mismatches)
-- Auto-apply optimal CAKE parameters to router via REST API (`--fix` flag)
-- Wrap flent/netperf for latency-under-load (RRUL) bufferbloat testing
-- Grade bufferbloat results (A/B/C) and store for before/after comparison
+(None — planning next milestone)
 
 ### Deferred
 
@@ -354,6 +355,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - Key: Never instantiate Config() in check tools — use SCHEMA class attributes only
 - Key: SimpleNamespace wraps router config dict for RouterOSREST.from_config() compatibility
 
+**v1.17 CAKE Optimization & Benchmarking (2026-03-13 → 2026-03-16):**
+
+- Phase 84: CAKE detection & optimizer foundation (get_queue_types, OPTIMAL_CAKE_DEFAULTS, diff engine)
+- Phase 85: Auto-fix CLI integration (--fix flag, daemon lock check, snapshot backup, PATCH to /rest/queue/type)
+- Phase 86: Bufferbloat benchmarking (BenchmarkResult dataclass, compute_grade, flent RRUL orchestration)
+- Phase 87: Benchmark storage & comparison (benchmarks table, auto-store, compare/history subcommands)
+- 70 new tests (2,823 → 2,893 total)
+- Production tested: 19 runs on Spectrum (Grade A early morning), 7 runs on ATT (Grade A+ consistently)
+- Production bugs found and fixed: flent -D flag, icmplib baseline, **main** block
+- CAKE params optimized on both WANs (nat, ack-filter, wash), ATT overhead corrected (pppoe-ptm → bridged-ptm)
+- Router mangle rule ordering fix: FORCE_OUT_ATT and ADAPTIVE steering moved before Trust EF accept rules
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -430,7 +443,16 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | CheckResult/Severity shared data model | Consistent output format across CLI tools | ✓ Both tools import from check_config | 2026-03-13 |
 | SimpleNamespace for router config wrapping | get_router_client() needs attr access, not dict | ✓ No daemon imports needed | 2026-03-13 |
 | Max-limit diff as informational PASS | max-limit changes dynamically during congestion | ✓ Not flagged as error | 2026-03-13 |
+| CAKE params on /rest/queue/type endpoint | Queue tree is dynamic (autorate), queue type is static config | ✓ Separate from tree PATCH | 2026-03-13 |
+| --fix requires daemon stopped (lock check) | Prevent autorate from overwriting fix immediately | ✓ Safe mutation | 2026-03-13 |
+| flent/netperf as subprocess, not Python import | Unstable internal API, heavy GUI deps | ✓ subprocess.run | 2026-03-13 |
+| flent -D (data dir) instead of -o | flent 2.1.1 ignores -o for gzipped data | ✓ Glob for .flent.gz | 2026-03-16 |
+| icmplib for benchmark baseline RTT | subprocess ping races with daemon ICMP probes | ✓ Reliable 3/3 | 2026-03-16 |
+| Direct SQLite writes (not MetricsWriter) | CLI runs once and exits, singleton is overkill | ✓ Simple connect/insert/close | 2026-03-15 |
+| Flat benchmarks table (one row per run) | Simple queries, rarely >50 rows, all fields as columns | ✓ 19 columns | 2026-03-15 |
+| Bare invocation = run (no `run` subcommand) | Backward compatible, argparse optional subparsers | ✓ compare/history as subcommands | 2026-03-15 |
+| ATT overhead bridged-ptm not pppoe-ptm | BGW320 IP passthrough = no PPPoE on router segment | ✓ 22 bytes (was 30) | 2026-03-16 |
 
 ---
 
-_Last updated: 2026-03-13 after v1.17 milestone start_
+_Last updated: 2026-03-16 after v1.17 milestone completion_
