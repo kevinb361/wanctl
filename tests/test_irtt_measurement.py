@@ -233,9 +233,7 @@ class TestFallback:
     """Tests for IRTTMeasurement fallback / failure paths."""
 
     @patch("wanctl.irtt_measurement.shutil.which")
-    def test_measure_returns_none_when_binary_missing(
-        self, mock_which: MagicMock
-    ) -> None:
+    def test_measure_returns_none_when_binary_missing(self, mock_which: MagicMock) -> None:
         """Test 8: measure() returns None when binary not found."""
         mock_which.return_value = None
         m = IRTTMeasurement(config=TEST_CONFIG, logger=_make_logger())
@@ -318,18 +316,14 @@ class TestFallback:
         assert result.rtt_mean_ms == pytest.approx(37.5)
 
     @patch("wanctl.irtt_measurement.shutil.which")
-    def test_is_available_false_when_binary_missing(
-        self, mock_which: MagicMock
-    ) -> None:
+    def test_is_available_false_when_binary_missing(self, mock_which: MagicMock) -> None:
         """Test 15: is_available() returns False when binary missing."""
         mock_which.return_value = None
         m = IRTTMeasurement(config=TEST_CONFIG, logger=_make_logger())
         assert m.is_available() is False
 
     @patch("wanctl.irtt_measurement.shutil.which")
-    def test_is_available_false_when_disabled(
-        self, mock_which: MagicMock
-    ) -> None:
+    def test_is_available_false_when_disabled(self, mock_which: MagicMock) -> None:
         """Test 16: is_available() returns False when enabled=False."""
         mock_which.return_value = "/usr/bin/irtt"
         config = {**TEST_CONFIG, "enabled": False}
@@ -337,9 +331,7 @@ class TestFallback:
         assert m.is_available() is False
 
     @patch("wanctl.irtt_measurement.shutil.which")
-    def test_is_available_false_when_no_server(
-        self, mock_which: MagicMock
-    ) -> None:
+    def test_is_available_false_when_no_server(self, mock_which: MagicMock) -> None:
         """Test 17: is_available() returns False when server=None."""
         mock_which.return_value = "/usr/bin/irtt"
         config = {**TEST_CONFIG, "server": None}
@@ -357,9 +349,7 @@ class TestLogging:
 
     @patch("wanctl.irtt_measurement.shutil.which")
     @patch("wanctl.irtt_measurement.subprocess.run")
-    def test_first_failure_logs_warning(
-        self, mock_run: MagicMock, mock_which: MagicMock
-    ) -> None:
+    def test_first_failure_logs_warning(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test 18: First failure logs at WARNING level."""
         mock_which.return_value = "/usr/bin/irtt"
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="irtt", timeout=6)
@@ -374,16 +364,15 @@ class TestLogging:
 
     @patch("wanctl.irtt_measurement.shutil.which")
     @patch("wanctl.irtt_measurement.subprocess.run")
-    def test_second_failure_logs_debug(
-        self, mock_run: MagicMock, mock_which: MagicMock
-    ) -> None:
+    def test_second_failure_logs_debug(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
         """Test 19: Second consecutive failure logs at DEBUG (not WARNING)."""
         mock_which.return_value = "/usr/bin/irtt"
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="irtt", timeout=6)
         logger = _make_logger()
-        with patch.object(logger, "warning") as mock_warn, patch.object(
-            logger, "debug"
-        ) as mock_debug:
+        with (
+            patch.object(logger, "warning") as mock_warn,
+            patch.object(logger, "debug") as mock_debug,
+        ):
             m = IRTTMeasurement(config=TEST_CONFIG, logger=logger)
             mock_warn.reset_mock()
             mock_debug.reset_mock()
@@ -395,9 +384,7 @@ class TestLogging:
             assert mock_warn.call_count == 1
             # debug called at least once (second failure)
             debug_calls = [
-                c
-                for c in mock_debug.call_args_list
-                if "IRTT measurement failed" in str(c)
+                c for c in mock_debug.call_args_list if "IRTT measurement failed" in str(c)
             ]
             assert len(debug_calls) >= 1
 
@@ -428,9 +415,7 @@ class TestLogging:
             assert result is not None
             assert result.success is True
             info_calls = [
-                c
-                for c in mock_info.call_args_list
-                if "recovered" in str(c) and "2" in str(c)
+                c for c in mock_info.call_args_list if "recovered" in str(c) and "2" in str(c)
             ]
             assert len(info_calls) == 1
 
@@ -461,9 +446,7 @@ class TestLogging:
         assert m._first_failure_logged is False
 
     @patch("wanctl.irtt_measurement.shutil.which")
-    def test_binary_missing_logs_warning_with_apt_hint(
-        self, mock_which: MagicMock
-    ) -> None:
+    def test_binary_missing_logs_warning_with_apt_hint(self, mock_which: MagicMock) -> None:
         """Test 22: Binary missing at init logs WARNING with 'apt install' hint."""
         mock_which.return_value = None
         logger = _make_logger()
