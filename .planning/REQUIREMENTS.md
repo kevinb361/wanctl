@@ -14,7 +14,7 @@ Requirements for measurement quality milestone. Each maps to roadmap phases.
 - [x] **SIGP-03**: Measurement confidence interval is computed per cycle indicating RTT reading reliability
 - [x] **SIGP-04**: RTT variance is tracked via EWMA alongside existing load_rtt smoothing
 - [x] **SIGP-05**: Signal processing uses only Python stdlib (zero new package dependencies)
-- [ ] **SIGP-06**: Signal processing operates in observation mode — metrics and logs only, no congestion control input changes
+- [x] **SIGP-06**: Signal processing operates in observation mode — metrics and logs only, no congestion control input changes
 
 ### IRTT
 
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SIGP-03 | Phase 88 | Complete |
 | SIGP-04 | Phase 88 | Complete |
 | SIGP-05 | Phase 88 | Complete |
-| SIGP-06 | Phase 88 | Pending |
+| SIGP-06 | Phase 88 | Complete |
 | IRTT-01 | Phase 89 | Pending |
 | IRTT-02 | Phase 90 | Pending |
 | IRTT-03 | Phase 90 | Pending |

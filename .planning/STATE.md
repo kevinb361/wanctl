@@ -4,13 +4,13 @@ milestone: v1.18
 milestone_name: Measurement Quality
 status: in_progress
 last_updated: "2026-03-16"
-last_activity: 2026-03-16 -- Completed 88-01-PLAN.md (Signal Processing Core Algorithms)
+last_activity: 2026-03-16 -- Completed 88-02-PLAN.md (Daemon Wiring and Config Integration)
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 10
+  completed_plans: 2
+  percent: 20
 ---
 
 # Session State
@@ -26,25 +26,25 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Milestone:** v1.18 Measurement Quality
 **Phase:** 88 of 92 (Signal Processing Core)
-**Plan:** 1 of 2 complete
-**Status:** In progress
-**Last activity:** 2026-03-16 -- Completed 88-01-PLAN.md (Signal Processing Core Algorithms)
+**Plan:** 2 of 2 complete
+**Status:** Phase 88 complete
+**Last activity:** 2026-03-16 -- Completed 88-02-PLAN.md (Daemon Wiring and Config Integration)
 
-Progress: [#.........] 10%
+Progress: [##........] 20%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 16min
-- Total execution time: 0.3 hours
+- Total plans completed: 2
+- Average duration: 24min
+- Total execution time: 0.8 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| 88    | 1     | 16min | 16min    |
+| 88    | 2     | 47min | 24min    |
 
 ## Accumulated Context
 
@@ -54,6 +54,8 @@ Progress: [#.........] 10%
 - typing.Any used for config dict (mypy-clean); from **future** import annotations for forward refs
 - All signal processing ships in observation mode (metrics/logs only, no congestion control changes) -- v1.19+ adds fusion
 - IRTT runs in background thread on 5-10s cadence, never in 50ms hot loop (subprocess overhead incompatible)
+- Signal processing config always active (no enable/disable flag), warn+default on invalid values, optional YAML section
+- All inline mock configs in test files must have signal_processing_config dict when WANController is constructed
 - Zero new Python dependencies -- all signal processing uses stdlib (statistics, collections.deque, math)
 - One new system binary: irtt via apt on production containers
 - Container networking audit may close with report only if overhead < 0.5ms
