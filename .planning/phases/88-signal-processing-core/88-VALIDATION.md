@@ -47,7 +47,7 @@ created: 2026-03-16
 | 88-01-07 | 01 | 1 | SIGP-03 | unit | `.venv/bin/pytest tests/test_signal_processing.py::TestConfidence::test_zero_baseline -x` | ❌ W0 | ⬜ pending |
 | 88-01-08 | 01 | 1 | SIGP-04 | unit | `.venv/bin/pytest tests/test_signal_processing.py::TestVariance -x` | ❌ W0 | ⬜ pending |
 | 88-01-09 | 01 | 1 | SIGP-05 | unit | `.venv/bin/pytest tests/test_signal_processing.py::test_stdlib_only -x` | ❌ W0 | ⬜ pending |
-| 88-01-10 | 01 | 1 | SIGP-06 | integration | `.venv/bin/pytest tests/test_signal_processing.py::TestObservationMode -x` | ❌ W0 | ⬜ pending |
+| 88-01-10 | 01 | 1 | SIGP-06 | integration | `.venv/bin/pytest tests/test_signal_processing_config.py::TestObservationMode -x` | ❌ W0 | ⬜ pending |
 | 88-02-01 | 02 | 1 | -- | unit | `.venv/bin/pytest tests/test_signal_processing_config.py -x` | ❌ W0 | ⬜ pending |
 | 88-02-02 | 02 | 2 | SIGP-06 | integration | `.venv/bin/pytest tests/test_autorate_continuous.py -x -k signal` | ❌ W0 | ⬜ pending |
 
