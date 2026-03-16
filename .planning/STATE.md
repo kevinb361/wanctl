@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
 status: planning
-last_updated: "2026-03-16T22:08:17Z"
-last_activity: 2026-03-16 -- Completed 90-01-PLAN.md (IRTTThread & cadence_sec config)
+last_updated: "2026-03-16T22:32:00Z"
+last_activity: 2026-03-16 -- Completed 90-02-PLAN.md (IRTTThread daemon integration + protocol correlation)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
   completed_plans: 5
-  percent: 50
+  percent: 60
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.18 Measurement Quality -- Phase 89 in progress
+**Current focus:** v1.18 Measurement Quality -- Phase 90 complete
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 90 of 92 (IRTT Daemon Integration)
-**Plan:** 1 of 2 complete
-**Status:** Executing
-**Last activity:** 2026-03-16 -- Completed 90-01-PLAN.md (IRTTThread & cadence_sec config)
+**Phase:** 90 of 92 (IRTT Daemon Integration) -- COMPLETE
+**Plan:** 2 of 2 complete
+**Status:** Phase 90 complete, ready for Phase 91
+**Last activity:** 2026-03-16 -- Completed 90-02-PLAN.md (IRTTThread daemon integration + protocol correlation)
 
-Progress: [#####-----] 50%
+Progress: [######----] 60%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 16min
-- Total execution time: 1.1 hours
+- Total execution time: 1.4 hours
 
 **By Phase:**
 
@@ -48,6 +48,7 @@ Progress: [#####-----] 50%
 | Phase 89 P01 | 3min  | 1 tasks | 2 files  |
 | Phase 89 P02 | 13min | 2 tasks | 5 files  |
 | Phase 90 P01 | 11min | 2 tasks | 6 files  |
+| Phase 90 P02 | 19min | 1 tasks | 3 files  |
 
 ## Accumulated Context
 
@@ -71,6 +72,10 @@ Progress: [#####-----] 50%
 - IRTTThread uses lock-free caching via frozen dataclass pointer swap (GIL-atomic), no threading.Lock needed
 - IRTTThread daemon=True so thread dies with process, shutdown_event.wait(timeout=cadence_sec) for interruptible sleep
 - cadence_sec validated as number >= 1, default 10, warn+default pattern (consistent with other IRTT config fields)
+- Protocol correlation thresholds: ratio > 1.5 (ICMP deprioritized) or < 0.67 (UDP deprioritized)
+- Stale IRTT results (>3x cadence) skip correlation, set \_irtt_correlation to None
+- IRTT thread stopped at step 0.5 in finally block (after state save, before lock cleanup)
+- Autouse \_mock_irtt_thread fixture needed in entry point tests when irtt binary installed on dev machine
 
 ### Known Issues
 

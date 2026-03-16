@@ -24,7 +24,7 @@ Requirements for measurement quality milestone. Each maps to roadmap phases.
 - [x] **IRTT-04**: IRTT configuration via YAML section (server, port, cadence, enabled) disabled by default
 - [x] **IRTT-05**: IRTT unavailability (server down, binary missing) has zero impact on controller behavior
 - [x] **IRTT-06**: Upstream vs downstream packet loss direction is tracked per IRTT measurement burst
-- [ ] **IRTT-07**: ICMP vs UDP RTT correlation detects protocol-specific deprioritization
+- [x] **IRTT-07**: ICMP vs UDP RTT correlation detects protocol-specific deprioritization
 - [x] **IRTT-08**: IRTT binary installed on production containers via apt
 
 ### Container Networking
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IRTT-04 | Phase 89 | Complete |
 | IRTT-05 | Phase 89 | Complete |
 | IRTT-06 | Phase 90 | Complete |
-| IRTT-07 | Phase 90 | Pending |
+| IRTT-07 | Phase 90 | Complete |
 | IRTT-08 | Phase 89 | Complete |
 | CNTR-01 | Phase 91 | Pending |
 | CNTR-02 | Phase 91 | Pending |
