@@ -706,6 +706,84 @@ class Config(BaseConfig):
             f"jitter_tc={jitter_tc}s, variance_tc={variance_tc}s"
         )
 
+    def _load_irtt_config(self) -> None:
+        """Load IRTT measurement configuration.
+
+        Validates the optional irtt: YAML section. Invalid config warns and
+        falls back to defaults (does not crash). IRTT is disabled by default.
+
+        Sets self.irtt_config to a dict consumed by IRTTMeasurement constructor.
+        """
+        logger = logging.getLogger(__name__)
+        irtt = self.data.get("irtt", {})
+
+        if not isinstance(irtt, dict):
+            logger.warning(
+                f"irtt config must be dict, got {type(irtt).__name__}; using defaults"
+            )
+            irtt = {}
+
+        enabled = irtt.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                f"irtt.enabled must be bool, got {enabled!r}; defaulting to false"
+            )
+            enabled = False
+
+        server = irtt.get("server", None)
+        if server is not None and not isinstance(server, str):
+            logger.warning(
+                f"irtt.server must be str, got {server!r}; defaulting to None"
+            )
+            server = None
+
+        port = irtt.get("port", 2112)
+        if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
+            logger.warning(
+                f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112"
+            )
+            port = 2112
+
+        duration_sec = irtt.get("duration_sec", 1.0)
+        if (
+            not isinstance(duration_sec, (int, float))
+            or isinstance(duration_sec, bool)
+            or duration_sec <= 0
+        ):
+            logger.warning(
+                f"irtt.duration_sec must be positive number, got {duration_sec!r}; "
+                f"defaulting to 1.0"
+            )
+            duration_sec = 1.0
+
+        interval_ms = irtt.get("interval_ms", 100)
+        if (
+            not isinstance(interval_ms, int)
+            or isinstance(interval_ms, bool)
+            or interval_ms < 1
+        ):
+            logger.warning(
+                f"irtt.interval_ms must be positive int, got {interval_ms!r}; "
+                f"defaulting to 100"
+            )
+            interval_ms = 100
+
+        self.irtt_config = {
+            "enabled": enabled,
+            "server": server,
+            "port": port,
+            "duration_sec": float(duration_sec),
+            "interval_ms": interval_ms,
+        }
+
+        if enabled and server:
+            logger.info(
+                f"IRTT: enabled, server={server}:{port}, "
+                f"burst={duration_sec}s@{interval_ms}ms"
+            )
+        else:
+            logger.info("IRTT: disabled (enable via irtt.enabled + irtt.server)")
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -751,6 +829,9 @@ class Config(BaseConfig):
 
         # Signal processing (always active, no enable/disable flag)
         self._load_signal_processing_config()
+
+        # IRTT measurement (optional, disabled by default)
+        self._load_irtt_config()
 
 
 # =============================================================================
