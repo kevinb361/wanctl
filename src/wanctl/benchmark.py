@@ -309,7 +309,19 @@ def check_server_connectivity(
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return (False, 0.0)
 
-    # Measure baseline RTT via ping
+    # Measure baseline RTT via icmplib (same library the daemon uses).
+    # Avoids subprocess ping race conditions with the daemon's concurrent
+    # ICMP probes that caused intermittent 0ms baseline readings.
+    try:
+        import icmplib
+
+        result = icmplib.ping(server, count=5, interval=0.2, timeout=2)
+        if result.is_alive and result.min_rtt > 0:
+            return (True, result.min_rtt)
+    except Exception:
+        pass
+
+    # Fallback to subprocess ping if icmplib unavailable or fails
     try:
         ping_result = subprocess.run(  # nosec B603 -- hardcoded ping invocation
             ["ping", "-c", "5", "-i", "0.2", server],
