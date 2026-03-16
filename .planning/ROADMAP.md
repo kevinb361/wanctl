@@ -97,7 +97,12 @@ Plans:
 2. The main control loop reads the latest cached IRTT result each cycle in constant time with zero blocking -- even if a measurement is in-flight
 3. Upstream vs downstream packet loss direction is tracked per IRTT measurement burst and available in the cached result
 4. ICMP vs UDP RTT correlation is computed per measurement, detecting protocol-specific deprioritization when both signals are available
-   **Plans**: TBD
+   **Plans:** 2 plans
+
+Plans:
+
+- [ ] 90-01-PLAN.md -- IRTTThread module (TDD), cadence_sec config validation, CONFIG_SCHEMA docs
+- [ ] 90-02-PLAN.md -- Daemon wiring (main lifecycle, run_cycle cached reads, protocol correlation)
 
 ### Phase 91: Container Networking Audit
 
@@ -135,7 +140,7 @@ Plans:
 | ------------------------------ | -------------- | ----------- | --------- |
 | 88. Signal Processing Core     | 1/2            | In progress | -         |
 | 89. IRTT Foundation            | 0/2            | Not started | -         |
-| 90. IRTT Daemon Integration    | 0/TBD          | Not started | -         |
+| 90. IRTT Daemon Integration    | 0/2            | Not started | -         |
 | 91. Container Networking Audit | 0/TBD          | Not started | -         |
 | 92. Observability              | 0/TBD          | Not started | -         |
 
