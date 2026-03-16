@@ -117,6 +117,7 @@ def mock_autorate_config():
         "port": 2112,
         "duration_sec": 1.0,
         "interval_ms": 100,
+        "cadence_sec": 10.0,
     }
     return config
 

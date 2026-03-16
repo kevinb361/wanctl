@@ -768,18 +768,31 @@ class Config(BaseConfig):
             )
             interval_ms = 100
 
+        cadence_sec = irtt.get("cadence_sec", 10)
+        if (
+            not isinstance(cadence_sec, (int, float))
+            or isinstance(cadence_sec, bool)
+            or cadence_sec < 1
+        ):
+            logger.warning(
+                f"irtt.cadence_sec must be number >= 1, got {cadence_sec!r}; "
+                f"defaulting to 10"
+            )
+            cadence_sec = 10
+
         self.irtt_config = {
             "enabled": enabled,
             "server": server,
             "port": port,
             "duration_sec": float(duration_sec),
             "interval_ms": interval_ms,
+            "cadence_sec": float(cadence_sec),
         }
 
         if enabled and server:
             logger.info(
                 f"IRTT: enabled, server={server}:{port}, "
-                f"burst={duration_sec}s@{interval_ms}ms"
+                f"burst={duration_sec}s@{interval_ms}ms, cadence={cadence_sec}s"
             )
         else:
             logger.info("IRTT: disabled (enable via irtt.enabled + irtt.server)")
