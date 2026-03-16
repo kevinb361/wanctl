@@ -473,13 +473,14 @@ IRTT (Isochronous Round-Trip Tester) UDP measurement configuration. Provides sup
 
 When enabled, IRTT runs short measurement bursts against a configured IRTT server. Results are available for observation and metrics but do not influence congestion control decisions (observation mode).
 
-| Field          | Type  | Default | Description                                                    |
-| -------------- | ----- | ------- | -------------------------------------------------------------- |
-| `enabled`      | bool  | `false` | Enable IRTT measurements                                       |
-| `server`       | str   | `null`  | IRTT server IP or hostname (required when enabled)             |
-| `port`         | int   | `2112`  | IRTT server port (standard IRTT port)                          |
-| `duration_sec` | float | `1.0`   | Measurement burst duration in seconds (Go duration format: 1s) |
-| `interval_ms`  | int   | `100`   | Packet interval in milliseconds (Go duration format: 100ms)    |
+| Field          | Type  | Default | Description                                                         |
+| -------------- | ----- | ------- | ------------------------------------------------------------------- |
+| `enabled`      | bool  | `false` | Enable IRTT measurements                                            |
+| `server`       | str   | `null`  | IRTT server IP or hostname (required when enabled)                  |
+| `port`         | int   | `2112`  | IRTT server port (standard IRTT port)                               |
+| `duration_sec` | float | `1.0`   | Measurement burst duration in seconds (Go duration format: 1s)      |
+| `interval_ms`  | int   | `100`   | Packet interval in milliseconds (Go duration format: 100ms)         |
+| `cadence_sec`  | float | `10`    | Seconds between IRTT measurement bursts (background thread cadence) |
 
 **Payload size:** Fixed at 48 bytes (not configurable).
 
@@ -495,13 +496,14 @@ irtt:
   port: 2112
   duration_sec: 1.0
   interval_ms: 100
+  cadence_sec: 10
 
 # Example: disabled (default -- no section needed)
 # irtt:
 #   enabled: false
 ```
 
-**Note:** IRTT measurements run on a separate cadence (configured in Phase 90) independent of the 50ms control loop. The `duration_sec` and `interval_ms` settings control the measurement burst parameters, not the measurement frequency.
+**Note:** IRTT measurements run on a background thread at the configured `cadence_sec` interval, independent of the 50ms control loop. The `duration_sec` and `interval_ms` settings control the measurement burst parameters, not the measurement frequency.
 
 ---
 

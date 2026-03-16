@@ -92,6 +92,7 @@ class TestIRTTConfigDefaults:
         assert config.irtt_config["port"] == 2112
         assert config.irtt_config["duration_sec"] == 1.0
         assert config.irtt_config["interval_ms"] == 100
+        assert config.irtt_config["cadence_sec"] == 10.0
 
     def test_irtt_section_empty_dict_uses_defaults(self, tmp_path, autorate_config_dict):
         """Config with empty irtt: {} gets default values."""
@@ -102,6 +103,7 @@ class TestIRTTConfigDefaults:
         assert config.irtt_config["port"] == 2112
         assert config.irtt_config["duration_sec"] == 1.0
         assert config.irtt_config["interval_ms"] == 100
+        assert config.irtt_config["cadence_sec"] == 10.0
 
 
 # =============================================================================
@@ -120,6 +122,7 @@ class TestIRTTConfigValid:
             "port": 2112,
             "duration_sec": 1.0,
             "interval_ms": 100,
+            "cadence_sec": 10.0,
         }
         config = _make_config(tmp_path, autorate_config_dict)
         assert config.irtt_config == {
@@ -128,6 +131,7 @@ class TestIRTTConfigValid:
             "port": 2112,
             "duration_sec": 1.0,
             "interval_ms": 100,
+            "cadence_sec": 10.0,
         }
 
     def test_custom_values(self, tmp_path, autorate_config_dict):
@@ -138,12 +142,14 @@ class TestIRTTConfigValid:
             "port": 5000,
             "duration_sec": 2.0,
             "interval_ms": 50,
+            "cadence_sec": 5,
         }
         config = _make_config(tmp_path, autorate_config_dict)
         assert config.irtt_config["server"] == "10.0.0.1"
         assert config.irtt_config["port"] == 5000
         assert config.irtt_config["duration_sec"] == 2.0
         assert config.irtt_config["interval_ms"] == 50
+        assert config.irtt_config["cadence_sec"] == 5.0
 
     def test_integer_duration_converted_to_float(self, tmp_path, autorate_config_dict):
         """Integer duration_sec=2 is stored as float 2.0."""
@@ -296,6 +302,52 @@ class TestIRTTConfigValidation:
             config = _make_config(tmp_path, autorate_config_dict)
         assert config.irtt_config["interval_ms"] == 100
         assert "irtt.interval_ms must be positive int" in caplog.text
+
+
+# =============================================================================
+# TestIRTTConfigCadenceValidation
+# =============================================================================
+
+
+class TestIRTTConfigCadenceValidation:
+    """Warn+default for invalid cadence_sec values."""
+
+    def test_cadence_sec_not_number_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
+        autorate_config_dict["irtt"] = {"cadence_sec": "fast"}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 10.0
+        assert "irtt.cadence_sec must be number >= 1" in caplog.text
+
+    def test_cadence_sec_zero_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
+        autorate_config_dict["irtt"] = {"cadence_sec": 0}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 10.0
+        assert "irtt.cadence_sec must be number >= 1" in caplog.text
+
+    def test_cadence_sec_negative_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
+        autorate_config_dict["irtt"] = {"cadence_sec": -5}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 10.0
+
+    def test_cadence_sec_bool_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
+        autorate_config_dict["irtt"] = {"cadence_sec": True}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 10.0
+
+    def test_cadence_sec_valid_float(self, tmp_path, autorate_config_dict):
+        autorate_config_dict["irtt"] = {"cadence_sec": 5.5}
+        config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 5.5
+
+    def test_cadence_sec_integer_stored_as_float(self, tmp_path, autorate_config_dict):
+        autorate_config_dict["irtt"] = {"cadence_sec": 15}
+        config = _make_config(tmp_path, autorate_config_dict)
+        assert config.irtt_config["cadence_sec"] == 15.0
+        assert isinstance(config.irtt_config["cadence_sec"], float)
 
 
 # =============================================================================
