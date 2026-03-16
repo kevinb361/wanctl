@@ -1,40 +1,37 @@
-# Feature Landscape: v1.17 CAKE Optimization & Benchmarking
+# Feature Landscape: v1.18 Measurement Quality
 
-**Domain:** CAKE qdisc parameter optimization and bufferbloat benchmarking for dual-WAN controller
-**Researched:** 2026-03-13
-**Confidence:** HIGH
+**Domain:** RTT measurement quality improvements for dual-WAN adaptive CAKE controller
+**Researched:** 2026-03-16
 
 ## Table Stakes
 
-Features users expect from a CAKE optimization and benchmarking tool. Missing = tool feels incomplete.
+Features expected from a measurement quality improvement milestone. Missing = effort feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Detect sub-optimal CAKE queue type parameters | Core purpose -- extend existing audit tool. Must flag: wrong overhead for link type, missing cake-nat behind NAT, wrong flowmode, sub-optimal diffserv | Medium | Requires GET `/rest/queue/type` (new), compare to optimal per link type |
-| Show diff before applying fixes | Safety -- never modify router without confirmation | Low | Text diff of current vs proposed values |
-| `--fix` applies optimal parameters via REST API | Core purpose -- auto-remediation | Medium | PATCH `/rest/queue/type/{id}` with changed params only |
-| `--dry-run` mode for --fix | Safety critical -- production router | Low | Show what would change without applying |
-| Run RRUL bufferbloat test | Core purpose -- measure latency under load | Medium | Wrap flent subprocess, existing FlentGenerator code |
-| Grade bufferbloat results (A-F) | Makes results actionable for non-experts | Low | Industry-standard thresholds (Waveform/DSLReports) |
-| Store benchmark results for comparison | Essential for before/after CAKE optimization | Medium | SQLite, follows MetricsWriter pattern |
-| Before/after comparison output | Proves optimization worked | Low | Query two results, show delta |
-| Netperf server connectivity check | Fail fast before spending 30-60s | Low | TCP connect to port 12865 with 5s timeout |
+| Outlier filtering on raw RTT samples | Single spike should not trigger false congestion detection | Low | Hampel filter with rolling MAD, ~20 lines pure Python, stdlib only |
+| Jitter tracking (EWMA) | Jitter is a leading indicator of congestion; currently ignored entirely | Low | RFC 3550 EWMA (gain 1/16), 15 lines, no deps |
+| Measurement confidence indicator | Operator needs to know if readings are trustworthy | Low | Rolling CI from stdlib statistics module |
+| IRTT subprocess wrapper | Core delivery -- supplemental UDP RTT source | Medium | subprocess + json.loads pattern (same as flent in v1.17) |
+| IRTT results in health endpoint | Operators expect visibility into measurement diversity | Low | Extend existing /health JSON response |
+| YAML config for all new features | Must be opt-in, backward-compatible | Low | Existing config pattern, ships disabled by default |
+| Feature disabled by default | Production system -- no behavioral change on upgrade | Low | Established pattern (wan_state, alerting, confidence) |
+| Signal quality metrics in SQLite | Track measurement quality trends over time | Low | Existing metrics_storage.py pattern, new type values |
+| IRTT fallback to icmplib-only | IRTT server down must not break existing measurement | Low | icmplib stays primary; IRTT is supplemental |
 
 ## Differentiators
 
-Features that set this apart. Not expected, but high value.
+Features that significantly improve measurement quality beyond expectations.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Link-type-aware optimization profiles | Knows correct CAKE params for DOCSIS vs VDSL2 vs fiber. Cable: `docsis` overhead, DSL: `pppoe-ptm` overhead | Low | YAML config section, lookup table |
-| Per-queue-direction parameters | Download and upload may need different overhead/ACK filter settings | Low | Separate DL/UL entries in cake_optimization config |
-| Parameter snapshot before fix | Save current state to JSON for rollback | Low | GET before PATCH, serialize to timestamped file |
-| Benchmark history timeline | Track bufferbloat grade over time | Medium | SQLite history query, tabulate output |
-| Combined audit+benchmark workflow | "Check CAKE, fix, then verify with benchmark" in one session | Low | CLI subcommands, sequential execution |
-| WAN-specific benchmark profiles | Different SLAs for Spectrum vs ATT | Low | Already have per-WAN RRUL profiles |
-| JSON output for all operations | CI/scripting integration | Low | Existing format_results_json pattern |
-| Separate DL/UL bufferbloat grades | Some links have good DL but bad UL control | Low | Parse flent for separate DL/UL latency deltas |
-| Quick benchmark mode (--quick) | Fast iteration during tuning (10s instead of 60s) | Low | Short -l flag to flent, flagged as "quick" in storage |
+| Upstream vs downstream loss direction | Know WHERE packets are lost (ISP ingress vs egress) -- currently impossible | Low | IRTT provides natively in JSON: `true_up`, `true_down` |
+| ICMP vs UDP RTT correlation | Detect ISP ICMP deprioritization (RTT delta between protocols) | Low | Compare icmplib and IRTT median RTTs per measurement cycle |
+| IRTT IPDV (per-packet jitter) | Richer jitter signal than manual delta calculation from sequential ICMP pings | Low | IRTT JSON `round_trips[].ipdv.rtt` field, already computed |
+| Container networking latency characterization | Quantify veth/bridge overhead -- establish measurement floor | Medium | One-time audit tooling, uses existing icmplib + new IRTT |
+| IRTT loss direction in alerting | Alert when upstream/downstream loss exceeds threshold | Low | Integrate with existing AlertEngine from v1.15 |
+| One-way delay tracking (relative) | Detect asymmetric congestion (upload saturated but download fine) | Medium | IRTT provides OWD; useful for relative change even without NTP sync |
+| RTT variance EWMA | Track measurement stability -- high variance = unreliable path | Low | Parallel EWMA alongside existing load_rtt EWMA |
 
 ## Anti-Features
 
@@ -42,127 +39,66 @@ Features to explicitly NOT build.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Graphical plots / charts | Adds matplotlib dependency, not useful in CLI/SSH context | Text-based grades and tabulate tables. Users who want plots can feed JSON to external tools or use flent's own plotting |
-| Continuous benchmark daemon | Benchmarks saturate the link -- cannot run alongside production traffic shaping | On-demand CLI tool only. Pause wanctl daemon during benchmarks or accept imprecise results |
-| Auto-schedule benchmarks | Risk of running during production hours, saturating link | Manual invocation only. Document recommended workflow |
-| Modify queue tree (not queue type) | Queue tree max-limit is dynamically managed by wanctl daemon. Modifying it would conflict | Only modify queue TYPE parameters (CAKE settings). Queue tree max-limit is daemon territory |
-| Create/delete queue types | Destructive. Assumes queue types already exist (created during initial router setup) | Only modify existing queue type parameters. Error if queue type not found |
-| Import flent as Python library | Unstable internal API, pulls heavy GUI deps (matplotlib, PyQt5) | subprocess.Popen (existing pattern) |
-| Built-in netperf server | Netperf server must run on a DIFFERENT machine to measure the link | Document setup. Provide one-liner: `ssh remote 'netserver -D'` |
-| Browser-based speed tests | Not reproducible, don't measure latency under load (bufferbloat) | Use flent RRUL with controlled netperf server |
-| Auto-tune bandwidth ceiling | Requires iterative testing over hours/days, false precision | Document "10% below ISP speed" heuristic |
-| DSCP/diffserv auto-classification | Massive scope increase for marginal benefit in home network | Recommend `besteffort` for home use, document when diffserv3/4 is appropriate |
-| iperf3 as alternative | flent RRUL requires netperf. iperf3 lacks multi-stream timestamped output | Use netperf exclusively (already installed) |
+| Replace icmplib with IRTT in hot loop | IRTT subprocess has 5-10ms startup overhead; incompatible with 50ms cycle | Keep icmplib for 20Hz hot loop, IRTT as periodic supplemental (every 5-10s) |
+| Machine learning anomaly detection | Massive deps, unpredictable behavior, untestable edge cases | Deterministic: Hampel filter, z-score, RFC 3550 jitter |
+| numpy/scipy/pandas for signal processing | 30MB+ deps for 3 trivial functions (median, stdev, MAD) | stdlib statistics + collections.deque |
+| Per-cycle IRTT measurement | 5-10ms subprocess overhead consumes 10-20% of cycle budget | Periodic burst every 5-10 seconds in background thread |
+| Automatic macvlan migration | Container networking changes are high-risk for production | Audit first, recommend manually, operator decides |
+| IRTT server management from wanctl | wanctl should not manage remote server processes | Assume server is running (it is -- Dallas 104.200.21.31) |
+| Custom UDP measurement protocol | IRTT handles clock sync, HMAC, IPDV, loss direction | Use IRTT binary |
+| NTP-synchronized OWD as authoritative | Clock sync in LXC containers is unreliable; OWD errors compound | Use OWD for relative change detection only, RTT remains authoritative |
+| Continuous IRTT background stream | Wastes bandwidth, adds constant UDP traffic | Short burst measurements (5 packets per burst) every 5-10s |
+| SmokePing integration | External tool with own data pipeline; wanctl is self-contained | Use IRTT directly |
+| Dual-signal fusion for congestion control | High complexity, needs extensive validation before production | Start with observation: report IRTT alongside icmplib, defer fusion to v1.19+ |
 
 ## Feature Dependencies
 
 ```
-CAKE Parameter Detection and Auto-Fix
-    |-- get_queue_type() in routeros_rest.py  (new REST method)
-    |       requires: existing RouterOSREST._find_resource_id()
-    |-- set_queue_type_params() in routeros_rest.py  (new REST method)
-    |       requires: existing RouterOSREST._request("PATCH")
-    |-- detect_suboptimal_params()
-    |       requires: get_queue_type() result + optimal param lookup table
-    |-- --fix / --dry-run CLI flags
-    |       requires: detect_suboptimal_params (to know what to fix)
-    |       requires: set_queue_type_params (to apply fix)
-    |-- parameter_snapshot()
-    |       requires: get_queue_type() (save before fix)
-    |-- before_after_diff()
-            requires: get_queue_type() before and after fix
+Signal Processing Core (no external deps):
+    HampelFilter --> RTTMeasurement.measure_rtt() (filter before EWMA update)
+    JitterTracker --> RTTMeasurement.measure_rtt() (update after each measurement)
+    RTTConfidence --> HampelFilter + JitterTracker (width reflects both)
+    VarianceEWMA --> RTTMeasurement.measure_rtt() (parallel to load_rtt EWMA)
 
-Bufferbloat Benchmarking (independent of optimization)
-    |-- Netperf server connectivity check
-    |       requires: nothing (TCP connect)
-    |-- flent RRUL subprocess wrapper
-    |       requires: Netperf server check + flent/netperf system binaries
-    |-- flent output parser (latency extraction from .flent.gz)
-    |       requires: flent wrapper output
-    |-- Bufferbloat grading (A+/A/B/C/D/F)
-    |       requires: flent output parser
-    |-- SQLite result storage
-    |       requires: Grading + existing MetricsWriter pattern
-    |-- Grade comparison / history
-            requires: SQLite storage
+IRTT Integration (requires irtt binary):
+    irtt binary available --> apt install irtt on containers
+    IRTT server running --> Dallas 104.200.21.31:2112 (already done)
+    IRTTMeasurement class --> irtt binary + server
+    Background thread --> IRTTMeasurement
+    IRTT alerting --> IRTTMeasurement + AlertEngine (v1.15)
 
-Cross-feature operational link (not technical dependency):
-    --fix (optimization) ──then──> benchmark (prove improvement)
+Container Networking Audit (independent):
+    Latency measurement --> icmplib (existing) + IRTT (new)
+    No dependency on signal processing features
+
+Observability (depends on above):
+    Health endpoint signal_quality --> All signal processing classes + IRTT results
+    SQLite metrics --> Same data as health endpoint
+    Alerting extensions --> IRTT loss direction data
 ```
-
-## CAKE Parameter Optimization Rules
-
-Sub-optimal settings the detection engine should flag.
-
-| Parameter | Sub-Optimal | Optimal | Condition | Severity |
-|-----------|-------------|---------|-----------|----------|
-| `cake-nat` | `no` | `yes` | Router performs NAT (virtually all home routers) | WARN |
-| `cake-ack-filter` | disabled | `filter` | Upload queue (TX direction -- reduces ACK overhead on asymmetric links) | WARN |
-| `cake-ack-filter` | `filter` | disabled | Download queue (RX direction -- ACK filtering on download is counterproductive) | WARN |
-| `cake-flowmode` | `flowblind` | `triple-isolate` | Any config (flowblind disables flow isolation entirely) | WARN |
-| `cake-diffserv` | `diffserv3/4/8` | `besteffort` | No DSCP marking rules exist (wastes CPU classifying un-marked traffic) | INFO |
-| `cake-rtt-scheme` | `internet` (100ms) | `regional` (30ms) | US domestic traffic | INFO |
-| `cake-rtt-scheme` | `datacentre` | `regional`/`internet` | WAN link (datacentre is for 10GigE LANs) | WARN |
-| `overhead` | unset/`raw` | link-type-specific | Cable link missing DOCSIS overhead compensation | WARN |
-| `overhead` | `ethernet` | `docsis` | Cable (DOCSIS) link specifically | INFO |
-| `overhead` | `ethernet` | `pppoe-ptm`/`bridged-ptm` | VDSL2 link specifically | INFO |
-
-## Bufferbloat Grading Thresholds
-
-Industry-standard (DSLReports/Waveform):
-
-| Grade | Max Latency Increase | Interpretation |
-|-------|---------------------|----------------|
-| A+ | < 5 ms | Excellent -- no perceptible bufferbloat |
-| A | < 15 ms | Great -- minimal bufferbloat |
-| B | < 30 ms | Good -- acceptable for gaming |
-| C | < 60 ms | Fair -- noticeable lag under load |
-| D | < 200 ms | Poor -- significant bufferbloat |
-| F | >= 200 ms | Failing -- unusable during load |
-
-Grade = max(download_latency_increase, upload_latency_increase) mapped to thresholds.
-Latency increase = p90_loaded_rtt - baseline_idle_rtt.
 
 ## MVP Recommendation
 
-### Phase 1: CAKE Parameter Detection and Auto-Fix
-
 Prioritize:
-1. REST API methods for queue type (get_queue_type, set_queue_type_params)
-2. Sub-optimal parameter detection with diff output
-3. `--fix` flag with `--dry-run` preview
-4. Parameter snapshot before applying changes
-5. JSON output mode
+1. **Signal processing core** (Hampel, jitter, CI, variance) -- Low complexity, immediate value in every cycle, testable in isolation, zero deps
+2. **IRTT integration** -- Medium complexity, provides UDP diversity and loss direction
+3. **Health/metrics/alerting extensions** -- Low complexity, leverages established patterns
+4. **Container networking audit** -- Independent measurement task, informational only
 
-### Phase 2: Bufferbloat Benchmarking CLI
-
-Prioritize:
-1. `wanctl-benchmark run` (promote FlentGenerator to CLI)
-2. Flent output parsing and grading
-3. SQLite result storage
-4. `wanctl-benchmark compare` (before/after)
-
-### Phase 3: Integration and Polish
-
-Prioritize:
-1. Combined workflow documentation
-2. Benchmark history query
-3. Per-WAN benchmark profiles
-4. Quick benchmark mode
-
-Defer: Health endpoint benchmark summary, auto pre/post benchmark around --fix
+Defer:
+- **Dual-signal fusion**: Start with observation (report both), defer weighted combination to next milestone
+- **OWD-based asymmetric congestion**: Useful but requires NTP validation on IRTT server
+- **Per-reflector quality scoring**: Interesting but adds complexity to ping_hosts handling
 
 ## Sources
 
-- Existing `check_cake.py` -- current audit capabilities (verified in codebase)
-- Existing `tests/integration/framework/` -- flent/netperf wrapper code (verified in codebase)
-- Existing RRUL profiles (`tests/integration/profiles/*.yaml`) (verified in codebase)
-- [Waveform Bufferbloat Test](https://www.waveform.com/tools/bufferbloat) -- grading standard
-- [DSLReports Bufferbloat FAQ](https://www.dslreports.com/faq/17930) -- grade thresholds
-- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) -- parameter reference
-- [Bufferbloat.net RRUL Spec](https://www.bufferbloat.net/projects/bloat/wiki/RRUL_Spec/) -- test methodology
-- CAKE optimization todo (`2026-03-12-audit-cake-qdisc-configuration-for-spectrum-and-att-links.md`)
+- Existing wanctl codebase: rtt_measurement.py, baseline_rtt_manager.py, autorate_continuous.py
+- [RFC 3550](https://www.ietf.org/rfc/rfc3550.txt) -- jitter calculation standard
+- [IRTT man pages](https://manpages.debian.org/testing/irtt/irtt-client.1.en.html) -- capability documentation
+- [Hampel filter](https://towardsdatascience.com/outlier-detection-with-hampel-filter-85ddf523c73d/) -- algorithm reference
+- [Container networking performance](https://dl.acm.org/doi/pdf/10.1145/3094405.3094406) -- veth/macvlan comparison
+- v1.1 ICMP blackout incident -- motivates UDP measurement diversity
 
 ---
-*Feature research for: CAKE optimization and bufferbloat benchmarking*
-*Researched: 2026-03-13*
+*Feature landscape for: wanctl v1.18 Measurement Quality*
+*Researched: 2026-03-16*
