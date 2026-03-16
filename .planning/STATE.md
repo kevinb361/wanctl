@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
 status: planning
-last_updated: "2026-03-16T21:12:01.491Z"
-last_activity: 2026-03-16 -- Completed 89-02-PLAN.md (IRTT Config & Dockerfile)
+last_updated: "2026-03-16T22:08:17Z"
+last_activity: 2026-03-16 -- Completed 90-01-PLAN.md (IRTTThread & cadence_sec config)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 5
+  completed_plans: 5
+  percent: 50
 ---
 
 # Session State
@@ -25,18 +25,18 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 89 of 92 (IRTT Foundation) -- COMPLETE
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
-**Last activity:** 2026-03-16 -- Completed 89-02-PLAN.md (IRTT Config & Dockerfile)
+**Phase:** 90 of 92 (IRTT Daemon Integration)
+**Plan:** 1 of 2 complete
+**Status:** Executing
+**Last activity:** 2026-03-16 -- Completed 90-01-PLAN.md (IRTTThread & cadence_sec config)
 
-Progress: [##########] 100%
+Progress: [#####-----] 50%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 16min
 - Total execution time: 1.1 hours
 
@@ -47,6 +47,7 @@ Progress: [##########] 100%
 | 88           | 2     | 47min   | 24min    |
 | Phase 89 P01 | 3min  | 1 tasks | 2 files  |
 | Phase 89 P02 | 13min | 2 tasks | 5 files  |
+| Phase 90 P01 | 11min | 2 tasks | 6 files  |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Progress: [##########] 100%
 - Verified IRTT JSON field paths: upstream_loss_percent/downstream_loss_percent (not send_call.lost/receive_call.lost)
 - IRTT config follows identical warn+default pattern as signal_processing and alerting config loaders
 - IRTT disabled by default; requires both enabled: true and server to activate
+- IRTTThread uses lock-free caching via frozen dataclass pointer swap (GIL-atomic), no threading.Lock needed
+- IRTTThread daemon=True so thread dies with process, shutdown_event.wait(timeout=cadence_sec) for interruptible sleep
+- cadence_sec validated as number >= 1, default 10, warn+default pattern (consistent with other IRTT config fields)
 
 ### Known Issues
 
