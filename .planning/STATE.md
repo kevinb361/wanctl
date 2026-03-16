@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: planning
+status: ready_to_plan
 last_updated: "2026-03-16"
-last_activity: 2026-03-16 -- Milestone v1.18 started
+last_activity: 2026-03-16 -- Roadmap created (5 phases, 21 requirements)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining requirements for v1.18 Measurement Quality
+**Current focus:** v1.18 Measurement Quality -- Phase 88 ready to plan
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** Not started (defining requirements)
-**Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-03-16 — Milestone v1.18 started
+**Phase:** 88 of 92 (Signal Processing Core)
+**Plan:** --
+**Status:** Ready to plan
+**Last activity:** 2026-03-16 -- Roadmap created (5 phases, 21 requirements mapped)
 
 Progress: [..........] 0%
 
@@ -36,79 +36,43 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 8
-- Average duration: 20min
-- Total execution time: 2.6 hours
+- Total plans completed: 0
+- Average duration: --
+- Total execution time: 0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| 84    | 2     | 68min | 34min    |
-| 85    | 2     | 51min | 25min    |
-| 86    | 2     | 17min | 8min     |
-| 87    | 2     | 16min | 8min     |
+| -     | -     | -     | -        |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- get_queue_types() follows exact get_queue_stats() pattern (GET with name filter, return first item or None)
-- cake-ack-filter optimal value is "filter" (RouterOS REST API representation of enabled)
-- OPTIMAL_WASH is direction-dependent: upload=yes (strip before ISP), download=no (preserve for LAN WMM)
-- INFO-level results mapped to Severity.PASS (no INFO in enum, consistent with max-limit informational PASS pattern)
-- \_skippable_categories() helper extracts skip-list logic, avoids duplication between env var and connectivity failure paths
-- Step 3.5 re-fetches queue stats rather than modifying check_queue_tree() return signature
-- set_queue_type_params uses inline GET+PATCH (not \_find_resource_id cache) for infrequent queue type writes
-- Snapshots use json.dump (not atomic_write_json) since they are one-shot archival writes
-- \_extract_changes_for_direction returns (actual, expected) tuples for both display and PATCH payload derivation
-- datetime.UTC alias used instead of timezone.utc for Python 3.11+ modern style (ruff UP017)
-- run_fix() overwrites queue_names with queue type names for PATCH targeting (set_queue_type_params needs queue type name, not queue tree name)
-- \_show_diff_table() prints to stderr so --json stdout stays clean for piping
-- \_confirm_apply() safe default: empty/anything = No, only y/yes = Yes
-- \_apply_changes() sends single PATCH per queue type (RouterOS PATCH is atomic per resource)
-- Fix cancelled by user returns PASS severity (user choice, not failure)
-- GRADE_THRESHOLDS as list[tuple[float, str]] with strict less-than comparison for grade boundaries
-- Both download and upload latency use same ICMP ping series (RRUL Pitfall 1 -- separate fields for future directional tests)
-- statistics.quantiles(n=100) for P50/P95/P99 (index 49/94/98)
-- check_prerequisites returns (checks, baseline_rtt) tuple to pass baseline to run_benchmark
-- Server connectivity probed via 1s netperf TCP_STREAM (validates server + network path)
-- Daemon detection warns to stderr but does not block benchmark
-- run_benchmark timeout = duration + 30s for flent subprocess overhead
-- Quick mode note only shown for duration <= 10s
-- Benchmarks table uses flat columns (no JSON blob) for direct SQL filtering
-- ISO 8601 TEXT timestamp in benchmarks (not INTEGER) for lexicographic ordering
-- Auto-store executes before output display so result persists even if display fails
-- detect_wan_name() uses socket.gethostname() with cake- prefix convention
-- Subparser stubs return 0 (Plan 02 replaces with real handlers)
-- Negative latency delta = green (improved), positive = red; inverted for throughput
-- Grade improvement detected via ordered index comparison (F < D < C < B < A < A+)
-- Comparability warnings (different server/duration) go to stderr, don't block comparison
-- History --wan uses hist_wan dest to avoid shadowing global --wan flag
-- run_compare with 0 IDs fetches latest 2; with 2 IDs fetches those specific runs
+- All signal processing ships in observation mode (metrics/logs only, no congestion control changes) -- v1.19+ adds fusion
+- IRTT runs in background thread on 5-10s cadence, never in 50ms hot loop (subprocess overhead incompatible)
+- Zero new Python dependencies -- all signal processing uses stdlib (statistics, collections.deque, math)
+- One new system binary: irtt via apt on production containers
+- Container networking audit may close with report only if overhead < 0.5ms
+- Dual-signal fusion explicitly deferred to v1.19+ (needs production data from both signals)
 
 ### Known Issues
 
-- RouterOS REST JSON field names for `/rest/queue/type` CAKE parameters need live router verification during Phase 84
-- ATT BGW320 passthrough mode (bridged-ptm vs pppoe-ptm) needs explicit config -- cannot auto-detect
+- IRTT JSON field names documented from man pages but need live verification during Phase 89
+- LXC container veth/bridge config format needs investigation during Phase 91
+- Hampel filter default sigma=3.0/window=7 is conservative; may need per-WAN tuning
 
 ### Blockers
 
 None.
 
-### Quick Tasks Completed
-
-| #   | Description                                                                                       | Date       | Commit  | Directory                                                                                         |
-| --- | ------------------------------------------------------------------------------------------------- | ---------- | ------- | ------------------------------------------------------------------------------------------------- |
-| 7   | Fix flapping alert bugs: rule name mismatch, deque not cleared, threshold not calibrated for 20Hz | 2026-03-12 | 98f0dab | [7-fix-flapping-alert-bugs-rule-name-mismat](./quick/7-fix-flapping-alert-bugs-rule-name-mismat/) |
-| 8   | Fix flapping alert cooldown key mismatch and add dwell filter for zone blips                      | 2026-03-13 | f6babcc | [8-fix-flapping-alert-detection-cooldown-ke](./quick/8-fix-flapping-alert-detection-cooldown-ke/) |
-
 ### Pending Todos
 
 5 todos in `.planning/todos/pending/`:
 
-- Research IRTT as RTT measurement alternative (general) -- deferred to future milestone
-- Integration test for router communication (testing) -- low priority, contract tests added in v1.12
-- Narrow layout truncates WAN panel content (dashboard/ui) -- low priority, wide layout works fine
-- Investigate LXC container network optimizations (infrastructure) -- RTT accuracy depends on low-latency container networking
-- Audit CAKE qdisc configuration for Spectrum and ATT links (networking) -- verify link-layer compensation and overhead settings
+- Research IRTT as RTT measurement alternative (general) -- addressed by v1.18
+- Integration test for router communication (testing) -- low priority
+- Narrow layout truncates WAN panel content (dashboard/ui) -- low priority
+- Investigate LXC container network optimizations (infrastructure) -- addressed by Phase 91
+- Audit CAKE qdisc configuration for Spectrum and ATT links (networking) -- completed in v1.17

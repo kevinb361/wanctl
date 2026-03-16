@@ -76,33 +76,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SIGP-01 | — | Pending |
-| SIGP-02 | — | Pending |
-| SIGP-03 | — | Pending |
-| SIGP-04 | — | Pending |
-| SIGP-05 | — | Pending |
-| SIGP-06 | — | Pending |
-| IRTT-01 | — | Pending |
-| IRTT-02 | — | Pending |
-| IRTT-03 | — | Pending |
-| IRTT-04 | — | Pending |
-| IRTT-05 | — | Pending |
-| IRTT-06 | — | Pending |
-| IRTT-07 | — | Pending |
-| IRTT-08 | — | Pending |
-| CNTR-01 | — | Pending |
-| CNTR-02 | — | Pending |
-| CNTR-03 | — | Pending |
-| OBSV-01 | — | Pending |
-| OBSV-02 | — | Pending |
-| OBSV-03 | — | Pending |
-| OBSV-04 | — | Pending |
+| SIGP-01 | Phase 88 | Pending |
+| SIGP-02 | Phase 88 | Pending |
+| SIGP-03 | Phase 88 | Pending |
+| SIGP-04 | Phase 88 | Pending |
+| SIGP-05 | Phase 88 | Pending |
+| SIGP-06 | Phase 88 | Pending |
+| IRTT-01 | Phase 89 | Pending |
+| IRTT-02 | Phase 90 | Pending |
+| IRTT-03 | Phase 90 | Pending |
+| IRTT-04 | Phase 89 | Pending |
+| IRTT-05 | Phase 89 | Pending |
+| IRTT-06 | Phase 90 | Pending |
+| IRTT-07 | Phase 90 | Pending |
+| IRTT-08 | Phase 89 | Pending |
+| CNTR-01 | Phase 91 | Pending |
+| CNTR-02 | Phase 91 | Pending |
+| CNTR-03 | Phase 91 | Pending |
+| OBSV-01 | Phase 92 | Pending |
+| OBSV-02 | Phase 92 | Pending |
+| OBSV-03 | Phase 92 | Pending |
+| OBSV-04 | Phase 92 | Pending |
 
 **Coverage:**
 - v1.18 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 after roadmap creation*
