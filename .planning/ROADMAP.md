@@ -50,63 +50,74 @@ None
 ## Phase Details
 
 ### Phase 88: Signal Processing Core
+
 **Goal**: RTT measurements are filtered, tracked, and annotated with quality metadata before reaching the control loop
 **Depends on**: Nothing (first phase -- pure Python, zero external dependencies)
 **Requirements**: SIGP-01, SIGP-02, SIGP-03, SIGP-04, SIGP-05, SIGP-06
 **Success Criteria** (what must be TRUE):
-  1. Outlier RTT samples are detected and replaced by the Hampel filter using a rolling window of recent measurements, with outlier events logged at DEBUG level
-  2. Per-cycle jitter value is computed from consecutive RTT samples using RFC 3550 EWMA and is available as a named attribute on the signal processor
-  3. Measurement confidence interval is computed each cycle, reflecting how reliable the current RTT reading is relative to recent variance
-  4. RTT variance is tracked via EWMA alongside existing load_rtt smoothing, accessible for downstream consumers
-  5. All signal processing runs in observation mode only -- it produces metrics and logs but does not alter congestion state transitions or rate adjustments
-**Plans:** 2 plans
+
+1. Outlier RTT samples are detected and replaced by the Hampel filter using a rolling window of recent measurements, with outlier events logged at DEBUG level
+2. Per-cycle jitter value is computed from consecutive RTT samples using RFC 3550 EWMA and is available as a named attribute on the signal processor
+3. Measurement confidence interval is computed each cycle, reflecting how reliable the current RTT reading is relative to recent variance
+4. RTT variance is tracked via EWMA alongside existing load_rtt smoothing, accessible for downstream consumers
+5. All signal processing runs in observation mode only -- it produces metrics and logs but does not alter congestion state transitions or rate adjustments
+   **Plans:** 2 plans
 
 Plans:
-- [ ] 88-01-PLAN.md -- TDD: SignalProcessor + SignalResult (Hampel, jitter, variance, confidence algorithms)
+
+- [x] 88-01-PLAN.md -- TDD: SignalProcessor + SignalResult (Hampel, jitter, variance, confidence algorithms)
 - [ ] 88-02-PLAN.md -- Config loading, WANController wiring, integration tests, CONFIG_SCHEMA docs
 
 ### Phase 89: IRTT Foundation
+
 **Goal**: IRTT binary is installed, wrapped, and configurable so that IRTT measurements can be invoked and parsed reliably
 **Depends on**: Nothing (independent of Phase 88 -- could run in parallel)
 **Requirements**: IRTT-01, IRTT-04, IRTT-05, IRTT-08
 **Success Criteria** (what must be TRUE):
-  1. IRTT client subprocess is invoked with configurable server/port and returns parsed RTT, loss, and IPDV values from JSON output
-  2. IRTT is configurable via a YAML `irtt:` section (server, port, cadence, enabled) and is disabled by default
-  3. When IRTT binary is missing or server is unreachable, the controller continues operating with zero behavioral change -- no errors, no degradation
-  4. IRTT binary is installed on production containers (cake-spectrum, cake-att) via apt
-**Plans**: TBD
+
+1. IRTT client subprocess is invoked with configurable server/port and returns parsed RTT, loss, and IPDV values from JSON output
+2. IRTT is configurable via a YAML `irtt:` section (server, port, cadence, enabled) and is disabled by default
+3. When IRTT binary is missing or server is unreachable, the controller continues operating with zero behavioral change -- no errors, no degradation
+4. IRTT binary is installed on production containers (cake-spectrum, cake-att) via apt
+   **Plans**: TBD
 
 ### Phase 90: IRTT Daemon Integration
+
 **Goal**: IRTT measurements run continuously in the background and are consumed by the autorate daemon each cycle without blocking
 **Depends on**: Phase 89
 **Requirements**: IRTT-02, IRTT-03, IRTT-06, IRTT-07
 **Success Criteria** (what must be TRUE):
-  1. IRTT measurements execute in a background daemon thread on a configurable cadence (default 10s), independent of the 50ms control loop
-  2. The main control loop reads the latest cached IRTT result each cycle in constant time with zero blocking -- even if a measurement is in-flight
-  3. Upstream vs downstream packet loss direction is tracked per IRTT measurement burst and available in the cached result
-  4. ICMP vs UDP RTT correlation is computed per measurement, detecting protocol-specific deprioritization when both signals are available
-**Plans**: TBD
+
+1. IRTT measurements execute in a background daemon thread on a configurable cadence (default 10s), independent of the 50ms control loop
+2. The main control loop reads the latest cached IRTT result each cycle in constant time with zero blocking -- even if a measurement is in-flight
+3. Upstream vs downstream packet loss direction is tracked per IRTT measurement burst and available in the cached result
+4. ICMP vs UDP RTT correlation is computed per measurement, detecting protocol-specific deprioritization when both signals are available
+   **Plans**: TBD
 
 ### Phase 91: Container Networking Audit
+
 **Goal**: The latency contribution of container networking (veth pairs, Linux bridge) to RTT measurements is measured, quantified, and documented
 **Depends on**: Nothing (independent -- measurement and documentation task)
 **Requirements**: CNTR-01, CNTR-02, CNTR-03
 **Success Criteria** (what must be TRUE):
-  1. Container veth/bridge networking overhead is measured with quantified round-trip latency added by the network path from container to host
-  2. Jitter contribution from container networking is characterized separately from WAN jitter, showing whether container networking adds meaningful variance
-  3. An audit report documents the measurement floor -- the minimum RTT noise attributable to container infrastructure rather than actual WAN conditions
-**Plans**: TBD
+
+1. Container veth/bridge networking overhead is measured with quantified round-trip latency added by the network path from container to host
+2. Jitter contribution from container networking is characterized separately from WAN jitter, showing whether container networking adds meaningful variance
+3. An audit report documents the measurement floor -- the minimum RTT noise attributable to container infrastructure rather than actual WAN conditions
+   **Plans**: TBD
 
 ### Phase 92: Observability
+
 **Goal**: Signal quality and IRTT data are visible in health endpoints and persisted in SQLite for trend analysis
 **Depends on**: Phase 88, Phase 90
 **Requirements**: OBSV-01, OBSV-02, OBSV-03, OBSV-04
 **Success Criteria** (what must be TRUE):
-  1. Health endpoint includes a signal_quality section showing current jitter, confidence, variance, and outlier count
-  2. Health endpoint includes an irtt section showing latest RTT, loss direction, IPDV, and server connection status
-  3. Signal quality metrics (jitter, confidence, variance, outlier_count) are written to SQLite each cycle for historical trend analysis
-  4. IRTT metrics (rtt, loss_up, loss_down, ipdv, server) are written to SQLite per measurement for historical trend analysis
-**Plans**: TBD
+
+1. Health endpoint includes a signal_quality section showing current jitter, confidence, variance, and outlier count
+2. Health endpoint includes an irtt section showing latest RTT, loss direction, IPDV, and server connection status
+3. Signal quality metrics (jitter, confidence, variance, outlier_count) are written to SQLite each cycle for historical trend analysis
+4. IRTT metrics (rtt, loss_up, loss_down, ipdv, server) are written to SQLite per measurement for historical trend analysis
+   **Plans**: TBD
 
 ## Progress
 
@@ -115,13 +126,13 @@ Plans:
 **Execution Order:** 88 -> 89 -> 90 -> 91 -> 92
 (Note: Phase 89 is independent of 88 and could run in parallel. Phase 91 is independent of all others.)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 88. Signal Processing Core | 0/2 | In progress | - |
-| 89. IRTT Foundation | 0/TBD | Not started | - |
-| 90. IRTT Daemon Integration | 0/TBD | Not started | - |
-| 91. Container Networking Audit | 0/TBD | Not started | - |
-| 92. Observability | 0/TBD | Not started | - |
+| Phase                          | Plans Complete | Status      | Completed |
+| ------------------------------ | -------------- | ----------- | --------- |
+| 88. Signal Processing Core     | 1/2            | In progress | -         |
+| 89. IRTT Foundation            | 0/TBD          | Not started | -         |
+| 90. IRTT Daemon Integration    | 0/TBD          | Not started | -         |
+| 91. Container Networking Audit | 0/TBD          | Not started | -         |
+| 92. Observability              | 0/TBD          | Not started | -         |
 
 ### Completed Milestones
 

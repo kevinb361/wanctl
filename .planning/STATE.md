@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: ready_to_plan
+status: in_progress
 last_updated: "2026-03-16"
-last_activity: 2026-03-16 -- Roadmap created (5 phases, 21 requirements)
+last_activity: 2026-03-16 -- Completed 88-01-PLAN.md (Signal Processing Core Algorithms)
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 10
 ---
 
 # Session State
@@ -20,36 +20,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.18 Measurement Quality -- Phase 88 ready to plan
+**Current focus:** v1.18 Measurement Quality -- Phase 88 in progress
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
 **Phase:** 88 of 92 (Signal Processing Core)
-**Plan:** --
-**Status:** Ready to plan
-**Last activity:** 2026-03-16 -- Roadmap created (5 phases, 21 requirements mapped)
+**Plan:** 1 of 2 complete
+**Status:** In progress
+**Last activity:** 2026-03-16 -- Completed 88-01-PLAN.md (Signal Processing Core Algorithms)
 
-Progress: [..........] 0%
+Progress: [#.........] 10%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: --
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 16min
+- Total execution time: 0.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| -     | -     | -     | -        |
+| 88    | 1     | 16min | 16min    |
 
 ## Accumulated Context
 
 ### Key Decisions
 
+- Hampel warm-up is window_size cycles (check before append), MAD=0 guard skips detection on identical windows
+- typing.Any used for config dict (mypy-clean); from **future** import annotations for forward refs
 - All signal processing ships in observation mode (metrics/logs only, no congestion control changes) -- v1.19+ adds fusion
 - IRTT runs in background thread on 5-10s cadence, never in 50ms hot loop (subprocess overhead incompatible)
 - Zero new Python dependencies -- all signal processing uses stdlib (statistics, collections.deque, math)
