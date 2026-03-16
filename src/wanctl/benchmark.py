@@ -315,7 +315,7 @@ def check_server_connectivity(
     try:
         import icmplib
 
-        result = icmplib.ping(server, count=5, interval=0.2, timeout=2)
+        result = icmplib.ping(server, count=5, interval=0.2, timeout=2, privileged=False)
         if result.is_alive and result.min_rtt > 0:
             return (True, result.min_rtt)
     except Exception:
