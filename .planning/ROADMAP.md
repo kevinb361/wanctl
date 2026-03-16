@@ -79,7 +79,12 @@ Plans:
 2. IRTT is configurable via a YAML `irtt:` section (server, port, cadence, enabled) and is disabled by default
 3. When IRTT binary is missing or server is unreachable, the controller continues operating with zero behavioral change -- no errors, no degradation
 4. IRTT binary is installed on production containers (cake-spectrum, cake-att) via apt
-   **Plans**: TBD
+   **Plans:** 2 plans
+
+Plans:
+
+- [ ] 89-01-PLAN.md -- TDD: IRTTMeasurement class + IRTTResult dataclass (subprocess, JSON parsing, fallback)
+- [ ] 89-02-PLAN.md -- Config loading, Dockerfile update, CONFIG_SCHEMA docs
 
 ### Phase 90: IRTT Daemon Integration
 
@@ -129,7 +134,7 @@ Plans:
 | Phase                          | Plans Complete | Status      | Completed |
 | ------------------------------ | -------------- | ----------- | --------- |
 | 88. Signal Processing Core     | 1/2            | In progress | -         |
-| 89. IRTT Foundation            | 0/TBD          | Not started | -         |
+| 89. IRTT Foundation            | 0/2            | Not started | -         |
 | 90. IRTT Daemon Integration    | 0/TBD          | Not started | -         |
 | 91. Container Networking Audit | 0/TBD          | Not started | -         |
 | 92. Observability              | 0/TBD          | Not started | -         |
