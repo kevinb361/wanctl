@@ -279,20 +279,68 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.17 — CAKE Optimization & Benchmarking
+
+**Shipped:** 2026-03-16
+**Phases:** 4 | **Plans:** 8
+
+### What Was Built
+
+- Sub-optimal CAKE parameter detection via REST API with severity, rationale, and diff output
+- Auto-fix CAKE params via `--fix` flag with daemon lock check, JSON snapshot, interactive confirmation
+- RRUL bufferbloat benchmarking via flent with A+-F grading, P50/P95/P99 latency percentiles
+- Benchmark storage in SQLite with auto-store, before/after comparison, and history with time-range filtering
+- Full operator loop validated: check-cake → fix → benchmark → compare
+
+### What Worked
+
+- Building on existing CheckResult/Severity data model from v1.16 — zero new abstractions needed for check-cake optimizer output
+- Direct SQLite writes (not MetricsWriter singleton) for CLI tool — simple connect/insert/close lifecycle
+- Flat benchmarks table schema — one row per run, all fields as columns, rarely >50 rows
+- Production testing caught real bugs (flent -D flag, icmplib baseline RTT) that unit tests couldn't have found
+
+### What Was Inefficient
+
+- flent output handling required 3 iterations: -o flag broken in 2.1.1, then -D with glob for .flent.gz, then correct parsing of gzipped data
+- icmplib for baseline RTT was added mid-milestone after discovering subprocess ping races with the daemon's ICMP probes — should have been anticipated during research
+- Phase plan checkboxes in ROADMAP.md fell out of sync with actual completion (some plans marked [ ] when already done)
+
+### Patterns Established
+
+- CLI tools as subprocess wrappers (flent/netperf): check prerequisites → validate connectivity → run → parse output → grade → store
+- Auto-store pattern: persist results before display so data survives even if formatting fails
+- Comparability warnings (different server/duration) go to stderr, don't block comparison — inform operator without blocking workflow
+- detect_wan_name() hostname convention (cake-{wan}) with --wan override for all CLI tools
+
+### Key Lessons
+
+1. External tool wrapping (flent) is fragile — always test with the actual installed version, not just documentation
+2. ICMP probing from containers requires coordination with daemons already probing — use icmplib with count=3 for one-shot tools
+3. Flat SQLite schemas beat JSON blobs for CLI tools — direct SQL filtering with simple column access
+
+### Cost Observations
+
+- Model mix: predominantly Opus for execution, Sonnet for research
+- Sessions: 4 (phases 84-85, phase 86, phase 87, production testing + fixes)
+- Notable: Production testing phase surfaced 3 real bugs that required mid-milestone fixes — validates the "ship and test on real hardware" approach
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
 
-| Milestone | Phases | Plans | Key Change                                                    |
-| --------- | ------ | ----- | ------------------------------------------------------------- |
-| v1.9      | 3      | 6     | First icmplib optimization, profiling infrastructure          |
-| v1.10     | 8      | 15    | First milestone audit, gap closure workflow                   |
-| v1.11     | 4      | 8     | Cross-daemon feature with feature toggle, requirements-first  |
-| v1.12     | 5      | 7     | Contract test parametrization, BaseConfig consolidation       |
-| v1.13     | 6      | 10    | Feature graduation protocol, SIGUSR1 generalized reload       |
-| v1.14     | 3      | 7     | TUI dashboard, pure-consumer pattern, Rich Text testing       |
-| v1.15     | 5      | 10    | Alert engine, Protocol formatters, fire-then-deliver          |
-| v1.16     | 3      | 4     | CLI validation tools, shared data model, SCHEMA introspection |
+| Milestone | Phases | Plans | Key Change                                                     |
+| --------- | ------ | ----- | -------------------------------------------------------------- |
+| v1.9      | 3      | 6     | First icmplib optimization, profiling infrastructure           |
+| v1.10     | 8      | 15    | First milestone audit, gap closure workflow                    |
+| v1.11     | 4      | 8     | Cross-daemon feature with feature toggle, requirements-first   |
+| v1.12     | 5      | 7     | Contract test parametrization, BaseConfig consolidation        |
+| v1.13     | 6      | 10    | Feature graduation protocol, SIGUSR1 generalized reload        |
+| v1.14     | 3      | 7     | TUI dashboard, pure-consumer pattern, Rich Text testing        |
+| v1.15     | 5      | 10    | Alert engine, Protocol formatters, fire-then-deliver           |
+| v1.16     | 3      | 4     | CLI validation tools, shared data model, SCHEMA introspection  |
+| v1.17     | 4      | 8     | External tool wrapping (flent), auto-store, flat SQLite schema |
 
 ### Cumulative Quality
 
@@ -306,6 +354,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.14     | 2,445 | 91%+     | 145       |
 | v1.15     | 2,666 | 91%+     | 221       |
 | v1.16     | 2,823 | 91%+     | 157       |
+| v1.17     | 2,893 | 91%+     | 70        |
 
 ### Top Lessons (Verified Across Milestones)
 

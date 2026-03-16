@@ -2,10 +2,31 @@
 
 ## v1.17 CAKE Optimization & Benchmarking (Shipped: 2026-03-16)
 
-**Phases completed:** 4 phases, 8 plans, 0 tasks
+**Delivered:** Automated CAKE queue type parameter detection and optimization via `wanctl-check-cake --fix`, plus RRUL bufferbloat benchmarking with A-F grading, SQLite storage, and before/after comparison.
+
+**Phases completed:** 84-87 (8 plans total)
 
 **Key accomplishments:**
-- (none recorded)
+
+- Sub-optimal CAKE parameter detection via REST API (`GET /rest/queue/type`) with severity, rationale, and diff output for link-independent and link-dependent params
+- Auto-fix CAKE parameters via `--fix` flag with daemon lock check, JSON snapshot rollback, interactive confirmation, and REST PATCH to `/rest/queue/type/{id}`
+- RRUL bufferbloat benchmarking via `wanctl-benchmark` wrapping flent with A+-F grading, P50/P95/P99 latency percentiles, and throughput reporting
+- Benchmark result storage in SQLite with auto-store, before/after comparison (`wanctl-benchmark compare`), and history with time-range filtering
+- Full operator loop validated in production: check-cake → fix → benchmark → compare on both Spectrum and ATT WANs
+- CAKE params optimized on both WANs (nat, ack-filter, wash), ATT overhead corrected (pppoe-ptm → bridged-ptm)
+
+**Stats:**
+
+- 4 phases, 8 plans
+- 59 commits, 87 files changed
+- +20,534 / -1,135 lines changed
+- 70 new tests (2,823 to 2,893)
+- 24,056 LOC Python (src/)
+- 3 days (2026-03-13 to 2026-03-16)
+
+**Git range:** `v1.16..v1.17`
+
+**What's next:** v1.18 Measurement Quality — IRTT integration, container networking optimization, RTT signal quality improvements.
 
 ---
 
