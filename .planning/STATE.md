@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
 status: executing
-last_updated: "2026-03-16T20:48:51.712Z"
-last_activity: 2026-03-16 -- Completed 89-01-PLAN.md (IRTT Measurement Wrapper)
+last_updated: "2026-03-16T21:04:38.670Z"
+last_activity: 2026-03-16 -- Completed 89-02-PLAN.md (IRTT Config & Dockerfile)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Session State
@@ -25,20 +25,20 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 89 of 92 (IRTT Foundation)
-**Plan:** 1 of 2 complete
+**Phase:** 89 of 92 (IRTT Foundation) -- COMPLETE
+**Plan:** 2 of 2 complete
 **Status:** Executing
-**Last activity:** 2026-03-16 -- Completed 89-01-PLAN.md (IRTT Measurement Wrapper)
+**Last activity:** 2026-03-16 -- Completed 89-02-PLAN.md (IRTT Config & Dockerfile)
 
-Progress: [########..] 75%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
-- Average duration: 24min
-- Total execution time: 0.8 hours
+- Total plans completed: 4
+- Average duration: 16min
+- Total execution time: 1.1 hours
 
 **By Phase:**
 
@@ -46,6 +46,7 @@ Progress: [########..] 75%
 | ------------ | ----- | ------- | -------- |
 | 88           | 2     | 47min   | 24min    |
 | Phase 89 P01 | 3min  | 1 tasks | 2 files  |
+| Phase 89 P02 | 13min | 2 tasks | 5 files  |
 
 ## Accumulated Context
 
@@ -64,6 +65,8 @@ Progress: [########..] 75%
 - Cache shutil.which('irtt') at init time -- binary availability is immutable for process lifetime
 - Try JSON parsing even on non-zero IRTT exit code (Pitfall 4: 100% loss returns non-zero but JSON may be valid)
 - Verified IRTT JSON field paths: upstream_loss_percent/downstream_loss_percent (not send_call.lost/receive_call.lost)
+- IRTT config follows identical warn+default pattern as signal_processing and alerting config loaders
+- IRTT disabled by default; requires both enabled: true and server to activate
 
 ### Known Issues
 
