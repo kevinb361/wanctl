@@ -428,6 +428,43 @@ State persistence configuration.
 
 ---
 
+## Signal Processing
+
+### `signal_processing` (optional)
+
+RTT signal quality processing. Always active when present. Operates in observation mode -- filtered RTT feeds EWMA, but quality metrics (jitter, variance, confidence) do not influence congestion control decisions.
+
+If this section is omitted entirely, all defaults are used. No configuration change required to activate signal processing on existing deployments.
+
+| Field                        | Type  | Default | Description                                                                              |
+| ---------------------------- | ----- | ------- | ---------------------------------------------------------------------------------------- |
+| `hampel.window_size`         | int   | `7`     | Rolling window size for Hampel outlier filter (minimum 3). At 50ms cycle = 350ms window. |
+| `hampel.sigma_threshold`     | float | `3.0`   | Number of MAD-scaled standard deviations for outlier detection. Lower = more sensitive.  |
+| `jitter_time_constant_sec`   | float | `2.0`   | EWMA time constant for jitter tracking (alpha = 0.05/tc). Lower = faster response.       |
+| `variance_time_constant_sec` | float | `5.0`   | EWMA time constant for variance tracking (alpha = 0.05/tc). Lower = faster response.     |
+
+```yaml
+# Example: default configuration (explicit)
+signal_processing:
+  hampel:
+    window_size: 7
+    sigma_threshold: 3.0
+  jitter_time_constant_sec: 2.0
+  variance_time_constant_sec: 5.0
+
+# Example: more aggressive outlier detection
+signal_processing:
+  hampel:
+    window_size: 11       # Wider window for more stable median
+    sigma_threshold: 2.0  # Tighter threshold catches more outliers
+  jitter_time_constant_sec: 1.0  # Faster jitter response
+  variance_time_constant_sec: 3.0
+```
+
+**Note:** The warm-up period (first `window_size` cycles after daemon start) passes raw RTT through unfiltered. At default settings this is 350ms -- negligible.
+
+---
+
 ## Deprecated Parameters
 
 The following config parameters are deprecated. They are auto-translated with a warning on load (or silently ignored where noted). Update your configs to use the modern replacements.
