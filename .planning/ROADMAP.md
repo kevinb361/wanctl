@@ -59,7 +59,11 @@ None
   3. Measurement confidence interval is computed each cycle, reflecting how reliable the current RTT reading is relative to recent variance
   4. RTT variance is tracked via EWMA alongside existing load_rtt smoothing, accessible for downstream consumers
   5. All signal processing runs in observation mode only -- it produces metrics and logs but does not alter congestion state transitions or rate adjustments
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 88-01-PLAN.md -- TDD: SignalProcessor + SignalResult (Hampel, jitter, variance, confidence algorithms)
+- [ ] 88-02-PLAN.md -- Config loading, WANController wiring, integration tests, CONFIG_SCHEMA docs
 
 ### Phase 89: IRTT Foundation
 **Goal**: IRTT binary is installed, wrapped, and configurable so that IRTT measurements can be invoked and parsed reliably
@@ -113,7 +117,7 @@ None
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 88. Signal Processing Core | 0/TBD | Not started | - |
+| 88. Signal Processing Core | 0/2 | In progress | - |
 | 89. IRTT Foundation | 0/TBD | Not started | - |
 | 90. IRTT Daemon Integration | 0/TBD | Not started | - |
 | 91. Container Networking Audit | 0/TBD | Not started | - |
