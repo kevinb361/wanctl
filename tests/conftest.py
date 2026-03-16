@@ -110,6 +110,14 @@ def mock_autorate_config():
         "jitter_time_constant_sec": 2.0,
         "variance_time_constant_sec": 5.0,
     }
+    # IRTT config (disabled by default in tests)
+    config.irtt_config = {
+        "enabled": False,
+        "server": None,
+        "port": 2112,
+        "duration_sec": 1.0,
+        "interval_ms": 100,
+    }
     return config
 
 
