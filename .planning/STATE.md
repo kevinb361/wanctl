@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: planning
-last_updated: "2026-03-16T19:34:42.237Z"
-last_activity: 2026-03-16 -- Completed 88-02-PLAN.md (Daemon Wiring and Config Integration)
+status: executing
+last_updated: "2026-03-16T20:48:51.712Z"
+last_activity: 2026-03-16 -- Completed 89-01-PLAN.md (IRTT Measurement Wrapper)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 20
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.18 Measurement Quality -- Phase 88 in progress
+**Current focus:** v1.18 Measurement Quality -- Phase 89 in progress
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 88 of 92 (Signal Processing Core)
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
-**Last activity:** 2026-03-16 -- Completed 88-02-PLAN.md (Daemon Wiring and Config Integration)
+**Phase:** 89 of 92 (IRTT Foundation)
+**Plan:** 1 of 2 complete
+**Status:** Executing
+**Last activity:** 2026-03-16 -- Completed 89-01-PLAN.md (IRTT Measurement Wrapper)
 
-Progress: [##........] 20%
+Progress: [########..] 75%
 
 ## Performance Metrics
 
@@ -42,9 +42,10 @@ Progress: [##........] 20%
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-| ----- | ----- | ----- | -------- |
-| 88    | 2     | 47min | 24min    |
+| Phase        | Plans | Total   | Avg/Plan |
+| ------------ | ----- | ------- | -------- |
+| 88           | 2     | 47min   | 24min    |
+| Phase 89 P01 | 3min  | 1 tasks | 2 files  |
 
 ## Accumulated Context
 
@@ -60,10 +61,13 @@ Progress: [##........] 20%
 - One new system binary: irtt via apt on production containers
 - Container networking audit may close with report only if overhead < 0.5ms
 - Dual-signal fusion explicitly deferred to v1.19+ (needs production data from both signals)
+- Cache shutil.which('irtt') at init time -- binary availability is immutable for process lifetime
+- Try JSON parsing even on non-zero IRTT exit code (Pitfall 4: 100% loss returns non-zero but JSON may be valid)
+- Verified IRTT JSON field paths: upstream_loss_percent/downstream_loss_percent (not send_call.lost/receive_call.lost)
 
 ### Known Issues
 
-- IRTT JSON field names documented from man pages but need live verification during Phase 89
+- IRTT JSON field paths verified from man pages (upstream_loss_percent, downstream_loss_percent, ipdv_round_trip) -- live verification still needed during container install
 - LXC container veth/bridge config format needs investigation during Phase 91
 - Hampel filter default sigma=3.0/window=7 is conservative; may need per-WAN tuning
 
