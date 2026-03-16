@@ -16,6 +16,7 @@ LABEL version="1.14.0"
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     iputils-ping \
+    irtt \
     netperf \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean

@@ -465,6 +465,46 @@ signal_processing:
 
 ---
 
+## IRTT Measurement
+
+### `irtt` (optional)
+
+IRTT (Isochronous Round-Trip Tester) UDP measurement configuration. Provides supplemental RTT, IPDV, and directional packet loss data independent of ICMP. Disabled by default.
+
+When enabled, IRTT runs short measurement bursts against a configured IRTT server. Results are available for observation and metrics but do not influence congestion control decisions (observation mode).
+
+| Field          | Type  | Default | Description                                                    |
+| -------------- | ----- | ------- | -------------------------------------------------------------- |
+| `enabled`      | bool  | `false` | Enable IRTT measurements                                       |
+| `server`       | str   | `null`  | IRTT server IP or hostname (required when enabled)             |
+| `port`         | int   | `2112`  | IRTT server port (standard IRTT port)                          |
+| `duration_sec` | float | `1.0`   | Measurement burst duration in seconds (Go duration format: 1s) |
+| `interval_ms`  | int   | `100`   | Packet interval in milliseconds (Go duration format: 100ms)    |
+
+**Payload size:** Fixed at 48 bytes (not configurable).
+
+**Prerequisites:** The `irtt` binary must be installed on the system (`sudo apt install -y irtt`). If the binary is missing, IRTT measurements are silently disabled with a startup warning.
+
+**Graceful fallback:** When IRTT is unavailable (binary missing, server unreachable, timeout), the controller continues operating normally using ICMP measurements only. No errors, no degradation.
+
+```yaml
+# Example: enable IRTT measurement
+irtt:
+  enabled: true
+  server: "104.200.21.31"
+  port: 2112
+  duration_sec: 1.0
+  interval_ms: 100
+
+# Example: disabled (default -- no section needed)
+# irtt:
+#   enabled: false
+```
+
+**Note:** IRTT measurements run on a separate cadence (configured in Phase 90) independent of the 50ms control loop. The `duration_sec` and `interval_ms` settings control the measurement burst parameters, not the measurement frequency.
+
+---
+
 ## Deprecated Parameters
 
 The following config parameters are deprecated. They are auto-translated with a warning on load (or silently ignored where noted). Update your configs to use the modern replacements.
