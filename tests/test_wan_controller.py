@@ -1117,6 +1117,12 @@ class TestVerifyLocalConnectivity:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1242,6 +1248,12 @@ class TestVerifyTcpConnectivity:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1401,6 +1413,12 @@ class TestVerifyConnectivityFallback:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1543,6 +1561,12 @@ class TestStateLoadSave:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1793,6 +1817,12 @@ class TestMeasureRttMedianOfThree:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1982,6 +2012,12 @@ class TestBaselineRttBoundsRejection:
         config.metrics_enabled = False
         config.state_file = MagicMock()
         config.alerting_config = None
+        config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True

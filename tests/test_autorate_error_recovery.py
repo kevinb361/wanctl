@@ -700,6 +700,12 @@ class TestContinuousAutoRateErrorHandling:
         mock_config.lock_file = MagicMock()
         mock_config.lock_timeout = 10
         mock_config.alerting_config = None
+        mock_config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         mock_logger = MagicMock()
         MagicMock()

@@ -1040,6 +1040,12 @@ class TestBaselineFreezeInvariant:
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
         mock_config.alerting_config = None
+        mock_config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1106,6 +1112,12 @@ class TestBaselineFreezeInvariant:
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
         mock_config.alerting_config = None
+        mock_config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1170,6 +1182,12 @@ class TestBaselineFreezeInvariant:
         mock_config.use_median_of_three = False
         mock_config.state_file = MagicMock()
         mock_config.alerting_config = None
+        mock_config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()

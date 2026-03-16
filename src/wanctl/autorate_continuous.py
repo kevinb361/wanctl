@@ -49,6 +49,7 @@ from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.router_client import clear_router_password, get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from wanctl.signal_processing import SignalProcessor
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -629,6 +630,82 @@ class Config(BaseConfig):
         }
         logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
 
+    def _load_signal_processing_config(self) -> None:
+        """Load signal processing configuration.
+
+        Validates the optional signal_processing: YAML section. Invalid config
+        warns and falls back to defaults (does not crash). Signal processing is
+        always active -- there is no enable/disable flag.
+
+        Sets self.signal_processing_config to a dict with all parameters.
+        """
+        logger = logging.getLogger(__name__)
+        sp = self.data.get("signal_processing", {})
+        hampel = sp.get("hampel", {}) if isinstance(sp, dict) else {}
+
+        # Validate and extract hampel parameters
+        window_size = hampel.get("window_size", 7)
+        if (
+            not isinstance(window_size, int)
+            or isinstance(window_size, bool)
+            or window_size < 3
+        ):
+            logger.warning(
+                f"signal_processing.hampel.window_size must be int >= 3, "
+                f"got {window_size!r}; defaulting to 7"
+            )
+            window_size = 7
+
+        sigma_threshold = hampel.get("sigma_threshold", 3.0)
+        if (
+            not isinstance(sigma_threshold, (int, float))
+            or isinstance(sigma_threshold, bool)
+            or sigma_threshold <= 0
+        ):
+            logger.warning(
+                f"signal_processing.hampel.sigma_threshold must be positive number, "
+                f"got {sigma_threshold!r}; defaulting to 3.0"
+            )
+            sigma_threshold = 3.0
+
+        # Validate EWMA time constants
+        jitter_tc = sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
+        if (
+            not isinstance(jitter_tc, (int, float))
+            or isinstance(jitter_tc, bool)
+            or jitter_tc <= 0
+        ):
+            logger.warning(
+                f"signal_processing.jitter_time_constant_sec must be positive number, "
+                f"got {jitter_tc!r}; defaulting to 2.0"
+            )
+            jitter_tc = 2.0
+
+        variance_tc = (
+            sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
+        )
+        if (
+            not isinstance(variance_tc, (int, float))
+            or isinstance(variance_tc, bool)
+            or variance_tc <= 0
+        ):
+            logger.warning(
+                f"signal_processing.variance_time_constant_sec must be positive number, "
+                f"got {variance_tc!r}; defaulting to 5.0"
+            )
+            variance_tc = 5.0
+
+        self.signal_processing_config = {
+            "hampel_window_size": window_size,
+            "hampel_sigma_threshold": float(sigma_threshold),
+            "jitter_time_constant_sec": float(jitter_tc),
+            "variance_time_constant_sec": float(variance_tc),
+        }
+        logger.info(
+            f"Signal processing: hampel(window={window_size}, sigma={sigma_threshold}), "
+            f"jitter_tc={jitter_tc}s, variance_tc={variance_tc}s"
+        )
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -671,6 +748,9 @@ class Config(BaseConfig):
 
         # Alerting (optional, disabled by default per INFRA-05)
         self._load_alerting_config()
+
+        # Signal processing (always active, no enable/disable flag)
+        self._load_signal_processing_config()
 
 
 # =============================================================================
@@ -1146,6 +1226,21 @@ class WANController:
         else:
             self._webhook_delivery = None
             self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
+
+        # =====================================================================
+        # SIGNAL PROCESSING (Phase 88: observation mode)
+        # =====================================================================
+        # Pre-EWMA filter: Hampel outlier detection, jitter/variance tracking,
+        # confidence scoring. Always active. Filtered RTT feeds EWMA; other
+        # metrics are observational only (no control decisions).
+        # =====================================================================
+        self.signal_processor = SignalProcessor(
+            wan_name=wan_name,
+            config=config.signal_processing_config,
+            logger=logger,
+        )
+        # Store last signal result for future Phase 92 metrics/health endpoint
+        self._last_signal_result = None
 
         # =====================================================================
         # SUSTAINED CONGESTION TIMERS (ALRT-01)
@@ -1644,7 +1739,15 @@ class WANController:
         assert measured_rtt is not None  # guaranteed by rtt_early_return check above
         with PerfTimer("autorate_state_management", self.logger) as state_timer:
             # At this point, measured_rtt is valid (either from ICMP or last known value)
-            self.update_ewma(measured_rtt)
+
+            # Signal processing: filter RTT, compute jitter/variance/confidence
+            signal_result = self.signal_processor.process(
+                raw_rtt=measured_rtt,
+                load_rtt=self.load_rtt,
+                baseline_rtt=self.baseline_rtt,
+            )
+            self._last_signal_result = signal_result
+            self.update_ewma(signal_result.filtered_rtt)
 
             # Rate-of-change (acceleration) detection for sudden RTT spikes
             # Catches spikes that EWMA smooths over, triggers immediate RED

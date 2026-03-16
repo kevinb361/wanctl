@@ -103,6 +103,13 @@ def mock_autorate_config():
     config.queue_up = "ul-spectrum"
     # Alerting (disabled by default in tests)
     config.alerting_config = None
+    # Signal processing config (always active, default params)
+    config.signal_processing_config = {
+        "hampel_window_size": 7,
+        "hampel_sigma_threshold": 3.0,
+        "jitter_time_constant_sec": 2.0,
+        "variance_time_constant_sec": 5.0,
+    }
     return config
 
 
