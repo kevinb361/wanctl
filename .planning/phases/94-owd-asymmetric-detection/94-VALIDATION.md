@@ -15,19 +15,19 @@ created: 2026-03-17
 
 ## Test Infrastructure
 
-| Property | Value |
-|----------|-------|
-| **Framework** | pytest 7.x |
-| **Config file** | pyproject.toml |
-| **Quick run command** | `.venv/bin/pytest tests/test_owd_asymmetry.py tests/test_irtt_measurement.py -v` |
-| **Full suite command** | `.venv/bin/pytest tests/ -v` |
-| **Estimated runtime** | ~30 seconds |
+| Property               | Value                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**          | pytest 7.x                                                                                                                                               |
+| **Config file**        | pyproject.toml                                                                                                                                           |
+| **Quick run command**  | `.venv/bin/pytest tests/test_asymmetry_analyzer.py tests/test_asymmetry_persistence.py tests/test_asymmetry_health.py tests/test_irtt_measurement.py -v` |
+| **Full suite command** | `.venv/bin/pytest tests/ -v`                                                                                                                             |
+| **Estimated runtime**  | ~30 seconds                                                                                                                                              |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `.venv/bin/pytest tests/test_owd_asymmetry.py tests/test_irtt_measurement.py -v`
+- **After every task commit:** Run `.venv/bin/pytest tests/test_asymmetry_analyzer.py tests/test_asymmetry_persistence.py tests/test_asymmetry_health.py tests/test_irtt_measurement.py -v`
 - **After every plan wave:** Run `.venv/bin/pytest tests/ -v`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
@@ -36,34 +36,36 @@ created: 2026-03-17
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 94-01-01 | 01 | 1 | ASYM-01 | unit | `.venv/bin/pytest tests/test_irtt_measurement.py -k "send_delay or receive_delay"` | W0 | pending |
-| 94-01-02 | 01 | 1 | ASYM-02 | unit | `.venv/bin/pytest tests/test_owd_asymmetry.py -k "direction"` | W0 | pending |
-| 94-02-01 | 02 | 2 | ASYM-03 | unit | `.venv/bin/pytest tests/test_owd_asymmetry.py -k "sqlite or persist"` | W0 | pending |
-| 94-02-02 | 02 | 2 | ASYM-01 | unit | `.venv/bin/pytest tests/test_health_check.py -k "asymmetry"` | W0 | pending |
+| Task ID  | Plan | Wave | Requirement | Test Type | Automated Command                                                                  | File Exists | Status  |
+| -------- | ---- | ---- | ----------- | --------- | ---------------------------------------------------------------------------------- | ----------- | ------- |
+| 94-01-01 | 01   | 1    | ASYM-01     | unit      | `.venv/bin/pytest tests/test_irtt_measurement.py -k "send_delay or receive_delay"` | W0          | pending |
+| 94-01-02 | 01   | 1    | ASYM-02     | unit      | `.venv/bin/pytest tests/test_asymmetry_analyzer.py -k "direction"`                 | W0          | pending |
+| 94-02-01 | 02   | 2    | ASYM-03     | unit      | `.venv/bin/pytest tests/test_asymmetry_persistence.py -v`                          | W0          | pending |
+| 94-02-02 | 02   | 2    | ASYM-02     | unit      | `.venv/bin/pytest tests/test_asymmetry_health.py -v`                               | W0          | pending |
 
-*Status: pending / green / red / flaky*
+_Status: pending / green / red / flaky_
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_owd_asymmetry.py` — stubs for asymmetry detection, direction classification, transition logging
+- [ ] `tests/test_asymmetry_analyzer.py` — stubs for asymmetry detection, direction classification, transition logging
+- [ ] `tests/test_asymmetry_persistence.py` — stubs for SQLite persistence of direction and ratio
+- [ ] `tests/test_asymmetry_health.py` — stubs for health endpoint asymmetry fields
 - [ ] `tests/test_irtt_measurement.py` — extended stubs for send_delay/receive_delay parsing
 - [ ] Shared fixtures for IRTTResult construction with OWD fields
 
-*Existing pytest infrastructure and conftest.py patterns cover framework needs.*
+_Existing pytest infrastructure and conftest.py patterns cover framework needs._
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Health endpoint irtt section shows asymmetry fields | ASYM-02 | Full HTTP response structure | `curl -s http://127.0.0.1:9101/health \| python3 -m json.tool \| grep asymmetry` |
+| Behavior                                            | Requirement | Why Manual                   | Test Instructions                                                                |
+| --------------------------------------------------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------- |
+| Health endpoint irtt section shows asymmetry fields | ASYM-02     | Full HTTP response structure | `curl -s http://127.0.0.1:9101/health \| python3 -m json.tool \| grep asymmetry` |
 
-*Unit tests verify the data structure; manual check confirms HTTP integration.*
+_Unit tests verify the data structure; manual check confirms HTTP integration._
 
 ---
 
