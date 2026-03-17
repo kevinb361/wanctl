@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: planning
-last_updated: "2026-03-17T01:03:05.451Z"
-last_activity: 2026-03-17 -- Completed 91-02-PLAN.md (container network audit execution + report)
+status: executing
+last_updated: "2026-03-17T11:30:55Z"
+last_activity: 2026-03-17 -- Completed 92-01-PLAN.md (signal_quality and irtt health endpoint sections)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_plans: 10
+  completed_plans: 9
+  percent: 90
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.18 Measurement Quality -- Phase 91 complete, Phase 92 next
+**Current focus:** v1.18 Measurement Quality -- Phase 92 in progress (Observability)
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 91 of 92 (Container Networking Audit)
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
-**Last activity:** 2026-03-17 -- Completed 91-02-PLAN.md (container network audit execution + report)
+**Phase:** 92 of 92 (Observability)
+**Plan:** 1 of 2 complete
+**Status:** Executing
+**Last activity:** 2026-03-17 -- Completed 92-01-PLAN.md (signal_quality and irtt health endpoint sections)
 
-Progress: [##########] 100%
+Progress: [#########-] 90%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
-- Average duration: 16min
-- Total execution time: 1.8 hours
+- Total plans completed: 8
+- Average duration: 15min
+- Total execution time: 1.9 hours
 
 **By Phase:**
 
@@ -51,6 +51,7 @@ Progress: [##########] 100%
 | Phase 90 P02 | 19min | 1 tasks | 3 files  |
 | Phase 91 P01 | 10min | 1 tasks | 3 files  |
 | Phase 91 P02 | 24min | 2 tasks | 1 files  |
+| Phase 92 P01 | 6min  | 1 tasks | 2 files  |
 
 ## Accumulated Context
 
@@ -84,6 +85,10 @@ Progress: [##########] 100%
 - Container audit PASS: cake-spectrum mean=0.171ms, cake-att mean=0.166ms -- both well below 0.5ms threshold
 - Container jitter NEGLIGIBLE: 9.2% and 9.6% of WAN idle jitter -- no measurement infrastructure changes needed
 - veth/bridge networking adds no meaningful noise to RTT measurements (confirmed with 10,000 real samples)
+- Signal quality health section uses optional pattern (omitted when \_last_signal_result is None)
+- IRTT health section always present with available flag + reason (disabled/binary_not_found/awaiting_first_measurement)
+- All mock WAN controllers need explicit None for \_last_signal_result, \_irtt_thread, \_irtt_correlation to prevent MagicMock truthy issues
+- All mock configs need irtt_config dict for health endpoint tests
 
 ### Known Issues
 
