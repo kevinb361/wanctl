@@ -222,6 +222,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             "server": None,
                             "staleness_sec": None,
                             "protocol_correlation": None,
+                            "asymmetry_direction": "unknown",
+                            "asymmetry_ratio": None,
                         }
                     else:
                         staleness = round(time.monotonic() - irtt_result.timestamp, 1)
@@ -236,6 +238,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             "protocol_correlation": (
                                 round(wan_controller._irtt_correlation, 2)
                                 if wan_controller._irtt_correlation is not None
+                                else None
+                            ),
+                            "asymmetry_direction": (
+                                wan_controller._last_asymmetry_result.direction
+                                if wan_controller._last_asymmetry_result is not None
+                                else "unknown"
+                            ),
+                            "asymmetry_ratio": (
+                                round(wan_controller._last_asymmetry_result.ratio, 2)
+                                if wan_controller._last_asymmetry_result is not None
                                 else None
                             ),
                         }

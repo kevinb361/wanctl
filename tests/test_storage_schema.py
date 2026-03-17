@@ -36,6 +36,8 @@ class TestStoredMetrics:
             "wanctl_irtt_ipdv_ms",
             "wanctl_irtt_loss_up_pct",
             "wanctl_irtt_loss_down_pct",
+            "wanctl_irtt_asymmetry_ratio",
+            "wanctl_irtt_asymmetry_direction",
         }
         assert set(STORED_METRICS.keys()) == expected_keys
 
