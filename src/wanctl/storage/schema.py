@@ -19,6 +19,14 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_wan_zone": "WAN congestion zone from autorate (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
     "wanctl_wan_weight": "WAN confidence weight applied (0 when GREEN/None, config weight when RED/SOFT_RED)",
     "wanctl_wan_staleness_sec": "WAN state file age in seconds (-1 when inaccessible)",
+    "wanctl_signal_jitter_ms": "EWMA jitter from consecutive RTT deltas in milliseconds",
+    "wanctl_signal_variance_ms2": "EWMA variance of RTT around load_rtt in ms^2",
+    "wanctl_signal_confidence": "Measurement confidence score (0-1, higher is better)",
+    "wanctl_signal_outlier_count": "Lifetime count of Hampel-detected outlier RTT samples",
+    "wanctl_irtt_rtt_ms": "IRTT measured mean RTT in milliseconds",
+    "wanctl_irtt_ipdv_ms": "IRTT measured mean IPDV (jitter) in milliseconds",
+    "wanctl_irtt_loss_up_pct": "IRTT upstream packet loss percentage",
+    "wanctl_irtt_loss_down_pct": "IRTT downstream packet loss percentage",
 }
 
 # SQL schema for metrics table with indexes for time-series queries
