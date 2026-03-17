@@ -55,10 +55,10 @@ Explicitly excluded. Documented to prevent scope creep.
 | Feature | Reason |
 |---------|--------|
 | Replace icmplib with IRTT in hot loop | 5-10ms subprocess overhead incompatible with 50ms cycle budget |
-| NTP-synchronized OWD as authoritative | Clock sync fragile in LXC containers — defer to v1.20 after chrony verification |
+| NTP-synchronized OWD as authoritative | Clock sync fragile in LXC containers -- defer to v1.20 after chrony verification |
 | Cross-protocol path correction | ATT path asymmetry is geographic (Dallas vs CDN), not correctable in code |
 | ML-based fusion weight optimization | Unpredictable behavior, untestable edge cases |
-| Continuous IRTT background stream | Wastes bandwidth — short burst measurements every 5-10s |
+| Continuous IRTT background stream | Wastes bandwidth -- short burst measurements every 5-10s |
 
 ## Traceability
 
@@ -66,27 +66,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FUSE-01 | TBD | Pending |
-| FUSE-02 | TBD | Pending |
-| FUSE-03 | TBD | Pending |
-| FUSE-04 | TBD | Pending |
-| FUSE-05 | TBD | Pending |
-| ASYM-01 | TBD | Pending |
-| ASYM-02 | TBD | Pending |
-| ASYM-03 | TBD | Pending |
-| REFL-01 | TBD | Pending |
-| REFL-02 | TBD | Pending |
-| REFL-03 | TBD | Pending |
-| REFL-04 | TBD | Pending |
-| ALRT-01 | TBD | Pending |
-| ALRT-02 | TBD | Pending |
-| ALRT-03 | TBD | Pending |
+| FUSE-01 | Phase 96 | Pending |
+| FUSE-02 | Phase 97 | Pending |
+| FUSE-03 | Phase 96 | Pending |
+| FUSE-04 | Phase 96 | Pending |
+| FUSE-05 | Phase 97 | Pending |
+| ASYM-01 | Phase 94 | Pending |
+| ASYM-02 | Phase 94 | Pending |
+| ASYM-03 | Phase 94 | Pending |
+| REFL-01 | Phase 93 | Pending |
+| REFL-02 | Phase 93 | Pending |
+| REFL-03 | Phase 93 | Pending |
+| REFL-04 | Phase 93 | Pending |
+| ALRT-01 | Phase 95 | Pending |
+| ALRT-02 | Phase 95 | Pending |
+| ALRT-03 | Phase 95 | Pending |
 
 **Coverage:**
 - v1.19 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-17 after roadmap creation*
