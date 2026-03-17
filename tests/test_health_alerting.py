@@ -136,6 +136,7 @@ class TestAutorateHealthAlerting:
         wan_controller._last_signal_result = None
         wan_controller._irtt_thread = None
         wan_controller._irtt_correlation = None
+        wan_controller._last_asymmetry_result = None
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, engine):

@@ -210,6 +210,7 @@ class TestHealthServer:
         mock_wan_controller._last_signal_result = None
         mock_wan_controller._irtt_thread = None
         mock_wan_controller._irtt_correlation = None
+        mock_wan_controller._last_asymmetry_result = None
 
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
@@ -286,6 +287,7 @@ class TestRouterConnectivityReporting:
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
         return wan
 
     def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
@@ -444,6 +446,7 @@ class TestRouterConnectivityReporting:
         wan1._last_signal_result = None
         wan1._irtt_thread = None
         wan1._irtt_correlation = None
+        wan1._last_asymmetry_result = None
 
         # WAN 2: unreachable
         wan2 = MagicMock()
@@ -472,6 +475,7 @@ class TestRouterConnectivityReporting:
         wan2._last_signal_result = None
         wan2._irtt_thread = None
         wan2._irtt_correlation = None
+        wan2._last_asymmetry_result = None
 
         mock_controller = MagicMock()
         config1 = MagicMock()
@@ -614,6 +618,7 @@ class TestCycleBudgetInHealthEndpoint:
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
 
         # Set profiler attributes (from Plan 01)
         wan._profiler = OperationProfiler(max_samples=1200)
@@ -876,6 +881,7 @@ class TestSignalQualityHealth:
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1067,6 +1073,7 @@ class TestIRTTHealth:
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
         return wan
 
     def _make_controller(self, wan, irtt_config=None):
@@ -1348,6 +1355,7 @@ class TestReflectorQualityHealth:
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):

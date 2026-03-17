@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.alert_engine import AlertEngine
-from wanctl.asymmetry_analyzer import AsymmetryAnalyzer, AsymmetryResult, DIRECTION_ENCODING
+from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
 from wanctl.config_base import BaseConfig, get_storage_config
 from wanctl.config_validation_utils import (
     deprecate_param,
