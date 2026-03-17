@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: planning
-last_updated: "2026-03-16T22:39:25.358Z"
-last_activity: 2026-03-16 -- Completed 90-02-PLAN.md (IRTTThread daemon integration + protocol correlation)
+status: executing
+last_updated: "2026-03-17T00:30:46.528Z"
+last_activity: 2026-03-17 -- Completed 91-01-PLAN.md (container network audit script + tests)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 60
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.18 Measurement Quality -- Phase 90 complete
+**Current focus:** v1.18 Measurement Quality -- Phase 91 in progress
 
 ## Position
 
 **Milestone:** v1.18 Measurement Quality
-**Phase:** 90 of 92 (IRTT Daemon Integration) -- COMPLETE
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
-**Last activity:** 2026-03-16 -- Completed 90-02-PLAN.md (IRTTThread daemon integration + protocol correlation)
+**Phase:** 91 of 92 (Container Networking Audit)
+**Plan:** 1 of 2 complete
+**Status:** Executing
+**Last activity:** 2026-03-17 -- Completed 91-01-PLAN.md (container network audit script + tests)
 
-Progress: [######----] 60%
+Progress: [#########-] 88%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [######----] 60%
 | Phase 89 P02 | 13min | 2 tasks | 5 files  |
 | Phase 90 P01 | 11min | 2 tasks | 6 files  |
 | Phase 90 P02 | 19min | 1 tasks | 3 files  |
+| Phase 91 P01 | 10min | 1 tasks | 3 files  |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Progress: [######----] 60%
 - Stale IRTT results (>3x cadence) skip correlation, set \_irtt_correlation to None
 - IRTT thread stopped at step 0.5 in finally block (after state save, before lock cleanup)
 - Autouse \_mock_irtt_thread fixture needed in entry point tests when irtt binary installed on dev machine
+- Subprocess ping (not icmplib) for host-to-container measurement -- icmplib requires root/sysctl on host
+- scripts/**init**.py added to make scripts/ importable for testing
+- WAN jitter reference values hardcoded (0.5ms idle for both WANs) -- conservative estimates from production data
 
 ### Known Issues
 

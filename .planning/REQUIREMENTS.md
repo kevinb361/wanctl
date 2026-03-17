@@ -29,9 +29,9 @@ Requirements for measurement quality milestone. Each maps to roadmap phases.
 
 ### Container Networking
 
-- [ ] **CNTR-01**: Container veth/bridge networking overhead is measured and quantified
-- [ ] **CNTR-02**: Jitter contribution from container networking is characterized
-- [ ] **CNTR-03**: Audit report documents measurement floor with quantified overhead
+- [x] **CNTR-01**: Container veth/bridge networking overhead is measured and quantified
+- [x] **CNTR-02**: Jitter contribution from container networking is characterized
+- [x] **CNTR-03**: Audit report documents measurement floor with quantified overhead
 
 ### Observability
 
@@ -90,9 +90,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IRTT-06 | Phase 90 | Complete |
 | IRTT-07 | Phase 90 | Complete |
 | IRTT-08 | Phase 89 | Complete |
-| CNTR-01 | Phase 91 | Pending |
-| CNTR-02 | Phase 91 | Pending |
-| CNTR-03 | Phase 91 | Pending |
+| CNTR-01 | Phase 91 | Complete |
+| CNTR-02 | Phase 91 | Complete |
+| CNTR-03 | Phase 91 | Complete |
 | OBSV-01 | Phase 92 | Pending |
 | OBSV-02 | Phase 92 | Pending |
 | OBSV-03 | Phase 92 | Pending |
