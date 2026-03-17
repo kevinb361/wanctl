@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.alert_engine import AlertEngine
+from wanctl.asymmetry_analyzer import AsymmetryAnalyzer, AsymmetryResult, DIRECTION_ENCODING
 from wanctl.config_base import BaseConfig, get_storage_config
 from wanctl.config_validation_utils import (
     deprecate_param,
@@ -1460,6 +1461,21 @@ class WANController:
         self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
         # =====================================================================
+        # OWD ASYMMETRY DETECTION (Phase 94: ASYM-01 through ASYM-03)
+        # =====================================================================
+        # Directional congestion detection from IRTT send_delay vs receive_delay.
+        # Computes ratio-based asymmetry (NTP-independent). Result stored for
+        # health endpoint and future Phase 96 fusion consumption.
+        # =====================================================================
+        owd_config = config.owd_asymmetry_config
+        self._asymmetry_analyzer: AsymmetryAnalyzer | None = AsymmetryAnalyzer(
+            ratio_threshold=owd_config["ratio_threshold"],
+            logger=logger,
+            wan_name=wan_name,
+        )
+        self._last_asymmetry_result: AsymmetryResult | None = None
+
+        # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
         # =====================================================================
         # Per-reflector rolling quality scoring with automatic deprioritization
@@ -2142,6 +2158,11 @@ class WANController:
                         f"skipping correlation"
                     )
 
+                # OWD asymmetry analysis (ASYM-01) -- only on fresh IRTT result
+                if self._asymmetry_analyzer is not None:
+                    asym = self._asymmetry_analyzer.analyze(irtt_result)
+                    self._last_asymmetry_result = asym
+
             # Reflector quality probing (REFL-03) -- probe deprioritized hosts
             # Probes run at their own cadence (default 30s), one host per cycle
             now = time.monotonic()
@@ -2199,6 +2220,15 @@ class WANController:
                         (ts, self.wan_name, "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
                         (ts, self.wan_name, "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
                     ])
+                    # OWD asymmetry metrics (ASYM-03) -- same dedup guard as IRTT metrics
+                    if self._last_asymmetry_result is not None:
+                        metrics_batch.extend([
+                            (ts, self.wan_name, "wanctl_irtt_asymmetry_ratio",
+                             self._last_asymmetry_result.ratio, None, "raw"),
+                            (ts, self.wan_name, "wanctl_irtt_asymmetry_direction",
+                             DIRECTION_ENCODING.get(self._last_asymmetry_result.direction, 0.0),
+                             None, "raw"),
+                        ])
                     self._last_irtt_write_ts = irtt_result.timestamp
 
                 self._metrics_writer.write_metrics_batch(metrics_batch)
