@@ -240,6 +240,27 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             ),
                         }
 
+                # Reflector quality section (REFL-04) -- always present
+                scorer = wan_controller._reflector_scorer
+                if scorer is not None:
+                    statuses = scorer.get_all_statuses()
+                    wan_health["reflector_quality"] = {
+                        "available": True,
+                        "hosts": {
+                            s.host: {
+                                "score": round(s.score, 3),
+                                "status": s.status,
+                                "measurements": s.measurements,
+                            }
+                            for s in statuses
+                        },
+                    }
+                else:
+                    wan_health["reflector_quality"] = {
+                        "available": True,
+                        "hosts": {},
+                    }
+
                 health["wans"].append(wan_health)
 
         # Alerting state
