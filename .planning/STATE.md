@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
-status: executing
-last_updated: "2026-03-17T11:30:55Z"
-last_activity: 2026-03-17 -- Completed 92-01-PLAN.md (signal_quality and irtt health endpoint sections)
+status: completed
+last_updated: "2026-03-17T11:51:16.962Z"
+last_activity: 2026-03-17 -- Completed 92-02-PLAN.md (signal quality + IRTT metrics persistence to SQLite)
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Milestone:** v1.18 Measurement Quality
 **Phase:** 92 of 92 (Observability)
-**Plan:** 1 of 2 complete
-**Status:** Executing
-**Last activity:** 2026-03-17 -- Completed 92-01-PLAN.md (signal_quality and irtt health endpoint sections)
+**Plan:** 2 of 2 complete
+**Status:** Phase complete
+**Last activity:** 2026-03-17 -- Completed 92-02-PLAN.md (signal quality + IRTT metrics persistence to SQLite)
 
-Progress: [#########-] 90%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [#########-] 90%
 | Phase 91 P01 | 10min | 1 tasks | 3 files  |
 | Phase 91 P02 | 24min | 2 tasks | 1 files  |
 | Phase 92 P01 | 6min  | 1 tasks | 2 files  |
+| Phase 92 P02 | 24min | 2 tasks | 4 files  |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Progress: [#########-] 90%
 - IRTT health section always present with available flag + reason (disabled/binary_not_found/awaiting_first_measurement)
 - All mock WAN controllers need explicit None for \_last_signal_result, \_irtt_thread, \_irtt_correlation to prevent MagicMock truthy issues
 - All mock configs need irtt_config dict for health endpoint tests
+- Signal quality metrics written every cycle (same cadence as existing RTT metrics); IRTT deduplicated via monotonic timestamp
+- IRTT \_last_irtt_write_ts tracks last-written monotonic timestamp; prevents 200x duplication at 20Hz
+- STORED_METRICS now 18 entries total (10 original + 4 signal + 4 IRTT)
 
 ### Known Issues
 

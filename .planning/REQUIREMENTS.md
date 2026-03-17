@@ -37,8 +37,8 @@ Requirements for measurement quality milestone. Each maps to roadmap phases.
 
 - [x] **OBSV-01**: Health endpoint exposes signal quality section (jitter, confidence, variance, outlier count)
 - [x] **OBSV-02**: Health endpoint exposes IRTT measurement section (RTT, loss direction, IPDV, server status)
-- [ ] **OBSV-03**: Signal quality metrics are persisted in SQLite for trend analysis
-- [ ] **OBSV-04**: IRTT metrics are persisted in SQLite for trend analysis
+- [x] **OBSV-03**: Signal quality metrics are persisted in SQLite for trend analysis
+- [x] **OBSV-04**: IRTT metrics are persisted in SQLite for trend analysis
 
 ## Future Requirements
 
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CNTR-03 | Phase 91 | Complete |
 | OBSV-01 | Phase 92 | Complete |
 | OBSV-02 | Phase 92 | Complete |
-| OBSV-03 | Phase 92 | Pending |
-| OBSV-04 | Phase 92 | Pending |
+| OBSV-03 | Phase 92 | Complete |
+| OBSV-04 | Phase 92 | Complete |
 
 **Coverage:**
 - v1.18 requirements: 21 total
