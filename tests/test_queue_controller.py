@@ -1046,6 +1046,12 @@ class TestBaselineFreezeInvariant:
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
         }
+        mock_config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1118,6 +1124,12 @@ class TestBaselineFreezeInvariant:
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
         }
+        mock_config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
 
         mock_router = MagicMock()
         mock_rtt = MagicMock()
@@ -1187,6 +1199,12 @@ class TestBaselineFreezeInvariant:
             "hampel_sigma_threshold": 3.0,
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
+        }
+        mock_config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
         }
 
         mock_router = MagicMock()

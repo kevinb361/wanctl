@@ -1123,6 +1123,12 @@ class TestVerifyLocalConnectivity:
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
         }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1253,6 +1259,12 @@ class TestVerifyTcpConnectivity:
             "hampel_sigma_threshold": 3.0,
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
+        }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
         }
 
         router = MagicMock()
@@ -1419,6 +1431,12 @@ class TestVerifyConnectivityFallback:
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
         }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1566,6 +1584,12 @@ class TestStateLoadSave:
             "hampel_sigma_threshold": 3.0,
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
+        }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
         }
 
         router = MagicMock()
@@ -1823,6 +1847,12 @@ class TestMeasureRttMedianOfThree:
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
         }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -1840,56 +1870,48 @@ class TestMeasureRttMedianOfThree:
         return ctrl, config, logger
 
     def test_median_two_hosts_partial_success(self, controller_with_mocks):
-        """When 2 hosts return RTT, median of 2 values is returned.
+        """When 3 active hosts but only 2 return RTT, average-of-2 is used.
 
-        Covers lines 897-902: len(rtts) >= 2 path with 2 values.
+        With reflector scoring, measure_rtt uses ping_hosts_with_results
+        and applies graceful degradation: 2 results = average-of-2.
         """
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = True
-        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-        ctrl.use_median_of_three = True
-        ctrl.ping_hosts = config.ping_hosts
 
-        # 2 hosts respond
-        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0, 15.0]
+        # 3 active hosts, but one fails
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 10.0, "8.8.8.8": 15.0, "9.9.9.9": None
+        }
 
         result = ctrl.measure_rtt()
 
-        # Median of [10.0, 15.0] = 12.5
+        # Average of [10.0, 15.0] = 12.5 (graceful degradation: 2 results)
         assert result == 12.5
-        ctrl.rtt_measurement.ping_hosts_concurrent.assert_called_once()
+        ctrl.rtt_measurement.ping_hosts_with_results.assert_called_once()
 
     def test_median_one_host_minimal_success(self, controller_with_mocks):
         """When only 1 host returns RTT, that single value is returned.
 
-        Covers lines 903-904: len(rtts) == 1 path.
+        Graceful degradation: 1 result = single value.
         """
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = True
-        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-        ctrl.use_median_of_three = True
-        ctrl.ping_hosts = config.ping_hosts
 
-        # Only 1 host responds
-        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0]
+        # Only 1 host succeeds
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 10.0, "8.8.8.8": None, "9.9.9.9": None
+        }
 
         result = ctrl.measure_rtt()
 
         assert result == 10.0
 
     def test_median_all_hosts_fail_returns_none(self, controller_with_mocks):
-        """When all hosts fail, None is returned and warning logged.
-
-        Covers lines 905-907: len(rtts) == 0 (empty) path.
-        """
+        """When all hosts fail, None is returned and warning logged."""
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = True
-        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-        ctrl.use_median_of_three = True
-        ctrl.ping_hosts = config.ping_hosts
 
         # All hosts fail
-        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = []
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": None, "8.8.8.8": None, "9.9.9.9": None
+        }
 
         result = ctrl.measure_rtt()
 
@@ -1898,41 +1920,37 @@ class TestMeasureRttMedianOfThree:
         logger.warning.assert_called_once()
         warning_msg = logger.warning.call_args[0][0]
         assert "All pings failed" in warning_msg
-        assert "median-of-three" in warning_msg
 
-    def test_single_host_ping_path(self, controller_with_mocks):
-        """When use_median_of_three=False, ping_host is used instead.
+    def test_single_host_active(self, controller_with_mocks):
+        """When only 1 host is active, single ping value returned.
 
-        Covers lines 908-910: else branch for single host ping.
+        With reflector scoring, host selection is via get_active_hosts().
+        Even with 1 active host, ping_hosts_with_results is used.
         """
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = False
-        config.ping_hosts = ["1.1.1.1"]
-        ctrl.use_median_of_three = False
-        ctrl.ping_hosts = config.ping_hosts
 
-        ctrl.rtt_measurement.ping_host.return_value = 22.5
+        # Simulate single active host via reflector scorer
+        ctrl._reflector_scorer._deprioritized = {"8.8.8.8", "9.9.9.9"}
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 22.5
+        }
 
         result = ctrl.measure_rtt()
 
         assert result == 22.5
-        # ping_host should be called, not ping_hosts_concurrent
-        ctrl.rtt_measurement.ping_host.assert_called_once_with("1.1.1.1", count=1)
-        ctrl.rtt_measurement.ping_hosts_concurrent.assert_not_called()
+        ctrl.rtt_measurement.ping_hosts_with_results.assert_called_once()
 
     def test_median_three_hosts_all_success(self, controller_with_mocks):
         """When all 3 hosts return RTT, median of 3 values is returned.
 
-        Validates core median-of-three behavior.
+        Validates core median-of-N behavior with reflector scoring.
         """
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = True
-        config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
-        ctrl.use_median_of_three = True
-        ctrl.ping_hosts = config.ping_hosts
 
         # All 3 hosts respond
-        ctrl.rtt_measurement.ping_hosts_concurrent.return_value = [10.0, 20.0, 15.0]
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 10.0, "8.8.8.8": 20.0, "9.9.9.9": 15.0
+        }
 
         result = ctrl.measure_rtt()
 
@@ -1940,25 +1958,23 @@ class TestMeasureRttMedianOfThree:
         assert result == 15.0
         logger.debug.assert_called()
 
-    def test_median_fewer_than_three_hosts_in_config(self, controller_with_mocks):
-        """When fewer than 3 ping_hosts configured, falls back to single ping.
+    def test_two_hosts_active_average(self, controller_with_mocks):
+        """When 2 hosts active and both succeed, average-of-2 is returned.
 
-        Covers line 890: condition check for len(ping_hosts) >= 3.
+        Graceful degradation: 2 results = average (not median).
         """
         ctrl, config, logger = controller_with_mocks
-        config.use_median_of_three = True
-        config.ping_hosts = ["1.1.1.1", "8.8.8.8"]  # Only 2 hosts
-        ctrl.use_median_of_three = True
-        ctrl.ping_hosts = config.ping_hosts
 
-        ctrl.rtt_measurement.ping_host.return_value = 18.0
+        # Deprioritize one host so only 2 are active
+        ctrl._reflector_scorer._deprioritized = {"9.9.9.9"}
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 10.0, "8.8.8.8": 20.0
+        }
 
         result = ctrl.measure_rtt()
 
-        # Should fall back to single host ping
-        assert result == 18.0
-        ctrl.rtt_measurement.ping_host.assert_called_once()
-        ctrl.rtt_measurement.ping_hosts_concurrent.assert_not_called()
+        # Average of [10.0, 20.0] = 15.0
+        assert result == 15.0
 
 
 class TestBaselineRttBoundsRejection:
@@ -2017,6 +2033,12 @@ class TestBaselineRttBoundsRejection:
             "hampel_sigma_threshold": 3.0,
             "jitter_time_constant_sec": 2.0,
             "variance_time_constant_sec": 5.0,
+        }
+        config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
         }
 
         router = MagicMock()
