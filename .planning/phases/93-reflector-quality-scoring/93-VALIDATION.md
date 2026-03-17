@@ -19,7 +19,7 @@ created: 2026-03-17
 |----------|-------|
 | **Framework** | pytest 7.x |
 | **Config file** | pyproject.toml |
-| **Quick run command** | `.venv/bin/pytest tests/test_reflector_quality.py -v` |
+| **Quick run command** | `.venv/bin/pytest tests/test_reflector_scorer.py tests/test_reflector_quality_config.py -v` |
 | **Full suite command** | `.venv/bin/pytest tests/ -v` |
 | **Estimated runtime** | ~30 seconds |
 
@@ -27,7 +27,7 @@ created: 2026-03-17
 
 ## Sampling Rate
 
-- **After every task commit:** Run `.venv/bin/pytest tests/test_reflector_quality.py -v`
+- **After every task commit:** Run `.venv/bin/pytest tests/test_reflector_scorer.py tests/test_reflector_quality_config.py -v`
 - **After every plan wave:** Run `.venv/bin/pytest tests/ -v`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
@@ -38,18 +38,23 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 93-01-01 | 01 | 1 | REFL-01 | unit | `.venv/bin/pytest tests/test_reflector_quality.py -k "score"` | ❌ W0 | ⬜ pending |
-| 93-01-02 | 01 | 1 | REFL-02 | unit | `.venv/bin/pytest tests/test_reflector_quality.py -k "deprioritize"` | ❌ W0 | ⬜ pending |
-| 93-01-03 | 01 | 1 | REFL-03 | unit | `.venv/bin/pytest tests/test_reflector_quality.py -k "recovery"` | ❌ W0 | ⬜ pending |
-| 93-02-01 | 02 | 2 | REFL-04 | unit | `.venv/bin/pytest tests/test_reflector_quality.py -k "health"` | ❌ W0 | ⬜ pending |
+| 93-01-01 | 01 | 1 | REFL-01 | unit | `.venv/bin/pytest tests/test_reflector_scorer.py -k "score"` | W0 | pending |
+| 93-01-02 | 01 | 1 | REFL-02 | unit | `.venv/bin/pytest tests/test_reflector_scorer.py -k "deprioritize"` | W0 | pending |
+| 93-01-03 | 01 | 1 | REFL-03 | unit | `.venv/bin/pytest tests/test_reflector_scorer.py -k "recovery"` | W0 | pending |
+| 93-01-04 | 01 | 1 | REFL-01 | unit | `.venv/bin/pytest tests/test_rtt_measurement.py::TestPingHostsWithResults -v` | W0 | pending |
+| 93-01-05 | 01 | 1 | REFL-01 | unit | `.venv/bin/pytest tests/test_reflector_quality_config.py -v` | W0 | pending |
+| 93-02-01 | 02 | 2 | REFL-04 | unit | `.venv/bin/pytest tests/test_health_check.py::TestReflectorQualityHealth -v` | W0 | pending |
+| 93-02-02 | 02 | 2 | REFL-01 | unit | `.venv/bin/pytest tests/test_autorate_continuous.py::TestMeasureRTTReflectorScoring -v` | W0 | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_reflector_quality.py` — stubs for REFL-01 through REFL-04
+- [ ] `tests/test_reflector_scorer.py` — stubs for ReflectorScorer scoring, deprioritization, probing, recovery, drain_events
+- [ ] `tests/test_rtt_measurement.py::TestPingHostsWithResults` — stubs for per-host attributed results
+- [ ] `tests/test_reflector_quality_config.py` — stubs for config validation
 - [ ] Shared fixtures for ReflectorScorer instantiation and mock ping results
 
 *Existing pytest infrastructure and conftest.py patterns cover framework needs.*
