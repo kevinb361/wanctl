@@ -28,6 +28,14 @@ class TestStoredMetrics:
             "wanctl_wan_zone",
             "wanctl_wan_weight",
             "wanctl_wan_staleness_sec",
+            "wanctl_signal_jitter_ms",
+            "wanctl_signal_variance_ms2",
+            "wanctl_signal_confidence",
+            "wanctl_signal_outlier_count",
+            "wanctl_irtt_rtt_ms",
+            "wanctl_irtt_ipdv_ms",
+            "wanctl_irtt_loss_up_pct",
+            "wanctl_irtt_loss_down_pct",
         }
         assert set(STORED_METRICS.keys()) == expected_keys
 

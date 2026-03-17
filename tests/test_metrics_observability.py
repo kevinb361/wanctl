@@ -487,9 +487,8 @@ class TestSignalQualityInRunCycle:
         with (
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
-            patch.object(controller, "update_baseline"),
             patch.object(controller, "save_state"),
-            patch.object(controller, "_check_connectivity_alert"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -504,39 +503,33 @@ class TestSignalQualityInRunCycle:
         assert "wanctl_signal_confidence" in metric_names
         assert "wanctl_signal_outlier_count" in metric_names
 
-    def test_metrics_batch_excludes_signal_quality_when_none(
+    def test_signal_quality_values_from_run_cycle_match_signal_result(
         self,
         controller,
     ) -> None:
-        """Verify run_cycle does not include signal metrics when _last_signal_result is None."""
-        # Force _last_signal_result to None (shouldn't happen normally but tests guard)
-        controller._last_signal_result = None
-
+        """Verify signal quality values in metrics batch match the SignalResult fields."""
         mock_writer = MagicMock()
         controller._metrics_writer = mock_writer
-
-        # Patch signal_processor.process to return a result but keep _last_signal_result None
-        original_process = controller.signal_processor.process
-
-        def patched_process(*args, **kwargs):
-            result = original_process(*args, **kwargs)
-            controller._last_signal_result = None  # Force it back to None
-            return result
 
         with (
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
-            patch.object(controller, "update_baseline"),
             patch.object(controller, "save_state"),
-            patch.object(controller, "_check_connectivity_alert"),
-            patch.object(controller.signal_processor, "process", side_effect=patched_process),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
-        if mock_writer.write_metrics_batch.called:
-            batch = mock_writer.write_metrics_batch.call_args[0][0]
-            metric_names = [item[2] for item in batch]
-            assert "wanctl_signal_jitter_ms" not in metric_names
+        assert mock_writer.write_metrics_batch.called
+        batch = mock_writer.write_metrics_batch.call_args[0][0]
+        batch_dict = {item[2]: item[3] for item in batch}
+
+        # Values should match the SignalResult produced by signal_processor.process()
+        sr = controller._last_signal_result
+        assert sr is not None
+        assert batch_dict["wanctl_signal_jitter_ms"] == sr.jitter_ms
+        assert batch_dict["wanctl_signal_variance_ms2"] == sr.variance_ms2
+        assert batch_dict["wanctl_signal_confidence"] == sr.confidence
+        assert batch_dict["wanctl_signal_outlier_count"] == float(sr.total_outliers)
 
 
 class TestIRTTInRunCycle:
@@ -592,9 +585,8 @@ class TestIRTTInRunCycle:
         with (
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
-            patch.object(controller, "update_baseline"),
             patch.object(controller, "save_state"),
-            patch.object(controller, "_check_connectivity_alert"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -638,9 +630,8 @@ class TestIRTTInRunCycle:
         with (
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
-            patch.object(controller, "update_baseline"),
             patch.object(controller, "save_state"),
-            patch.object(controller, "_check_connectivity_alert"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -682,9 +673,8 @@ class TestIRTTInRunCycle:
         with (
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
-            patch.object(controller, "update_baseline"),
             patch.object(controller, "save_state"),
-            patch.object(controller, "_check_connectivity_alert"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
