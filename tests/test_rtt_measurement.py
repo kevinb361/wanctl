@@ -30,6 +30,76 @@ def make_host_result(address="8.8.8.8", rtts=None, is_alive=True):
     return host
 
 
+class TestPingHostsWithResults:
+    """Tests for RTTMeasurement.ping_hosts_with_results() method."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def rtt_measurement(self, mock_logger):
+        """Create an RTTMeasurement instance with mocked logger."""
+        return RTTMeasurement(
+            logger=mock_logger,
+            timeout_ping=1,
+            aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+        )
+
+    def test_empty_hosts_returns_empty_dict(self, rtt_measurement):
+        """Empty hosts list returns empty dict."""
+        result = rtt_measurement.ping_hosts_with_results([])
+        assert result == {}
+
+    def test_all_hosts_succeed(self, rtt_measurement):
+        """All hosts succeed: each mapped to RTT float."""
+        with patch.object(rtt_measurement, "ping_host") as mock_ping:
+            mock_ping.side_effect = [10.0, 20.0, 30.0]
+            result = rtt_measurement.ping_hosts_with_results(
+                ["8.8.8.8", "1.1.1.1", "9.9.9.9"]
+            )
+        assert len(result) == 3
+        assert result["8.8.8.8"] == 10.0
+        assert result["1.1.1.1"] == 20.0
+        assert result["9.9.9.9"] == 30.0
+
+    def test_some_hosts_fail(self, rtt_measurement):
+        """Some hosts fail: failed hosts mapped to None."""
+        with patch.object(rtt_measurement, "ping_host") as mock_ping:
+            mock_ping.side_effect = [10.0, None, 30.0]
+            result = rtt_measurement.ping_hosts_with_results(
+                ["8.8.8.8", "1.1.1.1", "9.9.9.9"]
+            )
+        assert result["8.8.8.8"] == 10.0
+        assert result["1.1.1.1"] is None
+        assert result["9.9.9.9"] == 30.0
+
+    def test_all_hosts_fail(self, rtt_measurement):
+        """All hosts fail: all mapped to None."""
+        with patch.object(rtt_measurement, "ping_host") as mock_ping:
+            mock_ping.return_value = None
+            result = rtt_measurement.ping_hosts_with_results(
+                ["8.8.8.8", "1.1.1.1"]
+            )
+        assert result["8.8.8.8"] is None
+        assert result["1.1.1.1"] is None
+
+    def test_timeout_marks_remaining_as_none(self, rtt_measurement):
+        """Timed-out hosts are mapped to None."""
+        import time
+
+        def slow_ping(*args, **kwargs):
+            time.sleep(10)
+            return 10.0
+
+        with patch.object(rtt_measurement, "ping_host", side_effect=slow_ping):
+            result = rtt_measurement.ping_hosts_with_results(
+                ["8.8.8.8"], timeout=0.01
+            )
+        assert result["8.8.8.8"] is None
+
+
 class TestPingHostsConcurrent:
     """Tests for RTTMeasurement.ping_hosts_concurrent() method."""
 

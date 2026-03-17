@@ -114,6 +114,28 @@ CREATE INDEX IF NOT EXISTS idx_benchmarks_wan
 """
 
 
+REFLECTOR_EVENTS_SCHEMA: str = """
+-- Reflector quality events (deprioritization/recovery transitions)
+CREATE TABLE IF NOT EXISTS reflector_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    host TEXT NOT NULL,
+    wan_name TEXT NOT NULL,
+    score REAL NOT NULL,
+    details TEXT
+);
+
+-- Index for time-range queries on reflector events
+CREATE INDEX IF NOT EXISTS idx_reflector_events_timestamp
+    ON reflector_events(timestamp);
+
+-- Composite index for host + WAN queries
+CREATE INDEX IF NOT EXISTS idx_reflector_events_host_wan
+    ON reflector_events(host, wan_name, timestamp);
+"""
+
+
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create all tables and indexes from the schema.
 
@@ -126,4 +148,5 @@ def create_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(METRICS_SCHEMA)
     conn.executescript(ALERTS_SCHEMA)
     conn.executescript(BENCHMARKS_SCHEMA)
+    conn.executescript(REFLECTOR_EVENTS_SCHEMA)
     conn.commit()
