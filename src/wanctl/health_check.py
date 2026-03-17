@@ -188,6 +188,58 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if cycle_budget is not None:
                     wan_health["cycle_budget"] = cycle_budget
 
+                # Signal quality section (OBSV-01)
+                signal_result = wan_controller._last_signal_result
+                if signal_result is not None:
+                    wan_health["signal_quality"] = {
+                        "jitter_ms": round(signal_result.jitter_ms, 3),
+                        "variance_ms2": round(signal_result.variance_ms2, 3),
+                        "confidence": round(signal_result.confidence, 3),
+                        "outlier_rate": round(signal_result.outlier_rate, 3),
+                        "total_outliers": signal_result.total_outliers,
+                        "warming_up": signal_result.warming_up,
+                    }
+
+                # IRTT section (OBSV-02) -- always present with available flag
+                irtt_thread = wan_controller._irtt_thread
+                if irtt_thread is None:
+                    irtt_enabled = config.irtt_config.get("enabled", False)
+                    if not irtt_enabled:
+                        reason = "disabled"
+                    else:
+                        reason = "binary_not_found"
+                    wan_health["irtt"] = {"available": False, "reason": reason}
+                else:
+                    irtt_result = irtt_thread.get_latest()
+                    if irtt_result is None:
+                        wan_health["irtt"] = {
+                            "available": True,
+                            "reason": "awaiting_first_measurement",
+                            "rtt_mean_ms": None,
+                            "ipdv_ms": None,
+                            "loss_up_pct": None,
+                            "loss_down_pct": None,
+                            "server": None,
+                            "staleness_sec": None,
+                            "protocol_correlation": None,
+                        }
+                    else:
+                        staleness = round(time.monotonic() - irtt_result.timestamp, 1)
+                        wan_health["irtt"] = {
+                            "available": True,
+                            "rtt_mean_ms": round(irtt_result.rtt_mean_ms, 2),
+                            "ipdv_ms": round(irtt_result.ipdv_mean_ms, 2),
+                            "loss_up_pct": round(irtt_result.send_loss, 1),
+                            "loss_down_pct": round(irtt_result.receive_loss, 1),
+                            "server": f"{irtt_result.server}:{irtt_result.port}",
+                            "staleness_sec": staleness,
+                            "protocol_correlation": (
+                                round(wan_controller._irtt_correlation, 2)
+                                if wan_controller._irtt_correlation is not None
+                                else None
+                            ),
+                        }
+
                 health["wans"].append(wan_health)
 
         # Alerting state
