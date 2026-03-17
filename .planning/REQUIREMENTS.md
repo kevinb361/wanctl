@@ -26,7 +26,7 @@ Requirements for signal fusion milestone. Each maps to roadmap phases.
 - [x] **REFL-01**: Each ping_host reflector has a rolling quality score based on success rate, jitter, and timeout frequency
 - [x] **REFL-02**: Low-scoring reflectors are deprioritized (skipped) when score falls below configurable threshold
 - [x] **REFL-03**: Deprioritized reflectors are periodically re-checked for recovery
-- [ ] **REFL-04**: Reflector quality scores are visible in health endpoint
+- [x] **REFL-04**: Reflector quality scores are visible in health endpoint
 
 ### IRTT Loss Alerts
 
@@ -77,7 +77,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REFL-01 | Phase 93 | Complete |
 | REFL-02 | Phase 93 | Complete |
 | REFL-03 | Phase 93 | Complete |
-| REFL-04 | Phase 93 | Pending |
+| REFL-04 | Phase 93 | Complete |
 | ALRT-01 | Phase 95 | Pending |
 | ALRT-02 | Phase 95 | Pending |
 | ALRT-03 | Phase 95 | Pending |
