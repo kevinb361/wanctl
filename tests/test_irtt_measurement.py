@@ -25,6 +25,8 @@ SAMPLE_IRTT_JSON = {
         "ipdv_round_trip": {
             "mean": 2_000_000,  # 2.0ms
         },
+        "send_delay": {"mean": 18_000_000, "median": 17_500_000},
+        "receive_delay": {"mean": 19_500_000, "median": 18_500_000},
         "upstream_loss_percent": 0.0,
         "downstream_loss_percent": 10.0,
         "packets_sent": 10,
@@ -456,3 +458,89 @@ class TestLogging:
             msg = mock_warn.call_args[0][0]
             assert "not found" in msg.lower() or "IRTT binary" in msg
             assert "apt install" in msg.lower() or "sudo apt" in msg.lower()
+
+
+# ---------------------------------------------------------------------------
+# TestOWDFields
+# ---------------------------------------------------------------------------
+
+
+class TestOWDFields:
+    """Tests for send_delay_median_ms and receive_delay_median_ms on IRTTResult."""
+
+    @patch("wanctl.irtt_measurement.shutil.which")
+    @patch("wanctl.irtt_measurement.subprocess.run")
+    def test_send_delay_parsed(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
+        """Test 23: _parse_json extracts send_delay_median_ms from IRTT JSON."""
+        mock_which.return_value = "/usr/bin/irtt"
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps(SAMPLE_IRTT_JSON),
+            stderr="",
+        )
+        m = IRTTMeasurement(config=TEST_CONFIG, logger=_make_logger())
+        result = m.measure()
+        assert result is not None
+        assert result.send_delay_median_ms == pytest.approx(17.5)
+
+    @patch("wanctl.irtt_measurement.shutil.which")
+    @patch("wanctl.irtt_measurement.subprocess.run")
+    def test_receive_delay_parsed(self, mock_run: MagicMock, mock_which: MagicMock) -> None:
+        """Test 24: _parse_json extracts receive_delay_median_ms from IRTT JSON."""
+        mock_which.return_value = "/usr/bin/irtt"
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps(SAMPLE_IRTT_JSON),
+            stderr="",
+        )
+        m = IRTTMeasurement(config=TEST_CONFIG, logger=_make_logger())
+        result = m.measure()
+        assert result is not None
+        assert result.receive_delay_median_ms == pytest.approx(18.5)
+
+    @patch("wanctl.irtt_measurement.shutil.which")
+    @patch("wanctl.irtt_measurement.subprocess.run")
+    def test_owd_fields_default_zero_when_absent(
+        self, mock_run: MagicMock, mock_which: MagicMock
+    ) -> None:
+        """Test 25: OWD fields default to 0.0 when send_delay/receive_delay absent from JSON."""
+        mock_which.return_value = "/usr/bin/irtt"
+        # JSON without send_delay and receive_delay keys
+        json_without_owd = {
+            "stats": {
+                "rtt": {"mean": 37_500_000, "median": 36_000_000},
+                "ipdv_round_trip": {"mean": 2_000_000},
+                "upstream_loss_percent": 0.0,
+                "downstream_loss_percent": 0.0,
+                "packets_sent": 10,
+                "packets_received": 10,
+            }
+        }
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps(json_without_owd),
+            stderr="",
+        )
+        m = IRTTMeasurement(config=TEST_CONFIG, logger=_make_logger())
+        result = m.measure()
+        assert result is not None
+        assert result.send_delay_median_ms == pytest.approx(0.0)
+        assert result.receive_delay_median_ms == pytest.approx(0.0)
+
+    def test_backward_compat_existing_constructors(self) -> None:
+        """Test 26: IRTTResult without new fields uses 0.0 defaults (backward compat)."""
+        result = IRTTResult(
+            rtt_mean_ms=37.5,
+            rtt_median_ms=36.0,
+            ipdv_mean_ms=2.0,
+            send_loss=0.0,
+            receive_loss=10.0,
+            packets_sent=10,
+            packets_received=9,
+            server="104.200.21.31",
+            port=2112,
+            timestamp=1000.0,
+            success=True,
+        )
+        assert result.send_delay_median_ms == pytest.approx(0.0)
+        assert result.receive_delay_median_ms == pytest.approx(0.0)

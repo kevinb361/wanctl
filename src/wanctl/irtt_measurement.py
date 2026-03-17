@@ -38,6 +38,8 @@ class IRTTResult:
     port: int
     timestamp: float  # time.monotonic()
     success: bool
+    send_delay_median_ms: float = 0.0  # stats.send_delay.median / NS_TO_MS
+    receive_delay_median_ms: float = 0.0  # stats.receive_delay.median / NS_TO_MS
 
 
 class IRTTMeasurement:
@@ -154,6 +156,8 @@ class IRTTMeasurement:
 
         rtt = stats.get("rtt", {})
         ipdv_rt = stats.get("ipdv_round_trip", {})
+        send_delay = stats.get("send_delay", {})
+        receive_delay = stats.get("receive_delay", {})
 
         return IRTTResult(
             rtt_mean_ms=rtt.get("mean", 0) / NS_TO_MS,
@@ -167,6 +171,8 @@ class IRTTMeasurement:
             port=self._port,
             timestamp=time.monotonic(),
             success=True,
+            send_delay_median_ms=send_delay.get("median", 0) / NS_TO_MS,
+            receive_delay_median_ms=receive_delay.get("median", 0) / NS_TO_MS,
         )
 
     def _log_failure(self, reason: str) -> None:
