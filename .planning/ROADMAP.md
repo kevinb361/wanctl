@@ -114,7 +114,12 @@ Plans:
 1. Container veth/bridge networking overhead is measured with quantified round-trip latency added by the network path from container to host
 2. Jitter contribution from container networking is characterized separately from WAN jitter, showing whether container networking adds meaningful variance
 3. An audit report documents the measurement floor -- the minimum RTT noise attributable to container infrastructure rather than actual WAN conditions
-   **Plans**: TBD
+   **Plans:** 2 plans
+
+Plans:
+
+- [ ] 91-01-PLAN.md -- Audit script + tests (measurement, stats, jitter assessment, report generation)
+- [ ] 91-02-PLAN.md -- Execute audit against real containers, verify and commit report
 
 ### Phase 92: Observability
 
@@ -141,7 +146,7 @@ Plans:
 | 88. Signal Processing Core     | 1/2            | In progress | -         |
 | 89. IRTT Foundation            | 0/2            | Not started | -         |
 | 90. IRTT Daemon Integration    | 0/2            | Not started | -         |
-| 91. Container Networking Audit | 0/TBD          | Not started | -         |
+| 91. Container Networking Audit | 0/2            | Not started | -         |
 | 92. Observability              | 0/TBD          | Not started | -         |
 
 ### Completed Milestones
