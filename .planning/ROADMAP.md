@@ -59,7 +59,10 @@ None
   2. A reflector with high timeout frequency or excessive jitter is automatically skipped during RTT measurement
   3. A deprioritized reflector is re-checked on a configurable interval and restored when quality improves
   4. Reflector quality scores persist across measurement cycles (not reset each cycle)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 93-01-PLAN.md -- ReflectorScorer module, RTTMeasurement extension, config loader, schema
+- [ ] 93-02-PLAN.md -- WANController integration, health endpoint, SQLite persistence
 
 ### Phase 94: OWD Asymmetric Detection
 **Goal**: The controller can distinguish upstream-only from downstream-only congestion using IRTT burst-internal send_delay vs receive_delay
@@ -108,7 +111,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 93. Reflector Quality Scoring | 0/TBD | Not started | - |
+| 93. Reflector Quality Scoring | 0/2 | Not started | - |
 | 94. OWD Asymmetric Detection | 0/TBD | Not started | - |
 | 95. IRTT Loss Alerts | 0/TBD | Not started | - |
 | 96. Dual-Signal Fusion Core | 0/TBD | Not started | - |
