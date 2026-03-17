@@ -132,7 +132,12 @@ Plans:
 2. Health endpoint includes an irtt section showing latest RTT, loss direction, IPDV, and server connection status
 3. Signal quality metrics (jitter, confidence, variance, outlier_count) are written to SQLite each cycle for historical trend analysis
 4. IRTT metrics (rtt, loss_up, loss_down, ipdv, server) are written to SQLite per measurement for historical trend analysis
-   **Plans**: TBD
+   **Plans:** 2 plans
+
+Plans:
+
+- [ ] 92-01-PLAN.md -- Health endpoint signal_quality + irtt sections per WAN
+- [ ] 92-02-PLAN.md -- SQLite metrics persistence (STORED_METRICS + run_cycle batch extension)
 
 ## Progress
 
@@ -147,7 +152,7 @@ Plans:
 | 89. IRTT Foundation            | 0/2            | Not started | -         |
 | 90. IRTT Daemon Integration    | 0/2            | Not started | -         |
 | 91. Container Networking Audit | 0/2            | Not started | -         |
-| 92. Observability              | 0/TBD          | Not started | -         |
+| 92. Observability              | 0/2            | Not started | -         |
 
 ### Completed Milestones
 
@@ -165,7 +170,7 @@ Plans:
 | v1.8 Resilience & Robustness         | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.5 Quality & Hygiene              | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability                   | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24  | 5     | Complete | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20  | 5     | Complete | 2026-01-14 |
