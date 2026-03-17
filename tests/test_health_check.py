@@ -1303,3 +1303,198 @@ class TestIRTTHealth:
             assert irtt["staleness_sec"] <= 15.0
         finally:
             server.shutdown()
+
+
+class TestReflectorQualityHealth:
+    """Tests for reflector_quality section in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_reflector(self):
+        """Create a mock WAN controller for reflector quality tests."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Prevent MagicMock truthy issues
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        return wan
+
+    def _make_controller(self, wan, irtt_enabled=False):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": irtt_enabled}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_reflector_quality_section_present(self, mock_wan_with_reflector):
+        """reflector_quality section present in WAN health with available: True."""
+        from wanctl.reflector_scorer import ReflectorScorer, ReflectorStatus
+
+        scorer = MagicMock(spec=ReflectorScorer)
+        scorer.get_all_statuses.return_value = [
+            ReflectorStatus(host="1.1.1.1", score=0.95, status="active", measurements=50, consecutive_successes=0),
+        ]
+        mock_wan_with_reflector._reflector_scorer = scorer
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            wan_data = data["wans"][0]
+            assert "reflector_quality" in wan_data
+            assert wan_data["reflector_quality"]["available"] is True
+        finally:
+            server.shutdown()
+
+    def test_reflector_quality_per_host_details(self, mock_wan_with_reflector):
+        """Each host has score (rounded to 3 decimals), status, and measurements."""
+        from wanctl.reflector_scorer import ReflectorScorer, ReflectorStatus
+
+        scorer = MagicMock(spec=ReflectorScorer)
+        scorer.get_all_statuses.return_value = [
+            ReflectorStatus(host="1.1.1.1", score=0.95123, status="active", measurements=50, consecutive_successes=0),
+            ReflectorStatus(host="8.8.8.8", score=0.72456, status="deprioritized", measurements=30, consecutive_successes=1),
+        ]
+        mock_wan_with_reflector._reflector_scorer = scorer
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            rq = data["wans"][0]["reflector_quality"]
+            hosts = rq["hosts"]
+            assert "1.1.1.1" in hosts
+            assert hosts["1.1.1.1"]["score"] == 0.951  # rounded to 3
+            assert hosts["1.1.1.1"]["status"] == "active"
+            assert hosts["1.1.1.1"]["measurements"] == 50
+            assert hosts["8.8.8.8"]["score"] == 0.725
+            assert hosts["8.8.8.8"]["status"] == "deprioritized"
+            assert hosts["8.8.8.8"]["measurements"] == 30
+        finally:
+            server.shutdown()
+
+    def test_reflector_quality_all_active(self, mock_wan_with_reflector):
+        """All hosts have status 'active'."""
+        from wanctl.reflector_scorer import ReflectorScorer, ReflectorStatus
+
+        scorer = MagicMock(spec=ReflectorScorer)
+        scorer.get_all_statuses.return_value = [
+            ReflectorStatus(host="1.1.1.1", score=0.98, status="active", measurements=50, consecutive_successes=0),
+            ReflectorStatus(host="8.8.8.8", score=0.96, status="active", measurements=48, consecutive_successes=0),
+        ]
+        mock_wan_with_reflector._reflector_scorer = scorer
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            hosts = data["wans"][0]["reflector_quality"]["hosts"]
+            assert all(h["status"] == "active" for h in hosts.values())
+        finally:
+            server.shutdown()
+
+    def test_reflector_quality_deprioritized_host(self, mock_wan_with_reflector):
+        """One host deprioritized shows status 'deprioritized'."""
+        from wanctl.reflector_scorer import ReflectorScorer, ReflectorStatus
+
+        scorer = MagicMock(spec=ReflectorScorer)
+        scorer.get_all_statuses.return_value = [
+            ReflectorStatus(host="1.1.1.1", score=0.95, status="active", measurements=50, consecutive_successes=0),
+            ReflectorStatus(host="8.8.8.8", score=0.65, status="deprioritized", measurements=50, consecutive_successes=2),
+        ]
+        mock_wan_with_reflector._reflector_scorer = scorer
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            hosts = data["wans"][0]["reflector_quality"]["hosts"]
+            assert hosts["8.8.8.8"]["status"] == "deprioritized"
+            assert hosts["1.1.1.1"]["status"] == "active"
+        finally:
+            server.shutdown()
+
+    def test_reflector_quality_no_scorer(self, mock_wan_with_reflector):
+        """When _reflector_scorer is None, section still present with available=True and empty hosts."""
+        mock_wan_with_reflector._reflector_scorer = None
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            rq = data["wans"][0]["reflector_quality"]
+            assert rq["available"] is True
+            assert rq["hosts"] == {}
+        finally:
+            server.shutdown()
+
+    def test_reflector_quality_empty_hosts(self, mock_wan_with_reflector):
+        """Scorer with no hosts returns empty hosts dict."""
+        from wanctl.reflector_scorer import ReflectorScorer
+
+        scorer = MagicMock(spec=ReflectorScorer)
+        scorer.get_all_statuses.return_value = []
+        mock_wan_with_reflector._reflector_scorer = scorer
+        controller = self._make_controller(mock_wan_with_reflector)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            rq = data["wans"][0]["reflector_quality"]
+            assert rq["available"] is True
+            assert rq["hosts"] == {}
+        finally:
+            server.shutdown()
