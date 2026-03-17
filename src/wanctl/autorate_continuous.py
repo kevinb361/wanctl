@@ -870,6 +870,37 @@ class Config(BaseConfig):
             f"probe_interval={probe_interval_sec}s, recovery_count={recovery_count}"
         )
 
+    def _load_owd_asymmetry_config(self) -> None:
+        """Load OWD asymmetry detection configuration.
+
+        Validates the optional owd_asymmetry: YAML section. Invalid config
+        warns and falls back to defaults (does not crash).
+
+        Sets self.owd_asymmetry_config to a dict consumed by AsymmetryAnalyzer.
+        """
+        logger = logging.getLogger(__name__)
+        owd = self.data.get("owd_asymmetry", {})
+
+        if not isinstance(owd, dict):
+            logger.warning(
+                f"owd_asymmetry config must be dict, got {type(owd).__name__}; using defaults"
+            )
+            owd = {}
+
+        ratio_threshold = owd.get("ratio_threshold", 2.0)
+        if (
+            not isinstance(ratio_threshold, (int, float))
+            or isinstance(ratio_threshold, bool)
+            or ratio_threshold < 1.0
+        ):
+            logger.warning(
+                f"owd_asymmetry.ratio_threshold must be number >= 1.0, "
+                f"got {ratio_threshold!r}; defaulting to 2.0"
+            )
+            ratio_threshold = 2.0
+
+        self.owd_asymmetry_config = {"ratio_threshold": float(ratio_threshold)}
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -921,6 +952,9 @@ class Config(BaseConfig):
 
         # Reflector quality scoring (optional, all defaults if absent)
         self._load_reflector_quality_config()
+
+        # OWD asymmetry detection (optional, all defaults if absent)
+        self._load_owd_asymmetry_config()
 
 
 # =============================================================================
