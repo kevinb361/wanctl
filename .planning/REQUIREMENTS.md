@@ -18,8 +18,8 @@ Requirements for signal fusion milestone. Each maps to roadmap phases.
 ### Asymmetric Congestion
 
 - [x] **ASYM-01**: Upstream vs downstream congestion is detected from IRTT send_delay vs receive_delay within same measurement burst
-- [ ] **ASYM-02**: Asymmetric congestion direction is available as a named attribute for downstream consumers
-- [ ] **ASYM-03**: Asymmetric congestion is persisted in SQLite for trend analysis
+- [x] **ASYM-02**: Asymmetric congestion direction is available as a named attribute for downstream consumers
+- [x] **ASYM-03**: Asymmetric congestion is persisted in SQLite for trend analysis
 
 ### Reflector Quality
 
@@ -72,8 +72,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FUSE-04 | Phase 96 | Pending |
 | FUSE-05 | Phase 97 | Pending |
 | ASYM-01 | Phase 94 | Complete |
-| ASYM-02 | Phase 94 | Pending |
-| ASYM-03 | Phase 94 | Pending |
+| ASYM-02 | Phase 94 | Complete |
+| ASYM-03 | Phase 94 | Complete |
 | REFL-01 | Phase 93 | Complete |
 | REFL-02 | Phase 93 | Complete |
 | REFL-03 | Phase 93 | Complete |
