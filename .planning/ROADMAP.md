@@ -72,7 +72,10 @@ Plans:
   1. IRTT burst results are analyzed for send_delay vs receive_delay divergence to detect directional congestion
   2. Asymmetric congestion direction is exposed as a named attribute (e.g., "upstream", "downstream", "symmetric", "unknown") for downstream consumers
   3. Asymmetric congestion events are persisted in SQLite with direction and magnitude for trend analysis
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 94-01-PLAN.md -- IRTTResult OWD extension, AsymmetryAnalyzer module, config loader
+- [ ] 94-02-PLAN.md -- WANController integration, health endpoint, SQLite persistence
 
 ### Phase 95: IRTT Loss Alerts
 **Goal**: Operators receive Discord notifications when sustained upstream or downstream packet loss is detected via IRTT
@@ -112,7 +115,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 93. Reflector Quality Scoring | 0/2 | Not started | - |
-| 94. OWD Asymmetric Detection | 0/TBD | Not started | - |
+| 94. OWD Asymmetric Detection | 0/2 | Not started | - |
 | 95. IRTT Loss Alerts | 0/TBD | Not started | - |
 | 96. Dual-Signal Fusion Core | 0/TBD | Not started | - |
 | 97. Fusion Safety & Observability | 0/TBD | Not started | - |
