@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.17.0 (CAKE Optimization & Benchmarking) — shipped 2026-03-16
-**Tests:** ~2,893 passing, 91%+ coverage
-**LOC:** ~24,056 Python (src/)
-**Milestones:** 18 shipped (v1.0-v1.17), 87 phases, 178 plans
+**Version:** v1.18.0 (Measurement Quality) — shipped 2026-03-17
+**Tests:** ~3,256 passing, 91%+ coverage
+**LOC:** ~25,026 Python (src/)
+**Milestones:** 19 shipped (v1.0-v1.18), 92 phases, 188 plans
 
-**Previous:** v1.16 Validation & Operational Confidence — CLI tools for offline config validation and live router CAKE queue audit
-**Latest:** v1.17 CAKE Optimization & Benchmarking — detect/fix sub-optimal CAKE params, RRUL bufferbloat benchmarking with grade computation, storage, and before/after comparison
+**Previous:** v1.17 CAKE Optimization & Benchmarking — detect/fix sub-optimal CAKE params, RRUL bufferbloat benchmarking with grade computation, storage, and before/after comparison
+**Latest:** v1.18 Measurement Quality — Hampel outlier filter, jitter/variance EWMA, IRTT UDP RTT via background thread, protocol correlation, container networking audit, health endpoint + SQLite observability
 
 ## Requirements
 
@@ -195,18 +195,23 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Benchmark history with time-range filtering (`wanctl-benchmark history`) — v1.17
 - ✓ 23/23 requirements satisfied — v1.17
 
+**v1.18 Measurement Quality:**
+
+- ✓ Hampel outlier filter with rolling window median replacement — v1.18
+- ✓ Jitter EWMA and variance EWMA from raw RTT samples — v1.18
+- ✓ Confidence scoring (variance-based 0-1 scale) — v1.18
+- ✓ Signal processing in observation mode (filters EWMA input, no state changes) — v1.18
+- ✓ IRTT UDP RTT measurement via subprocess wrapper with JSON parsing — v1.18
+- ✓ IRTT background daemon thread (10s cadence, lock-free cache) — v1.18
+- ✓ ICMP vs UDP protocol correlation with deprioritization detection — v1.18
+- ✓ Container networking overhead 0.17ms (negligible, no code changes needed) — v1.18
+- ✓ Health endpoint signal_quality and irtt sections per WAN — v1.18
+- ✓ SQLite persistence for signal quality (per-cycle) and IRTT (per-measurement) metrics — v1.18
+- ✓ 21/21 requirements satisfied — v1.18
+
 ### Active
 
-## Current Milestone: v1.18 Measurement Quality
-
-**Goal:** Improve RTT measurement accuracy and signal quality through IRTT integration, container networking optimization, and smarter signal processing.
-
-**Target features:**
-
-- IRTT as supplemental RTT source alongside icmplib (dual signal, UDP + ICMP)
-- Container networking audit and optimization (veth/bridge latency characterization)
-- RTT signal quality improvements (outlier filtering, jitter tracking, confidence intervals)
-- IRTT server: self-hosted on Dallas (104.200.21.31) + public reflectors
+(No active milestone — ready for v1.19 planning)
 
 ### Deferred
 
@@ -376,6 +381,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - CAKE params optimized on both WANs (nat, ack-filter, wash), ATT overhead corrected (pppoe-ptm → bridged-ptm)
 - Router mangle rule ordering fix: FORCE_OUT_ATT and ADAPTIVE steering moved before Trust EF accept rules
 
+**v1.18 Measurement Quality (2026-03-16 → 2026-03-17):**
+
+- Phase 88: Signal processing core (Hampel filter, jitter/variance EWMA, confidence scoring, observation mode)
+- Phase 89: IRTT foundation (subprocess wrapper, JSON parsing, graceful fallback, Dockerfile)
+- Phase 90: IRTT daemon integration (background thread, lock-free cache, protocol correlation)
+- Phase 91: Container networking audit (0.17ms overhead, negligible jitter, report-only closure)
+- Phase 92: Observability (health endpoint signal_quality + irtt sections, SQLite metrics persistence)
+- 363 new tests (2,893 → 3,256 total)
+- Production deployed and verified on both containers
+- IRTT enabled with Dallas server (104.200.21.31:2112), live measurements confirmed
+- Signal processing active: Spectrum 14% outlier rate, ATT 0% — validates per-WAN design
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -461,7 +478,14 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Flat benchmarks table (one row per run) | Simple queries, rarely >50 rows, all fields as columns | ✓ 19 columns | 2026-03-15 |
 | Bare invocation = run (no `run` subcommand) | Backward compatible, argparse optional subparsers | ✓ compare/history as subcommands | 2026-03-15 |
 | ATT overhead bridged-ptm not pppoe-ptm | BGW320 IP passthrough = no PPPoE on router segment | ✓ 22 bytes (was 30) | 2026-03-16 |
+| Pre-EWMA signal processing (observation mode) | Filter EWMA input without changing congestion control | ✓ Hampel replaces outliers, state untouched | 2026-03-17 |
+| Lock-free IRTTThread caching | Frozen dataclass + GIL = atomic pointer swap, zero lock contention | ✓ 50ms hot path unaffected | 2026-03-17 |
+| IRTT write-on-new-measurement deduplication | Prevent 200x SQLite row duplication at 20Hz cycle rate | ✓ \_last_irtt_write_ts tracking | 2026-03-17 |
+| Container overhead negligible (0.17ms) | Audit confirmed veth/bridge adds <0.5ms, jitter <10% of WAN | ✓ Report-only closure | 2026-03-17 |
+| Protocol correlation as simple ratio | icmp_rtt / irtt_rtt with 1.5/0.67 thresholds | ✓ Path asymmetry on ATT expected | 2026-03-17 |
+| Signal processing always active (no enable flag) | Lightweight stdlib math, observation mode = zero risk | ✓ Activates on deploy without config | 2026-03-17 |
+| IRTT disabled by default | Requires enabled: true + server in YAML | ✓ Safe upgrade path | 2026-03-17 |
 
 ---
 
-_Last updated: 2026-03-16 after v1.18 milestone start_
+_Last updated: 2026-03-17 after v1.18 milestone complete_

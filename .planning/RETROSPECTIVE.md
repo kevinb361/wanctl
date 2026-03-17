@@ -326,6 +326,55 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.18 — Measurement Quality
+
+**Shipped:** 2026-03-17
+**Phases:** 5 | **Plans:** 10
+
+### What Was Built
+
+- Hampel outlier filter with jitter/variance EWMA and confidence scoring (observation mode — filters EWMA input, no state changes)
+- IRTT UDP RTT measurement via subprocess wrapper with JSON parsing, graceful fallback on all failure modes
+- Background daemon thread (10s cadence, lock-free frozen dataclass caching, interruptible shutdown)
+- ICMP vs UDP protocol correlation with deprioritization detection (ratio thresholds 1.5/0.67)
+- Container networking audit confirming 0.17ms overhead (negligible, report-only closure)
+- Health endpoint signal_quality + irtt sections per WAN, SQLite persistence with IRTT write deduplication
+
+### What Worked
+
+- **Discuss→plan→execute pipeline** completed all 5 phases in a single session with zero blocking issues
+- **TDD for algorithm code** (Phases 88, 89, 90) — tests caught MAD=0 edge case, warm-up boundary, and MagicMock truthy trap before production
+- **Research catching field path errors** — Phase 89 researcher corrected IRTT JSON field paths (upstream_loss_percent not send_call.lost) before any code was written
+- **Parallel plan execution** — Phase 92 ran both plans in Wave 1 (no file overlap), cutting wall-clock time
+- **Live production verification** — deployed to both containers, enabled IRTT, confirmed end-to-end data flow in same session
+
+### What Was Inefficient
+
+- **MagicMock truthy trap** recurred in Phase 92 (test_health_alerting.py) despite research predicting it — the plan correctly warned about updating fixtures but missed one test file
+- **IRTT field path uncertainty** — CONTEXT.md had wrong paths from man pages, corrected only during research. Could have done live verification earlier in discuss-phase.
+
+### Patterns Established
+
+- **Lock-free caching via frozen dataclass** — CPython GIL + immutable object = atomic pointer swap, no threading.Lock needed for supplemental data crossing thread boundaries
+- **Write-on-new-measurement deduplication** — track last-written timestamp to prevent SQLite row duplication when background thread cadence differs from control loop cycle
+- **Always-present health sections** — include section with `available: false` + reason instead of omitting, so operators can see feature status at a glance
+- **Report-only phase closure** — when measurement confirms overhead is negligible, close phase with documentation only (no code changes)
+
+### Key Lessons
+
+1. **Observation mode is the right shipping strategy for new measurement signals** — production data from both IRTT and signal processing is now flowing, enabling informed fusion decisions in v1.19+
+2. **Path asymmetry invalidates naive protocol correlation** — ATT's correlation of 0.65 is geographic (Dallas server vs CDN ICMP reflectors), not protocol deprioritization. v1.19+ needs per-reflector path matching.
+3. **Per-WAN signal profiles differ dramatically** — Spectrum 14% outlier rate vs ATT 0% validates the per-WAN SignalProcessor design
+4. **Container networking is not a factor** — 0.17ms overhead (0.5% of WAN RTT) with negligible jitter confirms veth/bridge adds no meaningful measurement noise
+
+### Cost Observations
+
+- Model mix: Opus for execution, Sonnet for verification/checking
+- Sessions: 1 (entire milestone in single conversation)
+- Notable: 5 phases discussed, planned, executed, verified, and deployed in one session — highest throughput milestone to date
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -341,6 +390,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.15     | 5      | 10    | Alert engine, Protocol formatters, fire-then-deliver           |
 | v1.16     | 3      | 4     | CLI validation tools, shared data model, SCHEMA introspection  |
 | v1.17     | 4      | 8     | External tool wrapping (flent), auto-store, flat SQLite schema |
+| v1.18     | 5      | 10    | Lock-free threading, observation mode, report-only closure     |
 
 ### Cumulative Quality
 
@@ -355,6 +405,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.15     | 2,666 | 91%+     | 221       |
 | v1.16     | 2,823 | 91%+     | 157       |
 | v1.17     | 2,893 | 91%+     | 70        |
+| v1.18     | 3,256 | 91%+     | 363       |
 
 ### Top Lessons (Verified Across Milestones)
 

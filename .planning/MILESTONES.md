@@ -1,5 +1,14 @@
 # Project Milestones: wanctl
 
+## v1.18 Measurement Quality (Shipped: 2026-03-17)
+
+**Phases completed:** 5 phases, 10 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.17 CAKE Optimization & Benchmarking (Shipped: 2026-03-16)
 
 **Delivered:** Automated CAKE queue type parameter detection and optimization via `wanctl-check-cake --fix`, plus RRUL bufferbloat benchmarking with A-F grading, SQLite storage, and before/after comparison.

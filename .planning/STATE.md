@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.18
 milestone_name: Measurement Quality
 status: completed
-last_updated: "2026-03-17T12:08:38.744Z"
+last_updated: "2026-03-17T12:35:24.776Z"
 last_activity: 2026-03-17 -- Completed 92-02-PLAN.md (signal quality + IRTT metrics persistence to SQLite)
 progress:
   total_phases: 5
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 **Milestone:** v1.18 Measurement Quality
 **Phase:** 92 of 92 (Observability)
 **Plan:** 2 of 2 complete
-**Status:** Milestone complete
+**Status:** v1.18 milestone complete
 **Last activity:** 2026-03-17 -- Completed 92-02-PLAN.md (signal quality + IRTT metrics persistence to SQLite)
 
 Progress: [##########] 100%
