@@ -799,6 +799,76 @@ class Config(BaseConfig):
         else:
             logger.info("IRTT: disabled (enable via irtt.enabled + irtt.server)")
 
+    def _load_reflector_quality_config(self) -> None:
+        """Load reflector quality scoring configuration.
+
+        Validates the optional reflector_quality: YAML section. Invalid config
+        warns and falls back to defaults (does not crash).
+
+        Sets self.reflector_quality_config to a dict with all parameters.
+        """
+        logger = logging.getLogger(__name__)
+        rq = self.data.get("reflector_quality", {})
+
+        if not isinstance(rq, dict):
+            logger.warning(
+                f"reflector_quality config must be dict, got {type(rq).__name__}; "
+                "using defaults"
+            )
+            rq = {}
+
+        min_score = rq.get("min_score", 0.8)
+        if not isinstance(min_score, (int, float)) or isinstance(min_score, bool):
+            logger.warning(
+                f"reflector_quality.min_score must be number, got {min_score!r}; "
+                "defaulting to 0.8"
+            )
+            min_score = 0.8
+        min_score = max(0.0, min(1.0, float(min_score)))
+
+        window_size = rq.get("window_size", 50)
+        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 10:
+            logger.warning(
+                f"reflector_quality.window_size must be int >= 10, got {window_size!r}; "
+                "defaulting to 50"
+            )
+            window_size = 50
+
+        probe_interval_sec = rq.get("probe_interval_sec", 30)
+        if (
+            not isinstance(probe_interval_sec, (int, float))
+            or isinstance(probe_interval_sec, bool)
+            or probe_interval_sec < 1
+        ):
+            logger.warning(
+                f"reflector_quality.probe_interval_sec must be number >= 1, "
+                f"got {probe_interval_sec!r}; defaulting to 30"
+            )
+            probe_interval_sec = 30
+
+        recovery_count = rq.get("recovery_count", 3)
+        if (
+            not isinstance(recovery_count, int)
+            or isinstance(recovery_count, bool)
+            or recovery_count < 1
+        ):
+            logger.warning(
+                f"reflector_quality.recovery_count must be int >= 1, "
+                f"got {recovery_count!r}; defaulting to 3"
+            )
+            recovery_count = 3
+
+        self.reflector_quality_config = {
+            "min_score": float(min_score),
+            "window_size": window_size,
+            "probe_interval_sec": float(probe_interval_sec),
+            "recovery_count": recovery_count,
+        }
+        logger.info(
+            f"Reflector quality: min_score={min_score}, window={window_size}, "
+            f"probe_interval={probe_interval_sec}s, recovery_count={recovery_count}"
+        )
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -847,6 +917,9 @@ class Config(BaseConfig):
 
         # IRTT measurement (optional, disabled by default)
         self._load_irtt_config()
+
+        # Reflector quality scoring (optional, all defaults if absent)
+        self._load_reflector_quality_config()
 
 
 # =============================================================================

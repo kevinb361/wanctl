@@ -226,6 +226,45 @@ class RTTMeasurement:
             case _:
                 raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")
 
+    def ping_hosts_with_results(
+        self, hosts: list[str], count: int = 1, timeout: float = 3.0
+    ) -> dict[str, float | None]:
+        """Ping multiple hosts concurrently, return per-host results.
+
+        Unlike ping_hosts_concurrent() which returns a flat list of successful RTTs,
+        this method preserves host attribution for per-reflector quality tracking.
+
+        Args:
+            hosts: List of hostnames/IPs to ping
+            count: Number of ping packets per host (passed to ping_host)
+            timeout: Total timeout for all concurrent pings in seconds
+
+        Returns:
+            Dict mapping host -> RTT in ms (or None if ping failed/timed out).
+        """
+        if not hosts:
+            return {}
+
+        results: dict[str, float | None] = {}
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
+            future_to_host = {
+                executor.submit(self.ping_host, host, count): host for host in hosts
+            }
+            try:
+                for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+                    host = future_to_host[future]
+                    try:
+                        results[host] = future.result()
+                    except Exception:
+                        results[host] = None
+            except concurrent.futures.TimeoutError:
+                for _future, host in future_to_host.items():
+                    if host not in results:
+                        results[host] = None
+
+        return results
+
     def ping_hosts_concurrent(
         self, hosts: list[str], count: int = 1, timeout: float = 3.0
     ) -> list[float]:
