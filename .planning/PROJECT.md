@@ -211,7 +211,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — ready for v1.19 planning)
+## Current Milestone: v1.19 Signal Fusion
+
+**Goal:** Graduate observation-mode signals (IRTT, signal quality) into active congestion control inputs through weighted dual-signal fusion, OWD-based asymmetric congestion detection, reflector quality scoring, and IRTT loss alerting.
+
+**Target features:**
+
+- Dual-signal fusion: weighted IRTT + icmplib combination for congestion control input (ships disabled, SIGUSR1 toggle)
+- OWD-based asymmetric congestion detection: send_delay vs receive_delay from IRTT bursts (same-path only)
+- Per-reflector quality scoring: deprioritize unreliable ping_hosts, re-check periodically for recovery
+- IRTT loss direction alerts: upstream/downstream loss integrated into AlertEngine via Discord
 
 ### Deferred
 
@@ -488,4 +497,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-17 after v1.18 milestone complete_
+_Last updated: 2026-03-17 after v1.19 milestone start_
