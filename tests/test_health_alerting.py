@@ -132,6 +132,10 @@ class TestAutorateHealthAlerting:
         wan_controller.upload.soft_red_required = 3
         wan_controller.upload.green_streak = 5
         wan_controller.upload.green_required = 5
+        # Phase 92: signal quality and IRTT attributes (prevent MagicMock truthy trap)
+        wan_controller._last_signal_result = None
+        wan_controller._irtt_thread = None
+        wan_controller._irtt_correlation = None
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, engine):
@@ -139,6 +143,7 @@ class TestAutorateHealthAlerting:
         wan_ctrl = self._make_wan_controller_mock(engine)
         config = MagicMock()
         config.wan_name = "spectrum"
+        config.irtt_config = {"enabled": False}
 
         controller = MagicMock()
         controller.wan_controllers = [{"controller": wan_ctrl, "config": config}]
@@ -163,6 +168,7 @@ class TestAutorateHealthAlerting:
         wan_ctrl = self._make_wan_controller_mock(disabled_engine)
         config = MagicMock()
         config.wan_name = "spectrum"
+        config.irtt_config = {"enabled": False}
 
         controller = MagicMock()
         controller.wan_controllers = [{"controller": wan_ctrl, "config": config}]
@@ -186,6 +192,7 @@ class TestAutorateHealthAlerting:
         wan_ctrl = self._make_wan_controller_mock(engine)
         config = MagicMock()
         config.wan_name = "spectrum"
+        config.irtt_config = {"enabled": False}
 
         controller = MagicMock()
         controller.wan_controllers = [{"controller": wan_ctrl, "config": config}]
