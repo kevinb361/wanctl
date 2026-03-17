@@ -17,7 +17,9 @@ from wanctl.health_check import (
     start_health_server,
     update_health_status,
 )
+from wanctl.irtt_measurement import IRTTResult
 from wanctl.perf_profiler import OperationProfiler
+from wanctl.signal_processing import SignalResult
 
 
 def find_free_port() -> int:
@@ -204,8 +206,14 @@ class TestHealthServer:
             "last_failure_time": None,
         }
 
+        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        mock_wan_controller._last_signal_result = None
+        mock_wan_controller._irtt_thread = None
+        mock_wan_controller._irtt_correlation = None
+
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
 
         mock_controller.wan_controllers = [
             {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
@@ -274,6 +282,10 @@ class TestRouterConnectivityReporting:
             "last_failure_type": None,
             "last_failure_time": None,
         }
+        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
         return wan
 
     def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
@@ -281,6 +293,7 @@ class TestRouterConnectivityReporting:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
         ]
@@ -308,6 +321,7 @@ class TestRouterConnectivityReporting:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
         ]
@@ -339,6 +353,7 @@ class TestRouterConnectivityReporting:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
         ]
@@ -364,6 +379,7 @@ class TestRouterConnectivityReporting:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
         ]
@@ -424,6 +440,10 @@ class TestRouterConnectivityReporting:
             "last_failure_type": None,
             "last_failure_time": None,
         }
+        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        wan1._last_signal_result = None
+        wan1._irtt_thread = None
+        wan1._irtt_correlation = None
 
         # WAN 2: unreachable
         wan2 = MagicMock()
@@ -448,12 +468,18 @@ class TestRouterConnectivityReporting:
             "last_failure_type": "connection_refused",
             "last_failure_time": 98765.0,
         }
+        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        wan2._last_signal_result = None
+        wan2._irtt_thread = None
+        wan2._irtt_correlation = None
 
         mock_controller = MagicMock()
         config1 = MagicMock()
         config1.wan_name = "spectrum"
+        config1.irtt_config = {"enabled": False}
         config2 = MagicMock()
         config2.wan_name = "att"
+        config2.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": wan1, "config": config1, "logger": MagicMock()},
             {"controller": wan2, "config": config2, "logger": MagicMock()},
@@ -584,6 +610,11 @@ class TestCycleBudgetInHealthEndpoint:
             "last_failure_time": None,
         }
 
+        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+
         # Set profiler attributes (from Plan 01)
         wan._profiler = OperationProfiler(max_samples=1200)
         wan._overrun_count = overrun_count
@@ -601,6 +632,7 @@ class TestCycleBudgetInHealthEndpoint:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": wan, "config": mock_config, "logger": MagicMock()}
         ]
@@ -632,6 +664,7 @@ class TestCycleBudgetInHealthEndpoint:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": wan, "config": mock_config, "logger": MagicMock()}
         ]
@@ -655,6 +688,7 @@ class TestCycleBudgetInHealthEndpoint:
         mock_controller = MagicMock()
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
         mock_controller.wan_controllers = [
             {"controller": wan, "config": mock_config, "logger": MagicMock()}
         ]
@@ -795,5 +829,477 @@ class TestDiskSpaceInHealthEndpoint:
                 assert data["status"] == "degraded"
                 assert data["disk_space"]["status"] == "warning"
                 exc_info.value.close()
+        finally:
+            server.shutdown()
+
+
+class TestSignalQualityHealth:
+    """Tests for signal_quality section in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_signal(self):
+        """Create a mock WAN controller for signal quality tests."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Prevent MagicMock truthy issues
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        return wan
+
+    def _make_controller(self, wan, irtt_enabled=False):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": irtt_enabled}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_signal_quality_present_when_signal_result_available(self, mock_wan_with_signal):
+        """signal_quality section present in WAN health when _last_signal_result is a SignalResult."""
+        mock_wan_with_signal._last_signal_result = SignalResult(
+            filtered_rtt=25.0,
+            raw_rtt=26.1,
+            jitter_ms=1.234,
+            variance_ms2=2.567,
+            confidence=0.891,
+            is_outlier=False,
+            outlier_rate=0.042,
+            total_outliers=3,
+            consecutive_outliers=0,
+            warming_up=False,
+        )
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            wan_data = data["wans"][0]
+            assert "signal_quality" in wan_data
+        finally:
+            server.shutdown()
+
+    def test_signal_quality_has_expected_keys(self, mock_wan_with_signal):
+        """signal_quality section has jitter_ms, variance_ms2, confidence, outlier_rate, total_outliers, warming_up."""
+        mock_wan_with_signal._last_signal_result = SignalResult(
+            filtered_rtt=25.0,
+            raw_rtt=26.1,
+            jitter_ms=1.234,
+            variance_ms2=2.567,
+            confidence=0.891,
+            is_outlier=False,
+            outlier_rate=0.042,
+            total_outliers=3,
+            consecutive_outliers=0,
+            warming_up=False,
+        )
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            sq = data["wans"][0]["signal_quality"]
+            assert "jitter_ms" in sq
+            assert "variance_ms2" in sq
+            assert "confidence" in sq
+            assert "outlier_rate" in sq
+            assert "total_outliers" in sq
+            assert "warming_up" in sq
+        finally:
+            server.shutdown()
+
+    def test_signal_quality_values_rounded(self, mock_wan_with_signal):
+        """signal_quality values rounded to 3 decimal places (floats), total_outliers is int."""
+        mock_wan_with_signal._last_signal_result = SignalResult(
+            filtered_rtt=25.0,
+            raw_rtt=26.1,
+            jitter_ms=1.23456,
+            variance_ms2=2.56789,
+            confidence=0.89123,
+            is_outlier=False,
+            outlier_rate=0.04256,
+            total_outliers=3,
+            consecutive_outliers=0,
+            warming_up=False,
+        )
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            sq = data["wans"][0]["signal_quality"]
+            assert sq["jitter_ms"] == 1.235
+            assert sq["variance_ms2"] == 2.568
+            assert sq["confidence"] == 0.891
+            assert sq["outlier_rate"] == 0.043
+            assert sq["total_outliers"] == 3
+            assert isinstance(sq["total_outliers"], int)
+        finally:
+            server.shutdown()
+
+    def test_signal_quality_absent_when_none(self, mock_wan_with_signal):
+        """signal_quality section absent when _last_signal_result is None."""
+        mock_wan_with_signal._last_signal_result = None
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            wan_data = data["wans"][0]
+            assert "signal_quality" not in wan_data
+        finally:
+            server.shutdown()
+
+    def test_signal_quality_warming_up_reflected(self, mock_wan_with_signal):
+        """warming_up=True reflected correctly during Hampel warmup."""
+        mock_wan_with_signal._last_signal_result = SignalResult(
+            filtered_rtt=25.0,
+            raw_rtt=26.1,
+            jitter_ms=1.234,
+            variance_ms2=2.567,
+            confidence=0.891,
+            is_outlier=False,
+            outlier_rate=0.042,
+            total_outliers=0,
+            consecutive_outliers=0,
+            warming_up=True,
+        )
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            sq = data["wans"][0]["signal_quality"]
+            assert sq["warming_up"] is True
+        finally:
+            server.shutdown()
+
+
+class TestIRTTHealth:
+    """Tests for irtt section in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_irtt(self):
+        """Create a mock WAN controller for IRTT tests."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Prevent MagicMock truthy issues
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        return wan
+
+    def _make_controller(self, wan, irtt_config=None):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = irtt_config or {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_irtt_disabled_reason(self, mock_wan_with_irtt):
+        """irtt section available=False, reason='disabled' when IRTT disabled and no thread."""
+        controller = self._make_controller(
+            mock_wan_with_irtt, irtt_config={"enabled": False}
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is False
+            assert irtt["reason"] == "disabled"
+        finally:
+            server.shutdown()
+
+    def test_irtt_binary_not_found_reason(self, mock_wan_with_irtt):
+        """irtt section available=False, reason='binary_not_found' when enabled but no thread."""
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "10.10.99.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is False
+            assert irtt["reason"] == "binary_not_found"
+        finally:
+            server.shutdown()
+
+    def test_irtt_awaiting_first_measurement(self, mock_wan_with_irtt):
+        """irtt section available=True, reason='awaiting_first_measurement' when thread exists but no result."""
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = None
+        mock_wan_with_irtt._irtt_thread = mock_irtt_thread
+
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "10.10.99.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is True
+            assert irtt["reason"] == "awaiting_first_measurement"
+            assert irtt["rtt_mean_ms"] is None
+            assert irtt["ipdv_ms"] is None
+            assert irtt["loss_up_pct"] is None
+            assert irtt["loss_down_pct"] is None
+            assert irtt["server"] is None
+            assert irtt["staleness_sec"] is None
+            assert irtt["protocol_correlation"] is None
+        finally:
+            server.shutdown()
+
+    def test_irtt_full_data(self, mock_wan_with_irtt):
+        """irtt section has full data when IRTT result available."""
+        ts = time.monotonic() - 5.0
+        irtt_result = IRTTResult(
+            rtt_mean_ms=28.5,
+            rtt_median_ms=27.3,
+            ipdv_mean_ms=1.2,
+            send_loss=0.5,
+            receive_loss=1.0,
+            packets_sent=100,
+            packets_received=99,
+            server="10.10.99.1",
+            port=2112,
+            timestamp=ts,
+            success=True,
+        )
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = irtt_result
+        mock_wan_with_irtt._irtt_thread = mock_irtt_thread
+        mock_wan_with_irtt._irtt_correlation = 0.95
+
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "10.10.99.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is True
+            assert irtt["rtt_mean_ms"] == 28.5
+            assert irtt["ipdv_ms"] == 1.2
+            assert irtt["loss_up_pct"] == 0.5
+            assert irtt["loss_down_pct"] == 1.0
+            assert irtt["server"] == "10.10.99.1:2112"
+            assert irtt["staleness_sec"] >= 5.0  # At least 5 seconds old
+            assert irtt["protocol_correlation"] == 0.95
+        finally:
+            server.shutdown()
+
+    def test_irtt_protocol_correlation_none(self, mock_wan_with_irtt):
+        """protocol_correlation is None when wan_controller._irtt_correlation is None."""
+        ts = time.monotonic() - 2.0
+        irtt_result = IRTTResult(
+            rtt_mean_ms=28.5,
+            rtt_median_ms=27.3,
+            ipdv_mean_ms=1.2,
+            send_loss=0.0,
+            receive_loss=0.0,
+            packets_sent=100,
+            packets_received=100,
+            server="10.10.99.1",
+            port=2112,
+            timestamp=ts,
+            success=True,
+        )
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = irtt_result
+        mock_wan_with_irtt._irtt_thread = mock_irtt_thread
+        mock_wan_with_irtt._irtt_correlation = None
+
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "10.10.99.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["protocol_correlation"] is None
+        finally:
+            server.shutdown()
+
+    def test_irtt_server_formatted_as_host_port(self, mock_wan_with_irtt):
+        """server field formatted as 'host:port' string."""
+        ts = time.monotonic() - 1.0
+        irtt_result = IRTTResult(
+            rtt_mean_ms=28.5,
+            rtt_median_ms=27.3,
+            ipdv_mean_ms=1.2,
+            send_loss=0.0,
+            receive_loss=0.0,
+            packets_sent=100,
+            packets_received=100,
+            server="192.168.1.1",
+            port=3000,
+            timestamp=ts,
+            success=True,
+        )
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = irtt_result
+        mock_wan_with_irtt._irtt_thread = mock_irtt_thread
+        mock_wan_with_irtt._irtt_correlation = 1.02
+
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "192.168.1.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["server"] == "192.168.1.1:3000"
+        finally:
+            server.shutdown()
+
+    def test_irtt_staleness_computed(self, mock_wan_with_irtt):
+        """staleness_sec computed from time.monotonic() - irtt_result.timestamp."""
+        ts = time.monotonic() - 10.0
+        irtt_result = IRTTResult(
+            rtt_mean_ms=28.5,
+            rtt_median_ms=27.3,
+            ipdv_mean_ms=1.2,
+            send_loss=0.0,
+            receive_loss=0.0,
+            packets_sent=100,
+            packets_received=100,
+            server="10.10.99.1",
+            port=2112,
+            timestamp=ts,
+            success=True,
+        )
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = irtt_result
+        mock_wan_with_irtt._irtt_thread = mock_irtt_thread
+        mock_wan_with_irtt._irtt_correlation = None
+
+        controller = self._make_controller(
+            mock_wan_with_irtt,
+            irtt_config={"enabled": True, "server": "10.10.99.1"},
+        )
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            # Staleness should be approximately 10 seconds (allow some margin)
+            assert irtt["staleness_sec"] >= 9.5
+            assert irtt["staleness_sec"] <= 15.0
         finally:
             server.shutdown()
