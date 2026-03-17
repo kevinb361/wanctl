@@ -27,6 +27,8 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_irtt_ipdv_ms": "IRTT measured mean IPDV (jitter) in milliseconds",
     "wanctl_irtt_loss_up_pct": "IRTT upstream packet loss percentage",
     "wanctl_irtt_loss_down_pct": "IRTT downstream packet loss percentage",
+    "wanctl_irtt_asymmetry_ratio": "IRTT OWD asymmetry ratio (max of send/receive, receive/send)",
+    "wanctl_irtt_asymmetry_direction": "IRTT OWD asymmetry direction (0=unknown, 1=symmetric, 2=upstream, 3=downstream)",
 }
 
 # SQL schema for metrics table with indexes for time-series queries
