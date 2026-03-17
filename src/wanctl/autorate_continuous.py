@@ -1349,6 +1349,7 @@ class WANController:
         self._irtt_thread: IRTTThread | None = None  # Set by main() if IRTT active
         self._irtt_correlation: float | None = None
         self._irtt_deprioritization_logged: bool = False
+        self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
         # =====================================================================
         # SUSTAINED CONGESTION TIMERS (ALRT-01)
@@ -1985,6 +1986,27 @@ class WANController:
                         "raw",
                     ),
                 ]
+
+                # Signal quality metrics -- every cycle (OBSV-03)
+                if self._last_signal_result is not None:
+                    sr = self._last_signal_result
+                    metrics_batch.extend([
+                        (ts, self.wan_name, "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
+                        (ts, self.wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
+                        (ts, self.wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
+                        (ts, self.wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
+                    ])
+
+                # IRTT metrics -- only on new measurement (OBSV-04)
+                if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
+                    metrics_batch.extend([
+                        (ts, self.wan_name, "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
+                        (ts, self.wan_name, "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
+                        (ts, self.wan_name, "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
+                        (ts, self.wan_name, "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
+                    ])
+                    self._last_irtt_write_ts = irtt_result.timestamp
+
                 self._metrics_writer.write_metrics_batch(metrics_batch)
 
                 # Record state transition if occurred (with reason in labels)
