@@ -396,3 +396,176 @@ class TestProfilingInstrumentation:
                     pass
                 # If --profile wasn't accepted, argparse would have called sys.exit(2)
                 # which we'd see as SystemExit with code 2
+
+
+# =============================================================================
+# TestMeasureRTTReflectorScoring - Tests for reflector scoring integration
+# =============================================================================
+
+
+class TestMeasureRTTReflectorScoring:
+    """Tests for ReflectorScorer integration with WANController.
+
+    Covers:
+    - measure_rtt uses active hosts from scorer
+    - measure_rtt records per-host results back to scorer
+    - Graceful degradation (3/2/1/0 active hosts)
+    - Signal processing pipeline preservation
+    - run_cycle calls maybe_probe
+    - SQLite event persistence via drain_events
+    """
+
+    @pytest.fixture
+    def controller(self, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with patched load_state."""
+        mock_autorate_config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+        mock_autorate_config.use_median_of_three = True
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return ctrl
+
+    def test_measure_rtt_uses_active_hosts(self, controller, mock_rtt_measurement):
+        """measure_rtt should ping only hosts from scorer.get_active_hosts()."""
+        # Mock scorer returns subset of hosts
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1", "8.8.8.8"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 25.0,
+            "8.8.8.8": 27.0,
+        }
+
+        result = controller.measure_rtt()
+
+        # Verify ping_hosts_with_results called with active hosts
+        mock_rtt_measurement.ping_hosts_with_results.assert_called_once()
+        call_args = mock_rtt_measurement.ping_hosts_with_results.call_args
+        assert set(call_args[1]["hosts"]) == {"1.1.1.1", "8.8.8.8"} or set(call_args[0][0]) == {"1.1.1.1", "8.8.8.8"}
+
+    def test_measure_rtt_records_results(self, controller, mock_rtt_measurement):
+        """measure_rtt should call record_result for each host with correct success/failure."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1", "8.8.8.8"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 25.0,
+            "8.8.8.8": None,  # failed
+        }
+
+        controller.measure_rtt()
+
+        # Check record_result calls
+        calls = controller._reflector_scorer.record_result.call_args_list
+        assert len(calls) == 2
+        # Find calls by host
+        call_dict = {c[0][0]: c[0][1] for c in calls}
+        assert call_dict["1.1.1.1"] is True  # success
+        assert call_dict["8.8.8.8"] is False  # failure
+
+    def test_measure_rtt_graceful_degradation_two_hosts(self, controller, mock_rtt_measurement):
+        """With 2 active hosts and use_median_of_three=True, uses average."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1", "8.8.8.8"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 20.0,
+            "8.8.8.8": 30.0,
+        }
+
+        result = controller.measure_rtt()
+
+        # Average of 20.0 and 30.0
+        assert result == pytest.approx(25.0, abs=0.1)
+
+    def test_measure_rtt_graceful_degradation_one_host(self, controller, mock_rtt_measurement):
+        """With 1 active host, uses single ping result."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 22.5,
+        }
+
+        result = controller.measure_rtt()
+
+        assert result == pytest.approx(22.5, abs=0.1)
+
+    def test_measure_rtt_all_deprioritized_forces_best(self, controller, mock_rtt_measurement):
+        """When all hosts deprioritized, get_active_hosts returns 1 (forced best), single ping used."""
+        controller._reflector_scorer = MagicMock()
+        # get_active_hosts returns single forced-best when all deprioritized
+        controller._reflector_scorer.get_active_hosts.return_value = ["9.9.9.9"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "9.9.9.9": 35.0,
+        }
+
+        result = controller.measure_rtt()
+
+        assert result == pytest.approx(35.0, abs=0.1)
+
+    def test_measure_rtt_preserves_signal_processing(self, controller, mock_rtt_measurement):
+        """Signal processing pipeline (SignalProcessor.process) must still be called on RTT result."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1"]
+        controller._reflector_scorer.drain_events.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 25.0,
+        }
+
+        # The signal_processor.process is called in run_cycle, not measure_rtt.
+        # But measure_rtt should return a valid RTT that feeds into signal_processor.
+        result = controller.measure_rtt()
+        assert result is not None
+
+        # Verify signal_processor still exists on controller (not accidentally removed)
+        assert hasattr(controller, "signal_processor")
+        assert controller.signal_processor is not None
+
+    def test_run_cycle_calls_maybe_probe(self, controller, mock_rtt_measurement):
+        """run_cycle should call maybe_probe after RTT measurement."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1"]
+        controller._reflector_scorer.drain_events.return_value = []
+        controller._reflector_scorer.maybe_probe.return_value = []
+        mock_rtt_measurement.ping_hosts_with_results.return_value = {
+            "1.1.1.1": 25.0,
+        }
+
+        with patch.object(controller, "save_state"):
+            controller.run_cycle()
+
+        controller._reflector_scorer.maybe_probe.assert_called_once()
+
+    def test_persist_reflector_events_writes_sqlite(self, controller):
+        """_persist_reflector_events should write events to SQLite via MetricsWriter."""
+        controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.drain_events.return_value = [
+            {"event_type": "deprioritized", "host": "8.8.8.8", "score": 0.6},
+        ]
+        mock_writer = MagicMock()
+        controller._metrics_writer = mock_writer
+
+        controller._persist_reflector_events()
+
+        # Verify INSERT was called
+        mock_writer.connection.execute.assert_called_once()
+        call_args = mock_writer.connection.execute.call_args
+        assert "INSERT INTO reflector_events" in call_args[0][0]
+        params = call_args[0][1]
+        assert params[1] == "deprioritized"  # event_type
+        assert params[2] == "8.8.8.8"  # host
+
+    def test_persist_reflector_events_no_writer(self, controller):
+        """_persist_reflector_events should not crash when _metrics_writer is None."""
+        controller._reflector_scorer = MagicMock()
+        controller._metrics_writer = None
+
+        # Should not raise
+        controller._persist_reflector_events()

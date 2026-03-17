@@ -119,6 +119,13 @@ def mock_autorate_config():
         "interval_ms": 100,
         "cadence_sec": 10.0,
     }
+    # Reflector quality config (default params for tests)
+    config.reflector_quality_config = {
+        "min_score": 0.8,
+        "window_size": 50,
+        "probe_interval_sec": 30.0,
+        "recovery_count": 3,
+    }
     return config
 
 
