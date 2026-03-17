@@ -48,6 +48,7 @@ from wanctl.perf_profiler import (
     record_cycle_profiling,
 )
 from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
+from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.router_client import clear_router_password, get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
@@ -1425,6 +1426,24 @@ class WANController:
         self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
         # =====================================================================
+        # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
+        # =====================================================================
+        # Per-reflector rolling quality scoring with automatic deprioritization
+        # and periodic recovery probing. Low-quality reflectors are excluded
+        # from measure_rtt() to improve RTT signal quality.
+        # =====================================================================
+        rq_config = config.reflector_quality_config
+        self._reflector_scorer = ReflectorScorer(
+            hosts=config.ping_hosts,
+            min_score=rq_config["min_score"],
+            window_size=rq_config["window_size"],
+            probe_interval_sec=rq_config["probe_interval_sec"],
+            recovery_count=rq_config["recovery_count"],
+            logger=logger,
+            wan_name=wan_name,
+        )
+
+        # =====================================================================
         # SUSTAINED CONGESTION TIMERS (ALRT-01)
         # =====================================================================
         # Monotonic timestamps tracking when DL/UL entered RED/SOFT_RED.
@@ -1486,32 +1505,88 @@ class WANController:
         """
         Measure RTT and return value in milliseconds.
 
-        For connections with reflector variation (cable): Uses median-of-three reflectors
-        For stable connections (DSL, fiber): Single reflector is sufficient
+        Uses ReflectorScorer to select active (non-deprioritized) hosts, then
+        pings them concurrently with per-host attribution for quality tracking.
 
-        Uses concurrent pings for faster cycle times when median-of-three is enabled.
+        Graceful degradation based on active host count:
+        - 3+ active: median-of-N (handles reflector variation)
+        - 2 active: average-of-2
+        - 1 active: single ping value
+        - 0 active: impossible (get_active_hosts forces best-scoring)
+
+        Per-host results are recorded back to ReflectorScorer for rolling
+        quality scoring, and any deprioritization/recovery events are persisted.
         """
-        if self.use_median_of_three and len(self.ping_hosts) >= 3:
-            # Ping multiple hosts concurrently, take median to handle reflector variation
-            hosts_to_ping = self.ping_hosts[:3]
-            rtts = self.rtt_measurement.ping_hosts_concurrent(
-                hosts=hosts_to_ping, count=1, timeout=3.0
-            )
+        active_hosts = self._reflector_scorer.get_active_hosts()
 
-            if len(rtts) >= 2:
-                median_rtt = statistics.median(rtts)
-                self.logger.debug(
-                    f"{self.wan_name}: Median-of-{len(rtts)} RTT = {median_rtt:.2f}ms"
-                )
-                return median_rtt
-            elif len(rtts) == 1:
-                return rtts[0]
-            else:
-                self.logger.warning(f"{self.wan_name}: All pings failed (median-of-three)")
-                return None
+        # Ping active hosts with per-host attribution
+        results = self.rtt_measurement.ping_hosts_with_results(
+            hosts=active_hosts, count=1, timeout=3.0
+        )
+
+        # Record per-host results for quality scoring
+        for host, rtt_val in results.items():
+            self._reflector_scorer.record_result(host, rtt_val is not None)
+
+        # Persist any deprioritization/recovery events
+        self._persist_reflector_events()
+
+        # Extract successful RTT values
+        rtts = [v for v in results.values() if v is not None]
+
+        if not rtts:
+            self.logger.warning(f"{self.wan_name}: All pings failed")
+            return None
+
+        # Graceful degradation based on available results
+        if len(rtts) >= 3:
+            rtt = statistics.median(rtts)
+            self.logger.debug(
+                f"{self.wan_name}: Median-of-{len(rtts)} RTT = {rtt:.2f}ms"
+            )
+        elif len(rtts) == 2:
+            rtt = statistics.mean(rtts)
+            self.logger.debug(
+                f"{self.wan_name}: Average-of-2 RTT = {rtt:.2f}ms"
+            )
         else:
-            # Single host ping
-            return self.rtt_measurement.ping_host(self.ping_hosts[0], count=1)
+            rtt = rtts[0]
+
+        return rtt
+
+    def _persist_reflector_events(self) -> None:
+        """Persist any pending reflector deprioritization/recovery events to SQLite.
+
+        Drains transition events from ReflectorScorer and writes them to the
+        reflector_events table. Never raises -- follows AlertEngine pattern.
+        """
+        if self._metrics_writer is None:
+            return
+
+        events = self._reflector_scorer.drain_events()
+        for event in events:
+            try:
+                import json
+                import time as time_mod
+
+                timestamp = int(time_mod.time())
+                details = json.dumps({
+                    "host": event["host"],
+                    "score": round(event["score"], 3),
+                    "event": event["event_type"],
+                })
+                self._metrics_writer.connection.execute(
+                    "INSERT INTO reflector_events "
+                    "(timestamp, event_type, host, wan_name, score, details) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (timestamp, event["event_type"], event["host"],
+                     self.wan_name, round(event["score"], 3), details),
+                )
+            except Exception:
+                self.logger.warning(
+                    "Failed to persist reflector event %s for %s",
+                    event["event_type"], event["host"], exc_info=True,
+                )
 
     def update_ewma(self, measured_rtt: float) -> None:
         """
@@ -2031,6 +2106,18 @@ class WANController:
                     self.logger.debug(
                         f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
                         f"skipping correlation"
+                    )
+
+            # Reflector quality probing (REFL-03) -- probe deprioritized hosts
+            # Probes run at their own cadence (default 30s), one host per cycle
+            now = time.monotonic()
+            probed = self._reflector_scorer.maybe_probe(now, self.rtt_measurement)
+            if probed:
+                self._persist_reflector_events()
+                for probe_host, probe_success in probed:
+                    self.logger.debug(
+                        f"{self.wan_name}: Reflector probe {probe_host}: "
+                        f"{'success' if probe_success else 'failed'}"
                     )
 
             # Log decision
