@@ -67,8 +67,9 @@ def mock_controller():
     controller.wan_name = "spectrum"
     controller.logger = logging.getLogger("test.fusion_core")
 
-    # Fusion config (default weights)
+    # Fusion config (default weights, enabled for computation tests)
     controller._fusion_icmp_weight = 0.7
+    controller._fusion_enabled = True
 
     # IRTT thread (default: None / disabled)
     controller._irtt_thread = None
