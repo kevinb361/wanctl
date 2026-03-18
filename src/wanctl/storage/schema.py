@@ -138,6 +138,31 @@ CREATE INDEX IF NOT EXISTS idx_reflector_events_host_wan
 """
 
 
+TUNING_PARAMS_SCHEMA: str = """
+-- Tuning parameter adjustment history
+CREATE TABLE IF NOT EXISTS tuning_params (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    wan_name TEXT NOT NULL,
+    parameter TEXT NOT NULL,
+    old_value REAL NOT NULL,
+    new_value REAL NOT NULL,
+    confidence REAL NOT NULL,
+    rationale TEXT,
+    data_points INTEGER NOT NULL,
+    reverted INTEGER DEFAULT 0
+);
+
+-- Index for time-range queries on tuning history
+CREATE INDEX IF NOT EXISTS idx_tuning_timestamp
+    ON tuning_params(timestamp);
+
+-- Composite index for WAN + parameter + time queries
+CREATE INDEX IF NOT EXISTS idx_tuning_wan_param
+    ON tuning_params(wan_name, parameter, timestamp);
+"""
+
+
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create all tables and indexes from the schema.
 
@@ -151,4 +176,5 @@ def create_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(ALERTS_SCHEMA)
     conn.executescript(BENCHMARKS_SCHEMA)
     conn.executescript(REFLECTOR_EVENTS_SCHEMA)
+    conn.executescript(TUNING_PARAMS_SCHEMA)
     conn.commit()

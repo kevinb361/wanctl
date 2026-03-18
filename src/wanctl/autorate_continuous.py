@@ -69,6 +69,7 @@ from wanctl.systemd_utils import (
     notify_watchdog,
 )
 from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
+from wanctl.tuning.models import SafetyBounds, TuningConfig
 from wanctl.wan_controller_state import WANControllerState
 
 # =============================================================================
@@ -947,6 +948,170 @@ class Config(BaseConfig):
             f"irtt_weight={1.0 - icmp_weight}"
         )
 
+    def _load_tuning_config(self) -> None:
+        """Load adaptive tuning configuration.
+
+        Validates the optional tuning: YAML section. Invalid config warns
+        and disables the feature (does not crash). Feature is disabled by
+        default per TUNE-01.
+
+        Sets self.tuning_config to a TuningConfig when valid and enabled,
+        or None when absent/disabled/invalid.
+        """
+        logger = logging.getLogger(__name__)
+        tuning = self.data.get("tuning", {})
+
+        if not tuning:
+            self.tuning_config = None
+            logger.info("Tuning: disabled (enable via tuning.enabled)")
+            return
+
+        # Validate 'enabled' field type
+        enabled = tuning.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                f"tuning.enabled must be bool, got {type(enabled).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        if not enabled:
+            self.tuning_config = None
+            logger.info("Tuning: disabled (enable via tuning.enabled)")
+            return
+
+        # Validate cadence_sec (minimum 600 seconds = 10 minutes)
+        cadence_sec = tuning.get("cadence_sec", 3600)
+        if not isinstance(cadence_sec, int) or isinstance(cadence_sec, bool):
+            logger.warning(
+                f"tuning.cadence_sec must be int, got {type(cadence_sec).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+        if cadence_sec < 600:
+            logger.warning(
+                f"tuning.cadence_sec must be >= 600 (10 minutes minimum), "
+                f"got {cadence_sec}; disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        # Validate lookback_hours (1-168)
+        lookback_hours = tuning.get("lookback_hours", 24)
+        if not isinstance(lookback_hours, int) or isinstance(lookback_hours, bool):
+            logger.warning(
+                f"tuning.lookback_hours must be int, got {type(lookback_hours).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+        if lookback_hours < 1 or lookback_hours > 168:
+            logger.warning(
+                f"tuning.lookback_hours must be 1-168, got {lookback_hours}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        # Validate warmup_hours (1-24)
+        warmup_hours = tuning.get("warmup_hours", 1)
+        if not isinstance(warmup_hours, int) or isinstance(warmup_hours, bool):
+            logger.warning(
+                f"tuning.warmup_hours must be int, got {type(warmup_hours).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+        if warmup_hours < 1 or warmup_hours > 24:
+            logger.warning(
+                f"tuning.warmup_hours must be 1-24, got {warmup_hours}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        # Validate max_step_pct (1.0-50.0)
+        max_step_pct = tuning.get("max_step_pct", 10.0)
+        if not isinstance(max_step_pct, (int, float)) or isinstance(max_step_pct, bool):
+            logger.warning(
+                f"tuning.max_step_pct must be number, got {type(max_step_pct).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+        max_step_pct = float(max_step_pct)
+        if max_step_pct < 1.0 or max_step_pct > 50.0:
+            logger.warning(
+                f"tuning.max_step_pct must be 1.0-50.0, got {max_step_pct}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        # Parse bounds dict
+        raw_bounds = tuning.get("bounds", {})
+        if not isinstance(raw_bounds, dict):
+            logger.warning(
+                f"tuning.bounds must be a dict, got {type(raw_bounds).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+
+        bounds: dict[str, SafetyBounds] = {}
+        for param_name, bound_spec in raw_bounds.items():
+            if not isinstance(bound_spec, dict):
+                logger.warning(
+                    f"tuning.bounds.{param_name} must be a dict with min/max, "
+                    f"got {type(bound_spec).__name__}; disabling tuning"
+                )
+                self.tuning_config = None
+                return
+
+            min_val = bound_spec.get("min")
+            max_val = bound_spec.get("max")
+
+            if min_val is None or max_val is None:
+                logger.warning(
+                    f"tuning.bounds.{param_name} must have 'min' and 'max' keys; "
+                    "disabling tuning"
+                )
+                self.tuning_config = None
+                return
+
+            if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
+                logger.warning(
+                    f"tuning.bounds.{param_name} min/max must be numeric; "
+                    "disabling tuning"
+                )
+                self.tuning_config = None
+                return
+
+            if min_val > max_val:
+                logger.warning(
+                    f"tuning.bounds.{param_name} min ({min_val}) > max ({max_val}); "
+                    "disabling tuning"
+                )
+                self.tuning_config = None
+                return
+
+            bounds[param_name] = SafetyBounds(min_value=float(min_val), max_value=float(max_val))
+
+        self.tuning_config = TuningConfig(
+            enabled=True,
+            cadence_sec=cadence_sec,
+            lookback_hours=lookback_hours,
+            warmup_hours=warmup_hours,
+            max_step_pct=max_step_pct,
+            bounds=bounds,
+        )
+        logger.info(
+            f"Tuning: enabled (cadence={cadence_sec}s, lookback={lookback_hours}h, "
+            f"{len(bounds)} bounds)"
+        )
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -1004,6 +1169,9 @@ class Config(BaseConfig):
 
         # Dual-signal fusion (optional, defaults if absent)
         self._load_fusion_config()
+
+        # Adaptive tuning (optional, disabled by default)
+        self._load_tuning_config()
 
 
 # =============================================================================

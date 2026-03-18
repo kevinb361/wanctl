@@ -128,6 +128,8 @@ def mock_autorate_config():
     }
     # Fusion config (optional, default icmp_weight 0.7, disabled by default)
     config.fusion_config = {"icmp_weight": 0.7, "enabled": False}
+    # Tuning config (optional, disabled by default)
+    config.tuning_config = None
     return config
 
 
