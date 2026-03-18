@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.19
-milestone_name: Signal Fusion
-status: completed
-last_updated: "2026-03-18T20:13:43.788Z"
-last_activity: 2026-03-18 -- Milestone v1.19 archived
+milestone: v1.20
+milestone_name: Adaptive Tuning
+status: active
+last_updated: "2026-03-18T21:00:00.000Z"
+last_activity: 2026-03-18 -- Milestone v1.20 started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -20,21 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone (v1.19 complete)
+**Current focus:** v1.20 Adaptive Tuning — defining requirements
 
 ## Position
 
-**Milestone:** v1.19 Signal Fusion — SHIPPED
-**Status:** Milestone archived, ready for `/gsd:new-milestone`
-**Last activity:** 2026-03-18 -- Milestone v1.19 archived
+**Milestone:** v1.20 Adaptive Tuning
+**Phase:** Not started (defining requirements)
+**Plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-03-18 — Milestone v1.20 started
 
-Progress: [##########] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
 ### Key Decisions
 
-(Cleared — full log in PROJECT.md Key Decisions table)
+(None yet for v1.20)
 
 ### Known Issues
 

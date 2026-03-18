@@ -229,7 +229,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — planning next)
+## Current Milestone: v1.20 Adaptive Tuning
+
+**Goal:** Make wanctl a self-optimizing controller that learns optimal parameters from its own production metrics, with conservative safety bounds.
+
+**Target features:**
+
+- Automatic per-WAN parameter optimization from SQLite metrics history
+- Signal processing tuning (Hampel sigma/window, EWMA weights, fusion ratio)
+- Congestion threshold calibration to actual RTT distribution
+- Reflector scoring and baseline bounds auto-adjustment
+- Conservative safety model (tight bounds, small steps, slow convergence)
+- Full observability of tuning decisions (health endpoint, logs, metrics)
 
 ### Deferred
 
@@ -527,4 +538,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-18 after v1.19 milestone_
+_Last updated: 2026-03-18 after v1.20 milestone start_
