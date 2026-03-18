@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.14.0
+**Version:** 1.19.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -117,11 +117,13 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.14.0 (Operational Visibility)
+**Current:** v1.19.0 (Signal Fusion)
 
-- TUI dashboard (`wanctl-dashboard`) with live monitoring, sparklines, history browser
-- Responsive layout, terminal compatibility, dual-poller for multi-container WAN monitoring
-- 2,445 unit tests passing, 91%+ coverage
+- Dual-signal fusion: weighted ICMP + IRTT RTT for congestion control (ships disabled, SIGUSR1 toggle)
+- Reflector quality scoring with auto-deprioritization and recovery
+- OWD asymmetric congestion detection from IRTT burst delays
+- IRTT loss alerts via existing AlertEngine + Discord
+- 3,458 unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
