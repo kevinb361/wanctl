@@ -15,19 +15,19 @@ created: 2026-03-18
 
 ## Test Infrastructure
 
-| Property | Value |
-|----------|-------|
-| **Framework** | pytest 7.x |
-| **Config file** | pyproject.toml |
-| **Quick run command** | `.venv/bin/pytest tests/test_fusion.py -v` |
-| **Full suite command** | `.venv/bin/pytest tests/ -v` |
-| **Estimated runtime** | ~30 seconds |
+| Property               | Value                                                                       |
+| ---------------------- | --------------------------------------------------------------------------- |
+| **Framework**          | pytest 7.x                                                                  |
+| **Config file**        | pyproject.toml                                                              |
+| **Quick run command**  | `.venv/bin/pytest tests/test_fusion_config.py tests/test_fusion_core.py -v` |
+| **Full suite command** | `.venv/bin/pytest tests/ -v`                                                |
+| **Estimated runtime**  | ~30 seconds                                                                 |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `.venv/bin/pytest tests/test_fusion.py -v`
+- **After every task commit:** Run `.venv/bin/pytest tests/test_fusion_config.py tests/test_fusion_core.py -v`
 - **After every plan wave:** Run `.venv/bin/pytest tests/ -v`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
@@ -36,28 +36,29 @@ created: 2026-03-18
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 96-01-01 | 01 | 1 | FUSE-01 | unit | `.venv/bin/pytest tests/test_fusion.py -k "fused_rtt"` | W0 | pending |
-| 96-01-02 | 01 | 1 | FUSE-03 | unit | `.venv/bin/pytest tests/test_fusion.py -k "config or weight"` | W0 | pending |
-| 96-01-03 | 01 | 1 | FUSE-04 | unit | `.venv/bin/pytest tests/test_fusion.py -k "fallback or stale or unavailable"` | W0 | pending |
+| Task ID  | Plan | Wave | Requirement | Test Type | Automated Command                                                   | File Exists | Status  |
+| -------- | ---- | ---- | ----------- | --------- | ------------------------------------------------------------------- | ----------- | ------- |
+| 96-01-01 | 01   | 1    | FUSE-03     | unit      | `.venv/bin/pytest tests/test_fusion_config.py -v`                   | W0          | pending |
+| 96-02-01 | 02   | 2    | FUSE-01     | unit      | `.venv/bin/pytest tests/test_fusion_core.py -k "compute"`           | W0          | pending |
+| 96-02-02 | 02   | 2    | FUSE-04     | unit      | `.venv/bin/pytest tests/test_fusion_core.py -k "fallback or stale"` | W0          | pending |
 
-*Status: pending / green / red / flaky*
+_Status: pending / green / red / flaky_
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_fusion.py` — stubs for weighted average computation, config validation, fallback behavior
+- [ ] `tests/test_fusion_config.py` — stubs for config loading, warn+default validation
+- [ ] `tests/test_fusion_core.py` — stubs for weighted average computation, fallback behavior
 - [ ] `tests/conftest.py` — add fusion_config to mock_autorate_config fixture
 
-*Existing pytest infrastructure and conftest.py patterns cover framework needs.*
+_Existing pytest infrastructure and conftest.py patterns cover framework needs._
 
 ---
 
 ## Manual-Only Verifications
 
-*All phase behaviors have automated verification.*
+_All phase behaviors have automated verification._
 
 ---
 
