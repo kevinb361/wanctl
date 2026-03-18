@@ -86,37 +86,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TUNE-01 | — | Pending |
-| TUNE-02 | — | Pending |
-| TUNE-03 | — | Pending |
-| TUNE-04 | — | Pending |
-| TUNE-05 | — | Pending |
-| TUNE-06 | — | Pending |
-| TUNE-07 | — | Pending |
-| TUNE-08 | — | Pending |
-| TUNE-09 | — | Pending |
-| TUNE-10 | — | Pending |
-| CALI-01 | — | Pending |
-| CALI-02 | — | Pending |
-| CALI-03 | — | Pending |
-| CALI-04 | — | Pending |
-| SAFE-01 | — | Pending |
-| SAFE-02 | — | Pending |
-| SAFE-03 | — | Pending |
-| SIGP-01 | — | Pending |
-| SIGP-02 | — | Pending |
-| SIGP-03 | — | Pending |
-| SIGP-04 | — | Pending |
-| ADVT-01 | — | Pending |
-| ADVT-02 | — | Pending |
-| ADVT-03 | — | Pending |
-| ADVT-04 | — | Pending |
+| TUNE-01 | Phase 98 | Pending |
+| TUNE-02 | Phase 98 | Pending |
+| TUNE-03 | Phase 98 | Pending |
+| TUNE-04 | Phase 98 | Pending |
+| TUNE-05 | Phase 98 | Pending |
+| TUNE-06 | Phase 98 | Pending |
+| TUNE-07 | Phase 98 | Pending |
+| TUNE-08 | Phase 98 | Pending |
+| TUNE-09 | Phase 98 | Pending |
+| TUNE-10 | Phase 98 | Pending |
+| CALI-01 | Phase 99 | Pending |
+| CALI-02 | Phase 99 | Pending |
+| CALI-03 | Phase 99 | Pending |
+| CALI-04 | Phase 99 | Pending |
+| SAFE-01 | Phase 100 | Pending |
+| SAFE-02 | Phase 100 | Pending |
+| SAFE-03 | Phase 100 | Pending |
+| SIGP-01 | Phase 101 | Pending |
+| SIGP-02 | Phase 101 | Pending |
+| SIGP-03 | Phase 101 | Pending |
+| SIGP-04 | Phase 101 | Pending |
+| ADVT-01 | Phase 102 | Pending |
+| ADVT-02 | Phase 102 | Pending |
+| ADVT-03 | Phase 102 | Pending |
+| ADVT-04 | Phase 102 | Pending |
 
 **Coverage:**
 - v1.20 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25
+- Mapped to phases: 25
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after initial definition*
+*Last updated: 2026-03-18 after roadmap creation*
