@@ -111,6 +111,7 @@ class DiscordFormatter:
         "delta": "ms",
         "baseline": "ms",
         "latency": "ms",
+        "loss": "%",
     }
 
     def __init__(self, version: str, container_id: str) -> None:
