@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.18.0 (Measurement Quality) — shipped 2026-03-17
-**Tests:** ~3,256 passing, 91%+ coverage
-**LOC:** ~25,026 Python (src/)
-**Milestones:** 19 shipped (v1.0-v1.18), 92 phases, 188 plans
+**Version:** v1.19.0 (Signal Fusion) — shipped 2026-03-18
+**Tests:** ~3,458 passing, 91%+ coverage
+**LOC:** ~26,098 Python (src/)
+**Milestones:** 20 shipped (v1.0-v1.19), 97 phases, 197 plans
 
-**Previous:** v1.17 CAKE Optimization & Benchmarking — detect/fix sub-optimal CAKE params, RRUL bufferbloat benchmarking with grade computation, storage, and before/after comparison
-**Latest:** v1.18 Measurement Quality — Hampel outlier filter, jitter/variance EWMA, IRTT UDP RTT via background thread, protocol correlation, container networking audit, health endpoint + SQLite observability
+**Previous:** v1.18 Measurement Quality — Hampel outlier filter, jitter/variance EWMA, IRTT UDP RTT via background thread, protocol correlation, container networking audit
+**Latest:** v1.19 Signal Fusion — Weighted ICMP+IRTT fusion (ships disabled, SIGUSR1 toggle), reflector quality scoring, OWD asymmetric congestion detection, IRTT loss alerting
 
 ## Requirements
 
@@ -209,18 +209,27 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ SQLite persistence for signal quality (per-cycle) and IRTT (per-measurement) metrics — v1.18
 - ✓ 21/21 requirements satisfied — v1.18
 
+**v1.19 Signal Fusion:**
+
+- ✓ Weighted ICMP+IRTT fusion via \_compute_fused_rtt for congestion control input — v1.19
+- ✓ Fusion ships disabled by default with SIGUSR1 zero-downtime toggle — v1.19
+- ✓ Fusion weights YAML-configurable with warn+default validation — v1.19
+- ✓ IRTT unavailable/stale falls back to icmplib-only with zero behavioral change — v1.19
+- ✓ Health endpoint fusion section (enabled/disabled, weights, active sources, RTT values) — v1.19
+- ✓ OWD asymmetric congestion detection from IRTT send_delay vs receive_delay — v1.19
+- ✓ Asymmetric congestion direction as named attribute for downstream consumers — v1.19
+- ✓ Asymmetric congestion persisted in SQLite for trend analysis — v1.19
+- ✓ Per-reflector rolling quality scores with automatic deprioritization — v1.19
+- ✓ Deprioritized reflectors re-checked on configurable interval for recovery — v1.19
+- ✓ Reflector quality scores visible in health endpoint — v1.19
+- ✓ Sustained upstream IRTT loss alerts via AlertEngine — v1.19
+- ✓ Sustained downstream IRTT loss alerts via AlertEngine — v1.19
+- ✓ IRTT loss alerts use per-event cooldown consistent with existing types — v1.19
+- ✓ 15/15 requirements satisfied — v1.19
+
 ### Active
 
-## Current Milestone: v1.19 Signal Fusion
-
-**Goal:** Graduate observation-mode signals (IRTT, signal quality) into active congestion control inputs through weighted dual-signal fusion, OWD-based asymmetric congestion detection, reflector quality scoring, and IRTT loss alerting.
-
-**Target features:**
-
-- Dual-signal fusion: weighted IRTT + icmplib combination for congestion control input (ships disabled, SIGUSR1 toggle)
-- OWD-based asymmetric congestion detection: send_delay vs receive_delay from IRTT bursts (same-path only)
-- Per-reflector quality scoring: deprioritize unreliable ping_hosts, re-check periodically for recovery
-- IRTT loss direction alerts: upstream/downstream loss integrated into AlertEngine via Discord
+(No active milestone — planning next)
 
 ### Deferred
 
@@ -402,6 +411,16 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - IRTT enabled with Dallas server (104.200.21.31:2112), live measurements confirmed
 - Signal processing active: Spectrum 14% outlier rate, ATT 0% — validates per-WAN design
 
+**v1.19 Signal Fusion (2026-03-17 to 2026-03-18):**
+
+- Phase 93: Reflector quality scoring (rolling deques, deprioritization, recovery probes, graceful degradation)
+- Phase 94: OWD asymmetric detection (send_delay vs receive_delay from IRTT bursts, SQLite persistence)
+- Phase 95: IRTT loss alerts (sustained loss timers, AlertEngine integration, Discord delivery)
+- Phase 96: Dual-signal fusion core (\_compute_fused_rtt, weighted average, multi-gate fallback)
+- Phase 97: Fusion safety & observability (disabled by default, SIGUSR1 toggle, health endpoint fusion section)
+- ~202 new tests (3,256 to ~3,458 total)
+- Fusion ships disabled — graduation requires production SIGUSR1 enable after deploy
+
 **v1.13 Legacy Cleanup & Feature Graduation (2026-03-11):**
 
 - Phase 67: Production config audit (SSH-verified modern params on both containers)
@@ -494,7 +513,18 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | Protocol correlation as simple ratio | icmp_rtt / irtt_rtt with 1.5/0.67 thresholds | ✓ Path asymmetry on ATT expected | 2026-03-17 |
 | Signal processing always active (no enable flag) | Lightweight stdlib math, observation mode = zero risk | ✓ Activates on deploy without config | 2026-03-17 |
 | IRTT disabled by default | Requires enabled: true + server in YAML | ✓ Safe upgrade path | 2026-03-17 |
+| Reflector warmup guard (>=10 measurements) | Prevent false deprioritization on startup | ✓ No startup false positives | 2026-03-17 |
+| Graceful degradation for reflector count | 3+=median, 2=avg, 1=single, 0=force-best | ✓ Never fully loses measurement | 2026-03-17 |
+| OWD uses burst-internal delays (no NTP) | NTP clock sync fragile in LXC containers | ✓ Same-path, no external dependency | 2026-03-18 |
+| OWD ratio capped at 100.0 | Prevent SQLite overflow from near-zero denominator | ✓ Bounded safely | 2026-03-18 |
+| Single irtt_loss_recovered alert type | Direction field distinguishes up/down recovery | ✓ Simpler than separate types | 2026-03-18 |
+| Fusion default ICMP 0.7 / IRTT 0.3 | ICMP at 20Hz vs IRTT at 0.1Hz — dominance reflects cadence | ✓ Weighted appropriately | 2026-03-18 |
+| \_fusion_icmp_weight read once in **init** | Avoid per-cycle config lookup in 50ms hot path | ✓ Zero per-cycle overhead | 2026-03-18 |
+| Fusion ships disabled (fusion.enabled: false) | Proven graduation pattern from v1.13 | ✓ Zero behavioral change on deploy | 2026-03-18 |
+| SIGUSR1 reloads both enabled + icmp_weight | Atomic config snapshot prevents inconsistent state | ✓ Single reload updates both | 2026-03-18 |
+| No SQLite for fusion state | Input signals already persisted, fused_rtt derivable | ✓ No additional persistence needed | 2026-03-18 |
+| fused_rtt + load_ewma persisted to SQLite metrics | Operators need trend analysis of fusion behavior | ✓ 2 new metrics | 2026-03-18 |
 
 ---
 
-_Last updated: 2026-03-17 after v1.19 milestone start_
+_Last updated: 2026-03-18 after v1.19 milestone_

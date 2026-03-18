@@ -1,11 +1,50 @@
 # Project Milestones: wanctl
 
-## v1.18 Measurement Quality (Shipped: 2026-03-17)
+## v1.19 Signal Fusion (Shipped: 2026-03-18)
 
-**Phases completed:** 5 phases, 10 plans, 0 tasks
+**Delivered:** Dual-signal fusion engine combining ICMP and IRTT RTT measurements for congestion control, with reflector quality scoring, OWD asymmetric congestion detection, IRTT loss alerting, and zero-downtime SIGUSR1 toggle.
+
+**Phases completed:** 93-97 (9 plans total)
 
 **Key accomplishments:**
-- (none recorded)
+
+- Reflector quality scoring with rolling deques, automatic deprioritization of unreliable ping_hosts, and periodic recovery probes with graceful degradation (3/2/1/0 active hosts)
+- OWD asymmetric congestion detection from IRTT burst-internal send_delay vs receive_delay ratios (no NTP dependency), with SQLite persistence
+- IRTT sustained loss alerting (upstream/downstream) via AlertEngine with per-event cooldown and Discord notifications
+- Dual-signal fusion engine: weighted ICMP+IRTT average (\_compute_fused_rtt) as congestion control input, with multi-gate fallback (thread/result/freshness/validity)
+- Fusion safety gate: ships disabled by default (fusion.enabled: false) with SIGUSR1 zero-downtime toggle — first reload capability in autorate daemon
+- Full health endpoint fusion visibility (enabled/disabled state, active weights, signal sources, fused RTT values)
+
+**Stats:**
+
+- 5 phases, 9 plans
+- 40 commits, 86 files changed
+- +6,437 / -8,547 lines changed
+- ~202 new tests (3,256 to ~3,458)
+- 26,098 LOC Python (src/)
+- ~18 hours (2026-03-17 to 2026-03-18)
+
+**Git range:** `docs(95): capture phase context` to `docs: add config sections`
+
+**What's next:** v1.19 deploy + fusion graduation, then v1.20 planning.
+
+---
+
+## v1.18 Measurement Quality (Shipped: 2026-03-17)
+
+**Delivered:** RTT signal quality improvements with Hampel outlier filtering, IRTT UDP measurements via background thread, protocol correlation, container networking audit, and full observability.
+
+**Phases completed:** 88-92 (10 plans total)
+
+**Key accomplishments:**
+
+- Hampel outlier filter with jitter/variance EWMA and confidence scoring in observation mode
+- IRTT UDP RTT measurement via subprocess wrapper with JSON parsing and graceful fallback
+- Background IRTT daemon thread with lock-free caching (frozen dataclass + GIL atomic swap)
+- ICMP vs UDP protocol correlation with deprioritization detection
+- Container networking audit confirmed 0.17ms overhead (negligible, report-only closure)
+- Health endpoint signal_quality + irtt sections with SQLite persistence for both
+- 363 new tests (2,893 to 3,256), 21/21 requirements satisfied
 
 ---
 

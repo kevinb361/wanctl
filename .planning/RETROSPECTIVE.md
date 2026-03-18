@@ -375,6 +375,56 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.19 — Signal Fusion
+
+**Shipped:** 2026-03-18
+**Phases:** 5 | **Plans:** 9
+
+### What Was Built
+
+- Reflector quality scoring with rolling deques, automatic deprioritization, and periodic recovery probes with graceful degradation (3/2/1/0 active hosts)
+- OWD asymmetric congestion detection from IRTT burst-internal send_delay vs receive_delay ratios, with SQLite persistence
+- IRTT sustained loss alerting (upstream/downstream) via AlertEngine with Discord delivery
+- Dual-signal fusion engine: weighted ICMP+IRTT average (\_compute_fused_rtt) with multi-gate fallback
+- Fusion safety gate: disabled by default with SIGUSR1 zero-downtime toggle (first reload in autorate daemon)
+- Health endpoint fusion section with 3 states (disabled/icmp_only/fused)
+
+### What Worked
+
+- **Building on v1.18 observation-mode infrastructure**: All IRTT, signal processing, and health endpoint patterns already existed — v1.19 wired them together rather than building from scratch
+- **Proven graduation pattern reuse**: fusion.enabled + SIGUSR1 reload mirrors v1.13's confidence/WAN-aware graduation exactly — zero design uncertainty
+- **Multi-gate fallback design**: \_compute_fused_rtt checks thread→result→freshness→validity→compute sequentially, gracefully degrading to ICMP-only at any gate
+- **TDD discipline**: RED tests caught OWD ratio edge cases (near-zero denominator), SQLite capping, and MagicMock truthy traps before they reached production
+- **Single-day execution**: All 5 phases discussed, planned, executed in ~18 hours — highest single-day throughput (9 plans, 40 commits)
+
+### What Was Inefficient
+
+- **MagicMock truthy trap persists**: Still required explicit None defaults for new attributes (\_fusion_enabled, \_last_fused_rtt, \_last_icmp_filtered_rtt, \_last_asymmetry_result) on mock WANControllers — this pattern keeps recurring
+- **ROADMAP phase checkboxes fell out of sync**: Progress table showed phases 93-95 and 97 as "Not started" despite being complete. The disk-based state (SUMMARY.md existence) was correct, but ROADMAP.md wasn't updated during execution.
+- **Summary one_liner extraction still fails**: summary-extract returned null for all summaries — the frontmatter field is still not standardized, requiring manual accomplishment extraction
+
+### Patterns Established
+
+- **SIGUSR1 in autorate daemon**: is_reload_requested() → iterate wan_controllers → \_reload_fusion_config() → reset_reload_state. First time the autorate daemon supports config reload (steering had it since v1.13)
+- **Multi-gate fallback for optional signals**: chain of short-circuit checks that degrade gracefully at each gate, returning the best available signal
+- **Fusion weight read-once pattern**: \_fusion_icmp_weight loaded in **init** (not per-cycle) for 50ms hot path performance, reloaded only on SIGUSR1
+- **Warmup guard before scoring**: require N measurements before deprioritization to prevent startup false positives
+
+### Key Lessons
+
+1. **Observation mode → fusion is the right two-milestone pattern**: v1.18 shipped IRTT in observation mode, v1.19 consumed it for fusion. The separation gave production data to inform fusion design decisions.
+2. **MagicMock truthy trap needs a systemic solution**: Every milestone adds explicit None defaults for new WANController attributes. Consider a test helper or conftest fixture that auto-detects and patches new attributes.
+3. **ROADMAP.md progress tracking during execution is unreliable**: The `gsd-tools roadmap analyze` disk-based check is authoritative; the markdown checkboxes are cosmetic and frequently stale.
+4. **Net-negative LOC is achievable even when adding features**: v1.19 had +6,437/-8,547 lines — refactoring during feature work can reduce total codebase size.
+
+### Cost Observations
+
+- Model mix: Opus for planning/execution, Sonnet for research/verification
+- Sessions: 2 (phases 93-95, phases 96-97 + milestone completion)
+- Notable: 9 plans in ~18 hours with net-negative LOC — feature addition and cleanup in the same pass
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -391,21 +441,23 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.16     | 3      | 4     | CLI validation tools, shared data model, SCHEMA introspection  |
 | v1.17     | 4      | 8     | External tool wrapping (flent), auto-store, flat SQLite schema |
 | v1.18     | 5      | 10    | Lock-free threading, observation mode, report-only closure     |
+| v1.19     | 5      | 9     | Dual-signal fusion, multi-gate fallback, SIGUSR1 in autorate   |
 
 ### Cumulative Quality
 
-| Milestone | Tests | Coverage | New Tests |
-| --------- | ----- | -------- | --------- |
-| v1.9      | 1,978 | 91%+     | 97        |
-| v1.10     | 2,109 | 91%+     | 131       |
-| v1.11     | 2,210 | 91%+     | 101       |
-| v1.12     | 2,263 | 91%+     | 53        |
-| v1.13     | 2,300 | 91%+     | 37        |
-| v1.14     | 2,445 | 91%+     | 145       |
-| v1.15     | 2,666 | 91%+     | 221       |
-| v1.16     | 2,823 | 91%+     | 157       |
-| v1.17     | 2,893 | 91%+     | 70        |
-| v1.18     | 3,256 | 91%+     | 363       |
+| Milestone | Tests  | Coverage | New Tests |
+| --------- | ------ | -------- | --------- |
+| v1.9      | 1,978  | 91%+     | 97        |
+| v1.10     | 2,109  | 91%+     | 131       |
+| v1.11     | 2,210  | 91%+     | 101       |
+| v1.12     | 2,263  | 91%+     | 53        |
+| v1.13     | 2,300  | 91%+     | 37        |
+| v1.14     | 2,445  | 91%+     | 145       |
+| v1.15     | 2,666  | 91%+     | 221       |
+| v1.16     | 2,823  | 91%+     | 157       |
+| v1.17     | 2,893  | 91%+     | 70        |
+| v1.18     | 3,256  | 91%+     | 363       |
+| v1.19     | ~3,458 | 91%+     | ~202      |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -413,3 +465,4 @@ _A living document updated after each milestone. Lessons feed forward into futur
 2. Gap closure as standard workflow — not an exception but an expected part of milestone completion (v1.10, v1.11)
 3. Feature toggles enable safe cross-component shipping — write data in component A, read in component B, behavior unchanged until enabled (v1.11, graduated in v1.13)
 4. Production graduation requires degradation verification — config changes aren't enough, validate failure paths before declaring "live" (v1.13)
+5. Observation mode → fusion is the right two-milestone pattern — ship supplemental signals in observation mode first, graduate to active input after production data validates the approach (v1.18 → v1.19)
