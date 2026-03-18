@@ -283,11 +283,15 @@ class TestRouterConnectivityReporting:
             "last_failure_type": None,
             "last_failure_time": None,
         }
-        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        # Prevent MagicMock truthy issues for signal/IRTT/fusion attributes
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
         return wan
 
     def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
@@ -882,6 +886,10 @@ class TestSignalQualityHealth:
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1074,6 +1082,10 @@ class TestIRTTHealth:
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
         return wan
 
     def _make_controller(self, wan, irtt_config=None):
@@ -1356,6 +1368,10 @@ class TestReflectorQualityHealth:
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1504,5 +1520,212 @@ class TestReflectorQualityHealth:
             rq = data["wans"][0]["reflector_quality"]
             assert rq["available"] is True
             assert rq["hosts"] == {}
+        finally:
+            server.shutdown()
+
+
+# =============================================================================
+# FUSION HEALTH SECTION (FUSE-05)
+# =============================================================================
+
+
+class TestFusionHealth:
+    """Tests for fusion section in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_fusion(self):
+        """Create a mock WAN controller for fusion health tests."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Prevent MagicMock truthy issues
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        return wan
+
+    def _make_controller(self, wan, irtt_enabled=False):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": irtt_enabled}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_fusion_disabled_shows_minimal_section(self, mock_wan_with_fusion):
+        """Fusion disabled shows enabled=False with reason='disabled'."""
+        mock_wan_with_fusion._fusion_enabled = False
+        controller = self._make_controller(mock_wan_with_fusion)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            fusion = data["wans"][0]["fusion"]
+            assert fusion == {"enabled": False, "reason": "disabled"}
+        finally:
+            server.shutdown()
+
+    def test_fusion_enabled_active_shows_full_state(self, mock_wan_with_fusion):
+        """Fusion enabled with active IRTT shows full fused state."""
+        mock_wan_with_fusion._fusion_enabled = True
+        mock_wan_with_fusion._fusion_icmp_weight = 0.7
+        mock_wan_with_fusion._last_fused_rtt = 27.0
+        mock_wan_with_fusion._last_icmp_filtered_rtt = 30.0
+
+        irtt_thread = MagicMock()
+        irtt_result = IRTTResult(
+            rtt_mean_ms=20.0,
+            rtt_median_ms=19.5,
+            ipdv_mean_ms=1.0,
+            send_loss=0.0,
+            receive_loss=0.0,
+            packets_sent=100,
+            packets_received=100,
+            server="104.200.21.31",
+            port=2112,
+            timestamp=time.monotonic(),
+            success=True,
+        )
+        irtt_thread.get_latest.return_value = irtt_result
+        irtt_thread._cadence_sec = 10.0
+        mock_wan_with_fusion._irtt_thread = irtt_thread
+
+        controller = self._make_controller(mock_wan_with_fusion, irtt_enabled=True)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            fusion = data["wans"][0]["fusion"]
+            assert fusion["enabled"] is True
+            assert fusion["icmp_weight"] == 0.7
+            assert fusion["irtt_weight"] == 0.3
+            assert fusion["active_source"] == "fused"
+            assert fusion["fused_rtt_ms"] == 27.0
+            assert fusion["icmp_rtt_ms"] == 30.0
+            assert fusion["irtt_rtt_ms"] == 20.0
+        finally:
+            server.shutdown()
+
+    def test_fusion_enabled_icmp_only_no_irtt_thread(self, mock_wan_with_fusion):
+        """Fusion enabled but IRTT thread None shows icmp_only."""
+        mock_wan_with_fusion._fusion_enabled = True
+        mock_wan_with_fusion._fusion_icmp_weight = 0.7
+        mock_wan_with_fusion._irtt_thread = None
+        mock_wan_with_fusion._last_icmp_filtered_rtt = 30.0
+        mock_wan_with_fusion._last_fused_rtt = None
+
+        controller = self._make_controller(mock_wan_with_fusion)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            fusion = data["wans"][0]["fusion"]
+            assert fusion["enabled"] is True
+            assert fusion["active_source"] == "icmp_only"
+            assert fusion["fused_rtt_ms"] is None
+            assert fusion["irtt_rtt_ms"] is None
+            assert fusion["icmp_rtt_ms"] == 30.0
+        finally:
+            server.shutdown()
+
+    def test_fusion_enabled_icmp_only_stale_irtt(self, mock_wan_with_fusion):
+        """Fusion enabled with stale IRTT shows icmp_only."""
+        mock_wan_with_fusion._fusion_enabled = True
+        mock_wan_with_fusion._fusion_icmp_weight = 0.7
+        mock_wan_with_fusion._last_icmp_filtered_rtt = 30.0
+        mock_wan_with_fusion._last_fused_rtt = None
+
+        irtt_thread = MagicMock()
+        # Stale: 60 seconds ago with 10s cadence (60 > 30 threshold)
+        irtt_result = IRTTResult(
+            rtt_mean_ms=20.0,
+            rtt_median_ms=19.5,
+            ipdv_mean_ms=1.0,
+            send_loss=0.0,
+            receive_loss=0.0,
+            packets_sent=100,
+            packets_received=100,
+            server="104.200.21.31",
+            port=2112,
+            timestamp=time.monotonic() - 60.0,
+            success=True,
+        )
+        irtt_thread.get_latest.return_value = irtt_result
+        irtt_thread._cadence_sec = 10.0
+        mock_wan_with_fusion._irtt_thread = irtt_thread
+
+        controller = self._make_controller(mock_wan_with_fusion, irtt_enabled=True)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            fusion = data["wans"][0]["fusion"]
+            assert fusion["active_source"] == "icmp_only"
+        finally:
+            server.shutdown()
+
+    def test_fusion_section_always_present(self, mock_wan_with_fusion):
+        """Fusion section exists even when disabled with minimal mock."""
+        mock_wan_with_fusion._fusion_enabled = False
+        controller = self._make_controller(mock_wan_with_fusion)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            wan_data = data["wans"][0]
+            assert "fusion" in wan_data
         finally:
             server.shutdown()
