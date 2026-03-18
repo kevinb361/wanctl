@@ -1532,6 +1532,8 @@ class WANController:
         # =====================================================================
         self._fusion_icmp_weight: float = config.fusion_config["icmp_weight"]
         self._fusion_enabled: bool = config.fusion_config["enabled"]
+        self._last_fused_rtt: float | None = None
+        self._last_icmp_filtered_rtt: float | None = None
 
         # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
@@ -2098,7 +2100,13 @@ class WANController:
         - IRTT rtt_mean_ms is zero or negative (total packet loss)
 
         Returns weighted average when IRTT is fresh and valid.
+
+        Always stores _last_icmp_filtered_rtt and _last_fused_rtt for
+        health endpoint observability (FUSE-05).
         """
+        self._last_icmp_filtered_rtt = filtered_rtt
+        self._last_fused_rtt = None
+
         if not self._fusion_enabled:
             return filtered_rtt
 
@@ -2119,6 +2127,7 @@ class WANController:
             return filtered_rtt
 
         fused = self._fusion_icmp_weight * filtered_rtt + (1.0 - self._fusion_icmp_weight) * irtt_rtt
+        self._last_fused_rtt = fused
         self.logger.debug(
             f"{self.wan_name}: fused_rtt={fused:.1f}ms "
             f"(icmp={filtered_rtt:.1f}ms, irtt={irtt_rtt:.1f}ms, "
