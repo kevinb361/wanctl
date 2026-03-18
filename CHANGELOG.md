@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-03-18
+
+**Signal Fusion** - Graduated observation-mode signals into active congestion control inputs
+through weighted dual-signal fusion, reflector quality scoring, OWD asymmetric detection,
+and IRTT loss alerting. 5 phases, 10 plans, 15/15 requirements satisfied, 3,458 tests.
+
+### Added
+
+- **Dual-signal fusion** (Phases 96-97) - Weighted ICMP + IRTT RTT combination for congestion control
+  - `fusion.icmp_weight: 0.7` (default) blends 20Hz ICMP with 0.1Hz IRTT UDP measurements
+  - Ships disabled by default (`fusion.enabled: false`) for safe production rollout
+  - SIGUSR1 zero-downtime toggle: `kill -USR1` enables/disables fusion without daemon restart
+  - First SIGUSR1 reload in autorate daemon (extends proven steering daemon pattern)
+  - Health endpoint `fusion` section shows enabled state, weights, active source, and RTT values
+  - Multi-gate fallback: IRTT unavailable/stale/invalid silently falls back to ICMP-only
+- **Reflector quality scoring** (Phase 93) - Rolling quality scores for ping_host reflectors
+  - Success-rate scoring with configurable `reflector_quality.min_score` threshold (default 0.8)
+  - Low-scoring reflectors auto-deprioritized, periodic probe recovery (default 30s interval)
+  - Graceful degradation: 3+ active = median, 2 = average, 1 = single, 0 = force best
+  - Health endpoint `reflector_quality` section with per-host scores and status
+- **OWD asymmetric detection** (Phase 94) - Upstream vs downstream congestion detection
+  - Analyzes IRTT burst-internal `send_delay` vs `receive_delay` (no NTP dependency)
+  - Direction attribute: "upstream", "downstream", "symmetric", or "unknown"
+  - Persisted to SQLite for trend analysis with asymmetry ratio
+- **IRTT loss alerts** (Phase 95) - Discord notifications for sustained packet loss
+  - Separate `irtt_loss_upstream` and `irtt_loss_downstream` alert types
+  - Default 5% threshold, 60s sustained duration, per-event cooldown
+  - Recovery alert (`irtt_loss_recovered`) with direction and outage duration
+
 ### Changed
 
 - **WAN-aware steering graduated to production** (Phase 72)
