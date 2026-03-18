@@ -6,7 +6,7 @@ and returns TuningResult list for the applier to process.
 
 import logging
 import time
-from typing import Callable
+from collections.abc import Callable
 
 from wanctl.storage.reader import query_metrics
 from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult
