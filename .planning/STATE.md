@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.19
 milestone_name: Signal Fusion
-status: planning
-last_updated: "2026-03-18T14:58:29.237Z"
-last_activity: 2026-03-18 -- Completed 96-02-PLAN.md (fusion computation, wiring, and fallback tests)
+status: executing
+last_updated: "2026-03-18T15:58:33Z"
+last_activity: 2026-03-18 -- Completed 97-01-PLAN.md (fusion safety gate with SIGUSR1 toggle)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
-  percent: 71
+  total_plans: 8
+  completed_plans: 8
+  percent: 80
 ---
 
 # Session State
@@ -25,18 +25,18 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Position
 
 **Milestone:** v1.19 Signal Fusion
-**Phase:** 96 of 97 (Dual-Signal Fusion Core) -- COMPLETE
-**Plan:** 02 of 02 -- COMPLETE
-**Status:** Ready to plan
-**Last activity:** 2026-03-18 -- Completed 96-02-PLAN.md (fusion computation, wiring, and fallback tests)
+**Phase:** 97 of 97 (Fusion Safety & Observability)
+**Plan:** 01 of 02 -- COMPLETE
+**Status:** In progress
+**Last activity:** 2026-03-18 -- Completed 97-01-PLAN.md (fusion safety gate with SIGUSR1 toggle)
 
-Progress: [#######...] 71%
+Progress: [########..] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 30min
 - Total execution time: 3.4 hours
 
@@ -50,6 +50,7 @@ Progress: [#######...] 71%
 | Phase 95 P01 | 17min | 2 tasks | 3 files  |
 | Phase 96 P01 | 32min | 2 tasks | 3 files  |
 | Phase 96 P02 | 32min | 2 tasks | 2 files  |
+| Phase 97 P01 | 29min | 2 tasks | 5 files  |
 
 ## Accumulated Context
 
@@ -80,6 +81,10 @@ Progress: [#######...] 71%
 - [Phase 96] \_fusion_icmp_weight read once in **init** (not per-cycle) for 50ms performance
 - [Phase 96] Staleness check reuses 3x cadence pattern from IRTT observation block
 - [Phase 96] run_cycle now passes fused_rtt to update_ewma (core behavioral change)
+- [Phase 97] fusion.enabled defaults to False (disabled-by-default, consistent with v1.13 pattern)
+- [Phase 97] \_fusion_enabled guard is first check in \_compute_fused_rtt (before IRTT thread check)
+- [Phase 97] SIGUSR1 reload in autorate daemon: is_reload_requested -> iterate wan_controllers -> \_reload_fusion_config -> reset_reload_state
+- [Phase 97] Both enabled and icmp_weight reloaded together on SIGUSR1 (atomic config snapshot)
 
 ### Known Issues
 
