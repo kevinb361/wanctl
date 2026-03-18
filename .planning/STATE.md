@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.19
 milestone_name: Signal Fusion
-status: planning
-last_updated: "2026-03-18T13:01:12.619Z"
-last_activity: 2026-03-18 -- Completed 95-01-PLAN.md (IRTT loss sustained alerting with recovery)
+status: executing
+last_updated: "2026-03-18T14:11:15.000Z"
+last_activity: 2026-03-18 -- Completed 96-01-PLAN.md (fusion config loading with warn+default validation)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 50
+  total_plans: 7
+  completed_plans: 6
+  percent: 57
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.19 Signal Fusion -- Phase 95 IRTT Loss Alerts in progress
+**Current focus:** v1.19 Signal Fusion -- Phase 96 Dual-Signal Fusion Core in progress
 
 ## Position
 
 **Milestone:** v1.19 Signal Fusion
-**Phase:** 95 of 97 (IRTT Loss Alerts)
-**Plan:** 01 of 01 -- COMPLETE
-**Status:** Ready to plan
-**Last activity:** 2026-03-18 -- Completed 95-01-PLAN.md (IRTT loss sustained alerting with recovery)
+**Phase:** 96 of 97 (Dual-Signal Fusion Core)
+**Plan:** 01 of 02 -- COMPLETE
+**Status:** Executing phase 96
+**Last activity:** 2026-03-18 -- Completed 96-01-PLAN.md (fusion config loading with warn+default validation)
 
-Progress: [#####.....] 50%
+Progress: [######....] 57%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 29min
-- Total execution time: 2.4 hours
+- Total plans completed: 6
+- Average duration: 30min
+- Total execution time: 2.9 hours
 
 **By Phase:**
 
@@ -48,6 +48,7 @@ Progress: [#####.....] 50%
 | Phase 94 P01 | 33min | 2 tasks | 5 files  |
 | Phase 94 P02 | 25min | 2 tasks | 8 files  |
 | Phase 95 P01 | 17min | 2 tasks | 3 files  |
+| Phase 96 P01 | 32min | 2 tasks | 3 files  |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Progress: [#####.....] 50%
 - [Phase 95] 5% default IRTT loss threshold with per-rule loss_threshold_pct override
 - [Phase 95] Single irtt_loss_recovered alert type with direction field (not separate up/down recovery types)
 - [Phase 95] Stale IRTT resets all 4 loss timer variables inline in run_cycle
+- [Phase 96] fusion_config loaded via \_load_fusion_config() with warn+default pattern, icmp_weight default 0.7
+- [Phase 96] Conftest mock_autorate_config updated with fusion_config before Plan 02 WANController reads
 
 ### Known Issues
 
