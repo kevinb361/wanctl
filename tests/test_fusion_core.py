@@ -254,3 +254,37 @@ class TestFusionFallback:
             mock_controller._compute_fused_rtt(30.0)
 
         assert "fused_rtt=" not in caplog.text
+
+
+# =============================================================================
+# FUSION ENABLED GUARD (FUSE-02)
+# =============================================================================
+
+
+class TestFusionEnabledGuard:
+    """Tests for _fusion_enabled guard in _compute_fused_rtt."""
+
+    def test_disabled_returns_filtered_rtt_without_irtt_access(self, mock_controller):
+        """When _fusion_enabled=False, returns filtered_rtt and does NOT access IRTT."""
+        irtt_thread = MagicMock()
+        mock_controller._irtt_thread = irtt_thread
+        mock_controller._fusion_enabled = False
+
+        result = mock_controller._compute_fused_rtt(30.0)
+
+        assert result == 30.0
+        irtt_thread.get_latest.assert_not_called()
+
+    def test_enabled_with_irtt_computes_fusion(self, mock_controller):
+        """When _fusion_enabled=True and IRTT is valid, returns weighted average."""
+        irtt_thread = MagicMock()
+        irtt_thread.get_latest.return_value = _make_irtt_result(
+            rtt_ms=20.0, age_offset=1.0
+        )
+        irtt_thread._cadence_sec = 10.0
+        mock_controller._irtt_thread = irtt_thread
+        mock_controller._fusion_enabled = True
+
+        result = mock_controller._compute_fused_rtt(30.0)
+        # 0.7*30 + 0.3*20 = 27.0
+        assert result == pytest.approx(27.0)

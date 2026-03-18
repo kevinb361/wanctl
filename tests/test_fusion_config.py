@@ -155,3 +155,44 @@ class TestFusionConfig:
             config = _make_config(tmp_path, autorate_config_dict)
         assert "icmp_weight=0.6" in caplog.text
         assert "irtt_weight=0.4" in caplog.text
+
+    # -----------------------------------------------------------------
+    # fusion.enabled tests (FUSE-02)
+    # -----------------------------------------------------------------
+
+    def test_enabled_defaults_false(self, tmp_path, autorate_config_dict):
+        """Config with no fusion section defaults enabled to False."""
+        config = _make_config(tmp_path, autorate_config_dict)
+        assert config.fusion_config["enabled"] is False
+
+    def test_enabled_true(self, tmp_path, autorate_config_dict):
+        """Config with fusion.enabled=True sets enabled to True."""
+        autorate_config_dict["fusion"] = {"enabled": True}
+        config = _make_config(tmp_path, autorate_config_dict)
+        assert config.fusion_config["enabled"] is True
+
+    def test_enabled_false_explicit(self, tmp_path, autorate_config_dict):
+        """Config with fusion.enabled=False explicitly sets enabled to False."""
+        autorate_config_dict["fusion"] = {"enabled": False}
+        config = _make_config(tmp_path, autorate_config_dict)
+        assert config.fusion_config["enabled"] is False
+
+    def test_enabled_non_bool_warns_defaults_false(
+        self, tmp_path, autorate_config_dict, caplog
+    ):
+        """fusion.enabled='yes' (string) warns and defaults to False."""
+        autorate_config_dict["fusion"] = {"enabled": "yes"}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.fusion_config["enabled"] is False
+        assert "fusion.enabled must be bool" in caplog.text
+
+    def test_enabled_non_bool_int_warns_defaults_false(
+        self, tmp_path, autorate_config_dict, caplog
+    ):
+        """fusion.enabled=1 (int) warns and defaults to False."""
+        autorate_config_dict["fusion"] = {"enabled": 1}
+        with caplog.at_level(logging.WARNING):
+            config = _make_config(tmp_path, autorate_config_dict)
+        assert config.fusion_config["enabled"] is False
+        assert "fusion.enabled must be bool" in caplog.text
