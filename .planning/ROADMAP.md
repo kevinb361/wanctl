@@ -61,7 +61,11 @@ None
   3. Tuning runs once per hourly maintenance window (not per-cycle), analyzes each WAN independently, and skips analysis when less than 1 hour of metrics data is available
   4. Every adjustment is clamped to 10% max change from current value, logged with old/new/rationale, and persisted to SQLite for historical review
   5. Each tunable parameter has operator-configurable min/max safety bounds in YAML that the engine never exceeds
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 098-01-PLAN.md -- Models, config parsing, SQLite schema, strategy protocol
+- [ ] 098-02-PLAN.md -- Analyzer (per-WAN query), applier (bounds, persist, log)
+- [ ] 098-03-PLAN.md -- Daemon wiring (maintenance window, SIGUSR1, health endpoint, example configs)
 
 ### Phase 99: Congestion Threshold Calibration
 **Goal**: Controller automatically derives congestion thresholds from observed RTT delta distributions rather than static config values
@@ -189,7 +193,7 @@ See individual milestone archives in `milestones/` for details:
 | v1.8 Resilience & Robustness         | 43-46   | 8     | Complete    | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42   | 8     | Complete    | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37   | 17    | Complete    | 2026-01-25 |
-| v1.5 Quality & Hygiene               | 27-30   | 8     | Complete    | 2026-01-24 |
+| v1.5 Quality & Hygiene              | 27-30   | 8     | Complete    | 2026-01-24 |
 | v1.4 Observability                   | 25-26   | 4     | Complete    | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24   | 5     | Complete    | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
