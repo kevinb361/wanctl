@@ -206,11 +206,15 @@ class TestHealthServer:
             "last_failure_time": None,
         }
 
-        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        # Prevent MagicMock truthy issues for signal/IRTT/fusion attributes
         mock_wan_controller._last_signal_result = None
         mock_wan_controller._irtt_thread = None
         mock_wan_controller._irtt_correlation = None
         mock_wan_controller._last_asymmetry_result = None
+        mock_wan_controller._fusion_enabled = False
+        mock_wan_controller._fusion_icmp_weight = 0.7
+        mock_wan_controller._last_fused_rtt = None
+        mock_wan_controller._last_icmp_filtered_rtt = None
 
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
@@ -446,11 +450,15 @@ class TestRouterConnectivityReporting:
             "last_failure_type": None,
             "last_failure_time": None,
         }
-        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        # Prevent MagicMock truthy issues for signal/IRTT/fusion attributes
         wan1._last_signal_result = None
         wan1._irtt_thread = None
         wan1._irtt_correlation = None
         wan1._last_asymmetry_result = None
+        wan1._fusion_enabled = False
+        wan1._fusion_icmp_weight = 0.7
+        wan1._last_fused_rtt = None
+        wan1._last_icmp_filtered_rtt = None
 
         # WAN 2: unreachable
         wan2 = MagicMock()
@@ -475,11 +483,15 @@ class TestRouterConnectivityReporting:
             "last_failure_type": "connection_refused",
             "last_failure_time": 98765.0,
         }
-        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        # Prevent MagicMock truthy issues for signal/IRTT/fusion attributes
         wan2._last_signal_result = None
         wan2._irtt_thread = None
         wan2._irtt_correlation = None
         wan2._last_asymmetry_result = None
+        wan2._fusion_enabled = False
+        wan2._fusion_icmp_weight = 0.7
+        wan2._last_fused_rtt = None
+        wan2._last_icmp_filtered_rtt = None
 
         mock_controller = MagicMock()
         config1 = MagicMock()
@@ -618,11 +630,15 @@ class TestCycleBudgetInHealthEndpoint:
             "last_failure_time": None,
         }
 
-        # Prevent MagicMock truthy issues for signal/IRTT attributes
+        # Prevent MagicMock truthy issues for signal/IRTT/fusion attributes
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
 
         # Set profiler attributes (from Plan 01)
         wan._profiler = OperationProfiler(max_samples=1200)
