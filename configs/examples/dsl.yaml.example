@@ -62,6 +62,31 @@ continuous_monitoring:
   ping_hosts: ["1.1.1.1"]
   use_median_of_three: false    # DSL is stable enough for single ping
 
+# IRTT UDP RTT measurement (optional, disabled by default)
+# irtt:
+#   enabled: false
+#   server: "your-irtt-server-ip"
+#   port: 2112
+#   duration_ms: 1000
+#   packet_size: 48
+#   cadence_sec: 10
+
+# Reflector quality scoring (optional)
+# reflector_quality:
+#   min_score: 0.8
+#   probe_interval_sec: 30
+#   recovery_count: 3
+
+# Dual-signal fusion (optional, requires irtt.enabled: true)
+# fusion:
+#   enabled: false
+#   icmp_weight: 0.7
+
+# Alerting (optional)
+# alerting:
+#   enabled: false
+#   webhook_url: "${DISCORD_WEBHOOK_URL}"
+
 logging:
   main_log: "/var/log/wanctl/dsl.log"
   debug_log: "/var/log/wanctl/dsl_debug.log"

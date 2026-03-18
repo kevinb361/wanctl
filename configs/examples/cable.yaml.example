@@ -67,6 +67,35 @@ continuous_monitoring:
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
   use_median_of_three: true     # Essential for cable's variable latency
 
+# IRTT UDP RTT measurement (optional, disabled by default)
+# Provides secondary RTT signal via UDP for dual-signal fusion
+# irtt:
+#   enabled: false
+#   server: "your-irtt-server-ip"
+#   port: 2112
+#   duration_ms: 1000
+#   packet_size: 48
+#   cadence_sec: 10
+
+# Reflector quality scoring (optional, active when ping_hosts configured)
+# Deprioritizes unreliable reflectors automatically
+# reflector_quality:
+#   min_score: 0.8
+#   probe_interval_sec: 30
+#   recovery_count: 3
+
+# Dual-signal fusion (optional, disabled by default)
+# Blends ICMP + IRTT RTT for more robust congestion detection
+# Requires irtt.enabled: true to produce fused signal
+# fusion:
+#   enabled: false
+#   icmp_weight: 0.7  # IRTT weight = 1.0 - icmp_weight
+
+# Alerting (optional, requires Discord webhook)
+# alerting:
+#   enabled: false
+#   webhook_url: "${DISCORD_WEBHOOK_URL}"  # From /etc/wanctl/secrets
+
 logging:
   main_log: "/var/log/wanctl/cable.log"
   debug_log: "/var/log/wanctl/cable_debug.log"
