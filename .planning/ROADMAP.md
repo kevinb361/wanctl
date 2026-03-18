@@ -97,7 +97,10 @@ Plans:
   1. A weighted average of IRTT UDP RTT and icmplib ICMP RTT is computed and usable as congestion control input
   2. Fusion weights are configurable via YAML with warn+default validation (invalid values produce warnings and fall back to defaults)
   3. When IRTT is unavailable or stale (thread not running, measurement too old), the controller operates on icmplib-only with zero behavioral change from pre-fusion behavior
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 96-01-PLAN.md -- Fusion config loading (_load_fusion_config), conftest update, config validation tests
+- [ ] 96-02-PLAN.md -- Fusion computation (_compute_fused_rtt), WANController wiring, run_cycle integration, fallback tests
 
 ### Phase 97: Fusion Safety & Observability
 **Goal**: Fusion ships safely disabled with zero-downtime toggle and full operational visibility
@@ -119,7 +122,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 | 93. Reflector Quality Scoring | 0/2 | Not started | - |
 | 94. OWD Asymmetric Detection | 0/2 | Not started | - |
 | 95. IRTT Loss Alerts | 0/1 | Not started | - |
-| 96. Dual-Signal Fusion Core | 0/TBD | Not started | - |
+| 96. Dual-Signal Fusion Core | 0/2 | Not started | - |
 | 97. Fusion Safety & Observability | 0/TBD | Not started | - |
 
 ### Completed Milestones
