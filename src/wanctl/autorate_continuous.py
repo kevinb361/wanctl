@@ -902,6 +902,39 @@ class Config(BaseConfig):
 
         self.owd_asymmetry_config = {"ratio_threshold": float(ratio_threshold)}
 
+    def _load_fusion_config(self) -> None:
+        """Load fusion configuration. Validates fusion: YAML section.
+
+        Invalid config warns and falls back to defaults."""
+        logger = logging.getLogger(__name__)
+        fusion = self.data.get("fusion", {})
+
+        if not isinstance(fusion, dict):
+            logger.warning(
+                f"fusion config must be dict, got {type(fusion).__name__}; using defaults"
+            )
+            fusion = {}
+
+        icmp_weight = fusion.get("icmp_weight", 0.7)
+        if (
+            not isinstance(icmp_weight, (int, float))
+            or isinstance(icmp_weight, bool)
+            or icmp_weight < 0.0
+            or icmp_weight > 1.0
+        ):
+            logger.warning(
+                f"fusion.icmp_weight must be number 0.0-1.0, got {icmp_weight!r}; "
+                "defaulting to 0.7"
+            )
+            icmp_weight = 0.7
+
+        self.fusion_config = {
+            "icmp_weight": float(icmp_weight),
+        }
+        logger.info(
+            f"Fusion: icmp_weight={icmp_weight}, irtt_weight={1.0 - icmp_weight}"
+        )
+
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""
         # Queues (validated to prevent command injection)
@@ -956,6 +989,9 @@ class Config(BaseConfig):
 
         # OWD asymmetry detection (optional, all defaults if absent)
         self._load_owd_asymmetry_config()
+
+        # Dual-signal fusion (optional, defaults if absent)
+        self._load_fusion_config()
 
 
 # =============================================================================
