@@ -124,7 +124,11 @@ None
 1. Fusion is disabled by default on fresh deploy -- the controller behaves identically to pre-v1.19 until explicitly enabled
 2. SIGUSR1 toggles fusion enabled/disabled without daemon restart (zero-downtime, proven pattern from v1.13)
 3. Health endpoint shows fusion state (enabled/disabled, active weights, which signal sources are contributing, fused RTT value)
-   **Plans**: TBD
+   **Plans:** 2 plans
+   Plans:
+
+- [ ] 97-01-PLAN.md -- Fusion enabled flag, SIGUSR1 reload, config + guard + main loop
+- [ ] 97-02-PLAN.md -- Health endpoint fusion section, RTT tracking attributes
 
 ## Progress
 
@@ -137,7 +141,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 | 94. OWD Asymmetric Detection      | 0/2            | Not started | -          |
 | 95. IRTT Loss Alerts              | 0/1            | Not started | -          |
 | 96. Dual-Signal Fusion Core       | 2/2            | Complete    | 2026-03-18 |
-| 97. Fusion Safety & Observability | 0/TBD          | Not started | -          |
+| 97. Fusion Safety & Observability | 0/2          | Not started | -          |
 
 ### Completed Milestones
 
