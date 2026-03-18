@@ -126,6 +126,8 @@ def mock_autorate_config():
         "probe_interval_sec": 30.0,
         "recovery_count": 3,
     }
+    # Fusion config (optional, default icmp_weight 0.7)
+    config.fusion_config = {"icmp_weight": 0.7}
     return config
 
 
