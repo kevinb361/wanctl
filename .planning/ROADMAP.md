@@ -85,7 +85,9 @@ Plans:
   1. Sustained upstream packet loss above a configurable threshold triggers a Discord alert with loss percentage and direction
   2. Sustained downstream packet loss above a configurable threshold triggers a separate Discord alert
   3. IRTT loss alerts respect per-event cooldown suppression consistent with existing alert types (no alert storms)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 95-01-PLAN.md -- Sustained loss timers, _check_irtt_loss_alerts, DiscordFormatter loss unit, tests
 
 ### Phase 96: Dual-Signal Fusion Core
 **Goal**: IRTT and icmplib RTT measurements are combined via weighted average to produce a fused congestion signal that is more robust than either signal alone
@@ -116,7 +118,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 |-------|----------------|--------|-----------|
 | 93. Reflector Quality Scoring | 0/2 | Not started | - |
 | 94. OWD Asymmetric Detection | 0/2 | Not started | - |
-| 95. IRTT Loss Alerts | 0/TBD | Not started | - |
+| 95. IRTT Loss Alerts | 0/1 | Not started | - |
 | 96. Dual-Signal Fusion Core | 0/TBD | Not started | - |
 | 97. Fusion Safety & Observability | 0/TBD | Not started | - |
 
