@@ -30,7 +30,7 @@ from wanctl.config_validation_utils import (
 from wanctl.daemon_utils import check_cleanup_deadline
 from wanctl.error_handling import handle_errors
 from wanctl.health_check import start_health_server, update_health_status
-from wanctl.irtt_measurement import IRTTMeasurement
+from wanctl.irtt_measurement import IRTTMeasurement, IRTTResult
 from wanctl.irtt_thread import IRTTThread
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
@@ -1521,6 +1521,20 @@ class WANController:
         self._wan_offline_fired: bool = False
 
         # =====================================================================
+        # IRTT LOSS ALERT TIMERS (ALRT-01, ALRT-02, ALRT-03)
+        # =====================================================================
+        # Monotonic timestamps tracking when upstream/downstream IRTT loss
+        # exceeded threshold. Fires irtt_loss_upstream/downstream after
+        # sustained_sec. Fires irtt_loss_recovered when loss clears IF
+        # sustained had fired.
+        # =====================================================================
+        self._irtt_loss_up_start: float | None = None
+        self._irtt_loss_down_start: float | None = None
+        self._irtt_loss_up_fired: bool = False
+        self._irtt_loss_down_fired: bool = False
+        self._irtt_loss_threshold_pct: float = 5.0
+
+        # =====================================================================
         # CONGESTION FLAPPING DETECTION (ALRT-07)
         # =====================================================================
         # Sliding window of zone transition timestamps per direction.
@@ -2163,6 +2177,16 @@ class WANController:
                     asym = self._asymmetry_analyzer.analyze(irtt_result)
                     self._last_asymmetry_result = asym
 
+                # IRTT loss alerts (ALRT-01, ALRT-02, ALRT-03)
+                if isinstance(self.alert_engine, AlertEngine):
+                    if age <= cadence * 3:
+                        self._check_irtt_loss_alerts(irtt_result)
+                    else:
+                        self._irtt_loss_up_start = None
+                        self._irtt_loss_up_fired = False
+                        self._irtt_loss_down_start = None
+                        self._irtt_loss_down_fired = False
+
             # Reflector quality probing (REFL-03) -- probe deprioritized hosts
             # Probes run at their own cadence (default 30s), one host per cycle
             now = time.monotonic()
@@ -2447,6 +2471,103 @@ class WANController:
                     )
                 self._ul_congestion_start = None
                 self._ul_sustained_fired = False
+
+    def _check_irtt_loss_alerts(self, irtt_result: IRTTResult) -> None:
+        """Check sustained IRTT packet loss and fire alerts (ALRT-01, ALRT-02, ALRT-03).
+
+        Called each run_cycle() when IRTT result is fresh (within 3x cadence).
+        Tracks how long upstream/downstream loss has exceeded threshold. Fires
+        irtt_loss_upstream/downstream after sustained_sec. Fires irtt_loss_recovered
+        when loss clears IF sustained alert had fired (recovery gate).
+
+        Args:
+            irtt_result: Fresh IRTTResult with send_loss and receive_loss fields.
+        """
+        now = time.monotonic()
+
+        # --- Upstream loss (send_loss) ---
+        up_rule = self.alert_engine._rules.get("irtt_loss_upstream", {})
+        up_threshold = up_rule.get(
+            "loss_threshold_pct", self._irtt_loss_threshold_pct
+        )
+        up_sustained = up_rule.get("sustained_sec", self._sustained_sec)
+
+        if irtt_result.send_loss >= up_threshold:
+            if self._irtt_loss_up_start is None:
+                self._irtt_loss_up_start = now
+            elif not self._irtt_loss_up_fired:
+                duration = now - self._irtt_loss_up_start
+                if duration >= up_sustained:
+                    fired = self.alert_engine.fire(
+                        "irtt_loss_upstream",
+                        "warning",
+                        self.wan_name,
+                        {
+                            "loss_pct": irtt_result.send_loss,
+                            "direction": "upstream",
+                            "duration_sec": round(duration, 1),
+                        },
+                    )
+                    if fired:
+                        self._irtt_loss_up_fired = True
+        else:
+            if self._irtt_loss_up_start is not None:
+                if self._irtt_loss_up_fired:
+                    duration = now - self._irtt_loss_up_start
+                    self.alert_engine.fire(
+                        "irtt_loss_recovered",
+                        "recovery",
+                        self.wan_name,
+                        {
+                            "direction": "upstream",
+                            "duration_sec": round(duration, 1),
+                            "loss_pct": irtt_result.send_loss,
+                        },
+                    )
+                self._irtt_loss_up_start = None
+                self._irtt_loss_up_fired = False
+
+        # --- Downstream loss (receive_loss) ---
+        down_rule = self.alert_engine._rules.get("irtt_loss_downstream", {})
+        down_threshold = down_rule.get(
+            "loss_threshold_pct", self._irtt_loss_threshold_pct
+        )
+        down_sustained = down_rule.get("sustained_sec", self._sustained_sec)
+
+        if irtt_result.receive_loss >= down_threshold:
+            if self._irtt_loss_down_start is None:
+                self._irtt_loss_down_start = now
+            elif not self._irtt_loss_down_fired:
+                duration = now - self._irtt_loss_down_start
+                if duration >= down_sustained:
+                    fired = self.alert_engine.fire(
+                        "irtt_loss_downstream",
+                        "warning",
+                        self.wan_name,
+                        {
+                            "loss_pct": irtt_result.receive_loss,
+                            "direction": "downstream",
+                            "duration_sec": round(duration, 1),
+                        },
+                    )
+                    if fired:
+                        self._irtt_loss_down_fired = True
+        else:
+            if self._irtt_loss_down_start is not None:
+                if self._irtt_loss_down_fired:
+                    duration = now - self._irtt_loss_down_start
+                    self.alert_engine.fire(
+                        "irtt_loss_recovered",
+                        "recovery",
+                        self.wan_name,
+                        {
+                            "direction": "downstream",
+                            "duration_sec": round(duration, 1),
+                            "loss_pct": irtt_result.receive_loss,
+                        },
+                    )
+                self._irtt_loss_down_start = None
+                self._irtt_loss_down_fired = False
 
     def _check_connectivity_alerts(self, measured_rtt: float | None) -> None:
         """Check WAN connectivity and fire offline/recovery alerts (ALRT-04, ALRT-05).
