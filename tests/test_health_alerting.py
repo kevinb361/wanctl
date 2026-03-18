@@ -137,6 +137,10 @@ class TestAutorateHealthAlerting:
         wan_controller._irtt_thread = None
         wan_controller._irtt_correlation = None
         wan_controller._last_asymmetry_result = None
+        wan_controller._fusion_enabled = False
+        wan_controller._fusion_icmp_weight = 0.7
+        wan_controller._last_fused_rtt = None
+        wan_controller._last_icmp_filtered_rtt = None
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, engine):

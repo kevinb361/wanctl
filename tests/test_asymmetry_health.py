@@ -59,6 +59,10 @@ def _make_wan_controller() -> MagicMock:
     wan._last_asymmetry_result = None
     wan._asymmetry_analyzer = None
     wan.alert_engine = None
+    wan._fusion_enabled = False
+    wan._fusion_icmp_weight = 0.7
+    wan._last_fused_rtt = None
+    wan._last_icmp_filtered_rtt = None
     return wan
 
 

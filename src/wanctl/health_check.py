@@ -273,6 +273,51 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         "hosts": {},
                     }
 
+                # Fusion section (FUSE-05) -- always present
+                if not getattr(wan_controller, '_fusion_enabled', False):
+                    wan_health["fusion"] = {"enabled": False, "reason": "disabled"}
+                else:
+                    irtt_rtt_val: float | None = None
+                    active_source = "icmp_only"
+
+                    _irtt_thread = wan_controller._irtt_thread
+                    if _irtt_thread is not None:
+                        _irtt_result = _irtt_thread.get_latest()
+                        if _irtt_result is not None:
+                            _age = time.monotonic() - _irtt_result.timestamp
+                            _cadence = _irtt_thread._cadence_sec
+                            if _age <= _cadence * 3 and _irtt_result.rtt_mean_ms > 0:
+                                irtt_rtt_val = round(_irtt_result.rtt_mean_ms, 2)
+                                active_source = "fused"
+
+                    icmp_rtt_val = (
+                        round(wan_controller._last_icmp_filtered_rtt, 2)
+                        if wan_controller._last_icmp_filtered_rtt is not None
+                        else None
+                    )
+
+                    fused_rtt_val = (
+                        round(wan_controller._last_fused_rtt, 2)
+                        if wan_controller._last_fused_rtt is not None
+                        else None
+                    )
+
+                    # If IRTT went stale between _compute_fused_rtt and health
+                    # check, active_source may say icmp_only while
+                    # _last_fused_rtt has a value. Trust active_source.
+                    if active_source == "icmp_only":
+                        fused_rtt_val = None
+
+                    wan_health["fusion"] = {
+                        "enabled": True,
+                        "icmp_weight": wan_controller._fusion_icmp_weight,
+                        "irtt_weight": round(1.0 - wan_controller._fusion_icmp_weight, 2),
+                        "active_source": active_source,
+                        "fused_rtt_ms": fused_rtt_val,
+                        "icmp_rtt_ms": icmp_rtt_val,
+                        "irtt_rtt_ms": irtt_rtt_val,
+                    }
+
                 health["wans"].append(wan_health)
 
         # Alerting state
