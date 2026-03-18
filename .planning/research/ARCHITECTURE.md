@@ -1,591 +1,633 @@
-# Architecture Patterns: v1.18 Measurement Quality
+# Architecture Patterns: v1.20 Adaptive Tuning Integration
 
-**Domain:** IRTT integration, container networking audit, RTT signal processing for existing dual-WAN controller
-**Researched:** 2026-03-16
-**Confidence:** HIGH (extends proven patterns, direct code analysis, verified IRTT documentation)
+**Domain:** Adaptive parameter optimization for real-time CAKE bandwidth controller
+**Researched:** 2026-03-18
+**Confidence:** HIGH (direct source code analysis of all integration points in 26K LOC codebase)
 
-## Current Architecture (Baseline)
+## Executive Summary
 
-### Data Flow: Autorate Daemon (50ms cycle)
-
-```
-measure_rtt()          --> icmplib.ping() to 1-3 reflectors (ICMP)
-  |
-update_ewma()          --> load_rtt (fast EWMA), baseline_rtt (slow, idle-only)
-  |
-delta = load - base    --> RTT delta drives congestion state
-  |
-adjust_4state()        --> GREEN/YELLOW/SOFT_RED/RED zone determination
-  |
-router.set_queue()     --> CAKE rate adjustment via REST/SSH to MikroTik
-  |
-state_file.save()      --> JSON with ewma.baseline_rtt + congestion.dl_state/ul_state
-  |
-metrics_writer.batch() --> SQLite wanctl_rtt_ms, wanctl_rtt_delta_ms, etc.
-```
-
-### Data Flow: Steering Daemon (500ms cycle)
-
-```
-baseline_loader.load()     --> reads autorate state file (baseline_rtt + wan_zone)
-  |
-cake_stats.read()          --> CAKE drops/queue from router via REST/SSH
-  |
-_measure_current_rtt()     --> icmplib.ping() with retry + history fallback
-  |
-delta = current - baseline --> RTT delta
-  |
-ewma_smoothing()           --> rtt_delta_ewma, queue_ewma
-  |
-CongestionSignals()        --> multi-signal struct (rtt, ewma, drops, queue)
-  |
-assess_congestion_state()  --> CongestionState enum
-  |
-confidence_scoring()       --> ConfidenceController 0-100 score
-  |
-steering_decision()        --> ENABLE/DISABLE routing changes
-```
-
-### Key Components Involved in RTT Measurement
-
-| Component | File | Role |
-|-----------|------|------|
-| `RTTMeasurement` | `rtt_measurement.py` | ICMP ping via icmplib, aggregation strategies (avg/median/min/max) |
-| `BaselineRTTManager` | `baseline_rtt_manager.py` | EWMA baseline with idle-only update invariant |
-| `BaselineRTTLoader` | `baseline_rtt_manager.py` | Cross-daemon baseline sharing via state file |
-| `BaselineValidator` | `baseline_rtt_manager.py` | Bounds checking [10-60ms] for baseline sanity |
-| `WANController.measure_rtt()` | `autorate_continuous.py` | Autorate RTT entry point (median-of-three via concurrent pings) |
-| `WANController.update_ewma()` | `autorate_continuous.py` | Fast/slow EWMA update with delta calc |
-| `SteeringDaemon._measure_current_rtt_with_retry()` | `steering/daemon.py` | Steering RTT with retry + history fallback |
-| `CongestionSignals` | `steering/cake_stats.py` | Multi-signal struct consumed by assessment |
-| `ewma_update()` | `steering/congestion_assessment.py` | Generic EWMA with bounds, NaN, and alpha validation |
-| `ConfidenceSignals` | `steering/steering_confidence.py` | Input to confidence scoring (rtt_delta_ms field) |
+The adaptive tuning engine integrates with the existing 50ms control loop by running as a
+periodic analyzer during the established hourly maintenance window. The existing architecture
+already provides every needed primitive: SQLite metrics history with read-only access,
+SIGUSR1 hot-reload for zero-downtime toggle, per-WAN config isolation, and health endpoint
+patterns. No new threads, no new processes, no new IPC. The tuning engine piggybacks on
+the hourly maintenance pass that already exists in the main daemon loop.
 
 ## Recommended Architecture
 
-### High-Level: Add Signal Quality Layer + IRTT Source
+### Overview: Tuning as Maintenance-Window Task
 
 ```
-src/wanctl/
-  signal_quality.py      [NEW]    -- HampelFilter, JitterTracker, RTTConfidence
-  irtt_measurement.py    [NEW]    -- IRTTMeasurement, IRTTResult, IRTTWorker
-  container_probe.py     [NEW]    -- ContainerLatencyProbe (startup diagnostic)
-  rtt_measurement.py     [MODIFY] -- integrate outlier filter before EWMA
-  autorate_continuous.py [MODIFY] -- wire IRTT background thread, signal quality
-  steering/daemon.py     [MODIFY] -- wire signal quality (same pattern)
-  health_check.py        [MODIFY] -- add signal_quality + irtt sections
-  storage/schema.py      [MODIFY] -- new metric names
+                    Hourly Maintenance Window (existing)
+                              |
+                              v
+    +-------------------+   query_metrics()   +------------------+
+    | SQLite metrics.db | -----------------> | ParameterAnalyzer |
+    | (existing, WAL)   |   read-only conn   |  - per-WAN query  |
+    +-------------------+                    |  - 24h lookback   |
+                                             |  - 1m granularity |
+                                             +--------+---------+
+                                                      |
+                                        list[TuningResult]
+                                                      |
+                                                      v
+                                             +--------+---------+
+                                             | ParameterApplier |
+                                             |  - bounds check  |
+                                             |  - max_step_pct  |
+                                             |  - convergence   |
+                                             +--------+---------+
+                                                      |
+                              +---------------+-------+-------+---------------+
+                              |               |               |               |
+                              v               v               v               v
+                        WANController   SQLite tuning_  Health endpoint  Log WARNING
+                        attrs updated   params table    tuning section   old->new
 ```
 
-### Design Principle: Supplemental, Not Replacement
+### Why Maintenance Window, Not Background Thread
 
-IRTT is an additional measurement source that enriches the existing RTT signal. It does NOT replace icmplib in the hot loop. The architecture maintains icmplib as the authoritative control signal (20Hz, in-process, zero subprocess overhead) while IRTT provides periodic supplemental data (0.2Hz, background thread, richer metrics including OWD and IPDV).
-
-```
-                    50ms cycle (20Hz) -- HOT PATH
-                    +-----------------+
-                    |                 |
-    icmplib ping -->| RTTMeasurement  |---> HampelFilter ---> EWMA update
-                    |                 |     (outlier gate)    (existing, unchanged)
-                    +-----------------+
-                           |
-                    JitterTracker  RTTConfidence
-                    (updated per   (updated per
-                     cycle)         cycle)
-
-                    Background thread (every 5s) -- NOT in hot path
-                    +-----------------+
-                    |                 |
-    irtt client --> | IRTTMeasurement |---> IRTTResult (cached, thread-safe)
-    (subprocess)    |                 |     - rtt_ms, jitter_ms, owd
-                    +-----------------+     - enriches health endpoint + metrics
-```
-
-### Component Boundaries
-
-| Component | Responsibility | Communicates With | New/Modified |
-|-----------|---------------|-------------------|--------------|
-| `signal_quality.py` | Outlier filtering, jitter tracking, confidence intervals | Called by measure_rtt() per cycle | **NEW** |
-| `irtt_measurement.py` | subprocess irtt wrapper, JSON parsing, background thread | Thread-safe cache read by daemons | **NEW** |
-| `container_probe.py` | Startup network diagnostics | Health endpoint, logging | **NEW** |
-| `rtt_measurement.py` | icmplib ping (unchanged interface) | signal_quality.py | **UNCHANGED** |
-| `autorate_continuous.py` | Wire IRTT thread, signal quality, new metrics | irtt_measurement.py, signal_quality.py | **MODIFIED** |
-| `steering/daemon.py` | Wire signal quality (same pattern as autorate) | signal_quality.py | **MODIFIED** |
-| `health_check.py` | Add signal_quality + irtt sections to /health | signal_quality state, irtt cache | **MODIFIED** |
-| `storage/schema.py` | New metric names in STORED_METRICS | MetricsWriter | **MODIFIED** |
-
-### UNCHANGED (Critical Protected Zones)
-
-These components must NOT be modified:
-
-| Component | Why Protected |
-|-----------|---------------|
-| `_update_baseline_if_idle()` | Architectural invariant: baseline freeze under load |
-| `adjust_4state()` | Core congestion state machine (dl direction) |
-| `adjust()` | Core congestion state machine (ul direction) |
-| `assess_congestion_state()` | Steering congestion assessment |
-| `ConfidenceWeights` | Confidence scoring weights |
-| State file schema | Backward compatibility (ewma.baseline_rtt, congestion.dl_state) |
-| CAKE rate adjustment logic | Core control algorithm |
-| `ewma_update()` | Bounds-checked EWMA with C5 fix |
-| `BaselineRTTManager.update_baseline_ewma()` | Idle-only baseline update invariant |
-
-## Critical Architectural Decision: IRTT Runs Outside Hot Loop
-
-IRTT must NOT run inside the 50ms cycle. Rationale:
-
-| Factor | Hot Loop (icmplib) | Background (IRTT) |
-|--------|-------------------|-------------------|
-| Startup cost | 0ms (library call) | 5-10ms (process fork) |
-| Measurement time | 5-15ms (1-3 pings) | 1-3s (burst of 5 UDP packets) |
-| Budget impact | 10-30% of 50ms | Would consume 2000-6000% of budget |
-| Failure mode | Returns None, fallback chain | Thread cache stale, main loop unaffected |
-| Availability | Always (ICMP universal) | Requires IRTT server running |
-
-The background thread is fire-and-forget. The main loop never waits for IRTT. If IRTT fails, the daemon continues with icmplib-only measurement (identical to current v1.17 behavior).
-
-## New Component Specifications
-
-### signal_quality.py
+The existing main loop already has an hourly maintenance pass:
 
 ```python
-"""RTT signal quality processing: outlier filtering, jitter, confidence.
-
-All classes are stateful but side-effect-free -- they take a float,
-update internal state, return a result. No I/O, no logging in the hot path.
-Designed for 20Hz (50ms cycle) consumption.
-"""
-
-class HampelFilter:
-    """Hampel identifier for RTT outlier detection.
-
-    Uses median and MAD (median absolute deviation) on a sliding window.
-    More robust than mean/stddev for heavy-tailed RTT distributions.
-
-    When outlier detected: returns True, caller substitutes window median.
-    """
-    def __init__(self, window_size: int = 7, n_sigma: float = 3.0):
-        self.window: deque[float] = deque(maxlen=window_size)
-        self.n_sigma = n_sigma
-        self.outlier_count: int = 0
-        self.total_count: int = 0
-
-    def is_outlier(self, value: float) -> bool:
-        """Check if value is an outlier. Always appends to window."""
-        # Window must fill before filtering activates
-        # Uses MAD * 1.4826 (consistent estimator for Gaussian)
-
-    def get_replacement(self) -> float:
-        """Return median of current window (substitute for outlier)."""
-
-    @property
-    def outlier_rate(self) -> float:
-        """Fraction of total samples that were outliers."""
-
-
-class JitterTracker:
-    """RFC 3550 EWMA jitter estimation.
-
-    J(i) = J(i-1) + (|D(i)| - J(i-1)) / 16
-    where D(i) = (rtt_i - rtt_{i-1}) - expected_interval
-    For RTT measurement, expected_interval is 0 (we want raw variation).
-    """
-    def __init__(self, gain: float = 0.0625):  # 1/16 per RFC 3550
-        self.jitter: float = 0.0
-        self._last_rtt: float | None = None
-
-    def update(self, rtt_ms: float) -> float:
-        """Update jitter estimate, return current jitter in ms."""
-
-
-class RTTConfidence:
-    """Rolling confidence interval for RTT measurements.
-
-    Maintains a sliding window and computes mean +/- t*stderr
-    for a given confidence level. Window size determines precision.
-    """
-    def __init__(self, window_size: int = 20, confidence_level: float = 0.95):
-        self._window: deque[float] = deque(maxlen=window_size)
-
-    def update(self, rtt_ms: float) -> None:
-        """Add sample to window."""
-
-    def get_interval(self) -> tuple[float, float] | None:
-        """Return (lower, upper) CI bounds in ms, or None if insufficient data."""
-
-    @property
-    def ci_width(self) -> float:
-        """Width of current confidence interval (upper - lower) in ms."""
+# autorate_continuous.py lines 3505-3540 (existing code, unchanged)
+if now - last_maintenance >= MAINTENANCE_INTERVAL:
+    cleanup_old_metrics(maintenance_conn, ...)
+    downsample_metrics(maintenance_conn, ...)
+    vacuum_if_needed(maintenance_conn, ...)
+    last_maintenance = now
 ```
 
-### irtt_measurement.py
+Tuning analysis adds to this window because:
+
+1. **No thread synchronization** -- tuning modifies WANController attributes (thresholds, alphas)
+   that are read in the 50ms hot loop. Running in the main thread between cycles means no
+   concurrent access. GIL protects simple float/int assignments, but complex multi-attribute
+   updates benefit from same-thread execution.
+2. **Analysis is fast** -- querying 1440 rows of 1-minute aggregates (24h) takes <50ms.
+   Statistical analysis (percentiles, distribution fitting) on ~1500 values takes <10ms.
+   Total tuning pass: <100ms for 2 WANs. Well within the maintenance window.
+3. **Proven pattern** -- maintenance already runs in the main thread between cycles.
+   Adding tuning here follows the same execution model.
+4. **No lifecycle management** -- no thread start/stop, no join timeout, no stop_event.
+
+### Why Not a Separate Background Thread
+
+While IRTTThread uses a background thread, that's because IRTT measurements block for
+1+ seconds (network I/O). Tuning analysis is pure computation on in-memory data. The
+overhead difference:
+
+| Operation | Duration | Thread justified? |
+|-----------|----------|-------------------|
+| IRTT measurement | 1000-2000ms (network) | YES |
+| Webhook delivery | 100-5000ms (network) | YES |
+| Tuning analysis | 50-100ms (CPU + SQLite) | NO |
+
+A background thread would add complexity (parameter synchronization, stop event, cleanup)
+for an operation that takes less than 2 hot-loop cycles.
+
+## Component Boundaries
+
+| Component | Responsibility | New/Modified | Communicates With |
+|-----------|---------------|--------------|-------------------|
+| `tuning/analyzer.py` | Query metrics, compute distributions, derive parameter candidates per WAN | **NEW** | storage/reader.py (read), strategies (call) |
+| `tuning/strategies/*.py` | Per-parameter pure-function derivation logic | **NEW** | stdlib statistics only |
+| `tuning/applier.py` | Validate bounds, apply parameters, persist decisions, detect reverts | **NEW** | WANController attrs (write), MetricsWriter (persist) |
+| `tuning/models.py` | TuningResult, TuningConfig, TuningState frozen dataclasses | **NEW** | Used by analyzer, applier, health endpoint |
+| `WANController._apply_tuning()` | Accept TuningResult list, update live instance attributes | **MODIFIED** (~40 lines) | Receives from applier |
+| `WANController._reload_tuning_config()` | Re-read `tuning:` section on SIGUSR1 | **MODIFIED** (~30 lines) | signal_utils (trigger) |
+| `HealthCheckHandler` | Add `tuning` section to health JSON response | **MODIFIED** (~25 lines) | Reads TuningState |
+| `storage/schema.py` | Add TUNING_PARAMS_SCHEMA for audit table | **MODIFIED** (~15 lines) | create_tables() |
+| `autorate_continuous.py main()` | Call tuning in maintenance window | **MODIFIED** (~15 lines) | analyzer + applier |
+| `autorate_continuous.py Config` | Parse `tuning:` YAML section | **MODIFIED** (~40 lines) | BaseConfig pattern |
+
+## Data Flow: Detailed Per-Step
+
+### Step 1: Metric Collection (existing, NO changes)
+
+Every 50ms cycle, WANController.run_cycle() writes to SQLite:
 
 ```python
-"""IRTT (Isochronous Round-Trip Tester) measurement via subprocess.
-
-Runs `irtt client` as a subprocess, parses JSON output, provides
-IRTTResult with RTT, OWD, IPDV, and packet loss metrics.
-
-IRTT is a Go binary installed via `apt install irtt`.
-NOT a Python library -- subprocess is the correct integration pattern
-(same as flent in benchmark.py, v1.17).
-"""
-
-@dataclass
-class IRTTResult:
-    """Parsed result from single irtt client invocation."""
-    rtt_mean_ms: float
-    rtt_median_ms: float
-    rtt_min_ms: float
-    rtt_max_ms: float
-    rtt_stddev_ms: float
-    send_delay_mean_ms: float      # OWD upstream
-    receive_delay_mean_ms: float   # OWD downstream
-    ipdv_mean_ms: float            # jitter (IPDV)
-    packet_loss_pct: float
-    sample_count: int
-    server: str
-    timestamp: float               # time.monotonic() of measurement
-
-    # IRTT JSON output has durations in nanoseconds
-    # Convert: value / 1_000_000 to get ms
-
-class IRTTMeasurement:
-    """Run irtt client subprocess and parse JSON output.
-
-    Key design decisions:
-    - Duration 1s with 200ms interval = ~5 samples per burst
-    - Subprocess timeout 3s (never blocks caller)
-    - Graceful degradation: returns None on any failure
-    - HMAC authentication for private servers
-    """
-    def __init__(self, logger: logging.Logger,
-                 hmac_key: str = "", timeout: float = 3.0):
-        self.logger = logger
-        self._hmac_key = hmac_key
-        self._timeout = timeout
-
-    def measure(self, server: str, port: int = 2112,
-                duration_ms: int = 1000,
-                interval_ms: int = 200) -> IRTTResult | None:
-        """Single IRTT measurement. Returns None on any failure.
-
-        Calls: irtt client <server>:<port> -d 1s -i 200ms -o - --fill=rand
-        Parses: JSON from stdout, stats.rtt.{mean,median,min,max,stddev}
-        """
-
-    def is_available(self) -> bool:
-        """Check if irtt binary is in PATH."""
-
-class IRTTWorker:
-    """Background thread that periodically runs IRTT measurements.
-
-    Follows WebhookDelivery pattern (v1.15): daemon thread with
-    thread-safe shared state. Main loop reads cache in <0.1ms.
-    """
-    def __init__(self, measurement: IRTTMeasurement, server: str,
-                 port: int, interval_sec: float,
-                 shutdown_event: threading.Event):
-        self._measurement = measurement
-        self._server = server
-        self._port = port
-        self._interval_sec = interval_sec
-        self._shutdown_event = shutdown_event
-        self.latest_result: IRTTResult | None = None  # GIL-safe read
-
-    def start(self) -> None:
-        """Start background measurement thread."""
-
-    def _worker(self) -> None:
-        """Background loop: measure, cache, sleep."""
-        while not self._shutdown_event.wait(timeout=self._interval_sec):
-            result = self._measurement.measure(self._server, self._port)
-            self.latest_result = result  # atomic write (Python GIL)
+# Lines 2378-2427 of autorate_continuous.py (existing)
+metrics_batch = [
+    (ts, wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
+    (ts, wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+    (ts, wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
+    (ts, wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
+    (ts, wan_name, "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
+    (ts, wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
+    (ts, wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
+    (ts, wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
+    (ts, wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
+    (ts, wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
+]
 ```
 
-**IRTT JSON output structure** (values in nanoseconds):
+The downsampler (existing, lines 24-43 of storage/downsampler.py) creates 1-minute aggregates
+after 1 hour. These 1m aggregates are what the tuning analyzer queries.
+
+### Step 2: Tuning Analysis (new, in maintenance window)
+
+```python
+# In main loop, after existing maintenance tasks:
+if tuning_enabled and now - last_tuning >= tuning_cadence:
+    for wan_info in controller.wan_controllers:
+        wc = wan_info["controller"]
+        results = run_tuning_analysis(wc.wan_name, db_path, wc, tuning_config)
+        if results:
+            wc._apply_tuning(results)
+            persist_tuning_results(results, metrics_writer)
+    last_tuning = now
+```
+
+### Step 3: Statistical Analysis (new, pure functions)
+
+```python
+# tuning/strategies/thresholds.py
+def derive_green_threshold(
+    rtt_deltas: list[float],
+    current_value: float,
+    bounds: dict[str, float],
+    max_change_pct: float,
+) -> TuningResult | None:
+    """Derive GREEN->YELLOW threshold from clean RTT delta distribution.
+
+    Uses p75 of deltas during GREEN periods as the baseline for
+    the green threshold. Conservative: only moves threshold downward
+    if p75 is consistently below current value.
+    """
+    if len(rtt_deltas) < 100:
+        return None  # Insufficient data
+
+    percentiles = quantiles(rtt_deltas, n=100)
+    candidate = percentiles[74]  # p75
+
+    # Clamp to safety bounds
+    clamped = max(bounds["min"], min(bounds["max"], candidate))
+
+    # Enforce max change rate per cycle
+    max_delta = current_value * (max_change_pct / 100.0)
+    if abs(clamped - current_value) > max_delta:
+        direction = 1 if clamped > current_value else -1
+        clamped = current_value + max_delta * direction
+
+    # Skip trivial changes (< 1% difference)
+    if abs(clamped - current_value) / max(current_value, 0.01) < 0.01:
+        return None
+
+    return TuningResult(
+        parameter="target_bloat_ms",
+        old_value=current_value,
+        new_value=round(clamped, 1),
+        confidence=min(1.0, len(rtt_deltas) / 1000),
+        rationale=f"p75 RTT delta = {candidate:.1f}ms ({len(rtt_deltas)} samples)",
+        data_points=len(rtt_deltas),
+    )
+```
+
+### Step 4: Parameter Application (new, on WANController)
+
+```python
+# In WANController._apply_tuning():
+def _apply_tuning(self, results: list[TuningResult]) -> None:
+    for r in results:
+        if r.parameter == "target_bloat_ms":
+            old = self.green_threshold
+            self.green_threshold = r.new_value
+            self.logger.warning(
+                f"[TUNING] {self.wan_name}: target_bloat_ms "
+                f"{old:.1f}->{r.new_value:.1f} ({r.rationale})"
+            )
+        elif r.parameter == "warn_bloat_ms":
+            old = self.soft_red_threshold
+            self.soft_red_threshold = r.new_value
+            self.logger.warning(...)
+        elif r.parameter == "alpha_load":
+            old = self.alpha_load
+            self.alpha_load = r.new_value
+            self.logger.warning(...)
+        # Signal processing params need method call
+        elif r.parameter == "hampel_sigma_threshold":
+            old = self.signal_processor._sigma_threshold
+            self.signal_processor._sigma_threshold = r.new_value
+            self.logger.warning(...)
+```
+
+**Critical: Runtime-only changes.** YAML is never written. Tuned values reset on daemon
+restart. SIGUSR1 reverts to YAML values (operator always has reset escape hatch).
+
+## Answers to Specific Integration Questions
+
+### 1. Where does the tuning engine run?
+
+**In the main daemon loop, during the hourly maintenance window.** The maintenance window
+(lines 3505-3540 of autorate_continuous.py) already runs cleanup, downsampling, and VACUUM
+every 3600 seconds. Tuning analysis adds ~100ms to this window.
+
+```python
+# Existing maintenance block extended:
+if now - last_maintenance >= MAINTENANCE_INTERVAL:
+    # Existing: cleanup, downsample, vacuum
+    run_existing_maintenance(maintenance_conn, ...)
+
+    # New: tuning analysis (if enabled)
+    if tuning_config.get("enabled", False):
+        for wan_info in controller.wan_controllers:
+            wc = wan_info["controller"]
+            results = analyze_and_tune(wc, db_path, tuning_config)
+            if results:
+                wc._apply_tuning(results)
+
+    last_maintenance = now
+```
+
+Cadence can be decoupled from maintenance if needed (separate `last_tuning` timer), but
+1-hour is the natural starting cadence for slow-convergence tuning.
+
+### 2. How does it read historical metrics from SQLite?
+
+Uses **existing `query_metrics()` from `storage/reader.py`** (lines 19-99). This opens a
+read-only SQLite connection (`file:{path}?mode=ro`), separate from the MetricsWriter
+singleton. No new database infrastructure needed.
+
+```python
+from wanctl.storage.reader import query_metrics
+
+rtt_data = query_metrics(
+    db_path=db_path,
+    start_ts=int(time.time()) - 86400,  # 24h lookback
+    metrics=["wanctl_rtt_delta_ms", "wanctl_signal_variance_ms2",
+             "wanctl_signal_confidence", "wanctl_state"],
+    wan=wan_name,
+    granularity="1m",  # 1-minute aggregates: ~1440 rows for 24h
+)
+```
+
+**Use 1m granularity for 24h analysis.** Raw data at 20Hz produces 1.7M rows/day -- that
+would make SQLite aggregate queries take seconds. The existing downsampler already creates
+1m averages after 1 hour (storage/downsampler.py DOWNSAMPLE_THRESHOLDS). For 7-day trend
+analysis, use "5m" granularity (~2016 rows).
+
+### 3. How does it apply tuned parameters to running WANControllers?
+
+**Direct attribute mutation** on WANController instances. This is safe because tuning runs
+in the maintenance window of the **same main thread** as the hot loop -- between cycles,
+not concurrent with them.
+
+Tunable attributes on WANController (lines 1363-1375 of autorate_continuous.py):
+- `self.green_threshold` (target_bloat_ms) -- GREEN->YELLOW transition
+- `self.soft_red_threshold` (warn_bloat_ms) -- YELLOW->SOFT_RED transition
+- `self.hard_red_threshold` (hard_red_bloat_ms) -- SOFT_RED->RED transition
+- `self.accel_threshold` (accel_threshold_ms) -- spike detection
+- `self.alpha_baseline` -- baseline EWMA smoothing
+- `self.alpha_load` -- load EWMA smoothing
+
+Tunable attributes on SignalProcessor (lines 97-105 of signal_processing.py):
+- `self.signal_processor._sigma_threshold` -- Hampel outlier sensitivity
+- `self.signal_processor._window_size` -- requires window rebuild (deferred)
+
+### 4. How does it interact with SIGUSR1 reload?
+
+**SIGUSR1 reverts all tuned parameters to YAML values.** This extends the existing reload
+chain (fusion, dry_run, wan_state, webhook_url) with one more _reload method.
+
+```python
+# autorate_continuous.py lines 3542-3549 (extend existing handler):
+if is_reload_requested():
+    for wan_info in controller.wan_controllers:
+        wan_info["controller"]._reload_fusion_config()     # existing
+        wan_info["controller"]._reload_tuning_config()     # NEW
+    reset_reload_state()
+```
+
+The `_reload_tuning_config()` method:
+1. Re-reads `tuning:` section from YAML (same pattern as `_reload_fusion_config`)
+2. If tuning was enabled and is now disabled: revert all params to YAML originals
+3. If tuning was disabled and is now enabled: mark ready for next analysis cycle
+4. If bounds changed: apply new bounds, revert any out-of-bounds tuned values
+
+**YAML is always the reset escape hatch.** Operator can always `kill -USR1 <pid>` to
+return to hand-tuned parameters.
+
+### 5. What new components are needed vs extending existing ones?
+
+**New files (5):**
+
+| File | Purpose | LOC estimate |
+|------|---------|-------------|
+| `src/wanctl/tuning/models.py` | TuningResult, TuningConfig, TuningState frozen dataclasses | ~80 |
+| `src/wanctl/tuning/analyzer.py` | Per-WAN metric query + strategy orchestration | ~200 |
+| `src/wanctl/tuning/strategies/thresholds.py` | Threshold derivation (target, warn, hard_red) | ~150 |
+| `src/wanctl/tuning/strategies/signal_params.py` | Hampel sigma, EWMA alpha derivation | ~150 |
+| `src/wanctl/tuning/applier.py` | Bounds validation, application, persistence, revert | ~150 |
+
+**Modified files (4):**
+
+| File | Change | Lines added |
+|------|--------|-------------|
+| `autorate_continuous.py` | WANController._apply_tuning(), _reload_tuning_config(); main() maintenance wiring; Config tuning section | ~120 |
+| `health_check.py` | `tuning` section in health JSON | ~25 |
+| `storage/schema.py` | TUNING_PARAMS_SCHEMA table definition | ~15 |
+| YAML example configs | `tuning:` section with defaults | ~15 each |
+
+**Total estimated new code:** ~730 lines implementation + ~600 lines tests = ~1330 lines
+
+### 6. How to handle per-WAN parameter specialization?
+
+The existing architecture already provides per-WAN isolation. Each WAN has:
+
+- **Independent WANController** instance with its own threshold/alpha attributes (line 3057)
+- **Independent Config** parsed from separate YAML files (spectrum.yaml, att.yaml)
+- **SQLite metrics tagged** with `wan_name` column (line 2381)
+
+The tuning analyzer iterates per-WAN:
+
+```python
+for wan_info in controller.wan_controllers:
+    wc = wan_info["controller"]
+    # Query metrics for THIS WAN only
+    data = query_metrics(wan=wc.wan_name, ...)
+    # Analyze THIS WAN's unique distribution
+    results = run_strategies(data, wc, bounds)
+    # Apply to THIS WAN's controller only
+    wc._apply_tuning(results)
+```
+
+This naturally produces different tuning for each WAN. Spectrum (24ms baseline, 14% outlier
+rate) gets different Hampel sigma than ATT (31ms baseline, 0% outliers). The portable
+controller invariant is maintained: same code, different parameters per config.
+
+## Tunable Parameter Categories
+
+### Category 1: Congestion Thresholds (HIGH value, LOW risk -- build first)
+
+| Parameter | WANController attr | Tuning Signal | Safety Bounds | Analysis Method |
+|-----------|--------------------|---------------|---------------|-----------------|
+| `target_bloat_ms` | `green_threshold` | p75 of delta during GREEN | [3, 30] ms | Percentile of clean delta distribution |
+| `warn_bloat_ms` | `soft_red_threshold` | p95 of delta during load | [10, 100] ms | Percentile of loaded delta distribution |
+| `hard_red_bloat_ms` | `hard_red_threshold` | p99 of delta during load | [30, 200] ms | Tail percentile |
+| `accel_threshold_ms` | `accel_threshold` | p99.9 of delta-accel | [5, 50] ms | Acceleration distribution tail |
+
+**Why first:** Thresholds affect when state transitions happen, not how aggressively
+rates change. Floor/ceiling/factor_down remain unchanged. Safest possible first tuning.
+
+### Category 2: EWMA Parameters (MEDIUM value, MEDIUM risk -- build second)
+
+| Parameter | WANController attr | Tuning Signal | Safety Bounds |
+|-----------|--------------------|---------------|---------------|
+| `alpha_load` | `alpha_load` | Optimal responsiveness from variance analysis | [0.005, 0.5] |
+| `alpha_baseline` | `alpha_baseline` | Baseline drift rate | [0.0001, 0.01] |
+
+**Analysis method:** If signal variance is high and alpha is low, the EWMA is under-reacting
+(too smooth). If consecutive state changes flip rapidly (flapping metric from alerting), alpha
+is too high (too reactive). Optimal alpha minimizes flapping while maintaining response time.
+
+### Category 3: Signal Processing (LOW value, LOW risk -- build third)
+
+| Parameter | SignalProcessor attr | Tuning Signal | Safety Bounds |
+|-----------|---------------------|---------------|---------------|
+| `hampel_sigma_threshold` | `_sigma_threshold` | `outlier_rate` metric | [2.0, 5.0] |
+| `jitter_time_constant_sec` | `_jitter_alpha` | Jitter tracking accuracy | [0.5, 10.0] |
+| `variance_time_constant_sec` | `_variance_alpha` | Variance tracking accuracy | [1.0, 20.0] |
+
+**Why last:** Signal processing is observation mode. Tuning these affects the quality of
+the input signal to EWMA but does not directly cause state transitions.
+
+### Category 4: Rate Control Parameters (HIGH risk -- DEFER to v1.21+)
+
+| Parameter | Why Defer |
+|-----------|-----------|
+| `floor_*_mbps` | Directly sets minimum throughput. Tuning this wrong starves the connection. |
+| `ceiling_mbps` | Maximum throughput cap. Wrong value causes persistent congestion. |
+| `factor_down` | Congestion decay aggression. Wrong value causes oscillation or under-reaction. |
+| `step_up_mbps` | Recovery speed. Wrong value causes slow recovery or overshoot. |
+| `green_required` | Recovery hysteresis. Wrong value causes premature recovery or excessive delay. |
+
+## SQLite Schema Extension
+
+```sql
+-- Tuning parameter adjustment history (append-only audit log)
+CREATE TABLE IF NOT EXISTS tuning_params (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
+    wan_name TEXT NOT NULL,
+    parameter TEXT NOT NULL,
+    old_value REAL NOT NULL,
+    new_value REAL NOT NULL,
+    confidence REAL NOT NULL,
+    rationale TEXT,
+    data_points INTEGER NOT NULL,
+    reverted INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_tuning_timestamp
+    ON tuning_params(timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_tuning_wan_param
+    ON tuning_params(wan_name, parameter, timestamp);
+```
+
+## Health Endpoint Extension
 
 ```json
 {
-  "stats": {
-    "rtt": {
-      "total": 175000000, "n": 5,
-      "min": 29455000, "max": 54460000,
-      "mean": 35000000, "median": 34200000,
-      "stddev": 4752000, "variance": 22581504000000
-    },
-    "send_delay": { "mean": 18694000 },
-    "receive_delay": { "mean": 16306000 },
-    "ipdv_round_trip": { "mean": 1230000 }
-  },
-  "round_trips": [ ... per-packet data ... ]
+  "wans": [{
+    "name": "Spectrum",
+    "tuning": {
+      "enabled": true,
+      "last_analysis_ago_sec": 1847,
+      "next_analysis_in_sec": 1753,
+      "parameters_adjusted": 2,
+      "total_adjustments": 14,
+      "total_reverts": 1,
+      "hours_of_data": 24.0,
+      "active_adjustments": [
+        {
+          "parameter": "target_bloat_ms",
+          "yaml_value": 15.0,
+          "tuned_value": 13.2,
+          "confidence": 0.85
+        },
+        {
+          "parameter": "hampel_sigma_threshold",
+          "yaml_value": 3.0,
+          "tuned_value": 2.7,
+          "confidence": 0.72
+        }
+      ]
+    }
+  }]
 }
 ```
 
-### container_probe.py
-
-```python
-"""Container networking latency probe.
-
-Runs at daemon startup to characterize local network stack overhead.
-Result is informational only (health endpoint + log) -- NOT used to
-adjust RTT values.
-
-Production context:
-- cake-spectrum (10.10.110.246) and cake-att (10.10.110.247) are LXC containers
-- Docker compose uses network_mode: host
-- LXC bridge overhead: typically 0.1-0.5ms
-- WAN RTT: Spectrum avg 37.6ms, ATT avg 29.0ms
-- Container overhead is <1.5% of WAN RTT -- within EWMA noise
-"""
-
-@dataclass
-class ContainerLatencyResult:
-    gateway_rtt_ms: float | None    # RTT to default gateway
-    loopback_rtt_ms: float          # RTT to localhost (kernel overhead)
-    estimated_overhead_ms: float    # gateway - loopback (if both available)
-    is_host_network: bool           # True if network_mode: host detected
-    timestamp: float
-
-class ContainerLatencyProbe:
-    def probe(self) -> ContainerLatencyResult:
-        """Quick probe at startup: 3 pings to gateway, 3 to localhost."""
-```
-
-## Data Flow: Per-Cycle (50ms hot path) with Signal Quality
-
-```
-1. icmplib.ping() returns measured_rtt (existing, unchanged)
-2. HampelFilter.is_outlier(measured_rtt) -> bool
-   IF outlier:
-     log warning, use median of window as rtt_for_ewma
-     increment outlier counter
-   ELSE:
-     rtt_for_ewma = measured_rtt
-3. JitterTracker.update(rtt_for_ewma) -> current_jitter_ms
-4. RTTConfidence.update(rtt_for_ewma) -> (lower, upper) or None
-5. update_ewma(rtt_for_ewma) -> load_rtt, baseline_rtt (EXISTING, UNCHANGED)
-6. Record signal quality metrics periodically (every 1200 cycles = 60s)
-```
-
-**Key insight:** The signal quality layer sits BETWEEN measurement and EWMA. It filters the input, not the EWMA itself. The EWMA logic, baseline invariant, and congestion state machine are completely untouched.
-
-## Integration: IRTT Observability Only
-
-In v1.18, IRTT data goes to health endpoint and metrics only. It does NOT feed into the congestion state machine.
-
-```
-IRTT background thread:
-  measure() -> IRTTResult -> cache
-
-Main loop (each cycle):
-  read cached IRTTResult
-  IF available and fresh (<15s old):
-    emit wanctl_rtt_irtt_ms to metrics
-    include in health endpoint signal_quality section
-  ELSE:
-    health endpoint shows irtt_available: false
-
-Health endpoint response:
-  "signal_quality": {
-    "outlier_rate": 0.02,
-    "jitter_ms": 1.3,
-    "confidence_interval": [36.2, 38.1],
-    "irtt": {
-      "available": true,
-      "last_rtt_ms": 35.4,
-      "last_jitter_ms": 0.8,
-      "server": "104.200.21.31",
-      "age_sec": 3.2
-    },
-    "container_latency": {
-      "gateway_rtt_ms": 0.4,
-      "overhead_ms": 0.3,
-      "probed_at": "2026-03-16T10:00:00Z"
-    }
+When tuning is disabled:
+```json
+{
+  "tuning": {
+    "enabled": false,
+    "reason": "disabled"
   }
+}
 ```
 
-## YAML Config Schema
+## YAML Configuration
 
 ```yaml
-# Signal quality configuration (all sub-features independently controllable)
-signal_quality:
-  outlier_filter: true           # Enable Hampel outlier detection
-  hampel_window: 7               # Sliding window size (samples)
-  hampel_sigma: 3.0              # Outlier threshold (MAD multiplier)
-  jitter_tracking: true          # Enable RFC 3550 EWMA jitter
-  jitter_gain: 0.0625            # EWMA gain (1/16 = RFC 3550 default)
-  confidence_tracking: true      # Enable rolling confidence intervals
-  confidence_window: 20          # Window size for CI calculation (samples)
-
-# IRTT supplemental measurement
-irtt:
-  enabled: false                 # Disabled by default (ships safe)
-  server: "104.200.21.31"        # IRTT server address (self-hosted Dallas VPS)
-  port: 2112                     # IRTT server port (default 2112)
-  interval_sec: 5                # Seconds between measurement bursts
-  duration_ms: 1000              # Duration of each burst (ms)
-  interval_ms: 200               # Packet interval within burst (ms)
-  stale_threshold_sec: 15        # Discard results older than this
-  # hmac_key: ""                 # Optional HMAC key for server auth
+tuning:
+  enabled: false              # Ships disabled (proven pattern)
+  cadence_sec: 3600           # Analyze every hour (matches maintenance)
+  lookback_hours: 24          # How far back to query metrics
+  warmup_hours: 6             # Minimum data before first tuning
+  safety:
+    max_step_pct: 10          # Max 10% change per tuning cycle
+    revert_threshold_pct: 20  # Revert if congestion increases >20%
+  bounds:
+    target_bloat_ms: {min: 3, max: 30}
+    warn_bloat_ms: {min: 10, max: 100}
+    hard_red_bloat_ms: {min: 30, max: 200}
+    accel_threshold_ms: {min: 5, max: 50}
+    alpha_load: {min: 0.005, max: 0.5}
+    alpha_baseline: {min: 0.0001, max: 0.01}
+    hampel_sigma_threshold: {min: 2.0, max: 5.0}
 ```
 
 ## Patterns to Follow
 
-### Pattern 1: Signal Processing as Pure Functions
+### Pattern 1: Strategy Functions (Pure, Stateless, Testable)
 
-**What:** HampelFilter, JitterTracker, RTTConfidence are stateful but side-effect-free. They take a float, update internal state, return a result. No I/O, no logging in the hot path.
-**When:** Any signal processing in the 50ms cycle.
-**Why:** Testable without mocking, predictable performance, zero cycle budget impact.
+Each tunable parameter has a dedicated strategy function. Strategies are pure functions:
+`(data, current_value, bounds) -> TuningResult | None`. No classes, no instance state.
 
-### Pattern 2: Subprocess Wrapper with JSON Output (established in benchmark.py)
+**Why:** Testable with synthetic data. No mock setup needed. Each strategy is 20-50 lines.
 
-**What:** External binary invoked via `subprocess.run()`, JSON output parsed with stdlib `json`.
-**When:** IRTT measurement (same pattern as flent in v1.17).
-**Why:** Clean process isolation, timeout control, structured output, no FFI.
+### Pattern 2: Frozen Dataclass Results (Proven: SignalResult, IRTTResult)
 
-### Pattern 3: Background Thread with Shared State (established in WebhookDelivery)
+TuningResult follows the established pattern: `@dataclass(frozen=True, slots=True)`.
 
-**What:** Daemon thread runs periodic task, shares result via thread-safe attribute.
-**When:** IRTT measurement loop running alongside 50ms control loop.
-**Why:** Decouples IRTT timing from control loop, zero blocking.
+```python
+@dataclass(frozen=True, slots=True)
+class TuningResult:
+    parameter: str        # e.g., "target_bloat_ms"
+    old_value: float
+    new_value: float
+    confidence: float     # 0-1 based on data quantity
+    rationale: str        # Human-readable for logs and health endpoint
+    data_points: int
+```
 
-### Pattern 4: Feature Gated by Config (established in wan_state, alerting)
+### Pattern 3: Ship Disabled, SIGUSR1 Toggle (Proven: v1.11, v1.13, v1.19)
 
-**What:** New features disabled by default, enabled via YAML config.
-**When:** All new measurement features (IRTT, signal quality sub-features).
-**Why:** No behavioral change on upgrade; explicit opt-in required.
+Feature ships with `tuning.enabled: false`. Enable via YAML edit + SIGUSR1.
 
-### Pattern 5: Bounded Deque for Rolling Windows (established in dashboard sparklines)
+### Pattern 4: Warn+Disable Config Validation (Proven: wan_state, fusion, alerting)
 
-**What:** `collections.deque(maxlen=N)` for constant-memory sliding windows.
-**When:** All rolling signal processing (Hampel, confidence).
-**Why:** Automatic eviction, O(1) append, bounded memory.
+Invalid tuning config warns and disables. Never crashes the daemon.
+
+### Pattern 5: WARNING-Level Logging for Parameter Changes (Proven: SIGUSR1 reloads)
+
+All tuning changes logged at WARNING with old->new transition:
+```
+WARNING [TUNING] Spectrum: target_bloat_ms 15.0->13.2 (p75 RTT delta=11.8ms, 1247 samples)
+```
+
+### Pattern 6: Revert Safety Net
+
+If congestion rate increases after tuning (measured as % of cycles in RED/SOFT_RED),
+automatically revert the most recent adjustment and log at ERROR level.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: IRTT in the Hot Loop
+### Anti-Pattern 1: Per-Cycle Tuning
+**What:** Adjusting parameters every 50ms.
+**Why bad:** Creates feedback oscillation. Parameter change affects the metrics used to
+compute the next change. Known instability in self-tuning control systems.
+**Instead:** Hourly cadence with 24h lookback.
 
-**What:** Calling subprocess irtt inside run_cycle().
-**Why bad:** 5-10ms startup + 1-3s measurement = 2000-6000% of 50ms budget.
-**Instead:** Background thread with periodic bursts, main loop reads cached result.
+### Anti-Pattern 2: Coupled Parameter Optimization
+**What:** Adjusting all parameters simultaneously.
+**Why bad:** Cannot attribute outcomes. If congestion increases after 5 simultaneous changes,
+which caused it? Cannot revert individually.
+**Instead:** Tune one category per cycle, or limit to N changes per cycle with max_step_pct.
 
-### Anti-Pattern 2: Heavyweight Signal Processing Libraries
+### Anti-Pattern 3: YAML File Mutation
+**What:** Writing tuned values to `/etc/wanctl/spectrum.yaml`.
+**Why bad:** Operator loses visibility. SIGUSR1 becomes circular. Config drift.
+**Instead:** Runtime-only. YAML remains operator truth. Future `wanctl-tune export` CLI.
 
-**What:** `import numpy`, `import scipy` for simple statistics.
-**Why bad:** 30MB+ deps, slow import time, overkill for median/stdev on 7-20 values.
-**Instead:** `from statistics import median, stdev` + `from collections import deque`.
+### Anti-Pattern 4: Unbounded Exploration
+**What:** Allowing parameters to reach their full mathematical range.
+**Why bad:** Hampel sigma 0.1 flags everything as outlier. Alpha 0.99 reacts to noise.
+**Instead:** Tight bounds in YAML `tuning.bounds` section, narrower than Config SCHEMA ranges.
 
-### Anti-Pattern 3: Signal Processing That Modifies Control Logic
+### Anti-Pattern 5: Tuning Steering Daemon
+**What:** Autorate daemon tuning steering daemon parameters.
+**Why bad:** Cross-process communication needed. Different cadence.
+**Instead:** Only tune autorate parameters in v1.20. Steering tuning is a separate future feature.
 
-**What:** Outlier filter that changes congestion thresholds, jitter that overrides state machine.
-**Why bad:** Violates the architectural spine (control model is read-only per CLAUDE.md).
-**Instead:** Signal processing feeds INTO the existing pipeline. HampelFilter gates values BEFORE update_ewma(). Jitter and confidence are OBSERVABILITY only in v1.18.
+## Suggested Build Order
 
-### Anti-Pattern 4: Discarding Outlier Measurements Entirely
+### Phase 1: Foundation (models + strategies + analyzer)
+- `tuning/models.py`: TuningResult, TuningConfig dataclasses
+- `tuning/strategies/thresholds.py`: threshold derivation (pure functions)
+- `tuning/analyzer.py`: query orchestration per WAN
+- Unit tests with synthetic data (no daemon, no SQLite)
+- **Depends on:** existing storage/reader.py
+- **Risk:** LOW (pure computation, no runtime effect)
 
-**What:** When Hampel detects outlier, skip the cycle's measurement entirely.
-**Why bad:** Missing a cycle leaves a gap; EWMA and state machine expect regular input.
-**Instead:** Substitute window median for the outlier value. Log original + substituted for debugging.
+### Phase 2: Wiring + Application (applier + WANController + main)
+- `tuning/applier.py`: bounds check, apply, persist
+- WANController._apply_tuning() method
+- Config._load_tuning_config() parsing
+- Main loop maintenance window integration
+- Ship disabled (`tuning.enabled: false`)
+- **Depends on:** Phase 1
+- **Risk:** LOW (disabled by default)
 
-### Anti-Pattern 5: IRTT Controlling Congestion State
+### Phase 3: Observability + SIGUSR1 (health + reload + schema)
+- Health endpoint `tuning` section
+- _reload_tuning_config() in SIGUSR1 chain
+- tuning_params SQLite table
+- Example config updates
+- **Depends on:** Phase 2
+- **Risk:** LOW (extends proven patterns)
 
-**What:** Using IRTT RTT as an input to the GREEN/YELLOW/SOFT_RED/RED state machine.
-**Why bad:** IRTT runs at 0.2Hz vs icmplib at 20Hz. Mixing timescales in the state machine would cause stale-data decisions. Proper dual-signal fusion requires dedicated research.
-**Instead:** IRTT is observability-only in v1.18. Health endpoint and metrics only.
+### Phase 4: Signal Param Strategies + Revert Safety
+- `tuning/strategies/signal_params.py`: Hampel sigma, EWMA alpha derivation
+- Automatic revert if congestion increases post-tuning
+- **Depends on:** Phase 3
+- **Risk:** LOW (extends Phase 1 pattern)
 
-### Anti-Pattern 6: Correcting RTT for Container Latency
-
-**What:** Subtracting measured container overhead from RTT values.
-**Why bad:** LXC bridge overhead is 0.1-0.5ms, well within measurement noise for 29-38ms WAN RTT. The EWMA naturally absorbs constant offsets into baseline.
-**Instead:** Log container latency in health endpoint for diagnostics. Never adjust RTT values.
+### Phase 5: Graduation
+- Enable on Spectrum via YAML + SIGUSR1
+- Monitor 24-48h
+- Validate recommendations are reasonable
+- Enable on ATT
+- **Depends on:** Phase 4
+- **Risk:** MEDIUM (first production behavioral change)
 
 ## Scalability Considerations
 
-| Concern | Current (v1.17) | v1.18 with IRTT + Signal Quality |
-|---------|-----------------|----------------------------------|
-| Cycle time impact | 0ms additional | <0.2ms (Hampel + jitter + CI arithmetic) |
-| Memory | Minimal | +deque(maxlen=7) + deque(maxlen=20) + cached IRTTResult |
-| Network traffic | ICMP to 1-3 reflectors | +UDP/2112 to IRTT server every 5s |
-| CPU (IRTT thread) | N/A | ~10ms every 5s (subprocess fork+exec) |
-| Dependencies | icmplib (Python) | +irtt binary (system package, apt install) |
-| Python deps | Zero new | Zero new (stdlib statistics + collections) |
-| Infrastructure | None | IRTT server on Dallas VPS (supplemental) |
-
-## IRTT Server Infrastructure
-
-The IRTT server at 104.200.21.31 (Dallas VPS) is self-hosted:
-
-- **Installation:** `apt install irtt`, systemd service auto-enabled
-- **Port:** UDP 2112 (default), must be open on server firewall
-- **HMAC:** Enable authentication: `irtt server --hmac <key>` in systemd override
-- **Availability:** Single server is SPOF, but IRTT is supplemental so downtime = ICMP-only mode
-- **Client install:** `apt install irtt` on both cake-spectrum and cake-att containers
-- **Monitoring:** Health endpoint reports IRTT reachability and last successful measurement time
-
-## Build Order (Dependency-Driven)
-
-```
-Phase 1: Signal Quality Foundation    Phase 2: IRTT Measurement       Phase 3: Integration
-===============================       ========================        ====================
-
-signal_quality.py (all classes)       IRTTResult dataclass            WANController wiring
-  - HampelFilter                      IRTTMeasurement class             - outlier filter gate
-  - JitterTracker                       - subprocess wrapper             - jitter + CI tracking
-  - RTTConfidence                       - JSON parsing                   - IRTT thread start
-                                        - error handling                 - config: irtt section
-ContainerLatencyProbe                   - HMAC support
-  - startup diagnostic                                               SteeringDaemon wiring
-  - health endpoint field             IRTTWorker thread                 - same signal quality
-                                        - background loop
-No daemon changes needed                - cache pattern               Health endpoint fields
-Tests: unit + property                                                New SQLite metrics
-                                      Tests: unit (mock subprocess)   Tests: integration + e2e
-```
-
-### Phase Ordering Rationale
-
-- **Phase 1 before Phase 2:** Signal quality is useful independently (outlier filtering improves ICMP-only measurement). IRTT adds a second signal but the quality layer must exist first.
-- **Phase 2 before Phase 3:** IRTT module must be tested standalone before wiring into daemons.
-- **Container probe in Phase 1:** Standalone, no dependencies, provides immediate diagnostic value.
-- **Phase 3 last:** All new components must exist and be unit-tested before integration.
-
-### Dependency Graph
-
-```
-HampelFilter (no deps)    JitterTracker (no deps)    RTTConfidence (no deps)
-         \                        |                         /
-          +-- signal_quality.py --+  (all pure functions)
-                                  |
-IRTTResult (dataclass, no deps)   |
-  |                               |
-IRTTMeasurement (deps: IRTTResult)|
-  |                               |
-IRTTWorker (deps: IRTTMeasurement + threading.Event from signal_utils)
-  |                               |
-  +---- WANController wiring -----+ (deps: IRTTWorker + signal_quality)
-  |     SteeringDaemon wiring       |
-  |                                  |
-  +-- Health endpoint changes -------+ (deps: wiring complete)
-       SQLite metrics (independent, any phase)
-
-ContainerLatencyProbe (fully independent, parallel with anything)
-```
+| Concern | Current (2 WANs) | At 4 WANs | At 10 WANs |
+|---------|------------------|-----------|------------|
+| Analysis time per pass | <100ms total | <200ms | <500ms |
+| SQLite read load | 1 read-only query per WAN per hour | Same pattern | May batch queries |
+| tuning_params table | ~8 rows/day (few params, hourly) | ~16 rows/day | ~40 rows/day |
+| Config complexity | 7 bounds in YAML | Same (portable) | Same (portable) |
 
 ## Sources
 
-- [IRTT GitHub Repository](https://github.com/heistp/irtt) -- tool architecture, Go implementation
-- [IRTT Client Man Page](https://www.mankier.com/1/irtt-client) -- CLI options, -d, -i, -o, --hmac
-- [IRTT Debian Man Page](https://manpages.debian.org/testing/irtt/irtt-client.1.en.html) -- JSON output format
-- [IRTT Server Man Page (Ubuntu)](https://manpages.ubuntu.com/manpages/focal/man1/irtt-server.1.html) -- server config, systemd
-- [IRTT Go Package Docs](https://pkg.go.dev/github.com/heistp/irtt) -- DurationStats (nanoseconds), Result types
-- [cake-autorate IRTT integration](https://github.com/lynxthecat/cake-autorate/blob/master/CHANGELOG.md) -- precedent in similar project
-- [Performance of Container Networking Technologies (ACM)](https://dl.acm.org/doi/pdf/10.1145/3094405.3094406) -- veth/bridge overhead
-- [Jitterbug: Jitter-based Congestion Inference (CAIDA)](https://www.caida.org/catalog/papers/2022_jitterbug/jitterbug.pdf) -- IQR outlier detection
-- [RFC 3550](https://www.ietf.org/rfc/rfc3550.txt) -- jitter EWMA calculation (gain = 1/16)
-- Direct code analysis: `rtt_measurement.py`, `baseline_rtt_manager.py`, `autorate_continuous.py`, `steering/daemon.py`, `signal_utils.py`, `steering/congestion_assessment.py`, `steering/steering_confidence.py`, `benchmark.py`, `webhook_delivery.py`, `docker/docker-compose.yml`, `docker/Dockerfile`
-
----
-*Architecture research for: wanctl v1.18 Measurement Quality*
-*Researched: 2026-03-16*
+- Direct analysis: `src/wanctl/autorate_continuous.py` (WANController, QueueController, main loop, SIGUSR1 handler)
+- Direct analysis: `src/wanctl/signal_processing.py` (SignalProcessor tunables)
+- Direct analysis: `src/wanctl/storage/reader.py` (query_metrics read-only pattern)
+- Direct analysis: `src/wanctl/storage/schema.py` (STORED_METRICS, table patterns)
+- Direct analysis: `src/wanctl/storage/downsampler.py` (granularity levels for analysis input)
+- Direct analysis: `src/wanctl/health_check.py` (health endpoint extension point)
+- Direct analysis: `src/wanctl/signal_utils.py` (SIGUSR1 reload mechanism)
+- Direct analysis: `src/wanctl/config_base.py` (BaseConfig, validate_schema, Config._load_specific_fields)
+- Direct analysis: `docs/ARCHITECTURE.md` (portable controller invariants)
+- [sqm-autorate](https://github.com/sqm-autorate/sqm-autorate) -- adaptive CAKE bandwidth tuning (comparable project)
+- [cake-autorate](https://github.com/lynxthecat/cake-autorate) -- CAKE auto-adjustment via RTT measurement
+- [EWMA Adaptive Threshold Algorithm](https://ieeexplore.ieee.org/document/4283671/) -- EWMA in adaptive threshold design
+- [Adaptive EWMA Control Chart](https://www.nature.com/articles/s41598-025-09735-z) -- dynamic smoothing constant adjustment
+- [Machine Learning Adaptive EWMA](https://www.nature.com/articles/s41598-024-82699-8) -- parameter-free adaptive EWMA
+- [Self-tuning controller](https://en.wikipedia.org/wiki/Self-tuning) -- identifier-controller interaction risk

@@ -1,94 +1,81 @@
-# Research Summary: v1.18 Measurement Quality
+# Research Summary: v1.20 Adaptive Tuning
 
-**Domain:** IRTT integration, container networking audit, RTT signal processing
-**Researched:** 2026-03-16
+**Domain:** Self-optimizing parameter tuning for dual-WAN CAKE controller
+**Researched:** 2026-03-18
 **Overall confidence:** HIGH
 
 ## Executive Summary
 
-v1.18 improves RTT measurement quality through three capabilities: (1) IRTT as a supplemental UDP RTT source alongside existing icmplib ICMP probes, (2) container networking latency characterization to quantify veth/bridge overhead, and (3) signal processing improvements including outlier filtering (Hampel), jitter tracking (RFC 3550 EWMA), and measurement confidence intervals.
+Adaptive tuning for wanctl v1.20 is a statistical analysis problem, not a machine learning or optimization problem. The system already possesses all the infrastructure needed: 24+ hours of per-WAN metrics in SQLite at multiple granularities, Python 3.12 stdlib statistics module with quantiles/median/stdev/NormalDist, proven SIGUSR1 hot-reload pattern, and embedded-in-daemon component architecture. Zero new Python dependencies are needed.
 
-The critical architectural constraint is the 50ms cycle budget. IRTT cannot run inside the hot loop (subprocess overhead is 5-10ms startup + 250ms measurement). Instead, IRTT runs in a background daemon thread on a 5-10 second cadence, and the main loop reads the latest cached result each cycle with zero blocking. The icmplib ICMP measurement remains the authoritative control signal at 20Hz; IRTT is strictly supplemental -- its absence must have zero impact on the controller's behavior.
+The core algorithm is percentile-based parameter derivation: query historical RTT delta distributions from SQLite, compute p75/p90 percentiles via `statistics.quantiles()`, map percentiles to congestion thresholds, and clamp to YAML-defined safety bounds. This follows the same approach used in network congestion control (BBR uses percentile-based BtlBw/RTprop estimation; CoDel uses adaptive interval/target thresholds). The approach is deterministic, interpretable, and trivially testable with synthetic data.
 
-All signal processing (Hampel filter, RFC 3550 jitter, confidence intervals) is implementable with Python stdlib (`statistics.median`, `collections.deque`, `math.sqrt`). Zero new Python package dependencies. One new system binary: `irtt` (available in Ubuntu 24.04 repos as `apt install irtt`, version 0.9.0). The IRTT server on Dallas (104.200.21.31:2112) is already running.
+The primary risk is feedback oscillation (identifier-controller interaction): changing parameters changes the metrics used to derive parameters. This is mitigated by slow cadence (hourly), small steps (10% max change), round-robin across parameter categories, convergence detection, and automatic revert on degradation. All mitigation strategies are simple arithmetic -- no complex control theory needed.
 
-The container networking audit will likely confirm that veth/bridge overhead is negligible (10-50 microseconds, 0.03-0.15% of 30ms+ WAN RTT). The audit produces documentation, not necessarily an optimization. If overhead is <0.5ms, the phase closes with a report.
+The feature set spans 6-8 tunable parameter categories across signal processing (Hampel sigma/window, EWMA alphas), congestion control (GREEN/YELLOW/RED thresholds), and cross-signal parameters (fusion weights, reflector scoring bounds, baseline RTT bounds). Each parameter has a dedicated strategy function -- a pure function from metrics data to TuningResult -- making the system highly modular and independently testable.
 
 ## Key Findings
 
-**Stack:** Zero new Python deps. One system binary (irtt via apt). All signal processing with stdlib.
-**Architecture:** IRTT in background thread (never in hot loop). Signal processing is pure-function classes. icmplib stays authoritative.
-**Critical pitfall:** IRTT subprocess in hot loop would blow cycle budget. Hampel filter with aggressive thresholds masks real congestion.
+**Stack:** Zero new dependencies. Python stdlib `statistics` + existing SQLite infrastructure provide everything needed.
+**Architecture:** Embedded analyzer/applier in autorate daemon, piggyback on hourly maintenance window, SIGUSR1 enable/disable.
+**Critical pitfall:** Feedback oscillation from identifier-controller interaction -- mitigated by slow cadence, small steps, and round-robin tuning.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-1. **Signal Processing Core** - Build HampelFilter, JitterTracker, RTTConfidence, VarianceEWMA
-   - Addresses: Outlier filtering, jitter tracking, confidence intervals (table stakes)
-   - Avoids: Pitfall 6 (filter degrades detection) by shipping in observation mode first
-   - Rationale: Pure Python, zero deps, testable in isolation, immediate value every cycle
+1. **Tuning Foundation** - Framework, models, config, enable/disable, health endpoint, SQLite schema
+   - Addresses: Table stakes (ships disabled, safety bounds, SIGUSR1, persistence)
+   - Avoids: Pitfall 5 (MagicMock trap), Pitfall 8 (tight bounds)
+   - Standard patterns, unlikely to need deeper research
 
-2. **IRTT Foundation** - IRTTMeasurement wrapper, JSON parsing, config, container install
-   - Addresses: UDP measurement diversity, loss direction (differentiator)
-   - Avoids: Pitfall 1 (hot loop blocking) by establishing background thread from the start
-   - Rationale: Binary must be installed and validated before daemon integration
+2. **Congestion Threshold Calibration** - target_bloat_ms, warn_bloat_ms from RTT delta percentiles
+   - Addresses: Highest-impact differentiator (percentile-based threshold derivation)
+   - Avoids: Pitfall 1 (oscillation) via max_change_pct, Pitfall 2 (insufficient data) via min_data_hours
+   - Needs careful design of state-filtered analysis (GREEN-only data for threshold derivation)
 
-3. **IRTT Daemon Integration** - Background thread wired into autorate daemon, health endpoint, metrics
-   - Addresses: IRTT data in production, observability (table stakes)
-   - Avoids: Pitfall 3 (signal fusion oscillation) by keeping IRTT as observation-only (no congestion input)
-   - Rationale: Depends on Phase 2 wrapper. Ships disabled by default.
+3. **Revert Detection** - Monitor congestion rate post-adjustment, auto-revert on degradation
+   - Addresses: Table stake (revert capability)
+   - Avoids: Pitfall 7 (revert oscillation) via hysteresis lock
+   - Needs precise definition of "congestion rate" metric
 
-4. **Container Networking Audit** - Measure veth/bridge overhead and jitter contribution
-   - Addresses: Measurement floor characterization (differentiator)
-   - Avoids: Pitfall 8 (over-engineering negligible overhead) by defining exit criteria upfront
-   - Rationale: Independent of other phases, informational output, can run in parallel
+4. **Signal Processing Tuning** - Hampel sigma/window, EWMA alpha optimization
+   - Addresses: Key differentiator (per-WAN noise profile tuning)
+   - Avoids: Pitfall 3 (feedback loop) via target-based tuning with settling period
+   - Needs deeper research on target outlier rate selection
+
+5. **Advanced Tuning** - Fusion weights, reflector scoring, baseline bounds
+   - Addresses: Remaining differentiators
+   - Avoids: Pitfall 9 (cross-WAN contamination) via independent per-WAN analysis
+   - Lower impact individually, can be deferred if earlier phases take longer
 
 **Phase ordering rationale:**
-- Signal processing first: pure Python, zero external dependencies, immediately testable. Provides the observation infrastructure that IRTT integration will use.
-- IRTT foundation before integration: binary must be installed and wrapper validated before wiring into daemon.
-- Container audit independent: measurement task with clear exit criteria, can run early or late.
-- Dual-signal fusion DEFERRED to v1.19+: v1.18 establishes observation. Fusion requires production data from both signals to design correctly.
+- Foundation (1) must come first -- all other phases build on the framework
+- Threshold calibration (2) before signal processing tuning (4) because thresholds have higher impact and simpler derivation
+- Revert detection (3) must exist before signal processing tuning (4) because signal processing parameter changes are harder to evaluate
+- Advanced tuning (5) depends on all prior phases being stable
 
 **Research flags for phases:**
-- Phase 1 (Signal Processing): Well-understood algorithms, should NOT need additional research. Test with production RTT traces.
-- Phase 2 (IRTT Foundation): May need one-time verification of IRTT JSON output format against live measurement (documented in STACK.md).
-- Phase 3 (IRTT Integration): Background thread pattern established in v1.15 (WebhookDelivery). Standard.
-- Phase 4 (Container Audit): May need targeted investigation of container networking config format (LXC-specific).
+- Phase 2: Needs careful design of state-filtering (which GREEN-period metrics to use)
+- Phase 3: Needs precise definition of "congestion rate increase" -- which metric(s), what time window
+- Phase 4: May need phase-specific research on target outlier rate and settling time
+- Phases 1, 5: Standard patterns, unlikely to need research
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new Python deps confirmed. IRTT in Ubuntu repos verified via apt-cache. All signal processing algorithms are stdlib-only. |
-| Features | HIGH | Table stakes derived from measurement science fundamentals. IRTT capabilities verified via official man pages. |
-| Architecture | HIGH | Background thread pattern proven in v1.15 (WebhookDelivery). Signal processing as pure functions is a standard pattern. |
-| Pitfalls | HIGH | IRTT cycle budget impact quantified from production profiling data. Hampel filter sensitivity documented in signal processing literature. |
+| Stack (zero new deps) | HIGH | Verified: statistics.quantiles(), NormalDist in Python 3.8+ stdlib |
+| Features | HIGH | Clear parameter categories with known statistical derivation methods |
+| Architecture | HIGH | Extends 4 proven patterns (alerting, fusion, signal processing, wan_state) |
+| Pitfalls | HIGH | Identifier-controller interaction is well-documented in control theory literature |
+| Threshold calibration | HIGH | Percentile-based approach used in BBR, CoDel |
+| Signal processing tuning | MEDIUM | Target outlier rate selection is empirical, not theoretically derived |
+| Revert logic | MEDIUM | Defining "congestion rate increase" requires careful metric selection |
 
 ## Gaps to Address
 
-- **IRTT JSON field names:** Documented from man pages but should be verified with one live measurement during Phase 2
-- **Container networking configuration details:** LXC-specific veth/bridge config format for cake-spectrum and cake-att containers
-- **Optimal Hampel parameters per WAN:** Default sigma=3.0/window=7 is conservative; may need per-WAN tuning from production data
-- **IRTT server reliability:** Single server (Dallas) with no SLA. Multi-server support deferred; monitor reliability
-- **Dual-signal fusion algorithm:** Deferred to v1.19+. v1.18 collects data; fusion design requires production dual-signal experience
-
-## Sources
-
-### Primary (HIGH confidence)
-- [IRTT GitHub Repository](https://github.com/heistp/irtt) -- v0.9.1, Go binary, JSON output, HMAC
-- [IRTT Client Man Page](https://manpages.debian.org/testing/irtt/irtt-client.1.en.html) -- CLI flags, JSON schema
-- [RFC 3550](https://www.ietf.org/rfc/rfc3550.txt) -- jitter EWMA calculation (gain 1/16)
-- Ubuntu apt-cache -- irtt 0.9.0-2ubuntu0.24.04.3 confirmed available
-- Existing wanctl codebase -- rtt_measurement.py, baseline_rtt_manager.py, autorate_continuous.py
-- Python 3.12 stdlib -- statistics, collections.deque, math modules
-
-### Secondary (MEDIUM confidence)
-- [Hampel Filter](https://towardsdatascience.com/outlier-detection-with-hampel-filter-85ddf523c73d/) -- algorithm description
-- [Container Networking Performance (ACM)](https://dl.acm.org/doi/pdf/10.1145/3094405.3094406) -- veth vs macvlan comparison
-- [Container Latency Evaluation (ScienceDirect)](https://www.sciencedirect.com/science/article/pii/S0166531624000476) -- LXC optimization approaches
-- [cake-autorate](https://github.com/lynxthecat/cake-autorate) -- IRTT + ICMP dual measurement patterns
-
----
-*Research completed: 2026-03-16*
-*Ready for roadmap: yes*
+- **Target outlier rate for Hampel**: Research suggests 5-15% range but optimal rate for this system is empirical. May need experimentation during Phase 4.
+- **Revert metric definition**: "Congestion rate" could mean state transitions per hour, time in RED, or average congestion delta. Needs decision during Phase 3 planning.
+- **Baseline RTT bounds lookback**: 24h may be insufficient for baseline bounds (ISP maintenance is weekly). Consider 7-day lookback for this specific parameter.
+- **Upload tuning**: Upload uses 3-state model (not 4-state). Threshold derivation needs adaptation. Deferred to after download tuning is proven.

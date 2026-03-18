@@ -1,104 +1,120 @@
-# Feature Landscape: v1.18 Measurement Quality
+# Feature Landscape: v1.20 Adaptive Tuning
 
-**Domain:** RTT measurement quality improvements for dual-WAN adaptive CAKE controller
-**Researched:** 2026-03-16
+**Domain:** Self-optimizing network congestion controller
+**Researched:** 2026-03-18
 
 ## Table Stakes
 
-Features expected from a measurement quality improvement milestone. Missing = effort feels incomplete.
+Features expected for a self-tuning controller. Missing = tuning feels broken or unsafe.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Outlier filtering on raw RTT samples | Single spike should not trigger false congestion detection | Low | Hampel filter with rolling MAD, ~20 lines pure Python, stdlib only |
-| Jitter tracking (EWMA) | Jitter is a leading indicator of congestion; currently ignored entirely | Low | RFC 3550 EWMA (gain 1/16), 15 lines, no deps |
-| Measurement confidence indicator | Operator needs to know if readings are trustworthy | Low | Rolling CI from stdlib statistics module |
-| IRTT subprocess wrapper | Core delivery -- supplemental UDP RTT source | Medium | subprocess + json.loads pattern (same as flent in v1.17) |
-| IRTT results in health endpoint | Operators expect visibility into measurement diversity | Low | Extend existing /health JSON response |
-| YAML config for all new features | Must be opt-in, backward-compatible | Low | Existing config pattern, ships disabled by default |
-| Feature disabled by default | Production system -- no behavioral change on upgrade | Low | Established pattern (wan_state, alerting, confidence) |
-| Signal quality metrics in SQLite | Track measurement quality trends over time | Low | Existing metrics_storage.py pattern, new type values |
-| IRTT fallback to icmplib-only | IRTT server down must not break existing measurement | Low | icmplib stays primary; IRTT is supplemental |
+| Per-WAN parameter optimization | Each WAN has different RTT characteristics (Spectrum 37ms, ATT 29ms) | Med | Reuses existing per-WAN architecture pattern |
+| Safety bounds on all parameters | Production network -- unbounded tuning could cause outages | Low | Simple min/max clamping in YAML config |
+| Ships disabled by default | Proven graduation pattern (v1.11, v1.13, v1.19) | Low | `tuning.enabled: false` in YAML |
+| Tuning decision logging | Operators must understand WHY parameters changed | Low | WARNING-level log with old/new/rationale |
+| Revert capability | Must undo bad parameter changes automatically | Med | Detect congestion rate increase, restore previous values |
+| Enable/disable via SIGUSR1 | Zero-downtime toggle, consistent with existing features | Low | Extends existing SIGUSR1 chain |
+| Health endpoint tuning section | Consistent with signal_quality, fusion, alerting sections | Low | JSON response with current parameters and last adjustment |
+| Minimum data requirement | Cannot tune on insufficient data (startup, fresh deploy) | Low | Skip tuning if < 1 hour of metrics |
+| Parameter persistence | Track tuning history for operator review | Low | New SQLite table, follows alerts/benchmarks pattern |
 
 ## Differentiators
 
-Features that significantly improve measurement quality beyond expectations.
+Features that make the tuning system genuinely valuable rather than just present.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Upstream vs downstream loss direction | Know WHERE packets are lost (ISP ingress vs egress) -- currently impossible | Low | IRTT provides natively in JSON: `true_up`, `true_down` |
-| ICMP vs UDP RTT correlation | Detect ISP ICMP deprioritization (RTT delta between protocols) | Low | Compare icmplib and IRTT median RTTs per measurement cycle |
-| IRTT IPDV (per-packet jitter) | Richer jitter signal than manual delta calculation from sequential ICMP pings | Low | IRTT JSON `round_trips[].ipdv.rtt` field, already computed |
-| Container networking latency characterization | Quantify veth/bridge overhead -- establish measurement floor | Medium | One-time audit tooling, uses existing icmplib + new IRTT |
-| IRTT loss direction in alerting | Alert when upstream/downstream loss exceeds threshold | Low | Integrate with existing AlertEngine from v1.15 |
-| One-way delay tracking (relative) | Detect asymmetric congestion (upload saturated but download fine) | Medium | IRTT provides OWD; useful for relative change even without NTP sync |
-| RTT variance EWMA | Track measurement stability -- high variance = unreliable path | Low | Parallel EWMA alongside existing load_rtt EWMA |
+| Percentile-based threshold calibration | Congestion thresholds derived from actual RTT distribution, not manual guessing | Med | Core value: p75/p90 of delta distribution maps directly to GREEN/YELLOW/RED thresholds |
+| Signal quality auto-tuning | Hampel sigma/window optimized for each WAN's noise profile | Med | Spectrum has 14% outlier rate vs ATT 0% -- different parameters needed |
+| Fusion weight adaptation | ICMP/IRTT weight adjusted based on which signal is more reliable per WAN | Med | ATT protocol correlation 0.65 suggests different weighting than Spectrum |
+| Convergence detection | Automatically stops adjusting when parameters stabilize | Low | Coefficient of variation < threshold |
+| Diurnal awareness | Use 24h lookback to capture full daily pattern | Low | Night (low load) vs evening (peak) have different RTT distributions |
+| Conservative rate limiting | Max 10% parameter change per cycle, slow convergence | Low | Prevents oscillation, builds confidence gradually |
+| Tuning rationale strings | Each adjustment includes human-readable explanation | Low | "target_bloat_ms: 15.0 -> 13.2 (p75 of clean RTT delta = 13.2ms, 24h data)" |
 
 ## Anti-Features
 
-Features to explicitly NOT build.
+Features to explicitly NOT build. Each would add complexity without proportional value.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Replace icmplib with IRTT in hot loop | IRTT subprocess has 5-10ms startup overhead; incompatible with 50ms cycle | Keep icmplib for 20Hz hot loop, IRTT as periodic supplemental (every 5-10s) |
-| Machine learning anomaly detection | Massive deps, unpredictable behavior, untestable edge cases | Deterministic: Hampel filter, z-score, RFC 3550 jitter |
-| numpy/scipy/pandas for signal processing | 30MB+ deps for 3 trivial functions (median, stdev, MAD) | stdlib statistics + collections.deque |
-| Per-cycle IRTT measurement | 5-10ms subprocess overhead consumes 10-20% of cycle budget | Periodic burst every 5-10 seconds in background thread |
-| Automatic macvlan migration | Container networking changes are high-risk for production | Audit first, recommend manually, operator decides |
-| IRTT server management from wanctl | wanctl should not manage remote server processes | Assume server is running (it is -- Dallas 104.200.21.31) |
-| Custom UDP measurement protocol | IRTT handles clock sync, HMAC, IPDV, loss direction | Use IRTT binary |
-| NTP-synchronized OWD as authoritative | Clock sync in LXC containers is unreliable; OWD errors compound | Use OWD for relative change detection only, RTT remains authoritative |
-| Continuous IRTT background stream | Wastes bandwidth, adds constant UDP traffic | Short burst measurements (5 packets per burst) every 5-10s |
-| SmokePing integration | External tool with own data pipeline; wanctl is self-contained | Use IRTT directly |
-| Dual-signal fusion for congestion control | High complexity, needs extensive validation before production | Start with observation: report IRTT alongside icmplib, defer fusion to v1.19+ |
+| Machine learning parameter prediction | Requires training data, model management, prediction uncertainty. 6-8 scalar parameters do not justify ML. | Percentile-based statistical derivation -- deterministic, interpretable, verifiable |
+| Real-time (per-cycle) parameter adjustment | Would cause oscillation. Parameters should be stable for hours, not changing every 50ms. | Hourly analysis cadence, piggyback on existing maintenance window |
+| Cross-WAN parameter sharing | Each WAN has different ISP, latency profile, and noise characteristics | Independent per-WAN tuning with independent bounds |
+| Automatic ceiling/floor adjustment | Bandwidth ceilings are ISP plan limits -- cannot be derived from RTT data | Keep ceiling/floor as manual YAML config. Only tune signal processing and thresholds. |
+| Global optimization of all parameters simultaneously | Correlated parameter changes are hard to attribute. Difficult to revert. | Tune one parameter category per cycle, round-robin across categories |
+| Tuning dashboard widget | Dashboard is read-only poller. Tuning runs inside the daemon. | Expose tuning state via health endpoint; dashboard shows it via existing poller |
+| Tuning CLI tool | Parameters are derived from data, not manually set. CLI adds complexity for no value. | `wanctl-history --tuning` for reviewing past adjustments (extend existing CLI) |
+| Automatic reflector list management | Adding/removing reflectors changes measurement topology. Too risky for auto-tuning. | Only tune reflector min_score threshold and window_size, not the host list |
 
 ## Feature Dependencies
 
 ```
-Signal Processing Core (no external deps):
-    HampelFilter --> RTTMeasurement.measure_rtt() (filter before EWMA update)
-    JitterTracker --> RTTMeasurement.measure_rtt() (update after each measurement)
-    RTTConfidence --> HampelFilter + JitterTracker (width reflects both)
-    VarianceEWMA --> RTTMeasurement.measure_rtt() (parallel to load_rtt EWMA)
-
-IRTT Integration (requires irtt binary):
-    irtt binary available --> apt install irtt on containers
-    IRTT server running --> Dallas 104.200.21.31:2112 (already done)
-    IRTTMeasurement class --> irtt binary + server
-    Background thread --> IRTTMeasurement
-    IRTT alerting --> IRTTMeasurement + AlertEngine (v1.15)
-
-Container Networking Audit (independent):
-    Latency measurement --> icmplib (existing) + IRTT (new)
-    No dependency on signal processing features
-
-Observability (depends on above):
-    Health endpoint signal_quality --> All signal processing classes + IRTT results
-    SQLite metrics --> Same data as health endpoint
-    Alerting extensions --> IRTT loss direction data
+tuning.enabled config -> ParameterAnalyzer can run
+    |
+    v
+Historical metrics (>= 1h) -> ParameterAnalyzer produces TuningResults
+    |
+    v
+TuningResult validation -> ParameterApplier enforces bounds
+    |
+    v
+Parameter application -> WANController attributes updated
+    |
+    v
+Persistence (SQLite tuning_params) -> Revert capability
+    |
+    v
+Health endpoint tuning section -> Operator visibility
+    |
+    v
+SIGUSR1 enable/disable -> Zero-downtime control
 ```
+
+Critical dependency chain:
+- Signal processing metrics (v1.18) MUST exist in SQLite before tuning can analyze them
+- Fusion metrics (v1.19 fused_rtt, load_ewma) MUST be persisted for fusion weight tuning
+- Tuning MUST run AFTER the existing hourly maintenance (cleanup/downsample) to analyze fresh aggregates
 
 ## MVP Recommendation
 
-Prioritize:
-1. **Signal processing core** (Hampel, jitter, CI, variance) -- Low complexity, immediate value in every cycle, testable in isolation, zero deps
-2. **IRTT integration** -- Medium complexity, provides UDP diversity and loss direction
-3. **Health/metrics/alerting extensions** -- Low complexity, leverages established patterns
-4. **Container networking audit** -- Independent measurement task, informational only
+### Phase 1: Foundation + Threshold Tuning
+Build the framework and tune the highest-impact parameters first.
 
-Defer:
-- **Dual-signal fusion**: Start with observation (report both), defer weighted combination to next milestone
-- **OWD-based asymmetric congestion**: Useful but requires NTP validation on IRTT server
-- **Per-reflector quality scoring**: Interesting but adds complexity to ping_hosts handling
+1. **Tuning framework** (analyzer, applier, models, config, enable/disable, health endpoint, SQLite table)
+2. **Congestion threshold calibration** (target_bloat_ms, warn_bloat_ms from RTT delta percentiles)
+3. **Revert detection** (monitor congestion rate after parameter change, auto-revert if degraded)
+
+Rationale: Congestion thresholds have the highest impact on controller behavior and are the simplest to derive from percentile analysis. Framework enables all subsequent tuning.
+
+### Phase 2: Signal Processing Tuning
+Tune the measurement pipeline that feeds the controller.
+
+4. **Hampel sigma/window tuning** (target outlier rate range, autocorrelation-based window sizing)
+5. **EWMA alpha tuning** (load time constant from settling time analysis, baseline alpha from drift rate)
+
+Rationale: Signal processing parameters affect measurement quality. Requires Phase 1 framework.
+
+### Phase 3: Advanced Parameter Tuning
+Tune cross-signal and scoring parameters.
+
+6. **Fusion weight adaptation** (ICMP vs IRTT reliability scoring)
+7. **Reflector scoring bounds** (min_score from observed success rate distribution)
+8. **Baseline RTT bounds auto-adjustment** (p5/p95 of observed baseline)
+
+Rationale: These parameters have lower impact individually but collectively refine the system. Depend on Phase 1+2 being stable.
+
+### Defer
+
+- **Upload-specific tuning**: Upload uses 3-state (not 4-state) model. Tune download first, apply learnings to upload.
+- **Steering daemon tuning**: Steering confidence weights are in a different daemon. Tune autorate first.
+- **OWD asymmetry threshold tuning**: ratio_threshold has limited impact and few data points (IRTT runs at 0.1Hz).
 
 ## Sources
 
-- Existing wanctl codebase: rtt_measurement.py, baseline_rtt_manager.py, autorate_continuous.py
-- [RFC 3550](https://www.ietf.org/rfc/rfc3550.txt) -- jitter calculation standard
-- [IRTT man pages](https://manpages.debian.org/testing/irtt/irtt-client.1.en.html) -- capability documentation
-- [Hampel filter](https://towardsdatascience.com/outlier-detection-with-hampel-filter-85ddf523c73d/) -- algorithm reference
-- [Container networking performance](https://dl.acm.org/doi/pdf/10.1145/3094405.3094406) -- veth/macvlan comparison
-- v1.1 ICMP blackout incident -- motivates UDP measurement diversity
-
----
-*Feature landscape for: wanctl v1.18 Measurement Quality*
-*Researched: 2026-03-16*
+- Codebase analysis: autorate_continuous.py Config class, WANController.__init__, signal_processing.py, reflector_scorer.py
+- Production data: Spectrum 14% outlier rate vs ATT 0% (from MEMORY.md)
+- Production data: ATT IRTT correlation 0.65 (path asymmetry, from MEMORY.md)
+- [BBR congestion control](https://queue.acm.org/detail.cfm?id=3022184) -- percentile-based parameter derivation pattern
+- [CoDel AQM](https://queue.acm.org/detail.cfm?id=2209336) -- adaptive threshold approach
