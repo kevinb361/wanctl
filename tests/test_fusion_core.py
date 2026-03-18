@@ -289,3 +289,48 @@ class TestFusionEnabledGuard:
         result = mock_controller._compute_fused_rtt(30.0)
         # 0.7*30 + 0.3*20 = 27.0
         assert result == pytest.approx(27.0)
+
+
+# =============================================================================
+# FUSION RTT TRACKING (FUSE-05 observability support)
+# =============================================================================
+
+
+class TestFusionRTTTracking:
+    """Tests for _last_fused_rtt and _last_icmp_filtered_rtt attribute storage."""
+
+    def test_disabled_stores_icmp_rtt_and_null_fused(self, mock_controller):
+        """When fusion disabled, stores ICMP RTT but fused is None."""
+        mock_controller._fusion_enabled = False
+
+        mock_controller._compute_fused_rtt(30.0)
+
+        assert mock_controller._last_icmp_filtered_rtt == 30.0
+        assert mock_controller._last_fused_rtt is None
+
+    def test_fallback_no_irtt_stores_icmp_rtt_and_null_fused(self, mock_controller):
+        """When fusion enabled but IRTT unavailable, stores ICMP RTT, fused is None."""
+        mock_controller._fusion_enabled = True
+        mock_controller._irtt_thread = None
+
+        mock_controller._compute_fused_rtt(30.0)
+
+        assert mock_controller._last_icmp_filtered_rtt == 30.0
+        assert mock_controller._last_fused_rtt is None
+
+    def test_fused_stores_both_values(self, mock_controller):
+        """When fusion active, stores both ICMP and fused RTT values."""
+        irtt_thread = MagicMock()
+        irtt_thread.get_latest.return_value = _make_irtt_result(
+            rtt_ms=20.0, age_offset=1.0
+        )
+        irtt_thread._cadence_sec = 10.0
+        mock_controller._irtt_thread = irtt_thread
+        mock_controller._fusion_enabled = True
+        mock_controller._fusion_icmp_weight = 0.7
+
+        mock_controller._compute_fused_rtt(30.0)
+
+        assert mock_controller._last_icmp_filtered_rtt == 30.0
+        # 0.7*30 + 0.3*20 = 27.0
+        assert mock_controller._last_fused_rtt == pytest.approx(27.0)
