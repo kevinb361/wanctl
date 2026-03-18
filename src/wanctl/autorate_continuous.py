@@ -57,8 +57,10 @@ from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
+    is_reload_requested,
     is_shutdown_requested,
     register_signal_handlers,
+    reset_reload_state,
 )
 from wanctl.storage import MetricsWriter
 from wanctl.systemd_utils import (
@@ -2124,6 +2126,67 @@ class WANController:
         )
         return fused
 
+    def _reload_fusion_config(self) -> None:
+        """Re-read fusion config from YAML (triggered by SIGUSR1).
+
+        Reloads both enabled and icmp_weight. Validates with same rules as
+        _load_fusion_config(). Logs old->new transitions at WARNING level.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[FUSION] Config reload failed: {e}")
+            return
+
+        fusion = fresh_data.get("fusion", {}) if fresh_data else {}
+        if not isinstance(fusion, dict):
+            fusion = {}
+
+        # Parse enabled (default False)
+        new_enabled = fusion.get("enabled", False)
+        if not isinstance(new_enabled, bool):
+            self.logger.warning(
+                f"[FUSION] Reload: fusion.enabled must be bool, got "
+                f"{type(new_enabled).__name__}; defaulting to false"
+            )
+            new_enabled = False
+        old_enabled = self._fusion_enabled
+
+        # Parse icmp_weight with same validation as _load_fusion_config
+        new_weight = fusion.get("icmp_weight", 0.7)
+        if (
+            not isinstance(new_weight, (int, float))
+            or isinstance(new_weight, bool)
+            or new_weight < 0.0
+            or new_weight > 1.0
+        ):
+            self.logger.warning(
+                f"[FUSION] Reload: fusion.icmp_weight invalid ({new_weight!r}); "
+                "defaulting to 0.7"
+            )
+            new_weight = 0.7
+        new_weight = float(new_weight)
+        old_weight = self._fusion_icmp_weight
+
+        # Log transitions
+        enabled_str = (
+            f"enabled={old_enabled}->{new_enabled}"
+            if old_enabled != new_enabled
+            else f"enabled={new_enabled}"
+        )
+        weight_str = (
+            f"icmp_weight={old_weight}->{new_weight}"
+            if old_weight != new_weight
+            else f"icmp_weight={new_weight} (unchanged)"
+        )
+        self.logger.warning(f"[FUSION] Config reload: {enabled_str}, {weight_str}")
+
+        self._fusion_enabled = new_enabled
+        self._fusion_icmp_weight = new_weight
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -3464,6 +3527,15 @@ def main() -> int | None:
                         maint_logger.error("Periodic maintenance failed: %s", e)
 
                     last_maintenance = now
+
+            # Check for config reload signal (SIGUSR1)
+            if is_reload_requested():
+                for wan_info in controller.wan_controllers:
+                    wan_info["logger"].info(
+                        "SIGUSR1 received, reloading fusion config"
+                    )
+                    wan_info["controller"]._reload_fusion_config()
+                reset_reload_state()
 
             # Sleep for remainder of cycle interval
             sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
