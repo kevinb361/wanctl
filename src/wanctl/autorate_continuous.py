@@ -928,11 +928,21 @@ class Config(BaseConfig):
             )
             icmp_weight = 0.7
 
+        enabled = fusion.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                f"fusion.enabled must be bool, got {type(enabled).__name__}; "
+                "defaulting to false"
+            )
+            enabled = False
+
         self.fusion_config = {
             "icmp_weight": float(icmp_weight),
+            "enabled": enabled,
         }
         logger.info(
-            f"Fusion: icmp_weight={icmp_weight}, irtt_weight={1.0 - icmp_weight}"
+            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, "
+            f"irtt_weight={1.0 - icmp_weight}"
         )
 
     def _load_specific_fields(self) -> None:
@@ -1519,6 +1529,7 @@ class WANController:
         # pass-through (filtered_rtt goes to update_ewma unchanged).
         # =====================================================================
         self._fusion_icmp_weight: float = config.fusion_config["icmp_weight"]
+        self._fusion_enabled: bool = config.fusion_config["enabled"]
 
         # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
@@ -2086,6 +2097,9 @@ class WANController:
 
         Returns weighted average when IRTT is fresh and valid.
         """
+        if not self._fusion_enabled:
+            return filtered_rtt
+
         if self._irtt_thread is None:
             return filtered_rtt
 
