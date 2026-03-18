@@ -51,79 +51,93 @@ None
 ## Phase Details
 
 ### Phase 93: Reflector Quality Scoring
+
 **Goal**: Unreliable ping_host reflectors are automatically deprioritized based on measured quality, with periodic recovery checks
 **Depends on**: Nothing (uses existing icmplib infrastructure)
 **Requirements**: REFL-01, REFL-02, REFL-03, REFL-04
 **Success Criteria** (what must be TRUE):
-  1. Each configured ping_host reflector has a rolling quality score visible in the health endpoint
-  2. A reflector with high timeout frequency or excessive jitter is automatically skipped during RTT measurement
-  3. A deprioritized reflector is re-checked on a configurable interval and restored when quality improves
-  4. Reflector quality scores persist across measurement cycles (not reset each cycle)
-**Plans:** 2 plans
-Plans:
+
+1. Each configured ping_host reflector has a rolling quality score visible in the health endpoint
+2. A reflector with high timeout frequency or excessive jitter is automatically skipped during RTT measurement
+3. A deprioritized reflector is re-checked on a configurable interval and restored when quality improves
+4. Reflector quality scores persist across measurement cycles (not reset each cycle)
+   **Plans:** 2 plans
+   Plans:
+
 - [ ] 93-01-PLAN.md -- ReflectorScorer module, RTTMeasurement extension, config loader, schema
 - [ ] 93-02-PLAN.md -- WANController integration, health endpoint, SQLite persistence
 
 ### Phase 94: OWD Asymmetric Detection
+
 **Goal**: The controller can distinguish upstream-only from downstream-only congestion using IRTT burst-internal send_delay vs receive_delay
 **Depends on**: Nothing (uses existing IRTTThread/IRTTMeasurement infrastructure from v1.18)
 **Requirements**: ASYM-01, ASYM-02, ASYM-03
 **Success Criteria** (what must be TRUE):
-  1. IRTT burst results are analyzed for send_delay vs receive_delay divergence to detect directional congestion
-  2. Asymmetric congestion direction is exposed as a named attribute (e.g., "upstream", "downstream", "symmetric", "unknown") for downstream consumers
-  3. Asymmetric congestion events are persisted in SQLite with direction and magnitude for trend analysis
-**Plans:** 2 plans
-Plans:
+
+1. IRTT burst results are analyzed for send_delay vs receive_delay divergence to detect directional congestion
+2. Asymmetric congestion direction is exposed as a named attribute (e.g., "upstream", "downstream", "symmetric", "unknown") for downstream consumers
+3. Asymmetric congestion events are persisted in SQLite with direction and magnitude for trend analysis
+   **Plans:** 2 plans
+   Plans:
+
 - [ ] 94-01-PLAN.md -- IRTTResult OWD extension, AsymmetryAnalyzer module, config loader
 - [ ] 94-02-PLAN.md -- WANController integration, health endpoint, SQLite persistence
 
 ### Phase 95: IRTT Loss Alerts
+
 **Goal**: Operators receive Discord notifications when sustained upstream or downstream packet loss is detected via IRTT
 **Depends on**: Nothing (uses existing AlertEngine from v1.15 and IRTTThread from v1.18)
 **Requirements**: ALRT-01, ALRT-02, ALRT-03
 **Success Criteria** (what must be TRUE):
-  1. Sustained upstream packet loss above a configurable threshold triggers a Discord alert with loss percentage and direction
-  2. Sustained downstream packet loss above a configurable threshold triggers a separate Discord alert
-  3. IRTT loss alerts respect per-event cooldown suppression consistent with existing alert types (no alert storms)
-**Plans:** 1 plan
-Plans:
-- [ ] 95-01-PLAN.md -- Sustained loss timers, _check_irtt_loss_alerts, DiscordFormatter loss unit, tests
+
+1. Sustained upstream packet loss above a configurable threshold triggers a Discord alert with loss percentage and direction
+2. Sustained downstream packet loss above a configurable threshold triggers a separate Discord alert
+3. IRTT loss alerts respect per-event cooldown suppression consistent with existing alert types (no alert storms)
+   **Plans:** 1 plan
+   Plans:
+
+- [ ] 95-01-PLAN.md -- Sustained loss timers, \_check_irtt_loss_alerts, DiscordFormatter loss unit, tests
 
 ### Phase 96: Dual-Signal Fusion Core
+
 **Goal**: IRTT and icmplib RTT measurements are combined via weighted average to produce a fused congestion signal that is more robust than either signal alone
 **Depends on**: Phase 93 (improved icmplib signal quality), Phase 94 (IRTT data enrichment)
 **Requirements**: FUSE-01, FUSE-03, FUSE-04
 **Success Criteria** (what must be TRUE):
-  1. A weighted average of IRTT UDP RTT and icmplib ICMP RTT is computed and usable as congestion control input
-  2. Fusion weights are configurable via YAML with warn+default validation (invalid values produce warnings and fall back to defaults)
-  3. When IRTT is unavailable or stale (thread not running, measurement too old), the controller operates on icmplib-only with zero behavioral change from pre-fusion behavior
-**Plans:** 2 plans
-Plans:
-- [ ] 96-01-PLAN.md -- Fusion config loading (_load_fusion_config), conftest update, config validation tests
-- [ ] 96-02-PLAN.md -- Fusion computation (_compute_fused_rtt), WANController wiring, run_cycle integration, fallback tests
+
+1. A weighted average of IRTT UDP RTT and icmplib ICMP RTT is computed and usable as congestion control input
+2. Fusion weights are configurable via YAML with warn+default validation (invalid values produce warnings and fall back to defaults)
+3. When IRTT is unavailable or stale (thread not running, measurement too old), the controller operates on icmplib-only with zero behavioral change from pre-fusion behavior
+   **Plans:** 2 plans
+   Plans:
+
+- [x] 96-01-PLAN.md -- Fusion config loading (\_load_fusion_config), conftest update, config validation tests
+- [x] 96-02-PLAN.md -- Fusion computation (\_compute_fused_rtt), WANController wiring, run_cycle integration, fallback tests
 
 ### Phase 97: Fusion Safety & Observability
+
 **Goal**: Fusion ships safely disabled with zero-downtime toggle and full operational visibility
 **Depends on**: Phase 96 (fusion engine must exist to gate and observe)
 **Requirements**: FUSE-02, FUSE-05
 **Success Criteria** (what must be TRUE):
-  1. Fusion is disabled by default on fresh deploy -- the controller behaves identically to pre-v1.19 until explicitly enabled
-  2. SIGUSR1 toggles fusion enabled/disabled without daemon restart (zero-downtime, proven pattern from v1.13)
-  3. Health endpoint shows fusion state (enabled/disabled, active weights, which signal sources are contributing, fused RTT value)
-**Plans**: TBD
+
+1. Fusion is disabled by default on fresh deploy -- the controller behaves identically to pre-v1.19 until explicitly enabled
+2. SIGUSR1 toggles fusion enabled/disabled without daemon restart (zero-downtime, proven pattern from v1.13)
+3. Health endpoint shows fusion state (enabled/disabled, active weights, which signal sources are contributing, fused RTT value)
+   **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 93. Reflector Quality Scoring | 0/2 | Not started | - |
-| 94. OWD Asymmetric Detection | 0/2 | Not started | - |
-| 95. IRTT Loss Alerts | 0/1 | Not started | - |
-| 96. Dual-Signal Fusion Core | 0/2 | Not started | - |
-| 97. Fusion Safety & Observability | 0/TBD | Not started | - |
+| Phase                             | Plans Complete | Status      | Completed  |
+| --------------------------------- | -------------- | ----------- | ---------- |
+| 93. Reflector Quality Scoring     | 0/2            | Not started | -          |
+| 94. OWD Asymmetric Detection      | 0/2            | Not started | -          |
+| 95. IRTT Loss Alerts              | 0/1            | Not started | -          |
+| 96. Dual-Signal Fusion Core       | 2/2            | Complete    | 2026-03-18 |
+| 97. Fusion Safety & Observability | 0/TBD          | Not started | -          |
 
 ### Completed Milestones
 
@@ -142,7 +156,7 @@ Phases execute in numeric order: 93 -> 94 -> 95 -> 96 -> 97
 | v1.8 Resilience & Robustness         | 43-46  | 8     | Complete | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42  | 8     | Complete | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37  | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene              | 27-30  | 8     | Complete | 2026-01-24 |
+| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete | 2026-01-24 |
 | v1.4 Observability                   | 25-26  | 4     | Complete | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24  | 5     | Complete | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20  | 5     | Complete | 2026-01-14 |

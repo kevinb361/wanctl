@@ -9,10 +9,10 @@ Requirements for signal fusion milestone. Each maps to roadmap phases.
 
 ### Signal Fusion
 
-- [ ] **FUSE-01**: IRTT and icmplib RTT signals are combined via configurable weighted average for congestion control input
+- [x] **FUSE-01**: IRTT and icmplib RTT signals are combined via configurable weighted average for congestion control input
 - [ ] **FUSE-02**: Fusion ships disabled by default with SIGUSR1 toggle for zero-downtime enable/disable
 - [x] **FUSE-03**: Fusion weights are YAML-configurable with warn+default validation
-- [ ] **FUSE-04**: When IRTT is unavailable or stale, fusion falls back to icmplib-only with zero behavioral change
+- [x] **FUSE-04**: When IRTT is unavailable or stale, fusion falls back to icmplib-only with zero behavioral change
 - [ ] **FUSE-05**: Fusion state (enabled, weights, active signal sources) is visible in health endpoint
 
 ### Asymmetric Congestion
@@ -66,10 +66,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FUSE-01 | Phase 96 | Pending |
+| FUSE-01 | Phase 96 | Complete |
 | FUSE-02 | Phase 97 | Pending |
 | FUSE-03 | Phase 96 | Complete |
-| FUSE-04 | Phase 96 | Pending |
+| FUSE-04 | Phase 96 | Complete |
 | FUSE-05 | Phase 97 | Pending |
 | ASYM-01 | Phase 94 | Complete |
 | ASYM-02 | Phase 94 | Complete |
