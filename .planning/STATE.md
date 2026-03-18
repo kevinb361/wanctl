@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
 status: executing
-last_updated: "2026-03-18T22:18:00Z"
+last_updated: "2026-03-18T22:55:52Z"
 last_activity: 2026-03-18
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Milestone:** v1.20 Adaptive Tuning
 **Phase:** 98 of 102 (Tuning Foundation)
-**Plan:** 1 of 3 complete
+**Plan:** 2 of 3 complete
 **Status:** Executing Phase 98
 **Last activity:** 2026-03-18
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 67%
 
 ## Accumulated Context
 
@@ -40,6 +40,10 @@ Progress: [███░░░░░░░] 33%
 - TuningStrategy is a Protocol (structural subtyping) not an ABC
 - Cadence minimum 600 seconds (10 minutes) to prevent tuning abuse
 - max_delta floor of 0.001 prevents zero-delta trap for small values
+- StrategyFn is a Callable type alias, not Protocol -- strategies are pure functions
+- Confidence scaling: min(1.0, data_hours / 24.0) penalizes short data spans
+- Trivial change threshold: abs(clamped - old) < 0.1 skips at DEBUG level
+- query_metrics import at module level for analyzer simplicity
 
 ### Known Issues
 

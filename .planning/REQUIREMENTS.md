@@ -12,11 +12,11 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 - [x] **TUNE-01**: Tuning engine ships disabled by default (`tuning.enabled: false` in YAML)
 - [ ] **TUNE-02**: Tuning can be enabled/disabled via SIGUSR1 without daemon restart
 - [x] **TUNE-03**: Each tunable parameter has configurable min/max safety bounds in YAML
-- [ ] **TUNE-04**: Tuning analyzes per-WAN metrics independently with no cross-WAN contamination
-- [ ] **TUNE-05**: Tuning decisions logged with old value, new value, and human-readable rationale
+- [x] **TUNE-04**: Tuning analyzes per-WAN metrics independently with no cross-WAN contamination
+- [x] **TUNE-05**: Tuning decisions logged with old value, new value, and human-readable rationale
 - [ ] **TUNE-06**: Health endpoint exposes tuning section (enabled, last_run, parameters, adjustments)
-- [ ] **TUNE-07**: Tuning skips analysis when less than 1 hour of metrics data available
-- [ ] **TUNE-08**: Tuning adjustments persisted to SQLite for historical review
+- [x] **TUNE-07**: Tuning skips analysis when less than 1 hour of metrics data available
+- [x] **TUNE-08**: Tuning adjustments persisted to SQLite for historical review
 - [ ] **TUNE-09**: Tuning runs during hourly maintenance window (not per-cycle)
 - [x] **TUNE-10**: Maximum 10% parameter change per tuning cycle enforced
 
@@ -89,11 +89,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUNE-01 | Phase 98 | Complete |
 | TUNE-02 | Phase 98 | Pending |
 | TUNE-03 | Phase 98 | Complete |
-| TUNE-04 | Phase 98 | Pending |
-| TUNE-05 | Phase 98 | Pending |
+| TUNE-04 | Phase 98 | Complete |
+| TUNE-05 | Phase 98 | Complete |
 | TUNE-06 | Phase 98 | Pending |
-| TUNE-07 | Phase 98 | Pending |
-| TUNE-08 | Phase 98 | Pending |
+| TUNE-07 | Phase 98 | Complete |
+| TUNE-08 | Phase 98 | Complete |
 | TUNE-09 | Phase 98 | Pending |
 | TUNE-10 | Phase 98 | Complete |
 | CALI-01 | Phase 99 | Pending |
