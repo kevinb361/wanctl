@@ -69,7 +69,7 @@ from wanctl.systemd_utils import (
     notify_watchdog,
 )
 from wanctl.timeouts import DEFAULT_AUTORATE_PING_TIMEOUT, DEFAULT_AUTORATE_SSH_TIMEOUT
-from wanctl.tuning.models import SafetyBounds, TuningConfig
+from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
 from wanctl.wan_controller_state import WANControllerState
 
 # =============================================================================
@@ -1467,6 +1467,56 @@ class QueueController:
 
 
 # =============================================================================
+# ADAPTIVE TUNING HELPERS
+# =============================================================================
+
+
+def _apply_tuning_to_controller(
+    wc: "WANController",
+    results: list[TuningResult],
+) -> None:
+    """Apply tuning results to WANController attributes.
+
+    Maps parameter names to controller attributes:
+      target_bloat_ms  -> green_threshold + target_delta
+      warn_bloat_ms    -> soft_red_threshold + warn_delta
+      hard_red_bloat_ms -> hard_red_threshold
+      alpha_load       -> alpha_load
+      alpha_baseline   -> alpha_baseline
+
+    Also updates TuningState with recent adjustments (capped at 10).
+    """
+    for r in results:
+        if r.parameter == "target_bloat_ms":
+            wc.green_threshold = r.new_value
+            wc.target_delta = r.new_value  # Legacy alias
+        elif r.parameter == "warn_bloat_ms":
+            wc.soft_red_threshold = r.new_value
+            wc.warn_delta = r.new_value  # Legacy alias
+        elif r.parameter == "hard_red_bloat_ms":
+            wc.hard_red_threshold = r.new_value
+        elif r.parameter == "alpha_load":
+            wc.alpha_load = r.new_value
+        elif r.parameter == "alpha_baseline":
+            wc.alpha_baseline = r.new_value
+
+    # Update TuningState with recent adjustments
+    if results and wc._tuning_state is not None:
+        params = dict(wc._tuning_state.parameters)
+        for r in results:
+            params[r.parameter] = r.new_value
+        # Keep only last 10 adjustments
+        recent = list(wc._tuning_state.recent_adjustments) + list(results)
+        recent = recent[-10:]
+        wc._tuning_state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic(),
+            recent_adjustments=recent,
+            parameters=params,
+        )
+
+
+# =============================================================================
 # WAN CONTROLLER
 # =============================================================================
 
@@ -1789,6 +1839,26 @@ class WANController:
         self._profiling_enabled = False
         self._overrun_count = 0
         self._cycle_interval_ms = CYCLE_INTERVAL_SECONDS * 1000.0
+
+        # =====================================================================
+        # ADAPTIVE TUNING STATE
+        # =====================================================================
+        # Runtime-only parameter tuning driven by metrics analysis.
+        # Enabled via tuning.enabled in YAML. Runs during maintenance window.
+        # SIGUSR1 reloads enabled state via _reload_tuning_config().
+        # =====================================================================
+        if config.tuning_config is not None and config.tuning_config.enabled:
+            self._tuning_enabled = True
+            self._tuning_state: TuningState | None = TuningState(
+                enabled=True,
+                last_run_ts=None,
+                recent_adjustments=[],
+                parameters={},
+            )
+        else:
+            self._tuning_enabled = False
+            self._tuning_state = None
+        self._last_tuning_ts: float | None = None
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -2363,6 +2433,60 @@ class WANController:
 
         self._fusion_enabled = new_enabled
         self._fusion_icmp_weight = new_weight
+
+    def _reload_tuning_config(self) -> None:
+        """Re-read tuning config from YAML (triggered by SIGUSR1).
+
+        Reloads enabled state. Validates with same rules as
+        _load_tuning_config(). Logs old->new transitions at WARNING level.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[TUNING] Config reload failed: {e}")
+            return
+
+        tuning = fresh_data.get("tuning", {}) if fresh_data else {}
+        if not isinstance(tuning, dict):
+            tuning = {}
+
+        new_enabled = tuning.get("enabled", False)
+        if not isinstance(new_enabled, bool):
+            self.logger.warning(
+                f"[TUNING] Reload: tuning.enabled must be bool, got "
+                f"{type(new_enabled).__name__}; defaulting to false"
+            )
+            new_enabled = False
+
+        old_enabled = self._tuning_enabled
+
+        # Log transition
+        if old_enabled != new_enabled:
+            self.logger.warning(
+                "[TUNING] Config reload: enabled=%s->%s",
+                old_enabled,
+                new_enabled,
+            )
+        else:
+            self.logger.info(
+                "[TUNING] Config reload: enabled=%s (unchanged)",
+                new_enabled,
+            )
+
+        self._tuning_enabled = new_enabled
+
+        if new_enabled and self._tuning_state is None:
+            self._tuning_state = TuningState(
+                enabled=True,
+                last_run_ts=None,
+                recent_adjustments=[],
+                parameters={},
+            )
+        elif not new_enabled:
+            self._tuning_state = None
 
     def _record_profiling(
         self,
@@ -3582,6 +3706,7 @@ def main() -> int | None:
     MAX_CONSECUTIVE_FAILURES = 3
     watchdog_enabled = True
     last_maintenance = time.monotonic()
+    last_tuning = time.monotonic()
 
     # Start optional servers (metrics, health check)
     metrics_server, health_server = _start_servers(controller)
@@ -3707,13 +3832,66 @@ def main() -> int | None:
 
                     last_maintenance = now
 
+            # Adaptive tuning (runs after maintenance, on its own cadence)
+            tuning_config = getattr(
+                controller.wan_controllers[0]["controller"].config,
+                "tuning_config",
+                None,
+            )
+            if isinstance(tuning_config, TuningConfig) and tuning_config.enabled:
+                now = time.monotonic()
+                tuning_cadence = tuning_config.cadence_sec
+                if now - last_tuning >= tuning_cadence:
+                    from wanctl.tuning.analyzer import run_tuning_analysis
+                    from wanctl.tuning.applier import apply_tuning_results
+
+                    first_config = controller.wan_controllers[0]["config"]
+                    storage_config = get_storage_config(first_config.data)
+                    db_path = storage_config.get("db_path", "")
+                    metrics_writer = controller.wan_controllers[0][
+                        "controller"
+                    ]._metrics_writer
+
+                    for wan_info in controller.wan_controllers:
+                        wc = wan_info["controller"]
+                        if not wc._tuning_enabled:
+                            continue
+                        current_params = {
+                            "target_bloat_ms": wc.green_threshold,
+                            "warn_bloat_ms": wc.soft_red_threshold,
+                            "hard_red_bloat_ms": wc.hard_red_threshold,
+                            "alpha_load": wc.alpha_load,
+                            "alpha_baseline": wc.alpha_baseline,
+                        }
+                        try:
+                            results = run_tuning_analysis(
+                                wan_name=wc.wan_name,
+                                db_path=db_path,
+                                tuning_config=tuning_config,
+                                current_params=current_params,
+                                strategies=[],  # No strategies in Phase 98 (framework only)
+                            )
+                            if results:
+                                applied = apply_tuning_results(
+                                    results, tuning_config, metrics_writer
+                                )
+                                _apply_tuning_to_controller(wc, applied)
+                        except Exception as e:
+                            wan_info["logger"].error(
+                                "[TUNING] Analysis failed for %s: %s",
+                                wc.wan_name,
+                                e,
+                            )
+                    last_tuning = now
+
             # Check for config reload signal (SIGUSR1)
             if is_reload_requested():
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].info(
-                        "SIGUSR1 received, reloading fusion config"
+                        "SIGUSR1 received, reloading config"
                     )
                     wan_info["controller"]._reload_fusion_config()
+                    wan_info["controller"]._reload_tuning_config()
                 reset_reload_state()
 
             # Sleep for remainder of cycle interval
