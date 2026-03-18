@@ -2380,6 +2380,8 @@ class WANController:
                 metrics_batch = [
                     (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
                     (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
+                    (ts, self.wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
                     (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
                     (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
                     (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
