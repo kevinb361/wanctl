@@ -30,9 +30,9 @@ Requirements for signal fusion milestone. Each maps to roadmap phases.
 
 ### IRTT Loss Alerts
 
-- [ ] **ALRT-01**: Sustained upstream packet loss triggers alert via existing AlertEngine with configurable threshold
-- [ ] **ALRT-02**: Sustained downstream packet loss triggers alert via existing AlertEngine with configurable threshold
-- [ ] **ALRT-03**: IRTT loss alerts use per-event cooldown consistent with existing alert types
+- [x] **ALRT-01**: Sustained upstream packet loss triggers alert via existing AlertEngine with configurable threshold
+- [x] **ALRT-02**: Sustained downstream packet loss triggers alert via existing AlertEngine with configurable threshold
+- [x] **ALRT-03**: IRTT loss alerts use per-event cooldown consistent with existing alert types
 
 ## Future Requirements
 
@@ -78,9 +78,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REFL-02 | Phase 93 | Complete |
 | REFL-03 | Phase 93 | Complete |
 | REFL-04 | Phase 93 | Complete |
-| ALRT-01 | Phase 95 | Pending |
-| ALRT-02 | Phase 95 | Pending |
-| ALRT-03 | Phase 95 | Pending |
+| ALRT-01 | Phase 95 | Complete |
+| ALRT-02 | Phase 95 | Complete |
+| ALRT-03 | Phase 95 | Complete |
 
 **Coverage:**
 - v1.19 requirements: 15 total
