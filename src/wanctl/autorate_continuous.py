@@ -1512,6 +1512,15 @@ class WANController:
         self._last_asymmetry_result: AsymmetryResult | None = None
 
         # =====================================================================
+        # DUAL-SIGNAL FUSION (Phase 96: FUSE-01, FUSE-03, FUSE-04)
+        # =====================================================================
+        # Weighted combination of ICMP filtered_rtt and IRTT rtt_mean_ms.
+        # When IRTT is unavailable, stale, or disabled, fusion is a pure
+        # pass-through (filtered_rtt goes to update_ewma unchanged).
+        # =====================================================================
+        self._fusion_icmp_weight: float = config.fusion_config["icmp_weight"]
+
+        # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
         # =====================================================================
         # Per-reflector rolling quality scoring with automatic deprioritization
@@ -2066,6 +2075,41 @@ class WANController:
 
         self._irtt_correlation = ratio
 
+    def _compute_fused_rtt(self, filtered_rtt: float) -> float:
+        """Compute fused RTT from ICMP filtered_rtt and cached IRTT rtt_mean_ms.
+
+        Returns filtered_rtt unchanged (pass-through) when:
+        - IRTT thread is not running (_irtt_thread is None)
+        - No IRTT result available (get_latest() returns None)
+        - IRTT result is stale (age > 3x cadence)
+        - IRTT rtt_mean_ms is zero or negative (total packet loss)
+
+        Returns weighted average when IRTT is fresh and valid.
+        """
+        if self._irtt_thread is None:
+            return filtered_rtt
+
+        irtt_result = self._irtt_thread.get_latest()
+        if irtt_result is None:
+            return filtered_rtt
+
+        age = time.monotonic() - irtt_result.timestamp
+        cadence = self._irtt_thread._cadence_sec
+        if age > cadence * 3:
+            return filtered_rtt
+
+        irtt_rtt = irtt_result.rtt_mean_ms
+        if irtt_rtt <= 0:
+            return filtered_rtt
+
+        fused = self._fusion_icmp_weight * filtered_rtt + (1.0 - self._fusion_icmp_weight) * irtt_rtt
+        self.logger.debug(
+            f"{self.wan_name}: fused_rtt={fused:.1f}ms "
+            f"(icmp={filtered_rtt:.1f}ms, irtt={irtt_rtt:.1f}ms, "
+            f"icmp_w={self._fusion_icmp_weight})"
+        )
+        return fused
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -2143,7 +2187,8 @@ class WANController:
                 baseline_rtt=self.baseline_rtt,
             )
             self._last_signal_result = signal_result
-            self.update_ewma(signal_result.filtered_rtt)
+            fused_rtt = self._compute_fused_rtt(signal_result.filtered_rtt)
+            self.update_ewma(fused_rtt)
 
             # Rate-of-change (acceleration) detection for sudden RTT spikes
             # Catches spikes that EWMA smooths over, triggers immediate RED
