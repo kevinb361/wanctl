@@ -15,8 +15,7 @@ import time
 
 import pytest
 
-from wanctl.tuning.models import SafetyBounds, TuningResult
-
+from wanctl.tuning.models import SafetyBounds
 
 # ---------------------------------------------------------------------------
 # Test data helpers
@@ -33,13 +32,18 @@ def _make_green_metrics(
     Produces interleaved wanctl_state and wanctl_rtt_delta_ms rows with
     controllable GREEN fraction. First `count * green_fraction` timestamps
     are GREEN, remainder are YELLOW.
+
+    Delta values include a time-correlated ramp so sub-windows have different
+    distributions (avoids triggering convergence detection in tests that
+    expect a TuningResult).
     """
     now = int(time.time())
     metrics: list[dict] = []
     green_count = int(count * green_fraction)
     for i in range(count):
         ts = now - (count - i) * 60  # 1m intervals going backward
-        delta = base_delta + (i % 5) * noise_scale / 5  # Varying delta
+        # Cycling noise + linear ramp to ensure inter-sub-window variance
+        delta = base_delta + (i % 5) * noise_scale / 5 + (i / count) * noise_scale
         state = 0.0 if i < green_count else 1.0
 
         metrics.append({
@@ -195,9 +199,9 @@ class TestCalibrateTargetBloat:
         assert result.parameter == "target_bloat_ms"
 
         # Verify p75 computation matches expected
-        # The deltas are: base_delta + (i % 5) * noise_scale / 5
-        # with base=10.0, noise=3.0: values cycle through 10.0, 10.6, 11.2, 11.8, 12.4
-        deltas = [10.0 + (i % 5) * 3.0 / 5 for i in range(200)]
+        # Delta formula: base + (i%5)*noise/5 + (i/count)*noise
+        # with base=10.0, noise=3.0, count=200
+        deltas = [10.0 + (i % 5) * 3.0 / 5 + (i / 200) * 3.0 for i in range(200)]
         expected_p75 = quantiles(deltas, n=100)[74]
         assert result.new_value == round(expected_p75, 1)
 
@@ -270,7 +274,7 @@ class TestCalibrateWarnBloat:
         assert result is not None
         assert result.parameter == "warn_bloat_ms"
 
-        deltas = [10.0 + (i % 5) * 3.0 / 5 for i in range(200)]
+        deltas = [10.0 + (i % 5) * 3.0 / 5 + (i / 200) * 3.0 for i in range(200)]
         expected_p90 = quantiles(deltas, n=100)[89]
         assert result.new_value == round(expected_p90, 1)
 
