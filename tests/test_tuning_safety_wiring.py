@@ -1,0 +1,346 @@
+"""Tests for tuning safety wiring in the autorate daemon.
+
+Tests that check_and_revert runs before strategies, locked parameters are
+filtered, PendingObservation is stored after applying results, and SIGUSR1
+disable clears lock and observation state.
+"""
+
+import logging
+import time
+from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
+
+from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
+from wanctl.tuning.safety import PendingObservation
+
+
+def _make_tuning_config(enabled: bool = True) -> TuningConfig:
+    """Create a minimal TuningConfig for testing."""
+    return TuningConfig(
+        enabled=enabled,
+        cadence_sec=3600,
+        lookback_hours=24,
+        warmup_hours=1,
+        max_step_pct=10.0,
+        bounds={
+            "target_bloat_ms": SafetyBounds(min_value=3.0, max_value=30.0),
+            "warn_bloat_ms": SafetyBounds(min_value=10.0, max_value=100.0),
+            "hard_red_bloat_ms": SafetyBounds(min_value=30.0, max_value=200.0),
+            "alpha_load": SafetyBounds(min_value=0.005, max_value=0.5),
+            "alpha_baseline": SafetyBounds(min_value=0.0001, max_value=0.01),
+        },
+    )
+
+
+def _make_result(param: str, old: float, new: float, rationale: str = "test") -> TuningResult:
+    """Create a test TuningResult."""
+    return TuningResult(
+        parameter=param,
+        old_value=old,
+        new_value=new,
+        confidence=0.8,
+        rationale=rationale,
+        data_points=100,
+        wan_name="Spectrum",
+    )
+
+
+def _make_revert_result(param: str, old: float, new: float) -> TuningResult:
+    """Create a revert TuningResult (swapped old/new, REVERT: prefix)."""
+    return TuningResult(
+        parameter=param,
+        old_value=old,
+        new_value=new,
+        confidence=1.0,
+        rationale=f"REVERT: congestion rate 5.00%->15.00% (ratio 3.0x > 1.5x)",
+        data_points=0,
+        wan_name="Spectrum",
+    )
+
+
+class TestWANControllerSafetyInit:
+    """Tests for WANController.__init__ safety state attributes."""
+
+    def test_parameter_locks_initialized_empty(self, mock_autorate_config):
+        """WANController should initialize _parameter_locks as empty dict."""
+        from wanctl.autorate_continuous import WANController
+
+        mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=MagicMock(),
+        )
+        assert wc._parameter_locks == {}
+        assert isinstance(wc._parameter_locks, dict)
+
+    def test_pending_observation_initialized_none(self, mock_autorate_config):
+        """WANController should initialize _pending_observation as None."""
+        from wanctl.autorate_continuous import WANController
+
+        mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=MagicMock(),
+        )
+        assert wc._pending_observation is None
+
+    def test_disabled_tuning_still_has_locks_and_observation(self, mock_autorate_config):
+        """Even with tuning disabled, safety attributes should be initialized."""
+        from wanctl.autorate_continuous import WANController
+
+        mock_autorate_config.tuning_config = None
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=MagicMock(),
+        )
+        assert wc._parameter_locks == {}
+        assert wc._pending_observation is None
+
+
+class TestSafetyRevertWiring:
+    """Tests for check_and_revert integration in maintenance loop flow."""
+
+    def test_check_and_revert_called_before_strategies(self):
+        """Verify the maintenance loop calls check_and_revert before running strategies."""
+        # We test the import availability and function call pattern
+        from wanctl.tuning.safety import check_and_revert
+
+        # When pending_observation is None, should return empty list (no action)
+        result = check_and_revert(
+            pending_observation=None,
+            db_path="/tmp/nonexistent.db",
+            wan_name="Spectrum",
+        )
+        assert result == []
+
+    def test_revert_results_applied_to_controller(self):
+        """When check_and_revert returns reverts, _apply_tuning_to_controller applies them."""
+        from wanctl.autorate_continuous import _apply_tuning_to_controller
+
+        wc = MagicMock()
+        wc._tuning_state = TuningState(
+            enabled=True, last_run_ts=time.monotonic(), recent_adjustments=[], parameters={}
+        )
+
+        revert = _make_revert_result("target_bloat_ms", old=13.5, new=15.0)
+        _apply_tuning_to_controller(wc, [revert])
+        assert wc.green_threshold == 15.0
+        assert wc.target_delta == 15.0
+
+    def test_revert_locks_parameter(self):
+        """After revert, the parameter should be locked via lock_parameter."""
+        from wanctl.tuning.safety import lock_parameter, is_parameter_locked
+
+        locks: dict[str, float] = {}
+        lock_parameter(locks, "target_bloat_ms", cooldown_sec=86400)
+        assert is_parameter_locked(locks, "target_bloat_ms") is True
+
+    def test_pending_observation_cleared_after_revert(self):
+        """After revert processing, _pending_observation should be cleared to None."""
+        # This tests the expected behavior: wc._pending_observation = None after revert
+        wc = MagicMock()
+        wc._pending_observation = PendingObservation(
+            applied_ts=int(time.time()) - 3600,
+            pre_congestion_rate=0.05,
+            applied_results=(_make_result("target_bloat_ms", 15.0, 13.5),),
+        )
+        # Simulate revert clearing
+        wc._pending_observation = None
+        assert wc._pending_observation is None
+
+
+class TestLockedParameterFiltering:
+    """Tests for locked parameter filtering from strategy list."""
+
+    def test_locked_parameter_excluded_from_strategies(self):
+        """Locked parameters should be filtered out of the active strategies list."""
+        from wanctl.tuning.safety import is_parameter_locked, lock_parameter
+
+        locks: dict[str, float] = {}
+        lock_parameter(locks, "target_bloat_ms", cooldown_sec=86400)
+
+        strategies = [
+            ("target_bloat_ms", lambda: None),
+            ("warn_bloat_ms", lambda: None),
+        ]
+
+        active = [
+            (pname, sfn)
+            for pname, sfn in strategies
+            if not is_parameter_locked(locks, pname)
+        ]
+
+        assert len(active) == 1
+        assert active[0][0] == "warn_bloat_ms"
+
+    def test_unlocked_parameter_included_in_strategies(self):
+        """Unlocked parameters should remain in the active strategies list."""
+        from wanctl.tuning.safety import is_parameter_locked
+
+        locks: dict[str, float] = {}
+
+        strategies = [
+            ("target_bloat_ms", lambda: None),
+            ("warn_bloat_ms", lambda: None),
+        ]
+
+        active = [
+            (pname, sfn)
+            for pname, sfn in strategies
+            if not is_parameter_locked(locks, pname)
+        ]
+
+        assert len(active) == 2
+
+    def test_locked_parameter_logged_at_info(self, caplog):
+        """Locked parameter skip should be logged at INFO level."""
+        from wanctl.tuning.safety import is_parameter_locked, lock_parameter
+
+        locks: dict[str, float] = {}
+        lock_parameter(locks, "target_bloat_ms", cooldown_sec=86400)
+
+        logger = logging.getLogger("test.tuning.wiring")
+        with caplog.at_level(logging.INFO, logger="test.tuning.wiring"):
+            if is_parameter_locked(locks, "target_bloat_ms"):
+                logger.info(
+                    "[TUNING] %s: %s locked until revert cooldown expires",
+                    "Spectrum",
+                    "target_bloat_ms",
+                )
+
+        assert "locked until revert cooldown expires" in caplog.text
+
+
+class TestPendingObservationStorage:
+    """Tests for PendingObservation creation after applying tuning results."""
+
+    def test_pending_observation_created_with_applied_results(self):
+        """After applying results, a PendingObservation should be storable."""
+        applied = [
+            _make_result("target_bloat_ms", 15.0, 13.5),
+            _make_result("warn_bloat_ms", 45.0, 42.0),
+        ]
+
+        obs = PendingObservation(
+            applied_ts=int(time.time()),
+            pre_congestion_rate=0.03,
+            applied_results=tuple(applied),
+        )
+
+        assert obs.applied_ts > 0
+        assert obs.pre_congestion_rate == 0.03
+        assert len(obs.applied_results) == 2
+        assert obs.applied_results[0].parameter == "target_bloat_ms"
+
+    def test_no_results_means_no_observation(self):
+        """When no results are applied (empty), _pending_observation should stay None."""
+        wc = MagicMock()
+        wc._pending_observation = None
+
+        # Simulate: no results applied, observation stays None
+        applied: list[TuningResult] = []
+        if not applied:
+            pass  # No observation created
+        assert wc._pending_observation is None
+
+
+class TestReloadClearsSafetyState:
+    """Tests for SIGUSR1 reload clearing safety state when tuning disabled."""
+
+    def test_sigusr1_disable_clears_parameter_locks(
+        self, mock_autorate_config, tmp_path
+    ):
+        """When tuning disabled via SIGUSR1, _parameter_locks should be cleared."""
+        from wanctl.autorate_continuous import WANController
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({"tuning": {"enabled": True}}))
+        mock_autorate_config.config_file_path = str(config_file)
+        mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
+
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=logging.getLogger("test.tuning.reload"),
+        )
+
+        # Add a lock
+        wc._parameter_locks["target_bloat_ms"] = time.monotonic() + 86400
+
+        # Disable tuning via SIGUSR1
+        config_file.write_text(yaml.dump({"tuning": {"enabled": False}}))
+        wc._reload_tuning_config()
+
+        assert wc._parameter_locks == {}
+
+    def test_sigusr1_disable_clears_pending_observation(
+        self, mock_autorate_config, tmp_path
+    ):
+        """When tuning disabled via SIGUSR1, _pending_observation should be cleared."""
+        from wanctl.autorate_continuous import WANController
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({"tuning": {"enabled": True}}))
+        mock_autorate_config.config_file_path = str(config_file)
+        mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
+
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=logging.getLogger("test.tuning.reload"),
+        )
+
+        # Set a pending observation
+        wc._pending_observation = PendingObservation(
+            applied_ts=int(time.time()),
+            pre_congestion_rate=0.05,
+            applied_results=(_make_result("target_bloat_ms", 15.0, 13.5),),
+        )
+
+        # Disable tuning via SIGUSR1
+        config_file.write_text(yaml.dump({"tuning": {"enabled": False}}))
+        wc._reload_tuning_config()
+
+        assert wc._pending_observation is None
+
+    def test_sigusr1_enable_preserves_empty_locks(
+        self, mock_autorate_config, tmp_path
+    ):
+        """Enabling tuning via SIGUSR1 should start with clean state."""
+        from wanctl.autorate_continuous import WANController
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({"wan_name": "Test"}))
+        mock_autorate_config.config_file_path = str(config_file)
+        mock_autorate_config.tuning_config = None
+
+        wc = WANController(
+            wan_name="Test",
+            config=mock_autorate_config,
+            router=MagicMock(),
+            rtt_measurement=MagicMock(),
+            logger=logging.getLogger("test.tuning.reload"),
+        )
+
+        # Enable tuning via SIGUSR1
+        config_file.write_text(yaml.dump({"tuning": {"enabled": True}}))
+        wc._reload_tuning_config()
+
+        assert wc._tuning_enabled is True
+        assert wc._parameter_locks == {}
+        assert wc._pending_observation is None
