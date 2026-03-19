@@ -216,37 +216,66 @@ class TestTuneAlphaLoad:
     ) -> list[dict]:
         """Build metrics with RTT step changes and slow EWMA response.
 
+        Each step jumps RTT to baseline + step_magnitude and holds it there
+        for settling_minutes * 2 before returning to baseline. Steps need
+        enough spacing to allow settling measurement.
+
         Args:
             step_times: List of minute indices where steps occur.
             baseline_rtt: Base RTT value before steps.
             step_magnitude: Size of RTT jump.
             settling_minutes: How many minutes the EWMA takes to settle.
         """
-        total_minutes = max(step_times) + settling_minutes + 20
+        total_minutes = max(step_times) + settling_minutes * 3 + 20
         total_minutes = max(total_minutes, 200)  # Ensure enough data
 
         rtt_values: list[float] = []
         ewma_values: list[float] = []
         jitter_values: list[float] = []
 
+        # Build RTT profile: baseline with step-up periods
+        step_set = set(step_times)
+        active_steps: dict[int, int] = {}  # step_start -> remaining_minutes
         current_level = baseline_rtt
-        current_ewma = baseline_rtt
 
         for minute in range(total_minutes):
-            if minute in step_times:
+            if minute in step_set:
+                # Start a new step: hold elevated for settling_minutes * 2
+                active_steps[minute] = settling_minutes * 2
+
+            # Check if any step is still active
+            elevated = False
+            to_remove = []
+            for start, remaining in active_steps.items():
+                if remaining > 0:
+                    elevated = True
+                    active_steps[start] = remaining - 1
+                else:
+                    to_remove.append(start)
+            for s in to_remove:
+                del active_steps[s]
+
+            if elevated:
                 current_level = baseline_rtt + step_magnitude
+            else:
+                current_level = baseline_rtt
 
             rtt_values.append(current_level)
+            jitter_values.append(1.0)
 
-            # Simulate EWMA settling: move 30% toward current level each minute
-            # This creates settling_minutes ~ 3-5 depending on interpretation
-            alpha_per_minute = 1.0 / settling_minutes
+        # Build EWMA with controlled settling speed.
+        # alpha_per_minute controls how fast EWMA follows the step.
+        # Higher alpha = faster settling. With alpha=0.5 and step_magnitude=20:
+        #   min 0: diff=20, min 1: diff=10, min 2: diff=5, min 3: diff=2.5,
+        #   min 4: diff=1.25, min 5: diff=0.625 (within 5% of 20 = 1.0ms)
+        # So settling_minutes=5 means ~5 minutes = 300 seconds settling time.
+        alpha_per_minute = 0.5 if settling_minutes <= 2 else 0.4
+        current_ewma = baseline_rtt
+        for minute in range(total_minutes):
             current_ewma = current_ewma + alpha_per_minute * (
-                current_level - current_ewma
+                rtt_values[minute] - current_ewma
             )
             ewma_values.append(current_ewma)
-
-            jitter_values.append(1.0)  # Stable jitter for step detection threshold
 
         return _make_multi_metrics(
             ("wanctl_rtt_ms", rtt_values),
@@ -390,12 +419,13 @@ class TestTuneAlphaLoad:
             assert 0.5 <= result.new_value <= 10.0
 
     def test_fewer_than_min_steps_returns_none(self):
-        """Fewer than MIN_STEPS (3) step events -> None."""
-        # Only 2 step events
+        """Fewer than MIN_STEPS (3) settled step events -> None."""
+        # Only 1 step event (creates 2 transitions: up + down).
+        # The algorithm needs at least MIN_STEPS=3 settled events.
         metrics = self._make_step_response_data(
-            step_times=[20, 60],
+            step_times=[20],
             settling_minutes=5,
         )
         result = tune_alpha_load(metrics, 2.0, self.BOUNDS, "Spectrum")
-        # With only 2 steps, should return None (need MIN_STEPS=3)
+        # With only 1 step_time (2 transitions), fewer than 3 settled steps
         assert result is None
