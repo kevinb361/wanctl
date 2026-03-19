@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 **Phase:** 102 of 103 (Advanced Tuning)
 **Plan:** 3 of 3 complete
 **Status:** Ready to plan
-**Last activity:** 2026-03-19
+**Last activity:** 2026-03-19 - Completed quick task 260319-lk3: Fix state file persistence + tuning param restore
 
 Progress: [█████████░] 92%
 
@@ -90,6 +90,12 @@ Progress: [█████████░] 92%
 
 None.
 
+### Quick Tasks Completed
+
+| #          | Description                                       | Date       | Commit  | Directory                                                                  |
+| ---------- | ------------------------------------------------- | ---------- | ------- | -------------------------------------------------------------------------- |
+| 260319-lk3 | Fix state file persistence + tuning param restore | 2026-03-19 | 6cbbd80 | [260319-lk3](./quick/260319-lk3-fix-state-file-persistence-and-tuning-pa/) |
+
 ### Pending Todos
 
-5 todos in `.planning/todos/pending/` (carried from v1.18)
+5 todos in `.planning/todos/pending/`
