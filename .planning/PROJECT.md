@@ -13,7 +13,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Version:** v1.19.0 (Signal Fusion) — shipped 2026-03-18
 **Tests:** ~3,556 passing, 91%+ coverage
 **LOC:** ~26,098 Python (src/)
-**v1.20 Progress:** Phase 98 (Tuning Foundation) complete — framework, models, config, analyzer, applier, daemon wiring
+**v1.20 Progress:** Phases 98-99 complete — tuning framework + congestion threshold calibration (p75/p90 GREEN-state RTT deltas)
 **Milestones:** 20 shipped (v1.0-v1.19), 97 phases, 197 plans
 
 **Previous:** v1.18 Measurement Quality — Hampel outlier filter, jitter/variance EWMA, IRTT UDP RTT via background thread, protocol correlation, container networking audit
@@ -539,4 +539,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-19 after Phase 98 Tuning Foundation_
+_Last updated: 2026-03-19 after Phase 99 Congestion Threshold Calibration_
