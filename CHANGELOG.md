@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-03-19
+
+**Adaptive Tuning** - Self-optimizing controller that learns optimal parameters from production
+metrics via percentile-based derivation with conservative safety bounds. 6 phases, 10 plans,
+30/30 requirements satisfied, 3,723 tests.
+
+### Added
+
+- **Tuning framework** (Phase 98) - Pluggable tuning engine with safety bounds
+  - `TuningConfig`, `TuningState`, `SafetyBounds` data models in `wanctl.tuning.models`
+  - `TuningAnalyzer` orchestrates strategy functions with per-parameter bounds clamping
+  - SQLite persistence of tuning decisions in `tuning_params` table
+  - Health endpoint `tuning` section with state, last run, parameter locks
+  - Ships disabled by default (`tuning.enabled: false`)
+- **Congestion threshold calibration** (Phase 99) - Auto-derive thresholds from RTT distribution
+  - `calibrate_target_bloat` from p25 of GREEN-state RTT deltas with margin
+  - `calibrate_warn_bloat` from p75 of RTT deltas with margin
+  - Requires 60+ minutes of GREEN-state data before proposing changes
+- **Safety and revert detection** (Phase 100) - Automatic rollback on degradation
+  - Congestion rate monitoring after parameter changes (observation period)
+  - Auto-revert to previous values if congestion rate increases post-adjustment
+  - Parameter locks with cooldown to prevent thrashing
+- **Signal processing tuning** (Phase 101) - Optimize Hampel and EWMA parameters per-WAN
+  - `tune_hampel_sigma` adjusts sigma toward 5-15% target outlier rate range
+  - `tune_hampel_window` maps jitter level to window size via linear interpolation
+  - `tune_alpha_load` outputs `load_time_constant_sec` (0.5-10s), applier converts to alpha
+  - 3-layer → 4-layer round-robin: signal → EWMA → threshold → advanced
+- **Advanced tuning** (Phase 102) - Cross-signal parameter adaptation
+  - `tune_fusion_weight` adapts ICMP/IRTT fusion ratio from per-signal reliability scoring
+  - `tune_reflector_min_score` adjusts deprioritization threshold from signal confidence proxy
+  - `tune_baseline_bounds_min`/`max` auto-adjust from p5/p95 of baseline history
+  - `wanctl-history --tuning` CLI displays tuning adjustment history with filtering
+
+### Fixed
+
+- **Fusion baseline deadlock** (Phase 103) - Phase 96 regression where fused RTT contaminated
+  baseline EWMA updates, preventing baseline convergence when IRTT and ICMP measured different
+  network paths (ATT: IRTT 43ms to Dallas vs ICMP 29ms to CDN)
+  - Signal path split: fused RTT feeds `load_rtt` EWMA, ICMP-only `filtered_rtt` feeds baseline
+  - Freeze gate delta changed from `load_rtt - baseline_rtt` to `icmp_rtt - baseline_rtt`
+  - `_update_baseline_if_idle` parameter renamed `measured_rtt` → `icmp_rtt`
+  - Existing `update_ewma()` method preserved for backward compatibility (~50 test call sites)
+
 ## [1.19.0] - 2026-03-18
 
 **Signal Fusion** - Graduated observation-mode signals into active congestion control inputs
