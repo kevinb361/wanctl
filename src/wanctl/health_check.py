@@ -318,6 +318,62 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         "irtt_rtt_ms": irtt_rtt_val,
                     }
 
+                # Tuning section -- always present (MagicMock safe: check is True)
+                if getattr(wan_controller, '_tuning_enabled', False) is not True:
+                    wan_health["tuning"] = {"enabled": False, "reason": "disabled"}
+                else:
+                    tuning_state = getattr(wan_controller, '_tuning_state', None)
+                    if tuning_state is None or tuning_state.last_run_ts is None:
+                        wan_health["tuning"] = {
+                            "enabled": True,
+                            "last_run_ago_sec": None,
+                            "parameters": {},
+                            "recent_adjustments": [],
+                            "reason": "awaiting_data",
+                        }
+                    else:
+                        # Compute seconds since last run
+                        last_run_ago = round(
+                            time.monotonic() - tuning_state.last_run_ts, 1
+                        )
+
+                        # Build parameters dict with current tuned values
+                        params_dict: dict[str, Any] = {}
+                        for param_name, current_val in tuning_state.parameters.items():
+                            config = getattr(wan_controller, 'config', None)
+                            if config is not None:
+                                tc = getattr(config, 'tuning_config', None)
+                                if tc is not None and hasattr(tc, 'bounds'):
+                                    bounds = tc.bounds.get(param_name)
+                                    if bounds is not None:
+                                        params_dict[param_name] = {
+                                            "current_value": current_val,
+                                            "bounds": {
+                                                "min": bounds.min_value,
+                                                "max": bounds.max_value,
+                                            },
+                                        }
+                                        continue
+                            params_dict[param_name] = {"current_value": current_val}
+
+                        # Build recent adjustments list (last 5 for health)
+                        recent = []
+                        for adj in tuning_state.recent_adjustments[-5:]:
+                            recent.append({
+                                "parameter": adj.parameter,
+                                "old_value": adj.old_value,
+                                "new_value": adj.new_value,
+                                "confidence": adj.confidence,
+                                "rationale": adj.rationale,
+                            })
+
+                        wan_health["tuning"] = {
+                            "enabled": True,
+                            "last_run_ago_sec": last_run_ago,
+                            "parameters": params_dict,
+                            "recent_adjustments": recent,
+                        }
+
                 health["wans"].append(wan_health)
 
         # Alerting state
