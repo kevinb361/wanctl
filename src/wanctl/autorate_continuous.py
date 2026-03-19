@@ -1478,11 +1478,14 @@ def _apply_tuning_to_controller(
     """Apply tuning results to WANController attributes.
 
     Maps parameter names to controller attributes:
-      target_bloat_ms  -> green_threshold + target_delta
-      warn_bloat_ms    -> soft_red_threshold + warn_delta
-      hard_red_bloat_ms -> hard_red_threshold
-      alpha_load       -> alpha_load
-      alpha_baseline   -> alpha_baseline
+      target_bloat_ms       -> green_threshold + target_delta
+      warn_bloat_ms         -> soft_red_threshold + warn_delta
+      hard_red_bloat_ms     -> hard_red_threshold
+      alpha_load            -> alpha_load
+      alpha_baseline        -> alpha_baseline
+      hampel_sigma_threshold -> signal_processor._sigma_threshold
+      hampel_window_size    -> signal_processor._window_size + deque resize
+      load_time_constant_sec -> alpha_load (via alpha = 0.05 / tc)
 
     Also updates TuningState with recent adjustments (capped at 10).
     """
@@ -1499,6 +1502,24 @@ def _apply_tuning_to_controller(
             wc.alpha_load = r.new_value
         elif r.parameter == "alpha_baseline":
             wc.alpha_baseline = r.new_value
+        elif r.parameter == "hampel_sigma_threshold":
+            wc.signal_processor._sigma_threshold = r.new_value
+        elif r.parameter == "hampel_window_size":
+            new_size = int(r.new_value)
+            wc.signal_processor._window_size = new_size
+            wc.signal_processor._window = deque(
+                wc.signal_processor._window, maxlen=new_size
+            )
+            wc.signal_processor._outlier_window = deque(
+                wc.signal_processor._outlier_window, maxlen=new_size
+            )
+        elif r.parameter == "load_time_constant_sec":
+            # Convert time constant to alpha: alpha = cycle_interval / tc
+            # Using 0.05 (50ms) as the cycle interval constant.
+            # Tuning operates in tc domain (0.5-10s range) where
+            # clamp_to_step's round(1) and trivial filter work correctly;
+            # we convert to alpha only at apply time (Pitfall 3 fix).
+            wc.alpha_load = 0.05 / r.new_value
 
     # Update TuningState with recent adjustments
     if results and wc._tuning_state is not None:
@@ -1859,6 +1880,8 @@ class WANController:
             self._tuning_enabled = False
             self._tuning_state = None
         self._last_tuning_ts: float | None = None
+        # Layer rotation for bottom-up tuning (SIGP-04)
+        self._tuning_layer_index: int = 0
         # Safety: revert detection and hysteresis lock state (Plan 100-02)
         self._parameter_locks: dict[str, float] = {}  # param -> monotonic lock expiry
         self._pending_observation = None  # PendingObservation | None (lazy import)
