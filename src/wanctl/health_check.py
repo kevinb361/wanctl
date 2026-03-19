@@ -374,6 +374,39 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             "recent_adjustments": recent,
                         }
 
+                        # Safety section (SAFE-01/02/03 visibility)
+                        revert_count = sum(
+                            1
+                            for adj in tuning_state.recent_adjustments
+                            if adj.rationale
+                            and adj.rationale.startswith("REVERT:")
+                        )
+                        locks_dict = getattr(
+                            wan_controller, "_parameter_locks", None
+                        )
+                        if isinstance(locks_dict, dict):
+                            now_mono = time.monotonic()
+                            locked_params = [
+                                p
+                                for p, exp in locks_dict.items()
+                                if now_mono < exp
+                            ]
+                        else:
+                            locked_params = []
+                        pending = (
+                            getattr(
+                                wan_controller,
+                                "_pending_observation",
+                                None,
+                            )
+                            is not None
+                        )
+                        wan_health["tuning"]["safety"] = {
+                            "revert_count": revert_count,
+                            "locked_parameters": locked_params,
+                            "pending_observation": pending,
+                        }
+
                 health["wans"].append(wan_health)
 
         # Alerting state
