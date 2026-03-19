@@ -1903,6 +1903,70 @@ class WANController:
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
 
+        # Restore tuning parameters from SQLite (survives daemon restart)
+        if self._tuning_enabled and self._metrics_writer is not None:
+            self._restore_tuning_params()
+
+    def _restore_tuning_params(self) -> None:
+        """Restore latest tuning parameter values from SQLite.
+
+        Reads the most recent non-reverted adjustment per parameter for this WAN
+        from the tuning_params table. Applies values via _apply_tuning_to_controller
+        (same path as live tuning). Only called when tuning is enabled and db exists.
+        """
+        from wanctl.storage.reader import query_tuning_params
+        from wanctl.tuning.models import TuningResult
+
+        try:
+            if self._metrics_writer is None:
+                return
+            db_path = self._metrics_writer._db_path
+            rows = query_tuning_params(db_path=db_path, wan=self.wan_name)
+            if not rows:
+                self.logger.info(f"{self.wan_name}: No prior tuning params to restore")
+                return
+
+            # Get latest non-reverted value per parameter
+            latest: dict[str, dict] = {}
+            for row in rows:  # Already ordered by timestamp DESC
+                param = row["parameter"]
+                if param not in latest and not row.get("reverted", 0):
+                    latest[param] = row
+
+            if not latest:
+                self.logger.info(
+                    f"{self.wan_name}: No non-reverted tuning params to restore"
+                )
+                return
+
+            # Build TuningResult list for _apply_tuning_to_controller
+            results = []
+            for param, row in latest.items():
+                results.append(
+                    TuningResult(
+                        parameter=param,
+                        old_value=row["old_value"],
+                        new_value=row["new_value"],
+                        confidence=row["confidence"],
+                        rationale=f"Restored from SQLite (ts={row['timestamp']})",
+                        data_points=row["data_points"],
+                        wan_name=self.wan_name,
+                    )
+                )
+
+            _apply_tuning_to_controller(self, results)
+            param_summary = ", ".join(
+                f"{r.parameter}={r.new_value}" for r in results
+            )
+            self.logger.info(
+                f"{self.wan_name}: Restored {len(results)} tuning params: {param_summary}"
+            )
+        except Exception as e:
+            self.logger.warning(
+                f"{self.wan_name}: Failed to restore tuning params "
+                f"(using defaults): {e}"
+            )
+
     def measure_rtt(self) -> float | None:
         """
         Measure RTT and return value in milliseconds.
