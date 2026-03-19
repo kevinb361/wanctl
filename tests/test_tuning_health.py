@@ -125,39 +125,9 @@ class TestTuningHealthDisabled:
 
     def test_magicmock_wan_controller_safe(self):
         """MagicMock without explicit _tuning_enabled should show disabled."""
-        wc = MagicMock()
-        wc.config.wan_name = "Test"
-        wc.baseline_rtt = 25.0
-        wc.load_rtt = 30.0
-        wc.download.current_rate = 500_000_000
-        wc.upload.current_rate = 50_000_000
-        wc.download.green_streak = 5
-        wc.download.red_streak = 0
-        wc.download.soft_red_streak = 0
-        wc.download.soft_red_required = 3
-        wc.upload.green_streak = 5
-        wc.upload.red_streak = 0
-        wc.router_connectivity.is_reachable = True
-        wc.router_connectivity.to_dict.return_value = {"reachable": True}
-        wc._profiler = MagicMock()
-        wc._profiler.get_stats.return_value = {}
-        wc._overrun_count = 0
-        wc._cycle_interval_ms = 50.0
-        wc._last_signal_result = None
-        wc._irtt_thread = None
-        wc._irtt_correlation = None
-        wc._last_asymmetry_result = None
-        wc._reflector_scorer = MagicMock()
-        wc._reflector_scorer.get_all_statuses.return_value = []
-        wc._fusion_enabled = False
-        wc._last_fused_rtt = None
-        wc._last_icmp_filtered_rtt = None
-        wc._fusion_icmp_weight = 0.7
-        wc.alert_engine = MagicMock()
-        # Deliberately NOT setting _tuning_enabled -- getattr should default False
-
-        # Remove any auto-created _tuning_enabled from MagicMock
-        del wc._tuning_enabled
+        # Use standard mock builder but then remove _tuning_enabled
+        wc = _make_wan_controller(tuning_enabled=False)
+        del wc._tuning_enabled  # Force getattr fallback
 
         handler = _make_health_handler(wc)
         health = handler._get_health_status()

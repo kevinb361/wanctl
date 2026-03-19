@@ -84,6 +84,22 @@ continuous_monitoring:
 #   enabled: false
 #   icmp_weight: 0.7
 
+# Adaptive tuning (optional, disabled by default)
+# Analyzes metrics history to automatically optimize control parameters.
+# All changes are runtime-only -- YAML values are always the reset escape hatch.
+# tuning:
+#   enabled: false
+#   cadence_sec: 3600         # Analyze every hour (matches maintenance window)
+#   lookback_hours: 24        # How far back to query metrics
+#   warmup_hours: 1           # Minimum data before first tuning
+#   max_step_pct: 10          # Max 10% change per tuning cycle
+#   bounds:
+#     target_bloat_ms: {min: 3, max: 30}
+#     warn_bloat_ms: {min: 10, max: 100}
+#     hard_red_bloat_ms: {min: 30, max: 200}
+#     alpha_load: {min: 0.005, max: 0.5}
+#     alpha_baseline: {min: 0.0001, max: 0.01}
+
 # Alerting (optional)
 # alerting:
 #   enabled: false
