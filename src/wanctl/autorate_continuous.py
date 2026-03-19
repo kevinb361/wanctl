@@ -1989,7 +1989,7 @@ class WANController:
         # Slow EWMA for baseline_rtt (conditional update via protected logic)
         self._update_baseline_if_idle(measured_rtt)
 
-    def _update_baseline_if_idle(self, measured_rtt: float) -> None:
+    def _update_baseline_if_idle(self, icmp_rtt: float) -> None:
         """
         Update baseline RTT ONLY when line is idle (delta < threshold).
 
@@ -1999,16 +1999,22 @@ class WANController:
         delta would approach zero and bloat detection would fail. The threshold
         (baseline_update_threshold) determines "idle" vs "under load".
 
+        Uses ICMP-only signal (not fused RTT) for both the freeze gate and the
+        baseline EWMA. This prevents IRTT path divergence from corrupting baseline
+        semantics. Baseline is an ICMP-derived concept representing idle propagation
+        delay; fusing a different-path IRTT signal corrupts its meaning.
+
         DO NOT MODIFY without explicit approval. See docs/CORE-ALGORITHM-ANALYSIS.md.
 
         Args:
-            measured_rtt: Current RTT measurement in milliseconds
+            icmp_rtt: ICMP-only filtered RTT in milliseconds (Hampel-filtered,
+                pre-fusion). Must NOT be the fused ICMP+IRTT signal.
 
         Side Effects:
             Updates self.baseline_rtt if delta < threshold (line is idle).
             Logs debug message when baseline updates (helps debug drift issues).
         """
-        delta = self.load_rtt - self.baseline_rtt
+        delta = icmp_rtt - self.baseline_rtt
 
         # PROTECTED: Baseline ONLY updates when line is idle
         if delta < self.baseline_update_threshold:
@@ -2016,7 +2022,7 @@ class WANController:
             old_baseline = self.baseline_rtt
             new_baseline = (
                 1 - self.alpha_baseline
-            ) * self.baseline_rtt + self.alpha_baseline * measured_rtt
+            ) * self.baseline_rtt + self.alpha_baseline * icmp_rtt
 
             # Security bounds check - reject corrupted/invalid baseline values
             if not (self.baseline_rtt_min <= new_baseline <= self.baseline_rtt_max):
@@ -2594,7 +2600,11 @@ class WANController:
             )
             self._last_signal_result = signal_result
             fused_rtt = self._compute_fused_rtt(signal_result.filtered_rtt)
-            self.update_ewma(fused_rtt)
+            # Split EWMA: fused for load (congestion sensitivity), ICMP for baseline (idle reference)
+            # Fixes fusion baseline deadlock where IRTT path divergence freezes/corrupts baseline.
+            # See Phase 103 research: baseline is an ICMP-derived concept.
+            self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * fused_rtt
+            self._update_baseline_if_idle(signal_result.filtered_rtt)
 
             # Rate-of-change (acceleration) detection for sudden RTT spikes
             # Catches spikes that EWMA smooths over, triggers immediate RED

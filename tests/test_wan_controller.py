@@ -2096,24 +2096,24 @@ class TestBaselineRttBoundsRejection:
 
         Covers lines 955-960: new_baseline > baseline_rtt_max case.
 
-        Formula: new_baseline = (1 - alpha) * baseline + alpha * measured
-        With alpha=0.1, baseline=90.0, we need measured_rtt that gives new > 100.0
-        new = 0.9 * 90 + 0.1 * measured > 100
-        81 + 0.1 * measured > 100
-        0.1 * measured > 19 -> measured > 190
+        Uses a high alpha and baseline near max so that icmp_rtt can be within
+        threshold distance of baseline while still pushing new_baseline over max.
+        Formula: new_baseline = (1 - alpha) * baseline + alpha * icmp_rtt
+        With alpha=0.5, baseline=99.0: new = 0.5*99 + 0.5*icmp_rtt
+        icmp_rtt=101.5 -> delta=101.5-99=2.5 < 3.0 (passes freeze gate)
+        new = 49.5 + 50.75 = 100.25 > 100.0 (exceeds max bound)
         """
         ctrl, config, logger = controller_with_mocks
-        ctrl.baseline_rtt = 90.0
-        ctrl.load_rtt = 90.0  # delta = 0, so update will be attempted
+        ctrl.baseline_rtt = 99.0
         ctrl.baseline_update_threshold = 3.0
-        ctrl.alpha_baseline = 0.1
+        ctrl.alpha_baseline = 0.5
         ctrl.baseline_rtt_min = 5.0
         ctrl.baseline_rtt_max = 100.0
 
         original_baseline = ctrl.baseline_rtt
 
-        # measured_rtt = 200 would give new_baseline = 0.9*90 + 0.1*200 = 81 + 20 = 101.0 > 100.0
-        ctrl._update_baseline_if_idle(200.0)
+        # icmp_rtt=101.5: delta=101.5-99=2.5 < 3.0, new=0.5*99+0.5*101.5=100.25 > 100
+        ctrl._update_baseline_if_idle(101.5)
 
         # Baseline should NOT be updated
         assert ctrl.baseline_rtt == original_baseline
@@ -2127,20 +2127,21 @@ class TestBaselineRttBoundsRejection:
         """Baseline RTT within bounds is accepted and updated.
 
         Validates that normal updates work when new_baseline is within bounds.
+        icmp_rtt=27.0 with baseline=25.0: delta=27-25=2.0 < 3.0 (passes freeze gate).
+        new_baseline = 0.9*25 + 0.1*27 = 22.5 + 2.7 = 25.2
         """
         ctrl, config, logger = controller_with_mocks
         ctrl.baseline_rtt = 25.0
-        ctrl.load_rtt = 25.0  # delta = 0, so update will be attempted
         ctrl.baseline_update_threshold = 3.0
         ctrl.alpha_baseline = 0.1
         ctrl.baseline_rtt_min = 5.0
         ctrl.baseline_rtt_max = 100.0
 
-        # measured_rtt = 30.0 would give new_baseline = 0.9*25 + 0.1*30 = 22.5 + 3 = 25.5
-        ctrl._update_baseline_if_idle(30.0)
+        # icmp_rtt=27.0: delta=27-25=2.0 < 3.0, new=0.9*25+0.1*27=25.2
+        ctrl._update_baseline_if_idle(27.0)
 
         # Baseline SHOULD be updated
-        expected = 0.9 * 25.0 + 0.1 * 30.0  # 25.5
+        expected = 0.9 * 25.0 + 0.1 * 27.0  # 25.2
         assert ctrl.baseline_rtt == pytest.approx(expected, abs=0.01)
 
         # Debug log should be called (not warning)
@@ -2172,19 +2173,19 @@ class TestBaselineRttBoundsRejection:
         """Baseline RTT at exactly max bound is accepted (boundary condition).
 
         Tests the <= part of: new_baseline <= baseline_rtt_max
+        icmp_rtt=101.0 with baseline=99.0: delta=101-99=2.0 < 3.0 (passes freeze gate).
+        new_baseline = 0.5*99 + 0.5*101 = 49.5 + 50.5 = 100.0 (exactly max, accepted).
         """
         ctrl, config, logger = controller_with_mocks
-        ctrl.baseline_rtt = 50.0
-        ctrl.load_rtt = 50.0
+        ctrl.baseline_rtt = 99.0
         ctrl.baseline_update_threshold = 3.0
         ctrl.alpha_baseline = 0.5  # 50% weight
         ctrl.baseline_rtt_min = 5.0
         ctrl.baseline_rtt_max = 100.0
 
-        # With alpha=0.5, baseline=50: new = 0.5*50 + 0.5*measured
-        # To get exactly 100: 25 + 0.5*measured = 100 -> measured = 150
-        ctrl._update_baseline_if_idle(150.0)
+        # icmp_rtt=101.0: delta=101-99=2.0 < 3.0, new=0.5*99+0.5*101=100.0 (=max)
+        ctrl._update_baseline_if_idle(101.0)
 
-        # new_baseline = 0.5*50 + 0.5*150 = 25 + 75 = 100.0 which equals max, should be accepted
+        # new_baseline = 100.0 which equals max, should be accepted
         assert ctrl.baseline_rtt == 100.0
         logger.warning.assert_not_called()
