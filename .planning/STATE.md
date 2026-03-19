@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
-status: planning
-last_updated: "2026-03-19T01:03:08.879Z"
-last_activity: 2026-03-18
+status: executing
+last_updated: "2026-03-19T01:43:11Z"
+last_activity: 2026-03-19
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 100
 ---
 
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 98 — Tuning Foundation
+**Current focus:** Phase 99 — Congestion Threshold Calibration
 
 ## Position
 
 **Milestone:** v1.20 Adaptive Tuning
-**Phase:** 98 of 102 (Tuning Foundation)
-**Plan:** 3 of 3 complete
-**Status:** Ready to plan
-**Last activity:** 2026-03-18
+**Phase:** 99 of 102 (Congestion Threshold Calibration)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 99 Plan 2
+**Last activity:** 2026-03-19
 
 Progress: [██████████] 100%
 
@@ -47,6 +47,10 @@ Progress: [██████████] 100%
 - isinstance(tuning_config, TuningConfig) guard in maintenance loop prevents MagicMock truthy trap
 - getattr is not True pattern for health endpoint MagicMock safety
 - Separate last_tuning timer from last_maintenance (independent cadences)
+- Strategy confidence = min(1.0, green_count / 1440.0) penalizes non-GREEN data spans
+- Sub-window CoV convergence is stateless (no tuning_params query needed)
+- MIN_GREEN_SAMPLES = 60 prevents unreliable percentiles from sparse GREEN data
+- Test data needs inter-sub-window variance to avoid false convergence detection
 
 ### Known Issues
 

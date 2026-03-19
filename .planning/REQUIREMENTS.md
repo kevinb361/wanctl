@@ -22,10 +22,10 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 
 ### Congestion Calibration
 
-- [ ] **CALI-01**: `target_bloat_ms` derived from p75 of GREEN-state RTT delta distribution
-- [ ] **CALI-02**: `warn_bloat_ms` derived from p90 of GREEN-state RTT delta distribution
-- [ ] **CALI-03**: Convergence detection stops adjusting when parameter coefficient of variation drops below threshold
-- [ ] **CALI-04**: 24h lookback window captures full diurnal pattern for threshold derivation
+- [x] **CALI-01**: `target_bloat_ms` derived from p75 of GREEN-state RTT delta distribution
+- [x] **CALI-02**: `warn_bloat_ms` derived from p90 of GREEN-state RTT delta distribution
+- [x] **CALI-03**: Convergence detection stops adjusting when parameter coefficient of variation drops below threshold
+- [x] **CALI-04**: 24h lookback window captures full diurnal pattern for threshold derivation
 
 ### Safety & Revert
 
@@ -96,10 +96,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUNE-08 | Phase 98 | Complete |
 | TUNE-09 | Phase 98 | Complete |
 | TUNE-10 | Phase 98 | Complete |
-| CALI-01 | Phase 99 | Pending |
-| CALI-02 | Phase 99 | Pending |
-| CALI-03 | Phase 99 | Pending |
-| CALI-04 | Phase 99 | Pending |
+| CALI-01 | Phase 99 | Complete |
+| CALI-02 | Phase 99 | Complete |
+| CALI-03 | Phase 99 | Complete |
+| CALI-04 | Phase 99 | Complete |
 | SAFE-01 | Phase 100 | Pending |
 | SAFE-02 | Phase 100 | Pending |
 | SAFE-03 | Phase 100 | Pending |
