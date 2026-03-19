@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
 status: executing
-last_updated: "2026-03-19T16:01:39.228Z"
+last_updated: "2026-03-19T16:02:34.807Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 6
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Position
 
 **Milestone:** v1.20 Adaptive Tuning
-**Phase:** 103 of 103 (Fix Fusion Baseline Deadlock)
-**Plan:** 1 of 1 complete
+**Phase:** 102 of 103 (Advanced Tuning)
+**Plan:** 1 of 3 complete
 **Status:** Executing Phase 102
 **Last activity:** 2026-03-19
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Accumulated Context
 
@@ -69,6 +69,9 @@ Progress: [█████████░] 85%
 - Freeze gate delta uses icmp_rtt - baseline_rtt (Hampel-filtered, no second EWMA needed) (Phase 103)
 - Baseline is ICMP-derived concept -- never contaminate with fused/IRTT signals (Phase 103)
 - --tuning handler placed before --alerts in main() for priority ordering (Phase 102)
+- Signal confidence used as proxy for reflector quality (per-host success rates not in SQLite) (Phase 102)
+- Reliability-ratio pattern: ICMP=1/(1+variance), IRTT=(1-loss_fraction)/(1+jitter), weight=ICMP_rel/(ICMP_rel+IRTT_rel) (Phase 102)
+- Baseline bounds: p5*0.9 for min (hard floor 1.0ms), p95*1.1 for max, from wanctl_rtt_baseline_ms history (Phase 102)
 
 ### Known Issues
 
