@@ -89,7 +89,10 @@ Plans:
   1. After each parameter adjustment, the system monitors congestion rate over a defined observation window and compares to pre-adjustment baseline
   2. When post-adjustment congestion rate increases beyond a threshold, the system automatically reverts to the previous parameter values and logs the revert with reason
   3. After a revert, a configurable hysteresis cooldown locks that parameter category from further tuning attempts, preventing revert oscillation
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 100-01-PLAN.md -- Safety module (congestion rate, revert detection, hysteresis lock) + revert persistence (TDD)
+- [ ] 100-02-PLAN.md -- Daemon wiring (maintenance loop, WANController state, health endpoint)
 
 ### Phase 101: Signal Processing Tuning
 **Goal**: Signal processing parameters (Hampel filter, EWMA) are optimized per-WAN from actual noise characteristics
