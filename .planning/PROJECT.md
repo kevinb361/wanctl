@@ -10,14 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.19.0 (Signal Fusion) — shipped 2026-03-18
-**Tests:** ~3,556 passing, 91%+ coverage
-**LOC:** ~26,098 Python (src/)
-**v1.20 Progress:** All phases complete (98-103) — tuning framework + threshold calibration + safety/revert + signal processing tuning + advanced tuning + fusion baseline deadlock fix
-**Milestones:** 20 shipped (v1.0-v1.19), 97 phases, 197 plans
+**Version:** v1.20.0 (Adaptive Tuning) — shipped 2026-03-19
+**Tests:** 3,733 passing, 91%+ coverage
+**LOC:** ~28,613 Python (src/)
+**Milestones:** 21 shipped (v1.0-v1.20), 103 phases, 207 plans
 
-**Previous:** v1.18 Measurement Quality — Hampel outlier filter, jitter/variance EWMA, IRTT UDP RTT via background thread, protocol correlation, container networking audit
-**Latest:** v1.19 Signal Fusion — Weighted ICMP+IRTT fusion (ships disabled, SIGUSR1 toggle), reflector quality scoring, OWD asymmetric congestion detection, IRTT loss alerting
+**Previous:** v1.19 Signal Fusion — Weighted ICMP+IRTT fusion, reflector quality scoring, OWD asymmetric detection, IRTT loss alerting
+**Latest:** v1.20 Adaptive Tuning — Self-optimizing controller with 4-layer tuning rotation (signal→EWMA→threshold→advanced), 30 requirements, fusion baseline deadlock fix, state/tuning persistence
 
 ## Requirements
 
@@ -228,20 +227,21 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ IRTT loss alerts use per-event cooldown consistent with existing types — v1.19
 - ✓ 15/15 requirements satisfied — v1.19
 
+**v1.20 Adaptive Tuning:**
+
+- ✓ Tuning framework with pluggable strategies, safety bounds, SQLite persistence — v1.20
+- ✓ Congestion threshold calibration from GREEN-state RTT delta percentiles — v1.20
+- ✓ Safety/revert detection with auto-rollback and parameter locks — v1.20
+- ✓ Signal processing tuning: Hampel sigma/window, load time constant — v1.20
+- ✓ Advanced tuning: fusion weight, reflector min_score, baseline bounds — v1.20
+- ✓ Fusion baseline deadlock fix (ICMP-only baseline, fused load) — v1.20
+- ✓ `wanctl-history --tuning` CLI for operator visibility — v1.20
+- ✓ State file persistence to /var/lib/ + tuning param restore on restart — v1.20
+- ✓ 30/30 requirements satisfied — v1.20
+
 ### Active
 
-## Current Milestone: v1.20 Adaptive Tuning
-
-**Goal:** Make wanctl a self-optimizing controller that learns optimal parameters from its own production metrics, with conservative safety bounds.
-
-**Target features:**
-
-- Automatic per-WAN parameter optimization from SQLite metrics history
-- Signal processing tuning (Hampel sigma/window, EWMA weights, fusion ratio)
-- Congestion threshold calibration to actual RTT distribution
-- Reflector scoring and baseline bounds auto-adjustment
-- Conservative safety model (tight bounds, small steps, slow convergence)
-- Full observability of tuning decisions (health endpoint, logs, metrics)
+(No active milestone — run `/gsd:new-milestone` to plan v1.21)
 
 ### Deferred
 
@@ -539,4 +539,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-19 after Phase 102 Advanced Tuning (v1.20 milestone complete)_
+_Last updated: 2026-03-19 after v1.20 Adaptive Tuning milestone_

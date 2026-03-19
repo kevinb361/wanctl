@@ -1,5 +1,15 @@
 # Project Milestones: wanctl
 
+## v1.20 Adaptive Tuning (Shipped: 2026-03-19)
+
+**Phases completed:** 6 phases, 13 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v1.19 Signal Fusion (Shipped: 2026-03-18)
 
 **Delivered:** Dual-signal fusion engine combining ICMP and IRTT RTT measurements for congestion control, with reflector quality scoring, OWD asymmetric congestion detection, IRTT loss alerting, and zero-downtime SIGUSR1 toggle.
