@@ -1486,6 +1486,10 @@ def _apply_tuning_to_controller(
       hampel_sigma_threshold -> signal_processor._sigma_threshold
       hampel_window_size    -> signal_processor._window_size + deque resize
       load_time_constant_sec -> alpha_load (via alpha = 0.05 / tc)
+      fusion_icmp_weight    -> _fusion_icmp_weight
+      reflector_min_score   -> _reflector_scorer._min_score
+      baseline_rtt_min      -> baseline_rtt_min
+      baseline_rtt_max      -> baseline_rtt_max
 
     Also updates TuningState with recent adjustments (capped at 10).
     """
@@ -1520,6 +1524,14 @@ def _apply_tuning_to_controller(
             # clamp_to_step's round(1) and trivial filter work correctly;
             # we convert to alpha only at apply time (Pitfall 3 fix).
             wc.alpha_load = 0.05 / r.new_value
+        elif r.parameter == "fusion_icmp_weight":
+            wc._fusion_icmp_weight = r.new_value
+        elif r.parameter == "reflector_min_score":
+            wc._reflector_scorer._min_score = r.new_value
+        elif r.parameter == "baseline_rtt_min":
+            wc.baseline_rtt_min = r.new_value
+        elif r.parameter == "baseline_rtt_max":
+            wc.baseline_rtt_max = r.new_value
 
     # Update TuningState with recent adjustments
     if results and wc._tuning_state is not None:
@@ -3904,6 +3916,12 @@ def main() -> int | None:
                         tune_hampel_sigma,
                         tune_hampel_window,
                     )
+                    from wanctl.tuning.strategies.advanced import (
+                        tune_baseline_bounds_max,
+                        tune_baseline_bounds_min,
+                        tune_fusion_weight,
+                        tune_reflector_min_score,
+                    )
 
                     first_config = controller.wan_controllers[0]["config"]
                     storage_config = get_storage_config(first_config.data)
@@ -3924,7 +3942,13 @@ def main() -> int | None:
                         ("target_bloat_ms", calibrate_target_bloat),
                         ("warn_bloat_ms", calibrate_warn_bloat),
                     ]
-                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER]
+                    ADVANCED_LAYER = [
+                        ("fusion_icmp_weight", tune_fusion_weight),
+                        ("reflector_min_score", tune_reflector_min_score),
+                        ("baseline_rtt_min", tune_baseline_bounds_min),
+                        ("baseline_rtt_max", tune_baseline_bounds_max),
+                    ]
+                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER, ADVANCED_LAYER]
 
                     for wan_info in controller.wan_controllers:
                         wc = wan_info["controller"]
@@ -3996,6 +4020,10 @@ def main() -> int | None:
                             "hampel_sigma_threshold": wc.signal_processor._sigma_threshold,
                             "hampel_window_size": float(wc.signal_processor._window_size),
                             "load_time_constant_sec": 0.05 / wc.alpha_load,
+                            "fusion_icmp_weight": wc._fusion_icmp_weight,
+                            "reflector_min_score": wc._reflector_scorer._min_score,
+                            "baseline_rtt_min": wc.baseline_rtt_min,
+                            "baseline_rtt_max": wc.baseline_rtt_max,
                         }
                         try:
                             results = run_tuning_analysis(
