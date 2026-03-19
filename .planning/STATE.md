@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
-status: planning
-last_updated: "2026-03-19T02:01:25.381Z"
+status: executing
+last_updated: "2026-03-19T03:18:45.432Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
   percent: 100
 ---
 
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 99 complete — Congestion Threshold Calibration
+**Current focus:** Phase 100 — Safety and Revert Detection
 
 ## Position
 
 **Milestone:** v1.20 Adaptive Tuning
-**Phase:** 99 of 102 (Congestion Threshold Calibration)
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
+**Phase:** 100 of 102 (Safety and Revert Detection)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 100
 **Last activity:** 2026-03-19
 
-Progress: [██████████] 100%
+Progress: [████████░░] 86%
 
 ## Accumulated Context
 
@@ -52,13 +52,16 @@ Progress: [██████████] 100%
 - MIN_GREEN_SAMPLES = 60 prevents unreliable percentiles from sparse GREEN data
 - Test data needs inter-sub-window variance to avoid false convergence detection
 - Lazy import of congestion_thresholds inside tuning enabled guard (matches existing analyzer/applier pattern)
+- Lock functions are stateless (operate on caller-provided dict) so WANController owns state
+- Near-zero pre_rate uses min_congestion_rate as denominator to avoid division-by-zero
+- Revert TuningResults: confidence=1.0 (authoritative), data_points=0 (not data-driven)
 
 ### Known Issues
 
 - Hampel filter default sigma=3.0/window=7 may need per-WAN tuning from production data
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - Target outlier rate for Hampel is empirical (5-15% range), needs experimentation in Phase 101
-- "Congestion rate" metric definition needed for Phase 100 (state transitions/hr, time in RED, or avg delta)
+- "Congestion rate" metric definition resolved in Phase 100: fraction of wanctl_state >= 2.0 (SOFT_RED/RED) in time window
 
 ### Blockers
 

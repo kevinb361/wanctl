@@ -29,9 +29,9 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 
 ### Safety & Revert
 
-- [ ] **SAFE-01**: System monitors congestion rate after each parameter adjustment
-- [ ] **SAFE-02**: Automatic revert to previous values when post-adjustment congestion rate increases
-- [ ] **SAFE-03**: Hysteresis lock prevents revert oscillation (revert freezes category for configurable cooldown)
+- [x] **SAFE-01**: System monitors congestion rate after each parameter adjustment
+- [x] **SAFE-02**: Automatic revert to previous values when post-adjustment congestion rate increases
+- [x] **SAFE-03**: Hysteresis lock prevents revert oscillation (revert freezes category for configurable cooldown)
 
 ### Signal Processing Tuning
 
@@ -100,9 +100,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CALI-02 | Phase 99 | Complete |
 | CALI-03 | Phase 99 | Complete |
 | CALI-04 | Phase 99 | Complete |
-| SAFE-01 | Phase 100 | Pending |
-| SAFE-02 | Phase 100 | Pending |
-| SAFE-03 | Phase 100 | Pending |
+| SAFE-01 | Phase 100 | Complete |
+| SAFE-02 | Phase 100 | Complete |
+| SAFE-03 | Phase 100 | Complete |
 | SIGP-01 | Phase 101 | Pending |
 | SIGP-02 | Phase 101 | Pending |
 | SIGP-03 | Phase 101 | Pending |
