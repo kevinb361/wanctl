@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
-status: executing
-last_updated: "2026-03-19T16:02:34.807Z"
+status: completed
+last_updated: "2026-03-19T16:17:12.694Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 13
-  completed_plans: 12
-  percent: 85
+  completed_plans: 13
+  percent: 92
 ---
 
 # Session State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Milestone:** v1.20 Adaptive Tuning
 **Phase:** 102 of 103 (Advanced Tuning)
-**Plan:** 1 of 3 complete
-**Status:** Executing Phase 102
+**Plan:** 3 of 3 complete
+**Status:** Phase 102 Complete
 **Last activity:** 2026-03-19
 
 Progress: [█████████░] 92%
@@ -72,6 +72,8 @@ Progress: [█████████░] 92%
 - Signal confidence used as proxy for reflector quality (per-host success rates not in SQLite) (Phase 102)
 - Reliability-ratio pattern: ICMP=1/(1+variance), IRTT=(1-loss_fraction)/(1+jitter), weight=ICMP_rel/(ICMP_rel+IRTT_rel) (Phase 102)
 - Baseline bounds: p5*0.9 for min (hard floor 1.0ms), p95*1.1 for max, from wanctl_rtt_baseline_ms history (Phase 102)
+- ADVANCED_LAYER placed 4th (last) in ALL_LAYERS -- meta-parameters run after core signal chain stabilizes (Phase 102)
+- Lazy import of advanced strategies inside isinstance(TuningConfig) guard matches existing pattern (Phase 102)
 
 ### Known Issues
 
