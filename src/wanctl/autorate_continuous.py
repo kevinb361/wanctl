@@ -3907,6 +3907,12 @@ def main() -> int | None:
                         lock_parameter,
                         measure_congestion_rate,
                     )
+                    from wanctl.tuning.strategies.advanced import (
+                        tune_baseline_bounds_max,
+                        tune_baseline_bounds_min,
+                        tune_fusion_weight,
+                        tune_reflector_min_score,
+                    )
                     from wanctl.tuning.strategies.congestion_thresholds import (
                         calibrate_target_bloat,
                         calibrate_warn_bloat,
@@ -3915,12 +3921,6 @@ def main() -> int | None:
                         tune_alpha_load,
                         tune_hampel_sigma,
                         tune_hampel_window,
-                    )
-                    from wanctl.tuning.strategies.advanced import (
-                        tune_baseline_bounds_max,
-                        tune_baseline_bounds_min,
-                        tune_fusion_weight,
-                        tune_reflector_min_score,
                     )
 
                     first_config = controller.wan_controllers[0]["config"]
