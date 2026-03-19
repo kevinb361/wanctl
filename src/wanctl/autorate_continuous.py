@@ -483,11 +483,13 @@ class Config(BaseConfig):
         self.router_verify_ssl = router.get("verify_ssl", True)
 
     def _load_state_config(self) -> None:
-        """Derive state file path from lock file."""
-        # State file (for persisting hysteresis counters)
-        # Derive from lock file path: /tmp/wanctl_att.lock -> /tmp/wanctl_att_state.json
-        lock_stem = self.lock_file.stem
-        self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
+        """Load state file path from config, falling back to lock-derived path."""
+        explicit = self.data.get("state_file")
+        if explicit:
+            self.state_file = Path(explicit)
+        else:
+            lock_stem = self.lock_file.stem
+            self.state_file = self.lock_file.parent / f"{lock_stem}_state.json"
 
     def _load_health_check_config(self) -> None:
         """Load health check settings with defaults."""
