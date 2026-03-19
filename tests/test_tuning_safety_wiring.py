@@ -344,3 +344,245 @@ class TestReloadClearsSafetyState:
         assert wc._tuning_enabled is True
         assert wc._parameter_locks == {}
         assert wc._pending_observation is None
+
+
+# =============================================================================
+# Health endpoint safety section tests
+# =============================================================================
+
+
+def _make_health_handler(wan_controller):
+    """Create a HealthCheckHandler with mocked controller for testing."""
+    from wanctl.health_check import HealthCheckHandler
+
+    handler = MagicMock(spec=HealthCheckHandler)
+    handler.start_time = time.monotonic() - 100
+    handler.consecutive_failures = 0
+
+    controller = MagicMock()
+    controller.wan_controllers = [
+        {
+            "controller": wan_controller,
+            "config": wan_controller.config,
+            "logger": MagicMock(),
+        }
+    ]
+    handler.controller = controller
+
+    # Use the real method
+    handler._get_health_status = HealthCheckHandler._get_health_status.__get__(
+        handler, HealthCheckHandler
+    )
+    return handler
+
+
+def _make_health_wan_controller(
+    tuning_enabled=False,
+    tuning_state=None,
+    tuning_config=None,
+    parameter_locks=None,
+    pending_observation=None,
+):
+    """Create a mock WANController with full tuning + safety attributes."""
+    wc = MagicMock()
+    wc.config.wan_name = "Spectrum"
+    wc.baseline_rtt = 25.0
+    wc.load_rtt = 30.0
+    wc.download.current_rate = 500_000_000
+    wc.upload.current_rate = 50_000_000
+    wc.download.green_streak = 5
+    wc.download.red_streak = 0
+    wc.download.soft_red_streak = 0
+    wc.download.soft_red_required = 3
+    wc.download.green_required = 5
+    wc.upload.green_streak = 5
+    wc.upload.red_streak = 0
+    wc.upload.soft_red_streak = 0
+    wc.upload.soft_red_required = 3
+    wc.upload.green_required = 5
+    wc.router_connectivity.is_reachable = True
+    wc.router_connectivity.to_dict.return_value = {"reachable": True}
+
+    # Profiler mock
+    wc._profiler = MagicMock()
+    wc._profiler.get_stats.return_value = {}
+    wc._overrun_count = 0
+    wc._cycle_interval_ms = 50.0
+
+    # Signal processing mock
+    wc._last_signal_result = None
+    wc._irtt_thread = None
+    wc._irtt_correlation = None
+    wc._last_asymmetry_result = None
+    wc._reflector_scorer = MagicMock()
+    wc._reflector_scorer.get_all_statuses.return_value = []
+
+    # Fusion mock (disabled to simplify)
+    wc._fusion_enabled = False
+    wc._last_fused_rtt = None
+    wc._last_icmp_filtered_rtt = None
+    wc._fusion_icmp_weight = 0.7
+
+    # Alert engine mock
+    wc.alert_engine = MagicMock()
+
+    # Tuning attributes
+    wc._tuning_enabled = tuning_enabled
+    wc._tuning_state = tuning_state
+    if tuning_config is not None:
+        wc.config.tuning_config = tuning_config
+    else:
+        wc.config.tuning_config = None
+
+    # Safety attributes (Plan 100-02)
+    wc._parameter_locks = parameter_locks if parameter_locks is not None else {}
+    wc._pending_observation = pending_observation
+
+    return wc
+
+
+class TestHealthSafetySection:
+    """Tests for safety sub-object in health endpoint tuning section."""
+
+    def test_safety_section_present_in_active_tuning(self):
+        """Active tuning health should include a safety sub-object."""
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 30.0,
+            recent_adjustments=[],
+            parameters={"target_bloat_ms": 13.5},
+        )
+        wc = _make_health_wan_controller(tuning_enabled=True, tuning_state=state)
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert "safety" in wan["tuning"]
+        assert "revert_count" in wan["tuning"]["safety"]
+        assert "locked_parameters" in wan["tuning"]["safety"]
+        assert "pending_observation" in wan["tuning"]["safety"]
+
+    def test_revert_count_from_recent_adjustments(self):
+        """revert_count should count adjustments with REVERT: prefix."""
+        adjs = [
+            _make_result("target_bloat_ms", 13.5, 15.0, "REVERT: congestion increased"),
+            _make_result("warn_bloat_ms", 42.0, 45.0, "REVERT: congestion increased"),
+            _make_result("target_bloat_ms", 15.0, 13.5, "test adjustment"),
+        ]
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 10.0,
+            recent_adjustments=adjs,
+            parameters={"target_bloat_ms": 15.0},
+        )
+        wc = _make_health_wan_controller(tuning_enabled=True, tuning_state=state)
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["safety"]["revert_count"] == 2
+
+    def test_locked_parameters_lists_active_locks(self):
+        """locked_parameters should list parameter names with active (unexpired) locks."""
+        locks = {
+            "target_bloat_ms": time.monotonic() + 86400,  # Active
+            "warn_bloat_ms": time.monotonic() - 100,       # Expired
+        }
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 10.0,
+            recent_adjustments=[],
+            parameters={},
+        )
+        wc = _make_health_wan_controller(
+            tuning_enabled=True, tuning_state=state, parameter_locks=locks
+        )
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert "target_bloat_ms" in wan["tuning"]["safety"]["locked_parameters"]
+        assert "warn_bloat_ms" not in wan["tuning"]["safety"]["locked_parameters"]
+
+    def test_pending_observation_true_when_set(self):
+        """pending_observation should be True when _pending_observation is not None."""
+        obs = PendingObservation(
+            applied_ts=int(time.time()),
+            pre_congestion_rate=0.05,
+            applied_results=(_make_result("target_bloat_ms", 15.0, 13.5),),
+        )
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 10.0,
+            recent_adjustments=[],
+            parameters={},
+        )
+        wc = _make_health_wan_controller(
+            tuning_enabled=True, tuning_state=state, pending_observation=obs
+        )
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["safety"]["pending_observation"] is True
+
+    def test_pending_observation_false_when_none(self):
+        """pending_observation should be False when _pending_observation is None."""
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 10.0,
+            recent_adjustments=[],
+            parameters={},
+        )
+        wc = _make_health_wan_controller(
+            tuning_enabled=True, tuning_state=state, pending_observation=None
+        )
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["safety"]["pending_observation"] is False
+
+    def test_safety_section_omitted_when_tuning_disabled(self):
+        """When tuning is disabled, safety section should be omitted."""
+        wc = _make_health_wan_controller(tuning_enabled=False)
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["enabled"] is False
+        assert "safety" not in wan["tuning"]
+
+    def test_safety_section_omitted_when_awaiting_data(self):
+        """When tuning is awaiting data (never run), safety section should be omitted."""
+        state = TuningState(
+            enabled=True,
+            last_run_ts=None,
+            recent_adjustments=[],
+            parameters={},
+        )
+        wc = _make_health_wan_controller(tuning_enabled=True, tuning_state=state)
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["reason"] == "awaiting_data"
+        assert "safety" not in wan["tuning"]
+
+    def test_safety_magicmock_safe_no_parameter_locks(self):
+        """When _parameter_locks is a MagicMock (not dict), locked_parameters should be empty."""
+        state = TuningState(
+            enabled=True,
+            last_run_ts=time.monotonic() - 10.0,
+            recent_adjustments=[],
+            parameters={},
+        )
+        wc = _make_health_wan_controller(tuning_enabled=True, tuning_state=state)
+        # Remove explicit dict to let MagicMock auto-create
+        del wc._parameter_locks
+
+        handler = _make_health_handler(wc)
+        health = handler._get_health_status()
+
+        wan = health["wans"][0]
+        assert wan["tuning"]["safety"]["locked_parameters"] == []
