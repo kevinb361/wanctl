@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
 status: executing
-last_updated: "2026-03-19T03:18:45.432Z"
+last_updated: "2026-03-19T04:04:51.248Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Milestone:** v1.20 Adaptive Tuning
 **Phase:** 100 of 102 (Safety and Revert Detection)
-**Plan:** 1 of 2 complete
-**Status:** Executing Phase 100
+**Plan:** 2 of 2 complete
+**Status:** Phase 100 Complete
 **Last activity:** 2026-03-19
 
-Progress: [████████░░] 86%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -55,6 +55,9 @@ Progress: [████████░░] 86%
 - Lock functions are stateless (operate on caller-provided dict) so WANController owns state
 - Near-zero pre_rate uses min_congestion_rate as denominator to avoid division-by-zero
 - Revert TuningResults: confidence=1.0 (authoritative), data_points=0 (not data-driven)
+- Lazy import of safety functions inside isinstance(TuningConfig) guard matches existing pattern
+- Clear \_pending_observation regardless of revert check outcome to prevent stale re-check
+- Health safety section only in active tuning state (omitted when disabled or awaiting_data)
 
 ### Known Issues
 
