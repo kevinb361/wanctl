@@ -266,6 +266,82 @@ def query_benchmarks(
         conn.close()
 
 
+def query_tuning_params(
+    db_path: Path | str = DEFAULT_DB_PATH,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+    wan: str | None = None,
+    parameter: str | None = None,
+) -> list[dict]:
+    """Query tuning parameter adjustment history.
+
+    Opens a read-only connection to prevent accidental writes.
+
+    Args:
+        db_path: Path to SQLite database file
+        start_ts: Start timestamp (inclusive), Unix seconds
+        end_ts: End timestamp (inclusive), Unix seconds
+        wan: WAN name to filter (e.g., "spectrum", "att")
+        parameter: Parameter name to filter (e.g., "target_bloat_ms")
+
+    Returns:
+        List of dicts with keys: id, timestamp, wan_name, parameter,
+        old_value, new_value, confidence, rationale, data_points, reverted.
+        Returns empty list if database doesn't exist or no data matches.
+    """
+    db_path = Path(db_path)
+
+    # Handle missing database gracefully
+    if not db_path.exists():
+        logger.debug("Database not found: %s", db_path)
+        return []
+
+    try:
+        # Open read-only connection
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+    except sqlite3.OperationalError as e:
+        logger.warning("Failed to open database: %s", e)
+        return []
+
+    try:
+        sql = """
+            SELECT id, timestamp, wan_name, parameter, old_value, new_value,
+                   confidence, rationale, data_points, reverted
+            FROM tuning_params
+            WHERE 1=1
+        """
+        params: list = []
+
+        if start_ts is not None:
+            sql += " AND timestamp >= ?"
+            params.append(start_ts)
+
+        if end_ts is not None:
+            sql += " AND timestamp <= ?"
+            params.append(end_ts)
+
+        if wan:
+            sql += " AND wan_name = ?"
+            params.append(wan)
+
+        if parameter:
+            sql += " AND parameter = ?"
+            params.append(parameter)
+
+        sql += " ORDER BY timestamp DESC"
+
+        cursor = conn.execute(sql, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    except sqlite3.OperationalError as e:
+        # Table might not exist in empty database
+        logger.debug("Query failed: %s", e)
+        return []
+    finally:
+        conn.close()
+
+
 def compute_summary(values: list[float]) -> dict:
     """Compute summary statistics for a list of values.
 
