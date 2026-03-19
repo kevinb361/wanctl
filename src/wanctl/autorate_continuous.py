@@ -3889,6 +3889,11 @@ def main() -> int | None:
                         calibrate_target_bloat,
                         calibrate_warn_bloat,
                     )
+                    from wanctl.tuning.strategies.signal_processing import (
+                        tune_alpha_load,
+                        tune_hampel_sigma,
+                        tune_hampel_window,
+                    )
 
                     first_config = controller.wan_controllers[0]["config"]
                     storage_config = get_storage_config(first_config.data)
@@ -3896,6 +3901,20 @@ def main() -> int | None:
                     metrics_writer = controller.wan_controllers[0][
                         "controller"
                     ]._metrics_writer
+
+                    # Layer definitions for bottom-up tuning (SIGP-04)
+                    SIGNAL_LAYER = [
+                        ("hampel_sigma_threshold", tune_hampel_sigma),
+                        ("hampel_window_size", tune_hampel_window),
+                    ]
+                    EWMA_LAYER = [
+                        ("load_time_constant_sec", tune_alpha_load),
+                    ]
+                    THRESHOLD_LAYER = [
+                        ("target_bloat_ms", calibrate_target_bloat),
+                        ("warn_bloat_ms", calibrate_warn_bloat),
+                    ]
+                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER]
 
                     for wan_info in controller.wan_controllers:
                         wc = wan_info["controller"]
@@ -3933,19 +3952,21 @@ def main() -> int | None:
                             )
                         wc._pending_observation = None  # Clear regardless
 
-                        # Step 2: Filter locked parameters from strategy list
-                        all_strategies = [
-                            ("target_bloat_ms", calibrate_target_bloat),
-                            ("warn_bloat_ms", calibrate_warn_bloat),
+                        # Step 2: Select active layer via round-robin (SIGP-04)
+                        active_layer = ALL_LAYERS[
+                            wc._tuning_layer_index % len(ALL_LAYERS)
                         ]
+                        wc._tuning_layer_index += 1
+
+                        # Step 3: Filter locked parameters from active layer
                         active_strategies = [
                             (pname, sfn)
-                            for pname, sfn in all_strategies
+                            for pname, sfn in active_layer
                             if not is_parameter_locked(
                                 wc._parameter_locks, pname
                             )
                         ]
-                        for pname, _ in all_strategies:
+                        for pname, _ in active_layer:
                             if is_parameter_locked(
                                 wc._parameter_locks, pname
                             ):
@@ -3955,13 +3976,16 @@ def main() -> int | None:
                                     pname,
                                 )
 
-                        # Step 3: Run analysis with active (unlocked) strategies
+                        # Step 4: Run analysis with active (unlocked) strategies
                         current_params = {
                             "target_bloat_ms": wc.green_threshold,
                             "warn_bloat_ms": wc.soft_red_threshold,
                             "hard_red_bloat_ms": wc.hard_red_threshold,
                             "alpha_load": wc.alpha_load,
                             "alpha_baseline": wc.alpha_baseline,
+                            "hampel_sigma_threshold": wc.signal_processor._sigma_threshold,
+                            "hampel_window_size": float(wc.signal_processor._window_size),
+                            "load_time_constant_sec": 0.05 / wc.alpha_load,
                         }
                         try:
                             results = run_tuning_analysis(
@@ -3977,7 +4001,7 @@ def main() -> int | None:
                                 )
                                 if applied:
                                     _apply_tuning_to_controller(wc, applied)
-                                    # Step 4: Snapshot pre-adjustment congestion rate
+                                    # Step 5: Snapshot pre-adjustment congestion rate
                                     pre_rate = measure_congestion_rate(
                                         db_path,
                                         wc.wan_name,
