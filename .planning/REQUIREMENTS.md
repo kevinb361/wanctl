@@ -45,7 +45,7 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 - [ ] **ADVT-01**: Fusion ICMP/IRTT weight adapted based on per-signal reliability scoring
 - [ ] **ADVT-02**: Reflector min_score threshold tuned from observed success rate distribution
 - [ ] **ADVT-03**: Baseline RTT bounds auto-adjusted from p5/p95 of observed baseline history
-- [ ] **ADVT-04**: `wanctl-history --tuning` displays tuning adjustment history with time-range filtering
+- [x] **ADVT-04**: `wanctl-history --tuning` displays tuning adjustment history with time-range filtering
 
 ### Fusion Baseline Deadlock Fix
 
@@ -118,7 +118,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADVT-01 | Phase 102 | Pending |
 | ADVT-02 | Phase 102 | Pending |
 | ADVT-03 | Phase 102 | Pending |
-| ADVT-04 | Phase 102 | Pending |
+| ADVT-04 | Phase 102 | Complete |
 | FBLK-01 | Phase 103 | Complete |
 | FBLK-02 | Phase 103 | Complete |
 | FBLK-03 | Phase 103 | Complete |

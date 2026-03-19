@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
-status: completed
-last_updated: "2026-03-19T15:06:06.970Z"
+status: executing
+last_updated: "2026-03-19T16:01:39.228Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 13
+  completed_plans: 12
+  percent: 85
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 103 complete — fix-fusion-baseline-deadlock
+**Current focus:** Phase 102 — advanced-tuning
 
 ## Position
 
 **Milestone:** v1.20 Adaptive Tuning
 **Phase:** 103 of 103 (Fix Fusion Baseline Deadlock)
 **Plan:** 1 of 1 complete
-**Status:** Milestone complete
+**Status:** Executing Phase 102
 **Last activity:** 2026-03-19
 
-Progress: [██████████] 100%
+Progress: [█████████░] 85%
 
 ## Accumulated Context
 
@@ -68,6 +68,7 @@ Progress: [██████████] 100%
 - Inline load EWMA in run_cycle preserves update_ewma() for ~32 test call sites (Phase 103)
 - Freeze gate delta uses icmp_rtt - baseline_rtt (Hampel-filtered, no second EWMA needed) (Phase 103)
 - Baseline is ICMP-derived concept -- never contaminate with fused/IRTT signals (Phase 103)
+- --tuning handler placed before --alerts in main() for priority ordering (Phase 102)
 
 ### Known Issues
 
