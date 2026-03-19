@@ -57,6 +57,53 @@ def persist_tuning_result(
         return None
 
 
+def persist_revert_record(
+    result: TuningResult,
+    writer: Any | None,
+) -> int | None:
+    """Persist a revert to tuning_params table with reverted=1.
+
+    Same as persist_tuning_result but sets reverted=1 to mark this
+    as an automatic revert rather than a forward adjustment.
+
+    Args:
+        result: The revert TuningResult to persist.
+        writer: MetricsWriter instance (or None if storage disabled).
+
+    Returns:
+        Row ID on success, None on failure or storage disabled.
+    """
+    if writer is None:
+        return None
+    try:
+        ts = int(time.time())
+        cursor = writer.connection.execute(
+            "INSERT INTO tuning_params "
+            "(timestamp, wan_name, parameter, old_value, new_value, "
+            "confidence, rationale, data_points, reverted) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+            (
+                ts,
+                result.wan_name,
+                result.parameter,
+                result.old_value,
+                result.new_value,
+                result.confidence,
+                result.rationale,
+                result.data_points,
+            ),
+        )
+        return cursor.lastrowid
+    except Exception:
+        logger.warning(
+            "Failed to persist revert for %s on %s",
+            result.parameter,
+            result.wan_name,
+            exc_info=True,
+        )
+        return None
+
+
 def apply_tuning_results(
     results: list[TuningResult],
     tuning_config: TuningConfig,
