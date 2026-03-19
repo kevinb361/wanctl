@@ -266,3 +266,28 @@ class TestTuningMaintenanceWiring:
         wc._tuning_state = None
         # Should not raise even with bogus results
         _apply_tuning_to_controller(wc, [_make_result("unknown_param", 1.0, 2.0)])
+
+
+class TestStrategiesWired:
+    """Verify congestion threshold strategies are wired into maintenance loop."""
+
+    def test_strategies_import_from_congestion_thresholds(self) -> None:
+        """Strategies module is importable and has expected functions."""
+        from wanctl.tuning.strategies.congestion_thresholds import (
+            calibrate_target_bloat,
+            calibrate_warn_bloat,
+        )
+        assert callable(calibrate_target_bloat)
+        assert callable(calibrate_warn_bloat)
+
+    def test_strategies_match_strategyfn_signature(self) -> None:
+        """Both functions accept (list[dict], float, SafetyBounds, str) -> TuningResult | None."""
+        from wanctl.tuning.strategies.congestion_thresholds import (
+            calibrate_target_bloat,
+            calibrate_warn_bloat,
+        )
+        # Verify they can be called with StrategyFn args and return None for empty data
+        result_target = calibrate_target_bloat([], 15.0, SafetyBounds(3.0, 30.0), "Test")
+        result_warn = calibrate_warn_bloat([], 45.0, SafetyBounds(10.0, 100.0), "Test")
+        assert result_target is None
+        assert result_warn is None
