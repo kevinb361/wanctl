@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
 status: executing
-last_updated: "2026-03-19T11:59:36.660Z"
+last_updated: "2026-03-19T12:08:45.000Z"
 last_activity: 2026-03-19
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Milestone:** v1.20 Adaptive Tuning
 **Phase:** 101 of 102 (Signal Processing Tuning)
-**Plan:** 1 of 2 complete
-**Status:** Executing Phase 101
+**Plan:** 2 of 2 complete
+**Status:** Phase 101 Complete
 **Last activity:** 2026-03-19
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -61,6 +61,10 @@ Progress: [█████████░] 89%
 - tune_alpha_load outputs load_time_constant_sec (0.5-10s), NOT alpha_load, to survive clamp_to_step rounding and trivial change filter
 - Outlier rate from counter deltas / 1200 samples-per-minute; negative deltas discarded (counter reset)
 - Step detection threshold = max(2x median_jitter, 2.0ms); settling = 20% move toward target tc per cycle
+- Layer rotation via modular index (wc.\_tuning_layer_index % 3): signal->EWMA->threshold per tuning cycle
+- EWMA layer parameter name is load_time_constant_sec (NOT alpha_load); tc-to-alpha conversion at apply time only
+- Deque resize: deque(existing, maxlen=new) preserves rightmost elements when shrinking window
+- Layer definitions inside isinstance(TuningConfig) guard, outside per-WAN loop (define once, use for all WANs)
 
 ### Known Issues
 

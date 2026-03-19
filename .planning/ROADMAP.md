@@ -46,78 +46,92 @@ None
 - [ ] **Phase 98: Tuning Foundation** - Framework, models, config, enable/disable, health endpoint, SQLite persistence
 - [ ] **Phase 99: Congestion Threshold Calibration** - Derive target_bloat_ms and warn_bloat_ms from RTT delta percentiles
 - [ ] **Phase 100: Safety and Revert Detection** - Monitor post-adjustment congestion rate and auto-revert on degradation
-- [ ] **Phase 101: Signal Processing Tuning** - Optimize Hampel sigma/window and EWMA alpha per-WAN from metrics
+- [x] **Phase 101: Signal Processing Tuning** - Optimize Hampel sigma/window and EWMA alpha per-WAN from metrics
 - [ ] **Phase 102: Advanced Tuning** - Adapt fusion weights, reflector scoring, baseline bounds, and expose tuning history
 
 ### Phase Details
 
 ### Phase 98: Tuning Foundation
+
 **Goal**: Operators can enable a tuning engine that safely analyzes per-WAN metrics on an hourly cadence with full observability
 **Depends on**: Nothing (first phase of v1.20)
 **Requirements**: TUNE-01, TUNE-02, TUNE-03, TUNE-04, TUNE-05, TUNE-06, TUNE-07, TUNE-08, TUNE-09, TUNE-10
 **Success Criteria** (what must be TRUE):
-  1. Operator can set `tuning.enabled: false` in YAML and the daemon starts with zero tuning behavior; toggling to true via SIGUSR1 activates tuning without restart
-  2. Health endpoint `/health` shows a `tuning` section with enabled state, last_run timestamp, parameter names with current values and safety bounds, and recent adjustment history
-  3. Tuning runs once per hourly maintenance window (not per-cycle), analyzes each WAN independently, and skips analysis when less than 1 hour of metrics data is available
-  4. Every adjustment is clamped to 10% max change from current value, logged with old/new/rationale, and persisted to SQLite for historical review
-  5. Each tunable parameter has operator-configurable min/max safety bounds in YAML that the engine never exceeds
-**Plans:** 3 plans
-Plans:
+
+1. Operator can set `tuning.enabled: false` in YAML and the daemon starts with zero tuning behavior; toggling to true via SIGUSR1 activates tuning without restart
+2. Health endpoint `/health` shows a `tuning` section with enabled state, last_run timestamp, parameter names with current values and safety bounds, and recent adjustment history
+3. Tuning runs once per hourly maintenance window (not per-cycle), analyzes each WAN independently, and skips analysis when less than 1 hour of metrics data is available
+4. Every adjustment is clamped to 10% max change from current value, logged with old/new/rationale, and persisted to SQLite for historical review
+5. Each tunable parameter has operator-configurable min/max safety bounds in YAML that the engine never exceeds
+   **Plans:** 3 plans
+   Plans:
+
 - [ ] 098-01-PLAN.md -- Models, config parsing, SQLite schema, strategy protocol
 - [ ] 098-02-PLAN.md -- Analyzer (per-WAN query), applier (bounds, persist, log)
 - [ ] 098-03-PLAN.md -- Daemon wiring (maintenance window, SIGUSR1, health endpoint, example configs)
 
 ### Phase 99: Congestion Threshold Calibration
+
 **Goal**: Controller automatically derives congestion thresholds from observed RTT delta distributions rather than static config values
 **Depends on**: Phase 98
 **Requirements**: CALI-01, CALI-02, CALI-03, CALI-04
 **Success Criteria** (what must be TRUE):
-  1. `target_bloat_ms` converges toward the p75 of GREEN-state RTT delta distribution over successive hourly tuning cycles
-  2. `warn_bloat_ms` converges toward the p90 of GREEN-state RTT delta distribution over successive hourly tuning cycles
-  3. Threshold derivation uses a 24-hour lookback window that captures full diurnal patterns (day/evening/night traffic)
-  4. When a parameter's coefficient of variation drops below a configurable threshold, the engine detects convergence and stops adjusting that parameter
-**Plans:** 2 plans
-Plans:
+
+1. `target_bloat_ms` converges toward the p75 of GREEN-state RTT delta distribution over successive hourly tuning cycles
+2. `warn_bloat_ms` converges toward the p90 of GREEN-state RTT delta distribution over successive hourly tuning cycles
+3. Threshold derivation uses a 24-hour lookback window that captures full diurnal patterns (day/evening/night traffic)
+4. When a parameter's coefficient of variation drops below a configurable threshold, the engine detects convergence and stops adjusting that parameter
+   **Plans:** 2 plans
+   Plans:
+
 - [ ] 099-01-PLAN.md -- Strategy functions (calibrate_target_bloat, calibrate_warn_bloat) + convergence detection + tests (TDD)
 - [ ] 099-02-PLAN.md -- Wire strategies into maintenance loop + integration tests
 
 ### Phase 100: Safety and Revert Detection
+
 **Goal**: Controller automatically detects when a tuning adjustment causes degradation and reverts to previous values
 **Depends on**: Phase 98
 **Requirements**: SAFE-01, SAFE-02, SAFE-03
 **Success Criteria** (what must be TRUE):
-  1. After each parameter adjustment, the system monitors congestion rate over a defined observation window and compares to pre-adjustment baseline
-  2. When post-adjustment congestion rate increases beyond a threshold, the system automatically reverts to the previous parameter values and logs the revert with reason
-  3. After a revert, a configurable hysteresis cooldown locks that parameter category from further tuning attempts, preventing revert oscillation
-**Plans:** 2 plans
-Plans:
+
+1. After each parameter adjustment, the system monitors congestion rate over a defined observation window and compares to pre-adjustment baseline
+2. When post-adjustment congestion rate increases beyond a threshold, the system automatically reverts to the previous parameter values and logs the revert with reason
+3. After a revert, a configurable hysteresis cooldown locks that parameter category from further tuning attempts, preventing revert oscillation
+   **Plans:** 2 plans
+   Plans:
+
 - [ ] 100-01-PLAN.md -- Safety module (congestion rate, revert detection, hysteresis lock) + revert persistence (TDD)
 - [ ] 100-02-PLAN.md -- Daemon wiring (maintenance loop, WANController state, health endpoint)
 
 ### Phase 101: Signal Processing Tuning
+
 **Goal**: Signal processing parameters (Hampel filter, EWMA) are optimized per-WAN from actual noise characteristics
 **Depends on**: Phase 98, Phase 100
 **Requirements**: SIGP-01, SIGP-02, SIGP-03, SIGP-04
 **Success Criteria** (what must be TRUE):
-  1. Hampel sigma threshold converges toward a per-WAN optimum derived from outlier rate analysis (targeting a noise-appropriate outlier rejection rate)
-  2. Hampel window size is tuned per-WAN based on autocorrelation analysis of RTT samples
-  3. Load EWMA alpha is tuned from settling time analysis to match each WAN's latency dynamics
-  4. Signal chain parameters are tuned bottom-up (signal processing first, then EWMA, then thresholds) with one layer per tuning cycle to isolate effects
-**Plans:** 2 plans
-Plans:
-- [ ] 101-01-PLAN.md -- Signal processing strategy functions (hampel sigma, hampel window, EWMA alpha) + unit tests
-- [ ] 101-02-PLAN.md -- Layer rotation wiring, applier extension, maintenance loop integration
+
+1. Hampel sigma threshold converges toward a per-WAN optimum derived from outlier rate analysis (targeting a noise-appropriate outlier rejection rate)
+2. Hampel window size is tuned per-WAN based on autocorrelation analysis of RTT samples
+3. Load EWMA alpha is tuned from settling time analysis to match each WAN's latency dynamics
+4. Signal chain parameters are tuned bottom-up (signal processing first, then EWMA, then thresholds) with one layer per tuning cycle to isolate effects
+   **Plans:** 2 plans
+   Plans:
+
+- [x] 101-01-PLAN.md -- Signal processing strategy functions (hampel sigma, hampel window, EWMA alpha) + unit tests
+- [x] 101-02-PLAN.md -- Layer rotation wiring, applier extension, maintenance loop integration
 
 ### Phase 102: Advanced Tuning
+
 **Goal**: Cross-signal parameters and operational bounds are self-adjusted, and operators can review all tuning history
 **Depends on**: Phase 98, Phase 100, Phase 101
 **Requirements**: ADVT-01, ADVT-02, ADVT-03, ADVT-04
 **Success Criteria** (what must be TRUE):
-  1. Fusion ICMP/IRTT weight is adapted based on per-signal reliability scoring (signals with lower variance or fewer anomalies get higher weight)
-  2. Reflector `min_score` threshold is tuned from observed success rate distribution so deprioritization matches actual reflector reliability
-  3. Baseline RTT bounds are auto-adjusted from p5/p95 of observed baseline history, preventing false baseline drift alerts
-  4. `wanctl-history --tuning` displays tuning adjustment history with WAN name, parameter, old/new values, rationale, and time-range filtering
-**Plans**: TBD
+
+1. Fusion ICMP/IRTT weight is adapted based on per-signal reliability scoring (signals with lower variance or fewer anomalies get higher weight)
+2. Reflector `min_score` threshold is tuned from observed success rate distribution so deprioritization matches actual reflector reliability
+3. Baseline RTT bounds are auto-adjusted from p5/p95 of observed baseline history, preventing false baseline drift alerts
+4. `wanctl-history --tuning` displays tuning adjustment history with WAN name, parameter, old/new values, rationale, and time-range filtering
+   **Plans**: TBD
 
 ## Completed Milestone Details
 
@@ -185,29 +199,29 @@ See individual milestone archives in `milestones/` for details:
 
 **Total:** 97 phases complete, 197 plans across 20 milestones
 
-| Milestone                            | Phases  | Plans | Status      | Shipped    |
-| ------------------------------------ | ------- | ----- | ----------- | ---------- |
-| v1.20 Adaptive Tuning               | 98-102  | TBD   | In progress | -          |
-| v1.19 Signal Fusion                  | 93-97   | 9     | Complete    | 2026-03-18 |
-| v1.18 Measurement Quality            | 88-92   | 10    | Complete    | 2026-03-17 |
-| v1.17 CAKE Optimization & Bench.     | 84-87   | 8     | Complete    | 2026-03-16 |
-| v1.16 Validation & Op. Confidence    | 81-83   | 4     | Complete    | 2026-03-13 |
-| v1.15 Alerting & Notifications       | 76-80   | 10    | Complete    | 2026-03-12 |
-| v1.14 Operational Visibility         | 73-75   | 7     | Complete    | 2026-03-11 |
-| v1.13 Legacy Cleanup & Feature Grad. | 67-72   | 10    | Complete    | 2026-03-11 |
-| v1.12 Deployment & Code Health       | 62-66   | 7     | Complete    | 2026-03-11 |
-| v1.11 WAN-Aware Steering             | 58-61   | 8     | Complete    | 2026-03-10 |
-| v1.10 Architectural Review Fixes     | 50-57   | 15    | Complete    | 2026-03-09 |
-| v1.9 Performance & Efficiency        | 47-49   | 6     | Complete    | 2026-03-07 |
-| v1.8 Resilience & Robustness         | 43-46   | 8     | Complete    | 2026-03-06 |
-| v1.7 Metrics History                 | 38-42   | 8     | Complete    | 2026-01-25 |
-| v1.6 Test Coverage 90%               | 31-37   | 17    | Complete    | 2026-01-25 |
-| v1.5 Quality & Hygiene              | 27-30   | 8     | Complete    | 2026-01-24 |
-| v1.4 Observability                   | 25-26   | 4     | Complete    | 2026-01-24 |
-| v1.3 Reliability & Hardening         | 21-24   | 5     | Complete    | 2026-01-21 |
-| v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
-| v1.1 Code Quality                    | 6-15    | 30    | Complete    | 2026-01-14 |
-| v1.0 Performance Optimization        | 1-5     | 8     | Complete    | 2026-01-13 |
+| Milestone                            | Phases | Plans | Status      | Shipped    |
+| ------------------------------------ | ------ | ----- | ----------- | ---------- |
+| v1.20 Adaptive Tuning                | 98-102 | TBD   | In progress | -          |
+| v1.19 Signal Fusion                  | 93-97  | 9     | Complete    | 2026-03-18 |
+| v1.18 Measurement Quality            | 88-92  | 10    | Complete    | 2026-03-17 |
+| v1.17 CAKE Optimization & Bench.     | 84-87  | 8     | Complete    | 2026-03-16 |
+| v1.16 Validation & Op. Confidence    | 81-83  | 4     | Complete    | 2026-03-13 |
+| v1.15 Alerting & Notifications       | 76-80  | 10    | Complete    | 2026-03-12 |
+| v1.14 Operational Visibility         | 73-75  | 7     | Complete    | 2026-03-11 |
+| v1.13 Legacy Cleanup & Feature Grad. | 67-72  | 10    | Complete    | 2026-03-11 |
+| v1.12 Deployment & Code Health       | 62-66  | 7     | Complete    | 2026-03-11 |
+| v1.11 WAN-Aware Steering             | 58-61  | 8     | Complete    | 2026-03-10 |
+| v1.10 Architectural Review Fixes     | 50-57  | 15    | Complete    | 2026-03-09 |
+| v1.9 Performance & Efficiency        | 47-49  | 6     | Complete    | 2026-03-07 |
+| v1.8 Resilience & Robustness         | 43-46  | 8     | Complete    | 2026-03-06 |
+| v1.7 Metrics History                 | 38-42  | 8     | Complete    | 2026-01-25 |
+| v1.6 Test Coverage 90%               | 31-37  | 17    | Complete    | 2026-01-25 |
+| v1.5 Quality & Hygiene               | 27-30  | 8     | Complete    | 2026-01-24 |
+| v1.4 Observability                   | 25-26  | 4     | Complete    | 2026-01-24 |
+| v1.3 Reliability & Hardening         | 21-24  | 5     | Complete    | 2026-01-21 |
+| v1.2 Configuration & Polish          | 16-20  | 5     | Complete    | 2026-01-14 |
+| v1.1 Code Quality                    | 6-15   | 30    | Complete    | 2026-01-14 |
+| v1.0 Performance Optimization        | 1-5    | 8     | Complete    | 2026-01-13 |
 
 ### Phase 103: Fix fusion baseline deadlock
 
@@ -217,4 +231,5 @@ See individual milestone archives in `milestones/` for details:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (run /gsd:plan-phase 103 to break down)
