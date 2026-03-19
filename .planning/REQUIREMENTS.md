@@ -35,9 +35,9 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 
 ### Signal Processing Tuning
 
-- [ ] **SIGP-01**: Hampel sigma optimized per-WAN based on outlier rate analysis
-- [ ] **SIGP-02**: Hampel window size optimized per-WAN based on autocorrelation analysis
-- [ ] **SIGP-03**: Load EWMA alpha tuned from settling time analysis
+- [x] **SIGP-01**: Hampel sigma optimized per-WAN based on outlier rate analysis
+- [x] **SIGP-02**: Hampel window size optimized per-WAN based on autocorrelation analysis
+- [x] **SIGP-03**: Load EWMA alpha tuned from settling time analysis
 - [ ] **SIGP-04**: Signal chain tuned bottom-up (signal processing -> EWMA -> thresholds), one layer per cycle
 
 ### Advanced Tuning
@@ -103,9 +103,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-01 | Phase 100 | Complete |
 | SAFE-02 | Phase 100 | Complete |
 | SAFE-03 | Phase 100 | Complete |
-| SIGP-01 | Phase 101 | Pending |
-| SIGP-02 | Phase 101 | Pending |
-| SIGP-03 | Phase 101 | Pending |
+| SIGP-01 | Phase 101 | Complete |
+| SIGP-02 | Phase 101 | Complete |
+| SIGP-03 | Phase 101 | Complete |
 | SIGP-04 | Phase 101 | Pending |
 | ADVT-01 | Phase 102 | Pending |
 | ADVT-02 | Phase 102 | Pending |

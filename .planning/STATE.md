@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.20
 milestone_name: Adaptive Tuning
-status: planning
-last_updated: "2026-03-19T04:33:16.004Z"
+status: executing
+last_updated: "2026-03-19T11:59:36.660Z"
 last_activity: 2026-03-19
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
   percent: 100
 ---
 
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 100 — Safety and Revert Detection
+**Current focus:** Phase 101 — signal-processing-tuning
 
 ## Position
 
 **Milestone:** v1.20 Adaptive Tuning
-**Phase:** 100 of 102 (Safety and Revert Detection)
-**Plan:** 2 of 2 complete
-**Status:** Ready to plan
+**Phase:** 101 of 102 (Signal Processing Tuning)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 101
 **Last activity:** 2026-03-19
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Accumulated Context
 
@@ -58,6 +58,9 @@ Progress: [██████████] 100%
 - Lazy import of safety functions inside isinstance(TuningConfig) guard matches existing pattern
 - Clear \_pending_observation regardless of revert check outcome to prevent stale re-check
 - Health safety section only in active tuning state (omitted when disabled or awaiting_data)
+- tune_alpha_load outputs load_time_constant_sec (0.5-10s), NOT alpha_load, to survive clamp_to_step rounding and trivial change filter
+- Outlier rate from counter deltas / 1200 samples-per-minute; negative deltas discarded (counter reset)
+- Step detection threshold = max(2x median_jitter, 2.0ms); settling = 20% move toward target tc per cycle
 
 ### Known Issues
 
@@ -65,6 +68,10 @@ Progress: [██████████] 100%
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - Target outlier rate for Hampel is empirical (5-15% range), needs experimentation in Phase 101
 - "Congestion rate" metric definition resolved in Phase 100: fraction of wanctl_state >= 2.0 (SOFT_RED/RED) in time window
+
+### Roadmap Evolution
+
+- Phase 103 added: Fix fusion baseline deadlock (IRTT path divergence freezes baseline via permanent delta > threshold)
 
 ### Blockers
 
