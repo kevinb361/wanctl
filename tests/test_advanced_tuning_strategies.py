@@ -9,11 +9,8 @@ ADVT-02: Reflector min_score from signal confidence proxy
 ADVT-03: Baseline RTT bounds from p5/p95 baseline history
 """
 
-import pytest
-
 from wanctl.tuning.models import SafetyBounds, TuningResult
 from wanctl.tuning.strategies.advanced import (
-    MIN_SAMPLES,
     tune_baseline_bounds_max,
     tune_baseline_bounds_min,
     tune_fusion_weight,
@@ -84,10 +81,10 @@ class TestTuneFusionWeight:
         """Low ICMP variance + high IRTT jitter/loss -> icmp_weight increases."""
         n = 100
         metrics = _make_multi_metrics(
-            ("wanctl_signal_variance_ms2", [0.5] * n),  # Low variance = reliable
-            ("wanctl_irtt_ipdv_ms", [3.0] * n),  # High jitter = unreliable
-            ("wanctl_irtt_loss_up_pct", [5.0] * n),  # 5% loss
-            ("wanctl_irtt_loss_down_pct", [5.0] * n),
+            ("wanctl_signal_variance_ms2", [0.1] * n),  # Very low variance = very reliable
+            ("wanctl_irtt_ipdv_ms", [8.0] * n),  # Very high jitter = unreliable
+            ("wanctl_irtt_loss_up_pct", [10.0] * n),  # 10% loss
+            ("wanctl_irtt_loss_down_pct", [10.0] * n),
         )
         result = tune_fusion_weight(metrics, 0.7, self.BOUNDS, "Spectrum")
         assert result is not None
