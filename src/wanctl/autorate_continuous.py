@@ -3844,6 +3844,10 @@ def main() -> int | None:
                 if now - last_tuning >= tuning_cadence:
                     from wanctl.tuning.analyzer import run_tuning_analysis
                     from wanctl.tuning.applier import apply_tuning_results
+                    from wanctl.tuning.strategies.congestion_thresholds import (
+                        calibrate_target_bloat,
+                        calibrate_warn_bloat,
+                    )
 
                     first_config = controller.wan_controllers[0]["config"]
                     storage_config = get_storage_config(first_config.data)
@@ -3869,7 +3873,10 @@ def main() -> int | None:
                                 db_path=db_path,
                                 tuning_config=tuning_config,
                                 current_params=current_params,
-                                strategies=[],  # No strategies in Phase 98 (framework only)
+                                strategies=[  # Phase 99: congestion threshold calibration
+                                    ("target_bloat_ms", calibrate_target_bloat),
+                                    ("warn_bloat_ms", calibrate_warn_bloat),
+                                ],
                             )
                             if results:
                                 applied = apply_tuning_results(
