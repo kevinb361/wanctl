@@ -103,7 +103,10 @@ Plans:
   2. Hampel window size is tuned per-WAN based on autocorrelation analysis of RTT samples
   3. Load EWMA alpha is tuned from settling time analysis to match each WAN's latency dynamics
   4. Signal chain parameters are tuned bottom-up (signal processing first, then EWMA, then thresholds) with one layer per tuning cycle to isolate effects
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 101-01-PLAN.md -- Signal processing strategy functions (hampel sigma, hampel window, EWMA alpha) + unit tests
+- [ ] 101-02-PLAN.md -- Layer rotation wiring, applier extension, maintenance loop integration
 
 ### Phase 102: Advanced Tuning
 **Goal**: Cross-signal parameters and operational bounds are self-adjusted, and operators can review all tuning history
@@ -205,3 +208,13 @@ See individual milestone archives in `milestones/` for details:
 | v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
 | v1.1 Code Quality                    | 6-15    | 30    | Complete    | 2026-01-14 |
 | v1.0 Performance Optimization        | 1-5     | 8     | Complete    | 2026-01-13 |
+
+### Phase 103: Fix fusion baseline deadlock
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 102
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 103 to break down)
