@@ -131,7 +131,12 @@ None
 2. Reflector `min_score` threshold is tuned from observed success rate distribution so deprioritization matches actual reflector reliability
 3. Baseline RTT bounds are auto-adjusted from p5/p95 of observed baseline history, preventing false baseline drift alerts
 4. `wanctl-history --tuning` displays tuning adjustment history with WAN name, parameter, old/new values, rationale, and time-range filtering
-   **Plans**: TBD
+   **Plans:** 3 plans
+   Plans:
+
+- [ ] 102-01-PLAN.md -- Advanced strategy functions (fusion weight, reflector min_score, baseline bounds) + unit tests (TDD)
+- [ ] 102-02-PLAN.md -- CLI query_tuning_params reader + --tuning flag/formatters in history.py (TDD)
+- [ ] 102-03-PLAN.md -- Wiring: ADVANCED_LAYER in rotation, applier extension, current_params extension
 
 ### Phase 103: Fix fusion baseline deadlock
 
