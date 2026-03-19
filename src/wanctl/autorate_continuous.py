@@ -1859,6 +1859,9 @@ class WANController:
             self._tuning_enabled = False
             self._tuning_state = None
         self._last_tuning_ts: float | None = None
+        # Safety: revert detection and hysteresis lock state (Plan 100-02)
+        self._parameter_locks: dict[str, float] = {}  # param -> monotonic lock expiry
+        self._pending_observation = None  # PendingObservation | None (lazy import)
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -2487,6 +2490,8 @@ class WANController:
             )
         elif not new_enabled:
             self._tuning_state = None
+            self._parameter_locks = {}
+            self._pending_observation = None
 
     def _record_profiling(
         self,
@@ -3843,7 +3848,20 @@ def main() -> int | None:
                 tuning_cadence = tuning_config.cadence_sec
                 if now - last_tuning >= tuning_cadence:
                     from wanctl.tuning.analyzer import run_tuning_analysis
-                    from wanctl.tuning.applier import apply_tuning_results
+                    from wanctl.tuning.applier import (
+                        apply_tuning_results,
+                        persist_revert_record,
+                    )
+                    from wanctl.tuning.safety import (
+                        DEFAULT_MIN_CONGESTION_RATE,
+                        DEFAULT_REVERT_COOLDOWN_SEC,
+                        DEFAULT_REVERT_THRESHOLD,
+                        PendingObservation,
+                        check_and_revert,
+                        is_parameter_locked,
+                        lock_parameter,
+                        measure_congestion_rate,
+                    )
                     from wanctl.tuning.strategies.congestion_thresholds import (
                         calibrate_target_bloat,
                         calibrate_warn_bloat,
@@ -3860,6 +3878,61 @@ def main() -> int | None:
                         wc = wan_info["controller"]
                         if not wc._tuning_enabled:
                             continue
+
+                        # Step 1: Check pending observation from previous cycle
+                        try:
+                            reverts = check_and_revert(
+                                wc._pending_observation,
+                                db_path,
+                                wc.wan_name,
+                                revert_threshold=DEFAULT_REVERT_THRESHOLD,
+                                min_congestion_rate=DEFAULT_MIN_CONGESTION_RATE,
+                            )
+                            if reverts:
+                                _apply_tuning_to_controller(wc, reverts)
+                                for rv in reverts:
+                                    persist_revert_record(rv, metrics_writer)
+                                    lock_parameter(
+                                        wc._parameter_locks,
+                                        rv.parameter,
+                                        DEFAULT_REVERT_COOLDOWN_SEC,
+                                    )
+                                    wan_info["logger"].error(
+                                        "[TUNING] %s: %s",
+                                        wc.wan_name,
+                                        rv.rationale,
+                                    )
+                        except Exception as e:
+                            wan_info["logger"].error(
+                                "[TUNING] Revert check failed for %s: %s",
+                                wc.wan_name,
+                                e,
+                            )
+                        wc._pending_observation = None  # Clear regardless
+
+                        # Step 2: Filter locked parameters from strategy list
+                        all_strategies = [
+                            ("target_bloat_ms", calibrate_target_bloat),
+                            ("warn_bloat_ms", calibrate_warn_bloat),
+                        ]
+                        active_strategies = [
+                            (pname, sfn)
+                            for pname, sfn in all_strategies
+                            if not is_parameter_locked(
+                                wc._parameter_locks, pname
+                            )
+                        ]
+                        for pname, _ in all_strategies:
+                            if is_parameter_locked(
+                                wc._parameter_locks, pname
+                            ):
+                                wan_info["logger"].info(
+                                    "[TUNING] %s: %s locked until revert cooldown expires",
+                                    wc.wan_name,
+                                    pname,
+                                )
+
+                        # Step 3: Run analysis with active (unlocked) strategies
                         current_params = {
                             "target_bloat_ms": wc.green_threshold,
                             "warn_bloat_ms": wc.soft_red_threshold,
@@ -3873,16 +3946,32 @@ def main() -> int | None:
                                 db_path=db_path,
                                 tuning_config=tuning_config,
                                 current_params=current_params,
-                                strategies=[  # Phase 99: congestion threshold calibration
-                                    ("target_bloat_ms", calibrate_target_bloat),
-                                    ("warn_bloat_ms", calibrate_warn_bloat),
-                                ],
+                                strategies=active_strategies,
                             )
                             if results:
                                 applied = apply_tuning_results(
                                     results, tuning_config, metrics_writer
                                 )
-                                _apply_tuning_to_controller(wc, applied)
+                                if applied:
+                                    _apply_tuning_to_controller(wc, applied)
+                                    # Step 4: Snapshot pre-adjustment congestion rate
+                                    pre_rate = measure_congestion_rate(
+                                        db_path,
+                                        wc.wan_name,
+                                        start_ts=int(time.time())
+                                        - tuning_config.cadence_sec,
+                                        end_ts=int(time.time()),
+                                    )
+                                    if pre_rate is not None:
+                                        wc._pending_observation = (
+                                            PendingObservation(
+                                                applied_ts=int(time.time()),
+                                                pre_congestion_rate=pre_rate,
+                                                applied_results=tuple(
+                                                    applied
+                                                ),
+                                            )
+                                        )
                         except Exception as e:
                             wan_info["logger"].error(
                                 "[TUNING] Analysis failed for %s: %s",
