@@ -49,11 +49,11 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 
 ### Fusion Baseline Deadlock Fix
 
-- [ ] **FBLK-01**: Baseline EWMA receives ICMP-only filtered_rtt, not fused RTT
-- [ ] **FBLK-02**: Load EWMA receives fused RTT for enhanced congestion detection
-- [ ] **FBLK-03**: Baseline updates when ICMP is idle, regardless of IRTT path divergence (ATT case: IRTT 43ms vs ICMP 29ms must not freeze baseline)
-- [ ] **FBLK-04**: Fusion-disabled behavior is identical to pre-fix (no regression when `fusion.enabled: false`)
-- [ ] **FBLK-05**: Baseline freeze gate uses `icmp_filtered_rtt - baseline_rtt` delta (not `load_rtt - baseline_rtt`)
+- [x] **FBLK-01**: Baseline EWMA receives ICMP-only filtered_rtt, not fused RTT
+- [x] **FBLK-02**: Load EWMA receives fused RTT for enhanced congestion detection
+- [x] **FBLK-03**: Baseline updates when ICMP is idle, regardless of IRTT path divergence (ATT case: IRTT 43ms vs ICMP 29ms must not freeze baseline)
+- [x] **FBLK-04**: Fusion-disabled behavior is identical to pre-fix (no regression when `fusion.enabled: false`)
+- [x] **FBLK-05**: Baseline freeze gate uses `icmp_filtered_rtt - baseline_rtt` delta (not `load_rtt - baseline_rtt`)
 
 ## Future Requirements
 
@@ -119,11 +119,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADVT-02 | Phase 102 | Pending |
 | ADVT-03 | Phase 102 | Pending |
 | ADVT-04 | Phase 102 | Pending |
-| FBLK-01 | Phase 103 | Pending |
-| FBLK-02 | Phase 103 | Pending |
-| FBLK-03 | Phase 103 | Pending |
-| FBLK-04 | Phase 103 | Pending |
-| FBLK-05 | Phase 103 | Pending |
+| FBLK-01 | Phase 103 | Complete |
+| FBLK-02 | Phase 103 | Complete |
+| FBLK-03 | Phase 103 | Complete |
+| FBLK-04 | Phase 103 | Complete |
+| FBLK-05 | Phase 103 | Complete |
 
 **Coverage:**
 - v1.20 requirements: 30 total
