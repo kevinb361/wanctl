@@ -76,7 +76,10 @@ Plans:
   2. `warn_bloat_ms` converges toward the p90 of GREEN-state RTT delta distribution over successive hourly tuning cycles
   3. Threshold derivation uses a 24-hour lookback window that captures full diurnal patterns (day/evening/night traffic)
   4. When a parameter's coefficient of variation drops below a configurable threshold, the engine detects convergence and stops adjusting that parameter
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 099-01-PLAN.md -- Strategy functions (calibrate_target_bloat, calibrate_warn_bloat) + convergence detection + tests (TDD)
+- [ ] 099-02-PLAN.md -- Wire strategies into maintenance loop + integration tests
 
 ### Phase 100: Safety and Revert Detection
 **Goal**: Controller automatically detects when a tuning adjustment causes degradation and reverts to previous values
