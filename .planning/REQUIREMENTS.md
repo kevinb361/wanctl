@@ -47,6 +47,14 @@ Requirements for adaptive parameter tuning. Each maps to roadmap phases.
 - [ ] **ADVT-03**: Baseline RTT bounds auto-adjusted from p5/p95 of observed baseline history
 - [ ] **ADVT-04**: `wanctl-history --tuning` displays tuning adjustment history with time-range filtering
 
+### Fusion Baseline Deadlock Fix
+
+- [ ] **FBLK-01**: Baseline EWMA receives ICMP-only filtered_rtt, not fused RTT
+- [ ] **FBLK-02**: Load EWMA receives fused RTT for enhanced congestion detection
+- [ ] **FBLK-03**: Baseline updates when ICMP is idle, regardless of IRTT path divergence (ATT case: IRTT 43ms vs ICMP 29ms must not freeze baseline)
+- [ ] **FBLK-04**: Fusion-disabled behavior is identical to pre-fix (no regression when `fusion.enabled: false`)
+- [ ] **FBLK-05**: Baseline freeze gate uses `icmp_filtered_rtt - baseline_rtt` delta (not `load_rtt - baseline_rtt`)
+
 ## Future Requirements
 
 Deferred to subsequent milestones. Tracked but not in current roadmap.
@@ -111,12 +119,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADVT-02 | Phase 102 | Pending |
 | ADVT-03 | Phase 102 | Pending |
 | ADVT-04 | Phase 102 | Pending |
+| FBLK-01 | Phase 103 | Pending |
+| FBLK-02 | Phase 103 | Pending |
+| FBLK-03 | Phase 103 | Pending |
+| FBLK-04 | Phase 103 | Pending |
+| FBLK-05 | Phase 103 | Pending |
 
 **Coverage:**
-- v1.20 requirements: 25 total
-- Mapped to phases: 25
+- v1.20 requirements: 30 total
+- Mapped to phases: 30
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after roadmap creation*
+*Last updated: 2026-03-19 after adding FBLK requirements for Phase 103*

@@ -133,6 +133,24 @@ None
 4. `wanctl-history --tuning` displays tuning adjustment history with WAN name, parameter, old/new values, rationale, and time-range filtering
    **Plans**: TBD
 
+### Phase 103: Fix fusion baseline deadlock
+
+**Goal**: Baseline EWMA uses ICMP-only signal (not fused RTT) to prevent IRTT path divergence from freezing or corrupting baseline
+**Requirements**: FBLK-01, FBLK-02, FBLK-03, FBLK-04, FBLK-05
+**Depends on:** Phase 96 (introduced the bug), independent of Phase 102
+**Plans:** 1 plan
+**Success Criteria** (what must be TRUE):
+
+1. Baseline EWMA receives ICMP-only filtered_rtt, never the fused signal
+2. Load EWMA receives fused RTT for enhanced congestion detection
+3. When IRTT diverges from ICMP (ATT: 43ms vs 29ms), baseline still updates during idle
+4. Fusion-disabled behavior is identical to pre-fix
+5. Baseline freeze gate uses icmp_filtered_rtt vs baseline_rtt delta
+
+Plans:
+
+- [ ] 103-01-PLAN.md -- TDD: Tests for FBLK-01..05 + signal path split fix in autorate_continuous.py
+
 ## Completed Milestone Details
 
 <details>
@@ -222,14 +240,3 @@ See individual milestone archives in `milestones/` for details:
 | v1.2 Configuration & Polish          | 16-20  | 5     | Complete    | 2026-01-14 |
 | v1.1 Code Quality                    | 6-15   | 30    | Complete    | 2026-01-14 |
 | v1.0 Performance Optimization        | 1-5    | 8     | Complete    | 2026-01-13 |
-
-### Phase 103: Fix fusion baseline deadlock
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 102
-**Plans:** 0 plans
-
-Plans:
-
-- [ ] TBD (run /gsd:plan-phase 103 to break down)
