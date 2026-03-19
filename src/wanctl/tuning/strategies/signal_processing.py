@@ -141,7 +141,7 @@ def tune_hampel_sigma(
     # 5. Check convergence (within target range)
     if TARGET_OUTLIER_RATE_MIN <= mean_outlier_rate <= TARGET_OUTLIER_RATE_MAX:
         logger.info(
-            "[TUNING] %s: hampel_sigma converged, outlier_rate=%.1%% in target range",
+            "[TUNING] %s: hampel_sigma converged, outlier_rate=%.1f%% in target range",
             wan_name,
             mean_outlier_rate * 100,
         )
