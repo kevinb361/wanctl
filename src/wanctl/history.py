@@ -230,6 +230,58 @@ def format_summary(results: list[dict]) -> str:
     return "\n".join(output_lines)
 
 
+def format_tuning_table(results: list[dict]) -> str:
+    """Format tuning parameter history as a table.
+
+    Args:
+        results: List of tuning records from query_tuning_params()
+
+    Returns:
+        Formatted table string with Timestamp, Parameter, Old, New, WAN, Conf, Rationale columns
+    """
+    headers = ["Timestamp", "Parameter", "Old", "New", "WAN", "Conf", "Rationale"]
+    rows = []
+    for r in results:
+        rationale = str(r.get("rationale", "") or "")
+        if len(rationale) > 60:
+            rationale = rationale[:57] + "..."
+        param_display = r["parameter"]
+        if r.get("reverted"):
+            param_display = f"{param_display} [REVERT]"
+        rows.append(
+            [
+                format_timestamp(r["timestamp"]),
+                param_display,
+                format_value(r["old_value"]),
+                format_value(r["new_value"]),
+                r["wan_name"],
+                f"{r['confidence']:.2f}",
+                rationale,
+            ]
+        )
+
+    return tabulate(rows, headers=headers, tablefmt="simple")
+
+
+def format_tuning_json(results: list[dict]) -> str:
+    """Format tuning parameter history as JSON.
+
+    Converts timestamps to ISO strings for readability.
+
+    Args:
+        results: List of tuning records from query_tuning_params()
+
+    Returns:
+        Pretty-printed JSON string
+    """
+    output = []
+    for r in results:
+        record = dict(r)
+        record["timestamp_iso"] = datetime.fromtimestamp(r["timestamp"]).isoformat()
+        output.append(record)
+    return json.dumps(output, indent=2)
+
+
 def format_alerts_table(results: list[dict]) -> str:
     """Format alert query results as a table.
 
@@ -338,6 +390,11 @@ Examples:
         help="Show fired alerts instead of metrics",
     )
     filter_group.add_argument(
+        "--tuning",
+        action="store_true",
+        help="Show tuning parameter adjustments instead of metrics",
+    )
+    filter_group.add_argument(
         "--metrics",
         metavar="NAMES",
         help="Comma-separated metric names to filter",
@@ -409,6 +466,25 @@ def main() -> int:
         # Default: last 1 hour
         start_ts = now - 3600
         end_ts = now
+
+    # Tuning history query mode
+    if args.tuning:
+        from wanctl.storage.reader import query_tuning_params
+
+        results = query_tuning_params(
+            db_path=args.db,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            wan=args.wan,
+        )
+        if not results:
+            print("No tuning adjustments found for the specified time range.")
+            return 0
+        if args.json_output:
+            print(format_tuning_json(results))
+        else:
+            print(format_tuning_table(results))
+        return 0
 
     # Alert query mode
     if args.alerts:
