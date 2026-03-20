@@ -92,10 +92,10 @@ None.
 
 ### Quick Tasks Completed
 
-| #          | Description                                       | Date       | Commit  | Directory                                                                  |
-| ---------- | ------------------------------------------------- | ---------- | ------- | -------------------------------------------------------------------------- |
-| 260319-lk3 | Fix state file persistence + tuning param restore | 2026-03-19 | 6cbbd80 | [260319-lk3](./quick/260319-lk3-fix-state-file-persistence-and-tuning-pa/) |
-| 260320-9wi | Update README and CONFIG_SCHEMA docs for v1.20    | 2026-03-20 | fa766f7 | [260320-9wi](./quick/260320-9wi-update-readme-and-config-schema-docs-for/) |
+| #          | Description                                       | Date       | Commit  | Status   | Directory                                                                  |
+| ---------- | ------------------------------------------------- | ---------- | ------- | -------- | -------------------------------------------------------------------------- |
+| 260319-lk3 | Fix state file persistence + tuning param restore | 2026-03-19 | 6cbbd80 |          | [260319-lk3](./quick/260319-lk3-fix-state-file-persistence-and-tuning-pa/) |
+| 260320-9wi | Update README and CONFIG_SCHEMA docs for v1.20    | 2026-03-20 | 6b78058 | Verified | [260320-9wi](./quick/260320-9wi-update-readme-and-config-schema-docs-for/) |
 
 ### Pending Todos
 
