@@ -4,7 +4,7 @@ milestone: v1.20
 milestone_name: Adaptive Tuning
 status: completed
 last_updated: "2026-03-19T21:37:32.914Z"
-last_activity: "2026-03-19 - Completed quick task 260319-lk3: Fix state file persistence + tuning param restore"
+last_activity: "2026-03-20 - Completed quick task 260320-9wi: Update README and CONFIG_SCHEMA docs for v1.20"
 progress:
   total_phases: 6
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 **Phase:** 102 of 103 (Advanced Tuning)
 **Plan:** 3 of 3 complete
 **Status:** v1.20 milestone complete
-**Last activity:** 2026-03-19 - Completed quick task 260319-lk3: Fix state file persistence + tuning param restore
+**Last activity:** 2026-03-20 - Completed quick task 260320-9wi: Update README and CONFIG_SCHEMA docs for v1.20
 
 Progress: [█████████░] 92%
 
@@ -95,6 +95,7 @@ None.
 | #          | Description                                       | Date       | Commit  | Directory                                                                  |
 | ---------- | ------------------------------------------------- | ---------- | ------- | -------------------------------------------------------------------------- |
 | 260319-lk3 | Fix state file persistence + tuning param restore | 2026-03-19 | 6cbbd80 | [260319-lk3](./quick/260319-lk3-fix-state-file-persistence-and-tuning-pa/) |
+| 260320-9wi | Update README and CONFIG_SCHEMA docs for v1.20    | 2026-03-20 | fa766f7 | [260320-9wi](./quick/260320-9wi-update-readme-and-config-schema-docs-for/) |
 
 ### Pending Todos
 
