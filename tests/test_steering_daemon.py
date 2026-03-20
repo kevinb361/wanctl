@@ -3107,6 +3107,7 @@ class TestRunCycle:
         mock_steering_config.queue_ewma_alpha = 0.4
         mock_steering_config.ping_host = "8.8.8.8"
         mock_steering_config.ping_count = 1
+        mock_steering_config.measurement_interval = 0.5
         return mock_steering_config
 
     @pytest.fixture
@@ -4564,6 +4565,7 @@ class TestSteeringProfilingInstrumentation:
         mock_steering_config.queue_ewma_alpha = 0.3
         mock_steering_config.threshold_ms = 15.0
         mock_steering_config.history_size = 60
+        mock_steering_config.measurement_interval = 0.5
         return mock_steering_config
 
     @pytest.fixture
