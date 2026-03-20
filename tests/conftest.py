@@ -165,4 +165,6 @@ def mock_steering_config():
     config.wan_state_config = None
     # Alerting (disabled by default in tests)
     config.alerting_config = None
+    # Cycle interval for utilization calculation
+    config.measurement_interval = 0.5
     return config

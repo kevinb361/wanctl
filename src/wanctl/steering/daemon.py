@@ -1065,7 +1065,7 @@ class SteeringDaemon:
         self._profile_cycle_count = 0
         self._profiling_enabled = False
         self._overrun_count = 0
-        self._cycle_interval_ms = ASSESSMENT_INTERVAL_SECONDS * 1000.0
+        self._cycle_interval_ms = config.measurement_interval * 1000.0
 
         # WAN congestion zone from autorate state (FUSE-01)
         self._wan_zone: str | None = None
