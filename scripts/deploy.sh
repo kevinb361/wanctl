@@ -320,6 +320,24 @@ verify_deployment() {
         print_warning "Config not found: ${wan_name}.yaml"
     fi
 
+    # Check secrets file has expected variables
+    if ssh "$TARGET_HOST" "sudo test -f $TARGET_CONFIG_DIR/secrets"; then
+        local missing_vars=()
+        if ! ssh "$TARGET_HOST" "sudo grep -q ROUTER_PASSWORD $TARGET_CONFIG_DIR/secrets"; then
+            missing_vars+=("ROUTER_PASSWORD")
+        fi
+        if ! ssh "$TARGET_HOST" "sudo grep -q DISCORD_WEBHOOK_URL $TARGET_CONFIG_DIR/secrets"; then
+            missing_vars+=("DISCORD_WEBHOOK_URL")
+        fi
+        if [[ ${#missing_vars[@]} -eq 0 ]]; then
+            print_success "Secrets file: all expected variables present"
+        else
+            print_warning "Secrets file missing: ${missing_vars[*]}"
+        fi
+    else
+        print_warning "Secrets file not found: $TARGET_CONFIG_DIR/secrets"
+    fi
+
     # Check systemd
     if ssh "$TARGET_HOST" "test -f $TARGET_SYSTEMD_DIR/wanctl@.service"; then
         print_success "Systemd template present"
