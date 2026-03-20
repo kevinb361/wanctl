@@ -10,6 +10,7 @@ Runs as a persistent daemon with internal 50ms control loop.
 import argparse
 import atexit
 import logging
+import os
 import socket
 import statistics
 import sys
@@ -607,6 +608,10 @@ class Config(BaseConfig):
                 return
 
         webhook_url = alerting.get("webhook_url", "")
+        # Expand ${ENV_VAR} references (same pattern as router password)
+        if webhook_url and isinstance(webhook_url, str) and webhook_url.startswith("${") and webhook_url.endswith("}"):
+            env_var = webhook_url[2:-1]
+            webhook_url = os.environ.get(env_var, "")
 
         # Delivery config fields (Plan 77-02)
         mention_role_id = alerting.get("mention_role_id")
