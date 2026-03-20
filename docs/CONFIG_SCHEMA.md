@@ -507,6 +507,189 @@ irtt:
 
 ---
 
+## Reflector Quality Scoring
+
+### `reflector_quality` (optional)
+
+Rolling quality scoring for ICMP ping reflectors. When present, low-scoring reflectors are automatically deprioritized and periodically probed for recovery. If omitted, all defaults are used.
+
+| Field                | Type  | Default | Description                                                        |
+| -------------------- | ----- | ------- | ------------------------------------------------------------------ |
+| `min_score`          | float | `0.8`   | Score threshold below which reflectors are deprioritized (0.0-1.0) |
+| `probe_interval_sec` | int   | `30`    | Seconds between recovery probes for deprioritized reflectors       |
+| `recovery_count`     | int   | `3`     | Consecutive successful probes required to restore a reflector      |
+
+Graceful degradation when reflectors fail:
+
+- 3+ active reflectors: median RTT
+- 2 active: average RTT
+- 1 active: single measurement
+- 0 active: force-probe best-scoring reflector
+
+```yaml
+# Example: custom reflector quality settings
+reflector_quality:
+  min_score: 0.8 # Deprioritize below 80% success rate
+  probe_interval_sec: 30 # Check deprioritized hosts every 30s
+  recovery_count: 3 # 3 good probes to restore
+```
+
+---
+
+## Dual-Signal Fusion
+
+### `fusion` (optional)
+
+Weighted combination of ICMP and IRTT RTT measurements for congestion control input. Requires `irtt.enabled: true` for IRTT data. Ships disabled by default for safe production rollout.
+
+When enabled, the controller blends 20Hz ICMP measurements with periodic IRTT UDP measurements. If IRTT data is unavailable or stale, the controller silently falls back to ICMP-only.
+
+| Field         | Type  | Default | Description                                                     |
+| ------------- | ----- | ------- | --------------------------------------------------------------- |
+| `enabled`     | bool  | `false` | Enable dual-signal fusion                                       |
+| `icmp_weight` | float | `0.7`   | Weight for ICMP signal (0.0-1.0). IRTT weight = 1 - icmp_weight |
+
+**Runtime toggle:** Send `SIGUSR1` to the daemon process to enable/disable fusion without restart:
+
+```bash
+kill -USR1 $(pidof wanctl)  # Toggle fusion on/off
+```
+
+```yaml
+# Example: enable fusion with default weights
+fusion:
+  enabled: true
+  icmp_weight: 0.7 # 70% ICMP, 30% IRTT
+
+
+# Example: disabled (default -- no section needed)
+# fusion:
+#   enabled: false
+```
+
+---
+
+## Alerting
+
+### `alerting` (optional)
+
+Discord webhook notifications for congestion events, rate changes, and IRTT loss. Ships disabled by default.
+
+| Field                     | Type   | Default      | Description                                                        |
+| ------------------------- | ------ | ------------ | ------------------------------------------------------------------ |
+| `enabled`                 | bool   | `false`      | Enable alerting engine                                             |
+| `webhook_url`             | string | `""`         | Discord webhook URL (supports `${VAR}` env expansion)              |
+| `default_cooldown_sec`    | int    | `300`        | Minimum seconds between same (type, wan) alerts                    |
+| `default_sustained_sec`   | int    | `60`         | Seconds a condition must persist before alerting                   |
+| `mention_role_id`         | string | `null`       | Discord role ID to @mention on alerts (optional)                   |
+| `mention_severity`        | string | `"critical"` | Minimum severity to trigger @mention (`info`/`warning`/`critical`) |
+| `max_webhooks_per_minute` | int    | `20`         | Rate limit for webhook delivery                                    |
+| `rules`                   | map    | `{}`         | Per-alert-type overrides (see below)                               |
+
+#### `alerting.rules` (optional)
+
+Per-alert-type configuration overrides. Each key is an alert type name, value is a map with:
+
+| Field          | Type   | Required | Description                                      |
+| -------------- | ------ | -------- | ------------------------------------------------ |
+| `severity`     | string | yes      | Alert severity: `info`, `warning`, or `critical` |
+| `enabled`      | bool   | no       | Override enabled state for this type             |
+| `cooldown_sec` | int    | no       | Override cooldown for this alert type            |
+
+**Built-in alert types:** `congestion_sustained`, `congestion_recovered`, `rate_floor_hit`, `rate_ceiling_hit`, `steering_activated`, `steering_deactivated`, `irtt_loss_upstream`, `irtt_loss_downstream`, `irtt_loss_recovered`
+
+```yaml
+# Example: enable alerting with Discord webhook
+alerting:
+  enabled: true
+  webhook_url: "${DISCORD_WEBHOOK_URL}"  # From /etc/wanctl/secrets
+  default_cooldown_sec: 300
+  default_sustained_sec: 60
+  rules:
+    congestion_sustained:
+      severity: "warning"
+      cooldown_sec: 600
+    rate_floor_hit:
+      severity: "critical"
+
+# Example: alerting with role mentions
+alerting:
+  enabled: true
+  webhook_url: "${DISCORD_WEBHOOK_URL}"
+  mention_role_id: "1234567890"
+  mention_severity: "critical"  # Only @mention on critical alerts
+```
+
+---
+
+## Adaptive Tuning
+
+### `tuning` (optional)
+
+Self-optimizing controller that analyzes production metrics to adjust control parameters automatically. Ships disabled by default. All changes are runtime-only -- YAML values are always the reset escape hatch.
+
+The tuning engine runs a 4-layer round-robin rotation (one layer per tuning cycle):
+
+1. **Signal processing** - Hampel sigma/window optimization from outlier rates
+2. **EWMA** - Load time constant adjustment from step detection analysis
+3. **Threshold** - target_bloat_ms/warn_bloat_ms calibration from RTT percentiles
+4. **Advanced** - Fusion weight, reflector min_score, baseline bounds from cross-signal analysis
+
+| Field            | Type  | Default | Description                                           |
+| ---------------- | ----- | ------- | ----------------------------------------------------- |
+| `enabled`        | bool  | `false` | Enable adaptive tuning                                |
+| `cadence_sec`    | int   | `3600`  | Seconds between tuning cycles (minimum 600)           |
+| `lookback_hours` | int   | `24`    | Hours of metrics history to analyze (1-168)           |
+| `warmup_hours`   | int   | `1`     | Minimum hours of data before first tuning run (1-24)  |
+| `max_step_pct`   | float | `10`    | Maximum percentage change per tuning cycle (1.0-50.0) |
+| `bounds`         | map   | `{}`    | Per-parameter safety bounds (see below)               |
+
+#### `tuning.bounds` (required when enabled)
+
+Per-parameter safety bounds. Each key is a parameter name, value is `{min: N, max: N}`.
+
+Supported parameters:
+
+| Parameter                | Unit    | Description                          | Typical Bounds            |
+| ------------------------ | ------- | ------------------------------------ | ------------------------- |
+| `target_bloat_ms`        | ms      | GREEN to YELLOW threshold            | `{min: 3, max: 30}`       |
+| `warn_bloat_ms`          | ms      | YELLOW to SOFT_RED threshold         | `{min: 10, max: 100}`     |
+| `hard_red_bloat_ms`      | ms      | SOFT_RED to RED threshold            | `{min: 30, max: 200}`     |
+| `load_time_constant_sec` | seconds | Load EWMA time constant              | `{min: 0.05, max: 5.0}`   |
+| `hampel_sigma`           | -       | Hampel filter sigma threshold        | `{min: 1.5, max: 5.0}`    |
+| `hampel_window`          | -       | Hampel filter window size            | `{min: 3, max: 21}`       |
+| `fusion_weight`          | 0-1     | ICMP weight in fusion blend          | `{min: 0.3, max: 0.95}`   |
+| `reflector_min_score`    | 0-1     | Reflector deprioritization threshold | `{min: 0.5, max: 0.95}`   |
+| `baseline_bounds_min`    | ms      | Minimum valid baseline RTT           | `{min: 1.0, max: 50.0}`   |
+| `baseline_bounds_max`    | ms      | Maximum valid baseline RTT           | `{min: 10.0, max: 200.0}` |
+
+**Safety features:**
+
+- Automatic revert if congestion rate increases after parameter change
+- Parameter locks with cooldown to prevent thrashing
+- Observation period after each change before next adjustment
+- All changes bounded by `max_step_pct` (max 10% change per cycle by default)
+
+```yaml
+# Example: enable adaptive tuning
+tuning:
+  enabled: true
+  cadence_sec: 3600 # Analyze every hour
+  lookback_hours: 24 # Query last 24h of metrics
+  warmup_hours: 1 # Wait 1h before first tuning
+  max_step_pct: 10 # Max 10% change per cycle
+  bounds:
+    target_bloat_ms: { min: 3, max: 30 }
+    warn_bloat_ms: { min: 10, max: 100 }
+    hard_red_bloat_ms: { min: 30, max: 200 }
+    load_time_constant_sec: { min: 0.05, max: 5.0 }
+
+# View tuning history via CLI:
+# wanctl-history --db /var/lib/wanctl/wan1.db --tuning --duration 24h
+```
+
+---
+
 ## Deprecated Parameters
 
 The following config parameters are deprecated. They are auto-translated with a warning on load (or silently ignored where noted). Update your configs to use the modern replacements.
