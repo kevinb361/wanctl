@@ -243,6 +243,7 @@ class TestSteeringFailureCascade:
         mock_config.wan_state_config = None
         mock_config.confidence_config = None
         mock_config.alerting_config = None
+        mock_config.measurement_interval = 0.05
         mock_config.data = {}
 
         mock_state = MagicMock()
@@ -306,6 +307,7 @@ class TestSteeringFailureCascade:
         mock_config.wan_state_config = None
         mock_config.confidence_config = None
         mock_config.alerting_config = None
+        mock_config.measurement_interval = 0.05
         mock_config.data = {}
 
         mock_state = MagicMock()
