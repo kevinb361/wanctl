@@ -1,7 +1,7 @@
 # wanctl
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![Coverage](https://img.shields.io/badge/coverage-90%25_threshold-brightgreen)](coverage-report/index.html)
+[![Coverage](https://img.shields.io/badge/coverage-91%25_threshold-brightgreen)](coverage-report/index.html)
 
 **Adaptive CAKE bandwidth control for Mikrotik RouterOS.**
 
@@ -19,6 +19,14 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 - **Hardened security** - Input validation, EWMA bounds checking, rate limiting, centralized validation
 - **Production reliability** - Bounded memory, file locking, automatic state backup recovery
 - **Observability** - Health check endpoint, Prometheus metrics, JSON structured logging
+- **Signal processing** - Hampel outlier filter + EWMA smoothing for noise-resilient RTT measurement
+- **Dual-signal fusion** - Weighted ICMP + IRTT UDP measurement blending (ships disabled, SIGUSR1 toggle)
+- **IRTT measurement** - Isochronous UDP RTT with directional loss detection and OWD asymmetry analysis
+- **Reflector quality scoring** - Rolling quality scores with automatic deprioritization and recovery
+- **Adaptive tuning** - Self-optimizing controller learns optimal parameters from production metrics
+- **Alerting** - Discord webhook notifications for congestion, rate changes, IRTT loss events
+- **TUI dashboard** - Real-time terminal dashboard with sparklines and history browser
+- **CLI tools** - Config validation, CAKE queue audit, RRUL benchmarking, metrics/alert/tuning history
 
 ## Quick Start
 
@@ -214,8 +222,9 @@ Copy to `/etc/wanctl/` and customize for your setup.
 /opt/wanctl/           # Code
 /etc/wanctl/           # Configuration
   ├── wan1.yaml        # WAN config
-  └── ssh/router.key   # Router SSH key
-/var/lib/wanctl/       # State files (EWMA persistence)
+  ├── secrets          # Environment secrets (ROUTER_PASSWORD, DISCORD_WEBHOOK_URL)
+  └── ssh/router.key   # Router SSH key (for SSH transport)
+/var/lib/wanctl/       # State files (EWMA persistence, SQLite metrics database)
 /var/log/wanctl/       # Logs
 /run/wanctl/           # Lock files
 ```
@@ -268,15 +277,34 @@ curl http://127.0.0.1:9101/health
 {
   "status": "healthy",
   "uptime_seconds": 3600.5,
-  "version": "1.4.0",
+  "version": "1.20.0",
   "consecutive_failures": 0,
+  "wan_count": 1,
   "wans": [
     {
       "name": "wan1",
-      "download": { "state": "GREEN" },
-      "upload": { "state": "GREEN" }
+      "baseline_rtt_ms": 24.01,
+      "load_rtt_ms": 25.5,
+      "download": { "state": "GREEN", "current_rate_mbps": 940.0 },
+      "upload": { "state": "GREEN", "current_rate_mbps": 38.0 },
+      "signal_quality": {
+        "jitter_ms": 0.42,
+        "variance_ms2": 0.18,
+        "confidence": 0.95,
+        "outlier_rate": 0.03
+      },
+      "irtt": { "available": true, "rtt_mean_ms": 28.5, "ipdv_ms": 0.8 },
+      "reflector_quality": {
+        "available": true,
+        "hosts": { "1.1.1.1": { "score": 0.98, "status": "active" } }
+      },
+      "fusion": { "enabled": false, "reason": "disabled" },
+      "tuning": { "enabled": false, "reason": "disabled" }
     }
-  ]
+  ],
+  "alerting": { "enabled": true, "fire_count": 3, "active_cooldowns": [] },
+  "router_reachable": true,
+  "disk_space": { "status": "ok" }
 }
 ```
 
@@ -321,6 +349,45 @@ Validate configuration without starting the daemon:
 ```bash
 wanctl --config /etc/wanctl/wan1.yaml --validate-config
 # Exit code: 0 = valid, 1 = invalid
+```
+
+For more thorough offline validation, use the dedicated CLI tool:
+
+```bash
+wanctl-check-config /etc/wanctl/wan1.yaml
+```
+
+This validates all sections including alerting, tuning, signal_processing, IRTT, and fusion config.
+
+## CLI Tools
+
+wanctl ships with several CLI utilities for diagnostics and validation:
+
+| Tool                  | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `wanctl-history`      | Query metrics, alerts, and tuning history from SQLite database |
+| `wanctl-check-config` | Validate config files offline (catches errors before deploy)   |
+| `wanctl-check-cake`   | Audit CAKE queue configuration on router against wanctl config |
+| `wanctl-benchmark`    | Run RRUL bufferbloat test and grade results                    |
+
+```bash
+# Query recent metrics history
+wanctl-history --db /var/lib/wanctl/wan1.db --duration 1h
+
+# View alert history
+wanctl-history --db /var/lib/wanctl/wan1.db --alerts --duration 24h
+
+# View tuning adjustment history
+wanctl-history --db /var/lib/wanctl/wan1.db --tuning --duration 24h
+
+# Validate config before deploying
+wanctl-check-config /etc/wanctl/wan1.yaml
+
+# Audit CAKE queues on router
+wanctl-check-cake /etc/wanctl/wan1.yaml
+
+# Run RRUL benchmark
+wanctl-benchmark --config /etc/wanctl/wan1.yaml --server netperf-server
 ```
 
 ## Real-World Test: Congestion Response
