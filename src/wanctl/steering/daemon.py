@@ -23,6 +23,7 @@ Colocated with autorate_continuous on primary WAN controller.
 import argparse
 import atexit
 import logging
+import os
 import sys
 import threading
 import time
@@ -532,6 +533,10 @@ class SteeringConfig(BaseConfig):
             return
 
         webhook_url = alerting.get("webhook_url", "")
+        # Expand ${ENV_VAR} references (same pattern as router password)
+        if webhook_url and isinstance(webhook_url, str) and webhook_url.startswith("${") and webhook_url.endswith("}"):
+            env_var = webhook_url[2:-1]
+            webhook_url = os.environ.get(env_var, "")
 
         # Delivery config fields (Plan 77-02)
         mention_role_id = alerting.get("mention_role_id")
@@ -1173,6 +1178,10 @@ class SteeringDaemon:
                 data = yaml.safe_load(f) or {}
             alerting = data.get("alerting", {})
             new_url = alerting.get("webhook_url", "")
+            # Expand ${ENV_VAR} references
+            if new_url and isinstance(new_url, str) and new_url.startswith("${") and new_url.endswith("}"):
+                env_var = new_url[2:-1]
+                new_url = os.environ.get(env_var, "")
             if self._webhook_delivery is not None:
                 self._webhook_delivery.update_webhook_url(new_url)
                 self.logger.info(
