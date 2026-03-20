@@ -5,7 +5,7 @@ Adaptive Multi-WAN Steering Daemon
 Routes latency-sensitive traffic to an alternate WAN when the primary WAN degrades.
 Uses three-layer architecture:
   Layer 1 (DSCP): EF/AF31 = latency-sensitive
-  Layer 2 (Connection-marks): LATENCY_SENSITIVE mark drives routing
+  Layer 2 (Connection-marks): QOS_HIGH,QOS_MEDIUM,GAMES marks drive routing
   Layer 3 (Address-lists): Surgical overrides via FORCE_OUT_<WAN>
 
 State machine:
@@ -765,7 +765,7 @@ class RouterOSController:
         return None
 
     def enable_steering(self) -> bool:
-        """Enable adaptive steering rule (route LATENCY_SENSITIVE to alternate WAN)"""
+        """Enable adaptive steering rule (route latency-sensitive traffic to alternate WAN)"""
         self.logger.info(f"Enabling steering rule: {self.config.mangle_rule_comment}")
 
         rc, _, _ = self.client.run_cmd(
