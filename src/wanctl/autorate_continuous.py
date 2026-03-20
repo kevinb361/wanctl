@@ -1716,9 +1716,10 @@ class WANController:
                     "but not deliver"
                 )
 
+            from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
-            formatter = DiscordFormatter(version="1.15.0", container_id=wan_name)
+            formatter = DiscordFormatter(version=__version__, container_id=wan_name)
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
                 webhook_url=url,

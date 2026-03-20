@@ -1012,10 +1012,11 @@ class SteeringDaemon:
                     "but not deliver"
                 )
 
+            from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
             formatter = DiscordFormatter(
-                version="1.15.0", container_id=config.wan_name
+                version=__version__, container_id=config.wan_name
             )
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
