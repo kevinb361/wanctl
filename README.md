@@ -214,7 +214,7 @@ Example configs are provided for common connection types:
 | `dsl.yaml.example`      | DSL/VDSL (sensitive upload)      |
 | `steering.yaml.example` | Multi-WAN traffic steering       |
 
-Copy to `/etc/wanctl/` and customize for your setup.
+Copy to `/etc/wanctl/` and customize for your setup. See [CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) for the complete configuration reference including alerting, fusion, IRTT, and adaptive tuning options.
 
 ## Directory Structure
 
