@@ -1516,7 +1516,7 @@ def _apply_tuning_to_controller(
         elif r.parameter == "hampel_sigma_threshold":
             wc.signal_processor._sigma_threshold = r.new_value
         elif r.parameter == "hampel_window_size":
-            new_size = int(r.new_value)
+            new_size = round(r.new_value)
             wc.signal_processor._window_size = new_size
             wc.signal_processor._window = deque(
                 wc.signal_processor._window, maxlen=new_size
