@@ -425,6 +425,55 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.20 — Adaptive Tuning
+
+**Shipped:** 2026-03-19
+**Phases:** 6 | **Plans:** 13
+
+### What Was Built
+
+- Self-optimizing tuning engine: pluggable StrategyFn functions, per-WAN analysis, SIGUSR1 toggle, SQLite persistence
+- Congestion threshold calibration from GREEN-state RTT delta percentiles (p75/p90) with convergence detection
+- Safety & revert system monitoring post-adjustment congestion rate with automatic rollback and hysteresis locks
+- Signal processing tuning: Hampel sigma/window and load time constant optimized per-WAN from noise characteristics
+- Advanced tuning: fusion weight, reflector min_score, baseline bounds auto-adjusted from signal reliability scoring
+- 4-layer round-robin rotation (signal → EWMA → threshold → advanced), one layer per hourly tuning cycle
+- Fusion baseline deadlock fix: signal path split — fused RTT for load EWMA, ICMP-only for baseline EWMA
+- `wanctl-history --tuning` CLI for operator tuning visibility
+
+### What Worked
+
+- Pure-function strategies (StrategyFn type alias) are trivially testable — each strategy is an independent unit with no state, making TDD straightforward
+- load_time_constant_sec domain trick: outputting time constant instead of alpha avoids clamp_to_step precision destruction — the applier converts to alpha at apply time only
+- Existing patterns scaled well: maintenance window, SIGUSR1 reload chain, health endpoint sections, SQLite persistence — all followed established conventions with minimal friction
+- Phase 103 (bug fix) inserted mid-milestone without disrupting remaining phases — decimal numbering wasn't even needed since it was the last phase
+
+### What Was Inefficient
+
+- ROADMAP.md checkbox staleness continued — phases 98-100, 102-103 never got checked off despite being complete. The roadmap analyze tool relies on disk-based detection, which breaks when phases are executed via quick tasks or without standard directory structure
+- Phase directories split between zero-padded (098, 099) and non-padded (100-103) caused the stats tool to miscount — the archival step required manual consolidation
+
+### Patterns Established
+
+- StrategyFn as Callable type alias: pure functions over Protocol/ABC — strategies are data-in/result-out with no state
+- Domain output trick: strategies output human-meaningful values (time constants, sigma), applier converts to internal representation (alpha, threshold) — survives clamping and trivial-change filtering
+- 4-layer round-robin rotation: isolates cause-and-effect by changing one parameter category per tuning cycle
+- Signal path split: ICMP-only for baseline (reference signal), fused for load (enhanced detection) — prevents cross-signal contamination
+
+### Key Lessons
+
+1. **Domain-appropriate output values prevent precision loss**: Outputting load_time_constant_sec (0.5-10s range) instead of alpha_load (0.005-0.1 range) means the 10% max-step clamp operates on meaningful increments, not tiny decimals that get filtered as "trivial changes"
+2. **Bug fixes in milestone scope are fine**: Phase 103 (fusion baseline deadlock) was a regression from v1.19's Phase 96. Adding it as the last phase of v1.20 worked cleanly — the fix was small, targeted, and didn't block other phases
+3. **Zero new dependencies is achievable for sophisticated features**: stdlib `statistics` module + existing SQLite infrastructure powered all tuning analysis — no scipy/numpy/ML needed for 6-8 scalar parameters
+
+### Cost Observations
+
+- Model mix: Opus for planning/execution, Sonnet for research/verification
+- Sessions: ~3 (phases 98-99, phases 100-101, phases 102-103 + milestone)
+- Notable: 6 phases, 13 plans, ~265 new tests in 3 days with zero new dependencies
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -442,6 +491,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.17     | 4      | 8     | External tool wrapping (flent), auto-store, flat SQLite schema |
 | v1.18     | 5      | 10    | Lock-free threading, observation mode, report-only closure     |
 | v1.19     | 5      | 9     | Dual-signal fusion, multi-gate fallback, SIGUSR1 in autorate   |
+| v1.20     | 6      | 13    | Adaptive tuning, StrategyFn pattern, 4-layer rotation, bug fix |
 
 ### Cumulative Quality
 
@@ -458,6 +508,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.17     | 2,893  | 91%+     | 70        |
 | v1.18     | 3,256  | 91%+     | 363       |
 | v1.19     | ~3,458 | 91%+     | ~202      |
+| v1.20     | ~3,723 | 91%+     | ~265      |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -466,3 +517,4 @@ _A living document updated after each milestone. Lessons feed forward into futur
 3. Feature toggles enable safe cross-component shipping — write data in component A, read in component B, behavior unchanged until enabled (v1.11, graduated in v1.13)
 4. Production graduation requires degradation verification — config changes aren't enough, validate failure paths before declaring "live" (v1.13)
 5. Observation mode → fusion is the right two-milestone pattern — ship supplemental signals in observation mode first, graduate to active input after production data validates the approach (v1.18 → v1.19)
+6. Zero new dependencies scales surprisingly far — stdlib `statistics` + existing SQLite powered all adaptive tuning analysis for 6-8 scalar parameters without scipy/numpy (v1.20)

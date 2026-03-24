@@ -2,11 +2,31 @@
 
 ## v1.20 Adaptive Tuning (Shipped: 2026-03-19)
 
-**Phases completed:** 6 phases, 13 plans, 0 tasks
+**Delivered:** Self-optimizing controller that learns optimal parameters from production metrics via 4-layer tuning rotation, with safety revert detection, signal processing optimization, and fusion baseline deadlock fix.
+
+**Phases completed:** 98-103 (13 plans total)
 
 **Key accomplishments:**
 
-- (none recorded)
+- Self-optimizing tuning engine with per-WAN analysis, SIGUSR1 toggle, SQLite persistence, and health endpoint visibility (Phase 98)
+- Congestion threshold calibration deriving target/warn bloat from GREEN-state RTT delta percentiles with convergence detection (Phase 99)
+- Safety & revert system monitoring post-adjustment congestion rate with automatic rollback and hysteresis locks (Phase 100)
+- Signal processing tuning: Hampel sigma/window and EWMA alpha optimized per-WAN via 4-layer round-robin rotation (Phase 101)
+- Advanced tuning: fusion weight, reflector min_score, baseline bounds auto-adjusted from signal reliability (Phase 102)
+- Fusion baseline deadlock fix: signal path split — fused RTT for load EWMA, ICMP-only for baseline EWMA (Phase 103)
+
+**Stats:**
+
+- 6 phases, 13 plans
+- 112 commits, 41 files changed
+- +8,534 / -184 lines changed
+- ~265 new tests (3,458 to ~3,723)
+- 28,629 LOC Python (src/)
+- 3 days (2026-03-18 to 2026-03-20)
+
+**Git range:** `v1.19..v1.20`
+
+**What's next:** v1.21 planning.
 
 ---
 

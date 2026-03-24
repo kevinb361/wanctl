@@ -11,9 +11,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 ## Current State
 
 **Version:** v1.20.0 (Adaptive Tuning) — shipped 2026-03-19
-**Tests:** 3,733 passing, 91%+ coverage
-**LOC:** ~28,613 Python (src/)
-**Milestones:** 21 shipped (v1.0-v1.20), 103 phases, 207 plans
+**Tests:** ~3,723 passing, 91%+ coverage
+**LOC:** ~28,629 Python (src/)
+**Milestones:** 21 shipped (v1.0-v1.20), 103 phases, 210 plans
 
 **Previous:** v1.19 Signal Fusion — Weighted ICMP+IRTT fusion, reflector quality scoring, OWD asymmetric detection, IRTT loss alerting
 **Latest:** v1.20 Adaptive Tuning — Self-optimizing controller with 4-layer tuning rotation (signal→EWMA→threshold→advanced), 30 requirements, fusion baseline deadlock fix, state/tuning persistence
@@ -539,4 +539,4 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 
 ---
 
-_Last updated: 2026-03-19 after v1.20 Adaptive Tuning milestone_
+_Last updated: 2026-03-24 after v1.20 Adaptive Tuning milestone completion_
