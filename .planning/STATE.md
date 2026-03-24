@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-24T22:07:43.452Z"
+status: executing
+last_updated: "2026-03-24T22:42:18.788Z"
 last_activity: 2026-03-24
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 28
 ---
 
@@ -20,23 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
-**Current focus:** Phase 105 — linuxcakebackend-core
+**Current focus:** Phase 106 — cake-optimization-parameters
 
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
 **Phase:** 106 of 7 (cake optimization parameters)
-**Status:** Ready to plan
+**Status:** Executing Phase 106
 **Last activity:** 2026-03-24
 
-Progress: [##........] 28%
+Progress: [########..] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
-- Average duration: 5.5min
+- Total plans completed: 3
+- Average duration: 4.7min
 - Total execution time: 0.2 hours
 
 ## Accumulated Context
@@ -52,6 +52,7 @@ Progress: [##........] 28%
 - [P104] Kernel pinned to 6.17.2-1-pve due to VFIO regression in 6.17.13-x
 - [P105] LinuxCakeBackend: tc subprocess with JSON parsing, per-tin D-05 field mapping, superset stats dict
 - [P105] No-op mangle stubs (True/True/None) -- steering stays on MikroTik via Phase 108
+- [P106] overhead_keyword as standalone tc token, YAML_TO_TC_KEY for underscore-to-hyphen translation
 
 ### Known Issues
 

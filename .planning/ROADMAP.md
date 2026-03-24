@@ -62,7 +62,7 @@ None
 5. `tc qdisc replace` command strings match the ecosystem-validated patterns (no nat, no wash, no autorate-ingress)
    **Plans**: 2 plans
    Plans:
-   - [ ] 106-01-PLAN.md -- CakeParamsBuilder module with direction-aware defaults and config overrides
+   - [x] 106-01-PLAN.md -- CakeParamsBuilder module with direction-aware defaults and config overrides
    - [ ] 106-02-PLAN.md -- Extend initialize_cake for overhead_keyword support + integration tests
 
 ### Phase 107: Config & Factory Wiring

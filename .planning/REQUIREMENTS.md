@@ -16,15 +16,15 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 
 ### CAKE Optimization
 
-- [ ] **CAKE-01**: `split-gso` enabled to split TSO/GSO segments before queuing
-- [ ] **CAKE-02**: ECN marking enabled for explicit congestion notification (download CAKE)
-- [ ] **CAKE-03**: `ack-filter` enabled for ACK compression on upload
-- [ ] **CAKE-05**: Precise `overhead`/`mpu` configured per-link (`docsis` for Spectrum, `bridged-ptm` for ATT)
-- [ ] **CAKE-06**: `memlimit` configured for bounded memory usage (32MB for ~1Gbps links)
+- [x] **CAKE-01**: `split-gso` enabled to split TSO/GSO segments before queuing
+- [x] **CAKE-02**: ECN marking enabled for explicit congestion notification (download CAKE)
+- [x] **CAKE-03**: `ack-filter` enabled for ACK compression on upload
+- [x] **CAKE-05**: Precise `overhead`/`mpu` configured per-link (`docsis` for Spectrum, `bridged-ptm` for ATT)
+- [x] **CAKE-06**: `memlimit` configured for bounded memory usage (32MB for ~1Gbps links)
 - [ ] **CAKE-07**: Per-tin statistics visible in health endpoint and wanctl-history
-- [ ] **CAKE-08**: `ingress` keyword on download CAKE for tighter drop accounting
-- [ ] **CAKE-09**: `ecn` on download CAKE for softer congestion signaling than drops
-- [ ] **CAKE-10**: `rtt` parameter configured per-link (candidate for adaptive tuning, default 100ms may be conservative)
+- [x] **CAKE-08**: `ingress` keyword on download CAKE for tighter drop accounting
+- [x] **CAKE-09**: `ecn` on download CAKE for softer congestion signaling than drops
+- [x] **CAKE-10**: `rtt` parameter configured per-link (candidate for adaptive tuning, default 100ms may be conservative)
 
 ### Configuration
 
@@ -82,15 +82,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-02 | Phase 105 | Complete |
 | BACK-03 | Phase 105 | Complete |
 | BACK-04 | Phase 105 | Complete |
-| CAKE-01 | Phase 106 | Pending |
-| CAKE-02 | Phase 106 | Pending |
-| CAKE-03 | Phase 106 | Pending |
-| CAKE-05 | Phase 106 | Pending |
-| CAKE-06 | Phase 106 | Pending |
+| CAKE-01 | Phase 106 | Complete |
+| CAKE-02 | Phase 106 | Complete |
+| CAKE-03 | Phase 106 | Complete |
+| CAKE-05 | Phase 106 | Complete |
+| CAKE-06 | Phase 106 | Complete |
 | CAKE-07 | Phase 108 | Pending |
-| CAKE-08 | Phase 106 | Pending |
-| CAKE-09 | Phase 106 | Pending |
-| CAKE-10 | Phase 106 | Pending |
+| CAKE-08 | Phase 106 | Complete |
+| CAKE-09 | Phase 106 | Complete |
+| CAKE-10 | Phase 106 | Complete |
 | CONF-01 | Phase 107 | Pending |
 | CONF-02 | Phase 107 | Pending |
 | CONF-03 | Phase 108 | Pending |
