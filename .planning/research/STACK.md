@@ -1,361 +1,332 @@
-# Technology Stack: v1.20 Adaptive Tuning
+# Stack Research: v1.21 CAKE Offload to Linux VM
 
-**Project:** wanctl v1.20
-**Researched:** 2026-03-18
-**Confidence:** HIGH (all recommendations use existing stdlib + SQLite patterns)
-
-## Executive Summary
-
-Adaptive tuning for wanctl is fundamentally a **statistical analysis problem over historical SQLite metrics**, not a machine learning or optimization library problem. The system already has everything it needs:
-
-1. **Data source**: SQLite metrics.db with per-cycle RTT, jitter, variance, confidence, congestion state, IRTT, and fusion data -- at raw (50ms), 1m, 5m, and 1h granularities.
-2. **Math**: Python 3.12 `statistics` module provides `quantiles()`, `median()`, `stdev()`, `mean()`, `NormalDist`, and `fmean()` -- sufficient for percentile analysis, distribution fitting, and statistical inference.
-3. **Storage**: The existing `MetricsWriter` singleton and `query_metrics()` reader provide thread-safe read/write access.
-4. **Integration**: The SIGUSR1 hot-reload pattern (proven in v1.13, v1.19) enables zero-downtime parameter updates.
-
-**Bottom line: Zero new Python dependencies. Zero new system packages. The entire adaptive tuning system builds on stdlib `statistics` + `collections` + existing SQLite infrastructure.** This is the correct approach because:
-
-- The project constraint is "no external monitoring dependencies" (PROJECT.md)
-- scipy/numpy would add ~50MB to container images for trivially implementable math
-- The tuning algorithms are percentile analysis + bounded parameter adjustment -- not gradient descent or ML
-- Python 3.12 `statistics.quantiles()` already does the heavy lifting (used in `storage/reader.py` via `compute_summary()`)
-
----
+**Domain:** Linux CAKE qdisc control, transparent L2 bridging, PCIe passthrough VM
+**Researched:** 2026-03-24
+**Confidence:** HIGH (core tc/bridge tools are stable kernel interfaces, well-documented)
 
 ## Recommended Stack
 
-### Core Technologies (Already Present -- No Changes)
+### Core Technologies
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Python | 3.12 | Runtime | Existing |
-| SQLite (WAL mode) | 3.x (system) | Historical metrics storage and analysis source | Existing |
-| statistics (stdlib) | 3.12 built-in | quantiles(), median(), stdev(), NormalDist for distribution analysis | Existing |
-| collections.deque (stdlib) | 3.12 built-in | Bounded rolling windows for real-time parameter tracking | Existing pattern |
-| math (stdlib) | 3.12 built-in | log, exp, sqrt for EWMA alpha calculations | Existing |
-| json (stdlib) | 3.12 built-in | Parameter snapshot serialization | Existing |
-| time (stdlib) | 3.12 built-in | Monotonic timestamps for tuning cadence | Existing |
-| logging (stdlib) | 3.12 built-in | Tuning decision audit trail | Existing |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `tc` (iproute2) | 6.1.0 (Debian 12) | CAKE qdisc control: add, change, stats | The canonical Linux traffic control tool. `tc qdisc change` updates CAKE bandwidth **without packet loss or service interruption** -- ideal for wanctl's 50ms control loop. No library wrapper needed. |
+| `tc -j -s` (JSON mode) | iproute2 6.1.0 | Machine-readable CAKE statistics | JSON output eliminates fragile text parsing. Returns drops, bytes, backlog, per-tin stats. Available since iproute2 4.19+, well-tested on Debian 12. |
+| `ip link` (iproute2) | 6.1.0 (Debian 12) | Bridge creation and NIC management | Modern replacement for deprecated `brctl`. Supports `ip link add type bridge`, `ip link set master`, VLAN filtering. Already in base Debian 12. |
+| `subprocess.run` (stdlib) | Python 3.12 | Execute tc/ip commands | Zero new dependencies. Matches existing wanctl patterns (irtt_measurement.py, calibrate.py, benchmark.py). `subprocess.run` with `capture_output=True, timeout=N` is proven in the codebase. |
+| Linux kernel `sch_cake` | 6.1 (Debian 12) | CAKE qdisc kernel module | Mainline since kernel 4.19. Debian 12's kernel 6.1 ships `sch_cake` as a loadable module. `modprobe sch_cake` at boot or on first `tc qdisc add ... cake`. |
 
-### New Modules (All stdlib -- No New Dependencies)
+### Infrastructure (VM Provisioning)
 
-| Module | Purpose | Why This |
-|--------|---------|----------|
-| `statistics.quantiles(n=100)` | Compute p5/p25/p50/p75/p95 of RTT distributions for threshold calibration | Already in codebase (reader.py), just need targeted queries |
-| `statistics.NormalDist` | Fit RTT distributions to compute z-scores and tail probabilities | Stdlib since 3.8, enables principled threshold selection |
-| `statistics.stdev` + `statistics.mean` | Compute coefficient of variation for convergence detection | Already used throughout codebase |
-| `dataclasses.dataclass(frozen=True)` | TuningResult snapshots for observability and persistence | Matches existing SignalResult, AsymmetryResult pattern |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Proxmox VE `qm` CLI | 8.x (odin) | VM creation and PCIe passthrough config | Already deployed on odin. `qm create` + cloud-init for automated Debian 12 provisioning. `qm set -hostpci0` for NIC passthrough. |
+| Debian 12 cloud image | bookworm | VM base OS | Official `debian-12-genericcloud-amd64.qcow2` with cloud-init. Minimal footprint, kernel 6.1 with sch_cake, iproute2 6.1.0 included. |
+| VFIO/IOMMU | kernel 6.1 | PCIe NIC passthrough | Kernel modules `vfio`, `vfio_iommu_type1`, `vfio_pci`. Intel VT-d or AMD-Vi required in BIOS. Each NIC needs its own IOMMU group (or shared only with its PCI bridge). |
+| IFB (Intermediate Functional Block) | kernel 6.1 | Ingress (download) shaping | Linux can only shape egress. IFB mirrors ingress traffic to a virtual device where CAKE shapes it. `modprobe ifb` + `tc filter ... mirred egress redirect dev ifb0`. Standard pattern for download shaping. |
 
-### Existing Infrastructure Consumed (No Changes Needed)
+### Supporting Libraries
 
-| Component | How Tuner Uses It | Integration Point |
-|-----------|-------------------|-------------------|
-| `storage/reader.py::query_metrics()` | Read historical RTT, jitter, variance, confidence, state | Read-only SQLite queries with time range + WAN filter |
-| `storage/writer.py::MetricsWriter` | Persist tuning decisions and parameter snapshots | write_metric() with new metric names |
-| `storage/schema.py` | Add tuning_params table for parameter history | New table in create_tables() |
-| `signal_utils.py::is_reload_requested()` | Detect SIGUSR1 for tuning parameter application | Existing pattern from fusion/wan_state reload |
-| `config_validation_utils.py` | Validate computed parameters against bounds | Existing validate_* functions |
-| Health endpoint (`health_check.py`) | Expose tuning state, last adjustment, parameter values | Existing pattern from signal_quality/fusion sections |
-| YAML config | Tuning bounds, cadence, enable/disable flag | Existing pattern from signal_processing/fusion sections |
+None. **Zero new Python dependencies.** The entire LinuxCakeBackend operates through `subprocess.run` calling `tc` and `ip` -- both provided by `iproute2` in the base Debian 12 installation. This matches the project's zero-new-deps philosophy established in v1.20 (adaptive tuning used only stdlib `statistics` + existing SQLite).
 
----
+### System Packages Required on VM
 
-## What NOT to Add
+| Package | Debian 12 | Purpose | Notes |
+|---------|-----------|---------|-------|
+| `iproute2` | 6.1.0-3 | `tc` and `ip` commands | Installed by default in Debian 12 |
+| `kmod` | standard | `modprobe` for sch_cake, ifb | Installed by default |
+| `bridge-utils` | -- | **NOT NEEDED** | Deprecated. Use `ip link` from iproute2 instead |
+| `python3` | 3.11.2 | wanctl runtime | Debian 12 default. wanctl targets 3.12 but 3.11 compat is fine for subprocess calls |
+| `icmplib` | latest | ICMP RTT measurement | Already required by wanctl, install via pip3 |
 
-### Explicitly Rejected: External Optimization Libraries
+## Key Integration Points
 
-| Library | Why Rejected |
-|---------|-------------|
-| scipy | 50MB+ dependency for `scipy.optimize.minimize`. The tuning problem is bounded percentile analysis, not unconstrained optimization. |
-| numpy | 30MB+ dependency. Python `statistics.quantiles()` handles percentile computation. `collections.deque` handles windowing. |
-| pandas | Massive dependency. SQLite queries with `WHERE timestamp >= ? AND metric_name = ?` do the same filtering. |
-| scikit-learn | ML overkill. No training/inference loop needed -- just statistical analysis of historical data. |
-| optuna / hyperopt | Hyperparameter search frameworks. Tuning here is deterministic percentile-to-parameter mapping, not search. |
-| bayesian-optimization | Gaussian process based. Unnecessary complexity for 6-8 bounded scalar parameters. |
+### LinuxCakeBackend maps to RouterBackend interface
 
-### Explicitly Rejected: External Monitoring/Storage
+The existing `RouterBackend` ABC defines exactly what LinuxCakeBackend must implement:
 
-| Technology | Why Rejected |
-|------------|-------------|
-| Prometheus | Project constraint: self-contained, no external monitoring dependencies |
-| InfluxDB | SQLite already stores time-series metrics with automatic downsampling |
-| Redis | No inter-process state sharing needed; tuning runs inside the daemon |
+| Method | MikroTik Implementation | Linux CAKE Implementation |
+|--------|------------------------|---------------------------|
+| `set_bandwidth(queue, rate_bps)` | REST API `POST /queue/tree/set` | `tc qdisc change dev {iface} root cake bandwidth {rate}bit` |
+| `get_bandwidth(queue)` | REST API `GET /queue/tree` | `tc -j qdisc show dev {iface}` -- parse `options.bandwidth` |
+| `get_queue_stats(queue)` | REST API queue tree stats | `tc -j -s qdisc show dev {iface}` -- parse drops, bytes, backlog |
+| `enable_rule(comment)` | REST mangle rule enable | **Not applicable** -- steering rules stay on MikroTik router |
+| `disable_rule(comment)` | REST mangle rule disable | **Not applicable** -- steering rules stay on MikroTik router |
+| `is_rule_enabled(comment)` | REST mangle rule check | **Not applicable** -- steering rules stay on MikroTik router |
+| `test_connection()` | REST health check | `tc qdisc show dev {iface}` succeeds + returns cake qdisc |
 
-### Explicitly Rejected: Approaches
+**Critical design note:** The `enable_rule`/`disable_rule`/`is_rule_enabled` methods are steering-only. LinuxCakeBackend controls shaping, not steering. These should return `True`/`True`/`None` (no-op) or the steering system should continue using the existing MikroTik router client for mangle rules. The router does not go away -- it becomes pure routing/firewall while CAKE moves to the VM.
 
-| Approach | Why Rejected |
-|----------|-------------|
-| Reinforcement learning | Requires thousands of episodes to converge. Production network is not a simulation environment. |
-| Neural network tuning | Overkill for 6-8 scalar parameters with known physical meaning and bounded ranges. |
-| Genetic algorithms | Population-based search is inappropriate for a single production system. |
-| Bayesian optimization | Requires surrogate model fitting. Percentile analysis is faster, simpler, and more interpretable. |
-| Online gradient descent | No differentiable objective function -- congestion control is discrete state transitions. |
+### Transport selection in config
 
----
-
-## Algorithm Design (Stdlib-Only Implementation)
-
-### Core Pattern: Percentile-Based Parameter Derivation
-
-The tuning algorithm follows a simple, proven pattern used in network engineering (CoDel, BBR):
-
-1. **Query**: Fetch N hours of historical metrics from SQLite (e.g., 24h of 1m aggregates = 1440 rows per WAN per metric)
-2. **Analyze**: Compute percentile distribution using `statistics.quantiles(data, n=100)`
-3. **Derive**: Map percentiles to parameter values via bounded formulas
-4. **Clamp**: Enforce min/max bounds from YAML config
-5. **Apply**: Update parameter via SIGUSR1 reload or direct attribute assignment (within daemon process)
-
-```python
-# Example: Derive congestion threshold from RTT distribution
-# This is the entire algorithm -- no optimization library needed
-from statistics import quantiles, median, stdev
-
-def derive_green_threshold(rtt_deltas: list[float], config_bounds: dict) -> float:
-    """Derive GREEN->YELLOW threshold from historical RTT delta distribution.
-
-    Uses p75 of clean (non-congested) RTT deltas as the threshold,
-    clamped to configured bounds.
-    """
-    if len(rtt_deltas) < 100:
-        return config_bounds["default"]
-
-    percentiles = quantiles(rtt_deltas, n=100)
-    # p75 of delta distribution = normal operating range upper bound
-    candidate = percentiles[74]
-
-    # Clamp to safety bounds
-    return max(config_bounds["min"], min(config_bounds["max"], candidate))
-```
-
-### Per-Parameter Tuning Strategy
-
-Each parameter has a specific statistical derivation. No general-purpose optimizer needed.
-
-| Parameter | Data Source | Statistical Method | Safety Bound |
-|-----------|-----------|-------------------|-------------|
-| hampel_sigma_threshold | signal_outlier_count, signal_variance | Outlier rate targeting: adjust sigma to achieve 5-15% outlier rate | [2.0, 5.0] |
-| hampel_window_size | signal_jitter_ms | Autocorrelation length: window should span 1-2 jitter cycles | [5, 15] |
-| EWMA load alpha | rtt_delta_ms during GREEN | Response time: alpha = cycle_interval / optimal_time_constant | [0.005, 0.05] |
-| EWMA baseline alpha | rtt_baseline_ms drift rate | Baseline stability: slower alpha when baseline is stable | [0.0001, 0.005] |
-| fusion icmp_weight | signal_confidence, irtt_rtt_ms | Protocol reliability: weight toward higher-confidence signal | [0.5, 0.9] |
-| target_bloat_ms (GREEN->YELLOW) | rtt_delta_ms during GREEN periods | p75 of clean RTT delta distribution | [5, 25] |
-| warn_bloat_ms (YELLOW->SOFT_RED) | rtt_delta_ms during YELLOW periods | p90 of moderate congestion delta | [20, 80] |
-| reflector min_score | reflector_events, ping success rate | Score threshold that separates reliable from unreliable hosts | [0.6, 0.95] |
-| baseline_rtt_bounds | rtt_baseline_ms | p5/p95 of observed baseline distribution | [computed, computed] |
-
-### Convergence Strategy
-
-**Conservative by design:**
-- Maximum parameter change per tuning cycle: 10% of current value (configurable)
-- Minimum data requirement: 1 hour of metrics before first adjustment
-- Convergence detection: stop adjusting when coefficient of variation of recent parameters < 5%
-- Revert trigger: if congestion rate increases >20% after adjustment, revert to previous values
-
-All of this is simple arithmetic on `statistics.stdev()` / `statistics.mean()` -- no convergence proofs or Lyapunov analysis needed for bounded parameter clamping.
-
----
-
-## Integration Architecture
-
-### Data Flow
-
-```
-SQLite metrics.db (existing)
-    |
-    v
-ParameterAnalyzer (new module)
-    - query_metrics() for historical data
-    - statistics.quantiles() for distribution analysis
-    - Per-parameter derivation functions
-    |
-    v
-TuningResult (frozen dataclass)
-    - parameter_name, old_value, new_value, confidence, rationale
-    |
-    v
-ParameterApplier (new module)
-    - Validates bounds (config_validation_utils pattern)
-    - Applies to WANController attributes
-    - Persists to tuning_params table
-    - Logs decisions at WARNING level
-```
-
-### Cadence
-
-| Aspect | Value | Rationale |
-|--------|-------|-----------|
-| Analysis interval | 1 hour | Aligns with existing hourly maintenance window |
-| Data lookback | 24 hours | Enough for diurnal pattern; uses 1m aggregates (1440 rows) |
-| Application timing | During maintenance cycle | Piggyback on existing hourly cleanup/downsample/VACUUM |
-| Minimum data | 1 hour of raw data | Prevent premature tuning on startup |
-
-### SIGUSR1 Reload Extension
-
-The existing SIGUSR1 handler iterates `wan_controllers` and calls per-controller reload methods. Adaptive tuning adds to this chain:
-
-```
-SIGUSR1 -> is_reload_requested()
-    -> _reload_fusion_config()  (existing)
-    -> _reload_tuning_config()  (new: enable/disable, bounds, cadence)
-```
-
-This follows the proven pattern: re-read YAML, validate, log old->new transition, update instance attributes.
-
----
-
-## SQLite Schema Addition
-
-### tuning_params Table
-
-```sql
-CREATE TABLE IF NOT EXISTS tuning_params (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp INTEGER NOT NULL,
-    wan_name TEXT NOT NULL,
-    parameter TEXT NOT NULL,
-    old_value REAL NOT NULL,
-    new_value REAL NOT NULL,
-    confidence REAL NOT NULL,
-    rationale TEXT,
-    data_hours REAL NOT NULL,
-    reverted INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_tuning_params_wan_time
-    ON tuning_params(wan_name, timestamp);
-
-CREATE INDEX IF NOT EXISTS idx_tuning_params_param
-    ON tuning_params(parameter, wan_name, timestamp);
-```
-
-This follows the existing pattern from `schema.py`: simple flat table, indexed for time-range queries, compatible with existing `query_metrics()` style reader functions.
-
----
-
-## YAML Configuration Section
+Current config uses `router.transport: "rest"` or `"ssh"`. New transport:
 
 ```yaml
-# Adaptive tuning (optional, disabled by default)
-tuning:
-  enabled: false           # Ships disabled, opt-in via SIGUSR1 or config
-  cadence_hours: 1         # How often to analyze and propose adjustments
-  lookback_hours: 24       # Historical data window for analysis
-  min_data_hours: 1        # Minimum data before first tuning cycle
-  max_change_pct: 10       # Maximum % change per parameter per cycle
-  revert_threshold_pct: 20 # Revert if congestion rate increases by this %
-
-  # Per-parameter bounds (safety rails)
-  bounds:
-    hampel_sigma: { min: 2.0, max: 5.0 }
-    hampel_window: { min: 5, max: 15 }
-    target_bloat_ms: { min: 5, max: 25 }
-    warn_bloat_ms: { min: 20, max: 80 }
-    fusion_icmp_weight: { min: 0.5, max: 0.9 }
-    # ... additional parameters
+router:
+  transport: "linux-cake"
+  # Linux-specific settings (no host/user/password needed -- runs locally)
+  cake:
+    dl_interface: "ifb-spectrum"    # IFB device for download shaping
+    ul_interface: "ens19"           # Physical NIC egress for upload shaping
+    dl_bandwidth: "500mbit"         # Initial download rate
+    ul_bandwidth: "25mbit"          # Initial upload rate
+    diffserv: "diffserv4"           # DSCP priority tiers
+    rtt: "50ms"                     # Target RTT for AQM
 ```
 
-This follows the proven config pattern from `signal_processing`, `reflector_quality`, `fusion`, and `alerting` sections: optional dict with defaults, warn+disable on invalid config.
+### Factory extension in `backends/__init__.py`
 
----
-
-## New File Structure
-
-```
-src/wanctl/
-    tuning/
-        __init__.py               # Module exports
-        analyzer.py               # ParameterAnalyzer: queries metrics, derives parameters
-        applier.py                # ParameterApplier: validates, applies, persists
-        models.py                 # TuningResult, TuningConfig dataclasses
-        strategies/
-            __init__.py
-            hampel.py             # Hampel sigma + window tuning strategy
-            ewma.py               # EWMA alpha tuning strategy
-            thresholds.py         # Congestion threshold tuning strategy
-            fusion.py             # Fusion weight tuning strategy
-            reflector.py          # Reflector scoring tuning strategy
-            baseline.py           # Baseline RTT bounds tuning strategy
+```python
+def get_backend(config: Any) -> RouterBackend:
+    router_type = config.router.get("type", "routeros")
+    if router_type == "routeros":
+        return RouterOSBackend.from_config(config)
+    elif router_type == "linux-cake":
+        from wanctl.backends.linux_cake import LinuxCakeBackend
+        return LinuxCakeBackend.from_config(config)
+    else:
+        raise ValueError(f"Unsupported router type: {router_type}")
 ```
 
-Each strategy module is a pure function: `(metrics_data, current_value, bounds) -> TuningResult`. No classes, no state, no dependencies beyond stdlib. Testable in isolation with synthetic data.
+## tc Command Reference
 
----
+### Setup (one-time, at VM boot via systemd unit)
 
-## Testing Strategy
+```bash
+# Load kernel modules
+modprobe sch_cake
+modprobe ifb
 
-All tuning code is pure functions on in-memory data. Testing uses the existing pattern:
+# Create IFB device for download shaping
+ip link add ifb-spectrum type ifb
+ip link set ifb-spectrum up
 
-- **Unit tests**: Feed known distributions into strategy functions, verify output parameters
-- **Integration tests**: Create in-memory SQLite with known metrics, run full tuning cycle
-- **Safety tests**: Verify bounds are enforced, revert triggers work, enable/disable gate works
-- **No mocking of optimizer internals** -- the "optimizer" is `statistics.quantiles()`, which is stdlib
+# Redirect ingress traffic from WAN-facing NIC to IFB
+tc qdisc add dev ens18 ingress
+tc filter add dev ens18 parent ffff: protocol all u32 match u32 0 0 \
+    action mirred egress redirect dev ifb-spectrum
 
-Test fixtures: parametrized distributions (low-jitter, high-jitter, asymmetric, bimodal) as lists of floats fed directly into strategy functions.
+# Apply CAKE on IFB (download direction)
+tc qdisc add dev ifb-spectrum root cake bandwidth 500mbit diffserv4 wash rtt 50ms
 
----
+# Apply CAKE on LAN-facing NIC (upload direction)
+tc qdisc add dev ens19 root cake bandwidth 25mbit diffserv4 wash rtt 50ms
+```
 
-## Version Compatibility
+### Bandwidth change (wanctl control loop, every 50ms when rate changes)
 
-| Component | Minimum Version | Notes |
-|-----------|----------------|-------|
-| Python | 3.8 (quantiles, NormalDist) | Project requires 3.11+, so safe |
-| SQLite | 3.7 (WAL mode) | System SQLite is always newer |
-| statistics.quantiles() | 3.8 | Already used in storage/reader.py |
-| statistics.NormalDist | 3.8 | Available but not yet used in codebase |
-| dataclasses | 3.7 | Already used throughout codebase |
+```bash
+# Download rate change (no packet loss, no service interruption)
+tc qdisc change dev ifb-spectrum root cake bandwidth 450mbit
 
-No version concerns. Everything needed is in Python 3.12 stdlib.
+# Upload rate change
+tc qdisc change dev ens19 root cake bandwidth 22mbit
+```
 
----
+### Statistics read (every 50ms cycle)
+
+```bash
+# JSON output for machine parsing
+tc -j -s qdisc show dev ifb-spectrum
+```
+
+JSON output structure (relevant fields):
+
+```json
+[{
+  "kind": "cake",
+  "handle": "8001:",
+  "root": true,
+  "options": {
+    "bandwidth": "500Mbit",
+    "diffserv": "diffserv4",
+    "rtt": 50000
+  },
+  "bytes": 987654321,
+  "packets": 1234567,
+  "drops": 42,
+  "overlimits": 93782,
+  "requeues": 0,
+  "backlog": 7500,
+  "qlen": 5
+}]
+```
+
+**Mapping to RouterBackend.get_queue_stats() return dict:**
+
+| wanctl field | tc JSON field | Notes |
+|-------------|---------------|-------|
+| `packets` | `packets` | Total sent packets |
+| `bytes` | `bytes` | Total sent bytes |
+| `dropped` | `drops` | Total drops (AQM + overflow) |
+| `queued_packets` | `qlen` | Current queue depth in packets |
+| `queued_bytes` | `backlog` | Current queue depth in bytes |
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Math library | stdlib statistics | scipy.stats | 50MB dep for percentile computation already in stdlib |
-| Optimization | Percentile mapping | scipy.optimize | Not an optimization problem -- it is statistical derivation |
-| Data access | Existing query_metrics() | pandas DataFrame | DataFrame adds 100MB for SQL WHERE clauses |
-| Time series | SQLite 1m aggregates | InfluxDB | External dependency; SQLite aggregation is sufficient |
-| Configuration | YAML bounds section | Database-stored bounds | Config is operator-controlled; bounds should be in YAML |
-| Parameter storage | New SQLite table | JSON file | Consistent with existing metrics/alerts/benchmarks pattern |
-| Tuning cadence | Hourly (maintenance window) | Per-cycle | Per-cycle wastes CPU; hourly is enough for slow convergence |
-| Application method | Direct attribute update | SIGUSR1 full reload | Tuning runs inside the daemon -- direct update is simpler |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `subprocess.run` + `tc` | pyroute2 library | pyroute2 has only a stats decoder for CAKE (merged 2020, PR #662), no documented support for `tc qdisc add/change cake`. The library is at v0.9.5 but CAKE control operations are unverified. Adds ~15MB dependency for no proven benefit. `subprocess.run` is battle-tested in wanctl (irtt, calibrate, benchmark). |
+| `subprocess.run` + `tc` | tcconfig (Python) | Wrapper library, unmaintained (last substantive update 2021), no CAKE support, adds transitive deps (subprocrunner, typepy). |
+| `tc -j` JSON parsing | Text parsing with regex | JSON output is stable, structured, and eliminates regex fragility. Available since iproute2 4.19. Debian 12 ships 6.1.0. No reason to parse text. |
+| `ip link add type bridge` | `brctl` (bridge-utils) | `brctl` is deprecated upstream. `ip link` is the modern standard, already in iproute2. VLAN filtering only available via `ip`/`bridge`. |
+| `/etc/network/interfaces` | systemd-networkd | Debian 12 supports both. `/etc/network/interfaces` with `ip` commands in `pre-up`/`post-up` is simpler for 2-port bridges. Either works -- choose based on odin's existing network management. |
+| IFB device | CAKE `ingress` keyword | CAKE's `ingress` mode is experimental/unsupported for external shaping. IFB is the proven standard for download shaping on Linux. Every guide and production deployment uses IFB. |
+| Cloud-init template | Manual VM install | Cloud-init enables reproducible provisioning. `qm create` + cloud-init disk = automated VM in <60s. Manual install is error-prone and undocumented. |
 
----
+## What NOT to Use
 
-## Installation
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| pyroute2 for CAKE control | Only stats decoding is verified. Adding/changing CAKE qdiscs via netlink is undocumented and untested. Adds a dependency for uncertain benefit. | `subprocess.run(["tc", ...])` -- proven in wanctl, zero deps |
+| `brctl` / `bridge-utils` | Deprecated upstream. Missing VLAN filtering. May not be in minimal Debian installs. | `ip link add type bridge` from iproute2 |
+| `tc qdisc replace` for rate changes | `replace` does atomic remove+add. `change` modifies in-place without packet loss. wanctl changes bandwidth up to 20x/sec. | `tc qdisc change dev ... cake bandwidth ...` |
+| nftables/iptables for shaping | Traffic shaping is a qdisc concern, not a firewall concern. nftables handles filtering on bridges, not bandwidth control. | `tc` with CAKE qdisc |
+| HTB + fq_codel | More complex configuration, more CPU on low-end hardware, no per-host fairness built in. CAKE is the modern replacement. | CAKE qdisc (single command, all features integrated) |
+| Custom netlink Python | Writing raw netlink messages for tc is complex, fragile, and unnecessary when `tc` CLI exists and outputs JSON. | `subprocess.run` + `tc -j` |
+
+## What NOT to Add (Python Dependencies)
+
+| Do NOT add | Rationale |
+|------------|-----------|
+| pyroute2 | Unverified CAKE control support. Stats-only decoder insufficient. subprocess.run pattern is established. |
+| tcconfig | Unmaintained, no CAKE, transitive deps. |
+| netifaces / psutil | Not needed. `ip link show` via subprocess if interface status is needed. |
+| paramiko (for VM) | wanctl runs ON the VM, not remote. No SSH needed for local tc commands. |
+| Any new pip package | v1.21 should add zero new Python dependencies. All tools are OS-level (tc, ip, modprobe). |
+
+## Performance Considerations
+
+### tc qdisc change latency
+
+`tc qdisc change` is a netlink syscall through the `tc` CLI. Expected execution time: 1-3ms (local kernel operation, no network round trip). Compare to MikroTik REST API: ~50ms round trip. This is a **massive improvement** for the 50ms control loop -- rate changes consume ~5% of cycle budget instead of ~100%.
+
+### tc -j -s qdisc show latency
+
+JSON stats read is also a local netlink operation: 1-3ms expected. Compare to MikroTik queue tree stats via REST: ~50ms. Stats collection drops from cycle-budget-dominant to negligible.
+
+### Combined improvement
+
+| Operation | MikroTik REST | Linux tc (local) | Improvement |
+|-----------|---------------|------------------|-------------|
+| Set bandwidth | ~50ms | ~2ms | 25x faster |
+| Read stats | ~50ms | ~2ms | 25x faster |
+| Total per cycle | ~100ms (exceeds 50ms budget!) | ~4ms | 25x faster |
+
+This eliminates the fundamental bottleneck that motivated the offload: MikroTik REST round-trip latency consuming the entire 50ms cycle budget.
+
+### subprocess.run overhead
+
+Each `subprocess.run` call forks a process. At 2 calls per cycle (set + stats), that is 40 forks/sec. On a modern VM this is negligible (~0.5ms per fork). If profiling later shows this matters, the two calls can be batched into a single shell invocation or moved to persistent subprocess with stdin/stdout pipes. But premature optimization here is unwarranted.
+
+### IFB overhead
+
+IFB mirroring adds negligible overhead (<0.1ms per packet, kernel-level redirect). No measurable impact on throughput or latency at gigabit speeds.
+
+## Version Compatibility
+
+| Component | Required Version | Debian 12 Provides | Status |
+|-----------|------------------|---------------------|--------|
+| Linux kernel | >= 4.19 (sch_cake) | 6.1 | OK |
+| iproute2 | >= 4.19 (CAKE + JSON) | 6.1.0-3 | OK |
+| Python | >= 3.11 | 3.11.2 | OK (wanctl targets 3.12, subprocess calls are version-agnostic) |
+| Proxmox VE | >= 7.0 (PCIe passthrough) | 8.x on odin | OK |
+| QEMU/KVM | >= 6.0 (VFIO) | Proxmox 8.x bundled | OK |
+
+## VM Provisioning Stack
+
+### Proxmox cloud-init template (one-time setup)
 
 ```bash
-# No new packages needed
-# Zero changes to pyproject.toml dependencies
-# Zero changes to Dockerfile
-# Zero changes to requirements.txt
+# On odin (Proxmox host)
+wget https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2
+
+# Create VM template
+qm create 9000 --name debian12-template --memory 2048 --cores 2 \
+    --net0 virtio,bridge=vmbr0 --ostype l26
+qm importdisk 9000 debian-12-genericcloud-amd64.qcow2 local-lvm
+qm set 9000 --scsi0 local-lvm:vm-9000-disk-0 --boot c --bootdisk scsi0
+qm set 9000 --ide2 local-lvm:cloudinit --serial0 socket --vga serial0
+qm template 9000
 ```
 
----
+### VM creation from template
 
-## Confidence Assessment
+```bash
+# Clone template
+qm clone 9000 200 --name cake-shaper --full
 
-| Area | Level | Reason |
-|------|-------|--------|
-| No new deps needed | HIGH | Verified: statistics.quantiles(), NormalDist, stdev, mean all in Python 3.8+ stdlib |
-| SQLite integration | HIGH | Existing query_metrics() and MetricsWriter patterns are proven (v1.7+) |
-| SIGUSR1 reload | HIGH | Pattern used 3 times (dry_run, wan_state, fusion) with zero issues |
-| Percentile-based tuning | HIGH | Standard approach in network engineering (CoDel, BBR use percentile-based thresholds) |
-| Safety bounds | HIGH | Simple min/max clamping -- mathematically trivial to verify |
-| Parameter convergence | MEDIUM | 10% max change + CV-based convergence detection is conservative but untested in this codebase |
-| Revert logic | MEDIUM | Requires clear definition of "congestion rate increased" -- needs careful metric selection |
+# Configure cloud-init
+qm set 200 --ipconfig0 ip=10.10.110.248/24,gw=10.10.110.1
+qm set 200 --ciuser wanctl --sshkeys /root/.ssh/authorized_keys.pub
 
----
+# Add PCIe passthrough NICs (4 NICs: 2 per WAN path)
+qm set 200 --hostpci0 XX:XX.X    # Spectrum WAN-side NIC
+qm set 200 --hostpci1 XX:XX.X    # Spectrum LAN-side NIC
+qm set 200 --hostpci2 XX:XX.X    # ATT WAN-side NIC
+qm set 200 --hostpci3 XX:XX.X    # ATT LAN-side NIC
+
+# Resize disk
+qm resize 200 scsi0 +8G
+
+qm start 200
+```
+
+### IOMMU/VFIO setup (on Proxmox host, one-time)
+
+```bash
+# /etc/default/grub (Intel)
+GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"
+
+# /etc/modules
+vfio
+vfio_iommu_type1
+vfio_pci
+
+# Apply
+update-grub
+update-initramfs -u -k all
+reboot
+```
+
+## Bridge Topology (Inside VM)
+
+```
+WAN (Spectrum ISP)
+     |
+  [ens18]  (PCIe passthrough NIC, WAN-side)
+     |
+  [br-spectrum]  (Linux bridge, STP off, no IP, transparent)
+     |                        |
+  CAKE shaping           [ifb-spectrum]  (IFB for download CAKE)
+     |
+  [ens19]  (PCIe passthrough NIC, LAN-side)
+     |
+  RB5009 router port
+```
+
+Each WAN path (Spectrum, ATT) has an identical topology:
+- 2 PCIe passthrough NICs per path (WAN-side + LAN-side)
+- 1 Linux bridge (transparent, STP off, forward delay 0)
+- 1 IFB device (for download/ingress CAKE shaping)
+- CAKE on the LAN-side NIC (upload/egress shaping)
+- CAKE on the IFB device (download/ingress shaping)
 
 ## Sources
 
-- [Python statistics module documentation](https://docs.python.org/3/library/statistics.html) - quantiles(), NormalDist, stdev, mean (HIGH confidence)
-- [BBR: Congestion-Based Congestion Control (ACM Queue)](https://queue.acm.org/detail.cfm?id=3022184) - percentile-based threshold calibration pattern (HIGH confidence)
-- [CoDel: Controlling Queue Delay (ACM Queue)](https://queue.acm.org/detail.cfm?id=2209336) - adaptive threshold approaches in AQM (HIGH confidence)
-- [EWMA optimal decay parameter (arXiv)](https://arxiv.org/pdf/2105.14382) - EWMA lambda optimization via SSE minimization (MEDIUM confidence)
-- [Hampel filter Python implementation](https://github.com/MichaelisTrofficus/hampel_filter) - Hampel parameter defaults and behavior (MEDIUM confidence)
-- [NIST EWMA Control Charts](https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc324.htm) - EWMA lambda selection guidelines (HIGH confidence)
-- [Stability-preserving PID tuning with RL](https://www.oaepublish.com/articles/ces.2021.15) - conservative baseline + supervisor pattern (MEDIUM confidence)
-- [Self-tuning controller Wikipedia](https://en.wikipedia.org/wiki/Self-tuning) - general self-tuning controller theory (MEDIUM confidence)
-- [Generalized Hampel Filters (Springer)](https://link.springer.com/article/10.1186/s13634-016-0383-6) - theoretical foundation for Hampel parameter selection (MEDIUM confidence)
+- [tc-cake(8) man page](https://man7.org/linux/man-pages/man8/tc-cake.8.html) -- CAKE qdisc reference (HIGH confidence)
+- [Bufferbloat.net CAKE wiki](https://www.bufferbloat.net/projects/codel/wiki/Cake/) -- CAKE recipes and configuration guidance (HIGH confidence)
+- [Bufferbloat.net CAKE Technical](https://www.bufferbloat.net/projects/codel/wiki/CakeTechnical/) -- CAKE statistics and internals (HIGH confidence)
+- [cerowrt-devel: changing bandwidth dynamically](https://cerowrt-devel.bufferbloat.narkive.com/WGpQmsKp/cake-changing-bandwidth-on-the-rate-limiter-dynamically) -- Confirms `tc qdisc change` updates bandwidth without packet loss (HIGH confidence)
+- [Debian packages: iproute2 bookworm](https://packages.debian.org/bookworm/iproute2) -- Version 6.1.0-3 (HIGH confidence)
+- [Debian packages: python3-pyroute2 bookworm](https://packages.debian.org/stable/python/python3-pyroute2) -- Version 0.7.2-2 (HIGH confidence, but **not recommended** for use)
+- [pyroute2 PR #662: cake stats_app decoder](https://github.com/svinota/pyroute2/pull/662) -- Only stats decoding, not control operations (HIGH confidence)
+- [Proxmox PCIe Passthrough wiki](https://pve.proxmox.com/wiki/PCI(e)_Passthrough) -- VFIO/IOMMU configuration (HIGH confidence)
+- [ServeTheHome: PCIe NIC passthrough](https://www.servethehome.com/how-to-pass-through-pcie-nics-with-proxmox-ve-on-intel-and-amd/) -- NIC-specific passthrough guide (MEDIUM confidence)
+- [Debian wiki: BridgeNetworkConnections](https://wiki.debian.org/BridgeNetworkConnections) -- Bridge configuration reference (HIGH confidence)
+- [iproute2 CAKE JSON output patch](https://lkml.kernel.org/netdev/20180719160515.4533-1-toke@toke.dk/) -- CAKE qdisc support added to iproute2 4.19 with JSON (HIGH confidence)
+- [CAKE qdisc IPv4 bandwidth management guide](https://oneuptime.com/blog/post/2026-03-20-cake-qdisc-ipv4-bandwidth-management/view) -- IFB setup and CAKE commands (MEDIUM confidence)
+
+---
+*Stack research for: wanctl v1.21 CAKE Offload to Linux VM*
+*Researched: 2026-03-24*
