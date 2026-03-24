@@ -75,7 +75,10 @@ None
 1. Setting `transport: "linux-cake"` in YAML config with bridge interface names creates a LinuxCakeBackend
 2. Factory function selects LinuxCakeBackend vs RouterOS based on transport config without WANController changes
 3. `wanctl-check-config` validates linux-cake transport settings and checks that specified interfaces exist
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+   - [ ] 107-01-PLAN.md -- Factory wiring: from_config direction parameter + get_backend linux-cake branch
+   - [ ] 107-02-PLAN.md -- check-config: validate_linux_cake validator + KNOWN_AUTORATE_PATHS update
 
 ### Phase 108: Steering Dual-Backend & Observability
 
