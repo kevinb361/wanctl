@@ -78,40 +78,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | -- | Pending |
-| BACK-02 | -- | Pending |
-| BACK-03 | -- | Pending |
-| BACK-04 | -- | Pending |
-| CAKE-01 | -- | Pending |
-| CAKE-02 | -- | Pending |
-| CAKE-03 | -- | Pending |
-| CAKE-05 | -- | Pending |
-| CAKE-06 | -- | Pending |
-| CAKE-07 | -- | Pending |
-| CAKE-08 | -- | Pending |
-| CAKE-09 | -- | Pending |
-| CAKE-10 | -- | Pending |
-| CONF-01 | -- | Pending |
-| CONF-02 | -- | Pending |
-| CONF-03 | -- | Pending |
-| CONF-04 | -- | Pending |
-| INFR-01 | -- | Pending |
-| INFR-02 | -- | Pending |
-| INFR-03 | -- | Pending |
-| INFR-04 | -- | Pending |
-| INFR-05 | -- | Pending |
-| INFR-06 | -- | Pending |
-| CUTR-01 | -- | Pending |
-| CUTR-02 | -- | Pending |
-| CUTR-03 | -- | Pending |
-| CUTR-04 | -- | Pending |
-| CUTR-05 | -- | Pending |
+| BACK-01 | Phase 105 | Pending |
+| BACK-02 | Phase 105 | Pending |
+| BACK-03 | Phase 105 | Pending |
+| BACK-04 | Phase 105 | Pending |
+| CAKE-01 | Phase 106 | Pending |
+| CAKE-02 | Phase 106 | Pending |
+| CAKE-03 | Phase 106 | Pending |
+| CAKE-05 | Phase 106 | Pending |
+| CAKE-06 | Phase 106 | Pending |
+| CAKE-07 | Phase 108 | Pending |
+| CAKE-08 | Phase 106 | Pending |
+| CAKE-09 | Phase 106 | Pending |
+| CAKE-10 | Phase 106 | Pending |
+| CONF-01 | Phase 107 | Pending |
+| CONF-02 | Phase 107 | Pending |
+| CONF-03 | Phase 108 | Pending |
+| CONF-04 | Phase 107 | Pending |
+| INFR-01 | Phase 104 | Pending |
+| INFR-02 | Phase 109 | Pending |
+| INFR-03 | Phase 109 | Pending |
+| INFR-04 | Phase 109 | Pending |
+| INFR-05 | Phase 109 | Pending |
+| INFR-06 | Phase 109 | Pending |
+| CUTR-01 | Phase 110 | Pending |
+| CUTR-02 | Phase 110 | Pending |
+| CUTR-03 | Phase 110 | Pending |
+| CUTR-04 | Phase 110 | Pending |
+| CUTR-05 | Phase 110 | Pending |
 
 **Coverage:**
 - v1.21 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after open-source ecosystem research*
+*Last updated: 2026-03-24 after open-source ecosystem research and roadmap revision*

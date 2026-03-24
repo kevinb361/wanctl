@@ -12,7 +12,7 @@ None
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start v1.21)
+- **v1.21 CAKE Offload** - [Roadmap](milestones/v1.21-ROADMAP.md) (Phases 104-110) - In progress
 
 ### Completed
 
@@ -40,28 +40,29 @@ None
 
 ## Progress
 
-**Total:** 103 phases complete, 210 plans across 21 milestones
+**Total:** 103 phases complete, 210 plans across 21 milestones + 7 phases planned (v1.21)
 
-| Milestone                            | Phases  | Plans | Status   | Shipped    |
-| ------------------------------------ | ------- | ----- | -------- | ---------- |
-| v1.20 Adaptive Tuning               | 98-103  | 13    | Complete | 2026-03-19 |
-| v1.19 Signal Fusion                  | 93-97   | 9     | Complete | 2026-03-18 |
-| v1.18 Measurement Quality            | 88-92   | 10    | Complete | 2026-03-17 |
-| v1.17 CAKE Optimization & Bench.     | 84-87   | 8     | Complete | 2026-03-16 |
-| v1.16 Validation & Op. Confidence    | 81-83   | 4     | Complete | 2026-03-13 |
-| v1.15 Alerting & Notifications       | 76-80   | 10    | Complete | 2026-03-12 |
-| v1.14 Operational Visibility         | 73-75   | 7     | Complete | 2026-03-11 |
-| v1.13 Legacy Cleanup & Feature Grad. | 67-72   | 10    | Complete | 2026-03-11 |
-| v1.12 Deployment & Code Health       | 62-66   | 7     | Complete | 2026-03-11 |
-| v1.11 WAN-Aware Steering             | 58-61   | 8     | Complete | 2026-03-10 |
-| v1.10 Architectural Review Fixes     | 50-57   | 15    | Complete | 2026-03-09 |
-| v1.9 Performance & Efficiency        | 47-49   | 6     | Complete | 2026-03-07 |
-| v1.8 Resilience & Robustness         | 43-46   | 8     | Complete | 2026-03-06 |
-| v1.7 Metrics History                 | 38-42   | 8     | Complete | 2026-01-25 |
-| v1.6 Test Coverage 90%               | 31-37   | 17    | Complete | 2026-01-25 |
-| v1.5 Quality & Hygiene               | 27-30   | 8     | Complete | 2026-01-24 |
-| v1.4 Observability                   | 25-26   | 4     | Complete | 2026-01-24 |
-| v1.3 Reliability & Hardening         | 21-24   | 5     | Complete | 2026-01-21 |
-| v1.2 Configuration & Polish          | 16-20   | 5     | Complete | 2026-01-14 |
-| v1.1 Code Quality                    | 6-15    | 30    | Complete | 2026-01-14 |
-| v1.0 Performance Optimization        | 1-5     | 8     | Complete | 2026-01-13 |
+| Milestone                            | Phases  | Plans | Status      | Shipped    |
+| ------------------------------------ | ------- | ----- | ----------- | ---------- |
+| v1.21 CAKE Offload                   | 104-110 | TBD   | In progress | -          |
+| v1.20 Adaptive Tuning               | 98-103  | 13    | Complete    | 2026-03-19 |
+| v1.19 Signal Fusion                  | 93-97   | 9     | Complete    | 2026-03-18 |
+| v1.18 Measurement Quality            | 88-92   | 10    | Complete    | 2026-03-17 |
+| v1.17 CAKE Optimization & Bench.     | 84-87   | 8     | Complete    | 2026-03-16 |
+| v1.16 Validation & Op. Confidence    | 81-83   | 4     | Complete    | 2026-03-13 |
+| v1.15 Alerting & Notifications       | 76-80   | 10    | Complete    | 2026-03-12 |
+| v1.14 Operational Visibility         | 73-75   | 7     | Complete    | 2026-03-11 |
+| v1.13 Legacy Cleanup & Feature Grad. | 67-72   | 10    | Complete    | 2026-03-11 |
+| v1.12 Deployment & Code Health       | 62-66   | 7     | Complete    | 2026-03-11 |
+| v1.11 WAN-Aware Steering             | 58-61   | 8     | Complete    | 2026-03-10 |
+| v1.10 Architectural Review Fixes     | 50-57   | 15    | Complete    | 2026-03-09 |
+| v1.9 Performance & Efficiency        | 47-49   | 6     | Complete    | 2026-03-07 |
+| v1.8 Resilience & Robustness         | 43-46   | 8     | Complete    | 2026-03-06 |
+| v1.7 Metrics History                 | 38-42   | 8     | Complete    | 2026-01-25 |
+| v1.6 Test Coverage 90%               | 31-37   | 17    | Complete    | 2026-01-25 |
+| v1.5 Quality & Hygiene              | 27-30   | 8     | Complete    | 2026-01-24 |
+| v1.4 Observability                   | 25-26   | 4     | Complete    | 2026-01-24 |
+| v1.3 Reliability & Hardening         | 21-24   | 5     | Complete    | 2026-01-21 |
+| v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
+| v1.1 Code Quality                    | 6-15    | 30    | Complete    | 2026-01-14 |
+| v1.0 Performance Optimization        | 1-5     | 8     | Complete    | 2026-01-13 |
