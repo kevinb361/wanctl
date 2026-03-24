@@ -14,6 +14,16 @@ None
 
 - **v1.21 CAKE Offload** - [Roadmap](milestones/v1.21-ROADMAP.md) (Phases 104-110) - In progress
 
+#### v1.21 Phases
+
+- [ ] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin
+- [ ] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection
+- [ ] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt)
+- [ ] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake
+- [ ] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history
+- [ ] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN
+- [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
+
 ### Completed
 
 - [v1.20 Adaptive Tuning](milestones/v1.20-ROADMAP.md) (Phases 98-103) - SHIPPED 2026-03-19
@@ -45,7 +55,7 @@ None
 | Milestone                            | Phases  | Plans | Status      | Shipped    |
 | ------------------------------------ | ------- | ----- | ----------- | ---------- |
 | v1.21 CAKE Offload                   | 104-110 | TBD   | In progress | -          |
-| v1.20 Adaptive Tuning               | 98-103  | 13    | Complete    | 2026-03-19 |
+| v1.20 Adaptive Tuning                | 98-103  | 13    | Complete    | 2026-03-19 |
 | v1.19 Signal Fusion                  | 93-97   | 9     | Complete    | 2026-03-18 |
 | v1.18 Measurement Quality            | 88-92   | 10    | Complete    | 2026-03-17 |
 | v1.17 CAKE Optimization & Bench.     | 84-87   | 8     | Complete    | 2026-03-16 |
@@ -60,7 +70,7 @@ None
 | v1.8 Resilience & Robustness         | 43-46   | 8     | Complete    | 2026-03-06 |
 | v1.7 Metrics History                 | 38-42   | 8     | Complete    | 2026-01-25 |
 | v1.6 Test Coverage 90%               | 31-37   | 17    | Complete    | 2026-01-25 |
-| v1.5 Quality & Hygiene              | 27-30   | 8     | Complete    | 2026-01-24 |
+| v1.5 Quality & Hygiene               | 27-30   | 8     | Complete    | 2026-01-24 |
 | v1.4 Observability                   | 25-26   | 4     | Complete    | 2026-01-24 |
 | v1.3 Reliability & Hardening         | 21-24   | 5     | Complete    | 2026-01-21 |
 | v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
