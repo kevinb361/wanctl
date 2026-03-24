@@ -8,13 +8,7 @@ wanctl is a production CAKE bandwidth controller running on MikroTik RouterOS wi
 
 None
 
-## Milestones
-
-### Active
-
-- **v1.21 CAKE Offload** - [Roadmap](milestones/v1.21-ROADMAP.md) (Phases 104-110) - In progress
-
-#### v1.21 Phases
+## Phases
 
 - [ ] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin
 - [ ] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection
@@ -23,6 +17,104 @@ None
 - [ ] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history
 - [ ] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN
 - [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
+
+## Phase Details
+
+### Phase 104: IOMMU Verification Gate
+
+**Goal**: Confirm the CAKE offload architecture is physically feasible before any code work begins
+**Depends on**: Nothing (prerequisite gate)
+**Requirements**: INFR-01
+**Success Criteria** (what must be TRUE):
+
+1. All 4 target NICs (2x i210, 2x i350) confirmed in separate IOMMU groups on odin
+2. VFIO passthrough feasibility documented with exact PCI addresses and group numbers
+   **Plans**: TBD
+
+### Phase 105: LinuxCakeBackend Core
+
+**Goal**: A complete RouterBackend implementation that controls CAKE via local tc commands with verified parameter correctness
+**Depends on**: Phase 104
+**Requirements**: BACK-01, BACK-02, BACK-03, BACK-04
+**Success Criteria** (what must be TRUE):
+
+1. LinuxCakeBackend.set_bandwidth() changes CAKE rate limits via `tc qdisc change` and returns success/failure
+2. LinuxCakeBackend.get_stats() returns parsed queue statistics (drops, delay, flows) from `tc -s -j qdisc show`
+3. After `tc qdisc replace`, LinuxCakeBackend reads back params via `tc -j qdisc show` and verifies diffserv mode, overhead, and bandwidth match expectations
+4. Per-tin statistics (Voice/Video/BE/Bulk -- drops, delays, flows per tin) are parsed and available from get_stats()
+   **Plans**: TBD
+
+### Phase 106: CAKE Optimization Parameters
+
+**Goal**: CAKE qdiscs are configured with all performance-critical options per link type, incorporating ecosystem best practices
+**Depends on**: Phase 105
+**Requirements**: CAKE-01, CAKE-02, CAKE-03, CAKE-05, CAKE-06, CAKE-08, CAKE-09, CAKE-10
+**Success Criteria** (what must be TRUE):
+
+1. Upload CAKE includes split-gso and ack-filter; download CAKE includes split-gso, ingress keyword, and ecn
+2. Per-link overhead is configured correctly (docsis for Spectrum, bridged-ptm for ATT) with explicit MPU
+3. Memory limits are bounded via memlimit parameter on all CAKE instances
+4. CAKE rtt parameter is configured per-link with a tunable default (candidate for adaptive tuning integration)
+5. `tc qdisc replace` command strings match the ecosystem-validated patterns (no nat, no wash, no autorate-ingress)
+   **Plans**: TBD
+
+### Phase 107: Config & Factory Wiring
+
+**Goal**: Operators can select linux-cake transport in YAML config and the system wires the correct backend
+**Depends on**: Phase 105
+**Requirements**: CONF-01, CONF-02, CONF-04
+**Success Criteria** (what must be TRUE):
+
+1. Setting `transport: "linux-cake"` in YAML config with bridge interface names creates a LinuxCakeBackend
+2. Factory function selects LinuxCakeBackend vs RouterOS based on transport config without WANController changes
+3. `wanctl-check-config` validates linux-cake transport settings and checks that specified interfaces exist
+   **Plans**: TBD
+
+### Phase 108: Steering Dual-Backend & Observability
+
+**Goal**: Steering daemon operates with split data sources (local CAKE stats, remote mangle rules) and per-tin stats are operator-visible
+**Depends on**: Phase 105, Phase 107
+**Requirements**: CONF-03, CAKE-07
+**Success Criteria** (what must be TRUE):
+
+1. Steering daemon reads CAKE stats from LinuxCakeBackend (local tc) while controlling mangle rules via REST on MikroTik
+2. Per-tin statistics (Voice/Video/BE/Bulk drops, delays, flows) are visible in the health endpoint
+3. Per-tin statistics are queryable via `wanctl-history` CLI
+   **Plans**: TBD
+
+### Phase 109: VM Infrastructure & Bridges
+
+**Goal**: A production-ready Debian 12 VM on odin with passthrough NICs, transparent bridges, and CAKE initialized on bridge member port egress
+**Depends on**: Phase 104
+**Requirements**: INFR-02, INFR-03, INFR-04, INFR-05, INFR-06
+**Success Criteria** (what must be TRUE):
+
+1. Proxmox VM runs Debian 12 with 4 VFIO-passthrough NICs (2x i210, 2x i350) visible inside the guest
+2. Transparent L2 bridges (br-spectrum, br-att) forward traffic with STP disabled and forward_delay=0
+3. CAKE qdisc is attached and shaping traffic on bridge member port egress via `tc qdisc replace` (not systemd-networkd CAKE section)
+4. systemd-networkd configuration persists bridges and interfaces across reboots (CAKE setup owned by wanctl startup, not systemd)
+5. VLAN 110 management interface provides SSH, health endpoint, ICMP, and IRTT connectivity
+   **Plans**: TBD
+
+### Phase 110: Production Cutover
+
+**Goal**: Both WAN links are shaped by the Linux VM with validated performance improvement and tested rollback
+**Depends on**: Phase 106, Phase 107, Phase 108, Phase 109
+**Requirements**: CUTR-01, CUTR-02, CUTR-03, CUTR-04, CUTR-05
+**Success Criteria** (what must be TRUE):
+
+1. MikroTik queue tree entries are disabled (not deleted) and can be re-enabled for rollback
+2. Physical cabling routes both modems through the VM NICs to the router
+3. ATT (lower risk) is migrated first and validated before Spectrum cutover
+4. Rollback procedure is documented and has been drill-tested successfully before production cutover
+5. RRUL benchmark before/after comparison shows throughput improvement (target: Spectrum exceeds 740Mbps ceiling)
+   **Plans**: TBD
+
+## Milestones
+
+### Active
+
+- **v1.21 CAKE Offload** - [Roadmap](milestones/v1.21-ROADMAP.md) (Phases 104-110) - In progress
 
 ### Completed
 
