@@ -44,7 +44,9 @@ None
 2. LinuxCakeBackend.get_stats() returns parsed queue statistics (drops, delay, flows) from `tc -s -j qdisc show`
 3. After `tc qdisc replace`, LinuxCakeBackend reads back params via `tc -j qdisc show` and verifies diffserv mode, overhead, and bandwidth match expectations
 4. Per-tin statistics (Voice/Video/BE/Bulk -- drops, delays, flows per tin) are parsed and available from get_stats()
-   **Plans**: TBD
+   **Plans**: 1 plan
+   Plans:
+   - [ ] 105-01-PLAN.md -- LinuxCakeBackend implementation + comprehensive tests
 
 ### Phase 106: CAKE Optimization Parameters
 
