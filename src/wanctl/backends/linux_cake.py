@@ -312,7 +312,8 @@ class LinuxCakeBackend(RouterBackend):
             params: CAKE parameters dict. Supported keys:
                 - bandwidth: str like "500000kbit"
                 - diffserv: str like "diffserv4"
-                - overhead: int
+                - overhead_keyword: str (standalone tc token like "docsis", "bridged-ptm")
+                - overhead: int (numeric fallback, used only if overhead_keyword absent)
                 - mpu: int
                 - memlimit: str like "33554432"
                 - rtt: str like "100ms"
@@ -329,7 +330,9 @@ class LinuxCakeBackend(RouterBackend):
             cmd_args.extend(["bandwidth", str(params["bandwidth"])])
         if "diffserv" in params:
             cmd_args.append(str(params["diffserv"]))
-        if "overhead" in params:
+        if "overhead_keyword" in params:
+            cmd_args.append(str(params["overhead_keyword"]))
+        elif "overhead" in params:
             cmd_args.extend(["overhead", str(params["overhead"])])
         if "mpu" in params:
             cmd_args.extend(["mpu", str(params["mpu"])])
