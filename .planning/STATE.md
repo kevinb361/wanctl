@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.21
-milestone_name: CAKE Offload
-status: ready_to_plan
-last_updated: "2026-03-24T20:00:00.000Z"
-last_activity: "2026-03-24 - Roadmap revised (7 phases, 28 requirements after ecosystem research)"
+milestone_name: milestone
+status: executing
+last_updated: "2026-03-24T21:23:04.967Z"
+last_activity: 2026-03-24
 progress:
   total_phases: 7
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 14
 ---
 
 # Session State
@@ -20,23 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
-**Current focus:** v1.21 CAKE Offload -- Phase 104 ready to plan
+**Current focus:** Phase 104 complete — ready for Phase 105
 
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
-**Phase:** 1 of 7 (Phase 104: IOMMU Verification Gate)
-**Status:** Ready to plan
-**Last activity:** 2026-03-24 -- Roadmap revised with 7 phases covering 28 requirements (post-ecosystem research)
+**Phase:** 1 of 7 (Phase 104: IOMMU Verification Gate) -- COMPLETE
+**Status:** Phase 104 complete, ready for Phase 105
+**Last activity:** 2026-03-24
 
-Progress: [..........] 0%
+Progress: [#.........] 14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+
+- Total plans completed: 1
+- Average duration: 5min
+- Total execution time: 0.1 hours
 
 ## Accumulated Context
 
@@ -47,6 +48,8 @@ Progress: [..........] 0%
 - Download CAKE: diffserv4 + split-gso + ingress + ecn + overhead keyword
 - Upload CAKE: diffserv4 + split-gso + ack-filter + overhead keyword
 - CAKE rtt parameter tunable per-link (default 100ms may be conservative for ~30ms Dallas reflectors)
+- [P104] All 4 target NICs in separate single-device IOMMU groups -- no ACS override needed
+- [P104] Kernel pinned to 6.17.2-1-pve due to VFIO regression in 6.17.13-x
 
 ### Known Issues
 

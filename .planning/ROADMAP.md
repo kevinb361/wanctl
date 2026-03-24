@@ -10,7 +10,7 @@ None
 
 ## Phases
 
-- [ ] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin
+- [x] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin (completed 2026-03-24)
 - [ ] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection
 - [ ] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt)
 - [ ] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake
@@ -31,7 +31,7 @@ None
 2. VFIO passthrough feasibility documented with exact PCI addresses and group numbers
    **Plans**: 1 plan
    Plans:
-   - [ ] 104-01-PLAN.md -- IOMMU verification documentation and human confirmation gate
+   - [x] 104-01-PLAN.md -- IOMMU verification documentation and human confirmation gate
 
 ### Phase 105: LinuxCakeBackend Core
 

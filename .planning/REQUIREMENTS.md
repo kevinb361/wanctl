@@ -35,7 +35,7 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 
 ### Infrastructure
 
-- [ ] **INFR-01**: IOMMU group verification confirms all 4 target NICs are in separate groups
+- [x] **INFR-01**: IOMMU group verification confirms all 4 target NICs are in separate groups
 - [ ] **INFR-02**: Proxmox VM created with VFIO passthrough for 4 NICs (2x i210, 2x i350)
 - [ ] **INFR-03**: Transparent L2 bridges (br-spectrum, br-att) with STP disabled, forward_delay=0
 - [ ] **INFR-04**: CAKE qdisc initialized on bridge member port egress via `tc qdisc replace`
@@ -95,7 +95,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-02 | Phase 107 | Pending |
 | CONF-03 | Phase 108 | Pending |
 | CONF-04 | Phase 107 | Pending |
-| INFR-01 | Phase 104 | Pending |
+| INFR-01 | Phase 104 | Complete |
 | INFR-02 | Phase 109 | Pending |
 | INFR-03 | Phase 109 | Pending |
 | INFR-04 | Phase 109 | Pending |
