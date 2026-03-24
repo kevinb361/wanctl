@@ -554,6 +554,153 @@ class TestInitializeCake:
         assert "replace" in cmd
         assert "add" not in cmd
 
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_overhead_keyword_standalone(self, mock_run, backend):
+        """overhead_keyword produces standalone token, not key-value pair (D-09)."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"overhead_keyword": "docsis"})
+        cmd = mock_run.call_args[0][0]
+        assert "docsis" in cmd
+        # Must NOT produce "overhead docsis" as consecutive elements
+        for i, token in enumerate(cmd[:-1]):
+            if token == "overhead":
+                assert cmd[i + 1] != "docsis", "overhead_keyword must be standalone, not key-value"
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_overhead_keyword_bridged_ptm(self, mock_run, backend):
+        """bridged-ptm keyword produces standalone token."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"overhead_keyword": "bridged-ptm"})
+        cmd = mock_run.call_args[0][0]
+        assert "bridged-ptm" in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_overhead_keyword_priority(self, mock_run, backend):
+        """overhead_keyword takes priority over numeric overhead when both present."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"overhead_keyword": "docsis", "overhead": 99})
+        cmd = mock_run.call_args[0][0]
+        assert "docsis" in cmd
+        assert "99" not in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_numeric_overhead_fallback(self, mock_run, backend):
+        """Numeric overhead still works when overhead_keyword absent (backward compat)."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"overhead": 18})
+        cmd = mock_run.call_args[0][0]
+        assert "overhead" in cmd
+        assert "18" in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_full_spectrum_upload(self, mock_run, backend):
+        """Full Spectrum upload param set from builder produces correct tc command."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({
+            "diffserv": "diffserv4",
+            "split-gso": True,
+            "ack-filter": True,
+            "ingress": False,
+            "ecn": False,
+            "overhead_keyword": "docsis",
+            "memlimit": "32mb",
+            "rtt": "100ms",
+            "bandwidth": "500000kbit",
+        })
+        cmd = mock_run.call_args[0][0]
+        # All expected tokens present
+        assert "bandwidth" in cmd
+        assert "500000kbit" in cmd
+        assert "diffserv4" in cmd
+        assert "docsis" in cmd
+        assert "memlimit" in cmd
+        assert "32mb" in cmd
+        assert "rtt" in cmd
+        assert "100ms" in cmd
+        assert "split-gso" in cmd
+        assert "ack-filter" in cmd
+        # Falsy flags NOT in cmd
+        assert "ingress" not in cmd
+        assert "ecn" not in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_full_att_download(self, mock_run, backend):
+        """Full ATT download param set from builder produces correct tc command."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({
+            "diffserv": "diffserv4",
+            "split-gso": True,
+            "ack-filter": False,
+            "ingress": True,
+            "ecn": True,
+            "overhead_keyword": "bridged-ptm",
+            "memlimit": "32mb",
+            "rtt": "100ms",
+            "bandwidth": "300000kbit",
+        })
+        cmd = mock_run.call_args[0][0]
+        # All expected tokens present
+        assert "bandwidth" in cmd
+        assert "300000kbit" in cmd
+        assert "diffserv4" in cmd
+        assert "bridged-ptm" in cmd
+        assert "memlimit" in cmd
+        assert "32mb" in cmd
+        assert "rtt" in cmd
+        assert "100ms" in cmd
+        assert "split-gso" in cmd
+        assert "ingress" in cmd
+        assert "ecn" in cmd
+        # Upload-only flag NOT in cmd
+        assert "ack-filter" not in cmd
+
+
+# =============================================================================
+# TestCakeParamsIntegration (CAKE-05, CAKE-06, CAKE-10)
+# =============================================================================
+
+
+class TestCakeParamsIntegration:
+    """Integration tests: build_cake_params -> initialize_cake pipeline."""
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_builder_output_accepted_by_initialize_cake(self, mock_run, backend):
+        """build_cake_params output feeds directly into initialize_cake (rc=0)."""
+        from wanctl.cake_params import build_cake_params
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        params = build_cake_params("upload", {"overhead": "docsis"}, 500000)
+        result = backend.initialize_cake(params)
+        assert result is True
+        cmd = mock_run.call_args[0][0]
+        assert "docsis" in cmd
+        assert "500000kbit" in cmd
+
+    def test_builder_readback_matches_expected(self):
+        """build_expected_readback produces correct numeric types for validate_cake."""
+        from wanctl.cake_params import build_cake_params, build_expected_readback
+
+        params = build_cake_params("upload", {"overhead": "docsis"}, 500000)
+        readback = build_expected_readback(params)
+        assert readback["overhead"] == 18
+        assert readback["diffserv"] == "diffserv4"
+        assert readback["rtt"] == 100_000
+        assert readback["memlimit"] == 33_554_432
+
 
 # =============================================================================
 # TestValidateCake (BACK-03, D-07)
