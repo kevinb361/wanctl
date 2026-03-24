@@ -241,7 +241,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to plan v1.21)
+**Current Milestone: v1.21 CAKE Offload**
+
+**Goal:** Move CAKE shaping from the RB5009 router to a Debian 12 VM on Proxmox (odin) with PCIe passthrough NICs, eliminating the router CPU bottleneck.
+
+**Target features:**
+
+- LinuxCakeBackend using `tc qdisc change` instead of MikroTik REST API
+- Transparent L2 bridges (br-spectrum, br-att) with 4 passthrough NICs
+- VM provisioning on odin with VLAN 110 management interface
+- RB5009 queue tree removal (router becomes pure routing/firewall)
+- Config transport mode: `transport: "linux-cake"` alongside `rest`/`ssh`
+- Failover documentation and manual bypass path
 
 ### Deferred
 
@@ -253,7 +264,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Machine learning-based bandwidth prediction — unnecessary complexity
 - Full Prometheus/Grafana stack — designing compatible naming, but not requiring external deps
 - Breaking changes to configuration format — maintain compatibility
-- Support for non-RouterOS devices — focused on existing integration
+- Generic multi-vendor router support — Linux CAKE backend is specific to transparent bridge offload, not general non-MikroTik support
 
 ## Context
 
@@ -537,6 +548,25 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | No SQLite for fusion state | Input signals already persisted, fused_rtt derivable | ✓ No additional persistence needed | 2026-03-18 |
 | fused_rtt + load_ewma persisted to SQLite metrics | Operators need trend analysis of fusion behavior | ✓ 2 new metrics | 2026-03-18 |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
 
-_Last updated: 2026-03-24 after v1.20 Adaptive Tuning milestone completion_
+_Last updated: 2026-03-24 after v1.21 CAKE Offload milestone started_

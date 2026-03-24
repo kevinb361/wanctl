@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: idle
-last_updated: "2026-03-24T17:00:00.000Z"
-last_activity: "2026-03-24 - Completed v1.20 milestone archival"
+milestone: v1.21
+milestone_name: CAKE Offload
+status: defining_requirements
+last_updated: "2026-03-24T18:00:00.000Z"
+last_activity: "2026-03-24 - Milestone v1.21 started"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning next milestone
+**Current focus:** v1.21 CAKE Offload — defining requirements
 
 ## Position
 
-**Milestone:** None active (v1.20 archived)
-**Status:** Ready for `/gsd:new-milestone` to start v1.21
-**Last activity:** 2026-03-24 - Completed v1.20 milestone archival
+**Milestone:** v1.21 CAKE Offload
+**Status:** Defining requirements
+**Last activity:** 2026-03-24 — Milestone v1.21 started
 
 ## Accumulated Context
 
