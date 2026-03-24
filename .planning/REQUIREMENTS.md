@@ -1,92 +1,71 @@
-# Requirements: wanctl v1.20 Adaptive Tuning
+# Requirements: wanctl v1.21 CAKE Offload
 
-**Defined:** 2026-03-18
-**Core Value:** Self-optimizing controller that learns optimal parameters from production metrics
+**Defined:** 2026-03-24
+**Core Value:** Sub-second congestion detection with 50ms control loops — now with full Linux CAKE capabilities
 
-## v1.20 Requirements
+## v1.21 Requirements
 
-Requirements for adaptive parameter tuning. Each maps to roadmap phases.
+Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap phases.
 
-### Tuning Framework
+### Backend
 
-- [x] **TUNE-01**: Tuning engine ships disabled by default (`tuning.enabled: false` in YAML)
-- [x] **TUNE-02**: Tuning can be enabled/disabled via SIGUSR1 without daemon restart
-- [x] **TUNE-03**: Each tunable parameter has configurable min/max safety bounds in YAML
-- [x] **TUNE-04**: Tuning analyzes per-WAN metrics independently with no cross-WAN contamination
-- [x] **TUNE-05**: Tuning decisions logged with old value, new value, and human-readable rationale
-- [x] **TUNE-06**: Health endpoint exposes tuning section (enabled, last_run, parameters, adjustments)
-- [x] **TUNE-07**: Tuning skips analysis when less than 1 hour of metrics data available
-- [x] **TUNE-08**: Tuning adjustments persisted to SQLite for historical review
-- [x] **TUNE-09**: Tuning runs during hourly maintenance window (not per-cycle)
-- [x] **TUNE-10**: Maximum 10% parameter change per tuning cycle enforced
+- [ ] **BACK-01**: LinuxCakeBackend implements RouterBackend with `set_bandwidth()` via `tc qdisc change`
+- [ ] **BACK-02**: LinuxCakeBackend parses queue stats via `tc -j -s qdisc show` with JSON output
+- [ ] **BACK-03**: LinuxCakeBackend validates CAKE qdisc presence and tc availability via `test_connection()`
+- [ ] **BACK-04**: Per-tin statistics parsed from CAKE (Voice/Video/BE/Bulk — drops, delays, flows per tin)
+- [ ] **BACK-05**: IFB device creation and lifecycle management for download (ingress) shaping
 
-### Congestion Calibration
+### CAKE Optimization
 
-- [x] **CALI-01**: `target_bloat_ms` derived from p75 of GREEN-state RTT delta distribution
-- [x] **CALI-02**: `warn_bloat_ms` derived from p90 of GREEN-state RTT delta distribution
-- [x] **CALI-03**: Convergence detection stops adjusting when parameter coefficient of variation drops below threshold
-- [x] **CALI-04**: 24h lookback window captures full diurnal pattern for threshold derivation
+- [ ] **CAKE-01**: `split-gso` enabled to split TSO/GSO segments before queuing
+- [ ] **CAKE-02**: ECN marking enabled for explicit congestion notification
+- [ ] **CAKE-03**: `ack-filter` enabled for ACK compression on upload
+- [ ] **CAKE-04**: `nat` flow hashing enabled for per-host fairness through NAT
+- [ ] **CAKE-05**: Precise `overhead`/`mpu` configured per-link (Spectrum DOCSIS, ATT bridged-ptm)
+- [ ] **CAKE-06**: `memlimit` configured for bounded memory usage
+- [ ] **CAKE-07**: Per-tin statistics visible in health endpoint and wanctl-history
 
-### Safety & Revert
+### Configuration
 
-- [x] **SAFE-01**: System monitors congestion rate after each parameter adjustment
-- [x] **SAFE-02**: Automatic revert to previous values when post-adjustment congestion rate increases
-- [x] **SAFE-03**: Hysteresis lock prevents revert oscillation (revert freezes category for configurable cooldown)
+- [ ] **CONF-01**: `transport: "linux-cake"` config option with bridge interface names in YAML
+- [ ] **CONF-02**: Factory function selects LinuxCakeBackend based on transport config
+- [ ] **CONF-03**: Steering daemon uses dual-backend — linux-cake for CAKE stats, REST for mangle rules
+- [ ] **CONF-04**: `wanctl-check-config` validates linux-cake transport settings and interface existence
 
-### Signal Processing Tuning
+### Infrastructure
 
-- [x] **SIGP-01**: Hampel sigma optimized per-WAN based on outlier rate analysis
-- [x] **SIGP-02**: Hampel window size optimized per-WAN based on autocorrelation analysis
-- [x] **SIGP-03**: Load EWMA alpha tuned from settling time analysis
-- [x] **SIGP-04**: Signal chain tuned bottom-up (signal processing -> EWMA -> thresholds), one layer per cycle
+- [ ] **INFR-01**: IOMMU group verification confirms all 4 target NICs are in separate groups
+- [ ] **INFR-02**: Proxmox VM created with VFIO passthrough for 4 NICs (2x i210, 2x i350)
+- [ ] **INFR-03**: Transparent L2 bridges (br-spectrum, br-att) with STP disabled, forward_delay=0
+- [ ] **INFR-04**: CAKE qdisc initialized on bridge member port egress (or IFB for ingress)
+- [ ] **INFR-05**: systemd-networkd persistent bridge and interface configuration
+- [ ] **INFR-06**: VLAN 110 management interface on virtio NIC for SSH/health/ICMP/IRTT
 
-### Advanced Tuning
+### Cutover
 
-- [x] **ADVT-01**: Fusion ICMP/IRTT weight adapted based on per-signal reliability scoring
-- [x] **ADVT-02**: Reflector min_score threshold tuned from observed success rate distribution
-- [x] **ADVT-03**: Baseline RTT bounds auto-adjusted from p5/p95 of observed baseline history
-- [x] **ADVT-04**: `wanctl-history --tuning` displays tuning adjustment history with time-range filtering
-
-### Fusion Baseline Deadlock Fix
-
-- [x] **FBLK-01**: Baseline EWMA receives ICMP-only filtered_rtt, not fused RTT
-- [x] **FBLK-02**: Load EWMA receives fused RTT for enhanced congestion detection
-- [x] **FBLK-03**: Baseline updates when ICMP is idle, regardless of IRTT path divergence (ATT case: IRTT 43ms vs ICMP 29ms must not freeze baseline)
-- [x] **FBLK-04**: Fusion-disabled behavior is identical to pre-fix (no regression when `fusion.enabled: false`)
-- [x] **FBLK-05**: Baseline freeze gate uses `icmp_filtered_rtt - baseline_rtt` delta (not `load_rtt - baseline_rtt`)
+- [ ] **CUTR-01**: MikroTik queue tree entries disabled (kept for rollback, not deleted)
+- [ ] **CUTR-02**: Physical cabling completed — modems through VM NICs to router
+- [ ] **CUTR-03**: Staged migration — ATT first (lower risk), then Spectrum
+- [ ] **CUTR-04**: Rollback procedure documented and drill-tested before production cutover
+- [ ] **CUTR-05**: RRUL benchmark before/after comparison validates throughput improvement
 
 ## Future Requirements
 
-Deferred to subsequent milestones. Tracked but not in current roadmap.
+### Deferred
 
-### Upload-Specific Tuning
-
-- **UPLD-01**: Upload 3-state model threshold calibration (adapted from download 4-state approach)
-- **UPLD-02**: Upload-specific EWMA alpha tuning
-
-### Steering Daemon Tuning
-
-- **STRD-01**: Confidence weight auto-tuning in steering daemon
-- **STRD-02**: Steer_threshold calibration from steering decision accuracy
-
-### Cross-Signal
-
-- **XSIG-01**: OWD asymmetry ratio_threshold tuning from IRTT data (limited by 0.1Hz cadence)
+- **CAKE-08**: `diffserv8` mode for finer-grained traffic classification (requires mangle rule expansion)
+- **CAKE-09**: Per-tin bandwidth allocation tuning (custom tin ratios)
+- **PERF-01**: pyroute2 netlink backend for sub-millisecond tc calls (if subprocess proves too slow)
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| ML/scipy/numpy parameter prediction | 6-8 scalar params don't justify ML complexity; percentile stats sufficient |
-| Per-cycle parameter adjustment | Would cause oscillation; hourly cadence is safety requirement |
-| Cross-WAN parameter sharing | Each WAN has different ISP, latency profile, and noise characteristics |
-| Automatic ceiling/floor adjustment | Bandwidth ceilings are ISP plan limits, not derivable from RTT data |
-| Simultaneous multi-parameter optimization | Correlated changes hard to attribute; round-robin one category at a time |
-| Reflector list management | Adding/removing reflectors changes measurement topology; too risky |
-| Dedicated tuning dashboard widget | Dashboard is read-only poller; expose via health endpoint instead |
-| Dedicated tuning CLI tool | Parameters derived from data; `wanctl-history --tuning` covers review |
+| Generic multi-vendor router support | Linux CAKE backend is specific to transparent bridge offload |
+| Automated VM provisioning (Terraform/Ansible) | Single VM, manual Proxmox setup is sufficient |
+| 10GbE passthrough for Spectrum | i210 1GbE adequate — Spectrum delivers ~820 Mbps currently |
+| Multiple reflector IRTT servers | Separate concern from CAKE offload, tracked as existing todo |
+| Automatic failover to MikroTik CAKE | Manual bypass cables + MikroTik queue re-enable is acceptable |
 
 ## Traceability
 
@@ -94,42 +73,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TUNE-01 | Phase 98 | Complete |
-| TUNE-02 | Phase 98 | Complete |
-| TUNE-03 | Phase 98 | Complete |
-| TUNE-04 | Phase 98 | Complete |
-| TUNE-05 | Phase 98 | Complete |
-| TUNE-06 | Phase 98 | Complete |
-| TUNE-07 | Phase 98 | Complete |
-| TUNE-08 | Phase 98 | Complete |
-| TUNE-09 | Phase 98 | Complete |
-| TUNE-10 | Phase 98 | Complete |
-| CALI-01 | Phase 99 | Complete |
-| CALI-02 | Phase 99 | Complete |
-| CALI-03 | Phase 99 | Complete |
-| CALI-04 | Phase 99 | Complete |
-| SAFE-01 | Phase 100 | Complete |
-| SAFE-02 | Phase 100 | Complete |
-| SAFE-03 | Phase 100 | Complete |
-| SIGP-01 | Phase 101 | Complete |
-| SIGP-02 | Phase 101 | Complete |
-| SIGP-03 | Phase 101 | Complete |
-| SIGP-04 | Phase 101 | Complete |
-| ADVT-01 | Phase 102 | Complete |
-| ADVT-02 | Phase 102 | Complete |
-| ADVT-03 | Phase 102 | Complete |
-| ADVT-04 | Phase 102 | Complete |
-| FBLK-01 | Phase 103 | Complete |
-| FBLK-02 | Phase 103 | Complete |
-| FBLK-03 | Phase 103 | Complete |
-| FBLK-04 | Phase 103 | Complete |
-| FBLK-05 | Phase 103 | Complete |
+| BACK-01 | — | Pending |
+| BACK-02 | — | Pending |
+| BACK-03 | — | Pending |
+| BACK-04 | — | Pending |
+| BACK-05 | — | Pending |
+| CAKE-01 | — | Pending |
+| CAKE-02 | — | Pending |
+| CAKE-03 | — | Pending |
+| CAKE-04 | — | Pending |
+| CAKE-05 | — | Pending |
+| CAKE-06 | — | Pending |
+| CAKE-07 | — | Pending |
+| CONF-01 | — | Pending |
+| CONF-02 | — | Pending |
+| CONF-03 | — | Pending |
+| CONF-04 | — | Pending |
+| INFR-01 | — | Pending |
+| INFR-02 | — | Pending |
+| INFR-03 | — | Pending |
+| INFR-04 | — | Pending |
+| INFR-05 | — | Pending |
+| INFR-06 | — | Pending |
+| CUTR-01 | — | Pending |
+| CUTR-02 | — | Pending |
+| CUTR-03 | — | Pending |
+| CUTR-04 | — | Pending |
+| CUTR-05 | — | Pending |
 
 **Coverage:**
-- v1.20 requirements: 30 total
-- Mapped to phases: 30
-- Unmapped: 0
+- v1.21 requirements: 27 total
+- Mapped to phases: 0
+- Unmapped: 27 ⚠️
 
 ---
-*Requirements defined: 2026-03-18*
-*Last updated: 2026-03-19 after adding FBLK requirements for Phase 103*
+*Requirements defined: 2026-03-24*
+*Last updated: 2026-03-24 after initial definition*
