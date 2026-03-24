@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-24T21:23:04.967Z"
+last_updated: "2026-03-24T22:03:17.277Z"
 last_activity: 2026-03-24
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 14
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 28
 ---
 
 # Session State
@@ -20,24 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
-**Current focus:** Phase 104 complete — ready for Phase 105
+**Current focus:** Phase 105 — linuxcakebackend-core
 
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
-**Phase:** 1 of 7 (Phase 104: IOMMU Verification Gate) -- COMPLETE
-**Status:** Phase 104 complete, ready for Phase 105
+**Phase:** 2 of 7 (Phase 105: LinuxCakeBackend Core) -- COMPLETE
+**Status:** Phase 105 complete, ready for next phase
 **Last activity:** 2026-03-24
 
-Progress: [#.........] 14%
+Progress: [##........] 28%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 5min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 5.5min
+- Total execution time: 0.2 hours
 
 ## Accumulated Context
 
@@ -50,6 +50,8 @@ Progress: [#.........] 14%
 - CAKE rtt parameter tunable per-link (default 100ms may be conservative for ~30ms Dallas reflectors)
 - [P104] All 4 target NICs in separate single-device IOMMU groups -- no ACS override needed
 - [P104] Kernel pinned to 6.17.2-1-pve due to VFIO regression in 6.17.13-x
+- [P105] LinuxCakeBackend: tc subprocess with JSON parsing, per-tin D-05 field mapping, superset stats dict
+- [P105] No-op mangle stubs (True/True/None) -- steering stays on MikroTik via Phase 108
 
 ### Known Issues
 

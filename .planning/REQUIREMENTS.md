@@ -9,10 +9,10 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 
 ### Backend
 
-- [ ] **BACK-01**: LinuxCakeBackend implements RouterBackend with `set_bandwidth()` via `tc qdisc change`
-- [ ] **BACK-02**: LinuxCakeBackend parses queue stats via `tc -j -s qdisc show` with JSON output
-- [ ] **BACK-03**: LinuxCakeBackend validates CAKE params after `tc qdisc replace` -- reads back via `tc -j qdisc show` and verifies diffserv mode, overhead, bandwidth match expectations
-- [ ] **BACK-04**: Per-tin statistics parsed from CAKE (Voice/Video/BE/Bulk -- drops, delays, flows per tin)
+- [x] **BACK-01**: LinuxCakeBackend implements RouterBackend with `set_bandwidth()` via `tc qdisc change`
+- [x] **BACK-02**: LinuxCakeBackend parses queue stats via `tc -j -s qdisc show` with JSON output
+- [x] **BACK-03**: LinuxCakeBackend validates CAKE params after `tc qdisc replace` -- reads back via `tc -j qdisc show` and verifies diffserv mode, overhead, bandwidth match expectations
+- [x] **BACK-04**: Per-tin statistics parsed from CAKE (Voice/Video/BE/Bulk -- drops, delays, flows per tin)
 
 ### CAKE Optimization
 
@@ -78,10 +78,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | Phase 105 | Pending |
-| BACK-02 | Phase 105 | Pending |
-| BACK-03 | Phase 105 | Pending |
-| BACK-04 | Phase 105 | Pending |
+| BACK-01 | Phase 105 | Complete |
+| BACK-02 | Phase 105 | Complete |
+| BACK-03 | Phase 105 | Complete |
+| BACK-04 | Phase 105 | Complete |
 | CAKE-01 | Phase 106 | Pending |
 | CAKE-02 | Phase 106 | Pending |
 | CAKE-03 | Phase 106 | Pending |

@@ -11,7 +11,7 @@ None
 ## Phases
 
 - [x] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin (completed 2026-03-24)
-- [ ] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection
+- [x] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection (completed 2026-03-24)
 - [ ] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt)
 - [ ] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake
 - [ ] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history
@@ -46,7 +46,7 @@ None
 4. Per-tin statistics (Voice/Video/BE/Bulk -- drops, delays, flows per tin) are parsed and available from get_stats()
    **Plans**: 1 plan
    Plans:
-   - [ ] 105-01-PLAN.md -- LinuxCakeBackend implementation + comprehensive tests
+   - [x] 105-01-PLAN.md -- LinuxCakeBackend implementation + comprehensive tests
 
 ### Phase 106: CAKE Optimization Parameters
 
