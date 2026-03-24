@@ -29,7 +29,9 @@ None
 
 1. All 4 target NICs (2x i210, 2x i350) confirmed in separate IOMMU groups on odin
 2. VFIO passthrough feasibility documented with exact PCI addresses and group numbers
-   **Plans**: TBD
+   **Plans**: 1 plan
+   Plans:
+   - [ ] 104-01-PLAN.md -- IOMMU verification documentation and human confirmation gate
 
 ### Phase 105: LinuxCakeBackend Core
 
