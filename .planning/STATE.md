@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-24T22:42:18.788Z"
+last_updated: "2026-03-24T23:00:43.657Z"
 last_activity: 2026-03-24
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 3
-  percent: 28
+  completed_plans: 4
+  percent: 75
 ---
 
 # Session State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
 **Phase:** 106 of 7 (cake optimization parameters)
-**Status:** Executing Phase 106
+**Status:** Phase 106 complete
 **Last activity:** 2026-03-24
 
-Progress: [########..] 75%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: 4.7min
-- Total execution time: 0.2 hours
+- Total plans completed: 4
+- Average duration: 6.0min
+- Total execution time: 0.4 hours
 
 ## Accumulated Context
 
@@ -53,6 +53,8 @@ Progress: [########..] 75%
 - [P105] LinuxCakeBackend: tc subprocess with JSON parsing, per-tin D-05 field mapping, superset stats dict
 - [P105] No-op mangle stubs (True/True/None) -- steering stays on MikroTik via Phase 108
 - [P106] overhead_keyword as standalone tc token, YAML_TO_TC_KEY for underscore-to-hyphen translation
+- [P106] initialize_cake elif chain: overhead_keyword priority over numeric overhead fallback
+- [P106] Integration tests: build_cake_params -> initialize_cake pipeline proven end-to-end
 
 ### Known Issues
 
