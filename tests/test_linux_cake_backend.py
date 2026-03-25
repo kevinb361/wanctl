@@ -574,7 +574,8 @@ class TestInitializeCake:
         cmd = mock_run.call_args[0][0]
         assert "split-gso" in cmd
         assert "ingress" in cmd
-        assert "ecn" in cmd
+        # ecn excluded -- not supported by iproute2-6.15.0, CAKE default anyway
+        assert "ecn" not in cmd
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_uses_replace(self, mock_run, backend):
@@ -697,7 +698,8 @@ class TestInitializeCake:
         assert "100ms" in cmd
         assert "split-gso" in cmd
         assert "ingress" in cmd
-        assert "ecn" in cmd
+        # ecn excluded -- not supported by iproute2-6.15.0, CAKE default anyway
+        assert "ecn" not in cmd
         # Upload-only flag NOT in cmd
         assert "ack-filter" not in cmd
 
