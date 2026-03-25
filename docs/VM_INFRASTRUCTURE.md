@@ -10,12 +10,25 @@
 
 ## NIC Mapping Reference
 
-| Host PCI | Device ID | NIC Model | IOMMU Group | VM hostpci | Role                 |
-| -------- | --------- | --------- | ----------- | ---------- | -------------------- |
-| 08:00.0  | 8086:1533 | i210      | 34          | hostpci0   | Spectrum modem-side  |
-| 09:00.0  | 8086:1533 | i210      | 35          | hostpci1   | Spectrum router-side |
-| 0c:00.0  | 8086:1521 | i350      | 37          | hostpci2   | ATT modem-side       |
-| 0c:00.1  | 8086:1521 | i350      | 38          | hostpci3   | ATT router-side      |
+### Host-to-Guest Mapping
+
+| Guest NIC | Guest PCI    | Host PCI | Device ID | NIC Model | IOMMU Group | hostpci  | Role                  |
+| --------- | ------------ | -------- | --------- | --------- | ----------- | -------- | --------------------- |
+| ens16     | 0000:06:10.0 | 08:00.0  | 8086:1533 | i210      | 34          | hostpci0 | Spectrum modem-side   |
+| ens17     | 0000:06:11.0 | 09:00.0  | 8086:1533 | i210      | 35          | hostpci1 | Spectrum router-side  |
+| ens27     | 0000:06:1b.0 | 0c:00.0  | 8086:1521 | i350      | 37          | hostpci2 | ATT modem-side        |
+| ens28     | 0000:06:1c.0 | 0c:00.1  | 8086:1521 | i350      | 38          | hostpci3 | ATT router-side       |
+| ens18     | (virtio)     | -        | -         | virtio    | -           | net0     | Management (VLAN 110) |
+
+### Bridge Membership
+
+| Bridge      | Modem-side NIC | Router-side NIC (CAKE target) |
+| ----------- | -------------- | ----------------------------- |
+| br-spectrum | ens16          | ens17                         |
+| br-att      | ens27          | ens28                         |
+
+> **Note:** Modem vs router role within each pair is finalized at physical cabling (Phase 110).
+> Both NICs in each pair are identical hardware. CAKE attaches to the router-side NIC only.
 
 > **DO NOT TOUCH -- X552 Management NIC**
 >
@@ -117,9 +130,60 @@ Kernel: 6.17.4-2-pve (not pinned). VFIO active on all 4 target NICs.
 
 ---
 
-## Section 2: VM Creation
+## Section 2: VM Creation (odin)
 
-_To be completed in Plan 109-02._
+### VM 206 Specification
+
+| Setting    | Value                                    |
+| ---------- | ---------------------------------------- |
+| VM ID      | 206                                      |
+| Name       | cake-shaper                              |
+| Machine    | q35 + OVMF (UEFI)                        |
+| CPU        | 2 cores, type=host                       |
+| RAM        | 2048 MB (balloon disabled)               |
+| Disk       | 32 GB ZFS, virtio-scsi-single + iothread |
+| Network    | virtio on vmbr0, VLAN tag 110            |
+| OS         | Debian 13 (trixie)                       |
+| IP         | 10.10.110.223/24                         |
+| Boot       | onboot=1, startup order=1                |
+| QEMU agent | enabled                                  |
+
+### VM Creation
+
+```bash
+qm create 206 --name cake-shaper --memory 2048 --cores 2 \
+  --machine q35 --bios ovmf \
+  --efidisk0 local-zfs:1,efitype=4m,pre-enrolled-keys=0 \
+  --scsihw virtio-scsi-single --ostype l26 \
+  --scsi0 local-zfs:32 \
+  --net0 virtio,bridge=vmbr0,tag=110 \
+  --cdrom local:iso/debian-13.4.0-amd64-netinst.iso \
+  --boot order=ide2 \
+  --onboot 1 --startup order=1
+```
+
+### Passthrough NIC Addition
+
+```bash
+qm shutdown 206 && qm wait 206
+qm set 206 --hostpci0 08:00.0
+qm set 206 --hostpci1 09:00.0
+qm set 206 --hostpci2 0c:00.0
+qm set 206 --hostpci3 0c:00.1
+qm start 206
+```
+
+### NIC Discovery Verification (2026-03-25)
+
+```
+ens16 -> PCI 0000:06:10.0, device 0x1533 (i210)
+ens17 -> PCI 0000:06:11.0, device 0x1533 (i210)
+ens27 -> PCI 0000:06:1b.0, device 0x1521 (i350)
+ens28 -> PCI 0000:06:1c.0, device 0x1521 (i350)
+ens18 -> virtio (management)
+```
+
+All 4 passthrough NICs visible in guest. Device IDs confirm i210/i350 split.
 
 ---
 
