@@ -16,7 +16,7 @@ None
 - [x] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake (completed 2026-03-25)
 - [x] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history (completed 2026-03-25)
 - [x] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN (completed 2026-03-25)
-- [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
+- [x] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation (completed 2026-03-25)
 
 ## Phase Details
 
@@ -128,10 +128,10 @@ None
 5. RRUL benchmark before/after comparison shows throughput improvement (target: Spectrum exceeds 740Mbps ceiling)
    **Plans**: 4 plans
    Plans:
-   - [ ] 110-01-PLAN.md -- Config YAML creation + baseline benchmarks
-   - [ ] 110-02-PLAN.md -- ATT cutover: cabling, daemon start, MikroTik queue disable
-   - [ ] 110-03-PLAN.md -- Rollback drill (Level 1 + Level 2) on ATT
-   - [ ] 110-04-PLAN.md -- Spectrum cutover, steering start, after-benchmarks
+   - [x] 110-01-PLAN.md -- Config YAML creation + baseline benchmarks
+   - [x] 110-02-PLAN.md -- ATT cutover: cabling, daemon start, MikroTik queue disable
+   - [x] 110-03-PLAN.md -- Rollback drill (Level 1 + Level 2) on ATT
+   - [x] 110-04-PLAN.md -- Spectrum cutover, steering start, after-benchmarks
 
 ## Milestones
 
@@ -197,7 +197,7 @@ None
 **Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
 **Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
 **Depends on:** None (standalone hardening, applies to current production v1.20)
-**Plans:** 0/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 
