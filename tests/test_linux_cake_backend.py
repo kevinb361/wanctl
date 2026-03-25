@@ -166,19 +166,51 @@ class TestLinuxCakeBackendInit:
     def test_is_subclass_of_router_backend(self):
         assert issubclass(LinuxCakeBackend, RouterBackend)
 
-    def test_from_config(self):
+    def test_from_config_download(self):
         config = MagicMock()
-        config.router = {"interface": "br-wan0"}
-        config.timeouts = {"tc_command": 3.0}
-        b = LinuxCakeBackend.from_config(config)
-        assert b.interface == "br-wan0"
+        config.data = {
+            "cake_params": {
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+            "timeouts": {"tc_command": 3.0},
+        }
+        b = LinuxCakeBackend.from_config(config, direction="download")
+        assert b.interface == "enp9s0"
         assert b.tc_timeout == 3.0
 
-    def test_from_config_default_timeout(self):
-        config = MagicMock(spec=[])  # no timeouts attr
-        config.router = {"interface": "br-wan0"}
+    def test_from_config_upload(self):
+        config = MagicMock()
+        config.data = {
+            "cake_params": {
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        }
+        b = LinuxCakeBackend.from_config(config, direction="upload")
+        assert b.interface == "enp8s0"
+
+    def test_from_config_default_direction(self):
+        config = MagicMock()
+        config.data = {
+            "cake_params": {
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        }
         b = LinuxCakeBackend.from_config(config)
-        assert b.interface == "br-wan0"
+        assert b.interface == "enp9s0"  # default is download
+
+    def test_from_config_missing_interface_raises(self):
+        config = MagicMock()
+        config.data = {"cake_params": {"upload_interface": "enp8s0"}}
+        with pytest.raises(ValueError, match="download_interface"):
+            LinuxCakeBackend.from_config(config, direction="download")
+
+    def test_from_config_default_timeout(self):
+        config = MagicMock()
+        config.data = {"cake_params": {"download_interface": "enp9s0"}}
+        b = LinuxCakeBackend.from_config(config)
         assert b.tc_timeout == 5.0
 
 

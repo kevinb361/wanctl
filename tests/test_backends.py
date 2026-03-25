@@ -13,7 +13,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from wanctl.backends import get_backend
 from wanctl.backends.base import RouterBackend
+from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.routeros import RouterOSBackend
 
 # =============================================================================
@@ -515,3 +517,49 @@ class TestTestConnection:
 
         call_args = mock_ssh.run_cmd.call_args[0]
         assert "/system/identity/print" in call_args[0]
+
+
+# =============================================================================
+# TestGetBackendFactory - Factory routing tests (CONF-01, CONF-02)
+# =============================================================================
+
+
+class TestGetBackendFactory:
+    """Tests for get_backend() factory function."""
+
+    @patch("wanctl.backends.routeros.RouterOSBackend.from_config")
+    def test_rest_transport(self, mock_from_config):
+        config = MagicMock()
+        config.router_transport = "rest"
+        mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
+        result = get_backend(config)
+        mock_from_config.assert_called_once_with(config)
+
+    @patch("wanctl.backends.routeros.RouterOSBackend.from_config")
+    def test_ssh_transport(self, mock_from_config):
+        config = MagicMock()
+        config.router_transport = "ssh"
+        mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
+        result = get_backend(config)
+        mock_from_config.assert_called_once_with(config)
+
+    @patch("wanctl.backends.linux_cake.LinuxCakeBackend.from_config")
+    def test_linux_cake_transport(self, mock_from_config):
+        config = MagicMock()
+        config.router_transport = "linux-cake"
+        mock_from_config.return_value = MagicMock(spec=LinuxCakeBackend)
+        result = get_backend(config)
+        mock_from_config.assert_called_once_with(config)
+
+    def test_unknown_transport_raises(self):
+        config = MagicMock()
+        config.router_transport = "unknown"
+        with pytest.raises(ValueError, match="Unsupported router transport"):
+            get_backend(config)
+
+    @patch("wanctl.backends.routeros.RouterOSBackend.from_config")
+    def test_default_transport_when_attr_missing(self, mock_from_config):
+        config = MagicMock(spec=[])  # no router_transport attr
+        mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
+        result = get_backend(config)
+        mock_from_config.assert_called_once_with(config)
