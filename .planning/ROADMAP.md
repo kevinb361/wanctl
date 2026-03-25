@@ -178,3 +178,13 @@ None
 | v1.2 Configuration & Polish          | 16-20   | 5     | Complete    | 2026-01-14 |
 | v1.1 Code Quality                    | 6-15    | 30    | Complete    | 2026-01-14 |
 | v1.0 Performance Optimization        | 1-5     | 8     | Complete    | 2026-01-13 |
+
+### Phase 111: Auto-Tuning Production Hardening -- Config bounds + SIGP-01 rate fix
+
+**Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
+**Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
+**Depends on:** None (standalone hardening, applies to current production v1.20)
+**Plans:** 1 plan
+
+Plans:
+- [ ] 111-01-PLAN.md -- Config bounds update + SIGP-01 rate normalization fix with density-aware tests
