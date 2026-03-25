@@ -21,9 +21,7 @@ from wanctl.tuning.strategies.signal_processing import (
 )
 
 
-def _make_metrics(
-    metric_name: str, values: list[float], start_ts: int = 1000000
-) -> list[dict]:
+def _make_metrics(metric_name: str, values: list[float], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for a single metric."""
     return [
         {"timestamp": start_ts + i * 60, "metric_name": metric_name, "value": v}
@@ -31,9 +29,7 @@ def _make_metrics(
     ]
 
 
-def _make_multi_metrics(
-    *args: tuple[str, list[float]], start_ts: int = 1000000
-) -> list[dict]:
+def _make_multi_metrics(*args: tuple[str, list[float]], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for multiple metrics aligned by timestamp."""
     result: list[dict] = []
     for metric_name, values in args:
@@ -183,8 +179,8 @@ class TestHampelSigmaRecordingDensity:
                 }
             )
         # Should not raise, may return None due to insufficient valid deltas
-        result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
-        # No crash is the primary assertion; result can be None or TuningResult
+        tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
+        # No crash is the primary assertion
 
     def test_single_sample_returns_none(self):
         """Only 1 timestamp means 0 deltas, returns None."""
@@ -241,14 +237,14 @@ class TestTuneHampelWindow:
         assert result.wan_name == "ATT"
 
     def test_moderate_jitter_interpolates(self):
-        """Jitter ~2.5ms -> interpolated window between 5 and 15."""
+        """Jitter ~2.5ms -> interpolated window between 5 and 21."""
         n = 100
         jitter_values = [2.5] * n
         metrics = _make_metrics("wanctl_signal_jitter_ms", jitter_values)
         result = tune_hampel_window(metrics, 7.0, self.BOUNDS, "Spectrum")
         assert result is not None
-        # Linear interpolation: 15 - 10 * (2.5 - 1.0) / (5.0 - 1.0) = 15 - 3.75 = 11.25
-        assert 10.0 <= result.new_value <= 12.0
+        # Linear interpolation: 21 - 16 * (2.5 - 1.0) / (5.0 - 1.0) = 21 - 6.0 = 15.0
+        assert 14.0 <= result.new_value <= 16.0
 
     def test_insufficient_data_returns_none(self):
         """Fewer than MIN_SAMPLES jitter values -> None."""
@@ -354,9 +350,7 @@ class TestTuneAlphaLoad:
         alpha_per_minute = 0.5 if settling_minutes <= 2 else 0.4
         current_ewma = baseline_rtt
         for minute in range(total_minutes):
-            current_ewma = current_ewma + alpha_per_minute * (
-                rtt_values[minute] - current_ewma
-            )
+            current_ewma = current_ewma + alpha_per_minute * (rtt_values[minute] - current_ewma)
             ewma_values.append(current_ewma)
 
         return _make_multi_metrics(
