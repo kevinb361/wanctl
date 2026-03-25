@@ -197,7 +197,7 @@ None
 **Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
 **Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
 **Depends on:** None (standalone hardening, applies to current production v1.20)
-**Plans:** 4/4 plans complete
+**Plans:** 0/4 plans executed
 
 Plans:
 
