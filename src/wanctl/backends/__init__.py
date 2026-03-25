@@ -1,46 +1,42 @@
 """Router backend abstraction for wanctl.
 
-This module provides an abstract interface for router backends,
-allowing wanctl to support different router platforms.
-
-Currently supported:
-- RouterOS (Mikrotik)
-
-Future backends can be added by implementing the RouterBackend interface.
-
-Usage:
-    from wanctl.backends import get_backend
-
-    backend = get_backend(config)
-    backend.set_bandwidth("WAN-Download-1", 500_000_000)
-    stats = backend.get_queue_stats("WAN-Download-1")
+Factory function selects backend based on config.router_transport:
+- "rest" or "ssh": RouterOSBackend (Mikrotik)
+- "linux-cake": LinuxCakeBackend (local tc CAKE)
 """
 
 from typing import Any
 
 from wanctl.backends.base import RouterBackend
+from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.routeros import RouterOSBackend
 
 
 def get_backend(config: Any) -> RouterBackend:
     """Factory function to create the appropriate backend.
 
+    Routes on config.router_transport attribute:
+    - "rest" or "ssh" -> RouterOSBackend
+    - "linux-cake" -> LinuxCakeBackend
+
     Args:
-        config: Configuration object containing router settings.
-                Must have router.type field (defaults to 'routeros').
+        config: Configuration object. Must have router_transport attribute
+                (defaults to "rest" if missing).
 
     Returns:
-        RouterBackend instance for the configured router type.
+        RouterBackend instance for the configured transport.
 
     Raises:
-        ValueError: If router type is not supported.
+        ValueError: If transport is not supported.
     """
-    router_type = config.router.get("type", "routeros")
+    transport = getattr(config, "router_transport", "rest")
 
-    if router_type == "routeros":
+    if transport in ("rest", "ssh"):
         return RouterOSBackend.from_config(config)
+    elif transport == "linux-cake":
+        return LinuxCakeBackend.from_config(config)
     else:
-        raise ValueError(f"Unsupported router type: {router_type}")
+        raise ValueError(f"Unsupported router transport: {transport}")
 
 
-__all__ = ["RouterBackend", "RouterOSBackend", "get_backend"]
+__all__ = ["RouterBackend", "RouterOSBackend", "LinuxCakeBackend", "get_backend"]
