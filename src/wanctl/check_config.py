@@ -172,6 +172,13 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "cake_optimization.rtt",
     # Schema version
     "schema_version",
+    # CAKE params (for linux-cake transport, Phase 107)
+    "cake_params",
+    "cake_params.upload_interface",
+    "cake_params.download_interface",
+    "cake_params.overhead",
+    "cake_params.memlimit",
+    "cake_params.rtt",
 }
 
 # Comprehensive set of valid steering config paths.
@@ -1101,6 +1108,98 @@ def check_steering_cross_config(data: dict) -> list[CheckResult]:
     return results
 
 
+def validate_linux_cake(data: dict) -> list[CheckResult]:
+    """Validate linux-cake transport-specific settings (CONF-04).
+
+    Only runs when router.transport is "linux-cake". Validates:
+    1. cake_params section exists and is a dict
+    2. upload_interface and download_interface are non-empty strings
+    3. overhead keyword (if present) is in VALID_OVERHEAD_KEYWORDS
+    4. tc binary exists on PATH (WARN, not ERROR -- offline validator)
+    """
+    results: list[CheckResult] = []
+    transport = _get_nested(data, "router.transport", "rest")
+    if transport != "linux-cake":
+        return results
+
+    # 1. cake_params section
+    cake_params = data.get("cake_params")
+    if not isinstance(cake_params, dict):
+        results.append(
+            CheckResult(
+                "Linux CAKE",
+                "cake_params",
+                Severity.ERROR,
+                "cake_params section required when router.transport is 'linux-cake'",
+                suggestion="Add cake_params with upload_interface and download_interface",
+            )
+        )
+        return results  # Can't validate sub-fields
+
+    # 2. Required interface fields
+    for field in ("upload_interface", "download_interface"):
+        value = cake_params.get(field)
+        if not value or not isinstance(value, str):
+            results.append(
+                CheckResult(
+                    "Linux CAKE",
+                    f"cake_params.{field}",
+                    Severity.ERROR,
+                    f"cake_params.{field} is required (non-empty string)",
+                )
+            )
+        else:
+            results.append(
+                CheckResult(
+                    "Linux CAKE",
+                    f"cake_params.{field}",
+                    Severity.PASS,
+                    f"cake_params.{field}: {value}",
+                )
+            )
+
+    # 3. Overhead keyword validation (optional field)
+    overhead = cake_params.get("overhead")
+    if overhead is not None:
+        from wanctl.cake_params import VALID_OVERHEAD_KEYWORDS
+
+        if overhead not in VALID_OVERHEAD_KEYWORDS:
+            results.append(
+                CheckResult(
+                    "Linux CAKE",
+                    "cake_params.overhead",
+                    Severity.ERROR,
+                    f"Invalid overhead keyword: {overhead!r}",
+                    suggestion=f"Valid: {sorted(VALID_OVERHEAD_KEYWORDS)}",
+                )
+            )
+
+    # 4. tc binary existence (WARN, not ERROR -- D-08, offline validator)
+    import shutil
+
+    if shutil.which("tc"):
+        results.append(
+            CheckResult(
+                "Linux CAKE",
+                "tc binary",
+                Severity.PASS,
+                "tc binary found on PATH",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                "Linux CAKE",
+                "tc binary",
+                Severity.WARN,
+                "tc binary not found on PATH",
+                suggestion="Install iproute2 or verify PATH includes /usr/sbin",
+            )
+        )
+
+    return results
+
+
 # =============================================================================
 # VALIDATOR DISPATCHERS
 # =============================================================================
@@ -1115,6 +1214,7 @@ def _run_autorate_validators(data: dict) -> list[CheckResult]:
     results.extend(check_paths(data))
     results.extend(check_env_vars(data))
     results.extend(check_deprecated_params(data))
+    results.extend(validate_linux_cake(data))
     return results
 
 
