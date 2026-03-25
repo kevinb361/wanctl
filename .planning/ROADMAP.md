@@ -107,7 +107,12 @@ None
 3. CAKE qdisc is attached and shaping traffic on bridge member port egress via `tc qdisc replace` (not systemd-networkd CAKE section)
 4. systemd-networkd configuration persists bridges and interfaces across reboots (CAKE setup owned by wanctl startup, not systemd)
 5. VLAN 110 management interface provides SSH, health endpoint, ICMP, and IRTT connectivity
-   **Plans**: TBD
+   **Plans**: 4 plans
+   Plans:
+   - [ ] 109-01-PLAN.md -- VFIO host prep: kernel pin, modules, modprobe, reboot verification
+   - [ ] 109-02-PLAN.md -- VM creation, Debian 12 install, NIC passthrough, interface discovery
+   - [ ] 109-03-PLAN.md -- Bridge configuration with systemd-networkd, reboot persistence
+   - [ ] 109-04-PLAN.md -- wanctl deployment, CAKE initialization verification
 
 ### Phase 110: Production Cutover
 
