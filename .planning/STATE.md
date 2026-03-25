@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: completed
-last_updated: "2026-03-25T15:45:57.197Z"
+last_updated: "2026-03-25T15:52:51.628Z"
 last_activity: 2026-03-25
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Session State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
-**Phase:** 111 of 7 (steering dual backend & observability)
-**Status:** Milestone complete
+**Phase:** 108 of 7 (steering dual backend & observability) -- COMPLETE
+**Status:** Phase 108 complete (both plans done)
 **Last activity:** 2026-03-25
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Progress: [█████████░] 89%
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
 | 108   | 01   | 7min     | 2     | 4     |
+| 108   | 02   | 6min     | 2     | 5     |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Progress: [█████████░] 89%
 - [P108] Transport detected from autorate config YAML (primary_wan_config), not steering config -- steering router.transport stays rest/ssh for mangle
 - [P108] \_AutorateConfigProxy inner class wraps parsed YAML for get_backend() factory compat
 - [P108] Per-tin data cached on CakeStatsReader.last_tin_stats, health accesses via daemon.cake_reader
+- [P108] Per-tin metrics are instantaneous values (not deltas) -- current tin state for observability
 
 ### Known Issues
 

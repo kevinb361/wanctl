@@ -14,7 +14,7 @@ None
 - [x] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection (completed 2026-03-24)
 - [x] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt) (completed 2026-03-24)
 - [x] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake (completed 2026-03-25)
-- [ ] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history
+- [x] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history (completed 2026-03-25)
 - [ ] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN
 - [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
 
@@ -93,7 +93,7 @@ None
    **Plans**: 2 plans
    Plans:
    - [x] 108-01-PLAN.md -- Dual-backend CakeStatsReader + per-tin health endpoint
-   - [ ] 108-02-PLAN.md -- Per-tin metrics storage + wanctl-history --tins CLI
+   - [x] 108-02-PLAN.md -- Per-tin metrics storage + wanctl-history --tins CLI
 
 ### Phase 109: VM Infrastructure & Bridges
 
@@ -187,7 +187,7 @@ None
 **Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
 **Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
 **Depends on:** None (standalone hardening, applies to current production v1.20)
-**Plans:** 1/1 plans complete
+**Plans:** 2/2 plans complete
 
 Plans:
 
