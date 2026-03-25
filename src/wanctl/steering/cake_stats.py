@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-CAKE Statistics Reader for RouterOS
-Reads CAKE queue statistics (drops, queue depth) via SSH
+CAKE Statistics Reader for RouterOS and Linux CAKE backends.
+
+Supports two code paths:
+- RouterOS (rest/ssh): reads CAKE queue stats via FailoverRouterClient
+- Linux CAKE: reads stats via LinuxCakeBackend (local tc commands)
+
+Transport is detected from the primary WAN autorate config (Pitfall 5).
 """
 
 import logging
@@ -9,6 +14,9 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+import yaml
+
+from ..backends import get_backend
 from ..config_base import ConfigValidationError
 from ..router_client import get_router_client_with_failover
 from ..state_utils import safe_json_loads
@@ -43,26 +51,73 @@ class CongestionSignals:
 
 
 class CakeStatsReader:
-    """Read CAKE statistics from RouterOS queue (supports SSH and REST)"""
+    """Read CAKE statistics from RouterOS queue or Linux CAKE backend.
+
+    Transport-aware: detects linux-cake from the primary WAN autorate config
+    and delegates to LinuxCakeBackend for local tc stats. Falls back to
+    FailoverRouterClient for rest/ssh transport.
+    """
 
     def __init__(self, config: Any, logger: logging.Logger):
         self.config = config
         self.logger = logger
 
-        # Create router client using factory (supports SSH and REST) with failover
-        self.client = get_router_client_with_failover(config, logger)
+        # Per-tin stats cache for health endpoint consumption (CAKE-07)
+        self.last_tin_stats: list[dict] | None = None
 
-        # Track previous stats for delta calculation (best practice - no RouterOS resets needed)
+        # Detect transport from primary WAN autorate config (D-04, Pitfall 5)
+        self._is_linux_cake = False
+        self._linux_backend: Any = None
+        self.client: Any = None
+
+        try:
+            autorate_config_path = getattr(config, "primary_wan_config", None)
+            if autorate_config_path:
+                with open(autorate_config_path) as f:
+                    autorate_data = yaml.safe_load(f)
+                autorate_transport = (
+                    autorate_data.get("router", {}).get("transport", "rest")
+                )
+            else:
+                autorate_transport = "rest"
+        except Exception as e:
+            logger.warning("Failed to load autorate config for transport detection: %s", e)
+            autorate_transport = "rest"
+
+        if autorate_transport == "linux-cake":
+            # Linux CAKE path: use LinuxCakeBackend via factory (D-01, D-02)
+            try:
+                # Build a minimal config namespace for get_backend()
+                class _AutorateConfigProxy:
+                    """Minimal config proxy for get_backend() factory."""
+
+                    def __init__(self, data: dict):
+                        self.data = data
+                        self.router_transport = data.get("router", {}).get(
+                            "transport", "rest"
+                        )
+                        self.router = data.get("router", {})
+
+                proxy = _AutorateConfigProxy(autorate_data)
+                self._linux_backend = get_backend(proxy)
+                self._is_linux_cake = True
+                logger.info("CakeStatsReader using linux-cake backend")
+            except Exception as e:
+                logger.warning(
+                    "Failed to create LinuxCakeBackend, falling back to RouterOS: %s",
+                    e,
+                )
+                self.client = get_router_client_with_failover(config, logger)
+        else:
+            # RouterOS path: use FailoverRouterClient (existing behavior)
+            self.client = get_router_client_with_failover(config, logger)
+
+        # Track previous stats for delta calculation (best practice - no resets needed)
         # Delta math approach:
-        #   - RouterOS counters (packets, bytes, dropped) are cumulative and monotonically increasing
+        #   - Counters (packets, bytes, dropped) are cumulative and monotonically increasing
         #   - We calculate deltas by subtracting previous read from current read
-        #   - This avoids the race condition of reset → read (events can be missed in the gap)
-        #   - No RouterOS command overhead (saves ~50-150ms per cycle)
+        #   - This avoids the race condition of reset -> read (events can be missed in the gap)
         #   - Correctly handles counter overflow at 2^64 (Python handles subtraction correctly)
-        # Why not counter resets?:
-        #   - Reset → read window creates measurement gap (some drops could be missed)
-        #   - Extra RouterOS command adds latency during steering cycles
-        #   - Less accurate (captures cumulative state instead of exact interval)
         self.previous_stats: dict[str, CakeStats] = {}  # queue_name -> CakeStats
 
     def _parse_json_response(self, out: str, queue_name: str) -> CakeStats | None:
@@ -190,6 +245,42 @@ class CakeStatsReader:
         self.logger.debug(f"CAKE stats [{queue_name}] delta: {delta}")
         return delta
 
+    def _read_stats_linux_cake(self, queue_name: str) -> CakeStats | None:
+        """Read CAKE stats via LinuxCakeBackend (local tc commands).
+
+        Converts the backend's dict return to CakeStats for contract compatibility,
+        caches per-tin data for health endpoint, and passes through delta calculation.
+
+        Args:
+            queue_name: Queue name (passed to backend for ABC compat, ignored by tc).
+
+        Returns:
+            CakeStats with delta values, or None on error.
+        """
+        try:
+            stats = self._linux_backend.get_queue_stats(queue_name)
+        except Exception as e:
+            self.logger.error("LinuxCakeBackend.get_queue_stats() failed: %s", e)
+            return None
+
+        if stats is None:
+            return None
+
+        # Cache per-tin data for health endpoint consumption (D-05, D-06)
+        self.last_tin_stats = stats.get("tins", [])
+
+        # Convert dict to CakeStats (preserving existing contract -- Pitfall 2)
+        current = CakeStats(
+            packets=stats["packets"],
+            bytes=stats["bytes"],
+            dropped=stats["dropped"],
+            queued_packets=stats["queued_packets"],
+            queued_bytes=stats["queued_bytes"],
+        )
+
+        # Pass through delta calculation (same as RouterOS path -- Pitfall 3)
+        return self._calculate_stats_delta(current, queue_name)
+
     def read_stats(self, queue_name: str) -> CakeStats | None:
         """
         Read CAKE statistics for a specific queue.
@@ -209,7 +300,11 @@ class CakeStatsReader:
             self.logger.error(f"Invalid queue name: {e}")
             return None
 
-        # Execute RouterOS command
+        # Linux CAKE path: delegate to LinuxCakeBackend
+        if self._is_linux_cake:
+            return self._read_stats_linux_cake(queue_name)
+
+        # RouterOS path: execute via FailoverRouterClient
         cmd = f'/queue/tree print stats detail where name="{queue_name}"'
         rc, out, err = self.client.run_cmd(cmd, capture=True, timeout=5)
 
