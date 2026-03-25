@@ -10,8 +10,10 @@ No new Python dependencies -- uses stdlib subprocess, json, shutil only.
 
 Config schema:
     router:
-      type: linux-cake
-      interface: "br-wan0"
+      transport: "linux-cake"
+    cake_params:
+      download_interface: "br-wan-dl"
+      upload_interface: "br-wan-ul"
     timeouts:
       tc_command: 5.0
 """
@@ -405,22 +407,30 @@ class LinuxCakeBackend(RouterBackend):
         return all_match
 
     @classmethod
-    def from_config(cls, config: Any) -> "LinuxCakeBackend":
+    def from_config(
+        cls, config: Any, direction: str = "download"
+    ) -> "LinuxCakeBackend":
         """Create LinuxCakeBackend from config object.
 
-        Expects config.router dict with:
-        - interface: Network interface name
+        Reads interface from cake_params section based on direction.
+        Direction is determined by the daemon context (upload vs download instance).
 
         Args:
-            config: Configuration object
+            config: Configuration object with .data dict containing cake_params.
+            direction: "download" or "upload" -- determines which interface to use.
 
         Returns:
-            Configured LinuxCakeBackend instance
+            Configured LinuxCakeBackend instance.
+
+        Raises:
+            ValueError: If the required interface field is missing or empty.
         """
-        interface = config.router["interface"]
-        tc_timeout = (
-            config.timeouts.get("tc_command", 5.0)
-            if hasattr(config, "timeouts")
-            else 5.0
-        )
+        cake_params = config.data.get("cake_params", {})
+        interface_key = f"{direction}_interface"
+        interface = cake_params.get(interface_key, "")
+        if not interface:
+            raise ValueError(
+                f"cake_params.{interface_key} required for linux-cake transport"
+            )
+        tc_timeout = config.data.get("timeouts", {}).get("tc_command", 5.0)
         return cls(interface=interface, tc_timeout=tc_timeout)
