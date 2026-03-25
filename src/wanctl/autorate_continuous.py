@@ -473,6 +473,8 @@ class Config(BaseConfig):
         timeouts = self.data.get("timeouts", {})
         self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get("ping", DEFAULT_AUTORATE_PING_TIMEOUT)
+        # Source IP for ICMP pings (multi-WAN VM: different source IPs route through different WANs)
+        self.ping_source_ip: str | None = self.data.get("ping_source_ip", None)
 
     def _load_router_transport_config(self) -> None:
         """Load router transport settings (SSH or REST)."""
@@ -3463,6 +3465,7 @@ class ContinuousAutoRate:
                 timeout_ping=config.timeout_ping,
                 aggregation_strategy=RTTAggregationStrategy.AVERAGE,
                 log_sample_stats=True,  # Log min/max for debugging
+                source_ip=config.ping_source_ip,
             )
 
             # Create WAN controller

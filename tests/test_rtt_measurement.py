@@ -441,6 +441,7 @@ class TestPingHostEdgeCases:
             interval=0,
             timeout=2,
             privileged=True,
+            source=None,
         )
 
     def test_no_rtt_samples_returns_none_logs_warning(self, mock_logger, mock_icmplib_ping):
