@@ -15,7 +15,7 @@ None
 - [x] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt) (completed 2026-03-24)
 - [x] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake (completed 2026-03-25)
 - [x] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history (completed 2026-03-25)
-- [ ] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN
+- [x] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN (completed 2026-03-25)
 - [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
 
 ## Phase Details
@@ -109,10 +109,10 @@ None
 5. VLAN 110 management interface provides SSH, health endpoint, ICMP, and IRTT connectivity
    **Plans**: 4 plans
    Plans:
-   - [ ] 109-01-PLAN.md -- VFIO host prep: kernel pin, modules, modprobe, reboot verification
-   - [ ] 109-02-PLAN.md -- VM creation, Debian 12 install, NIC passthrough, interface discovery
-   - [ ] 109-03-PLAN.md -- Bridge configuration with systemd-networkd, reboot persistence
-   - [ ] 109-04-PLAN.md -- wanctl deployment, CAKE initialization verification
+   - [x] 109-01-PLAN.md -- VFIO host prep: kernel pin, modules, modprobe, reboot verification
+   - [x] 109-02-PLAN.md -- VM creation, Debian 12 install, NIC passthrough, interface discovery
+   - [x] 109-03-PLAN.md -- Bridge configuration with systemd-networkd, reboot persistence
+   - [x] 109-04-PLAN.md -- wanctl deployment, CAKE initialization verification
 
 ### Phase 110: Production Cutover
 
@@ -192,7 +192,7 @@ None
 **Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
 **Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
 **Depends on:** None (standalone hardening, applies to current production v1.20)
-**Plans:** 2/2 plans complete
+**Plans:** 4/4 plans complete
 
 Plans:
 
