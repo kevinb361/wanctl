@@ -9,6 +9,7 @@ from typing import Any
 
 from wanctl.backends.base import RouterBackend
 from wanctl.backends.linux_cake import LinuxCakeBackend
+from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 from wanctl.backends.routeros import RouterOSBackend
 
 
@@ -39,4 +40,4 @@ def get_backend(config: Any) -> RouterBackend:
         raise ValueError(f"Unsupported router transport: {transport}")
 
 
-__all__ = ["RouterBackend", "RouterOSBackend", "LinuxCakeBackend", "get_backend"]
+__all__ = ["RouterBackend", "RouterOSBackend", "LinuxCakeBackend", "LinuxCakeAdapter", "get_backend"]
