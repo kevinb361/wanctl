@@ -2,19 +2,20 @@
 
 **Created:** 2026-03-25
 **Host:** odin (Supermicro X10SDV-TP8F, Xeon D-1518, 10.10.110.124)
-**Proxmox:** pve-manager 9.1.4, kernel 6.17.2-1-pve
-**VMID:** 106 (cake-shaper)
+**Proxmox:** pve-manager 9.1.4, kernel 6.17.4-2-pve
+**VMID:** 206 (cake-shaper)
+**VM IP:** 10.10.110.223 (management, VLAN 110)
 
 ---
 
 ## NIC Mapping Reference
 
-| Host PCI | Device ID | NIC Model | IOMMU Group | VM hostpci | Role |
-|----------|-----------|-----------|-------------|------------|------|
-| 08:00.0 | 8086:1533 | i210 | 34 | hostpci0 | Spectrum modem-side |
-| 09:00.0 | 8086:1533 | i210 | 35 | hostpci1 | Spectrum router-side |
-| 0c:00.0 | 8086:1521 | i350 | 37 | hostpci2 | ATT modem-side |
-| 0c:00.1 | 8086:1521 | i350 | 38 | hostpci3 | ATT router-side |
+| Host PCI | Device ID | NIC Model | IOMMU Group | VM hostpci | Role                 |
+| -------- | --------- | --------- | ----------- | ---------- | -------------------- |
+| 08:00.0  | 8086:1533 | i210      | 34          | hostpci0   | Spectrum modem-side  |
+| 09:00.0  | 8086:1533 | i210      | 35          | hostpci1   | Spectrum router-side |
+| 0c:00.0  | 8086:1521 | i350      | 37          | hostpci2   | ATT modem-side       |
+| 0c:00.1  | 8086:1521 | i350      | 38          | hostpci3   | ATT router-side      |
 
 > **DO NOT TOUCH -- X552 Management NIC**
 >
@@ -29,24 +30,11 @@
 
 All commands run as root on odin (10.10.110.124).
 
-### Step 1: Pin Kernel (D-05)
+### Step 1: Pin Kernel (SKIPPED)
 
-A VFIO regression exists in Proxmox kernels 6.17.13+. Pin to the safe version.
-
-```bash
-# SSH to odin
-ssh root@10.10.110.124
-
-# Pin kernel to safe version
-proxmox-boot-tool kernel pin 6.17.2-1-pve
-
-# Prevent apt from upgrading the kernel
-apt-mark hold proxmox-kernel-6.17.2-1-pve
-
-# Verify
-proxmox-boot-tool kernel list   # Should show 6.17.2-1-pve pinned
-apt-mark showhold               # Should show proxmox-kernel-6.17.2-1-pve
-```
+Kernel pinning was evaluated but **skipped** -- it blocks security patches and the
+VFIO binding works on current kernels without pinning. If a future kernel update
+breaks VFIO, rebuild initramfs and reboot.
 
 ### Step 2: Load VFIO Modules at Boot
 
@@ -115,31 +103,35 @@ Expected output:
 Management NIC: Kernel driver in use: ixgbe
 ```
 
-### Kernel Pin Verification
+### Verification Results (2026-03-25)
 
-```bash
-proxmox-boot-tool kernel list   # 6.17.2-1-pve should be pinned
-apt-mark showhold               # proxmox-kernel-6.17.2-1-pve should appear
-uname -r                        # Should show 6.17.2-1-pve
 ```
+08:00.0: Kernel driver in use: vfio-pci
+09:00.0: Kernel driver in use: vfio-pci
+0c:00.0: Kernel driver in use: vfio-pci
+0c:00.1: Kernel driver in use: vfio-pci
+Management NIC: Kernel driver in use: ixgbe
+```
+
+Kernel: 6.17.4-2-pve (not pinned). VFIO active on all 4 target NICs.
 
 ---
 
 ## Section 2: VM Creation
 
-*To be completed in Plan 109-02.*
+_To be completed in Plan 109-02._
 
 ---
 
 ## Section 3: Bridge Configuration
 
-*To be completed in Plan 109-03.*
+_To be completed in Plan 109-03._
 
 ---
 
 ## Section 4: wanctl Deployment
 
-*To be completed in Plan 109-04.*
+_To be completed in Plan 109-04._
 
 ---
 
