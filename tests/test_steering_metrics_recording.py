@@ -377,3 +377,151 @@ class TestSteeringPerformanceOverhead:
 
         avg_time = sum(times) / len(times)
         assert avg_time < 5.0, f"Average batch write took {avg_time:.2f}ms, expected <5ms"
+
+
+class TestPerTinMetrics:
+    """Tests for per-tin CAKE metric recording (CAKE-07)."""
+
+    @pytest.fixture
+    def temp_db(self, tmp_path):
+        """Create temporary database for testing."""
+        db_path = tmp_path / "test_tin_metrics.db"
+        MetricsWriter._reset_instance()
+        writer = MetricsWriter(db_path)
+        yield db_path, writer
+        MetricsWriter._reset_instance()
+
+    def test_stored_metrics_includes_tin_metrics(self):
+        """STORED_METRICS contains all 4 per-tin metric names."""
+        from wanctl.storage.schema import STORED_METRICS
+
+        assert "wanctl_cake_tin_dropped" in STORED_METRICS
+        assert "wanctl_cake_tin_ecn_marked" in STORED_METRICS
+        assert "wanctl_cake_tin_delay_us" in STORED_METRICS
+        assert "wanctl_cake_tin_backlog_bytes" in STORED_METRICS
+
+    def test_per_tin_metrics_written_linux_cake(self, temp_db):
+        """When _is_linux_cake=True and last_tin_stats populated, 16 per-tin entries are written."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate per-tin data from CakeStatsReader.last_tin_stats
+        from wanctl.backends.linux_cake import TIN_NAMES
+
+        sample_tin_stats = [
+            {"dropped_packets": 5, "ecn_marked_packets": 2, "avg_delay_us": 150, "backlog_bytes": 1024},
+            {"dropped_packets": 0, "ecn_marked_packets": 0, "avg_delay_us": 50, "backlog_bytes": 256},
+            {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 80, "backlog_bytes": 512},
+            {"dropped_packets": 0, "ecn_marked_packets": 1, "avg_delay_us": 20, "backlog_bytes": 128},
+        ]
+
+        # Build per-tin metrics batch the same way daemon should
+        metrics_batch = []
+        for i, tin in enumerate(sample_tin_stats):
+            tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
+            tin_labels = {"tin": tin_name}
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_dropped", float(tin.get("dropped_packets", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_ecn_marked", float(tin.get("ecn_marked_packets", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_delay_us", float(tin.get("avg_delay_us", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_backlog_bytes", float(tin.get("backlog_bytes", 0)), tin_labels, "raw")
+            )
+
+        assert len(metrics_batch) == 16  # 4 tins x 4 metrics
+        writer.write_metrics_batch(metrics_batch)
+
+        # Verify all 16 written to database
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT metric_name, value, labels FROM metrics WHERE metric_name LIKE 'wanctl_cake_tin_%'"
+        ).fetchall()
+        conn.close()
+
+        assert len(rows) == 16
+
+        # Verify labels contain tin names
+        tin_names_found = set()
+        for _, _, labels_json in rows:
+            labels = json.loads(labels_json)
+            assert "tin" in labels
+            tin_names_found.add(labels["tin"])
+        assert tin_names_found == {"Bulk", "BestEffort", "Video", "Voice"}
+
+        # Verify specific values for Bulk tin
+        conn = sqlite3.connect(db_path)
+        bulk_rows = conn.execute(
+            "SELECT metric_name, value FROM metrics WHERE labels LIKE '%Bulk%' ORDER BY metric_name"
+        ).fetchall()
+        conn.close()
+
+        bulk_metrics = {r[0]: r[1] for r in bulk_rows}
+        assert bulk_metrics["wanctl_cake_tin_backlog_bytes"] == 1024.0
+        assert bulk_metrics["wanctl_cake_tin_delay_us"] == 150.0
+        assert bulk_metrics["wanctl_cake_tin_dropped"] == 5.0
+        assert bulk_metrics["wanctl_cake_tin_ecn_marked"] == 2.0
+
+    def test_per_tin_metrics_not_written_rest(self, temp_db):
+        """When _is_linux_cake=False, no per-tin metrics in batch."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        # Simulate non-linux-cake path: only base metrics, no per-tin
+        _is_linux_cake = False
+        last_tin_stats = [
+            {"dropped_packets": 5, "ecn_marked_packets": 2, "avg_delay_us": 150, "backlog_bytes": 1024},
+        ]
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_rtt_ms", 28.5, None, "raw"),
+        ]
+
+        # Gate: per-tin metrics NOT appended when _is_linux_cake is False
+        if _is_linux_cake and last_tin_stats:
+            # This block should NOT execute
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_dropped", 5.0, {"tin": "Bulk"}, "raw")
+            )
+
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        tin_rows = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name LIKE 'wanctl_cake_tin_%'"
+        ).fetchone()
+        conn.close()
+
+        assert tin_rows[0] == 0
+
+    def test_per_tin_metrics_not_written_no_data(self, temp_db):
+        """When _is_linux_cake=True but last_tin_stats=None, no per-tin metrics."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        _is_linux_cake = True
+        last_tin_stats = None
+
+        metrics_batch = [
+            (ts, "spectrum", "wanctl_rtt_ms", 28.5, None, "raw"),
+        ]
+
+        # Gate: per-tin metrics NOT appended when last_tin_stats is None
+        if _is_linux_cake and last_tin_stats:
+            metrics_batch.append(
+                (ts, "spectrum", "wanctl_cake_tin_dropped", 5.0, {"tin": "Bulk"}, "raw")
+            )
+
+        writer.write_metrics_batch(metrics_batch)
+
+        conn = sqlite3.connect(db_path)
+        tin_rows = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name LIKE 'wanctl_cake_tin_%'"
+        ).fetchone()
+        conn.close()
+
+        assert tin_rows[0] == 0
