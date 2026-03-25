@@ -90,7 +90,10 @@ None
 1. Steering daemon reads CAKE stats from LinuxCakeBackend (local tc) while controlling mangle rules via REST on MikroTik
 2. Per-tin statistics (Voice/Video/BE/Bulk drops, delays, flows) are visible in the health endpoint
 3. Per-tin statistics are queryable via `wanctl-history` CLI
-   **Plans**: TBD
+   **Plans**: 2 plans
+   Plans:
+   - [ ] 108-01-PLAN.md -- Dual-backend CakeStatsReader + per-tin health endpoint
+   - [ ] 108-02-PLAN.md -- Per-tin metrics storage + wanctl-history --tins CLI
 
 ### Phase 109: VM Infrastructure & Bridges
 
