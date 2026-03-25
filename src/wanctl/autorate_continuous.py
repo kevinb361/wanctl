@@ -3456,8 +3456,13 @@ class ContinuousAutoRate:
                 f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}"
             )
 
-            # Create shared instances
-            router = RouterOS(config, logger)
+            # Create shared instances -- select backend based on transport config
+            if config.router_transport == "linux-cake":
+                from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+                router = LinuxCakeAdapter.from_config(config, logger)
+            else:
+                router = RouterOS(config, logger)
             clear_router_password(config)
             # Use unified RTTMeasurement with AVERAGE aggregation and sample stats logging
             rtt_measurement = RTTMeasurement(
