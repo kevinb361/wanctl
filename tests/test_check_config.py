@@ -15,6 +15,7 @@ Covers all phase requirements:
 
 import json
 import sys
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -35,6 +36,7 @@ from wanctl.check_config import (
     format_results_json,
     main,
     validate_cross_fields,
+    validate_linux_cake,
     validate_schema_fields,
     validate_steering_cross_fields,
     validate_steering_schema_fields,
@@ -1121,3 +1123,187 @@ class TestJsonOutput:
         parser = create_parser()
         args = parser.parse_args(["test.yaml"])
         assert args.json is False
+
+
+# =============================================================================
+# LINUX CAKE VALIDATION (CONF-04)
+# =============================================================================
+
+
+class TestLinuxCakeValidation:
+    """Tests for linux-cake transport validation (CONF-04)."""
+
+    def _make_config(self, transport="linux-cake", cake_params=None):
+        """Helper to build a config dict with transport and optional cake_params."""
+        data = {
+            "wan_name": "test",
+            "router": {"host": "10.0.0.1", "user": "admin", "transport": transport},
+        }
+        if cake_params is not None:
+            data["cake_params"] = cake_params
+        return data
+
+    def test_skips_rest_transport(self):
+        data = self._make_config(transport="rest")
+        results = validate_linux_cake(data)
+        assert results == []
+
+    def test_skips_ssh_transport(self):
+        data = self._make_config(transport="ssh")
+        results = validate_linux_cake(data)
+        assert results == []
+
+    def test_missing_cake_params_error(self):
+        data = self._make_config(transport="linux-cake")
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) >= 1
+        assert any("cake_params" in r.message for r in errors)
+
+    def test_cake_params_not_dict_error(self):
+        data = self._make_config(transport="linux-cake", cake_params="bad")
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) >= 1
+
+    def test_valid_cake_params_passes(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 0
+        passes = [r for r in results if r.severity == Severity.PASS]
+        assert len(passes) >= 2  # both interfaces pass
+
+    def test_missing_upload_interface_error(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={"download_interface": "enp9s0"},
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("upload_interface" in r.field for r in errors)
+
+    def test_missing_download_interface_error(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={"upload_interface": "enp8s0"},
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("download_interface" in r.field for r in errors)
+
+    def test_empty_string_interface_error(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "",
+                "download_interface": "enp9s0",
+            },
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("upload_interface" in r.field for r in errors)
+
+    def test_valid_overhead_no_error(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+                "overhead": "docsis",
+            },
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 0
+
+    def test_invalid_overhead_error(self):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+                "overhead": "bogus",
+            },
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("overhead" in r.field for r in errors)
+        assert any(
+            "suggestion" in dir(r) and r.suggestion
+            for r in errors
+            if "overhead" in r.field
+        )
+
+    def test_no_overhead_no_error(self):
+        """Overhead is optional -- absence is not an error."""
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        )
+        results = validate_linux_cake(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 0
+
+    @patch("shutil.which", return_value="/usr/sbin/tc")
+    def test_tc_binary_found_pass(self, mock_which):
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        )
+        results = validate_linux_cake(data)
+        passes = [
+            r for r in results if r.severity == Severity.PASS and "tc" in r.field.lower()
+        ]
+        assert len(passes) >= 1
+
+    @patch("shutil.which", return_value=None)
+    def test_tc_binary_not_found_warn(self, mock_which):
+        """tc absence is WARN (not ERROR) -- check-config is an offline validator."""
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+            },
+        )
+        results = validate_linux_cake(data)
+        warns = [
+            r for r in results if r.severity == Severity.WARN and "tc" in r.field.lower()
+        ]
+        assert len(warns) >= 1
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert len(errors) == 0  # tc absence must NOT be ERROR
+
+    def test_cake_params_no_unknown_key_warnings(self):
+        """cake_params paths must be in KNOWN_AUTORATE_PATHS -- no false positives."""
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+                "overhead": "docsis",
+                "memlimit": "32mb",
+                "rtt": "100ms",
+            },
+        )
+        # Add required fields so check_unknown_keys doesn't fail on other missing paths
+        data["queues"] = {"download": "WAN-Download", "upload": "WAN-Upload"}
+        data["continuous_monitoring"] = {"enabled": True}
+        results = check_unknown_keys(data)
+        unknown_cake = [
+            r for r in results if r.severity == Severity.WARN and "cake_params" in r.field
+        ]
+        assert len(unknown_cake) == 0, f"Unexpected unknown key warnings: {unknown_cake}"
