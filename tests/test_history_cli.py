@@ -603,3 +603,130 @@ class TestMain:
         captured = capsys.readouterr()
         # Should have output (data exists)
         assert "wanctl" in captured.out or "No data" in captured.out
+
+
+# =============================================================================
+# PER-TIN HISTORY TESTS (CAKE-07)
+# =============================================================================
+
+
+class TestPerTinHistory:
+    """Tests for --tins flag and per-tin display functions."""
+
+    def test_tins_flag_recognized(self):
+        """--tins flag is recognized by the argument parser."""
+        parser = create_parser()
+        args = parser.parse_args(["--tins", "--last", "1h"])
+        assert args.tins is True
+
+    def test_tins_queries_correct_metrics(self, tmp_path, monkeypatch, capsys):
+        """--tins queries exactly the 4 per-tin metric names."""
+        from unittest.mock import patch
+
+        from wanctl.history import PER_TIN_METRICS
+
+        assert len(PER_TIN_METRICS) == 4
+        assert "wanctl_cake_tin_dropped" in PER_TIN_METRICS
+        assert "wanctl_cake_tin_ecn_marked" in PER_TIN_METRICS
+        assert "wanctl_cake_tin_delay_us" in PER_TIN_METRICS
+        assert "wanctl_cake_tin_backlog_bytes" in PER_TIN_METRICS
+
+        # Create DB with per-tin data
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "tins_test.db"
+        writer = MetricsWriter(db_path=db_path)
+        now = int(datetime.now().timestamp())
+        writer.write_metrics_batch([
+            (now, "spectrum", "wanctl_cake_tin_dropped", 5.0, json.dumps({"tin": "Bulk"}), "raw"),
+        ])
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        with patch("wanctl.history.query_metrics") as mock_query:
+            mock_query.return_value = []
+            monkeypatch.setattr(
+                sys, "argv",
+                ["wanctl-history", "--tins", "--last", "1h", "--db", str(db_path)],
+            )
+            main()
+            mock_query.assert_called_once()
+            call_kwargs = mock_query.call_args
+            assert call_kwargs[1]["metrics"] == PER_TIN_METRICS
+
+    def test_format_tins_table(self):
+        """format_tins_table renders per-tin data with Tin column."""
+        from wanctl.history import format_tins_table
+
+        now = int(datetime.now().timestamp())
+        results = [
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
+             "value": 5.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
+             "value": 2.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_delay_us",
+             "value": 150.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_backlog_bytes",
+             "value": 1024.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
+             "value": 0.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
+             "value": 0.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_delay_us",
+             "value": 50.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_backlog_bytes",
+             "value": 256.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
+        ]
+
+        table = format_tins_table(results)
+        assert "Tin" in table
+        assert "Bulk" in table
+        assert "BestEffort" in table
+        assert "Dropped" in table
+        assert "ECN Marked" in table
+        assert "Delay(us)" in table
+        assert "Backlog(B)" in table
+
+    def test_tins_no_data(self, tmp_path, monkeypatch, capsys):
+        """--tins with no data prints 'No per-tin data found' message."""
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "empty_tins.db"
+        writer = MetricsWriter(db_path=db_path)
+        # Write some unrelated metric so DB exists
+        now = int(datetime.now().timestamp())
+        writer.write_metric(
+            timestamp=now - 86400 * 30,
+            wan_name="test",
+            metric_name="wanctl_rtt_ms",
+            value=10.0,
+        )
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        monkeypatch.setattr(
+            sys, "argv",
+            ["wanctl-history", "--tins", "--last", "1h", "--db", str(db_path)],
+        )
+        result = main()
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "No per-tin data found" in captured.out
+
+    def test_tins_json_output(self):
+        """format_tins_json produces valid JSON with tin field."""
+        from wanctl.history import format_tins_json
+
+        now = int(datetime.now().timestamp())
+        results = [
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
+             "value": 5.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
+             "value": 2.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+        ]
+
+        output = format_tins_json(results)
+        data = json.loads(output)
+        assert isinstance(data, list)
+        assert len(data) > 0
+        # Verify tin is a top-level field
+        assert "tin" in data[0]
+        assert data[0]["tin"] == "Bulk"
