@@ -92,7 +92,7 @@ None
 3. Per-tin statistics are queryable via `wanctl-history` CLI
    **Plans**: 2 plans
    Plans:
-   - [ ] 108-01-PLAN.md -- Dual-backend CakeStatsReader + per-tin health endpoint
+   - [x] 108-01-PLAN.md -- Dual-backend CakeStatsReader + per-tin health endpoint
    - [ ] 108-02-PLAN.md -- Per-tin metrics storage + wanctl-history --tins CLI
 
 ### Phase 109: VM Infrastructure & Bridges
@@ -187,7 +187,7 @@ None
 **Goal:** Widen 4 tuning bounds stuck at limits and fix SIGP-01 outlier rate 60x underestimate from wrong denominator
 **Requirements**: SIGP-01-FIX, BOUNDS-SPECTRUM, BOUNDS-ATT
 **Depends on:** None (standalone hardening, applies to current production v1.20)
-**Plans:** 0/1 plans executed
+**Plans:** 1/2 plans executed
 
 Plans:
 

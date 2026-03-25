@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-25T15:38:44Z"
-last_activity: "2026-03-25 - Completed 111-01-PLAN.md (SIGP-01 rate fix + config bounds)"
+last_updated: "2026-03-25T15:43:38.054Z"
+last_activity: 2026-03-25
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 8
   percent: 83
 ---
 
@@ -26,18 +26,22 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
 **Phase:** 108 of 7 (steering dual backend & observability)
-**Status:** Executing Phase 108
+**Status:** Executing Phase 108 (Plan 01 complete)
 **Last activity:** 2026-03-25
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 5.2min
-- Total execution time: 0.4 hours
+- Total plans completed: 6
+- Average duration: 5.5min
+- Total execution time: 0.5 hours
+
+| Phase | Plan | Duration | Tasks | Files |
+| ----- | ---- | -------- | ----- | ----- |
+| 108   | 01   | 7min     | 2     | 4     |
 
 ## Accumulated Context
 
@@ -57,6 +61,9 @@ Progress: [████████░░] 83%
 - [P106] Integration tests: build_cake_params -> initialize_cake pipeline proven end-to-end
 - [P107] validate_linux_cake: lazy import VALID_OVERHEAD_KEYWORDS, tc absence is WARN not ERROR, cake_params gated on transport=linux-cake
 - [P107] Factory keys on config.router_transport (getattr default 'rest'), not config.router['type'] -- aligns with autorate_continuous.py
+- [P108] Transport detected from autorate config YAML (primary_wan_config), not steering config -- steering router.transport stays rest/ssh for mangle
+- [P108] \_AutorateConfigProxy inner class wraps parsed YAML for get_backend() factory compat
+- [P108] Per-tin data cached on CakeStatsReader.last_tin_stats, health accesses via daemon.cake_reader
 
 ### Known Issues
 

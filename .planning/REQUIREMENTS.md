@@ -21,7 +21,7 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 - [x] **CAKE-03**: `ack-filter` enabled for ACK compression on upload
 - [x] **CAKE-05**: Precise `overhead`/`mpu` configured per-link (`docsis` for Spectrum, `bridged-ptm` for ATT)
 - [x] **CAKE-06**: `memlimit` configured for bounded memory usage (32MB for ~1Gbps links)
-- [ ] **CAKE-07**: Per-tin statistics visible in health endpoint and wanctl-history
+- [x] **CAKE-07**: Per-tin statistics visible in health endpoint and wanctl-history
 - [x] **CAKE-08**: `ingress` keyword on download CAKE for tighter drop accounting
 - [x] **CAKE-09**: `ecn` on download CAKE for softer congestion signaling than drops
 - [x] **CAKE-10**: `rtt` parameter configured per-link (candidate for adaptive tuning, default 100ms may be conservative)
@@ -30,7 +30,7 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 
 - [x] **CONF-01**: `transport: "linux-cake"` config option with bridge interface names in YAML
 - [x] **CONF-02**: Factory function selects LinuxCakeBackend based on transport config
-- [ ] **CONF-03**: Steering daemon uses dual-backend -- linux-cake for CAKE stats, REST for mangle rules
+- [x] **CONF-03**: Steering daemon uses dual-backend -- linux-cake for CAKE stats, REST for mangle rules
 - [x] **CONF-04**: `wanctl-check-config` validates linux-cake transport settings and interface existence
 
 ### Infrastructure
@@ -87,13 +87,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAKE-03 | Phase 106 | Complete |
 | CAKE-05 | Phase 106 | Complete |
 | CAKE-06 | Phase 106 | Complete |
-| CAKE-07 | Phase 108 | Pending |
+| CAKE-07 | Phase 108 | Complete |
 | CAKE-08 | Phase 106 | Complete |
 | CAKE-09 | Phase 106 | Complete |
 | CAKE-10 | Phase 106 | Complete |
 | CONF-01 | Phase 107 | Complete |
 | CONF-02 | Phase 107 | Complete |
-| CONF-03 | Phase 108 | Pending |
+| CONF-03 | Phase 108 | Complete |
 | CONF-04 | Phase 107 | Complete |
 | INFR-01 | Phase 104 | Complete |
 | INFR-02 | Phase 109 | Pending |
