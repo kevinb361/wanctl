@@ -190,4 +190,5 @@ None
 **Plans:** 1 plan
 
 Plans:
-- [ ] 111-01-PLAN.md -- Config bounds update + SIGP-01 rate normalization fix with density-aware tests
+
+- [x] 111-01-PLAN.md -- Config bounds update + SIGP-01 rate normalization fix with density-aware tests

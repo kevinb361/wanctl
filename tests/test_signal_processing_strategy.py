@@ -13,6 +13,7 @@ import pytest
 
 from wanctl.tuning.models import SafetyBounds, TuningResult
 from wanctl.tuning.strategies.signal_processing import (
+    MAX_WINDOW,
     MIN_SAMPLES,
     tune_alpha_load,
     tune_hampel_sigma,
@@ -20,9 +21,7 @@ from wanctl.tuning.strategies.signal_processing import (
 )
 
 
-def _make_metrics(
-    metric_name: str, values: list[float], start_ts: int = 1000000
-) -> list[dict]:
+def _make_metrics(metric_name: str, values: list[float], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for a single metric."""
     return [
         {"timestamp": start_ts + i * 60, "metric_name": metric_name, "value": v}
@@ -30,9 +29,7 @@ def _make_metrics(
     ]
 
 
-def _make_multi_metrics(
-    *args: tuple[str, list[float]], start_ts: int = 1000000
-) -> list[dict]:
+def _make_multi_metrics(*args: tuple[str, list[float]], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for multiple metrics aligned by timestamp."""
     result: list[dict] = []
     for metric_name, values in args:
@@ -125,6 +122,87 @@ class TestTuneHampelSigma:
         assert result.data_points == 99
 
 
+class TestHampelSigmaRecordingDensity:
+    """Verify SIGP-01 rate normalization is correct at all recording densities."""
+
+    BOUNDS = SafetyBounds(min_value=1.5, max_value=5.0)
+
+    @staticmethod
+    def _make_density_metrics(
+        interval_sec: float, outlier_fraction: float, n: int = 100
+    ) -> list[dict]:
+        """Build metrics with variable timestamp spacing and known outlier rate.
+
+        Args:
+            interval_sec: seconds between consecutive timestamps
+            outlier_fraction: target outlier rate (0.0-1.0)
+            n: number of data points
+        """
+        samples_per_sec = 1.0 / 0.05  # 20 at 50ms cycle
+        outliers_per_interval = interval_sec * samples_per_sec * outlier_fraction
+        counts = [i * outliers_per_interval for i in range(n)]
+        return [
+            {
+                "timestamp": int(1000000 + i * interval_sec),
+                "metric_name": "wanctl_signal_outlier_count",
+                "value": c,
+            }
+            for i, c in enumerate(counts)
+        ]
+
+    @pytest.mark.parametrize("interval_sec", [1, 5, 60])
+    def test_rate_consistent_across_recording_densities(self, interval_sec):
+        """Same 20% outlier rate produces sigma decrease at any recording interval."""
+        metrics = self._make_density_metrics(interval_sec, 0.20, n=100)
+        result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
+        assert result is not None, f"Expected result at {interval_sec}s intervals"
+        assert result.new_value < 3.0, f"Expected sigma decrease at {interval_sec}s"
+
+    def test_production_density_05s_converged(self):
+        """At production density (1s gaps), 10% rate returns None (converged)."""
+        metrics = self._make_density_metrics(1, 0.10, n=100)
+        result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
+        assert result is None  # 10% is within 5-15% target range
+
+    def test_zero_time_gap_skipped(self):
+        """Duplicate timestamps are skipped without error."""
+        n = 100
+        # Create metrics where some timestamps are duplicated
+        metrics = []
+        for i in range(n):
+            ts = 1000000 + (i // 2) * 60  # Every pair shares a timestamp
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "metric_name": "wanctl_signal_outlier_count",
+                    "value": float(i * 240),
+                }
+            )
+        # Should not raise, may return None due to insufficient valid deltas
+        tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
+        # No crash is the primary assertion
+
+    def test_single_sample_returns_none(self):
+        """Only 1 timestamp means 0 deltas, returns None."""
+        metrics = [
+            {
+                "timestamp": 1000000,
+                "metric_name": "wanctl_signal_outlier_count",
+                "value": 100.0,
+            }
+        ]
+        result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
+        assert result is None
+
+
+class TestMaxWindowAlignment:
+    """Verify MAX_WINDOW code constant matches ATT config ceiling."""
+
+    def test_max_window_is_21(self):
+        """MAX_WINDOW must be 21 to allow ATT window proposals up to 21."""
+        assert MAX_WINDOW == 21
+
+
 # ---------------------------------------------------------------------------
 # SIGP-02: tune_hampel_window
 # ---------------------------------------------------------------------------
@@ -136,13 +214,13 @@ class TestTuneHampelWindow:
     BOUNDS = SafetyBounds(min_value=5.0, max_value=15.0)
 
     def test_low_jitter_maps_to_max_window(self):
-        """Low jitter (<1ms) -> window near MAX_WINDOW=15."""
+        """Low jitter (<1ms) -> window near MAX_WINDOW=21."""
         n = 100
         jitter_values = [0.5] * n
         metrics = _make_metrics("wanctl_signal_jitter_ms", jitter_values)
         result = tune_hampel_window(metrics, 7.0, self.BOUNDS, "Spectrum")
         assert result is not None
-        assert result.new_value >= 14.0  # Near MAX_WINDOW=15
+        assert result.new_value >= 14.0  # Near MAX_WINDOW=21
         assert result.parameter == "hampel_window_size"
         assert result.wan_name == "Spectrum"
         assert result.confidence > 0
@@ -159,14 +237,14 @@ class TestTuneHampelWindow:
         assert result.wan_name == "ATT"
 
     def test_moderate_jitter_interpolates(self):
-        """Jitter ~2.5ms -> interpolated window between 5 and 15."""
+        """Jitter ~2.5ms -> interpolated window between 5 and 21."""
         n = 100
         jitter_values = [2.5] * n
         metrics = _make_metrics("wanctl_signal_jitter_ms", jitter_values)
         result = tune_hampel_window(metrics, 7.0, self.BOUNDS, "Spectrum")
         assert result is not None
-        # Linear interpolation: 15 - 10 * (2.5 - 1.0) / (5.0 - 1.0) = 15 - 3.75 = 11.25
-        assert 10.0 <= result.new_value <= 12.0
+        # Linear interpolation: 21 - 16 * (2.5 - 1.0) / (5.0 - 1.0) = 21 - 6.0 = 15.0
+        assert 14.0 <= result.new_value <= 16.0
 
     def test_insufficient_data_returns_none(self):
         """Fewer than MIN_SAMPLES jitter values -> None."""
@@ -272,9 +350,7 @@ class TestTuneAlphaLoad:
         alpha_per_minute = 0.5 if settling_minutes <= 2 else 0.4
         current_ewma = baseline_rtt
         for minute in range(total_minutes):
-            current_ewma = current_ewma + alpha_per_minute * (
-                rtt_values[minute] - current_ewma
-            )
+            current_ewma = current_ewma + alpha_per_minute * (rtt_values[minute] - current_ewma)
             ewma_values.append(current_ewma)
 
         return _make_multi_metrics(
