@@ -5,9 +5,12 @@ JSON/text parsing, delta calculation, and error handling.
 """
 
 import logging
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
 from wanctl.steering.cake_stats import CakeStats, CakeStatsReader, CongestionSignals
 
@@ -617,3 +620,252 @@ class TestReadStats:
         cmd = call_args[0][0]
         assert "/queue/tree print stats detail" in cmd
         assert 'name="WAN-Download-1"' in cmd
+
+
+# =============================================================================
+# CakeStatsReader Linux-CAKE Code Path Tests
+# =============================================================================
+
+
+class TestCakeStatsReaderLinuxCake:
+    """Tests for CakeStatsReader when transport is linux-cake."""
+
+    @pytest.fixture
+    def linux_cake_config_file(self, tmp_path):
+        """Create a temporary autorate YAML with linux-cake transport."""
+        config_data = {
+            "router": {"transport": "linux-cake"},
+            "cake_params": {
+                "download_interface": "br-wan-dl",
+                "upload_interface": "br-wan-ul",
+            },
+        }
+        config_path = tmp_path / "spectrum.yaml"
+        config_path.write_text(yaml.dump(config_data))
+        return config_path
+
+    @pytest.fixture
+    def rest_config_file(self, tmp_path):
+        """Create a temporary autorate YAML with rest transport."""
+        config_data = {
+            "router": {"transport": "rest", "host": "10.10.99.1"},
+        }
+        config_path = tmp_path / "spectrum_rest.yaml"
+        config_path.write_text(yaml.dump(config_data))
+        return config_path
+
+    @pytest.fixture
+    def linux_cake_config(self, linux_cake_config_file, mock_steering_config):
+        """Config pointing to linux-cake autorate YAML."""
+        mock_steering_config.primary_wan_config = linux_cake_config_file
+        mock_steering_config.router = MagicMock()
+        mock_steering_config.router.host = "10.10.99.1"
+        mock_steering_config.router.port = 22
+        mock_steering_config.router.username = "admin"
+        return mock_steering_config
+
+    @pytest.fixture
+    def rest_config(self, rest_config_file, mock_steering_config):
+        """Config pointing to rest autorate YAML."""
+        mock_steering_config.primary_wan_config = rest_config_file
+        mock_steering_config.router = MagicMock()
+        mock_steering_config.router.host = "10.10.99.1"
+        mock_steering_config.router.port = 22
+        mock_steering_config.router.username = "admin"
+        return mock_steering_config
+
+    def test_linux_cake_creates_backend_not_router_client(
+        self, linux_cake_config, logger
+    ):
+        """CakeStatsReader with linux-cake transport creates LinuxCakeBackend, not FailoverRouterClient."""
+        mock_backend = MagicMock()
+        with (
+            patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend,
+            patch(
+                "wanctl.steering.cake_stats.get_router_client_with_failover"
+            ) as mock_router_factory,
+        ):
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+
+            assert reader._is_linux_cake is True
+            assert reader._linux_backend is mock_backend
+            assert reader.client is None
+            mock_router_factory.assert_not_called()
+
+    def test_rest_transport_creates_router_client(self, rest_config, logger):
+        """CakeStatsReader with rest transport still creates FailoverRouterClient."""
+        mock_client = MagicMock()
+        with patch(
+            "wanctl.steering.cake_stats.get_router_client_with_failover"
+        ) as mock_router_factory:
+            mock_router_factory.return_value = mock_client
+            reader = CakeStatsReader(rest_config, logger)
+
+            assert reader._is_linux_cake is False
+            assert reader._linux_backend is None
+            assert reader.client is mock_client
+            mock_router_factory.assert_called_once()
+
+    def test_linux_cake_read_stats_returns_cake_stats(
+        self, linux_cake_config, logger
+    ):
+        """read_stats on linux-cake path returns CakeStats with correct delta fields."""
+        mock_backend = MagicMock()
+        mock_backend.get_queue_stats.return_value = {
+            "packets": 1000,
+            "bytes": 500000,
+            "dropped": 5,
+            "queued_packets": 10,
+            "queued_bytes": 5000,
+            "tins": [
+                {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 120},
+                {"dropped_packets": 2, "ecn_marked_packets": 1, "avg_delay_us": 80},
+                {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 50},
+                {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 30},
+            ],
+        }
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+            result = reader.read_stats("WAN-Download-Spectrum")
+
+        assert result is not None
+        assert isinstance(result, CakeStats)
+        # First read returns current values (baseline)
+        assert result.packets == 1000
+        assert result.bytes == 500000
+        assert result.dropped == 5
+        assert result.queued_packets == 10
+        assert result.queued_bytes == 5000
+
+    def test_linux_cake_contract_unchanged(self, linux_cake_config, logger):
+        """CakeStats return contract (5 fields) unchanged on linux-cake path."""
+        mock_backend = MagicMock()
+        mock_backend.get_queue_stats.return_value = {
+            "packets": 100,
+            "bytes": 50000,
+            "dropped": 2,
+            "queued_packets": 3,
+            "queued_bytes": 1500,
+            "tins": [],
+        }
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+            result = reader.read_stats("WAN-Download-Spectrum")
+
+        assert result is not None
+        # All 5 CakeStats fields present
+        assert hasattr(result, "packets")
+        assert hasattr(result, "bytes")
+        assert hasattr(result, "dropped")
+        assert hasattr(result, "queued_packets")
+        assert hasattr(result, "queued_bytes")
+
+    def test_linux_cake_delta_calculation(self, linux_cake_config, logger):
+        """Delta calculation works on linux-cake path (cumulative-to-delta)."""
+        mock_backend = MagicMock()
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+
+            # First read -- baseline
+            mock_backend.get_queue_stats.return_value = {
+                "packets": 1000,
+                "bytes": 500000,
+                "dropped": 5,
+                "queued_packets": 10,
+                "queued_bytes": 5000,
+                "tins": [],
+            }
+            reader.read_stats("WAN-Download-Spectrum")
+
+            # Second read -- delta
+            mock_backend.get_queue_stats.return_value = {
+                "packets": 1100,
+                "bytes": 550000,
+                "dropped": 7,
+                "queued_packets": 15,
+                "queued_bytes": 7500,
+                "tins": [],
+            }
+            result = reader.read_stats("WAN-Download-Spectrum")
+
+        assert result is not None
+        assert result.packets == 100  # 1100 - 1000
+        assert result.bytes == 50000  # 550000 - 500000
+        assert result.dropped == 2  # 7 - 5
+        assert result.queued_packets == 15  # instantaneous
+        assert result.queued_bytes == 7500  # instantaneous
+
+    def test_linux_cake_caches_per_tin_data(self, linux_cake_config, logger):
+        """linux-cake path caches per-tin data in self.last_tin_stats."""
+        tin_data = [
+            {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 120},
+            {"dropped_packets": 2, "ecn_marked_packets": 1, "avg_delay_us": 80},
+            {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 50},
+            {"dropped_packets": 0, "ecn_marked_packets": 0, "avg_delay_us": 30},
+        ]
+        mock_backend = MagicMock()
+        mock_backend.get_queue_stats.return_value = {
+            "packets": 100,
+            "bytes": 50000,
+            "dropped": 2,
+            "queued_packets": 3,
+            "queued_bytes": 1500,
+            "tins": tin_data,
+        }
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+            reader.read_stats("WAN-Download-Spectrum")
+
+        assert reader.last_tin_stats is not None
+        assert len(reader.last_tin_stats) == 4
+        assert reader.last_tin_stats[0]["dropped_packets"] == 1
+        assert reader.last_tin_stats[1]["ecn_marked_packets"] == 1
+
+    def test_linux_cake_returns_none_when_backend_returns_none(
+        self, linux_cake_config, logger
+    ):
+        """When LinuxCakeBackend.get_queue_stats() returns None, read_stats returns None."""
+        mock_backend = MagicMock()
+        mock_backend.get_queue_stats.return_value = None
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+            result = reader.read_stats("WAN-Download-Spectrum")
+
+        assert result is None
+
+    def test_linux_cake_last_tin_stats_initialized_none(
+        self, linux_cake_config, logger
+    ):
+        """last_tin_stats is None before any stats read."""
+        mock_backend = MagicMock()
+        with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_config, logger)
+
+        assert reader.last_tin_stats is None
+
+    def test_config_load_error_falls_back_to_routeros(
+        self, mock_steering_config, logger
+    ):
+        """If autorate config can't be loaded, fall back to RouterOS path."""
+        mock_steering_config.primary_wan_config = Path("/nonexistent/path.yaml")
+        mock_steering_config.router = MagicMock()
+        mock_steering_config.router.host = "10.10.99.1"
+        mock_steering_config.router.port = 22
+        mock_steering_config.router.username = "admin"
+
+        mock_client = MagicMock()
+        with patch(
+            "wanctl.steering.cake_stats.get_router_client_with_failover"
+        ) as mock_router_factory:
+            mock_router_factory.return_value = mock_client
+            reader = CakeStatsReader(mock_steering_config, logger)
+
+        assert reader._is_linux_cake is False
+        assert reader.client is mock_client
