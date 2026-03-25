@@ -38,20 +38,17 @@ TARGET_OUTLIER_RATE_MAX = 0.15  # 15% -- above this, sigma is too tight
 # Sigma adjustment step per tuning cycle.
 SIGMA_STEP = 0.1
 
-# Expected samples per minute at 20Hz cycle rate.
-SAMPLES_PER_MINUTE = 1200
-
 # ---------------------------------------------------------------------------
 # SIGP-02: Hampel window tuning constants
 # ---------------------------------------------------------------------------
 
 # Jitter thresholds for window size interpolation (milliseconds).
-JITTER_LOW_THRESHOLD = 1.0   # Below this: stable signal
+JITTER_LOW_THRESHOLD = 1.0  # Below this: stable signal
 JITTER_HIGH_THRESHOLD = 5.0  # Above this: noisy signal
 
 # Window size range.
-MIN_WINDOW = 5   # Minimum for robust median
-MAX_WINDOW = 15  # Maximum before detection latency
+MIN_WINDOW = 5  # Minimum for robust median
+MAX_WINDOW = 21  # Maximum window size (per-WAN config bounds enforce actual limits)
 
 # ---------------------------------------------------------------------------
 # SIGP-03: Load EWMA time constant tuning constants
@@ -111,16 +108,24 @@ def tune_hampel_sigma(
         )
         return None
 
-    # 2. Sort timestamps, compute deltas between consecutive minutes
+    # 2. Sort timestamps, compute deltas between consecutive records
     sorted_ts = sorted(count_by_ts.keys())
     rates: list[float] = []
+    samples_per_sec = 1.0 / CYCLE_INTERVAL  # 20 at 50ms interval
     for i in range(1, len(sorted_ts)):
         delta = count_by_ts[sorted_ts[i]] - count_by_ts[sorted_ts[i - 1]]
         # Discard negative deltas (counter reset on daemon restart)
         if delta < 0:
             continue
+        # Compute actual time gap between consecutive records
+        time_gap = sorted_ts[i] - sorted_ts[i - 1]
+        # Skip zero-gap records (duplicate timestamps)
+        if time_gap <= 0:
+            continue
         # Convert delta to rate: outliers per sample
-        rate = delta / SAMPLES_PER_MINUTE
+        # Expected samples in this interval = time_gap * samples_per_sec
+        expected_samples = time_gap * samples_per_sec
+        rate = delta / max(expected_samples, 1.0)
         # Clamp to [0.0, 1.0] guard
         rate = max(0.0, min(1.0, rate))
         rates.append(rate)
@@ -296,9 +301,7 @@ def tune_alpha_load(
 
     # 5. Detect steps: consecutive raw RTT delta > multiplier * median_jitter
     #    AND absolute delta >= MIN_STEP_MAGNITUDE
-    step_threshold = max(
-        STEP_DETECTION_MULTIPLIER * median_jitter, MIN_STEP_MAGNITUDE
-    )
+    step_threshold = max(STEP_DETECTION_MULTIPLIER * median_jitter, MIN_STEP_MAGNITUDE)
 
     step_indices: list[int] = []
     for i in range(1, len(sorted_ts)):
