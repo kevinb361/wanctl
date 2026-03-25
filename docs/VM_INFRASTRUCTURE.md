@@ -257,9 +257,110 @@ networkctl list
 
 ---
 
-## Section 4: wanctl Deployment
+## Section 4: wanctl Deployment (cake-shaper)
 
-_To be completed in Plan 109-04._
+### Deployment Summary
+
+| Component   | Status                                                               |
+| ----------- | -------------------------------------------------------------------- |
+| Code        | /opt/wanctl (81 Python files via rsync)                              |
+| User        | wanctl:wanctl (uid 988)                                              |
+| Directories | /etc/wanctl, /var/lib/wanctl, /var/log/wanctl                        |
+| Systemd     | wanctl@.service with After=systemd-networkd-wait-online.service      |
+| Python deps | icmplib, requests, paramiko, pyyaml, tabulate, cryptography, pexpect |
+| tc version  | iproute2-6.15.0                                                      |
+| CAKE module | sch_cake (loaded via modprobe)                                       |
+
+### Systemd Ordering
+
+```
+systemd-networkd → systemd-networkd-wait-online → wanctl@.service → initialize_cake()
+```
+
+The service file was modified to add `systemd-networkd-wait-online.service` to `After=`.
+This ensures bridges are up before wanctl starts and calls `tc qdisc replace`.
+
+> **CAKE is initialized by the wanctl daemon** via `initialize_cake()` at startup,
+> NOT by a systemd oneshot or systemd-networkd .network files.
+
+### CAKE Initialization Verification (2026-03-25)
+
+CAKE attaches to **router-side bridge member ports only** (egress toward MikroTik):
+
+```bash
+# Spectrum (download shaping)
+sudo /usr/sbin/tc qdisc replace dev ens17 root cake bandwidth 500mbit \
+  diffserv4 split-gso overhead 18 mpu 64 memlimit 32mb rtt 100ms ingress
+
+# ATT (upload shaping)
+sudo /usr/sbin/tc qdisc replace dev ens28 root cake bandwidth 50mbit \
+  diffserv4 split-gso overhead 0 mpu 64 memlimit 32mb rtt 100ms ack-filter
+```
+
+Verification output:
+
+```
+ens17: qdisc cake bandwidth 500Mbit diffserv4 ... ingress ... overhead 18 mpu 64 memlimit 32Mb
+ens28: qdisc cake bandwidth 50Mbit diffserv4 ... ack-filter ... overhead 0 mpu 64 memlimit 32Mb
+```
+
+JSON stats parsing verified:
+
+```bash
+sudo /usr/sbin/tc -s -j qdisc show dev ens17  # CAKE found: True
+sudo /usr/sbin/tc -s -j qdisc show dev ens28  # CAKE found: True
+```
+
+> **Note:** The `ecn` keyword is not supported by iproute2-6.15.0's tc. CAKE enables
+> ECN by default on all tins, so no explicit keyword is needed.
+
+### Python Dependencies
+
+Installed via `pip3 install --break-system-packages` (system Python, no venv):
+
+```
+icmplib requests paramiko pyyaml tabulate cryptography pexpect
+```
+
+### Deployment Procedure
+
+```bash
+# From workstation
+./scripts/deploy.sh --install-only kevin@10.10.110.223  # --no-wizard
+rsync -av --delete --exclude=__pycache__ --exclude='*.pyc' \
+  --rsync-path='sudo rsync' --chmod=F644,D755 --chown=root:root \
+  src/wanctl/ kevin@10.10.110.223:/opt/wanctl/
+```
+
+## Section 5: Operational Reference
+
+### Quick Health Check
+
+```bash
+ssh kevin@10.10.110.223 'sudo networkctl status && bridge link show && sudo /usr/sbin/tc qdisc show'
+```
+
+### Service Management
+
+```bash
+# Start/stop
+sudo systemctl start wanctl@spectrum
+sudo systemctl stop wanctl@spectrum
+
+# Logs
+sudo journalctl -u wanctl@spectrum -f
+
+# Circuit breaker recovery (after 5 failures in 5 min)
+sudo systemctl reset-failed wanctl@spectrum && sudo systemctl start wanctl@spectrum
+```
+
+### Troubleshooting
+
+- **CAKE not attaching:** Check `modprobe sch_cake`, verify NIC names, check `tc qdisc replace` stderr
+- **Bridge member missing:** Check `systemctl status systemd-networkd`, `networkctl list`, NIC naming
+- **NIC name changed after kernel update:** Re-check `/sys/class/net/enp*` PCI mapping
+- **Boot hang on wait-online:** Check RequiredForOnline settings in .network files
+- **tc not found:** Binary is at `/usr/sbin/tc` (not in default user PATH)
 
 ---
 
