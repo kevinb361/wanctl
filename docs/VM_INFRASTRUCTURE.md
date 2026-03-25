@@ -187,9 +187,73 @@ All 4 passthrough NICs visible in guest. Device IDs confirm i210/i350 split.
 
 ---
 
-## Section 3: Bridge Configuration
+## Section 3: Bridge Configuration (cake-shaper)
 
-_To be completed in Plan 109-03._
+### Topology
+
+```
+Spectrum Modem <-> [ens16 -- br-spectrum -- ens17] <-> MikroTik eth1
+ATT Modem      <-> [ens27 -- br-att      -- ens28] <-> MikroTik eth2
+Management:    ens18 (VLAN 110) -> 10.10.110.223/24
+```
+
+### systemd-networkd Files
+
+All 9 files in `/etc/systemd/network/`:
+
+| File                   | Purpose                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| 10-br-spectrum.netdev  | Bridge device, STP=false, ForwardDelaySec=0                      |
+| 10-br-att.netdev       | Bridge device, STP=false, ForwardDelaySec=0                      |
+| 20-spec-modem.network  | ens16 → br-spectrum (RequiredForOnline=enslaved)                 |
+| 20-spec-router.network | ens17 → br-spectrum (RequiredForOnline=enslaved)                 |
+| 20-att-modem.network   | ens27 → br-att (RequiredForOnline=enslaved)                      |
+| 20-att-router.network  | ens28 → br-att (RequiredForOnline=enslaved)                      |
+| 30-br-spectrum.network | br-spectrum no IP (RequiredForOnline=carrier)                    |
+| 30-br-att.network      | br-att no IP (RequiredForOnline=carrier)                         |
+| 40-ens18.network       | Management: static 10.10.110.223/24 (RequiredForOnline=routable) |
+
+> **CAKE is NOT configured via systemd-networkd.** The wanctl daemon handles CAKE
+> initialization via `initialize_cake()` using `tc qdisc replace`. Do not add CAKE
+> sections to .network files (race condition per systemd #31226).
+
+### Verification Commands
+
+```bash
+# Bridge membership
+bridge link show
+ip link show master br-spectrum
+ip link show master br-att
+
+# STP and forward delay
+cat /sys/class/net/br-spectrum/bridge/stp_state  # expect 0
+cat /sys/class/net/br-att/bridge/stp_state        # expect 0
+cat /sys/class/net/br-spectrum/bridge/forward_delay  # expect 0
+cat /sys/class/net/br-att/bridge/forward_delay       # expect 0
+
+# No IP on bridges
+ip addr show br-spectrum | grep inet  # should return nothing
+ip addr show br-att | grep inet      # should return nothing
+
+# Overall status
+networkctl list
+```
+
+### Verification Results (2026-03-25)
+
+- br-spectrum: ens16 + ens17, STP=0, forward_delay=0, no IP
+- br-att: ens27 + ens28, STP=0, forward_delay=0, no IP
+- ens18: 10.10.110.223/24 (management)
+- NIC state: no-carrier (expected -- no cables connected yet)
+- systemd-networkd-wait-online: not hanging (bridges use RequiredForOnline=carrier)
+- Survived reboot: all config persisted via systemd-networkd
+
+### Troubleshooting
+
+- **Bridge not forming after reboot:** Check `systemctl status systemd-networkd`, then `networkctl list` for per-interface state
+- **wait-online hanging:** Verify RequiredForOnline settings -- bridges should be `carrier`, member ports `enslaved`, management `routable`
+- **NIC name changed after kernel update:** Re-check `readlink /sys/class/net/NAME/device` for PCI mapping
+- **ifupdown conflict:** Ensure `/etc/network/interfaces` only has loopback (backup at interfaces.bak)
 
 ---
 
