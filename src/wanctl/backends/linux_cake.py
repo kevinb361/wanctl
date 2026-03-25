@@ -29,6 +29,20 @@ from wanctl.backends.base import RouterBackend
 # diffserv4 tin order: index 0=Bulk, 1=BestEffort, 2=Video, 3=Voice
 TIN_NAMES: list[str] = ["Bulk", "BestEffort", "Video", "Voice"]
 
+# Overhead keywords that need expansion to tc-compatible form.
+# Some keywords (docsis, conservative, raw) are direct tc tokens.
+# Compound keywords must be split into encapsulation flag + numeric overhead.
+OVERHEAD_KEYWORD_EXPANSION: dict[str, list[str]] = {
+    "bridged-ptm": ["ptm", "overhead", "22"],
+    "pppoe-ptm": ["ptm", "overhead", "30"],
+    "bridged-llcsnap": ["atm", "overhead", "32"],
+    "pppoa-vcmux": ["atm", "overhead", "10"],
+    "pppoa-llc": ["atm", "overhead", "14"],
+    "pppoe-vcmux": ["atm", "overhead", "32"],
+    "pppoe-llcsnap": ["atm", "overhead", "40"],
+    "ethernet": ["noatm", "overhead", "38"],
+}
+
 
 class LinuxCakeBackend(RouterBackend):
     """Linux CAKE qdisc implementation of the router backend interface.
@@ -333,7 +347,12 @@ class LinuxCakeBackend(RouterBackend):
         if "diffserv" in params:
             cmd_args.append(str(params["diffserv"]))
         if "overhead_keyword" in params:
-            cmd_args.append(str(params["overhead_keyword"]))
+            kw = str(params["overhead_keyword"])
+            if kw in OVERHEAD_KEYWORD_EXPANSION:
+                cmd_args.extend(OVERHEAD_KEYWORD_EXPANSION[kw])
+            else:
+                # Direct tc keywords: docsis, conservative, raw
+                cmd_args.append(kw)
         elif "overhead" in params:
             cmd_args.extend(["overhead", str(params["overhead"])])
         if "mpu" in params:

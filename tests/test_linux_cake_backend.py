@@ -602,13 +602,15 @@ class TestInitializeCake:
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_overhead_keyword_bridged_ptm(self, mock_run, backend):
-        """bridged-ptm keyword produces standalone token."""
+        """bridged-ptm keyword expands to ptm + overhead 22."""
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
         )
         backend.initialize_cake({"overhead_keyword": "bridged-ptm"})
         cmd = mock_run.call_args[0][0]
-        assert "bridged-ptm" in cmd
+        assert "ptm" in cmd
+        assert "overhead" in cmd
+        assert "22" in cmd
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_overhead_keyword_priority(self, mock_run, backend):
@@ -687,7 +689,8 @@ class TestInitializeCake:
         assert "bandwidth" in cmd
         assert "300000kbit" in cmd
         assert "diffserv4" in cmd
-        assert "bridged-ptm" in cmd
+        assert "ptm" in cmd
+        assert "22" in cmd
         assert "memlimit" in cmd
         assert "32mb" in cmd
         assert "rtt" in cmd
