@@ -63,6 +63,10 @@ Progress: [████████░░] 83%
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure (mitigated by bridge forwarding during daemon death + Proxmox auto-restart)
 
+### Roadmap Evolution
+
+- Phase 111 added: Auto-Tuning Production Hardening — Config bounds + SIGP-01 rate fix
+
 ### Blockers
 
 None.
