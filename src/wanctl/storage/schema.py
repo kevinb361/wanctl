@@ -29,6 +29,10 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_irtt_loss_down_pct": "IRTT downstream packet loss percentage",
     "wanctl_irtt_asymmetry_ratio": "IRTT OWD asymmetry ratio (max of send/receive, receive/send)",
     "wanctl_irtt_asymmetry_direction": "IRTT OWD asymmetry direction (0=unknown, 1=symmetric, 2=upstream, 3=downstream)",
+    "wanctl_cake_tin_dropped": "Per-tin CAKE dropped packets (label: tin=Bulk|BestEffort|Video|Voice)",
+    "wanctl_cake_tin_ecn_marked": "Per-tin ECN marked packets (label: tin=Bulk|BestEffort|Video|Voice)",
+    "wanctl_cake_tin_delay_us": "Per-tin average queue delay in microseconds (label: tin=Bulk|BestEffort|Video|Voice)",
+    "wanctl_cake_tin_backlog_bytes": "Per-tin backlog in bytes (label: tin=Bulk|BestEffort|Video|Voice)",
 }
 
 # SQL schema for metrics table with indexes for time-series queries

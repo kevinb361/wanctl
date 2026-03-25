@@ -31,6 +31,7 @@ import traceback
 from pathlib import Path
 
 from ..alert_engine import AlertEngine
+from ..backends.linux_cake import TIN_NAMES
 from ..config_base import BaseConfig, get_storage_config
 from ..config_validation_utils import deprecate_param, validate_alpha
 from ..daemon_utils import check_cleanup_deadline
@@ -2015,6 +2016,33 @@ class SteeringDaemon:
                                 "raw",
                             )
                         )
+
+                    # Per-tin CAKE metrics (CAKE-07 observability)
+                    if (
+                        getattr(self.cake_reader, "_is_linux_cake", False)
+                        and self.cake_reader.last_tin_stats
+                    ):
+                        for i, tin in enumerate(self.cake_reader.last_tin_stats):
+                            tin_name = (
+                                TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
+                            )
+                            tin_labels = {"tin": tin_name}
+                            metrics_batch.append(
+                                (ts, self.config.primary_wan, "wanctl_cake_tin_dropped",
+                                 float(tin.get("dropped_packets", 0)), tin_labels, "raw")
+                            )
+                            metrics_batch.append(
+                                (ts, self.config.primary_wan, "wanctl_cake_tin_ecn_marked",
+                                 float(tin.get("ecn_marked_packets", 0)), tin_labels, "raw")
+                            )
+                            metrics_batch.append(
+                                (ts, self.config.primary_wan, "wanctl_cake_tin_delay_us",
+                                 float(tin.get("avg_delay_us", 0)), tin_labels, "raw")
+                            )
+                            metrics_batch.append(
+                                (ts, self.config.primary_wan, "wanctl_cake_tin_backlog_bytes",
+                                 float(tin.get("backlog_bytes", 0)), tin_labels, "raw")
+                            )
 
                     self._metrics_writer.write_metrics_batch(metrics_batch)
 
