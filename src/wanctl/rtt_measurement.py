@@ -103,6 +103,7 @@ class RTTMeasurement:
         timeout_ping: int = 1,
         aggregation_strategy: RTTAggregationStrategy = RTTAggregationStrategy.AVERAGE,
         log_sample_stats: bool = False,
+        source_ip: str | None = None,
     ):
         """
         Initialize RTT measurement.
@@ -112,6 +113,8 @@ class RTTMeasurement:
             timeout_ping: Per-packet timeout in seconds (passed to icmplib.ping timeout)
             aggregation_strategy: How to aggregate multiple RTT samples (AVERAGE, MEDIAN, MIN, MAX)
             log_sample_stats: If True, log min/max/median for debugging (only with AVERAGE strategy)
+            source_ip: Source IP address for ICMP packets. Used on multi-homed hosts
+                where different source IPs route through different WANs via policy routing.
 
         Examples:
             # autorate_continuous style: 5 samples, average, show min/max
@@ -119,11 +122,15 @@ class RTTMeasurement:
 
             # steering/daemon style: 1 sample, median
             rtt = RTTMeasurement(logger, timeout_ping=2, aggregation_strategy=RTTAggregationStrategy.MEDIAN)
+
+            # source-bound for multi-WAN VM (ATT pings via FORCE_OUT_ATT)
+            rtt = RTTMeasurement(logger, source_ip="10.10.110.224")
         """
         self.logger = logger
         self.timeout_ping = timeout_ping
         self.aggregation_strategy = aggregation_strategy
         self.log_sample_stats = log_sample_stats
+        self.source_ip = source_ip
 
     def ping_host(self, host: str, count: int = 1) -> float | None:
         """
@@ -157,6 +164,7 @@ class RTTMeasurement:
                 interval=0,
                 timeout=self.timeout_ping,
                 privileged=True,
+                source=self.source_ip,
             )
 
             if not result.is_alive:
