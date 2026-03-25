@@ -1310,3 +1310,216 @@ class TestWanAwarenessHealth:
             assert wa["degrade_timer_remaining"] is None
         finally:
             server.shutdown()
+
+
+class TestPerTinHealth:
+    """Tests for per-tin CAKE statistics in steering health endpoint (CAKE-07)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset SteeringHealthHandler class state before each test."""
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+        yield
+        SteeringHealthHandler.daemon = None
+        SteeringHealthHandler.start_time = None
+        SteeringHealthHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_daemon_with_tins(self):
+        """Create a mock SteeringDaemon with linux-cake and per-tin data."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Linux-cake CakeStatsReader with per-tin data
+        daemon.cake_reader._is_linux_cake = True
+        daemon.cake_reader.last_tin_stats = [
+            {
+                "dropped_packets": 0,
+                "ecn_marked_packets": 0,
+                "avg_delay_us": 120,
+                "peak_delay_us": 500,
+                "backlog_bytes": 0,
+                "sparse_flows": 3,
+                "bulk_flows": 0,
+                "unresponsive_flows": 0,
+            },
+            {
+                "dropped_packets": 3,
+                "ecn_marked_packets": 1,
+                "avg_delay_us": 80,
+                "peak_delay_us": 300,
+                "backlog_bytes": 1500,
+                "sparse_flows": 5,
+                "bulk_flows": 2,
+                "unresponsive_flows": 0,
+            },
+            {
+                "dropped_packets": 0,
+                "ecn_marked_packets": 0,
+                "avg_delay_us": 50,
+                "peak_delay_us": 100,
+                "backlog_bytes": 0,
+                "sparse_flows": 1,
+                "bulk_flows": 0,
+                "unresponsive_flows": 0,
+            },
+            {
+                "dropped_packets": 0,
+                "ecn_marked_packets": 0,
+                "avg_delay_us": 30,
+                "peak_delay_us": 60,
+                "backlog_bytes": 0,
+                "sparse_flows": 0,
+                "bulk_flows": 0,
+                "unresponsive_flows": 0,
+            },
+        ]
+        return daemon
+
+    def test_tins_present_when_linux_cake_active(self, mock_daemon_with_tins):
+        """Health endpoint includes tins array under congestion.primary when linux-cake."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "tins" in data["congestion"]["primary"]
+            tins = data["congestion"]["primary"]["tins"]
+            assert len(tins) == 4
+        finally:
+            server.shutdown()
+
+    def test_tins_have_correct_names(self, mock_daemon_with_tins):
+        """Each tin has tin_name matching diffserv4 order: Bulk, BestEffort, Video, Voice."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            tins = data["congestion"]["primary"]["tins"]
+            assert tins[0]["tin_name"] == "Bulk"
+            assert tins[1]["tin_name"] == "BestEffort"
+            assert tins[2]["tin_name"] == "Video"
+            assert tins[3]["tin_name"] == "Voice"
+        finally:
+            server.shutdown()
+
+    def test_tins_have_nine_fields(self, mock_daemon_with_tins):
+        """Each tin dict has 9 fields per D-06."""
+        expected_fields = {
+            "tin_name",
+            "dropped_packets",
+            "ecn_marked_packets",
+            "avg_delay_us",
+            "peak_delay_us",
+            "backlog_bytes",
+            "sparse_flows",
+            "bulk_flows",
+            "unresponsive_flows",
+        }
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            tins = data["congestion"]["primary"]["tins"]
+            for tin in tins:
+                assert set(tin.keys()) == expected_fields
+        finally:
+            server.shutdown()
+
+    def test_tins_have_correct_values(self, mock_daemon_with_tins):
+        """Tin data values match the mock data."""
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            tins = data["congestion"]["primary"]["tins"]
+            # Check BestEffort tin (index 1) for specific values
+            assert tins[1]["dropped_packets"] == 3
+            assert tins[1]["ecn_marked_packets"] == 1
+            assert tins[1]["avg_delay_us"] == 80
+            assert tins[1]["backlog_bytes"] == 1500
+        finally:
+            server.shutdown()
+
+    def test_tins_omitted_when_not_linux_cake(self, mock_daemon_with_tins):
+        """Health endpoint omits tins when _is_linux_cake is False (D-07)."""
+        mock_daemon_with_tins.cake_reader._is_linux_cake = False
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "tins" not in data["congestion"]["primary"]
+        finally:
+            server.shutdown()
+
+    def test_tins_omitted_when_last_tin_stats_none(self, mock_daemon_with_tins):
+        """Health endpoint omits tins when last_tin_stats is None (first cycle)."""
+        mock_daemon_with_tins.cake_reader.last_tin_stats = None
+        port = find_free_port()
+        server = start_steering_health_server(
+            host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
+        )
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "tins" not in data["congestion"]["primary"]
+        finally:
+            server.shutdown()
