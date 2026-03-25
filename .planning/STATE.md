@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
-status: planning
+status: executing
 last_updated: "2026-03-25T15:38:44Z"
 last_activity: "2026-03-25 - Completed 111-01-PLAN.md (SIGP-01 rate fix + config bounds)"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 4
-  total_plans: 6
+  total_plans: 9
   completed_plans: 6
   percent: 83
 ---
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
-**Current focus:** Phase 107 — config-factory-wiring
+**Current focus:** Phase 108 — steering-dual-backend-observability
 
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
 **Phase:** 108 of 7 (steering dual backend & observability)
-**Status:** Ready to plan
+**Status:** Executing Phase 108
 **Last activity:** 2026-03-25
 
 Progress: [████████░░] 83%
