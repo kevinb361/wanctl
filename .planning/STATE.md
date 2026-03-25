@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-24T23:04:39.681Z"
-last_activity: 2026-03-24
+status: executing
+last_updated: "2026-03-25T14:35:31.645Z"
+last_activity: 2026-03-25
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 100
 ---
 
@@ -20,23 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
-**Current focus:** Phase 106 — cake-optimization-parameters
+**Current focus:** Phase 107 — config-factory-wiring
 
 ## Position
 
 **Milestone:** v1.21 CAKE Offload (Phases 104-110)
 **Phase:** 107 of 7 (config & factory wiring)
-**Status:** Ready to plan
-**Last activity:** 2026-03-24
+**Status:** Executing Phase 107
+**Last activity:** 2026-03-25
 
-Progress: [##########] 100%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: 6.0min
+- Total plans completed: 5
+- Average duration: 5.2min
 - Total execution time: 0.4 hours
 
 ## Accumulated Context
@@ -55,6 +55,7 @@ Progress: [##########] 100%
 - [P106] overhead_keyword as standalone tc token, YAML_TO_TC_KEY for underscore-to-hyphen translation
 - [P106] initialize_cake elif chain: overhead_keyword priority over numeric overhead fallback
 - [P106] Integration tests: build_cake_params -> initialize_cake pipeline proven end-to-end
+- [P107] validate_linux_cake: lazy import VALID_OVERHEAD_KEYWORDS, tc absence is WARN not ERROR, cake_params gated on transport=linux-cake
 
 ### Known Issues
 

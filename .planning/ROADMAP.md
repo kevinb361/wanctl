@@ -78,7 +78,7 @@ None
    **Plans**: 2 plans
    Plans:
    - [ ] 107-01-PLAN.md -- Factory wiring: from_config direction parameter + get_backend linux-cake branch
-   - [ ] 107-02-PLAN.md -- check-config: validate_linux_cake validator + KNOWN_AUTORATE_PATHS update
+   - [x] 107-02-PLAN.md -- check-config: validate_linux_cake validator + KNOWN_AUTORATE_PATHS update
 
 ### Phase 108: Steering Dual-Backend & Observability
 
