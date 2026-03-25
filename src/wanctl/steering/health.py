@@ -161,6 +161,35 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 }
             }
 
+            # Per-tin CAKE statistics (CAKE-07, D-05/D-06/D-07)
+            # Only available when linux-cake transport is active
+            raw_tin_stats: list[dict[str, Any]] | None = getattr(
+                self.daemon.cake_reader, "last_tin_stats", None
+            ) if hasattr(self.daemon, "cake_reader") else None
+            if (
+                raw_tin_stats
+                and getattr(self.daemon.cake_reader, "_is_linux_cake", False)
+            ):
+                from wanctl.backends.linux_cake import TIN_NAMES
+
+                tins_list = []
+                for i, tin in enumerate(raw_tin_stats):
+                    tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
+                    tins_list.append(
+                        {
+                            "tin_name": tin_name,
+                            "dropped_packets": tin.get("dropped_packets", 0),
+                            "ecn_marked_packets": tin.get("ecn_marked_packets", 0),
+                            "avg_delay_us": tin.get("avg_delay_us", 0),
+                            "peak_delay_us": tin.get("peak_delay_us", 0),
+                            "backlog_bytes": tin.get("backlog_bytes", 0),
+                            "sparse_flows": tin.get("sparse_flows", 0),
+                            "bulk_flows": tin.get("bulk_flows", 0),
+                            "unresponsive_flows": tin.get("unresponsive_flows", 0),
+                        }
+                    )
+                health["congestion"]["primary"]["tins"] = tins_list
+
             # Decision info (STEER-05)
             last_transition = state.get("last_transition_time")
             time_in_state = 0.0
