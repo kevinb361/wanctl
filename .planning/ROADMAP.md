@@ -13,7 +13,7 @@ None
 - [x] **Phase 104: IOMMU Verification Gate** - Confirm PCIe passthrough feasibility for all 4 target NICs on odin (completed 2026-03-24)
 - [x] **Phase 105: LinuxCakeBackend Core** - Drop-in backend using tc for bandwidth control and stats collection (completed 2026-03-24)
 - [x] **Phase 106: CAKE Optimization Parameters** - Full CAKE feature set (split-gso, ECN, ack-filter, ingress, overhead, memlimit, rtt) (completed 2026-03-24)
-- [ ] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake
+- [x] **Phase 107: Config & Factory Wiring** - Transport selection, factory function, and config validation for linux-cake (completed 2026-03-25)
 - [ ] **Phase 108: Steering Dual-Backend & Observability** - Steering uses local CAKE stats + remote mangle rules, per-tin stats in health/history
 - [ ] **Phase 109: VM Infrastructure & Bridges** - Proxmox VM with VFIO passthrough, transparent bridges, CAKE on member port egress, management VLAN
 - [ ] **Phase 110: Production Cutover** - Staged migration (ATT first), rollback drill, benchmark validation
@@ -77,7 +77,7 @@ None
 3. `wanctl-check-config` validates linux-cake transport settings and checks that specified interfaces exist
    **Plans**: 2 plans
    Plans:
-   - [ ] 107-01-PLAN.md -- Factory wiring: from_config direction parameter + get_backend linux-cake branch
+   - [x] 107-01-PLAN.md -- Factory wiring: from_config direction parameter + get_backend linux-cake branch
    - [x] 107-02-PLAN.md -- check-config: validate_linux_cake validator + KNOWN_AUTORATE_PATHS update
 
 ### Phase 108: Steering Dual-Backend & Observability

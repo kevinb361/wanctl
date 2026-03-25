@@ -28,8 +28,8 @@ Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap p
 
 ### Configuration
 
-- [ ] **CONF-01**: `transport: "linux-cake"` config option with bridge interface names in YAML
-- [ ] **CONF-02**: Factory function selects LinuxCakeBackend based on transport config
+- [x] **CONF-01**: `transport: "linux-cake"` config option with bridge interface names in YAML
+- [x] **CONF-02**: Factory function selects LinuxCakeBackend based on transport config
 - [ ] **CONF-03**: Steering daemon uses dual-backend -- linux-cake for CAKE stats, REST for mangle rules
 - [x] **CONF-04**: `wanctl-check-config` validates linux-cake transport settings and interface existence
 
@@ -91,8 +91,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAKE-08 | Phase 106 | Complete |
 | CAKE-09 | Phase 106 | Complete |
 | CAKE-10 | Phase 106 | Complete |
-| CONF-01 | Phase 107 | Pending |
-| CONF-02 | Phase 107 | Pending |
+| CONF-01 | Phase 107 | Complete |
+| CONF-02 | Phase 107 | Complete |
 | CONF-03 | Phase 108 | Pending |
 | CONF-04 | Phase 107 | Complete |
 | INFR-01 | Phase 104 | Complete |

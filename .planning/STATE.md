@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-25T14:35:31.645Z"
+last_updated: "2026-03-25T14:53:47.293Z"
 last_activity: 2026-03-25
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 6
-  completed_plans: 5
-  percent: 100
+  completed_plans: 6
+  percent: 83
 ---
 
 # Session State
@@ -56,6 +56,7 @@ Progress: [████████░░] 83%
 - [P106] initialize_cake elif chain: overhead_keyword priority over numeric overhead fallback
 - [P106] Integration tests: build_cake_params -> initialize_cake pipeline proven end-to-end
 - [P107] validate_linux_cake: lazy import VALID_OVERHEAD_KEYWORDS, tc absence is WARN not ERROR, cake_params gated on transport=linux-cake
+- [P107] Factory keys on config.router_transport (getattr default 'rest'), not config.router['type'] -- aligns with autorate_continuous.py
 
 ### Known Issues
 
