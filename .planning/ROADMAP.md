@@ -126,7 +126,12 @@ None
 3. ATT (lower risk) is migrated first and validated before Spectrum cutover
 4. Rollback procedure is documented and has been drill-tested successfully before production cutover
 5. RRUL benchmark before/after comparison shows throughput improvement (target: Spectrum exceeds 740Mbps ceiling)
-   **Plans**: TBD
+   **Plans**: 4 plans
+   Plans:
+   - [ ] 110-01-PLAN.md -- Config YAML creation + baseline benchmarks
+   - [ ] 110-02-PLAN.md -- ATT cutover: cabling, daemon start, MikroTik queue disable
+   - [ ] 110-03-PLAN.md -- Rollback drill (Level 1 + Level 2) on ATT
+   - [ ] 110-04-PLAN.md -- Spectrum cutover, steering start, after-benchmarks
 
 ## Milestones
 
