@@ -25,6 +25,14 @@ from tabulate import tabulate
 from wanctl.storage.reader import compute_summary, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
+# Per-tin CAKE metric names for --tins queries (CAKE-07)
+PER_TIN_METRICS = [
+    "wanctl_cake_tin_dropped",
+    "wanctl_cake_tin_ecn_marked",
+    "wanctl_cake_tin_delay_us",
+    "wanctl_cake_tin_backlog_bytes",
+]
+
 # =============================================================================
 # DURATION AND TIMESTAMP PARSING
 # =============================================================================
@@ -333,6 +341,88 @@ def format_alerts_json(results: list[dict]) -> str:
     return json.dumps(output, indent=2)
 
 
+def format_tins_table(results: list[dict]) -> str:
+    """Format per-tin CAKE metrics as a pivoted table.
+
+    Groups results by (timestamp, wan_name, tin) and pivots the 4 per-tin
+    metrics into columns: Dropped, ECN Marked, Delay(us), Backlog(B).
+
+    Args:
+        results: List of metric records with per-tin labels
+
+    Returns:
+        Formatted table string
+    """
+    # Build dict keyed by (timestamp, wan_name, tin_name)
+    rows_dict: dict[tuple[int, str, str], dict[str, float]] = {}
+    metric_col_map = {
+        "wanctl_cake_tin_dropped": "Dropped",
+        "wanctl_cake_tin_ecn_marked": "ECN Marked",
+        "wanctl_cake_tin_delay_us": "Delay(us)",
+        "wanctl_cake_tin_backlog_bytes": "Backlog(B)",
+    }
+
+    for r in results:
+        # Parse tin name from labels
+        labels_raw = r.get("labels")
+        if labels_raw:
+            if isinstance(labels_raw, str):
+                labels = json.loads(labels_raw)
+            else:
+                labels = labels_raw
+        else:
+            labels = {}
+        tin_name = labels.get("tin", "unknown")
+
+        key = (r["timestamp"], r["wan_name"], tin_name)
+        if key not in rows_dict:
+            rows_dict[key] = {}
+        col = metric_col_map.get(r["metric_name"], r["metric_name"])
+        rows_dict[key][col] = r["value"]
+
+    headers = ["Timestamp", "WAN", "Tin", "Dropped", "ECN Marked", "Delay(us)", "Backlog(B)"]
+    rows = []
+    for (ts, wan, tin), metrics in sorted(rows_dict.items()):
+        rows.append([
+            format_timestamp(ts),
+            wan,
+            tin,
+            format_value(metrics.get("Dropped", 0.0)),
+            format_value(metrics.get("ECN Marked", 0.0)),
+            format_value(metrics.get("Delay(us)", 0.0)),
+            format_value(metrics.get("Backlog(B)", 0.0)),
+        ])
+
+    return tabulate(rows, headers=headers, tablefmt="simple")
+
+
+def format_tins_json(results: list[dict]) -> str:
+    """Format per-tin CAKE metrics as JSON with tin as a top-level field.
+
+    Args:
+        results: List of metric records with per-tin labels
+
+    Returns:
+        Pretty-printed JSON string
+    """
+    output = []
+    for r in results:
+        record = dict(r)
+        record["timestamp_iso"] = datetime.fromtimestamp(r["timestamp"]).isoformat()
+        # Parse labels to extract tin as top-level field
+        labels_raw = r.get("labels")
+        if labels_raw:
+            if isinstance(labels_raw, str):
+                labels = json.loads(labels_raw)
+            else:
+                labels = labels_raw
+        else:
+            labels = {}
+        record["tin"] = labels.get("tin", "unknown")
+        output.append(record)
+    return json.dumps(output, indent=2)
+
+
 # =============================================================================
 # ARGUMENT PARSING
 # =============================================================================
@@ -393,6 +483,11 @@ Examples:
         "--tuning",
         action="store_true",
         help="Show tuning parameter adjustments instead of metrics",
+    )
+    filter_group.add_argument(
+        "--tins",
+        action="store_true",
+        help="Show per-tin CAKE statistics (drops, ECN, delay, backlog per tin)",
     )
     filter_group.add_argument(
         "--metrics",
@@ -466,6 +561,26 @@ def main() -> int:
         # Default: last 1 hour
         start_ts = now - 3600
         end_ts = now
+
+    # Per-tin CAKE statistics query mode (CAKE-07)
+    if args.tins:
+        granularity = select_granularity(start_ts, end_ts)
+        results = query_metrics(
+            db_path=args.db,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            metrics=PER_TIN_METRICS,
+            wan=args.wan,
+            granularity=granularity,
+        )
+        if not results:
+            print("No per-tin data found for the specified time range.")
+            return 0
+        if args.json_output:
+            print(format_tins_json(results))
+        else:
+            print(format_tins_table(results))
+        return 0
 
     # Tuning history query mode
     if args.tuning:
