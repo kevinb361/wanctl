@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.21
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-25T14:57:42.280Z"
-last_activity: 2026-03-25
+last_updated: "2026-03-25T15:38:44Z"
+last_activity: "2026-03-25 - Completed 111-01-PLAN.md (SIGP-01 rate fix + config bounds)"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -66,6 +66,9 @@ Progress: [████████░░] 83%
 ### Roadmap Evolution
 
 - Phase 111 added: Auto-Tuning Production Hardening — Config bounds + SIGP-01 rate fix
+- [P111] Compute samples_per_sec from CYCLE_INTERVAL (1.0/0.05=20) not new constant
+- [P111] MAX_WINDOW=21 is code ceiling; per-WAN config bounds enforce actual per-deployment limits
+- [P111] Config YAML files are gitignored -- bound changes applied to deployment configs directly
 
 ### Blockers
 
