@@ -96,12 +96,14 @@ test -f /opt/wanctl/src/wanctl/perf_profiler.py && echo "OK: Profiler module fou
 With `--profile` enabled, the following subsystem labels are profiled:
 
 **Autorate daemon:**
+
 - `autorate_rtt_measurement` -- ICMP/TCP RTT measurement
 - `autorate_router_communication` -- Sending rate updates to router
 - `autorate_state_management` -- EWMA, state machine, congestion logic
 - `autorate_cycle_total` -- Full cycle end-to-end
 
 **Steering daemon:**
+
 - `steering_rtt_measurement` -- ICMP/TCP RTT measurement
 - `steering_cake_stats` -- Reading CAKE queue statistics from router
 - `steering_state_management` -- Steering decision logic
@@ -135,7 +137,7 @@ At 50ms intervals, even 1 hour provides 72,000 samples per subsystem -- far more
 
 ```bash
 mkdir -p profiling_data
-# Copy from container or local system
+# Copy from production host
 scp cake-spectrum:/var/log/wanctl/spectrum.log profiling_data/spectrum_baseline.log
 ```
 
@@ -158,18 +160,19 @@ ssh cake-spectrum 'journalctl -u wanctl@spectrum -f' | grep -A10 "Profiling Repo
 
 Based on production measurements at 50ms intervals:
 
-| Subsystem | Typical | % of 50ms |
-|-----------|---------|-----------|
-| autorate_rtt_measurement | 20-40ms | 40-80% |
+| Subsystem                     | Typical       | % of 50ms   |
+| ----------------------------- | ------------- | ----------- |
+| autorate_rtt_measurement      | 20-40ms       | 40-80%      |
 | autorate_router_communication | 0ms / 15-25ms | 0% / 30-50% |
-| autorate_state_management | <1ms | <2% |
-| autorate_cycle_total | 30-45ms | 60-90% |
-| steering_rtt_measurement | 20-40ms | 40-80% |
-| steering_cake_stats | 15-25ms | 30-50% |
-| steering_state_management | <1ms | <2% |
-| steering_cycle_total | 30-50ms | 60-100% |
+| autorate_state_management     | <1ms          | <2%         |
+| autorate_cycle_total          | 30-45ms       | 60-90%      |
+| steering_rtt_measurement      | 20-40ms       | 40-80%      |
+| steering_cake_stats           | 15-25ms       | 30-50%      |
+| steering_state_management     | <1ms          | <2%         |
+| steering_cycle_total          | 30-50ms       | 60-100%     |
 
 **Notes:**
+
 - `autorate_router_communication` shows 0ms most cycles due to flash wear protection (only sends updates when rates change)
 - RTT measurement dominates both daemons (primary optimization target for Phase 48)
 - Values >50ms indicate cycle overruns where the daemon cannot keep up with the 50ms interval
@@ -327,12 +330,12 @@ WARNING: ~1% of cycles exceed 50ms budget
 
 ### Phase 48 Optimization Targets
 
-| Requirement | Focus | Expected Improvement |
-|-------------|-------|---------------------|
-| OPTM-01 | RTT measurement (primary bottleneck) | Reduce RTT overhead |
-| OPTM-02 | Router communication batching | Reduce per-update cost |
-| OPTM-03 | State management optimization | Reduce computation |
-| OPTM-04 | Overall cycle optimization | Target ~40% utilization |
+| Requirement | Focus                                | Expected Improvement    |
+| ----------- | ------------------------------------ | ----------------------- |
+| OPTM-01     | RTT measurement (primary bottleneck) | Reduce RTT overhead     |
+| OPTM-02     | Router communication batching        | Reduce per-update cost  |
+| OPTM-03     | State management optimization        | Reduce computation      |
+| OPTM-04     | Overall cycle optimization           | Target ~40% utilization |
 
 ## Troubleshooting
 
@@ -375,7 +378,7 @@ WARNING: ~1% of cycles exceed 50ms budget
 
 1. Network congestion during collection period (RTT spikes)
 2. Router CPU load (slow REST API responses)
-3. System load on container host
+3. System load on production host
 
 **Solution:**
 

@@ -195,7 +195,7 @@ if [[ -f "$PROJECT_ROOT/configs/steering_config.yaml" ]]; then
 **Cons:**
 
 - Significant refactoring needed
-- Overkill for current 2-container deployment
+- Overkill for current 2-service deployment
 - Better suited for multi-site deployments
 
 **Future Enhancement Idea:**

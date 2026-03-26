@@ -1,5 +1,7 @@
 # Docker Deployment Guide
 
+> **DEPRECATED (v1.21):** Docker/container deployment was superseded by VM deployment in v1.21. wanctl now runs on a Proxmox VM (cake-shaper, VM 206) with PCIe passthrough NICs and Linux CAKE qdiscs. This document is preserved for historical reference only. For current deployment, see the systemd units in `deploy/systemd/`.
+
 This guide explains how to run wanctl in Docker containers.
 
 ## Overview
@@ -7,11 +9,13 @@ This guide explains how to run wanctl in Docker containers.
 Docker provides an alternative deployment method for wanctl. Each WAN gets its own container running the continuous monitoring daemon.
 
 **When to use Docker:**
+
 - You prefer container-based deployments
 - You want easy updates via image rebuilds
 - You need isolation between WAN controllers
 
 **When to use bare metal/LXC:**
+
 - Lower latency overhead is critical
 - You're already using systemd-based infrastructure
 - Resource constraints (Docker has ~5-10MB memory overhead)
@@ -154,20 +158,20 @@ Interactive shell for debugging.
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WANCTL_CONFIG` | `/etc/wanctl/wan.yaml` | Main config path |
-| `WANCTL_STEERING_CONFIG` | `/etc/wanctl/steering.yaml` | Steering config path |
-| `PYTHONUNBUFFERED` | `1` | Unbuffered Python output |
+| Variable                 | Default                     | Description              |
+| ------------------------ | --------------------------- | ------------------------ |
+| `WANCTL_CONFIG`          | `/etc/wanctl/wan.yaml`      | Main config path         |
+| `WANCTL_STEERING_CONFIG` | `/etc/wanctl/steering.yaml` | Steering config path     |
+| `PYTHONUNBUFFERED`       | `1`                         | Unbuffered Python output |
 
 ### Volume Mounts
 
-| Mount Point | Purpose | Required |
-|-------------|---------|----------|
-| `/etc/wanctl/wan.yaml` | Main configuration | Yes |
-| `/etc/wanctl/ssh/router.key` | Router SSH key | Yes |
-| `/var/lib/wanctl/` | State persistence | Recommended |
-| `/var/log/wanctl/` | Log files | Optional |
+| Mount Point                  | Purpose            | Required    |
+| ---------------------------- | ------------------ | ----------- |
+| `/etc/wanctl/wan.yaml`       | Main configuration | Yes         |
+| `/etc/wanctl/ssh/router.key` | Router SSH key     | Yes         |
+| `/var/lib/wanctl/`           | State persistence  | Recommended |
+| `/var/log/wanctl/`           | Log files          | Optional    |
 
 ### Network Mode
 
@@ -230,10 +234,12 @@ docker run ... -v ./state:/var/lib/wanctl wanctl
 ```
 
 Without persistence:
+
 - Container restart = cold start
 - Takes 60-120 minutes to re-converge
 
 With persistence:
+
 - Container restart = warm start
 - Continues from previous EWMA state
 
@@ -307,23 +313,23 @@ docker exec wanctl-wan1 ls -la /var/lib/wanctl/
 
 Typical resource consumption per container:
 
-| Resource | Usage |
-|----------|-------|
-| Memory | ~50-60 MB |
-| CPU | <1% (idle), <5% (measuring) |
-| Disk | ~10 MB state, ~1 MB/day logs |
-| Network | ~1 KB/s (ping only mode) |
+| Resource | Usage                        |
+| -------- | ---------------------------- |
+| Memory   | ~50-60 MB                    |
+| CPU      | <1% (idle), <5% (measuring)  |
+| Disk     | ~10 MB state, ~1 MB/day logs |
+| Network  | ~1 KB/s (ping only mode)     |
 
 ## Comparison: Docker vs Bare Metal
 
-| Aspect | Docker | Bare Metal/LXC |
-|--------|--------|----------------|
-| Setup complexity | Lower | Higher |
-| Latency overhead | ~0.1-0.5ms | None |
-| Memory overhead | ~10 MB | None |
-| Isolation | Full | Shared kernel |
-| Updates | Image rebuild | File copy |
-| Systemd integration | External | Native |
+| Aspect              | Docker        | Bare Metal/LXC |
+| ------------------- | ------------- | -------------- |
+| Setup complexity    | Lower         | Higher         |
+| Latency overhead    | ~0.1-0.5ms    | None           |
+| Memory overhead     | ~10 MB        | None           |
+| Isolation           | Full          | Shared kernel  |
+| Updates             | Image rebuild | File copy      |
+| Systemd integration | External      | Native         |
 
 ## Security Notes
 

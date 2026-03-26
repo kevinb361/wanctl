@@ -19,6 +19,7 @@
 ## Test Parameters
 
 ### Cycle Interval
+
 - **Previous:** 250ms (0.25s)
 - **Current:** 50ms (0.05s)
 - **Change:** 5x faster polling rate (20Hz)
@@ -26,10 +27,12 @@
 ### EWMA Alpha Values (Time-Constant Preservation)
 
 **Spectrum (Cable):**
+
 - `alpha_baseline`: 0.0025 → **0.0005** (preserves 100s time constant)
 - `alpha_load`: 0.025 → **0.005** (preserves 10s time constant)
 
 **ATT (VDSL):**
+
 - `alpha_baseline`: 0.001875 → **0.000375** (preserves 133s time constant)
 - `alpha_load`: 0.025 → **0.005** (preserves 10s time constant)
 
@@ -44,6 +47,7 @@
 ### Mathematical Verification
 
 ✅ All time constants preserved:
+
 - Baseline smoothing (Spectrum): 2000 samples × 0.05s = 100s ✓
 - Load smoothing (Spectrum): 200 samples × 0.05s = 10s ✓
 - Baseline smoothing (ATT): 2667 samples × 0.05s = 133s ✓
@@ -59,12 +63,14 @@
 ### Cycle Timing Accuracy
 
 **ATT (VDSL):**
+
 - Target: 50ms
 - Actual: 50-51ms
 - Variance: **±1ms (exceptional)**
 - Consistency: Perfect - DSL scheduler stability advantage
 
 **Spectrum (Cable):**
+
 - Target: 50ms
 - Actual: 35-79ms
 - Variance: ±10ms typical, one 79ms outlier
@@ -75,12 +81,14 @@
 ### Baseline RTT Drift
 
 **Spectrum (Cable):**
+
 - Baseline RTT: 26.8ms (stable)
 - Observed drift: 0ms over monitoring period
 - EWMA smoothing: Working correctly at extreme alpha values
 - Status: ✅ STABLE
 
 **ATT (VDSL):**
+
 - Baseline RTT: 27.9ms (rock solid)
 - Observed drift: 0ms (perfect)
 - Delta: 0.0ms throughout (exceptional baseline tracking)
@@ -93,12 +101,14 @@
 **Hardware:** MikroTik RB5009UG+S+ (ARM64, 4 cores @ 1400MHz)
 
 **CPU Usage:**
+
 - Overall: **0%** (20Hz polling on 2 WANs + steering)
 - Comparison: 0% at 250ms, 0% at 50ms
 - Target threshold: <30%
 - Headroom: 100%
 
 **Impact Analysis:**
+
 - 40x polling increase (0.5Hz → 20Hz): **zero measurable CPU impact**
 - RB5009 handles 50ms interval effortlessly
 - REST API + connection pooling = highly efficient
@@ -107,11 +117,13 @@
 ### Error Count
 
 **During monitoring period (30 seconds):**
+
 - Spectrum: **0 errors/warnings**
 - ATT: **0 errors/warnings**
 - Steering: **0 errors/warnings** (after schema fix)
 
 **Observations:**
+
 - No cycle skipping detected
 - No timing violations
 - No ICMP failures
@@ -122,6 +134,7 @@
 ### System State
 
 **Both WANs:**
+
 - Status: GREEN/GREEN (optimal state) throughout monitoring
 - No congestion events observed
 - No false triggers from measurement noise
@@ -134,11 +147,13 @@
 ### Timing Consistency
 
 **ATT:** Exceptional (50-51ms, ±1ms)
+
 - DSL provides stable, predictable scheduling
 - Perfect for extreme low-latency control
 - Best-case scenario for 50ms interval
 
 **Spectrum:** Acceptable (35-79ms, median 50ms)
+
 - Cable CMTS introduces scheduling variation
 - Median-of-3 pings add measurement overhead
 - Occasional outliers (79ms) from reflector variation
@@ -158,11 +173,13 @@
 ### Congestion Response Time (Theoretical)
 
 **Steering activation:**
+
 - Sample requirement: 320 samples
 - At 50ms: 320 × 0.05s = **16 seconds**
 - Previous (250ms): 16 seconds (unchanged)
 
 **Steering recovery:**
+
 - Sample requirement: 600 samples
 - At 50ms: 600 × 0.05s = **30 seconds**
 - Previous (250ms): 30 seconds (unchanged)
@@ -171,14 +188,14 @@
 
 ### Comparison to Previous Intervals
 
-| Metric | 500ms | 250ms | 50ms | Change (500→50) |
-|--------|-------|-------|------|-----------------|
-| Polling rate | 2 Hz | 4 Hz | 20 Hz | 10x faster |
-| Cycle time | 30-40ms | 30-40ms | 30-40ms | No change |
-| Router CPU | 1-3% | 1-3% | 0% | Improved |
-| ATT timing | ±2ms | ±2ms | ±1ms | Better |
-| Spectrum timing | ±5ms | ±3ms | ±10ms | More variance |
-| Utilization | 6-8% | 12-16% | 60-80% | High |
+| Metric          | 500ms   | 250ms   | 50ms    | Change (500→50) |
+| --------------- | ------- | ------- | ------- | --------------- |
+| Polling rate    | 2 Hz    | 4 Hz    | 20 Hz   | 10x faster      |
+| Cycle time      | 30-40ms | 30-40ms | 30-40ms | No change       |
+| Router CPU      | 1-3%    | 1-3%    | 0%      | Improved        |
+| ATT timing      | ±2ms    | ±2ms    | ±1ms    | Better          |
+| Spectrum timing | ±5ms    | ±3ms    | ±10ms   | More variance   |
+| Utilization     | 6-8%    | 12-16%  | 60-80%  | High            |
 
 ---
 
@@ -187,10 +204,12 @@
 To support extreme 50ms interval, config schema limits were relaxed:
 
 **Autorate (`autorate_continuous.py`):**
+
 - `alpha_baseline` min: 0.001 → **0.0001** (supports 0.000375)
 - `alpha_load` min: 0.01 → **0.001** (supports 0.005)
 
 **Steering (`steering/daemon.py`):**
+
 - `interval_seconds` min: 0.5 → **0.01** (supports 0.05)
 - `history_size` max: 1000 → **3000** (supports 2400)
 
@@ -215,6 +234,7 @@ To support extreme 50ms interval, config schema limits were relaxed:
 ### Schema Validation Failures (Fixed)
 
 **ATT deployment failure:**
+
 ```
 ConfigValidationError: Value out of range for alpha_baseline: 0.000375 < 0.001 (minimum)
 ConfigValidationError: Value out of range for alpha_load: 0.005 < 0.01 (minimum)
@@ -223,6 +243,7 @@ ConfigValidationError: Value out of range for alpha_load: 0.005 < 0.01 (minimum)
 **Fix:** Updated autorate schema to allow alpha_baseline ≥ 0.0001, alpha_load ≥ 0.001
 
 **Steering deployment failure:**
+
 ```
 ConfigValidationError: Value out of range for interval_seconds: 0.05 < 0.5 (minimum)
 ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum)
@@ -231,6 +252,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 **Fix:** Updated steering schema to allow interval_seconds ≥ 0.01, history_size ≤ 3000
 
 **Commits:**
+
 - Task 1: `00c886f` - Reduce cycle interval to 50ms
 - Task 2: `2faf2f1` - Relax schema validation for extreme intervals
 
@@ -239,6 +261,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ## Production Considerations
 
 ### Advantages of 50ms
+
 - ✅ Maximum polling rate achieved (40x original)
 - ✅ Zero router CPU impact
 - ✅ Stable baselines with extreme EWMA smoothing
@@ -246,6 +269,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 - ✅ Proves system performance limits
 
 ### Disadvantages of 50ms
+
 - ⚠️ Approaching execution budget limits (60-80% utilization)
 - ⚠️ Spectrum shows increased timing variance
 - ⚠️ Minimal headroom for variance or load spikes
@@ -255,11 +279,13 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ### Recommended Production Interval
 
 **Options:**
+
 1. **50ms (current):** Maximum speed, minimal headroom, proven stable
 2. **100ms:** 2x headroom, 10x faster than original, safer margin
 3. **250ms:** 4x headroom, 4x faster than original, very safe
 
 **Recommendation depends on priorities:**
+
 - **Maximum speed:** 50ms (proven stable in testing)
 - **Balanced:** 100ms (excellent speed, comfortable headroom)
 - **Conservative:** 250ms (proven over extended testing, very safe)
@@ -271,6 +297,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ### Immediate
 
 **Complete Phase 2 plan 02-03:**
+
 - ✅ Deploy 50ms configuration
 - ✅ Monitor initial stability
 - ✅ Document findings
@@ -279,12 +306,14 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ### Phase 3: Production Finalization
 
 **Plan 03-01: Select and deploy final production interval**
+
 - Analyze 50ms / 100ms / 250ms trade-offs
 - User decision on production interval
 - Deploy final configuration
 - Remove testing artifacts
 
 **Plan 03-02: Update documentation and mark optimization complete**
+
 - Document final interval selection rationale
 - Update ROADMAP.md with completion status
 - Mark Phase 2 complete
@@ -296,6 +325,7 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ✅ **50ms interval is stable and sustainable** - proven in production deployment.
 
 **For production:**
+
 - **If maximum speed desired:** Deploy 50ms (current config)
 - **If balanced approach desired:** Test 100ms next (plan 02-02)
 - **If conservative approach desired:** Revert to 250ms (proven stable)
@@ -309,10 +339,12 @@ ConfigValidationError: Value out of range for history_size: 2400 > 1000 (maximum
 ### Files Modified
 
 **Python source:**
+
 - `src/wanctl/autorate_continuous.py`: CYCLE_INTERVAL_SECONDS = 0.05, schema updated
 - `src/wanctl/steering/daemon.py`: MAX_HISTORY_SAMPLES = 2400, ASSESSMENT_INTERVAL_SECONDS = 0.05, schema updated
 
 **WAN configurations (not in git):**
+
 - `configs/spectrum.yaml`: alpha values updated (0.0005, 0.005)
 - `configs/att.yaml`: alpha values updated (0.000375, 0.005)
 - `/etc/wanctl/steering.yaml`: interval, sample counts, history updated
@@ -334,7 +366,7 @@ git revert HEAD~1  # Revert schema changes
 git revert HEAD~1  # Revert 50ms parameters
 
 # Redeploy 250ms configuration
-# Copy files to containers and restart services
+# Copy files to production host and restart services
 ```
 
 ---
