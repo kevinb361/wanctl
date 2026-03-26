@@ -35,8 +35,8 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wanctl-%i
 
-# Capabilities for ping (ICMP raw sockets)
-AmbientCapabilities=CAP_NET_RAW
+# Capabilities: ICMP raw sockets + tc qdisc management (Linux CAKE backend)
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 
 # Security hardening
 PrivateTmp=yes
