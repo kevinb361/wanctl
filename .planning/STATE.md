@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-26T17:24:43Z"
-last_activity: 2026-03-26 -- Completed 112-01-PLAN.md (dependency hygiene scan)
+last_updated: "2026-03-26T17:30:00Z"
+last_activity: 2026-03-26 -- Completed Wave 1 (112-01, 112-02)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.22 Full System Audit -- roadmap created, ready to plan Phase 112
+**Current focus:** v1.22 Full System Audit -- executing Phase 112 (Foundation Scan)
 
 ## Position
 
 **Milestone:** v1.22 Full System Audit
 **Phase:** 112 of 116 (Foundation Scan) -- executing
-**Plan:** 1 of 4 complete
+**Plan:** 2 of 4 complete
 **Status:** Executing Phase 112
-**Last activity:** 2026-03-26 -- Completed 112-01-PLAN.md (dependency hygiene scan)
+**Last activity:** 2026-03-26 -- Wave 1 complete (112-01, 112-02)
 
 Progress: [###.......] 25%
 
@@ -42,7 +42,9 @@ Progress: [###.......] 25%
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
-| 112   | 01   | 4min     | 1     | 2     |
+
+| 112 | 01 | 4min | 1 | 2 |
+| 112 | 02 | 4min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -56,6 +58,9 @@ Progress: [###.......] 25%
 - 112-01: cryptography removed from direct deps (transitive via paramiko, never directly imported)
 - 112-01: pyflakes removed from dev deps (redundant with ruff F rules)
 - 112-01: pygments CVE-2026-4539 accepted (low severity, dev-only, no fix available)
+- 112-02: secrets file 0640 is correct (not 0600) -- wanctl group needs read access via EnvironmentFile
+- 112-02: Steering service is `steering.service` (not `wanctl-steering.service`)
+- 112-02: systemd hardening can reduce exposure from 8.4 to ~3.5-4.5 (Phase 115 target)
 
 ### Known Issues
 
