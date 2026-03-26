@@ -56,6 +56,7 @@ Declare total connectivity loss → skip cycle
 ```
 
 **Benefits:**
+
 - Distinguish ICMP-specific issues from total WAN failure
 - Reduce false-positive restarts
 - Continue operation with degraded monitoring (see below)
@@ -63,6 +64,7 @@ Declare total connectivity loss → skip cycle
 ### Implementation Options
 
 #### Option 1: Gateway Connectivity Check (Simplest)
+
 **When:** All external pings fail
 **Action:** Try pinging the local gateway/router
 
@@ -74,7 +76,7 @@ def verify_local_connectivity(self) -> bool:
     if result is not None:
         self.logger.warning(
             f"{self.wan_name}: External pings failed but gateway reachable - "
-            f"likely WAN issue, not container networking"
+            f"likely WAN issue, not local networking"
         )
         return True
     return False
@@ -83,11 +85,12 @@ def verify_local_connectivity(self) -> bool:
 **Pros:** Very fast (<100ms), uses existing ping infrastructure, differentiates LAN vs WAN
 **Cons:** Gateway being reachable doesn't guarantee WAN is up (could be router issue)
 
-**Use Case:** Detect if container networking is broken vs actual WAN failure
+**Use Case:** Detect if local networking is broken vs actual WAN failure
 
 ---
 
 #### Option 2: TCP Connection Test (Most Reliable)
+
 **When:** All external pings fail
 **Action:** Try TCP handshake to known services
 
@@ -119,11 +122,13 @@ def verify_tcp_connectivity(self) -> bool:
 ```
 
 **Pros:**
+
 - Most reliable indicator of Internet connectivity
 - Can reach services even if ICMP is filtered
 - Uses different network path than ICMP
 
 **Cons:**
+
 - Slightly slower than ping (TCP handshake overhead)
 - Requires firewall rules allow outbound 443
 - Doesn't give us RTT measurement for control decisions
@@ -133,6 +138,7 @@ def verify_tcp_connectivity(self) -> bool:
 ---
 
 #### Option 3: DNS Query Test (Alternative Protocol)
+
 **When:** All external pings fail
 **Action:** Try DNS query to confirm UDP connectivity
 
@@ -172,6 +178,7 @@ def verify_dns_connectivity(self) -> bool:
 ---
 
 #### Option 4: Combined Multi-Protocol Check (Recommended)
+
 **When:** All external pings fail
 **Action:** Try multiple protocols in sequence (fastest to slowest)
 
@@ -206,6 +213,7 @@ def verify_connectivity_fallback(self) -> bool:
 ```
 
 **Integration Point:**
+
 ```python
 # src/wanctl/autorate_continuous.py:628-633
 measured_rtt = self.measure_rtt()
@@ -237,6 +245,7 @@ if measured_rtt is None:
 When ICMP fails but TCP succeeds, we have several options:
 
 ### Mode A: Freeze Rates (Safest)
+
 **Behavior:** Stop making rate adjustments, maintain last known good rates
 **Rationale:** Can't measure RTT reliably, so freeze control decisions
 **Implementation:** Return `True` from `run_cycle()` but skip rate adjustments
@@ -253,6 +262,7 @@ if self.verify_connectivity_fallback():
 ---
 
 ### Mode B: Use Last Known RTT (Cautious)
+
 **Behavior:** Reuse last EWMA value, continue making decisions
 **Rationale:** EWMA already smooth, last value is reasonable proxy for ~6 seconds
 **Implementation:** Use `self.load_rtt` as measured value
@@ -272,7 +282,9 @@ if self.verify_connectivity_fallback():
 ---
 
 ### Mode C: Graceful Degradation (Hybrid)
+
 **Behavior:**
+
 - First cycle: Use last RTT (Mode B)
 - Cycles 2-3: Freeze rates (Mode A)
 - Cycle 4+: Give up and restart (original behavior)
@@ -323,15 +335,15 @@ Add to WAN config YAML:
 continuous_monitoring:
   # Fallback connectivity checks when ICMP fails
   fallback_checks:
-    enabled: true                    # Enable multi-protocol verification
-    check_gateway: true              # Try pinging local gateway first
-    check_tcp: true                  # Try TCP connections to verify Internet
-    gateway_ip: "10.10.110.1"       # Gateway to check (auto-detect if null)
-    tcp_targets:                     # TCP endpoints to test
+    enabled: true # Enable multi-protocol verification
+    check_gateway: true # Try pinging local gateway first
+    check_tcp: true # Try TCP connections to verify Internet
+    gateway_ip: "10.10.110.1" # Gateway to check (auto-detect if null)
+    tcp_targets: # TCP endpoints to test
       - ["1.1.1.1", 443]
       - ["8.8.8.8", 443]
-    fallback_mode: "freeze"          # "freeze", "use_last_rtt", "graceful_degradation"
-    max_fallback_cycles: 3           # Max cycles before giving up (graceful mode only)
+    fallback_mode: "freeze" # "freeze", "use_last_rtt", "graceful_degradation"
+    max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)
 ```
 
 ---
@@ -339,6 +351,7 @@ continuous_monitoring:
 ## Testing Plan
 
 ### Phase 1: Local Testing (Simulate ICMP Filtering)
+
 ```bash
 # On MikroTik router, temporarily block ICMP from cake-spectrum
 /ip firewall filter add chain=output src-address=10.10.110.246 protocol=icmp action=drop comment="TEST: Block ICMP from cake-spectrum"
@@ -357,12 +370,14 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 ```
 
 ### Phase 2: Soak Testing
+
 - Deploy to Spectrum WAN first (the one with ICMP issues)
 - Monitor for 48 hours
 - Verify restart count decreases
 - Check if false positives reduced
 
 ### Phase 3: Production Rollout
+
 - Deploy to both WANs
 - Monitor for 1 week
 - Compare restart rates before/after
@@ -372,13 +387,17 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 ## Expected Impact
 
 ### Spectrum WAN (Current: 3 restarts/day)
+
 **Conservative estimate:** 50% reduction (1.5 restarts/day)
+
 - Assumes half of failures are ICMP-specific, not total outages
 
 **Optimistic estimate:** 80% reduction (0.6 restarts/day)
+
 - Assumes most failures are ISP ICMP filtering/rate-limiting
 
 ### ATT WAN (Current: 0 restarts/day)
+
 - No change expected (already stable)
 - Provides safety net for future issues
 
@@ -387,22 +406,28 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 ## Risks & Mitigations
 
 ### Risk 1: False Negatives (Miss Real Outages)
+
 **Scenario:** TCP succeeds but WAN is severely degraded
 **Mitigation:**
+
 - Implement Mode C (graceful degradation) with 3-cycle limit
 - Monitor metrics for sustained ICMP unavailability
 - Still restart after 12+ seconds of ICMP failure
 
 ### Risk 2: Additional Latency
+
 **Scenario:** Fallback checks add 200-300ms per failed cycle
 **Mitigation:**
+
 - Only run fallbacks when ICMP already failed (already skipping cycle)
 - Use short timeouts (2s max per check)
 - Run checks in sequence (stop at first success)
 
 ### Risk 3: TCP Connectivity Doesn't Mean RTT is Measurable
+
 **Scenario:** TCP works but we can't measure latency for control decisions
 **Mitigation:**
+
 - Implement Mode A (freeze rates) or Mode C (graceful degradation)
 - Don't make blind rate adjustments without RTT data
 - Log clearly when operating in degraded mode
@@ -412,19 +437,24 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 ## Alternative Approaches (Considered & Rejected)
 
 ### Alternative 1: Increase Failure Threshold
+
 **Idea:** Change from 3 to 10 consecutive failures before giving up
 **Rejection Reason:** Doesn't solve root cause (ICMP filtering), just delays restart
 
 ### Alternative 2: Switch to TCP-Based RTT Measurement
+
 **Idea:** Use TCP SYN time instead of ICMP for RTT measurement
 **Rejection Reason:**
+
 - Much more invasive change
 - TCP RTT includes handshake overhead (not comparable to ICMP)
 - Requires significant refactoring
 
 ### Alternative 3: Disable Watchdog Entirely
+
 **Idea:** Remove systemd watchdog, trust daemon's internal logic
 **Rejection Reason:**
+
 - Loses important failure detection mechanism
 - Daemon could hang without recovery
 - Watchdog has prevented real hangs in testing
@@ -436,6 +466,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 **Implement Option 4 (Combined Multi-Protocol Check) with Mode C (Graceful Degradation)**
 
 **Rationale:**
+
 1. **Balances safety and resilience** - Handles transient ICMP issues without losing failure detection
 2. **Low complexity** - Reuses existing infrastructure, minimal new code
 3. **Observable behavior** - Clear logging of fallback mode and recovery
@@ -443,6 +474,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 5. **Reversible** - Easy to roll back via config change
 
 **Implementation Priority:**
+
 1. Add gateway ping check (simplest, immediate value)
 2. Add TCP connection check (most reliable)
 3. Add graceful degradation logic (Mode C)
@@ -451,6 +483,7 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 6. Rollout to both WANs
 
 **Expected Outcome:**
+
 - Reduce Spectrum restarts from 3/day to <1/day
 - Maintain safety (still restart on confirmed total failure)
 - Improve observability (distinguish ICMP vs total failure in logs)
@@ -485,10 +518,10 @@ ssh cake-spectrum 'sudo journalctl -u wanctl@spectrum.service -f'
 
 ## Decision Log
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-01-11 | Proposal created | User raised valid concern about ICMP-specific failures |
-| TBD | Implementation decision | Pending discussion and approval |
+| Date       | Decision                | Rationale                                              |
+| ---------- | ----------------------- | ------------------------------------------------------ |
+| 2026-01-11 | Proposal created        | User raised valid concern about ICMP-specific failures |
+| TBD        | Implementation decision | Pending discussion and approval                        |
 
 ---
 

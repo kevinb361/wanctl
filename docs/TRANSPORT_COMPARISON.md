@@ -1,9 +1,11 @@
 # RouterOS Transport Comparison: REST API vs SSH/Paramiko
 
+> **Note (v1.21+):** A third transport option, `linux-cake`, was added in v1.21 for VM deployments using local `tc` commands. This document compares the two RouterOS transport options only. See `docs/CONFIG_SCHEMA.md` for linux-cake configuration.
+
 **Test Date:** 2026-01-08
 **Test Duration:** 3 minutes each
 **Test Method:** 8 parallel netperf TCP_MAERTS (upload) streams
-**Conclusion:** REST API recommended for production
+**Conclusion:** REST API recommended for RouterOS production deployments
 
 ---
 
@@ -27,7 +29,7 @@ A controlled stress test comparing REST API (HTTPS port 443) vs SSH/Paramiko tra
 ### Environment
 
 - **Router:** Mikrotik rb5009
-- **Controller:** LXC container running wanctl
+- **Controller:** LXC container running wanctl (pre-v1.21; now runs on VM)
 - **WAN:** Cable ~940/38 Mbps
 - **Test server:** Remote netperf server
 

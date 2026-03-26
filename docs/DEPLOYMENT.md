@@ -1,5 +1,7 @@
 # Adaptive CAKE Deployment Instructions
 
+> **Updated for v1.21:** Production deployment now targets a Proxmox VM (cake-shaper, VM 206) with Linux CAKE qdiscs instead of LXC containers. The systemd units in `deploy/systemd/` are the current source of truth. Legacy container-based instructions below are preserved for reference.
+
 ## Quick Deployment (Automated)
 
 ```bash
@@ -7,19 +9,19 @@ cd /path/to/wanctl
 ./scripts/deploy.sh <wan_name> <target_host>
 ```
 
-This will automatically deploy and enable all timers on the target container.
+This will automatically deploy and enable all timers on the target host.
 
 ---
 
 ## Manual Deployment
 
-### For Primary WAN Container
+### For Primary WAN Host
 
 ```bash
 # Copy files to target (adjust hostname/IP for your setup)
 scp wanctl@<wan1-host>.service wanctl@<wan1-host>.timer user@<wan1-host>:/tmp/
 
-# SSH into container
+# SSH into host
 ssh user@<wan1-host>
 
 # Install units
@@ -36,13 +38,13 @@ sudo systemctl start wanctl@wan1-reset.timer
 systemctl list-timers wanctl@*
 ```
 
-### For Secondary WAN Container (Dual-WAN Setup)
+### For Secondary WAN Host (Dual-WAN Setup)
 
 ```bash
 # Copy files to target
 scp wanctl@<wan2-host>.service wanctl@<wan2-host>.timer user@<wan2-host>:/tmp/
 
-# SSH into container
+# SSH into host
 ssh user@<wan2-host>
 
 # Install units
@@ -81,7 +83,7 @@ systemctl list-timers wanctl@*
 ### View Timer Status
 
 ```bash
-# On target container
+# On target host
 ssh user@<wan-host> 'systemctl list-timers wanctl@*'
 ```
 
@@ -135,7 +137,7 @@ journalctl -u wanctl@wan1.service --since "10 minutes ago"
 ### Manual Test Run
 
 ```bash
-# On target container
+# On target host
 cd /opt/wanctl
 python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
 ```
@@ -143,7 +145,7 @@ python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
 ### Reset State Manually
 
 ```bash
-# On target container
+# On target host
 python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --reset
 ```
 
@@ -167,7 +169,7 @@ sudo systemctl enable --now wanctl@wan1.timer
 
 ## Files Created
 
-### Per-WAN Container
+### Per-WAN Host
 
 - `/etc/systemd/system/wanctl@.service` - Main service template
 - `/etc/systemd/system/wanctl@.timer` - 10-minute timer template

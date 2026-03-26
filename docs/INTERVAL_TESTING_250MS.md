@@ -277,7 +277,7 @@ If 24-48h monitoring confirms stability, proceed to 100ms interval testing (plan
 
 1. Updated Python source files and YAML configs locally
 2. Verified syntax: `python3 -m py_compile` for .py files, YAML parsing for configs
-3. Copied files to production containers via scp
+3. Copied files to production host via scp
 4. Restarted services: `systemctl restart wanctl@spectrum wanctl@att steering`
 5. Verified services active and logs clean
 
@@ -289,7 +289,7 @@ cd /home/kevin/projects/wanctl
 git revert HEAD~2  # Revert parameter changes
 
 # Redeploy 500ms configuration
-# Copy files to containers and restart services
+# Copy files to production host and restart services
 ```
 
 ---
