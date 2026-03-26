@@ -82,7 +82,7 @@ Plans:
 
 - [x] 114-01-PLAN.md -- Exception handling triage + bug-swallowing catch fixes
 - [ ] 114-02-PLAN.md -- MyPy strictness probe + complexity analysis + import graph
-- [ ] 114-03-PLAN.md -- Thread safety audit + SIGUSR1 reload chain catalog with E2E tests
+- [x] 114-03-PLAN.md -- Thread safety audit + SIGUSR1 reload chain catalog with E2E tests
 
 ### Phase 115: Operational Hardening
 
