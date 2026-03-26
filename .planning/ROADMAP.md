@@ -2,7 +2,7 @@
 
 ## Overview
 
-wanctl is a production CAKE bandwidth controller running on a Proxmox VM with PCIe passthrough NICs, transparent bridges, and dual-WAN steering. After 21 feature milestones and a CAKE offload migration, the system has accumulated technical debt across 28,629 LOC and 3,723 tests. v1.22 is a comprehensive audit from network engineering, Linux sysadmin, and Python development perspectives -- no new features, only cleanup, hardening, and documentation.
+wanctl v1.23 completes the self-optimizing controller vision by extending adaptive tuning to response parameters (step_up, factor_down, green_cycles), automating fusion healing for ICMP/IRTT path divergence, replacing subprocess tc calls with pyroute2 netlink for 10x latency reduction, adding Prometheus/Grafana observability, and making metrics.db retention configurable. Five phases ordered by technical uncertainty and dependency: netlink backend first (highest uncertainty, fully independent), retention second (prerequisite for Prometheus aggressive mode), fusion healing third (addresses known ATT production issue), adaptive rate steps fourth (highest blast radius, needs stable foundation), Prometheus last (purely additive, benefits from all prior phases).
 
 ## Domain Expertise
 
@@ -10,132 +10,100 @@ None
 
 ## Milestones
 
-- v1.0 through v1.21: See MILESTONES.md (shipped)
-- v1.22 Full System Audit: Phases 112-116 (current)
+- v1.0 through v1.22: See MILESTONES.md (shipped)
+- v1.23 Self-Optimizing Controller: Phases 117-121 (current)
 
 ## Phases
 
-- [ ] **Phase 112: Foundation Scan** - Mechanical tool-driven scanning (CVEs, dead code, permissions, linting) that produces findings for all later phases
-- [x] **Phase 113: Network Engineering Audit** - CAKE parameter verification, DSCP end-to-end trace, steering logic correctness, measurement methodology validation
-- [ ] **Phase 114: Code Quality & Safety** - Exception handling triage, type safety probe, thread safety audit, complexity analysis, SIGUSR1 chain catalog
-- [x] **Phase 115: Operational Hardening** - systemd unit hardening, NIC persistence, resource limits, backup/recovery procedures, dependency locking
-- [ ] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
+- [ ] **Phase 117: pyroute2 Netlink Backend** - Replace subprocess tc with pyroute2 netlink for CAKE bandwidth changes and per-tin stats readback
+- [ ] **Phase 118: Metrics Retention Strategy** - Configurable retention thresholds with tuner data availability validation
+- [ ] **Phase 119: Auto-Fusion Healing** - Automatic fusion suspend/recovery based on protocol correlation with Discord alerts
+- [ ] **Phase 120: Adaptive Rate Step Tuning** - Tuner learns optimal step_up, factor_down, green_cycles_required with oscillation lockout
+- [ ] **Phase 121: Prometheus/Grafana Export** - Prometheus metrics on port 9103 with Grafana dashboard and per-tin CAKE labels
 
 ## Phase Details
 
-### Phase 112: Foundation Scan
+### Phase 117: pyroute2 Netlink Backend
 
-**Goal**: All mechanical scanning tools have run and produced actionable inventories that unblock later phases
-**Depends on**: Nothing (first phase)
-**Requirements**: FSCAN-01, FSCAN-02, FSCAN-03, FSCAN-04, FSCAN-05, FSCAN-06, FSCAN-07, FSCAN-08
+**Goal**: tc calls in the 50ms hot loop use kernel netlink instead of subprocess fork/exec, reclaiming ~5ms/cycle
+**Depends on**: Nothing (first phase, fully independent)
+**Requirements**: NLNK-01, NLNK-02, NLNK-03, NLNK-04, NLNK-05
 **Success Criteria** (what must be TRUE):
+  1. Operator can set `transport: "linux-cake-netlink"` in YAML and the controller uses pyroute2 for all tc operations
+  2. CAKE bandwidth changes via netlink produce identical queue state to subprocess tc (verified by tc -j readback)
+  3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
+  4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
+  5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
+**Plans**: TBD
 
-1. pip-audit reports zero critical/high CVEs in all Python dependencies
-2. Unused dependencies identified by deptry and removed from pyproject.toml
-3. Dead code inventory from vulture exists as a structured report (identification only, no removals)
-4. File permissions on /etc/wanctl/secrets (0600), state dirs (0750), and log dirs (0750) verified on production VM
-5. Ruff expanded rule set (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) enabled with findings triaged (fix, suppress, or defer)
-   **Plans:** 4 plans
+### Phase 118: Metrics Retention Strategy
 
-Plans:
-
-- [x] 112-01-PLAN.md -- Dependency hygiene scan (pip-audit, deptry, deadfixtures, log rotation)
-- [x] 112-02-PLAN.md -- Production VM security audit (file permissions, systemd security scores)
-- [x] 112-03-PLAN.md -- Ruff rule expansion with autofix and triage
-- [x] 112-04-PLAN.md -- Vulture dead code inventory with false positive validation
-
-### Phase 113: Network Engineering Audit
-
-**Goal**: CAKE configuration, DSCP mapping, steering logic, and measurement methodology are verified correct on the production VM
-**Depends on**: Phase 112
-**Requirements**: NETENG-01, NETENG-02, NETENG-03, NETENG-04, NETENG-05
+**Goal**: Operators can configure metrics.db retention thresholds and the system enforces that tuner data availability is never silently broken
+**Depends on**: Nothing (independent, but ships before Prometheus for config design coordination)
+**Requirements**: RETN-01, RETN-02, RETN-03
 **Success Criteria** (what must be TRUE):
+  1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
+  2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours * 3600, with a clear error message
+  3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when external TSDB is available
+**Plans**: TBD
 
-1. CAKE parameters per WAN verified via `tc -j qdisc show` readback (overhead, diffserv4, ack-filter, split-gso, memlimit match expected values)
-2. DSCP end-to-end trace documented showing MikroTik mangle rules produce correct CAKE tin classification (EF=Voice, AF41=Video, CS1=Bulk)
-3. Steering logic audit confirms confidence scoring weights, degrade timers, and CAKE-primary invariant are correct
-4. Measurement methodology validated: reflector selection, signal chain (Hampel/Fusion/EWMA), IRTT vs ICMP paths documented with correctness rationale
-5. Queue depth and memory pressure baseline documented from production `tc -s qdisc show` statistics
-   **Plans:** 3 plans
+### Phase 119: Auto-Fusion Healing
 
-Plans:
-
-- [x] 113-01-PLAN.md -- CAKE parameter verification + DSCP end-to-end trace
-- [x] 113-02-PLAN.md -- Steering logic audit + measurement methodology validation
-- [x] 113-03-PLAN.md -- Queue depth and memory pressure baseline
-
-### Phase 114: Code Quality & Safety
-
-**Goal**: Exception handling, type safety, thread safety, and complexity hotspots are audited with dispositions documented and highest-risk issues fixed
-**Depends on**: Phase 112
-**Requirements**: CQUAL-01, CQUAL-02, CQUAL-03, CQUAL-04, CQUAL-05, CQUAL-06, CQUAL-07
+**Goal**: The controller automatically manages fusion state based on protocol correlation, eliminating manual SIGUSR1 toggle for ICMP/IRTT path divergence
+**Depends on**: Nothing (independent, ships after Phase 117 for sequential validation)
+**Requirements**: FUSE-01, FUSE-02, FUSE-03, FUSE-04, FUSE-05
 **Success Criteria** (what must be TRUE):
+  1. When ICMP/IRTT protocol correlation drops below threshold for a sustained period, the controller auto-suspends fusion and sends a Discord alert
+  2. When protocol correlation recovers, the controller transitions through RECOVERING to ACTIVE and sends a Discord alert
+  3. The health endpoint shows current fusion heal state (ACTIVE/SUSPENDED/RECOVERING) and recent correlation history
+  4. While fusion is suspended by the healer, the TuningEngine cannot modify fusion_icmp_weight (parameter is locked)
+**Plans**: TBD
 
-1. All broad `except Exception` catches have documented dispositions (legitimate safety net vs. bug-swallowing) and bug-swallowing catches are fixed
-2. MyPy strictness probed on at least 5 leaf modules with per-module fix/suppress strategy documented
-3. Thread safety audit completed for all threaded files with shared mutable state and race conditions cataloged
-4. Top 5 complexity hotspots analyzed with extraction recommendations documented (no execution -- deferred to v1.23)
-5. SIGUSR1 reload chain fully cataloged (all targets across both daemons) with E2E test coverage verified or added
-   **Plans:** 3 plans
+### Phase 120: Adaptive Rate Step Tuning
 
-Plans:
-
-- [x] 114-01-PLAN.md -- Exception handling triage + bug-swallowing catch fixes
-- [x] 114-02-PLAN.md -- MyPy strictness probe + complexity analysis + import graph
-- [x] 114-03-PLAN.md -- Thread safety audit + SIGUSR1 reload chain catalog with E2E tests
-
-### Phase 115: Operational Hardening
-
-**Goal**: Production VM services are hardened, persistent across reboot, resource-limited, and recoverable from disaster
-**Depends on**: Phase 114
-**Requirements**: OPSEC-01, OPSEC-02, OPSEC-03, OPSEC-04, OPSEC-05, OPSEC-06
+**Goal**: The tuning engine learns optimal response parameters from production episodes, completing the self-optimizing controller vision
+**Depends on**: Phase 118 (retention must guarantee 1m data availability for strategy lookback)
+**Requirements**: RTUN-01, RTUN-02, RTUN-03, RTUN-04, RTUN-05
 **Success Criteria** (what must be TRUE):
+  1. The tuner analyzes production recovery episodes and adjusts step_up_mbps toward faster recovery without overshoot
+  2. The tuner analyzes congestion resolution speed and adjusts factor_down toward faster resolution without excessive bandwidth sacrifice
+  3. The tuner analyzes step-up re-trigger rates and adjusts green_cycles_required to prevent premature recovery
+  4. When transitions/minute exceeds the oscillation threshold, all response parameters are frozen and a Discord alert fires
+  5. Response tuning is disabled by default via exclude_params and must be explicitly opted in (matching existing tuning graduation pattern)
+**Plans**: TBD
 
-1. systemd units pass `systemd-analyze security` with improved scores and ProtectKernelTunables/SystemCallFilter/RestrictNamespaces applied where compatible with CAP_NET_RAW
-2. NIC tuning (rx-udp-gro-forwarding, ring buffers) persists across VM reboot without manual intervention
-3. Resource limits (MemoryMax, TasksMax, LimitNOFILE) set on all 3 service units and verified under load
-4. Backup/recovery procedure documented covering configs, metrics.db, VM snapshots, and rollback to previous state
-5. Production dependency lock file (requirements-production.txt) created from running VM and circuit breaker config verified consistent across all 3 units
-   **Plans:** 3 plans
+### Phase 121: Prometheus/Grafana Export
 
-Plans:
-
-- [x] 115-01-PLAN.md -- systemd unit hardening + circuit breaker consistency (OPSEC-01, OPSEC-06)
-- [x] 115-02-PLAN.md -- Dependency lock + backup/recovery runbook (OPSEC-04, OPSEC-05)
-- [x] 115-03-PLAN.md -- Resource limits + NIC persistence + reboot verification (OPSEC-02, OPSEC-03)
-
-### Phase 116: Test & Documentation Hygiene
-
-**Goal**: Test suite quality issues are identified and fixed, all documentation reflects current architecture, and a complete audit findings summary exists
-**Depends on**: Phase 115
-**Requirements**: TDOC-01, TDOC-02, TDOC-03, TDOC-04, TDOC-05, TDOC-06
+**Goal**: Operators can view live wanctl metrics in Grafana dashboards backed by Prometheus, with zero overhead added to the 50ms control loop
+**Depends on**: Phase 118 (prometheus_compensated retention mode depends on retention config design)
+**Requirements**: OBSV-01, OBSV-02, OBSV-03, OBSV-04
 **Success Criteria** (what must be TRUE):
-
-1. Test quality audit completed with assertion-free, over-mocked, and tautological tests identified and highest-risk cases fixed
-2. All files in docs/\* reviewed and updated to reflect post-v1.21 architecture (container references removed, VM architecture documented)
-3. Container-era scripts archived to .archive/ with a manifest documenting what each script was and why it was archived
-4. CONFIG_SCHEMA.md aligned with config_validation_utils.py (all accepted params documented, no stale entries)
-5. Audit findings summary produced with remaining debt inventory categorized by severity and recommended milestone
-   **Plans**: TBD
+  1. Prometheus can scrape wanctl metrics from port 9103 and display them in Grafana using the committed dashboard JSON
+  2. Per-tin CAKE metrics are exported with stable labels (wan, direction, tin) enabling per-traffic-class Grafana panels
+  3. The core wanctl daemon starts and operates normally without prometheus_client installed (optional dependency)
+  4. The /metrics endpoint adds zero overhead to the 50ms control loop (CustomCollector reads state on scrape, not push from cycle)
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
+Phases execute in numeric order: 117 -> 118 -> 119 -> 120 -> 121
 
-| Phase                             | Plans Complete | Status      | Completed  |
-| --------------------------------- | -------------- | ----------- | ---------- |
-| 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
-| 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
-| 114. Code Quality & Safety        | 3/3            | Complete    | 2026-03-26 |
-| 115. Operational Hardening        | 3/3            | Complete    | 2026-03-26 |
-| 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 117. pyroute2 Netlink Backend | 0/TBD | Not started | - |
+| 118. Metrics Retention Strategy | 0/TBD | Not started | - |
+| 119. Auto-Fusion Healing | 0/TBD | Not started | - |
+| 120. Adaptive Rate Step Tuning | 0/TBD | Not started | - |
+| 121. Prometheus/Grafana Export | 0/TBD | Not started | - |
 
 <details>
-<summary>Previous Milestones (v1.0-v1.21)</summary>
+<summary>Previous Milestones (v1.0-v1.22)</summary>
 
 | Milestone                            | Phases  | Plans | Status   | Completed  |
 | ------------------------------------ | ------- | ----- | -------- | ---------- |
+| v1.22 Full System Audit              | 112-116 | 16+   | Complete | 2026-03-26 |
 | v1.21 CAKE Offload                   | 104-110 | 14    | Complete | 2026-03-25 |
 | v1.20 Adaptive Tuning                | 98-103  | 13    | Complete | 2026-03-19 |
 | v1.19 Signal Fusion                  | 93-97   | 9     | Complete | 2026-03-18 |

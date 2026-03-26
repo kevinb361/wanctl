@@ -68,34 +68,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NLNK-01 | TBD | Pending |
-| NLNK-02 | TBD | Pending |
-| NLNK-03 | TBD | Pending |
-| NLNK-04 | TBD | Pending |
-| NLNK-05 | TBD | Pending |
-| FUSE-01 | TBD | Pending |
-| FUSE-02 | TBD | Pending |
-| FUSE-03 | TBD | Pending |
-| FUSE-04 | TBD | Pending |
-| FUSE-05 | TBD | Pending |
-| RTUN-01 | TBD | Pending |
-| RTUN-02 | TBD | Pending |
-| RTUN-03 | TBD | Pending |
-| RTUN-04 | TBD | Pending |
-| RTUN-05 | TBD | Pending |
-| OBSV-01 | TBD | Pending |
-| OBSV-02 | TBD | Pending |
-| OBSV-03 | TBD | Pending |
-| OBSV-04 | TBD | Pending |
-| RETN-01 | TBD | Pending |
-| RETN-02 | TBD | Pending |
-| RETN-03 | TBD | Pending |
+| NLNK-01 | Phase 117 | Pending |
+| NLNK-02 | Phase 117 | Pending |
+| NLNK-03 | Phase 117 | Pending |
+| NLNK-04 | Phase 117 | Pending |
+| NLNK-05 | Phase 117 | Pending |
+| FUSE-01 | Phase 119 | Pending |
+| FUSE-02 | Phase 119 | Pending |
+| FUSE-03 | Phase 119 | Pending |
+| FUSE-04 | Phase 119 | Pending |
+| FUSE-05 | Phase 119 | Pending |
+| RTUN-01 | Phase 120 | Pending |
+| RTUN-02 | Phase 120 | Pending |
+| RTUN-03 | Phase 120 | Pending |
+| RTUN-04 | Phase 120 | Pending |
+| RTUN-05 | Phase 120 | Pending |
+| OBSV-01 | Phase 121 | Pending |
+| OBSV-02 | Phase 121 | Pending |
+| OBSV-03 | Phase 121 | Pending |
+| OBSV-04 | Phase 121 | Pending |
+| RETN-01 | Phase 118 | Pending |
+| RETN-02 | Phase 118 | Pending |
+| RETN-03 | Phase 118 | Pending |
 
 **Coverage:**
 - v1.23 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after initial definition*
+*Last updated: 2026-03-26 after roadmap creation*
