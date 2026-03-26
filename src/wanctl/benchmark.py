@@ -317,7 +317,7 @@ def check_server_connectivity(server: str, timeout: int = 3) -> tuple[bool, floa
         if result.is_alive and result.min_rtt > 0:
             return (True, result.min_rtt)
     except Exception:
-        pass
+        logger.debug("icmplib ping failed, falling back to subprocess", exc_info=True)
 
     # Fallback to subprocess ping if icmplib unavailable or fails
     try:

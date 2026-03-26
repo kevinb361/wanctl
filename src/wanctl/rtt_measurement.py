@@ -263,6 +263,7 @@ class RTTMeasurement:
                     try:
                         results[host] = future.result()
                     except Exception:
+                        self.logger.debug("Concurrent ping to %s failed", host, exc_info=True)
                         results[host] = None
             except concurrent.futures.TimeoutError:
                 for host in future_to_host.values():
