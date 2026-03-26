@@ -82,7 +82,7 @@ Plans:
 
 - [ ] 114-01-PLAN.md -- Exception handling triage + bug-swallowing catch fixes
 - [ ] 114-02-PLAN.md -- MyPy strictness probe + complexity analysis + import graph
-- [ ] 114-03-PLAN.md -- Thread safety audit + SIGUSR1 reload chain catalog with E2E tests
+- [x] 114-03-PLAN.md -- Thread safety audit + SIGUSR1 reload chain catalog with E2E tests
 
 ### Phase 115: Operational Hardening
 
@@ -121,7 +121,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
 | 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
-| 114. Code Quality & Safety        | 0/3            | Not started | -          |
+| 114. Code Quality & Safety        | 1/3 | In Progress|  |
 | 115. Operational Hardening        | 0/TBD          | Not started | -          |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
 
