@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-26T20:12:17.547Z"
+last_updated: "2026-03-26T22:48:00.000Z"
 last_activity: 2026-03-26
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 100
+  completed_plans: 6
+  percent: 86
 ---
 
 # Session State
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.22 Full System Audit -- executing Phase 113 (Network Engineering Audit)
+**Current focus:** v1.22 Full System Audit -- executing Phase 115 (Operational Hardening)
 
 ## Position
 
 **Milestone:** v1.22 Full System Audit
-**Phase:** 113 of 116 (network engineering audit)
+**Phase:** 115 of 116 (operational hardening)
 **Plan:** 1 of 3 complete
-**Status:** Executing Phase 113
-**Last activity:** 2026-03-26 -- Completed 113-01-PLAN.md
+**Status:** Executing Phase 115
+**Last activity:** 2026-03-26 -- Completed 115-01-PLAN.md
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 11min
-- Total execution time: 0.9 hours
+- Total plans completed: 6
+- Average duration: 10min
+- Total execution time: 1.0 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
@@ -47,6 +47,7 @@ Progress: [███████░░░] 71%
 | 112   | 03   | 34min    | 2     | 120   |
 | 112   | 04   | 6min     | 1     | 2     |
 | 113   | 01   | 5min     | 2     | 1     |
+| 115   | 01   | 5min     | 2     | 3     |
 
 ## Accumulated Context
 
@@ -69,6 +70,11 @@ Progress: [███████░░░] 71%
 - 112-04: .vulture_whitelist.py created with 68 entries covering all 15 PITFALLS.md false positives
 - 113-01: wanctl-check-cake does not support linux-cake transport -- tc readback is the correct verification method
 - 113-01: Measurement traffic (ICMP/IRTT) correctly classified CS0/Best Effort for accurate autorate readings
+- 115-01: CAP_NET_ADMIN required for wanctl@ (tc commands), NOT for steering (ICMP only)
+- 115-01: SystemCallFilter blocks 8 dangerous classes; preserves @privileged, @raw-io, @resources
+- 115-01: NIC tuning service gets limited hardening (runs as root, needs /proc/irq and ethtool)
+- 115-01: Security scores: wanctl@ 2.1 OK, steering 1.9 OK (from 8.4), NIC tuning 7.5 (from 9.6)
+- 115-01: deploy/systemd/ directory is version-controlled source of truth for production unit files
 
 ### Known Issues
 
