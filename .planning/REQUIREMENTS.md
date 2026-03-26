@@ -1,117 +1,122 @@
-# Requirements: wanctl v1.21 CAKE Offload
+# Requirements: wanctl v1.22 Full System Audit
 
-**Defined:** 2026-03-24
-**Core Value:** Sub-second congestion detection with 50ms control loops -- now with full Linux CAKE capabilities
+**Defined:** 2026-03-26
+**Core Value:** Sub-second congestion detection with 50ms control loops — now audited for production hardening
 
-## v1.21 Requirements
+## v1.22 Requirements
 
-Requirements for CAKE offload to Debian 12 VM on Proxmox. Each maps to roadmap phases.
+Comprehensive audit from network engineering, Linux sysadmin, and Python development perspectives. No new features — cleanup, hardening, and documentation only.
 
-### Backend
+### Foundation Scan
 
-- [x] **BACK-01**: LinuxCakeBackend implements RouterBackend with `set_bandwidth()` via `tc qdisc change`
-- [x] **BACK-02**: LinuxCakeBackend parses queue stats via `tc -j -s qdisc show` with JSON output
-- [x] **BACK-03**: LinuxCakeBackend validates CAKE params after `tc qdisc replace` -- reads back via `tc -j qdisc show` and verifies diffserv mode, overhead, bandwidth match expectations
-- [x] **BACK-04**: Per-tin statistics parsed from CAKE (Voice/Video/BE/Bulk -- drops, delays, flows per tin)
+- [ ] **FSCAN-01**: All Python dependencies scanned for CVEs with pip-audit (zero critical/high)
+- [ ] **FSCAN-02**: Unused dependencies identified and removed via deptry
+- [ ] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
+- [ ] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0600, state/log dirs 0750)
+- [ ] **FSCAN-05**: systemd-analyze security score assessed for all 3 service units
+- [ ] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
+- [ ] **FSCAN-07**: Orphaned test fixtures identified via pytest-deadfixtures
+- [ ] **FSCAN-08**: Log rotation verified (RotatingFileHandler active, retention appropriate)
 
-### CAKE Optimization
+### Network Engineering
 
-- [x] **CAKE-01**: `split-gso` enabled to split TSO/GSO segments before queuing
-- [x] **CAKE-02**: ECN marking enabled for explicit congestion notification (download CAKE)
-- [x] **CAKE-03**: `ack-filter` enabled for ACK compression on upload
-- [x] **CAKE-05**: Precise `overhead`/`mpu` configured per-link (`docsis` for Spectrum, `bridged-ptm` for ATT)
-- [x] **CAKE-06**: `memlimit` configured for bounded memory usage (32MB for ~1Gbps links)
-- [x] **CAKE-07**: Per-tin statistics visible in health endpoint and wanctl-history
-- [x] **CAKE-08**: `ingress` keyword on download CAKE for tighter drop accounting
-- [x] **CAKE-09**: `ecn` on download CAKE for softer congestion signaling than drops
-- [x] **CAKE-10**: `rtt` parameter configured per-link (candidate for adaptive tuning, default 100ms may be conservative)
+- [ ] **NETENG-01**: CAKE parameters verified per WAN (overhead, diffserv4, ack-filter, split-gso, memlimit)
+- [ ] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle → CAKE tins → verify EF/AF/CS1 mapping)
+- [ ] **NETENG-03**: Steering logic correctness audited (confidence scoring, degrade timers, CAKE-primary invariant)
+- [ ] **NETENG-04**: Measurement methodology validated (reflector selection, signal chain, IRTT vs ICMP paths)
+- [ ] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
 
-### Configuration
+### Code Quality
 
-- [x] **CONF-01**: `transport: "linux-cake"` config option with bridge interface names in YAML
-- [x] **CONF-02**: Factory function selects LinuxCakeBackend based on transport config
-- [x] **CONF-03**: Steering daemon uses dual-backend -- linux-cake for CAKE stats, REST for mangle rules
-- [x] **CONF-04**: `wanctl-check-config` validates linux-cake transport settings and interface existence
+- [ ] **CQUAL-01**: All broad `except Exception` catches triaged (legitimate safety vs bug-swallowing)
+- [ ] **CQUAL-02**: Bug-swallowing exception catches fixed with appropriate error handling
+- [ ] **CQUAL-03**: MyPy strictness probed module-by-module with fix/suppress strategy per module
+- [ ] **CQUAL-04**: Thread safety audit completed (threaded files, shared mutable state, race conditions)
+- [ ] **CQUAL-05**: Complexity hotspots analyzed (5 largest files) with extraction recommendations documented
+- [ ] **CQUAL-06**: SIGUSR1 reload chain fully cataloged with E2E test coverage verified
+- [ ] **CQUAL-07**: Import graph analyzed for circular dependencies
 
-### Infrastructure
+### Operational Hardening
 
-- [x] **INFR-01**: IOMMU group verification confirms all 4 target NICs are in separate groups
-- [ ] **INFR-02**: Proxmox VM created with VFIO passthrough for 4 NICs (2x i210, 2x i350)
-- [ ] **INFR-03**: Transparent L2 bridges (br-spectrum, br-att) with STP disabled, forward_delay=0
-- [ ] **INFR-04**: CAKE qdisc initialized on bridge member port egress via `tc qdisc replace`
-- [ ] **INFR-05**: systemd-networkd persistent bridge and interface configuration (CAKE setup owned by wanctl, NOT systemd)
-- [ ] **INFR-06**: VLAN 110 management interface on virtio NIC for SSH/health/ICMP/IRTT
+- [ ] **OPSEC-01**: systemd units hardened (ProtectKernelTunables, SystemCallFilter, etc.) verified on production VM
+- [ ] **OPSEC-02**: NIC/bridge tuning made persistent across reboot (rx-udp-gro-forwarding, ring buffers)
+- [ ] **OPSEC-03**: Resource limits set on service units (MemoryMax, TasksMax, LimitNOFILE)
+- [ ] **OPSEC-04**: Backup/recovery procedure documented (configs, metrics.db, VM snapshots, rollback)
+- [ ] **OPSEC-05**: Production dependency lock file created (requirements-production.txt)
+- [ ] **OPSEC-06**: Circuit breaker config consistent across all 3 service units
 
-### Cutover
+### Test & Documentation
 
-- [ ] **CUTR-01**: MikroTik queue tree entries disabled (kept for rollback, not deleted)
-- [ ] **CUTR-02**: Physical cabling completed -- modems through VM NICs to router
-- [ ] **CUTR-03**: Staged migration -- ATT first (lower risk), then Spectrum
-- [ ] **CUTR-04**: Rollback procedure documented and drill-tested before production cutover
-- [ ] **CUTR-05**: RRUL benchmark before/after comparison validates throughput improvement
+- [ ] **TDOC-01**: Test quality audit completed (assertion-free, over-mocked, tautological tests identified)
+- [ ] **TDOC-02**: Highest-risk test quality issues fixed
+- [ ] **TDOC-03**: All docs/* reviewed for accuracy against current architecture (post-v1.21)
+- [ ] **TDOC-04**: Container-era scripts archived to .archive/ with manifest
+- [ ] **TDOC-05**: CONFIG_SCHEMA.md aligned with config_validation_utils.py and accepted params
+- [ ] **TDOC-06**: Audit findings summary with remaining debt inventory produced
 
 ## Future Requirements
 
-### Deferred
+### Deferred to v1.23+
 
-- **CAKE-11**: `diffserv8` mode for finer-grained traffic classification (requires mangle rule expansion)
-- **CAKE-12**: Per-tin bandwidth allocation tuning (custom tin ratios)
-- **PERF-01**: pyroute2 netlink backend for sub-millisecond tc calls (if subprocess proves too slow)
+- **REFAC-01**: autorate_continuous.py extraction into separate modules (4,282 LOC, 4 responsibilities)
+- **REFAC-02**: Global strict mypy migration (module-by-module probe in v1.22, full migration later)
+- **OBSRV-01**: Prometheus/Grafana integration (document metric naming readiness only in v1.22)
+- **TEST-01**: Mutation testing with mutmut on critical modules (hours-long runtime, scope TBD)
+- **ARCH-01**: import-linter architectural boundary enforcement (post-audit contracts)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Generic multi-vendor router support | Linux CAKE backend is specific to transparent bridge offload |
-| Automated VM provisioning (Terraform/Ansible) | Single VM, manual Proxmox setup is sufficient |
-| 10GbE passthrough for Spectrum | i210 1GbE adequate -- Spectrum delivers ~820 Mbps currently |
-| Multiple reflector IRTT servers | Separate concern from CAKE offload, tracked as existing todo |
-| Automatic failover to MikroTik CAKE | Manual bypass cables + MikroTik queue re-enable is acceptable |
-| IFB device for ingress shaping | Bridge member port egress provides bidirectional shaping -- IFB is unnecessary overhead (confirmed by LibreQoS, MagicBox) |
-| `nat` CAKE keyword | Transparent bridge has no NAT/conntrack -- `nat` adds overhead for zero benefit |
-| `wash` CAKE keyword | DSCP marks from RB5009 mangle rules must survive the bridge for diffserv4 classification |
-| `autorate-ingress` CAKE keyword | wanctl IS the autorate system -- built-in CAKE autorate would conflict |
+| Rewriting autorate_continuous.py | Behavioral regressions in 50ms control loop take days to surface — separate milestone |
+| Global strict mypy | Produces unreviewable changeset — module-by-module probe only in v1.22 |
+| Removing all mocking from tests | Makes tests environment-dependent and slow |
+| Performance optimization of 50ms loop | Already within budget; premature optimization causes instability |
+| Prometheus/Grafana implementation | Document readiness only — implementation is scope creep |
+| New features of any kind | This is an audit milestone — hardening and cleanup only |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-01 | Phase 105 | Complete |
-| BACK-02 | Phase 105 | Complete |
-| BACK-03 | Phase 105 | Complete |
-| BACK-04 | Phase 105 | Complete |
-| CAKE-01 | Phase 106 | Complete |
-| CAKE-02 | Phase 106 | Complete |
-| CAKE-03 | Phase 106 | Complete |
-| CAKE-05 | Phase 106 | Complete |
-| CAKE-06 | Phase 106 | Complete |
-| CAKE-07 | Phase 108 | Complete |
-| CAKE-08 | Phase 106 | Complete |
-| CAKE-09 | Phase 106 | Complete |
-| CAKE-10 | Phase 106 | Complete |
-| CONF-01 | Phase 107 | Complete |
-| CONF-02 | Phase 107 | Complete |
-| CONF-03 | Phase 108 | Complete |
-| CONF-04 | Phase 107 | Complete |
-| INFR-01 | Phase 104 | Complete |
-| INFR-02 | Phase 109 | Pending |
-| INFR-03 | Phase 109 | Pending |
-| INFR-04 | Phase 109 | Pending |
-| INFR-05 | Phase 109 | Pending |
-| INFR-06 | Phase 109 | Pending |
-| CUTR-01 | Phase 110 | Pending |
-| CUTR-02 | Phase 110 | Pending |
-| CUTR-03 | Phase 110 | Pending |
-| CUTR-04 | Phase 110 | Pending |
-| CUTR-05 | Phase 110 | Pending |
+| FSCAN-01 | TBD | Pending |
+| FSCAN-02 | TBD | Pending |
+| FSCAN-03 | TBD | Pending |
+| FSCAN-04 | TBD | Pending |
+| FSCAN-05 | TBD | Pending |
+| FSCAN-06 | TBD | Pending |
+| FSCAN-07 | TBD | Pending |
+| FSCAN-08 | TBD | Pending |
+| NETENG-01 | TBD | Pending |
+| NETENG-02 | TBD | Pending |
+| NETENG-03 | TBD | Pending |
+| NETENG-04 | TBD | Pending |
+| NETENG-05 | TBD | Pending |
+| CQUAL-01 | TBD | Pending |
+| CQUAL-02 | TBD | Pending |
+| CQUAL-03 | TBD | Pending |
+| CQUAL-04 | TBD | Pending |
+| CQUAL-05 | TBD | Pending |
+| CQUAL-06 | TBD | Pending |
+| CQUAL-07 | TBD | Pending |
+| OPSEC-01 | TBD | Pending |
+| OPSEC-02 | TBD | Pending |
+| OPSEC-03 | TBD | Pending |
+| OPSEC-04 | TBD | Pending |
+| OPSEC-05 | TBD | Pending |
+| OPSEC-06 | TBD | Pending |
+| TDOC-01 | TBD | Pending |
+| TDOC-02 | TBD | Pending |
+| TDOC-03 | TBD | Pending |
+| TDOC-04 | TBD | Pending |
+| TDOC-05 | TBD | Pending |
+| TDOC-06 | TBD | Pending |
 
 **Coverage:**
-- v1.21 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0
+- v1.22 requirements: 32 total
+- Mapped to phases: 0 (awaiting roadmap)
+- Unmapped: 32
 
 ---
-*Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after open-source ecosystem research and roadmap revision*
+*Requirements defined: 2026-03-26*
+*Last updated: 2026-03-26 after initial definition*
