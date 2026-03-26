@@ -1,198 +1,185 @@
 # Project Research Summary
 
-**Project:** wanctl v1.22 Full System Audit
-**Domain:** Multi-perspective production audit — Python network controller (28,629 LOC, 3,723 tests, 21 milestones)
+**Project:** wanctl v1.23 Self-Optimizing Controller
+**Domain:** Production 24/7 Linux CAKE autorate daemon — performance, observability, and adaptive control enhancements
 **Researched:** 2026-03-26
 **Confidence:** HIGH
 
 ## Executive Summary
 
-wanctl v1.22 is a full-system audit milestone for a production Python controller that has grown across 21 milestones without a comprehensive cross-cutting review. The system is now mature enough — and the codebase large enough — that accumulated technical debt (dead code, permissive type checking, 96 broad exception catches, orphaned scripts, stale docs, and unverified systemd hardening) warrants systematic treatment. The audit spans three expert perspectives: network engineering (CAKE parameter correctness, DSCP tin alignment, steering logic), Linux sysadmin (systemd hardening, file permissions, NIC persistence, operational resilience), and Python developer (dead code, type safety, exception hygiene, complexity hotspots, test quality).
+v1.23 extends a mature, production-running CAKE autorate system with four targeted improvements: replacing subprocess `tc` calls with pyroute2 netlink (10x latency reduction per call), adding automatic fusion healing for ICMP/IRTT correlation divergence, extending the adaptive tuning engine to cover response parameters (step_up, factor_down, green_cycles_required), and exposing metrics via Prometheus for Grafana dashboards. All four features build on infrastructure already present in the codebase — there are no architectural pivots, only carefully bounded additions. Two new runtime dependencies are justified: `pyroute2>=0.9.5` (zero transitive deps, CAKE netlink verified in source tree) and `prometheus_client>=0.21.0` (optional import, for export only).
 
-The recommended execution approach is bottom-up by dependency layer: audit foundation utilities and shared infrastructure first, then communication and signal layers, then subsystems, and finally the two daemon cores. This ordering ensures findings in shared modules immediately reveal their blast radius — both daemons are affected — and the hardest code (autorate_continuous.py at 4,282 LOC and steering/daemon.py at 2,384 LOC) is audited last when all dependencies are understood. Tool selection is mostly zero-install: ruff rule expansion (C901, SIM, PERF, RET, PT, TRY, ARG, ERA) plus five one-shot pip installs (vulture, radon, complexipy, deptry, pytest-deadfixtures). No architectural rebuilds belong in this milestone.
+The recommended approach is strictly additive: new backend class alongside existing subprocess backend, optional Prometheus dependency guarded by ImportError, new RESPONSE_LAYER appended to the existing 4-layer tuning rotation, and configurable retention thresholds parameterizing existing hardcoded constants. The system is production-critical (24/7, 50ms control loop, direct WAN connectivity impact), so implementation policy is unchanged from prior milestones: test coverage, safety bounds, revert detection, and staged deployment. The existing codebase already provides all the scaffolding — safety.py revert detection, tuning_params persistence, LinuxCakeAdapter backend indirection, health endpoint threading model — so each phase is an extension, not a rewrite.
 
-The dominant risk is misidentifying live code as dead. The codebase has 15+ patterns that static analysis flags as unused but are critical: the RouterOS class active only in non-linux-cake deployments, lazy-imported routeros_ssh.py, the LinuxCakeAdapter bridging interface differences, SIGUSR1 reload methods called via threading.Event flags rather than direct call, the MetricsWriter singleton context manager that deliberately does not close its connection, and state file congestion fields written by autorate and read by the steering daemon in a separate process. Every finding must be validated against all 8 CLI entry points and both transport configurations before any removal.
+The primary risks concentrate in two phases. The pyroute2 phase requires proof-of-concept validation that CAKE `tc("change")` netlink attribute encoding works correctly before any hot-loop integration — getting TCA_CAKE_BASE_RATE64 encoding wrong silently fails. The adaptive rate step phase has the highest blast radius of any v1.23 feature because step_up, factor_down, and green_cycles_required interact multiplicatively: wrong combination causes oscillation or bandwidth collapse within minutes. Stability constraints — tune only one response parameter per hourly cycle, oscillation lockout that freezes all response params for 24h, tighter max_step_pct (5% vs 10% for detection params) — must be designed before any code is written for that phase.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The project already has a strong toolchain (ruff, mypy, pytest-cov, bandit, pip-audit, detect-secrets, pip-licenses). The audit gaps are in eight dimensions not yet covered: dead function/class/method detection, cyclomatic complexity ranking, cognitive complexity, unused dependencies, unused test fixtures, and several ruff rule categories not enabled. All can be addressed with minimal new tooling.
+The existing stack requires exactly two new package dependencies and no framework changes. `pyroute2>=0.9.5` (pure Python, zero transitive deps, Apache 2.0 / GPL 2.0) provides verified CAKE netlink support — `sched_cake.py` confirmed in `pyroute2/netlink/rtnl/tcmsg/` with TCA_CAKE_BASE_RATE64 and 17 other CAKE TCA attributes, per-tin stats decoder (PR #662, merged 2020), `tc("change")` and `tc("replace")` both in the command_map. `prometheus_client>=0.21.0` (official Prometheus project, zero mandatory deps, Apache 2.0) provides Gauge/Counter types, CustomCollector pattern, start_http_server, and generate_latest. Critically, the Debian 12 system package `python3-pyroute2` is v0.7.2 (too old for reliable CAKE stats support); both packages must be installed into the venv via uv. No Grafana Python library is needed — the dashboard is a committed JSON file.
+
+One open version conflict: STACK.md recommends pyroute2 0.9.5 (latest) while ARCHITECTURE.md recommends pinning to the 0.7.x branch (thread-based, synchronous). This must be resolved at Phase 1 planning by verifying whether pyroute2 0.9.x introduces async behavior in synchronous usage contexts.
 
 **Core technologies:**
-- ruff (rule expansion: C901/SIM/PERF/RET/PT/TRY/ARG/ERA): zero-install config change — covers simplification opportunities, complexity gating, pytest style consistency, unused arguments, commented-out code
-- vulture 2.16: dead functions/classes/methods/unreachable branches — catches what ruff F rules miss; no external dependencies
-- radon 6.0.1: cyclomatic complexity ranked reports, maintainability index per file — directly actionable for refactoring prioritization
-- complexipy 5.2.0: cognitive complexity (how hard to understand, not just branch count) — Rust-native, fast on 28K LOC
-- deptry 0.25.1: unused/missing/transitive dependency hygiene — reads pyproject.toml natively, Rust core
-- pytest-deadfixtures 2.2.1: orphaned test fixtures — 21 milestones guarantees fixture rot in 3,723 tests
-- mypy (incremental strictness): disallow_untyped_defs, warn_return_any, no_implicit_optional — probe one flag at a time on targeted modules, not --strict globally
 
-**What NOT to install:** pylint (ruff covers it 100x faster), flake8 (ruff replaces ecosystem), safety (pip-audit covers same CVEs), SonarQube (overkill for single-maintainer), wily (radon snapshot is sufficient).
+- `pyroute2>=0.9.5`: replaces subprocess `tc` in LinuxCakeBackend — eliminates 3ms fork/exec overhead per call, frees ~5ms/cycle (10% of 50ms budget)
+- `prometheus_client>=0.21.0`: Prometheus exposition layer — optional import guard preserves zero-dep core; optional dependency in pyproject.toml
+- Grafana dashboard JSON: no Python dep — hand-crafted JSON in `grafana/` directory, provisioned via YAML
+- Adaptive rate steps, fusion healing, retention strategy: no new libraries — all extend existing modules
 
 ### Expected Features
 
-Research reframes "features" as audit categories across three perspectives with defined priority levels.
+**Must have (table stakes for v1.23):**
 
-**Must have — P1 (production safety or security impact):**
-- CAKE parameter correctness per WAN type (DOCSIS overhead for Spectrum, VDSL2/bridged-ptm for ATT, diffserv4 tin mapping)
-- DSCP/diffserv tin alignment end-to-end (RB5009 mangle rules through CAKE tins — EF=Voice, AF41=Video, CS1=Bulk)
-- Exception handling audit (96 `except Exception` catches — identify which swallow real bugs vs. which are legitimate safety nets)
-- systemd unit hardening (systemd-analyze security score; add ProtectKernelTunables, RestrictNamespaces, SystemCallFilter where safe)
-- File permissions (/etc/wanctl/secrets must be 0600 root:wanctl; state and log dirs 0750)
-- Dead code identification (vulture scan — identification only, no removal without validation)
+- pyroute2 netlink tc calls — reclaims ~10% of cycle budget; subprocess path becomes tech debt at 20Hz
+- Auto-fusion healing — ATT WAN has known ICMP/IRTT path divergence; manual SIGUSR1 toggle is ongoing operator burden
+- Prometheus/Grafana export — metrics are SQLite-only today; no dashboard capability without manual data extraction
+- metrics.db retention strategy — 3.5GB steady state at 7-day retention; aggressive downsampling is safe once Prometheus holds long-term data
 
-**Should have — P2 (prevents future problems):**
-- Thread safety audit (16 files use threading; shared mutable state between autorate, IRTT thread, health server, webhook delivery)
-- NIC and bridge persistence across reboot (rx-udp-gro-forwarding not persistent — known gap from MEMORY.md)
-- Type safety assessment (mypy strictness probe module by module, starting with leaf modules)
-- Complexity hotspot analysis (5 files over 1,000 LOC: autorate_continuous, steering/daemon, check_config, check_cake, calibrate)
-- Backup and recovery documentation (is /etc/wanctl backed up? metrics.db? VM snapshot strategy? rollback to old containers?)
-- Steering logic correctness (confidence scoring weights, degrade timers, CAKE-primary invariant, grace period behavior)
-- Production dependency lock file (uv pip freeze output — separate from pyproject.toml minimum versions)
+**Should have (differentiators):**
 
-**Defer — P3 (optimization and polish):**
-- Prometheus/Grafana integration (document metric naming readiness only — implementation is a separate milestone)
-- Test assertion quality / mutation testing (mutmut is hours-long on 28K LOC — run only on critical modules if at all)
-- autorate_continuous.py extraction plan (document which classes could be extracted — execution is a future milestone)
-- import-linter architectural boundary enforcement (post-audit enforcement, not during audit)
+- Adaptive rate step tuning — only CAKE controller that tunes its own response parameters; closes the last gap in the self-optimizing vision
+- Per-tin Prometheus metrics with labels — enables Grafana panels showing which CAKE traffic class is congested; fixed cardinality (2 WANs x 2 directions x 4 tins = 16 series per metric)
+- Fused metrics export (SQLite + Prometheus dual-write) — SQLite remains authoritative for tuning; Prometheus Gauges are in-memory, zero contention
 
-**Anti-features — explicitly out of scope:**
-- Rewriting autorate_continuous.py (behavioral regressions in 50ms control loop take days to surface)
-- Global strict mypy migration (produces unreviable changeset; module-by-module only)
-- Removing all mocking from tests (would make tests environment-dependent and slow)
-- Performance optimization of the 50ms loop (already within budget; premature optimization causes instability)
-- Prometheus/Grafana implementation (scope creep — document readiness only)
+**Defer to v2+:**
+
+- Push-gateway / remote-write bridge — pull model works if Prometheus is on same VLAN; adds complexity without clear benefit
+- ML-based bandwidth prediction — statistical tuning is already the adaptive learning system; ML adds complexity with no measurable gain at this scale
+- Auto-tuning ceiling_mbps from speed tests — policy decision, not a measurement; saturating the link disrupts latency-sensitive traffic
 
 ### Architecture Approach
 
-The audit follows the dependency graph of ~80 Python modules across six functional layers. The daemon cores (13,700 LOC combined) are deliberately audited last when all dependencies are understood. Cross-cutting concerns — error swallowing, type safety gaps, dead code, hardcoded values, logging hygiene — are tracked as running observations throughout all phases. Findings use a structured template (FINDING / SEVERITY P0-P4 / MODULES / ROOT CAUSE / IMPACT / FIX / TEST).
+v1.23 is a set of parallel, non-blocking integration points on the existing architecture. The 50ms hot loop changes only at the tc call site (subprocess -> pyroute2 netlink) and fusion decision point (check heal state before weighting IRTT). Adaptive rate steps extend the hourly tuning engine by appending a RESPONSE_LAYER to the existing 4-layer round-robin — no changes to the scheduler or safety infrastructure. Prometheus export runs in a daemon thread as a CustomCollector that reads WANController attributes on each scrape — zero overhead added to the hot loop. Retention thresholds become configurable YAML rather than hardcoded constants.
 
-**Major components by audit layer:**
-1. Foundation (path_utils, timeouts, daemon_utils, signal_utils, error_handling, state_utils) — ~1,800 LOC; audit first
-2. Data layer (config_base, state_manager, storage subsystem, backends/base) — ~3,200 LOC; audit second
-3. Communication (routeros_rest/ssh, router_client, LinuxCakeBackend, retry_utils) — ~3,100 LOC; audit third
-4. Signal and measurement (rtt_measurement, irtt, signal_processing, baseline, cake_params) — ~2,600 LOC; audit fourth
-5. Subsystems (tuning, steering sub-packages, alert_engine, webhook, metrics, health_check) — ~5,400 LOC; audit fifth
-6. Daemon cores and CLI (autorate_continuous, steering/daemon, check_config, check_cake, dashboard) — ~13,700 LOC; audit last
+**Major components and changes:**
 
-**Key patterns to audit (not change in this milestone):**
-- MetricsWriter singleton: deliberate thread-safe single SQLite connection — document rationale, do not refactor
-- TYPE_CHECKING circular import avoidance in health_check.py and steering/health.py — fragile attribute access; flag, do not restructure
-- Flash wear protection / no-op write suppression — still required on Linux for 20Hz tc syscall avoidance despite MikroTik-era naming
-- State file IPC contract (autorate writes, steering reads) — atomic_write_json is correct; map all consumers before touching schema
-- SIGUSR1 reload chain (5 distinct targets, 2 daemons) — must be fully cataloged before any consolidation attempt
+1. `NetlinkCakeBackend` (NEW) — new `RouterBackend` subclass alongside `LinuxCakeBackend`; config selects via transport name; singleton `IPRoute()` instance; reconnect on socket death
+2. `WANController._check_protocol_correlation` + `_compute_fused_rtt` (MODIFIED) — add fusion heal state machine (ACTIVE/SUSPENDED/RECOVERING), ~50 lines of new state tracking
+3. `TuningEngine` (MODIFIED) — append RESPONSE_LAYER as 5th layer; new `tuning/strategies/response_tuning.py`; `_apply_tuning_to_controller` extended for `dl_`/`ul_`-prefixed step params
+4. `PrometheusExporter` (NEW) — daemon thread on port 9103; CustomCollector reads live `WANController` state on each Prometheus scrape
+5. `storage/downsampler.py` + `storage/retention.py` (MODIFIED) — accept configurable thresholds from new `storage.retention` YAML section instead of hardcoded constants
 
 ### Critical Pitfalls
 
-1. **Removing backend code that only runs in non-linux-cake deployments** — vulture and import graphs flag RouterOS class (autorate_continuous.py line 1204), routeros_ssh.py (lazy-imported in router_client.py), and LinuxCakeAdapter (conditional runtime import line 3474) as dead. All three are live. Before any removal, trace from all 8 CLI entry points with both `router_transport: "linux-cake"` and `router_transport: "rest"` configs.
+1. **pyroute2 IPRoute socket leak in the 50ms hot loop** — `with IPRoute()` per call leaks fds at 2,400 socket cycles/minute; create singleton `IPRoute()` at `__init__`, reconnect on EBADF/BrokenPipeError; verify fd count is stable over 1h soak via `lsof -p <pid> | grep netlink | wc -l`
 
-2. **Breaking the SIGUSR1 hot-reload chain** — Five reload targets added incrementally across v1.11-v1.20 (wan_state.enabled, dry_run, webhook_url, fusion config, tuning config). The `_reload_*_config()` methods have no static callers — they are invoked via `threading.Event` flag check in the event loop. Consolidation without a complete catalog silently disables hot-reload for one or more parameters.
+2. **Adaptive rate step tuning creates oscillation or collapse** — step_up, factor_down, and green_cycles interact multiplicatively (combined-gain invariant); tune only one response parameter per hourly cycle; add oscillation lockout (transitions/minute threshold freezes all response params for 24h); use `exclude_params` to make response tuning opt-in; max_step_pct 5% (vs 10% for detection params)
 
-3. **Breaking the inter-process state file contract** — `congestion.dl_state`/`ul_state` in the state JSON appears dead within autorate but is read by the steering daemon in a separate process. The dirty-tracking exclusion for congestion fields is intentional (prevents 20Hz write amplification). Map all consumers before any schema change.
+3. **Downsampling deletes data the tuner needs** — if 1m retention shrinks below `tuning.lookback_hours * 3600 seconds`, tuner silently uses sparse data; add config validation enforcing the contract; `measure_congestion_rate()` in safety.py also queries 1m granularity — if that data is gone, revert detection stops working
 
-4. **Removing flash wear protection as obsolete on Linux** — `last_applied_dl_rate`/`ul_rate` guards prevent 20 unnecessary `tc qdisc change` syscalls per second. At 50ms cycle budget (30-40ms used), removing them pushes utilization above 100%. Update comments to reflect Linux rationale; do not remove the mechanism.
+4. **Prometheus /metrics endpoint blocks the 50ms control loop** — `generate_latest()` acquires a global lock and takes 2-5ms to serialize 30+ metrics; never call `Gauge.set()` from the hot loop; use CustomCollector pattern (read state on scrape, not push from cycle); run on separate port 9103 in its own thread
 
-5. **Systemd hardening that drops CAP_NET_RAW or breaks ProtectSystem=strict** — CAP_NET_RAW is required for icmplib raw ICMP sockets. Removing it silently disables all congestion detection. Test every unit file change on the production VM (10.10.110.223) with actual service start/stop cycles; use `systemd-analyze verify` before applying.
+5. **Auto-fusion healing disables fusion during legitimate ISP path divergence** — low protocol correlation can mean congestion on one path (disable fusion) OR permanent ISP ICMP deprioritization (keep fusion, adjust weights); require 30+ minutes sustained divergence before auto-disable; implement 3-state model (enabled/degraded/suspended); send Discord alert on state change
 
 ## Implications for Roadmap
 
-FEATURES.md (5-phase audit prioritization), ARCHITECTURE.md (6-phase bottom-up dependency order), and PITFALLS.md (pitfall-to-phase safety mapping) independently converge on the same phase structure. The ordering is driven by three principles: (1) mechanical/safe work first, (2) dependencies flow downward through layers, (3) the most dangerous work (dead code removal, state schema changes, systemd changes) only happens after prerequisites are verified.
+FEATURES.md, ARCHITECTURE.md, and PITFALLS.md independently converge on the same 5-phase structure, ordered by dependency risk and blast radius. All phases are additive — nothing is replaced until the replacement is validated.
 
-### Phase 1: Foundation Scan
+### Phase 1: pyroute2 Netlink Backend
 
-**Rationale:** Produces findings that unblock all later phases with near-zero production risk. Kernel/iproute2 version data is a prerequisite for Phase 2. Dead code inventory is a prerequisite for Phase 3.
-**Delivers:** Dependency CVE status (pip-audit), unused dependencies (deptry), file permission report, systemd hardening score (systemd-analyze security), dead code inventory (vulture — identification only, no removals), log rotation verification, kernel/iproute2 version record, ruff ERA scan for commented-out code, orphaned fixture list (pytest-deadfixtures).
-**Addresses:** Dependency hygiene, file permissions, log rotation, dead code identification (P1 audit areas that are safe to execute without production risk).
-**Avoids:** Acting on dead code findings before transport validation; changing systemd units before understanding directive semantics.
+**Rationale:** Fully independent of all other v1.23 features; validates the most uncertain integration (kernel netlink CAKE attribute encoding) while all other systems remain unchanged. Architecture research specifies `NetlinkCakeBackend` as a new subclass alongside `LinuxCakeBackend` — zero production risk during development. Must come first because it is the most complex testing challenge.
+**Delivers:** `NetlinkCakeBackend` class; singleton `IPRoute()` lifecycle; reconnect logic on socket death; `tc("replace")` for initialize_cake and `tc("change")` for runtime bandwidth; netlink-based `get_queue_stats()` replacing subprocess JSON parse; exception handler matching existing `(returncode, stdout, stderr)` return contract; factory registration for `linux-cake-netlink` transport
+**Addresses:** pyroute2 netlink feature (P1 table stake); CAKE per-tin stats via netlink
+**Avoids:** IPRoute socket leak (Pitfall 1); CAKE netlink attribute mismatch (Pitfall 2); netlink exception crash loop (Pitfall 3)
+**Research flag:** Proof-of-concept validation REQUIRED before hot-loop integration — write standalone script verifying `ipr.tc("change", "cake", ifindex, bandwidth="Nkbit")` actually changes bandwidth and reads back correctly via `tc -j qdisc show`. Also resolve pyroute2 version conflict (0.9.x vs 0.7.x) before starting.
 
-### Phase 2: Network Engineering Deep Dive
+### Phase 2: Metrics.db Retention Strategy
 
-**Rationale:** Requires production VM access and kernel/iproute2 data from Phase 1. CAKE parameter audit must precede DSCP audit (CAKE params affect tin behavior). Network engineering findings are independent of code quality findings in Phase 3.
-**Delivers:** Verified CAKE parameters per WAN with `tc -j -s qdisc show` readback (DOCSIS overhead, diffserv4 tin mapping, ack-filter, split-gso validity), DSCP end-to-end trace from RB5009 mangle rules to CAKE tin counters, queue depth/memory pressure baseline, bandwidth ceiling vs measured capacity confirmation, steering logic correctness audit.
-**Addresses:** CAKE parameter correctness, DSCP tin alignment, measurement path integrity, CAKE algorithm optimization params, queue depth analysis, steering logic (all P1/P2 network audit areas).
-**Avoids:** Changing CAKE params and bridge persistence in the same phase — if something breaks, isolation is impossible.
+**Rationale:** Small scope, low risk, must be resolved before Prometheus (Prometheus-mode aggressive thresholds depend on this config design). More importantly, must explicitly coordinate retention thresholds with tuner lookback to avoid Pitfall 3. Ship before adaptive tuning and Prometheus so the data availability contract is proven.
+**Delivers:** Configurable retention thresholds via `storage.retention` YAML section (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds); config validation rule enforcing `tuning.lookback_hours * 3600 <= aggregate_1m_age_seconds`; `prometheus_compensated: true` opt-in for aggressive retention; steady-state DB size ~1GB vs current ~3.5GB
+**Addresses:** metrics.db retention feature (P1 table stake)
+**Avoids:** Downsampling deletes tuner data (Pitfall 3); without this phase, operators reducing retention for Prometheus compatibility would silently break tuner data availability
+**Research flag:** Standard patterns — parameterizing existing constants; no new algorithms; skip research-phase
 
-### Phase 3: Code Quality and Safety
+### Phase 3: Auto-Fusion Healing
 
-**Rationale:** Requires dead code inventory from Phase 1 — cannot safely remove code without knowing test quality first. Exception handling fixes must be tested, which requires stable test infrastructure. Thread safety requires singleton/global state map first (cannot reason about thread safety without knowing what state is shared).
-**Delivers:** Exception handling audit with categorized dispositions (96 broad catches triaged by risk level), type safety probe with module-by-module plan (starting with leaf modules), complexity hotspot report for 5 largest files with extraction recommendations (document only — no execution), import graph with circular dependency check, complete singleton and global state inventory, thread safety findings (16 threaded files), SIGUSR1 reload chain catalog with E2E test if missing.
-**Addresses:** Exception handling audit, type safety assessment, complexity hotspots, thread safety, singleton audit (P1-P2 Python audit areas).
-**Avoids:** Removing MagicMock isinstance guards (test count must not decrease), consolidating state managers, extracting from autorate_continuous.py.
+**Rationale:** Self-contained WANController change; addresses known ATT ICMP/IRTT path divergence production issue; no dependency on other v1.23 phases. Ships after pyroute2 to avoid concurrent system changes during netlink validation.
+**Delivers:** Fusion heal state machine (ACTIVE/SUSPENDED/RECOVERING) co-located in `_check_protocol_correlation` and `_compute_fused_rtt`; configurable thresholds (suspend_threshold, recovery_threshold) under `fusion.auto_heal` YAML section; Discord alert on state transitions; `fusion.heal_state` field in health endpoint; auto-re-enable after correlation recovers; parameter lock on `fusion_icmp_weight` in TuningEngine when healer suspends
+**Addresses:** Auto-fusion healing feature (P1 table stake)
+**Avoids:** Fusion auto-disable false positive (Pitfall 5); auto-fusion vs tuner conflict (integration gotcha — must lock fusion_icmp_weight in tuner when healer suspends)
+**Research flag:** Production calibration required — suspend_threshold and recovery_threshold must be validated against actual ATT divergence data before enabling auto-disable; review production logs for correlation ratio distribution during known divergence periods
 
-### Phase 4: Operational Hardening
+### Phase 4: Adaptive Rate Step Tuning
 
-**Rationale:** Requires findings from all prior phases to prioritize hardening correctly. Thread safety findings from Phase 3 inform which resource limits are appropriate. All systemd changes require production VM testing.
-**Delivers:** Hardened systemd units (ProtectKernelTunables, MemoryDenyWriteExecute, SystemCallFilter, RestrictNamespaces where compatible with CAP_NET_RAW and network daemon requirements), verified NIC/bridge persistence across reboot (rx-udp-gro-forwarding persistent solution), consistent circuit breaker config across all three service units, resource limits (MemoryMax, TasksMax, LimitNOFILE), production dependency lock file (requirements-production.txt from uv pip freeze), backup/recovery documentation, disaster recovery procedure.
-**Addresses:** systemd hardening, NIC/bridge persistence, watchdog/circuit breaker consistency, resource limits, backup/recovery, disaster recovery (P1-P2 sysadmin areas).
-**Avoids:** Tightening hardening in a way that drops CAP_NET_RAW; changing watchdog timing without cycle budget measurement; running systemd changes without `systemd-analyze verify` first.
+**Rationale:** Highest blast radius of any v1.23 feature; requires stable pyroute2 backend (Phase 1 — cycle budget headroom) and proven retention config (Phase 2 — data availability) before adding tuning complexity. Architecture and pitfalls research are explicit: stability constraints must be designed before any code is written. Ships fourth.
+**Delivers:** RESPONSE_LAYER as 5th entry in `ALL_LAYERS` tuning rotation; `tuning/strategies/response_tuning.py` with `tune_step_up`, `tune_factor_down`, `tune_green_required`; oscillation lockout that freezes all response params when transitions/minute exceeds threshold; combined-gain invariant validation before any parameter application; `dl_`/`ul_`-prefixed param names in `tuning_params` table; `_apply_tuning_to_controller` extension; `exclude_params` opt-in (response tuning disabled by default)
+**Addresses:** Adaptive rate step tuning feature (P2 should-have); closes last gap in self-optimizing vision
+**Avoids:** Rate step oscillation/collapse (Pitfall 2 — critical); depends on Phase 2 retention for 1m data availability in strategy lookback
+**Research flag:** Strategy logic needs deeper design — objective function for detecting oscillation vs slow recovery from downsampled 1m metrics may require in-process episode tracking rather than SQLite lookback (sub-hour oscillation events are lost at 1m granularity). Budget design iteration time in Phase 4 planning.
 
-### Phase 5: Test and Documentation Hygiene
+### Phase 5: Prometheus/Grafana Export
 
-**Rationale:** Final phase — validates all prior changes and documents residual debt. Test quality audit is most meaningful after code quality changes are made. Cannot audit documentation freshness until architecture changes are confirmed complete.
-**Delivers:** Test quality audit (assertion-free, over-mocked, tautological tests identified — with targeted fixes for highest-risk cases), error recovery path coverage for handle_errors decorator usages, SQLite durability verification (WAL mode, busy_timeout, concurrent access, integrity check), config validation completeness (CONFIG_SCHEMA.md vs config_validation_utils.py vs accepted params), documentation freshness review (docs/* dates vs current architecture — DOCKER.md, PRODUCTION_INTERVAL.md, PORTABLE_CONTROLLER_ARCHITECTURE.md), orphaned script archiving to .archive/container-scripts/ with manifest, deprecate_param() removal timeline comments, audit findings summary with remaining debt inventory.
-**Addresses:** Test quality, error recovery coverage, SQLite durability, config validation, documentation hygiene, container script archiving (P2-P3 areas).
-**Avoids:** Deleting container-era scripts (archive to .archive/ instead); removing deprecate_param() bridges (add removal timeline comments instead); attempting autorate_continuous.py extraction (document recommendations only).
+**Rationale:** Highest dependency count — prometheus_client library, stable metric schema, retention config from Phase 2, all other subsystems stable. Additive observability — existing HealthServer and SQLite remain authoritative. Ships last because it benefits from observing all prior phases in dashboards during development.
+**Delivers:** `PrometheusExporter` module; port 9103 daemon thread (same pattern as HealthServer); `WanctlCollector` CustomCollector reading live `WANController` state on scrape; 15 metric families with stable labels (wan, direction, tin); Grafana dashboard JSON (`grafana/dashboards/wanctl-overview.json`); provisioning YAML (`grafana/provisioning/`); optional dependency (`pip install wanctl[prometheus]`); `PROMETHEUS_DISABLE_CREATED_SERIES=True` to reduce metric count
+**Addresses:** Prometheus/Grafana export feature (P1 table stake); per-tin metrics with labels (P2 differentiator); enables metrics.db aggressive retention (Phase 2 prometheus_compensated mode)
+**Avoids:** Prometheus blocking hot loop (Pitfall 4 — CustomCollector, never Gauge.set() in cycle); label explosion (Pitfall 7 — stable labels reviewed upfront); security exposure (bind 127.0.0.1 or management VLAN, not 0.0.0.0)
+**Research flag:** Standard patterns — CustomCollector, start_http_server, daemon thread model all well-documented in prometheus_client; skip research-phase. Review label design against Prometheus naming best practices before writing any metrics.
 
 ### Phase Ordering Rationale
 
-- Phase 1 is a prerequisite for both Phase 2 (kernel version data) and Phase 3 (dead code inventory).
-- Phase 2 and Phase 3 have no dependency on each other and could run in parallel — sequential is safer given production VM access requirements.
-- Phase 3 precedes Phase 4: thread safety and singleton findings inform appropriate resource limits.
-- Phase 4 precedes Phase 5: hardening changes must stabilize before writing test coverage for them.
-- Phase 5 is last: test and documentation quality audit only meaningful after prior changes are complete.
+- pyroute2 first: fully independent, highest technical uncertainty (kernel netlink encoding), validates before touching tuning or observability
+- Retention second: prerequisite config design for Prometheus aggressive mode; forces data availability contract to be solved before adaptive tuning or Prometheus ships; low risk
+- Auto-fusion third: low risk, addresses known production pain, independent of other phases; sequential ordering keeps changes isolated during validation windows
+- Adaptive rate steps fourth: highest blast radius, benefits from stable cycle budget (Phase 1) and confirmed retention config (Phase 2)
+- Prometheus last: purely additive, benefits from all prior phases being observable in dashboards; no phase depends on it
 
 ### Research Flags
 
-Phases likely needing `/gsd:research-phase` during planning:
-- **Phase 2:** CAKE parameter details differ between DOCSIS (Spectrum) and VDSL2 (ATT); iproute2-6.15.0 ecn flag removal was one known compatibility break — verify whether other CAKE params have similar version-specific behavior on the Debian 12 kernel; DSCP mangle rule text format on RouterOS 7.x needs verification.
-- **Phase 4:** Specific systemd security directives compatible with CAP_NET_RAW + ProtectSystem=strict + network daemon constraints need verification against the systemd version shipped with Debian 12 bookworm (systemd 252).
+Phases needing `/gsd:research-phase` during planning:
+
+- **Phase 1:** pyroute2 version conflict (0.9.x vs 0.7.x) must be resolved; proof-of-concept CAKE netlink change required before planning commences; verify `tc("replace")` for initialize_cake via netlink (harder than `tc("change")`) is supported in target version
+- **Phase 4:** Adaptive rate step objective function requires design iteration — how to detect oscillation vs slow recovery from 1m granularity data; consider in-process episode tracking as alternative to SQLite lookback for sub-hour patterns
 
 Phases with standard/well-documented patterns (skip research-phase):
-- **Phase 1:** All tools are well-documented and already partially in use; execution is purely mechanical.
-- **Phase 3:** Python code quality methodology is well-established; tool outputs are self-explanatory; judgment calls are codebase-specific.
-- **Phase 5:** Documentation and script archiving require no external research; all judgment calls are internal.
+
+- **Phase 2:** Parameterizing existing constants; no new algorithms; internal coordination task only
+- **Phase 3:** All building blocks exist in codebase; state machine is ~50 lines; only threshold calibration requires production data review
+- **Phase 5:** CustomCollector and start_http_server patterns are standard prometheus_client; label design is a review task, not a research task
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All tools verified against PyPI on 2026-03-26; existing toolchain fully understood; clear rationale for each addition and each skip |
-| Features | HIGH | Based on direct codebase analysis of 80+ source files; three-perspective audit methodology is internally consistent; prioritization matrix grounded in production risk assessment |
-| Architecture | HIGH | Full import graph extracted via AST analysis; module LOC counts verified; dependency heat map confirms coupling observations; data flows traced through actual code |
-| Pitfalls | HIGH | Grounded in direct codebase analysis across 21 milestones of history; 15+ "looks dead but isn't" patterns documented with exact line numbers; false positive patterns cataloged |
+| Stack | HIGH | pyroute2 CAKE support verified in source tree with attribute names; prometheus_client official project confirmed on PyPI; both zero transitive deps; Debian 12 version constraint confirmed; pyroute2 version conflict is a known open question |
+| Features | HIGH | Based on direct codebase analysis of existing MetricsRegistry, LinuxCakeBackend._run_tc, _check_protocol_correlation, TuningEngine ALL_LAYERS, storage/downsampler.py; all integration points located in source with file/line references |
+| Architecture | HIGH | All touchpoints identified; LinuxCakeAdapter pass-through confirmed; tuning_params table schema confirmed; _apply_tuning_to_controller extension point confirmed; threading model for PrometheusExporter matches existing HealthServer exactly |
+| Pitfalls | HIGH | pyroute2 pitfalls grounded in known GitHub issues (#132, #547) and documented fd leak history; Prometheus pitfall grounded in GIL behavior and prometheus_client issue #1114; rate step pitfall grounded in ISA PID control literature and existing revert detection in safety.py |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **radon Python 3.12 compatibility:** radon 6.0.1 was released ~12 months ago and Python 3.12 compatibility is not explicitly confirmed. Run `uv pip install radon` and verify it imports cleanly before relying on it. Fallback: ruff C901 for complexity gating, complexipy for cognitive complexity.
-- **systemd directive compatibility on Debian 12 bookworm:** ProtectKernelTunables, RestrictNamespaces, and MemoryDenyWriteExecute behavior varies by systemd version. Use `systemd-analyze verify wanctl@spectrum.service` and test on production VM before committing unit file changes.
-- **SIGUSR1 E2E test coverage:** Individual reload methods are tested but the full chain from signal delivery to runtime parameter change may not have E2E coverage. Verify during Phase 3 before any signal handling changes are made.
-- **rx-udp-gro-forwarding persistence mechanism:** The correct persistence approach (systemd-networkd ExecPost hook, udev rule, or other) needs determination during Phase 4. Current state: not persistent across reboot.
-- **Exact scope of 96 broad exception catches:** FEATURES.md cites this count; the specific locations, risk levels, and whether default_returns are safe have not yet been mapped. Phase 3 begins with this enumeration.
+- **pyroute2 CAKE `tc("change")` attribute encoding**: STACK.md and ARCHITECTURE.md both cite the attributes (TCA_CAKE_BASE_RATE64), but neither has a working proof-of-concept against the production VM kernel. This is the highest uncertainty in the milestone. Phase 1 planning must include a standalone validation test before any hot-loop code is written.
+- **pyroute2 version conflict**: STACK.md recommends 0.9.5 (latest); ARCHITECTURE.md recommends pinning to 0.7.x (thread-based, synchronous). Resolve at Phase 1 kickoff by verifying 0.9.x synchronous usage behavior. If 0.9.x introduces async surprises, pin to 0.7.12.
+- **Adaptive rate step objective function**: FEATURES.md assigns MEDIUM confidence to this feature specifically. How to detect oscillation vs slow recovery from 1m-granularity SQLite data is underspecified. Phase 4 planning should budget design iteration for the strategy implementations.
+- **Auto-fusion threshold calibration**: Proposed thresholds (suspend after 30 divergent readings at 10s IRTT cadence = 5 min, recover after 10 readings = 1.5 min) are reasoned estimates. Review production ATT divergence logs before enabling auto-disable on that WAN.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Ruff rules documentation (docs.astral.sh/ruff/rules/) — full rule catalog, verified 2026-03-26
-- vulture GitHub (jendrikseipp/vulture) — v2.16 confirmed via PyPI
-- deptry documentation (deptry.com) — v0.25.1, actively maintained, Rust core
-- complexipy GitHub (rohaquinlop/complexipy) — v5.2.0, Rust-based, Python 3.8-3.13
-- tc-cake(8) Linux manual page (man7.org) — CAKE parameter reference
-- mypy command line documentation (mypy.readthedocs.io) — strict mode flags and incremental adoption
-- wanctl codebase (src/wanctl/, tests/, systemd/, scripts/, docs/) — direct AST analysis of all 80 modules
+
+- pyroute2 GitHub (`pyroute2/netlink/rtnl/tcmsg/sched_cake.py`) — CAKE TCA attributes and stats decoder confirmed present; PR #662 merged 2020
+- pyroute2 PyPI — v0.9.5 confirmed, Python >=3.9, zero deps
+- pyroute2 changelog — CAKE support since v0.3.17, change/replace since v0.4.14
+- prometheus_client PyPI / GitHub — v0.24.1 confirmed, CustomCollector pattern, start_http_server, generate_latest
+- Grafana provisioning docs — YAML + JSON dashboard provisioning confirmed stable across Grafana 10-11
+- Debian packages.debian.org — `python3-pyroute2` v0.7.2 confirmed (system package too old, venv install required)
+- wanctl codebase (direct analysis) — `backends/linux_cake.py`, `autorate_continuous.py`, `tuning/`, `storage/`, `health_check.py`, `metrics.py`
 
 ### Secondary (MEDIUM confidence)
-- radon documentation (radon.readthedocs.io) — v6.0.1; last release ~12 months ago, Python 3.12 compat not explicitly confirmed
-- systemd hardening guides (linux-audit.com, ctrl.blog) — directive recommendations; must verify against Debian 12 systemd 252
-- STX Next Python code quality audit methodology — general framework applied to wanctl-specific findings
-- Bufferbloat.net CAKE technical (bufferbloat.net) — CAKE algorithm background
+
+- pyroute2 GitHub issues #132, #547 — fd leak behavior under multithreading; `__del__`-based cleanup is non-deterministic
+- prometheus_client issue #1114 — CPU regression in 0.22.1 (resolved in 0.22.2); relevant to version floor
+- ISA PID tuning best practices — controller gain tuning stability, oscillation risks; grounds rate step pitfall analysis
+- sqm-autorate / qosmate (OpenWrt) — competitor analysis confirms fixed step sizes are industry norm; adaptive steps are genuine differentiator
 
 ### Tertiary (LOW confidence)
-- Semgrep community rules — cited as optional Tier 3 tool in STACK.md; not recommended for this milestone; pipx install only
-- mutmut documentation — mutation testing deferred to optional P3; hours-long run on 28K LOC
+
+- Netlink socket buffer overflow (SO_RCVBUF) behavior under load — cited in Pitfalls but not directly tested on production hardware; monitor via `lsof` and `overrun_count` during Phase 1 soak test
 
 ---
+
 *Research completed: 2026-03-26*
 *Ready for roadmap: yes*
