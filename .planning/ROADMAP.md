@@ -18,7 +18,7 @@ None
 - [ ] **Phase 112: Foundation Scan** - Mechanical tool-driven scanning (CVEs, dead code, permissions, linting) that produces findings for all later phases
 - [x] **Phase 113: Network Engineering Audit** - CAKE parameter verification, DSCP end-to-end trace, steering logic correctness, measurement methodology validation
 - [ ] **Phase 114: Code Quality & Safety** - Exception handling triage, type safety probe, thread safety audit, complexity analysis, SIGUSR1 chain catalog
-- [ ] **Phase 115: Operational Hardening** - systemd unit hardening, NIC persistence, resource limits, backup/recovery procedures, dependency locking
+- [x] **Phase 115: Operational Hardening** - systemd unit hardening, NIC persistence, resource limits, backup/recovery procedures, dependency locking
 - [ ] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
 
 ## Phase Details
@@ -100,9 +100,9 @@ Plans:
 
 Plans:
 
-- [ ] 115-01-PLAN.md -- systemd unit hardening + circuit breaker consistency (OPSEC-01, OPSEC-06)
+- [x] 115-01-PLAN.md -- systemd unit hardening + circuit breaker consistency (OPSEC-01, OPSEC-06)
 - [x] 115-02-PLAN.md -- Dependency lock + backup/recovery runbook (OPSEC-04, OPSEC-05)
-- [ ] 115-03-PLAN.md -- Resource limits + NIC persistence + reboot verification (OPSEC-02, OPSEC-03)
+- [x] 115-03-PLAN.md -- Resource limits + NIC persistence + reboot verification (OPSEC-02, OPSEC-03)
 
 ### Phase 116: Test & Documentation Hygiene
 
@@ -128,7 +128,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
 | 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
 | 114. Code Quality & Safety        | 3/3            | Complete    | 2026-03-26 |
-| 115. Operational Hardening        | 1/3 | In Progress|  |
+| 115. Operational Hardening        | 3/3            | Complete    | 2026-03-26 |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
 
 <details>
