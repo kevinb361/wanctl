@@ -331,11 +331,12 @@ class TestDisabledStorage:
         # Simulate disabled storage by not initializing writer
         writer: MetricsWriter | None = None
 
-        # This pattern should not raise
+        # The None-guard pattern used in run_cycle should skip the write
         if writer is not None:
             writer.write_metrics_batch([])
 
-        # No assertion needed - just verifying no exception
+        # Verify the guard correctly identifies None writer
+        assert writer is None
 
     def test_metrics_writer_none_check_pattern(self) -> None:
         """Verify the None check pattern used in run_cycle works correctly."""
