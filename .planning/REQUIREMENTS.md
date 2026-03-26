@@ -30,11 +30,11 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 - [ ] **CQUAL-01**: All broad `except Exception` catches triaged (legitimate safety vs bug-swallowing)
 - [ ] **CQUAL-02**: Bug-swallowing exception catches fixed with appropriate error handling
-- [ ] **CQUAL-03**: MyPy strictness probed module-by-module with fix/suppress strategy per module
+- [x] **CQUAL-03**: MyPy strictness probed module-by-module with fix/suppress strategy per module
 - [ ] **CQUAL-04**: Thread safety audit completed (threaded files, shared mutable state, race conditions)
-- [ ] **CQUAL-05**: Complexity hotspots analyzed (5 largest files) with extraction recommendations documented
+- [x] **CQUAL-05**: Complexity hotspots analyzed (5 largest files) with extraction recommendations documented
 - [ ] **CQUAL-06**: SIGUSR1 reload chain fully cataloged with E2E test coverage verified
-- [ ] **CQUAL-07**: Import graph analyzed for circular dependencies
+- [x] **CQUAL-07**: Import graph analyzed for circular dependencies
 
 ### Operational Hardening
 
@@ -94,11 +94,11 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | NETENG-05   | Phase 113 | Complete |
 | CQUAL-01    | Phase 114 | Pending  |
 | CQUAL-02    | Phase 114 | Pending  |
-| CQUAL-03    | Phase 114 | Pending  |
+| CQUAL-03    | Phase 114 | Complete |
 | CQUAL-04    | Phase 114 | Pending  |
-| CQUAL-05    | Phase 114 | Pending  |
+| CQUAL-05    | Phase 114 | Complete |
 | CQUAL-06    | Phase 114 | Pending  |
-| CQUAL-07    | Phase 114 | Pending  |
+| CQUAL-07    | Phase 114 | Complete |
 | OPSEC-01    | Phase 115 | Pending  |
 | OPSEC-02    | Phase 115 | Pending  |
 | OPSEC-03    | Phase 115 | Pending  |
