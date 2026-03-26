@@ -8,15 +8,17 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.22 Full System Audit
+## Current Milestone: v1.23 Self-Optimizing Controller
 
-**Goal:** Comprehensive audit from network engineering, Linux sysadmin, and Python development perspectives — identify and fix technical debt, dead code, security issues, performance gaps, and operational hygiene problems accumulated across 21 milestones.
+**Goal:** Complete the tuner's vision (detection + response), heal fusion automatically, make tc calls cheaper via direct netlink, and add proper observability with Prometheus/Grafana export.
 
-**Target areas:**
+**Target features:**
 
-- Network engineering: CAKE params, DSCP/QoS alignment, steering logic, measurement methodology
-- Linux sysadmin: systemd units, permissions, log rotation, NIC tuning, security hardening
-- Python development: dead code, type safety, test gaps, dependency hygiene, complexity reduction
+- pyroute2 netlink for tc calls (subprocess 3ms → netlink 0.3ms in LinuxCakeBackend)
+- Auto-disable fusion on low protocol correlation (fixes ATT ICMP/IRTT path divergence)
+- Adaptive rate steps (tuner learns step_up_mbps, factor_down, green_cycles_required)
+- Prometheus/Grafana metrics export (real-time dashboards, long-term TSDB)
+- metrics.db retention strategy (aggressive downsampling, 24-48h hot data locally)
 
 ## Current State
 
@@ -272,7 +274,7 @@ See Current Milestone section above for target areas.
 ### Out of Scope
 
 - Machine learning-based bandwidth prediction — unnecessary complexity
-- Full Prometheus/Grafana stack — designing compatible naming, but not requiring external deps
+- Full Prometheus/Grafana stack as hard dependency — export is optional, core operation remains self-contained
 - Breaking changes to configuration format — maintain compatibility
 - Generic multi-vendor router support — Linux CAKE backend is specific to transparent bridge offload, not general non-MikroTik support
 
@@ -471,7 +473,7 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - **Python 3.12**: Runtime and tooling locked to this version
 - **systemd integration**: Deployment pattern is fixed (service templates, timers)
 - **Dual transport**: Must maintain both REST API (preferred) and SSH (fallback) support
-- **No external monitoring**: Keep self-contained (no Prometheus, Sentry dependencies)
+- **No external monitoring**: Keep self-contained for core operation (Prometheus export is optional, not required for function)
 - **Backward compatibility**: Existing state files and configuration must remain compatible
 
 ## Key Decisions
@@ -579,4 +581,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-03-26 after v1.22 Full System Audit milestone started_
+_Last updated: 2026-03-26 after v1.23 Self-Optimizing Controller milestone started_
