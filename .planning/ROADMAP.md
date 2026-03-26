@@ -16,7 +16,7 @@ None
 ## Phases
 
 - [ ] **Phase 112: Foundation Scan** - Mechanical tool-driven scanning (CVEs, dead code, permissions, linting) that produces findings for all later phases
-- [ ] **Phase 113: Network Engineering Audit** - CAKE parameter verification, DSCP end-to-end trace, steering logic correctness, measurement methodology validation
+- [x] **Phase 113: Network Engineering Audit** - CAKE parameter verification, DSCP end-to-end trace, steering logic correctness, measurement methodology validation
 - [ ] **Phase 114: Code Quality & Safety** - Exception handling triage, type safety probe, thread safety audit, complexity analysis, SIGUSR1 chain catalog
 - [ ] **Phase 115: Operational Hardening** - systemd unit hardening, NIC persistence, resource limits, backup/recovery procedures, dependency locking
 - [ ] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
@@ -114,7 +114,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | Phase                             | Plans Complete | Status      | Completed  |
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
-| 113. Network Engineering Audit    | 3/3 | Complete   | 2026-03-26 |
+| 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
 | 114. Code Quality & Safety        | 0/TBD          | Not started | -          |
 | 115. Operational Hardening        | 0/TBD          | Not started | -          |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
