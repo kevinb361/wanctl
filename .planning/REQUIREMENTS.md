@@ -1,124 +1,101 @@
-# Requirements: wanctl v1.22 Full System Audit
+# Requirements: wanctl v1.23 Self-Optimizing Controller
 
 **Defined:** 2026-03-26
-**Core Value:** Sub-second congestion detection with 50ms control loops — now audited for production hardening
+**Core Value:** Sub-second congestion detection with 50ms control loops — now self-optimizing across detection AND response
 
-## v1.22 Requirements
+## v1.23 Requirements
 
-Comprehensive audit from network engineering, Linux sysadmin, and Python development perspectives. No new features — cleanup, hardening, and documentation only.
+Complete the tuner's vision, heal fusion automatically, make tc calls cheaper via direct netlink, and add proper observability.
 
-### Foundation Scan
+### Netlink Backend
 
-- [x] **FSCAN-01**: All Python dependencies scanned for CVEs with pip-audit (zero critical/high)
-- [x] **FSCAN-02**: Unused dependencies identified and removed via deptry
-- [x] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
-- [x] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0640, state/log dirs 0750)
-- [x] **FSCAN-05**: systemd-analyze security score assessed for all 3 service units
-- [x] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
-- [x] **FSCAN-07**: Orphaned test fixtures identified via pytest-deadfixtures
-- [x] **FSCAN-08**: Log rotation verified (RotatingFileHandler active, retention appropriate)
+- [ ] **NLNK-01**: LinuxCakeBackend can change CAKE bandwidth via pyroute2 netlink instead of subprocess `tc`
+- [ ] **NLNK-02**: NetlinkCakeBackend maintains a singleton IPRoute connection for daemon lifetime with reconnect on socket death
+- [ ] **NLNK-03**: NetlinkCakeBackend falls back to subprocess `tc` if netlink call fails
+- [ ] **NLNK-04**: NetlinkCakeBackend reads CAKE per-tin stats via netlink instead of subprocess `tc -j qdisc show`
+- [ ] **NLNK-05**: Factory registration allows config `transport: "linux-cake-netlink"` to select the netlink backend
 
-### Network Engineering
+### Fusion Healing
 
-- [x] **NETENG-01**: CAKE parameters verified per WAN (overhead, diffserv4, ack-filter, split-gso, memlimit)
-- [x] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle -> CAKE tins -> verify EF/AF/CS1 mapping)
-- [x] **NETENG-03**: Steering logic correctness audited (confidence scoring, degrade timers, CAKE-primary invariant)
-- [x] **NETENG-04**: Measurement methodology validated (reflector selection, signal chain, IRTT vs ICMP paths)
-- [x] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
+- [ ] **FUSE-01**: Controller auto-suspends fusion when protocol correlation drops below configurable threshold for sustained period
+- [ ] **FUSE-02**: Controller auto-re-enables fusion when protocol correlation recovers (3-state: ACTIVE/SUSPENDED/RECOVERING)
+- [ ] **FUSE-03**: Fusion state transitions trigger Discord alerts via AlertEngine
+- [ ] **FUSE-04**: TuningEngine locks fusion_icmp_weight parameter when fusion healer suspends fusion
+- [ ] **FUSE-05**: Health endpoint exposes fusion heal state (active/suspended/recovering) and correlation history
 
-### Code Quality
+### Response Tuning
 
-- [x] **CQUAL-01**: All broad `except Exception` catches triaged (legitimate safety vs bug-swallowing)
-- [x] **CQUAL-02**: Bug-swallowing exception catches fixed with appropriate error handling
-- [x] **CQUAL-03**: MyPy strictness probed module-by-module with fix/suppress strategy per module
-- [x] **CQUAL-04**: Thread safety audit completed (threaded files, shared mutable state, race conditions)
-- [x] **CQUAL-05**: Complexity hotspots analyzed (5 largest files) with extraction recommendations documented
-- [x] **CQUAL-06**: SIGUSR1 reload chain fully cataloged with E2E test coverage verified
-- [x] **CQUAL-07**: Import graph analyzed for circular dependencies
+- [ ] **RTUN-01**: Tuner learns optimal step_up_mbps from production recovery episode analysis
+- [ ] **RTUN-02**: Tuner learns optimal factor_down from congestion resolution speed
+- [ ] **RTUN-03**: Tuner learns optimal green_cycles_required from step-up re-trigger rate
+- [ ] **RTUN-04**: Oscillation lockout freezes all response parameters when transitions/minute exceeds threshold
+- [ ] **RTUN-05**: Response tuning is opt-in via exclude_params (disabled by default, matching existing tuning graduation pattern)
 
-### Operational Hardening
+### Observability
 
-- [x] **OPSEC-01**: systemd units hardened (ProtectKernelTunables, SystemCallFilter, etc.) verified on production VM
-- [x] **OPSEC-02**: NIC/bridge tuning made persistent across reboot (rx-udp-gro-forwarding, ring buffers)
-- [x] **OPSEC-03**: Resource limits set on service units (MemoryMax, TasksMax, LimitNOFILE)
-- [x] **OPSEC-04**: Backup/recovery procedure documented (configs, metrics.db, VM snapshots, rollback)
-- [x] **OPSEC-05**: Production dependency lock file created (requirements-production.txt)
-- [x] **OPSEC-06**: Circuit breaker config consistent across all 3 service units
+- [ ] **OBSV-01**: Prometheus metrics exported via CustomCollector on separate port (9103) with zero hot-loop overhead
+- [ ] **OBSV-02**: Grafana dashboard JSON committed to repo with provisioning YAML for operator import
+- [ ] **OBSV-03**: Per-tin CAKE metrics exported with stable labels (wan, direction, tin)
+- [ ] **OBSV-04**: prometheus_client is optional dependency — core operation works without it installed
 
-### Test & Documentation
+### Retention
 
-- [ ] **TDOC-01**: Test quality audit completed (assertion-free, over-mocked, tautological tests identified)
-- [ ] **TDOC-02**: Highest-risk test quality issues fixed
-- [ ] **TDOC-03**: All docs/\* reviewed for accuracy against current architecture (post-v1.21)
-- [ ] **TDOC-04**: Container-era scripts archived to .archive/ with manifest
-- [ ] **TDOC-05**: CONFIG_SCHEMA.md aligned with config_validation_utils.py and accepted params
-- [ ] **TDOC-06**: Audit findings summary with remaining debt inventory produced
+- [ ] **RETN-01**: Retention thresholds configurable via `storage.retention` YAML section
+- [ ] **RETN-02**: Config validation enforces retention >= tuner lookback_hours data availability
+- [ ] **RETN-03**: Prometheus-compensated mode enables aggressive local retention (24-48h) when long-term TSDB is available
 
 ## Future Requirements
 
-### Deferred to v1.23+
+### v1.24 Candidates
 
-- **REFAC-01**: autorate_continuous.py extraction into separate modules (4,282 LOC, 4 responsibilities)
-- **REFAC-02**: Global strict mypy migration (module-by-module probe in v1.22, full migration later)
-- **OBSRV-01**: Prometheus/Grafana integration (document metric naming readiness only in v1.22)
-- **TEST-01**: Mutation testing with mutmut on critical modules (hours-long runtime, scope TBD)
-- **ARCH-01**: import-linter architectural boundary enforcement (post-audit contracts)
+- **IRTT-01**: Multiple IRTT servers for geographic diversity and redundancy
+- **RESIL-01**: Graceful VM bypass if cake-shaper VM fails (bridge failover or MikroTik fallback route)
+- **TEST-01**: Integration/contract tests for RouterOS communication (VCR-style replay)
 
 ## Out of Scope
 
-| Feature                               | Reason                                                                                |
-| ------------------------------------- | ------------------------------------------------------------------------------------- |
-| Rewriting autorate_continuous.py      | Behavioral regressions in 50ms control loop take days to surface — separate milestone |
-| Global strict mypy                    | Produces unreviewable changeset — module-by-module probe only in v1.22                |
-| Removing all mocking from tests       | Makes tests environment-dependent and slow                                            |
-| Performance optimization of 50ms loop | Already within budget; premature optimization causes instability                      |
-| Prometheus/Grafana implementation     | Document readiness only — implementation is scope creep                               |
-| New features of any kind              | This is an audit milestone — hardening and cleanup only                               |
+| Feature | Reason |
+|---------|--------|
+| ML-based bandwidth prediction | Statistical tuning is already the adaptive learning system; ML adds complexity without measurable gain |
+| Auto-tuning ceiling_mbps from speed tests | Policy decision, not measurement; saturating the link disrupts latency-sensitive traffic |
+| Push-gateway / remote-write bridge | Pull model works on same VLAN; adds complexity without benefit |
+| Cycle interval < 50ms | Validated as optimal for 20Hz signal processing chain; CAKE AQM interval is 100ms |
+| Breaking changes to config format | Maintain backward compatibility |
 
 ## Traceability
 
-| Requirement | Phase     | Status   |
-| ----------- | --------- | -------- |
-| FSCAN-01    | Phase 112 | Complete |
-| FSCAN-02    | Phase 112 | Complete |
-| FSCAN-03    | Phase 112 | Complete |
-| FSCAN-04    | Phase 112 | Complete |
-| FSCAN-05    | Phase 112 | Complete |
-| FSCAN-06    | Phase 112 | Complete |
-| FSCAN-07    | Phase 112 | Complete |
-| FSCAN-08    | Phase 112 | Complete |
-| NETENG-01   | Phase 113 | Complete |
-| NETENG-02   | Phase 113 | Complete |
-| NETENG-03   | Phase 113 | Complete |
-| NETENG-04   | Phase 113 | Complete |
-| NETENG-05   | Phase 113 | Complete |
-| CQUAL-01    | Phase 114 | Complete |
-| CQUAL-02    | Phase 114 | Complete |
-| CQUAL-03    | Phase 114 | Complete |
-| CQUAL-04    | Phase 114 | Complete |
-| CQUAL-05    | Phase 114 | Complete |
-| CQUAL-06    | Phase 114 | Complete |
-| CQUAL-07    | Phase 114 | Complete |
-| OPSEC-01    | Phase 115 | Complete |
-| OPSEC-02    | Phase 115 | Complete |
-| OPSEC-03    | Phase 115 | Complete |
-| OPSEC-04    | Phase 115 | Complete |
-| OPSEC-05    | Phase 115 | Complete |
-| OPSEC-06    | Phase 115 | Complete |
-| TDOC-01     | Phase 116 | Pending  |
-| TDOC-02     | Phase 116 | Pending  |
-| TDOC-03     | Phase 116 | Pending  |
-| TDOC-04     | Phase 116 | Pending  |
-| TDOC-05     | Phase 116 | Pending  |
-| TDOC-06     | Phase 116 | Pending  |
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| NLNK-01 | TBD | Pending |
+| NLNK-02 | TBD | Pending |
+| NLNK-03 | TBD | Pending |
+| NLNK-04 | TBD | Pending |
+| NLNK-05 | TBD | Pending |
+| FUSE-01 | TBD | Pending |
+| FUSE-02 | TBD | Pending |
+| FUSE-03 | TBD | Pending |
+| FUSE-04 | TBD | Pending |
+| FUSE-05 | TBD | Pending |
+| RTUN-01 | TBD | Pending |
+| RTUN-02 | TBD | Pending |
+| RTUN-03 | TBD | Pending |
+| RTUN-04 | TBD | Pending |
+| RTUN-05 | TBD | Pending |
+| OBSV-01 | TBD | Pending |
+| OBSV-02 | TBD | Pending |
+| OBSV-03 | TBD | Pending |
+| OBSV-04 | TBD | Pending |
+| RETN-01 | TBD | Pending |
+| RETN-02 | TBD | Pending |
+| RETN-03 | TBD | Pending |
 
 **Coverage:**
-
-- v1.22 requirements: 32 total
-- Mapped to phases: 32/32
-- Unmapped: 0
+- v1.23 requirements: 22 total
+- Mapped to phases: 0
+- Unmapped: 22 ⚠️
 
 ---
-
-_Requirements defined: 2026-03-26_
-_Last updated: 2026-03-26 after roadmap creation_
+*Requirements defined: 2026-03-26*
+*Last updated: 2026-03-26 after initial definition*
