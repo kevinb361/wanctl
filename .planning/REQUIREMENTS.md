@@ -38,12 +38,12 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 ### Operational Hardening
 
-- [ ] **OPSEC-01**: systemd units hardened (ProtectKernelTunables, SystemCallFilter, etc.) verified on production VM
-- [ ] **OPSEC-02**: NIC/bridge tuning made persistent across reboot (rx-udp-gro-forwarding, ring buffers)
-- [ ] **OPSEC-03**: Resource limits set on service units (MemoryMax, TasksMax, LimitNOFILE)
+- [x] **OPSEC-01**: systemd units hardened (ProtectKernelTunables, SystemCallFilter, etc.) verified on production VM
+- [x] **OPSEC-02**: NIC/bridge tuning made persistent across reboot (rx-udp-gro-forwarding, ring buffers)
+- [x] **OPSEC-03**: Resource limits set on service units (MemoryMax, TasksMax, LimitNOFILE)
 - [x] **OPSEC-04**: Backup/recovery procedure documented (configs, metrics.db, VM snapshots, rollback)
 - [x] **OPSEC-05**: Production dependency lock file created (requirements-production.txt)
-- [ ] **OPSEC-06**: Circuit breaker config consistent across all 3 service units
+- [x] **OPSEC-06**: Circuit breaker config consistent across all 3 service units
 
 ### Test & Documentation
 
@@ -99,12 +99,12 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | CQUAL-05    | Phase 114 | Complete |
 | CQUAL-06    | Phase 114 | Complete |
 | CQUAL-07    | Phase 114 | Complete |
-| OPSEC-01    | Phase 115 | Pending  |
-| OPSEC-02    | Phase 115 | Pending  |
-| OPSEC-03    | Phase 115 | Pending  |
+| OPSEC-01    | Phase 115 | Complete |
+| OPSEC-02    | Phase 115 | Complete |
+| OPSEC-03    | Phase 115 | Complete |
 | OPSEC-04    | Phase 115 | Complete |
 | OPSEC-05    | Phase 115 | Complete |
-| OPSEC-06    | Phase 115 | Pending  |
+| OPSEC-06    | Phase 115 | Complete |
 | TDOC-01     | Phase 116 | Pending  |
 | TDOC-02     | Phase 116 | Pending  |
 | TDOC-03     | Phase 116 | Pending  |

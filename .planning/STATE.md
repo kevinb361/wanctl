@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
-status: Defining requirements
-last_updated: "2026-03-26T22:42:29.396Z"
-last_activity: 2026-03-26 — Milestone v1.23 started
+status: executing
+last_updated: "2026-03-26T22:55:32Z"
+last_activity: 2026-03-26 — Completed 115-03-PLAN.md (resource limits + NIC persistence)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 11
-  percent: 0
+  completed_plans: 12
+  percent: 92
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining requirements for v1.23
+**Current focus:** v1.22 Full System Audit -- Phase 115 complete, Phase 116 next
 
 ## Position
 
-**Milestone:** v1.23 Self-Optimizing Controller
-**Phase:** Not started (defining requirements)
-**Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-03-26 — Milestone v1.23 started
+**Milestone:** v1.22 Full System Audit
+**Phase:** 115 of 116 (operational hardening) -- COMPLETE
+**Plan:** 3 of 3 complete
+**Status:** Phase 115 complete, Phase 116 (Test & Documentation Hygiene) next
+**Last activity:** 2026-03-26 -- Completed 115-03-PLAN.md
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 92%
 
 ## Accumulated Context
 
@@ -44,12 +44,13 @@ Progress: [░░░░░░░░░░] 0%
 - Prometheus export is optional, core operation remains self-contained
 - 115-02: Production uses system Python (no venv); requests 2.32.3 below declared >=2.33.0 (CVE pending)
 - 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
+- 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
+- 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
 
 ### Known Issues
 
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure
-- rx-udp-gro-forwarding not persistent across reboot
 - ATT fusion disabled — protocol correlation 0.74 causes permanent delta offset
 - metrics.db at 521MB after 25h — disk fills in ~50 days at current rate
 
