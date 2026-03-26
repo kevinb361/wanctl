@@ -379,27 +379,15 @@ class TestProfilingInstrumentation:
 
     def test_profile_flag_accepted_by_argparse(self):
         """--profile flag should be accepted by the argument parser."""
-        from wanctl.autorate_continuous import main
+        from wanctl.autorate_continuous import _parse_autorate_args
 
-        # We need to extract the parser. Since main() creates it internally,
-        # we test by patching sys.argv and checking args.profile exists
-        with (
-            patch(
-                "sys.argv",
-                ["autorate", "--config", "test.yaml", "--profile"],
-            ),
-            patch("wanctl.autorate_continuous.ContinuousAutoRate") as mock_car,
+        with patch(
+            "sys.argv",
+            ["autorate", "--config", "test.yaml", "--profile"],
         ):
-            mock_car.return_value.wan_controllers = [
-                {"config": MagicMock(data={}), "logger": MagicMock(), "controller": MagicMock()}
-            ]
-            # main() will try to proceed but we can catch it
-            try:
-                main()
-            except (SystemExit, Exception):
-                pass
-                # If --profile wasn't accepted, argparse would have called sys.exit(2)
-                # which we'd see as SystemExit with code 2
+            args = _parse_autorate_args()
+            assert args.profile is True
+            assert args.config == ["test.yaml"]
 
 
 # =============================================================================
