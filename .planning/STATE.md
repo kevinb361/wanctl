@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.23
-milestone_name: Self-Optimizing Controller
-status: planning
-last_updated: "2026-03-26T22:00:00.000Z"
-last_activity: 2026-03-26
+milestone: v1.22
+milestone_name: milestone
+status: Defining requirements
+last_updated: "2026-03-26T22:42:29.396Z"
+last_activity: 2026-03-26 — Milestone v1.23 started
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 5
+  completed_phases: 3
+  total_plans: 13
+  completed_plans: 11
   percent: 0
 ---
 
@@ -42,6 +42,8 @@ Progress: [░░░░░░░░░░] 0%
 - ATT fusion manually disabled due to ICMP/IRTT path divergence (correlation 0.74)
 - metrics.db growing ~500MB/day — retention strategy required
 - Prometheus export is optional, core operation remains self-contained
+- 115-02: Production uses system Python (no venv); requests 2.32.3 below declared >=2.33.0 (CVE pending)
+- 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
 
 ### Known Issues
 

@@ -101,7 +101,7 @@ Plans:
 Plans:
 
 - [ ] 115-01-PLAN.md -- systemd unit hardening + circuit breaker consistency (OPSEC-01, OPSEC-06)
-- [ ] 115-02-PLAN.md -- Dependency lock + backup/recovery runbook (OPSEC-04, OPSEC-05)
+- [x] 115-02-PLAN.md -- Dependency lock + backup/recovery runbook (OPSEC-04, OPSEC-05)
 - [ ] 115-03-PLAN.md -- Resource limits + NIC persistence + reboot verification (OPSEC-02, OPSEC-03)
 
 ### Phase 116: Test & Documentation Hygiene
@@ -128,7 +128,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
 | 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
 | 114. Code Quality & Safety        | 3/3            | Complete    | 2026-03-26 |
-| 115. Operational Hardening        | 0/3            | Not started | -          |
+| 115. Operational Hardening        | 1/3 | In Progress|  |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
 
 <details>
