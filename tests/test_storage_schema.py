@@ -38,6 +38,10 @@ class TestStoredMetrics:
             "wanctl_irtt_loss_down_pct",
             "wanctl_irtt_asymmetry_ratio",
             "wanctl_irtt_asymmetry_direction",
+            "wanctl_cake_tin_backlog_bytes",
+            "wanctl_cake_tin_delay_us",
+            "wanctl_cake_tin_dropped",
+            "wanctl_cake_tin_ecn_marked",
         }
         assert set(STORED_METRICS.keys()) == expected_keys
 
