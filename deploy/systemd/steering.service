@@ -65,5 +65,12 @@ ProcSubset=pid
 # Device ACL
 DeviceAllow=
 
+# Resource limits (sized from production observation 2026-03-26)
+# Steering cgroup=221MB RSS=57MB, Tasks=2
+MemoryMax=384M
+MemoryHigh=256M
+TasksMax=32
+LimitNOFILE=1024
+
 [Install]
 WantedBy=multi-user.target
