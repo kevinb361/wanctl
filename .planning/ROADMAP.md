@@ -15,6 +15,12 @@ None
 
 ## Phases
 
+### v1.22 Remaining (Full System Audit)
+
+- [ ] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
+
+### v1.23 Self-Optimizing Controller
+
 - [ ] **Phase 117: pyroute2 Netlink Backend** - Replace subprocess tc with pyroute2 netlink for CAKE bandwidth changes and per-tin stats readback
 - [ ] **Phase 118: Metrics Retention Strategy** - Configurable retention thresholds with tuner data availability validation
 - [ ] **Phase 119: Auto-Fusion Healing** - Automatic fusion suspend/recovery based on protocol correlation with Discord alerts
@@ -23,18 +29,33 @@ None
 
 ## Phase Details
 
+### Phase 116: Test & Documentation Hygiene
+
+**Goal**: Test suite quality issues are identified and fixed, all documentation reflects current architecture, and a complete audit findings summary exists
+**Depends on**: Phase 115
+**Requirements**: TDOC-01, TDOC-02, TDOC-03, TDOC-04, TDOC-05, TDOC-06
+**Success Criteria** (what must be TRUE):
+
+1. Test quality audit completed with assertion-free, over-mocked, and tautological tests identified and highest-risk cases fixed
+2. All files in docs/\* reviewed and updated to reflect post-v1.21 architecture (container references removed, VM architecture documented)
+3. Container-era scripts archived to .archive/ with a manifest documenting what each script was and why it was archived
+4. CONFIG_SCHEMA.md aligned with config_validation_utils.py (all accepted params documented, no stale entries)
+5. Audit findings summary produced with remaining debt inventory categorized by severity and recommended milestone
+   **Plans**: TBD
+
 ### Phase 117: pyroute2 Netlink Backend
 
 **Goal**: tc calls in the 50ms hot loop use kernel netlink instead of subprocess fork/exec, reclaiming ~5ms/cycle
 **Depends on**: Nothing (first phase, fully independent)
 **Requirements**: NLNK-01, NLNK-02, NLNK-03, NLNK-04, NLNK-05
 **Success Criteria** (what must be TRUE):
-  1. Operator can set `transport: "linux-cake-netlink"` in YAML and the controller uses pyroute2 for all tc operations
-  2. CAKE bandwidth changes via netlink produce identical queue state to subprocess tc (verified by tc -j readback)
-  3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
-  4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
-  5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
-**Plans**: TBD
+
+1. Operator can set `transport: "linux-cake-netlink"` in YAML and the controller uses pyroute2 for all tc operations
+2. CAKE bandwidth changes via netlink produce identical queue state to subprocess tc (verified by tc -j readback)
+3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
+4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
+5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
+   **Plans**: TBD
 
 ### Phase 118: Metrics Retention Strategy
 
@@ -42,10 +63,11 @@ None
 **Depends on**: Nothing (independent, but ships before Prometheus for config design coordination)
 **Requirements**: RETN-01, RETN-02, RETN-03
 **Success Criteria** (what must be TRUE):
-  1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
-  2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours * 3600, with a clear error message
-  3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when external TSDB is available
-**Plans**: TBD
+
+1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
+2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours \* 3600, with a clear error message
+3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when external TSDB is available
+   **Plans**: TBD
 
 ### Phase 119: Auto-Fusion Healing
 
@@ -53,11 +75,12 @@ None
 **Depends on**: Nothing (independent, ships after Phase 117 for sequential validation)
 **Requirements**: FUSE-01, FUSE-02, FUSE-03, FUSE-04, FUSE-05
 **Success Criteria** (what must be TRUE):
-  1. When ICMP/IRTT protocol correlation drops below threshold for a sustained period, the controller auto-suspends fusion and sends a Discord alert
-  2. When protocol correlation recovers, the controller transitions through RECOVERING to ACTIVE and sends a Discord alert
-  3. The health endpoint shows current fusion heal state (ACTIVE/SUSPENDED/RECOVERING) and recent correlation history
-  4. While fusion is suspended by the healer, the TuningEngine cannot modify fusion_icmp_weight (parameter is locked)
-**Plans**: TBD
+
+1. When ICMP/IRTT protocol correlation drops below threshold for a sustained period, the controller auto-suspends fusion and sends a Discord alert
+2. When protocol correlation recovers, the controller transitions through RECOVERING to ACTIVE and sends a Discord alert
+3. The health endpoint shows current fusion heal state (ACTIVE/SUSPENDED/RECOVERING) and recent correlation history
+4. While fusion is suspended by the healer, the TuningEngine cannot modify fusion_icmp_weight (parameter is locked)
+   **Plans**: TBD
 
 ### Phase 120: Adaptive Rate Step Tuning
 
@@ -65,12 +88,13 @@ None
 **Depends on**: Phase 118 (retention must guarantee 1m data availability for strategy lookback)
 **Requirements**: RTUN-01, RTUN-02, RTUN-03, RTUN-04, RTUN-05
 **Success Criteria** (what must be TRUE):
-  1. The tuner analyzes production recovery episodes and adjusts step_up_mbps toward faster recovery without overshoot
-  2. The tuner analyzes congestion resolution speed and adjusts factor_down toward faster resolution without excessive bandwidth sacrifice
-  3. The tuner analyzes step-up re-trigger rates and adjusts green_cycles_required to prevent premature recovery
-  4. When transitions/minute exceeds the oscillation threshold, all response parameters are frozen and a Discord alert fires
-  5. Response tuning is disabled by default via exclude_params and must be explicitly opted in (matching existing tuning graduation pattern)
-**Plans**: TBD
+
+1. The tuner analyzes production recovery episodes and adjusts step_up_mbps toward faster recovery without overshoot
+2. The tuner analyzes congestion resolution speed and adjusts factor_down toward faster resolution without excessive bandwidth sacrifice
+3. The tuner analyzes step-up re-trigger rates and adjusts green_cycles_required to prevent premature recovery
+4. When transitions/minute exceeds the oscillation threshold, all response parameters are frozen and a Discord alert fires
+5. Response tuning is disabled by default via exclude_params and must be explicitly opted in (matching existing tuning graduation pattern)
+   **Plans**: TBD
 
 ### Phase 121: Prometheus/Grafana Export
 
@@ -78,25 +102,27 @@ None
 **Depends on**: Phase 118 (prometheus_compensated retention mode depends on retention config design)
 **Requirements**: OBSV-01, OBSV-02, OBSV-03, OBSV-04
 **Success Criteria** (what must be TRUE):
-  1. Prometheus can scrape wanctl metrics from port 9103 and display them in Grafana using the committed dashboard JSON
-  2. Per-tin CAKE metrics are exported with stable labels (wan, direction, tin) enabling per-traffic-class Grafana panels
-  3. The core wanctl daemon starts and operates normally without prometheus_client installed (optional dependency)
-  4. The /metrics endpoint adds zero overhead to the 50ms control loop (CustomCollector reads state on scrape, not push from cycle)
-**Plans**: TBD
-**UI hint**: yes
+
+1. Prometheus can scrape wanctl metrics from port 9103 and display them in Grafana using the committed dashboard JSON
+2. Per-tin CAKE metrics are exported with stable labels (wan, direction, tin) enabling per-traffic-class Grafana panels
+3. The core wanctl daemon starts and operates normally without prometheus_client installed (optional dependency)
+4. The /metrics endpoint adds zero overhead to the 50ms control loop (CustomCollector reads state on scrape, not push from cycle)
+   **Plans**: TBD
+   **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 117 -> 118 -> 119 -> 120 -> 121
+Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 117. pyroute2 Netlink Backend | 0/TBD | Not started | - |
-| 118. Metrics Retention Strategy | 0/TBD | Not started | - |
-| 119. Auto-Fusion Healing | 0/TBD | Not started | - |
-| 120. Adaptive Rate Step Tuning | 0/TBD | Not started | - |
-| 121. Prometheus/Grafana Export | 0/TBD | Not started | - |
+| Phase                             | Plans Complete | Status      | Completed |
+| --------------------------------- | -------------- | ----------- | --------- |
+| 116. Test & Documentation Hygiene | 0/TBD          | Not started | -         |
+| 117. pyroute2 Netlink Backend     | 0/TBD          | Not started | -         |
+| 118. Metrics Retention Strategy   | 0/TBD          | Not started | -         |
+| 119. Auto-Fusion Healing          | 0/TBD          | Not started | -         |
+| 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -         |
+| 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -         |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.22)</summary>
