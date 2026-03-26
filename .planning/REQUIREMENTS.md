@@ -24,7 +24,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 - [x] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle -> CAKE tins -> verify EF/AF/CS1 mapping)
 - [ ] **NETENG-03**: Steering logic correctness audited (confidence scoring, degrade timers, CAKE-primary invariant)
 - [ ] **NETENG-04**: Measurement methodology validated (reflector selection, signal chain, IRTT vs ICMP paths)
-- [ ] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
+- [x] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
 
 ### Code Quality
 
@@ -91,7 +91,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | NETENG-02   | Phase 113 | Complete |
 | NETENG-03   | Phase 113 | Pending  |
 | NETENG-04   | Phase 113 | Pending  |
-| NETENG-05   | Phase 113 | Pending  |
+| NETENG-05   | Phase 113 | Complete |
 | CQUAL-01    | Phase 114 | Pending  |
 | CQUAL-02    | Phase 114 | Pending  |
 | CQUAL-03    | Phase 114 | Pending  |
