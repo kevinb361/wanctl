@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.22
-milestone_name: Full System Audit
-status: planning
-last_updated: "2026-03-26"
-last_activity: 2026-03-26
+milestone_name: milestone
+status: executing
+last_updated: "2026-03-26T17:24:06Z"
+last_activity: 2026-03-26 -- Completed 112-02 (production VM security audit)
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 25
 ---
 
 # Session State
@@ -20,23 +20,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.22 Full System Audit -- roadmap created, ready to plan Phase 112
+**Current focus:** v1.22 Full System Audit -- executing Phase 112 (Foundation Scan)
 
 ## Position
 
 **Milestone:** v1.22 Full System Audit
-**Phase:** 112 of 116 (Foundation Scan) -- not started
-**Status:** Ready to plan Phase 112
-**Last activity:** 2026-03-26 -- Roadmap created (5 phases, 32 requirements mapped)
+**Phase:** 112 of 116 (Foundation Scan) -- in progress
+**Status:** Executing Phase 112 plans (1/4 complete)
+**Last activity:** 2026-03-26 -- Completed 112-02 (production VM security audit)
 
-Progress: [..........] 0%
+Progress: [###.......] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+
+- Total plans completed: 1
+- Average duration: 4min
+- Total execution time: 0.07 hours
+
+| Phase | Plan | Duration | Tasks | Files |
+| ----- | ---- | -------- | ----- | ----- |
+| 112   | 02   | 4min     | 2     | 1     |
 
 ## Accumulated Context
 
@@ -47,6 +52,9 @@ Progress: [..........] 0%
 - Phase 112 (Foundation Scan) unblocks both 113 (kernel data) and 114 (dead code inventory)
 - Dead code from vulture: identification only, no removal without transport validation
 - systemd changes: test on production VM with systemd-analyze verify before committing
+- secrets file 0640 is correct (not 0600) -- wanctl group needs read access via EnvironmentFile
+- Steering service is `steering.service` (not `wanctl-steering.service`)
+- systemd hardening can reduce exposure from 8.4 to ~3.5-4.5 (Phase 115 target)
 
 ### Known Issues
 
