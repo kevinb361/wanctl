@@ -8,15 +8,25 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.22 Full System Audit
+
+**Goal:** Comprehensive audit from network engineering, Linux sysadmin, and Python development perspectives — identify and fix technical debt, dead code, security issues, performance gaps, and operational hygiene problems accumulated across 21 milestones.
+
+**Target areas:**
+
+- Network engineering: CAKE params, DSCP/QoS alignment, steering logic, measurement methodology
+- Linux sysadmin: systemd units, permissions, log rotation, NIC tuning, security hardening
+- Python development: dead code, type safety, test gaps, dependency hygiene, complexity reduction
+
 ## Current State
 
 **Version:** v1.20.0 (Adaptive Tuning) — shipped 2026-03-19
 **Tests:** ~3,723 passing, 91%+ coverage
 **LOC:** ~28,629 Python (src/)
-**Milestones:** 21 shipped (v1.0-v1.20), 103 phases, 210 plans
+**Milestones:** 22 shipped (v1.0-v1.21), 111 phases, 227 plans
 
-**Previous:** v1.19 Signal Fusion — Weighted ICMP+IRTT fusion, reflector quality scoring, OWD asymmetric detection, IRTT loss alerting
-**Latest:** v1.20 Adaptive Tuning — Self-optimizing controller with 4-layer tuning rotation (signal→EWMA→threshold→advanced), 30 requirements, fusion baseline deadlock fix, state/tuning persistence
+**Previous:** v1.20 Adaptive Tuning — Self-optimizing controller with 4-layer tuning rotation, fusion baseline deadlock fix
+**Latest:** v1.21 CAKE Offload — Linux CAKE backend on Proxmox VM with PCIe passthrough, transparent bridges, production cutover
 
 ## Requirements
 
@@ -239,20 +249,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ State file persistence to /var/lib/ + tuning param restore on restart — v1.20
 - ✓ 30/30 requirements satisfied — v1.20
 
+**v1.21 CAKE Offload (Shipped: 2026-03-25):**
+
+- ✓ LinuxCakeBackend using `tc qdisc replace/change` for CAKE management — v1.21
+- ✓ Transparent L2 bridges (br-spectrum, br-att) with 4 PCIe passthrough NICs — v1.21
+- ✓ VM 206 (cake-shaper) on Proxmox with VLAN 110 management — v1.21
+- ✓ Config transport: `linux-cake` alongside `rest`/`ssh` — v1.21
+- ✓ Production cutover from containers to VM completed — v1.21
+- ✓ `exclude_params` tuning feature for DOCSIS cable links — v1.21
+
 ### Active
 
-**Current Milestone: v1.21 CAKE Offload**
+**Current Milestone: v1.22 Full System Audit**
 
-**Goal:** Move CAKE shaping from the RB5009 router to a Debian 12 VM on Proxmox (odin) with PCIe passthrough NICs, eliminating the router CPU bottleneck.
-
-**Target features:**
-
-- LinuxCakeBackend using `tc qdisc change` instead of MikroTik REST API
-- Transparent L2 bridges (br-spectrum, br-att) with 4 passthrough NICs
-- VM provisioning on odin with VLAN 110 management interface
-- RB5009 queue tree removal (router becomes pure routing/firewall)
-- Config transport mode: `transport: "linux-cake"` alongside `rest`/`ssh`
-- Failover documentation and manual bypass path
+See Current Milestone section above for target areas.
 
 ### Deferred
 
@@ -569,4 +579,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-03-24 after v1.21 CAKE Offload milestone started_
+_Last updated: 2026-03-26 after v1.22 Full System Audit milestone started_
