@@ -19,34 +19,38 @@ After comprehensive testing in Phase 2, **50ms cycle interval** has been selecte
 ### Why 50ms?
 
 **Maximum Responsiveness:**
+
 - 40x faster than original 2s baseline (0.5Hz → 20Hz polling)
 - Sub-second congestion detection (50-100ms response time)
 - Fastest possible congestion mitigation
 
 **Proven Stability:**
+
 - Validated under 3-minute RRUL bidirectional stress testing
 - Zero errors or timing violations throughout testing
 - Perfect baseline RTT stability (no drift under extreme alpha values)
 - Tested on both cable (Spectrum) and DSL (AT&T) connections
 
 **Acceptable Resource Impact:**
+
 - **0% router CPU at idle** - Zero measurable impact from 20Hz REST API polling
 - **~45% CPU peak under heavy load** - Comfortable headroom during stress
 - **60-80% cycle utilization** - Within sustainable performance envelope
 - MikroTik RB5009 handles 50ms intervals effortlessly
 
 **Time-Constant Preservation:**
+
 - EWMA alpha values scaled mathematically to preserve wall-clock behavior
 - Steering thresholds maintain 16s activation, 30s recovery timing
 - Same congestion response characteristics regardless of polling rate
 
 ### Trade-offs Considered
 
-| Interval | Speed vs Original | Pros | Cons |
-|----------|------------------|------|------|
-| **50ms (SELECTED)** | 40x faster | Maximum speed, proven stable, sub-second detection | Minimal headroom (60-80% utilization), approaching limits |
-| 100ms | 20x faster | 2x headroom vs 50ms, still extremely fast | Not tested (would require validation) |
-| 250ms | 8x faster | 4x headroom, very safe, proven stable | Slower than achievable maximum |
+| Interval            | Speed vs Original | Pros                                               | Cons                                                      |
+| ------------------- | ----------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| **50ms (SELECTED)** | 40x faster        | Maximum speed, proven stable, sub-second detection | Minimal headroom (60-80% utilization), approaching limits |
+| 100ms               | 20x faster        | 2x headroom vs 50ms, still extremely fast          | Not tested (would require validation)                     |
+| 250ms               | 8x faster         | 4x headroom, very safe, proven stable              | Slower than achievable maximum                            |
 
 **Decision:** 50ms provides maximum user benefit (sub-second congestion response) with proven stability. The 60-80% utilization is sustainable and well within the router's capabilities.
 
@@ -57,12 +61,14 @@ After comprehensive testing in Phase 2, **50ms cycle interval** has been selecte
 ### Phase 2 Testing Summary
 
 **Test 02-01: 250ms Interval (Conservative)**
+
 - Duration: 28 minutes
 - Result: ✅ Proven stable, excellent headroom (12-16% utilization)
 - Router CPU: 1-3% under load
 - Timing: ±2ms consistency
 
 **Test 02-03: 50ms Interval (Extreme)**
+
 - Duration: 11 minutes + 3-minute RRUL stress test
 - Result: ✅ Proven stable, identified performance limit
 - Router CPU: 0% idle, 45% peak under RRUL stress
@@ -72,11 +78,13 @@ After comprehensive testing in Phase 2, **50ms cycle interval** has been selecte
 ### RRUL Stress Test Results
 
 **Test Conditions:**
+
 - 3-minute bidirectional stress (upload + download saturation)
 - Target: Dallas (104.200.21.31)
 - Heavy traffic load maintained throughout
 
 **Performance:**
+
 - **Congestion detection:** 50-100ms (1-2 cycles)
 - **State transitions:** GREEN → YELLOW → SOFT_RED/RED
 - **RTT response:** Spike from 26ms → 295ms detected immediately
@@ -95,12 +103,14 @@ After comprehensive testing in Phase 2, **50ms cycle interval** has been selecte
 ### Cycle Interval
 
 **Primary constant:**
+
 ```python
 # src/wanctl/autorate_continuous.py
 CYCLE_INTERVAL_SECONDS = 0.05  # 50ms = 20Hz polling
 ```
 
 **Steering daemon:**
+
 ```python
 # src/wanctl/steering/daemon.py
 ASSESSMENT_INTERVAL_SECONDS = 0.05
@@ -112,35 +122,38 @@ MAX_HISTORY_SAMPLES = 2400  # 2 minutes at 50ms
 **Principle:** When interval decreases Nx, alpha decreases Nx to maintain same wall-clock smoothing.
 
 **Spectrum (Cable):**
+
 ```yaml
 # configs/spectrum.yaml
 continuous_monitoring:
   thresholds:
-    alpha_baseline: 0.0005  # 2000 samples × 0.05s = 100s time constant
-    alpha_load: 0.005       # 200 samples × 0.05s = 10s time constant
+    alpha_baseline: 0.0005 # 2000 samples × 0.05s = 100s time constant
+    alpha_load: 0.005 # 200 samples × 0.05s = 10s time constant
 ```
 
 **AT&T (DSL):**
+
 ```yaml
 # configs/att.yaml
 continuous_monitoring:
   thresholds:
-    alpha_baseline: 0.000375  # 2667 samples × 0.05s = 133s time constant
-    alpha_load: 0.005         # 200 samples × 0.05s = 10s time constant
+    alpha_baseline: 0.000375 # 2667 samples × 0.05s = 133s time constant
+    alpha_load: 0.005 # 200 samples × 0.05s = 10s time constant
 ```
 
 ### Steering Thresholds
 
 **Sample counts scaled 40x from original 2s baseline:**
+
 ```yaml
 # /etc/wanctl/steering.yaml
 measurement:
   interval_seconds: 0.05
 
 state:
-  bad_samples_required: 320   # 320 × 0.05s = 16 seconds (activation)
-  good_samples_required: 600  # 600 × 0.05s = 30 seconds (recovery)
-  history_size: 2400          # 2400 × 0.05s = 120 seconds (2-minute window)
+  bad_samples_required: 320 # 320 × 0.05s = 16 seconds (activation)
+  good_samples_required: 600 # 600 × 0.05s = 30 seconds (recovery)
+  history_size: 2400 # 2400 × 0.05s = 120 seconds (2-minute window)
 ```
 
 **Wall-clock timing preserved:** Steering still takes 16s to activate, 30s to recover (same as slower intervals).
@@ -148,6 +161,7 @@ state:
 ### Schema Validation
 
 **Extended for extreme values:**
+
 ```python
 # src/wanctl/autorate_continuous.py
 alpha_baseline: min=0.0001 (was 0.001)  # Supports extreme smoothing at 20Hz
@@ -165,12 +179,14 @@ history_size: max=3000 (was 1000)        # Supports large sample buffers
 ### Timing Consistency
 
 **AT&T (VDSL):**
+
 - Target: 50ms
 - Actual: 50-51ms
 - Variance: ±1ms (exceptional)
 - Notes: DSL provides stable, predictable scheduling
 
 **Spectrum (Cable):**
+
 - Target: 50ms
 - Actual: 35-79ms (median 50ms)
 - Variance: ±10ms typical, occasional outliers
@@ -188,6 +204,7 @@ This represents the practical performance limit. Faster intervals are not recomm
 ### Router Efficiency
 
 **MikroTik RB5009UG+S+ (ARM64, 4 cores @ 1400MHz):**
+
 - **Idle:** 0% CPU (20Hz REST API polling = zero measurable impact)
 - **Under load:** 27-45% CPU (RRUL stress test)
 - **Peak:** 45% CPU (comfortable headroom, well below 70% threshold)
@@ -207,6 +224,7 @@ This represents the practical performance limit. Faster intervals are not recomm
 ### When to Use 100ms
 
 **Use 100ms if:**
+
 - You want 2x headroom over 50ms for variance/load spikes
 - Still 20x faster than original (excellent speed)
 - Lower risk for production
@@ -217,6 +235,7 @@ This represents the practical performance limit. Faster intervals are not recomm
 ### When to Use 250ms
 
 **Use 250ms if:**
+
 - You prefer conservative approach (proven over extended testing)
 - Want 4x headroom (very safe margin)
 - Still 8x faster than original 2s
@@ -257,12 +276,13 @@ git log --oneline --grep="250ms" | head -5
 git revert <50ms-commits> --no-edit
 
 # Redeploy configurations
-# (Copy updated files to containers and restart services)
+# (Copy updated files to production host and restart services)
 ```
 
 ### Option 2: Adjust to 100ms (Untested, Interpolated)
 
 Modify source and config files:
+
 - `CYCLE_INTERVAL_SECONDS = 0.1` (autorate and steering)
 - Scale alpha values × 2 (0.0005 → 0.001)
 - Scale sample counts ÷ 2 (320 → 160)
@@ -303,6 +323,7 @@ ssh cake-spectrum 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
 Current installations already running at 50ms (deployed 2026-01-13). No action needed.
 
 If running slower interval and want to upgrade:
+
 1. Review this document thoroughly
 2. Update source files (CYCLE_INTERVAL_SECONDS)
 3. Update WAN configs (alpha values scaled appropriately)
@@ -317,22 +338,26 @@ If running slower interval and want to upgrade:
 ### Health Check Indicators
 
 **Normal operation at 50ms:**
+
 ```bash
 # Expected output
 [GREEN/GREEN] RTT=25.5ms, baseline=24.0ms, delta=1.5ms | DL=940M, UL=38M
 ```
 
 **Timing consistency:**
+
 - ATT: 50-51ms (±1ms is normal)
 - Spectrum: 35-79ms (median 50ms, ±10ms variance normal)
 
 **Router CPU:**
+
 - Idle: 0-4% (0% typical)
 - Under load: 27-45% (acceptable range)
 
 ### Warning Signs
 
 **Monitor for these issues:**
+
 - Cycle timing consistently >70ms (indicates system overload)
 - Router CPU >70% sustained (indicates resource exhaustion)
 - Baseline RTT drifting over time (indicates EWMA misconfiguration)

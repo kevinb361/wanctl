@@ -1,8 +1,10 @@
 # Fallback Connectivity Checks - Implementation Complete
 
+> **Historical (pre-v1.21):** Deployment commands in this document reference LXC containers (cake-spectrum, cake-att). These have been superseded by the cake-shaper VM deployment in v1.21. The fallback logic itself remains current.
+
 **Date:** 2026-01-11
 **Version:** v1.4.0
-**Status:** READY FOR DEPLOYMENT
+**Status:** DEPLOYED
 
 ## Overview
 
@@ -15,7 +17,7 @@ Implemented Mode C (Graceful Degradation) fallback connectivity checks to handle
 **Gateway Check (`verify_local_connectivity`):**
 
 - Pings local gateway (10.10.110.1)
-- Differentiates WAN issues from container networking problems
+- Differentiates WAN issues from local networking problems
 - Execution time: ~50ms
 
 **TCP Connection Check (`verify_tcp_connectivity`):**
@@ -88,7 +90,7 @@ continuous_monitoring:
     enabled: true # Enable multi-protocol verification
     check_gateway: true # Try pinging local gateway first
     check_tcp: true # Try TCP connections to verify Internet
-    gateway_ip: "10.10.110.1" # Gateway to check (container default gateway)
+    gateway_ip: "10.10.110.1" # Gateway to check (default gateway)
     tcp_targets: # TCP endpoints to test (HTTPS)
       - ["1.1.1.1", 443]
       - ["8.8.8.8", 443]
