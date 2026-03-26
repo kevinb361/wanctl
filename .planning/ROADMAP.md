@@ -17,7 +17,7 @@ None
 
 ### v1.22 Remaining (Full System Audit)
 
-- [ ] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
+- [x] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
 
 ### v1.23 Self-Optimizing Controller
 
@@ -44,9 +44,10 @@ None
    **Plans**: 3 plans
 
 Plans:
-- [ ] 116-01-PLAN.md -- Test quality audit scan + fix assertion-free and tautological tests
-- [ ] 116-02-PLAN.md -- CONFIG_SCHEMA.md alignment, docs VM updates, container script archival
-- [ ] 116-03-PLAN.md -- Capstone v1.22 audit findings summary (aggregates all phases 112-116)
+
+- [x] 116-01-PLAN.md -- Test quality audit scan + fix assertion-free and tautological tests
+- [x] 116-02-PLAN.md -- CONFIG_SCHEMA.md alignment, docs VM updates, container script archival
+- [x] 116-03-PLAN.md -- Capstone v1.22 audit findings summary (aggregates all phases 112-116)
 
 ### Phase 117: pyroute2 Netlink Backend
 
@@ -120,14 +121,14 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 
-| Phase                             | Plans Complete | Status      | Completed |
-| --------------------------------- | -------------- | ----------- | --------- |
-| 116. Test & Documentation Hygiene | 0/3            | Not started | -         |
-| 117. pyroute2 Netlink Backend     | 0/TBD          | Not started | -         |
-| 118. Metrics Retention Strategy   | 0/TBD          | Not started | -         |
-| 119. Auto-Fusion Healing          | 0/TBD          | Not started | -         |
-| 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -         |
-| 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -         |
+| Phase                             | Plans Complete | Status      | Completed  |
+| --------------------------------- | -------------- | ----------- | ---------- |
+| 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
+| 117. pyroute2 Netlink Backend     | 0/TBD          | Not started | -          |
+| 118. Metrics Retention Strategy   | 0/TBD          | Not started | -          |
+| 119. Auto-Fusion Healing          | 0/TBD          | Not started | -          |
+| 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
+| 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.22)</summary>
