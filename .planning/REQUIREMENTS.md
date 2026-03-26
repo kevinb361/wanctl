@@ -28,8 +28,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 ### Code Quality
 
-- [ ] **CQUAL-01**: All broad `except Exception` catches triaged (legitimate safety vs bug-swallowing)
-- [ ] **CQUAL-02**: Bug-swallowing exception catches fixed with appropriate error handling
+- [x] **CQUAL-01**: All broad `except Exception` catches triaged (legitimate safety vs bug-swallowing)
+- [x] **CQUAL-02**: Bug-swallowing exception catches fixed with appropriate error handling
 - [ ] **CQUAL-03**: MyPy strictness probed module-by-module with fix/suppress strategy per module
 - [ ] **CQUAL-04**: Thread safety audit completed (threaded files, shared mutable state, race conditions)
 - [ ] **CQUAL-05**: Complexity hotspots analyzed (5 largest files) with extraction recommendations documented
@@ -92,8 +92,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | NETENG-03   | Phase 113 | Complete |
 | NETENG-04   | Phase 113 | Complete |
 | NETENG-05   | Phase 113 | Complete |
-| CQUAL-01    | Phase 114 | Pending  |
-| CQUAL-02    | Phase 114 | Pending  |
+| CQUAL-01    | Phase 114 | Complete |
+| CQUAL-02    | Phase 114 | Complete |
 | CQUAL-03    | Phase 114 | Pending  |
 | CQUAL-04    | Phase 114 | Pending  |
 | CQUAL-05    | Phase 114 | Pending  |

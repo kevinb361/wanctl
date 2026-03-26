@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-26T20:29:26.724Z"
-last_activity: 2026-03-26
+status: executing
+last_updated: "2026-03-26T21:33:42.031Z"
+last_activity: 2026-03-26 -- Completed 114-01-PLAN.md
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Milestone:** v1.22 Full System Audit
 **Phase:** 114 of 116 (code quality & safety)
-**Plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-03-26
+**Plan:** 1 of 3 complete
+**Status:** Executing Phase 114
+**Last activity:** 2026-03-26 -- Completed 114-01-PLAN.md
 
-Progress: [##########] 100%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -46,6 +46,8 @@ Progress: [##########] 100%
 | 112   | 02   | 4min     | 2     | 1     |
 | 112   | 03   | 34min    | 2     | 120   |
 | 112   | 04   | 6min     | 1     | 2     |
+| 113   | 01   | 5min     | 2     | 1     |
+| 114   | 01   | 16min    | 2     | 5     |
 
 ## Accumulated Context
 
@@ -66,6 +68,10 @@ Progress: [##########] 100%
 - 112-03: mccabe max-complexity=20 (permissive); functions >15 baselined for Phase 114 reduction
 - 112-04: 0 true dead code at 80% confidence; 66 findings at 60% (4 likely dead, 9 investigate, 53 test-only)
 - 112-04: .vulture_whitelist.py created with 68 entries covering all 15 PITFALLS.md false positives
+- 113-01: wanctl-check-cake does not support linux-cake transport -- tc readback is the correct verification method
+- 113-01: Measurement traffic (ICMP/IRTT) correctly classified CS0/Best Effort for accurate autorate readings
+- 114-01: 5 of 96 except Exception catches were bug-swallowing; fixed with DEBUG logging
+- 114-01: UI widget catches (5) and shutdown nosec B110 catches (3) accepted as intentional safety nets
 
 ### Known Issues
 
