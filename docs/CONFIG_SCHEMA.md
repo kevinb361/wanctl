@@ -40,20 +40,21 @@ wan_name: "wan1"
 
 Router connection settings.
 
-| Field        | Type    | Required | Default      | Description                                   |
-| ------------ | ------- | -------- | ------------ | --------------------------------------------- |
-| `type`       | string  | no       | `"routeros"` | Router platform (only `"routeros"` supported) |
-| `host`       | string  | yes      | -            | RouterOS IP address                           |
-| `user`       | string  | yes      | -            | SSH username                                  |
-| `ssh_key`    | string  | yes      | -            | Path to SSH private key                       |
-| `transport`  | string  | no       | `"rest"`     | Transport type: `"rest"` or `"ssh"`           |
-| `password`   | string  | no       | -            | REST API password (for `transport: rest`)     |
-| `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport    |
+| Field        | Type    | Required | Default      | Description                                          |
+| ------------ | ------- | -------- | ------------ | ---------------------------------------------------- |
+| `type`       | string  | no       | `"routeros"` | Router platform (only `"routeros"` supported)        |
+| `host`       | string  | yes      | -            | RouterOS IP address                                  |
+| `user`       | string  | yes      | -            | SSH username                                         |
+| `ssh_key`    | string  | yes      | -            | Path to SSH private key                              |
+| `transport`  | string  | no       | `"rest"`     | Transport type: `"rest"`, `"ssh"`, or `"linux-cake"` |
+| `password`   | string  | no       | -            | REST API password (for `transport: rest`)            |
+| `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport           |
 
 **Transport options:**
 
 - `rest` (default): Uses RouterOS REST API (faster, requires password instead of ssh_key)
 - `ssh`: Uses SSH/Paramiko for RouterOS communication
+- `linux-cake`: Uses local `tc` commands for Linux CAKE qdiscs (v1.21+, VM deployment). Requires `cake_params` section. See [CAKE Parameters](#cake-parameters-linux-cake-transport) below.
 
 **SSL verification (REST transport):**
 
@@ -212,14 +213,50 @@ continuous_monitoring:
 - **Default:** `true`
 - **Description:** Use median of multiple pings for noise reduction
 
+#### `continuous_monitoring.fallback_checks` (optional)
+
+Multi-protocol connectivity verification when ICMP pings fail. Prevents unnecessary watchdog restarts caused by ISP ICMP filtering or rate-limiting.
+
+| Field                 | Type    | Default                  | Description                                                     |
+| --------------------- | ------- | ------------------------ | --------------------------------------------------------------- |
+| `enabled`             | boolean | `true`                   | Enable multi-protocol fallback checks                           |
+| `check_gateway`       | boolean | `true`                   | Try pinging local gateway first                                 |
+| `check_tcp`           | boolean | `true`                   | Try TCP connections to verify Internet                          |
+| `gateway_ip`          | string  | `"10.10.110.1"`          | Gateway IP to check                                             |
+| `tcp_targets`         | list    | `[["1.1.1.1",443],...]`  | TCP endpoints to test (host, port pairs)                        |
+| `fallback_mode`       | string  | `"graceful_degradation"` | Mode: `"freeze"`, `"use_last_rtt"`, or `"graceful_degradation"` |
+| `max_fallback_cycles` | int     | `3`                      | Max cycles before giving up (graceful mode only)                |
+
+**Fallback modes:**
+
+- `freeze`: Stop rate adjustments, maintain last known good rates (safest)
+- `use_last_rtt`: Reuse last EWMA value, continue making decisions
+- `graceful_degradation` (default): Cycle 1 uses last RTT, cycles 2-3 freeze rates, cycle 4+ gives up
+
+```yaml
+continuous_monitoring:
+  fallback_checks:
+    enabled: true
+    check_gateway: true
+    check_tcp: true
+    gateway_ip: "10.10.110.1"
+    tcp_targets:
+      - ["1.1.1.1", 443]
+      - ["8.8.8.8", 443]
+    fallback_mode: "graceful_degradation"
+    max_fallback_cycles: 3
+```
+
 ### `logging`
 
 Log file configuration.
 
-| Field       | Type   | Description                          |
-| ----------- | ------ | ------------------------------------ |
-| `main_log`  | string | Path to main log file (INFO level)   |
-| `debug_log` | string | Path to debug log file (DEBUG level) |
+| Field          | Type   | Default    | Description                                   |
+| -------------- | ------ | ---------- | --------------------------------------------- |
+| `main_log`     | string | -          | Path to main log file (INFO level)            |
+| `debug_log`    | string | -          | Path to debug log file (DEBUG level)          |
+| `max_bytes`    | int    | `10485760` | Maximum log file size before rotation (10 MB) |
+| `backup_count` | int    | `3`        | Number of rotated log copies to keep          |
 
 ```yaml
 logging:
@@ -251,6 +288,64 @@ Operation timeout configuration.
 
 - **Type:** string
 - **Description:** Path to EWMA state persistence file
+
+### `storage` (optional)
+
+Metrics database storage configuration.
+
+| Field            | Type   | Default                      | Description                               |
+| ---------------- | ------ | ---------------------------- | ----------------------------------------- |
+| `retention_days` | int    | `7`                          | Days of metrics history to retain (1-365) |
+| `db_path`        | string | `/var/lib/wanctl/metrics.db` | Path to SQLite metrics database           |
+
+```yaml
+storage:
+  retention_days: 7
+  db_path: "/var/lib/wanctl/metrics.db"
+```
+
+---
+
+## CAKE Parameters (linux-cake transport)
+
+### `cake_params` (required when `router.transport: "linux-cake"`)
+
+Linux CAKE qdisc configuration for VM deployments (v1.21+). Only used when `router.transport` is `"linux-cake"`. The controller uses `tc` commands directly instead of RouterOS API.
+
+| Field                | Type   | Required | Description                                                           |
+| -------------------- | ------ | -------- | --------------------------------------------------------------------- |
+| `upload_interface`   | string | yes      | Network interface for upload CAKE qdisc (e.g., `"enp3s0"`)            |
+| `download_interface` | string | yes      | Network interface for download CAKE qdisc (e.g., `"enp4s0"`)          |
+| `overhead`           | string | no       | CAKE overhead keyword (e.g., `"docsis"`, `"ethernet"`, `"pppoe-ptm"`) |
+| `memlimit`           | string | no       | CAKE memory limit (e.g., `"32mb"`)                                    |
+| `rtt`                | string | no       | CAKE RTT target (e.g., `"100ms"`)                                     |
+
+```yaml
+router:
+  transport: "linux-cake"
+  host: "10.10.99.1" # Still used for steering mangle rules
+
+cake_params:
+  upload_interface: "enp3s0"
+  download_interface: "enp4s0"
+  overhead: "docsis"
+  rtt: "100ms"
+```
+
+### `cake_optimization` (optional)
+
+Link-dependent CAKE parameter hints used by `wanctl-check-cake` for validation. Not consumed by the controller at runtime.
+
+| Field      | Type          | Description                                |
+| ---------- | ------------- | ------------------------------------------ |
+| `overhead` | int or string | Expected CAKE overhead value or keyword    |
+| `rtt`      | string        | Expected CAKE RTT target (e.g., `"100ms"`) |
+
+```yaml
+cake_optimization:
+  overhead: 18
+  rtt: "100ms"
+```
 
 ---
 
