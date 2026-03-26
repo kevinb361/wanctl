@@ -41,7 +41,12 @@ None
 3. Container-era scripts archived to .archive/ with a manifest documenting what each script was and why it was archived
 4. CONFIG_SCHEMA.md aligned with config_validation_utils.py (all accepted params documented, no stale entries)
 5. Audit findings summary produced with remaining debt inventory categorized by severity and recommended milestone
-   **Plans**: TBD
+   **Plans**: 3 plans
+
+Plans:
+- [ ] 116-01-PLAN.md -- Test quality audit scan + fix assertion-free and tautological tests
+- [ ] 116-02-PLAN.md -- CONFIG_SCHEMA.md alignment, docs VM updates, container script archival
+- [ ] 116-03-PLAN.md -- Capstone v1.22 audit findings summary (aggregates all phases 112-116)
 
 ### Phase 117: pyroute2 Netlink Backend
 
@@ -66,7 +71,7 @@ None
 
 1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
 2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours \* 3600, with a clear error message
-3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when external TSDB is available
+3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when long-term TSDB is available
    **Plans**: TBD
 
 ### Phase 119: Auto-Fusion Healing
@@ -117,7 +122,7 @@ Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 
 | Phase                             | Plans Complete | Status      | Completed |
 | --------------------------------- | -------------- | ----------- | --------- |
-| 116. Test & Documentation Hygiene | 0/TBD          | Not started | -         |
+| 116. Test & Documentation Hygiene | 0/3            | Not started | -         |
 | 117. pyroute2 Netlink Backend     | 0/TBD          | Not started | -         |
 | 118. Metrics Retention Strategy   | 0/TBD          | Not started | -         |
 | 119. Auto-Fusion Healing          | 0/TBD          | Not started | -         |
