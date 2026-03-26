@@ -282,7 +282,7 @@ class FailoverRouterClient:
             try:
                 self._primary_client.close()
             except Exception:
-                pass
+                self.logger.debug("Error closing stale primary client", exc_info=True)
             self._primary_client = None
 
         try:
@@ -307,7 +307,7 @@ class FailoverRouterClient:
                 try:
                     self._primary_client.close()
                 except Exception:
-                    pass
+                    self.logger.debug("Error closing broken primary client", exc_info=True)
                 self._primary_client = None
             return None
 

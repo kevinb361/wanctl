@@ -441,7 +441,8 @@ def set_cake_limit(
             cmd, capture_output=True, text=True, timeout=DEFAULT_CALIBRATE_SSH_TIMEOUT
         )
         return result.returncode == 0
-    except Exception:
+    except Exception as e:
+        print_error(f"Failed to set queue rate via SSH: {e}")
         return False
 
 
