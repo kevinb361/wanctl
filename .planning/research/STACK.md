@@ -1,332 +1,274 @@
-# Stack Research: v1.21 CAKE Offload to Linux VM
+# Stack Research: v1.22 Full System Audit
 
-**Domain:** Linux CAKE qdisc control, transparent L2 bridging, PCIe passthrough VM
-**Researched:** 2026-03-24
-**Confidence:** HIGH (core tc/bridge tools are stable kernel interfaces, well-documented)
+**Domain:** Audit tooling for a production Python 3.12 network controller (28,629 LOC, 3,723 tests)
+**Researched:** 2026-03-26
+**Confidence:** HIGH (all tools verified against PyPI, existing toolchain well-understood)
 
-## Recommended Stack
+## Existing Toolchain (Already Installed)
 
-### Core Technologies
+Before recommending additions, here is what the project already runs and what each catches:
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `tc` (iproute2) | 6.1.0 (Debian 12) | CAKE qdisc control: add, change, stats | The canonical Linux traffic control tool. `tc qdisc change` updates CAKE bandwidth **without packet loss or service interruption** -- ideal for wanctl's 50ms control loop. No library wrapper needed. |
-| `tc -j -s` (JSON mode) | iproute2 6.1.0 | Machine-readable CAKE statistics | JSON output eliminates fragile text parsing. Returns drops, bytes, backlog, per-tin stats. Available since iproute2 4.19+, well-tested on Debian 12. |
-| `ip link` (iproute2) | 6.1.0 (Debian 12) | Bridge creation and NIC management | Modern replacement for deprecated `brctl`. Supports `ip link add type bridge`, `ip link set master`, VLAN filtering. Already in base Debian 12. |
-| `subprocess.run` (stdlib) | Python 3.12 | Execute tc/ip commands | Zero new dependencies. Matches existing wanctl patterns (irtt_measurement.py, calibrate.py, benchmark.py). `subprocess.run` with `capture_output=True, timeout=N` is proven in the codebase. |
-| Linux kernel `sch_cake` | 6.1 (Debian 12) | CAKE qdisc kernel module | Mainline since kernel 4.19. Debian 12's kernel 6.1 ships `sch_cake` as a loadable module. `modprobe sch_cake` at boot or on first `tc qdisc add ... cake`. |
+| Tool | Version | Purpose | What It Catches |
+|------|---------|---------|-----------------|
+| ruff | 0.14.10 | Linting + formatting | Pyflakes, pycodestyle, isort, bugbear, pyupgrade (E/W/F/I/B/UP rules only) |
+| mypy | 1.19.1 | Type checking | Type errors, but with `disallow_untyped_defs = false` and `ignore_missing_imports = true` -- permissive |
+| pytest + pytest-cov | 9.0.2 / 7.0.0 | Testing + coverage | 91%+ statement coverage, branch coverage enabled, fail_under=90 |
+| bandit | 1.9.3 | Security SAST | Python-specific security issues (skips B101/B311/B601 intentionally) |
+| pip-audit | 2.10.0 | Dependency CVEs | Known vulnerabilities in installed packages via OSV database |
+| detect-secrets | 1.5.0 | Secret detection | Hardcoded secrets in source files |
+| pip-licenses | 5.5.0 | License compliance | GPL/AGPL license violations in dependencies |
+| pyflakes | 3.4.0 | Unused imports/vars | Redundant with ruff F rules -- can be removed |
 
-### Infrastructure (VM Provisioning)
+### Gaps in Current Toolchain
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Proxmox VE `qm` CLI | 8.x (odin) | VM creation and PCIe passthrough config | Already deployed on odin. `qm create` + cloud-init for automated Debian 12 provisioning. `qm set -hostpci0` for NIC passthrough. |
-| Debian 12 cloud image | bookworm | VM base OS | Official `debian-12-genericcloud-amd64.qcow2` with cloud-init. Minimal footprint, kernel 6.1 with sch_cake, iproute2 6.1.0 included. |
-| VFIO/IOMMU | kernel 6.1 | PCIe NIC passthrough | Kernel modules `vfio`, `vfio_iommu_type1`, `vfio_pci`. Intel VT-d or AMD-Vi required in BIOS. Each NIC needs its own IOMMU group (or shared only with its PCI bridge). |
-| IFB (Intermediate Functional Block) | kernel 6.1 | Ingress (download) shaping | Linux can only shape egress. IFB mirrors ingress traffic to a virtual device where CAKE shapes it. `modprobe ifb` + `tc filter ... mirred egress redirect dev ifb0`. Standard pattern for download shaping. |
+The existing tools leave these audit dimensions uncovered:
 
-### Supporting Libraries
+1. **Dead code** -- ruff F841 catches unused variables, but not unused functions, classes, methods, or unreachable code paths
+2. **Code complexity** -- no cyclomatic or cognitive complexity measurement (C901 not enabled in ruff)
+3. **Unused dependencies** -- pip-audit checks for CVEs, not for dependencies declared but never imported
+4. **Architectural boundaries** -- nothing enforces that e.g. `steering/` never imports from `dashboard/`
+5. **Test quality** -- coverage measures execution, not assertion quality (dead assertions, weak tests)
+6. **Deeper type safety** -- mypy runs permissive; untyped defs are allowed silently
+7. **Simplification opportunities** -- ruff SIM/PERF/RET/TRY rules not enabled
+8. **Unused test fixtures** -- 3,723 tests likely have accumulated dead fixtures
 
-None. **Zero new Python dependencies.** The entire LinuxCakeBackend operates through `subprocess.run` calling `tc` and `ip` -- both provided by `iproute2` in the base Debian 12 installation. This matches the project's zero-new-deps philosophy established in v1.20 (adaptive tuning used only stdlib `statistics` + existing SQLite).
+## Recommended Audit Additions
 
-### System Packages Required on VM
+### Tier 1: Enable for Audit (Zero Install -- Ruff Rule Expansion)
 
-| Package | Debian 12 | Purpose | Notes |
-|---------|-----------|---------|-------|
-| `iproute2` | 6.1.0-3 | `tc` and `ip` commands | Installed by default in Debian 12 |
-| `kmod` | standard | `modprobe` for sch_cake, ifb | Installed by default |
-| `bridge-utils` | -- | **NOT NEEDED** | Deprecated. Use `ip link` from iproute2 instead |
-| `python3` | 3.11.2 | wanctl runtime | Debian 12 default. wanctl targets 3.12 but 3.11 compat is fine for subprocess calls |
-| `icmplib` | latest | ICMP RTT measurement | Already required by wanctl, install via pip3 |
+These are free -- just config changes to the existing ruff installation.
 
-## Key Integration Points
+| Rule Set | Prefix | What It Catches That Current Config Misses |
+|----------|--------|-------------------------------------------|
+| McCabe complexity | C901 | Functions exceeding cyclomatic complexity threshold (default 10) |
+| Simplify | SIM | Unnecessarily complex boolean logic, redundant if/else, mergeable isinstance calls |
+| Performance | PERF | Unnecessary list() calls in iterations, avoidable dict.items() when only keys needed |
+| Return patterns | RET | Superfluous else after return, unnecessary return None, assignment-then-return |
+| Pytest style | PT | Inconsistent fixture scope, missing parametrize, raw assert messages |
+| Exception handling | TRY | Bare except, overly broad exception types, reraise without cause |
+| Unused arguments | ARG | Function parameters that are never used in the body |
+| Commented-out code | ERA | Dead commented-out code blocks left in source |
+| Private access | SLF | External access to _private members across module boundaries |
+| Pathlib migration | PTH | os.path usage that should be pathlib (lower priority for a network controller) |
 
-### LinuxCakeBackend maps to RouterBackend interface
+**Configuration change in pyproject.toml:**
 
-The existing `RouterBackend` ABC defines exactly what LinuxCakeBackend must implement:
+```toml
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP",  # existing
+    "C901",   # complexity
+    "SIM",    # simplification
+    "PERF",   # performance
+    "RET",    # return patterns
+    "PT",     # pytest style
+    "TRY",    # exception handling
+    "ARG",    # unused arguments
+    "ERA",    # commented-out code
+    "SLF",    # private member access
+]
 
-| Method | MikroTik Implementation | Linux CAKE Implementation |
-|--------|------------------------|---------------------------|
-| `set_bandwidth(queue, rate_bps)` | REST API `POST /queue/tree/set` | `tc qdisc change dev {iface} root cake bandwidth {rate}bit` |
-| `get_bandwidth(queue)` | REST API `GET /queue/tree` | `tc -j qdisc show dev {iface}` -- parse `options.bandwidth` |
-| `get_queue_stats(queue)` | REST API queue tree stats | `tc -j -s qdisc show dev {iface}` -- parse drops, bytes, backlog |
-| `enable_rule(comment)` | REST mangle rule enable | **Not applicable** -- steering rules stay on MikroTik router |
-| `disable_rule(comment)` | REST mangle rule disable | **Not applicable** -- steering rules stay on MikroTik router |
-| `is_rule_enabled(comment)` | REST mangle rule check | **Not applicable** -- steering rules stay on MikroTik router |
-| `test_connection()` | REST health check | `tc qdisc show dev {iface}` succeeds + returns cake qdisc |
-
-**Critical design note:** The `enable_rule`/`disable_rule`/`is_rule_enabled` methods are steering-only. LinuxCakeBackend controls shaping, not steering. These should return `True`/`True`/`None` (no-op) or the steering system should continue using the existing MikroTik router client for mangle rules. The router does not go away -- it becomes pure routing/firewall while CAKE moves to the VM.
-
-### Transport selection in config
-
-Current config uses `router.transport: "rest"` or `"ssh"`. New transport:
-
-```yaml
-router:
-  transport: "linux-cake"
-  # Linux-specific settings (no host/user/password needed -- runs locally)
-  cake:
-    dl_interface: "ifb-spectrum"    # IFB device for download shaping
-    ul_interface: "ens19"           # Physical NIC egress for upload shaping
-    dl_bandwidth: "500mbit"         # Initial download rate
-    ul_bandwidth: "25mbit"          # Initial upload rate
-    diffserv: "diffserv4"           # DSCP priority tiers
-    rtt: "50ms"                     # Target RTT for AQM
+[tool.ruff.lint.mccabe]
+max-complexity = 15  # start permissive for audit, tighten later
 ```
 
-### Factory extension in `backends/__init__.py`
+**Why these and not others:** SIM/PERF/RET catch real code quality issues in a 28K LOC codebase. PT matters with 3,723 tests. ARG/ERA catch dead code that vulture might miss (and vice versa). C901 gives complexity baselines. Skipped: ANN (type annotations better handled by mypy strictness), D (docstrings are a style choice, not an audit finding), N (naming conventions are already consistent).
 
-```python
-def get_backend(config: Any) -> RouterBackend:
-    router_type = config.router.get("type", "routeros")
-    if router_type == "routeros":
-        return RouterOSBackend.from_config(config)
-    elif router_type == "linux-cake":
-        from wanctl.backends.linux_cake import LinuxCakeBackend
-        return LinuxCakeBackend.from_config(config)
-    else:
-        raise ValueError(f"Unsupported router type: {router_type}")
+### Tier 2: Install for Audit (One-Shot Tools)
+
+| Tool | Version | Purpose | What It Catches Beyond Existing Tools | Install |
+|------|---------|---------|---------------------------------------|---------|
+| vulture | 2.16 | Dead code detection | Unused functions, classes, methods, variables, unreachable code after return/break/raise. Assigns confidence scores (60-100%). Catches what ruff F rules miss: dead functions, dead class methods, unused module-level names. | `uv pip install vulture` |
+| radon | 6.0.1 | Code metrics | Cyclomatic complexity (per-function), Maintainability Index (per-file), Halstead metrics, raw SLOC. Produces ranked reports sorted by complexity -- directly actionable for refactoring prioritization. | `uv pip install radon` |
+| complexipy | 5.2.0 | Cognitive complexity | Cognitive complexity (how hard code is to *understand*, not just branch count). Better than cyclomatic for identifying genuinely confusing functions. Written in Rust, fast on large codebases. | `uv pip install complexipy` |
+| deptry | 0.25.1 | Dependency hygiene | Missing imports (imported but not declared), unused dependencies (declared but not imported), transitive deps used directly. Understands pyproject.toml natively. | `uv pip install deptry` |
+| pytest-deadfixtures | 2.2.1 | Fixture cleanup | Unused or duplicated pytest fixtures. Static analysis mode (no test execution needed). After 21 milestones and 3,723 tests, fixture rot is near-certain. | `uv pip install pytest-deadfixtures` |
+
+### Tier 3: Consider for Audit (Higher Investment)
+
+| Tool | Version | Purpose | Value vs. Cost Assessment |
+|------|---------|---------|--------------------------|
+| import-linter | 2.11 | Architectural boundaries | Enforces that steering/ does not import dashboard/, that backends/ does not import from controllers. HIGH value for a 28K LOC project, but requires writing contract definitions first. Recommend for post-audit enforcement, not the audit itself. |
+| semgrep (CE) | 1.156.0 | Deep SAST | Cross-function dataflow analysis beyond bandit. 3,000+ community rules. Catches taint propagation, SSRF patterns, injection in paramiko/requests usage. Install via pipx (large dependency tree, do NOT put in project venv). |
+| mutmut | 3.2.0 | Mutation testing | Tests whether tests actually verify behavior, not just execute code. A 91% coverage score with weak assertions is worse than 70% with strong ones. HIGH value but SLOW (hours for 28K LOC). Run on critical modules only. |
+
+### What NOT to Install
+
+| Tool | Why Skip |
+|------|----------|
+| pylint | Ruff covers 95%+ of pylint rules with 100x speed. Adding pylint introduces massive config overhead and conflicting opinions for near-zero incremental value. |
+| pyflakes (standalone) | Already installed but redundant -- ruff F rules are pyflakes. Remove from dev dependencies. |
+| flake8 + plugins | Ruff replaces the entire flake8 ecosystem. Do not add flake8-cognitive-complexity; use complexipy instead. |
+| prospector | Aggregator of tools you already have. Adds indirection without value. |
+| SonarQube | Server-based platform overkill for a single-maintainer project. The individual tools above cover the same ground. |
+| safety (PyUp) | pip-audit already covers the same CVE databases. Safety's free tier database is updated less frequently. Redundant. |
+| wily | Tracks complexity over time via git history. Interesting but not needed for a one-shot audit -- radon gives the current snapshot, which is what matters. |
+
+## MyPy Strictness Progression
+
+The current mypy config is permissive. For the audit, tighten incrementally:
+
+**Current (permissive):**
+```toml
+[tool.mypy]
+disallow_untyped_defs = false    # allows functions without type hints
+ignore_missing_imports = true     # silently ignores unresolvable imports
+check_untyped_defs = true         # good -- checks bodies of untyped functions
 ```
 
-## tc Command Reference
+**Audit phase (probe for gaps):**
+```toml
+[tool.mypy]
+disallow_untyped_defs = true      # shows every untyped function
+warn_return_any = true            # flags Any leaking through returns
+no_implicit_optional = true       # requires explicit Optional[X] instead of X = None
+disallow_incomplete_defs = true   # catches partially-typed functions
+```
 
-### Setup (one-time, at VM boot via systemd unit)
+**Why not `--strict`:** Strict mode enables ~15 flags at once. For a 28K LOC codebase, that produces thousands of errors making triage impossible. Enable flags one at a time, measure the delta, and decide which are worth fixing vs. suppressing.
+
+**Approach:** Run `mypy --disallow-untyped-defs src/wanctl/ 2>&1 | wc -l` first to gauge the scope. If under 200 errors, fix them. If over 500, focus on critical modules (wan_controller_state.py, state_manager.py, autorate_continuous.py).
+
+## Installation
 
 ```bash
-# Load kernel modules
-modprobe sch_cake
-modprobe ifb
+# Tier 1: Zero install -- config change only
+# Edit pyproject.toml [tool.ruff.lint] select list
 
-# Create IFB device for download shaping
-ip link add ifb-spectrum type ifb
-ip link set ifb-spectrum up
+# Tier 2: One-shot audit tools (install into project venv)
+uv pip install vulture radon complexipy deptry pytest-deadfixtures
 
-# Redirect ingress traffic from WAN-facing NIC to IFB
-tc qdisc add dev ens18 ingress
-tc filter add dev ens18 parent ffff: protocol all u32 match u32 0 0 \
-    action mirred egress redirect dev ifb-spectrum
-
-# Apply CAKE on IFB (download direction)
-tc qdisc add dev ifb-spectrum root cake bandwidth 500mbit diffserv4 wash rtt 50ms
-
-# Apply CAKE on LAN-facing NIC (upload direction)
-tc qdisc add dev ens19 root cake bandwidth 25mbit diffserv4 wash rtt 50ms
+# Tier 3: If pursuing deeper analysis
+pipx install semgrep           # global, NOT in project venv (huge dep tree)
+uv pip install import-linter   # if writing architectural contracts
+uv pip install mutmut          # if testing critical module assertion quality
 ```
 
-### Bandwidth change (wanctl control loop, every 50ms when rate changes)
+## Audit Execution Commands
 
+### Complexity Analysis
 ```bash
-# Download rate change (no packet loss, no service interruption)
-tc qdisc change dev ifb-spectrum root cake bandwidth 450mbit
+# Cyclomatic complexity -- functions ranked worst-first
+.venv/bin/radon cc src/wanctl/ -a -s -n C    # show C and worse (>10)
 
-# Upload rate change
-tc qdisc change dev ens19 root cake bandwidth 22mbit
+# Cognitive complexity -- all functions over threshold
+.venv/bin/complexipy src/wanctl/ --max-cognitive-complexity 15
+
+# Maintainability index -- files ranked worst-first
+.venv/bin/radon mi src/wanctl/ -s -n B       # show B and worse
 ```
 
-### Statistics read (every 50ms cycle)
-
+### Dead Code Detection
 ```bash
-# JSON output for machine parsing
-tc -j -s qdisc show dev ifb-spectrum
+# Dead code (functions, classes, methods, unreachable)
+.venv/bin/vulture src/wanctl/ --min-confidence 80
+
+# Commented-out code (via ruff, after config change)
+.venv/bin/ruff check src/ --select ERA
+
+# Unused fixtures
+.venv/bin/pytest --dead-fixtures tests/
 ```
 
-JSON output structure (relevant fields):
+### Dependency Hygiene
+```bash
+# Unused/missing/transitive dependency check
+.venv/bin/deptry src/
 
-```json
-[{
-  "kind": "cake",
-  "handle": "8001:",
-  "root": true,
-  "options": {
-    "bandwidth": "500Mbit",
-    "diffserv": "diffserv4",
-    "rtt": 50000
-  },
-  "bytes": 987654321,
-  "packets": 1234567,
-  "drops": 42,
-  "overlimits": 93782,
-  "requeues": 0,
-  "backlog": 7500,
-  "qlen": 5
-}]
+# Existing CVE scan (already in Makefile)
+.venv/bin/pip-audit
 ```
 
-**Mapping to RouterBackend.get_queue_stats() return dict:**
+### Extended Linting (after ruff config expansion)
+```bash
+# Full expanded ruleset
+.venv/bin/ruff check src/ tests/
 
-| wanctl field | tc JSON field | Notes |
-|-------------|---------------|-------|
-| `packets` | `packets` | Total sent packets |
-| `bytes` | `bytes` | Total sent bytes |
-| `dropped` | `drops` | Total drops (AQM + overflow) |
-| `queued_packets` | `qlen` | Current queue depth in packets |
-| `queued_bytes` | `backlog` | Current queue depth in bytes |
+# Complexity gate
+.venv/bin/ruff check src/ --select C901
+```
+
+### Type Safety Probe
+```bash
+# Count untyped function definitions
+.venv/bin/mypy src/wanctl/ --disallow-untyped-defs 2>&1 | tail -1
+
+# Probe for Any leakage
+.venv/bin/mypy src/wanctl/ --warn-return-any 2>&1 | tail -1
+```
+
+### Security (Deeper)
+```bash
+# Semgrep community rules (if installed)
+semgrep scan --config auto src/wanctl/
+
+# Existing bandit (already in Makefile)
+.venv/bin/bandit -r src/ -c pyproject.toml
+```
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| `subprocess.run` + `tc` | pyroute2 library | pyroute2 has only a stats decoder for CAKE (merged 2020, PR #662), no documented support for `tc qdisc add/change cake`. The library is at v0.9.5 but CAKE control operations are unverified. Adds ~15MB dependency for no proven benefit. `subprocess.run` is battle-tested in wanctl (irtt, calibrate, benchmark). |
-| `subprocess.run` + `tc` | tcconfig (Python) | Wrapper library, unmaintained (last substantive update 2021), no CAKE support, adds transitive deps (subprocrunner, typepy). |
-| `tc -j` JSON parsing | Text parsing with regex | JSON output is stable, structured, and eliminates regex fragility. Available since iproute2 4.19. Debian 12 ships 6.1.0. No reason to parse text. |
-| `ip link add type bridge` | `brctl` (bridge-utils) | `brctl` is deprecated upstream. `ip link` is the modern standard, already in iproute2. VLAN filtering only available via `ip`/`bridge`. |
-| `/etc/network/interfaces` | systemd-networkd | Debian 12 supports both. `/etc/network/interfaces` with `ip` commands in `pre-up`/`post-up` is simpler for 2-port bridges. Either works -- choose based on odin's existing network management. |
-| IFB device | CAKE `ingress` keyword | CAKE's `ingress` mode is experimental/unsupported for external shaping. IFB is the proven standard for download shaping on Linux. Every guide and production deployment uses IFB. |
-| Cloud-init template | Manual VM install | Cloud-init enables reproducible provisioning. `qm create` + cloud-init disk = automated VM in <60s. Manual install is error-prone and undocumented. |
-
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| pyroute2 for CAKE control | Only stats decoding is verified. Adding/changing CAKE qdiscs via netlink is undocumented and untested. Adds a dependency for uncertain benefit. | `subprocess.run(["tc", ...])` -- proven in wanctl, zero deps |
-| `brctl` / `bridge-utils` | Deprecated upstream. Missing VLAN filtering. May not be in minimal Debian installs. | `ip link add type bridge` from iproute2 |
-| `tc qdisc replace` for rate changes | `replace` does atomic remove+add. `change` modifies in-place without packet loss. wanctl changes bandwidth up to 20x/sec. | `tc qdisc change dev ... cake bandwidth ...` |
-| nftables/iptables for shaping | Traffic shaping is a qdisc concern, not a firewall concern. nftables handles filtering on bridges, not bandwidth control. | `tc` with CAKE qdisc |
-| HTB + fq_codel | More complex configuration, more CPU on low-end hardware, no per-host fairness built in. CAKE is the modern replacement. | CAKE qdisc (single command, all features integrated) |
-| Custom netlink Python | Writing raw netlink messages for tc is complex, fragile, and unnecessary when `tc` CLI exists and outputs JSON. | `subprocess.run` + `tc -j` |
-
-## What NOT to Add (Python Dependencies)
-
-| Do NOT add | Rationale |
-|------------|-----------|
-| pyroute2 | Unverified CAKE control support. Stats-only decoder insufficient. subprocess.run pattern is established. |
-| tcconfig | Unmaintained, no CAKE, transitive deps. |
-| netifaces / psutil | Not needed. `ip link show` via subprocess if interface status is needed. |
-| paramiko (for VM) | wanctl runs ON the VM, not remote. No SSH needed for local tc commands. |
-| Any new pip package | v1.21 should add zero new Python dependencies. All tools are OS-level (tc, ip, modprobe). |
-
-## Performance Considerations
-
-### tc qdisc change latency
-
-`tc qdisc change` is a netlink syscall through the `tc` CLI. Expected execution time: 1-3ms (local kernel operation, no network round trip). Compare to MikroTik REST API: ~50ms round trip. This is a **massive improvement** for the 50ms control loop -- rate changes consume ~5% of cycle budget instead of ~100%.
-
-### tc -j -s qdisc show latency
-
-JSON stats read is also a local netlink operation: 1-3ms expected. Compare to MikroTik queue tree stats via REST: ~50ms. Stats collection drops from cycle-budget-dominant to negligible.
-
-### Combined improvement
-
-| Operation | MikroTik REST | Linux tc (local) | Improvement |
-|-----------|---------------|------------------|-------------|
-| Set bandwidth | ~50ms | ~2ms | 25x faster |
-| Read stats | ~50ms | ~2ms | 25x faster |
-| Total per cycle | ~100ms (exceeds 50ms budget!) | ~4ms | 25x faster |
-
-This eliminates the fundamental bottleneck that motivated the offload: MikroTik REST round-trip latency consuming the entire 50ms cycle budget.
-
-### subprocess.run overhead
-
-Each `subprocess.run` call forks a process. At 2 calls per cycle (set + stats), that is 40 forks/sec. On a modern VM this is negligible (~0.5ms per fork). If profiling later shows this matters, the two calls can be batched into a single shell invocation or moved to persistent subprocess with stdin/stdout pipes. But premature optimization here is unwarranted.
-
-### IFB overhead
-
-IFB mirroring adds negligible overhead (<0.1ms per packet, kernel-level redirect). No measurable impact on throughput or latency at gigabit speeds.
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| vulture (dead code) | ruff ERA + F841 | ERA catches commented-out code; F841 catches unused variables. Use vulture when you need dead *functions/classes/methods* -- ruff cannot detect those. |
+| radon (cyclomatic) | ruff C901 | C901 flags violations inline. Use radon when you need a ranked report of ALL function complexities for audit triage. Both are complementary. |
+| complexipy (cognitive) | flake8-cognitive-complexity | complexipy is Rust-native, actively maintained, standalone. flake8-cognitive-complexity is inactive, depends on flake8 (which you do not use). |
+| deptry (dep hygiene) | manual grep of imports | deptry understands pyproject.toml, handles re-exports and conditional imports. Manual grep misses transitive deps and false-positives on dev deps. |
+| pip-audit (CVEs) | safety | pip-audit uses OSV (Google-backed, real-time). Safety free tier updates monthly. pip-audit is already installed. |
 
 ## Version Compatibility
 
-| Component | Required Version | Debian 12 Provides | Status |
-|-----------|------------------|---------------------|--------|
-| Linux kernel | >= 4.19 (sch_cake) | 6.1 | OK |
-| iproute2 | >= 4.19 (CAKE + JSON) | 6.1.0-3 | OK |
-| Python | >= 3.11 | 3.11.2 | OK (wanctl targets 3.12, subprocess calls are version-agnostic) |
-| Proxmox VE | >= 7.0 (PCIe passthrough) | 8.x on odin | OK |
-| QEMU/KVM | >= 6.0 (VFIO) | Proxmox 8.x bundled | OK |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| vulture 2.16 | Python 3.8-3.13 | No external dependencies |
+| radon 6.0.1 | Python 3.8-3.12 | Verify 3.12 compat -- last release was ~12 months ago |
+| complexipy 5.2.0 | Python 3.8-3.13 | Rust binary wheel, no Python dep conflicts |
+| deptry 0.25.1 | Python 3.12+ | Rust core, reads pyproject.toml natively |
+| pytest-deadfixtures 2.2.1 | pytest 7+ | Lightweight plugin, no conflicts |
+| import-linter 2.11 | Python 3.8-3.13 | Depends on grimp for import analysis |
+| semgrep 1.156.0 | Python 3.8+ | Large dep tree -- install via pipx, not project venv |
 
-## VM Provisioning Stack
+## Tool-to-Audit-Dimension Mapping
 
-### Proxmox cloud-init template (one-time setup)
+This shows which tools address which audit dimensions:
 
-```bash
-# On odin (Proxmox host)
-wget https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2
-
-# Create VM template
-qm create 9000 --name debian12-template --memory 2048 --cores 2 \
-    --net0 virtio,bridge=vmbr0 --ostype l26
-qm importdisk 9000 debian-12-genericcloud-amd64.qcow2 local-lvm
-qm set 9000 --scsi0 local-lvm:vm-9000-disk-0 --boot c --bootdisk scsi0
-qm set 9000 --ide2 local-lvm:cloudinit --serial0 socket --vga serial0
-qm template 9000
-```
-
-### VM creation from template
-
-```bash
-# Clone template
-qm clone 9000 200 --name cake-shaper --full
-
-# Configure cloud-init
-qm set 200 --ipconfig0 ip=10.10.110.248/24,gw=10.10.110.1
-qm set 200 --ciuser wanctl --sshkeys /root/.ssh/authorized_keys.pub
-
-# Add PCIe passthrough NICs (4 NICs: 2 per WAN path)
-qm set 200 --hostpci0 XX:XX.X    # Spectrum WAN-side NIC
-qm set 200 --hostpci1 XX:XX.X    # Spectrum LAN-side NIC
-qm set 200 --hostpci2 XX:XX.X    # ATT WAN-side NIC
-qm set 200 --hostpci3 XX:XX.X    # ATT LAN-side NIC
-
-# Resize disk
-qm resize 200 scsi0 +8G
-
-qm start 200
-```
-
-### IOMMU/VFIO setup (on Proxmox host, one-time)
-
-```bash
-# /etc/default/grub (Intel)
-GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"
-
-# /etc/modules
-vfio
-vfio_iommu_type1
-vfio_pci
-
-# Apply
-update-grub
-update-initramfs -u -k all
-reboot
-```
-
-## Bridge Topology (Inside VM)
-
-```
-WAN (Spectrum ISP)
-     |
-  [ens18]  (PCIe passthrough NIC, WAN-side)
-     |
-  [br-spectrum]  (Linux bridge, STP off, no IP, transparent)
-     |                        |
-  CAKE shaping           [ifb-spectrum]  (IFB for download CAKE)
-     |
-  [ens19]  (PCIe passthrough NIC, LAN-side)
-     |
-  RB5009 router port
-```
-
-Each WAN path (Spectrum, ATT) has an identical topology:
-- 2 PCIe passthrough NICs per path (WAN-side + LAN-side)
-- 1 Linux bridge (transparent, STP off, forward delay 0)
-- 1 IFB device (for download/ingress CAKE shaping)
-- CAKE on the LAN-side NIC (upload/egress shaping)
-- CAKE on the IFB device (download/ingress shaping)
+| Audit Dimension | Primary Tool | Supporting Tool | Already Have? |
+|-----------------|-------------|-----------------|---------------|
+| Dead code (functions/classes) | vulture | ruff ERA/F841 | No / Partial |
+| Dead code (commented-out) | ruff ERA | vulture | No (rule not enabled) |
+| Cyclomatic complexity | radon | ruff C901 | No |
+| Cognitive complexity | complexipy | -- | No |
+| Unused dependencies | deptry | -- | No |
+| Missing dependencies | deptry | -- | No |
+| Transitive dep leaks | deptry | -- | No |
+| Dependency CVEs | pip-audit | -- | YES |
+| Security SAST | bandit | semgrep (optional) | YES / No |
+| Secret detection | detect-secrets | -- | YES |
+| License compliance | pip-licenses | -- | YES |
+| Type safety gaps | mypy (stricter config) | -- | Partial (permissive config) |
+| Code simplification | ruff SIM | -- | No (rule not enabled) |
+| Performance patterns | ruff PERF | -- | No (rule not enabled) |
+| Return patterns | ruff RET | -- | No (rule not enabled) |
+| Exception handling | ruff TRY | -- | No (rule not enabled) |
+| Pytest style | ruff PT | -- | No (rule not enabled) |
+| Unused arguments | ruff ARG | -- | No (rule not enabled) |
+| Unused fixtures | pytest-deadfixtures | -- | No |
+| Architectural boundaries | import-linter | -- | No |
+| Test assertion quality | mutmut | -- | No |
 
 ## Sources
 
-- [tc-cake(8) man page](https://man7.org/linux/man-pages/man8/tc-cake.8.html) -- CAKE qdisc reference (HIGH confidence)
-- [Bufferbloat.net CAKE wiki](https://www.bufferbloat.net/projects/codel/wiki/Cake/) -- CAKE recipes and configuration guidance (HIGH confidence)
-- [Bufferbloat.net CAKE Technical](https://www.bufferbloat.net/projects/codel/wiki/CakeTechnical/) -- CAKE statistics and internals (HIGH confidence)
-- [cerowrt-devel: changing bandwidth dynamically](https://cerowrt-devel.bufferbloat.narkive.com/WGpQmsKp/cake-changing-bandwidth-on-the-rate-limiter-dynamically) -- Confirms `tc qdisc change` updates bandwidth without packet loss (HIGH confidence)
-- [Debian packages: iproute2 bookworm](https://packages.debian.org/bookworm/iproute2) -- Version 6.1.0-3 (HIGH confidence)
-- [Debian packages: python3-pyroute2 bookworm](https://packages.debian.org/stable/python/python3-pyroute2) -- Version 0.7.2-2 (HIGH confidence, but **not recommended** for use)
-- [pyroute2 PR #662: cake stats_app decoder](https://github.com/svinota/pyroute2/pull/662) -- Only stats decoding, not control operations (HIGH confidence)
-- [Proxmox PCIe Passthrough wiki](https://pve.proxmox.com/wiki/PCI(e)_Passthrough) -- VFIO/IOMMU configuration (HIGH confidence)
-- [ServeTheHome: PCIe NIC passthrough](https://www.servethehome.com/how-to-pass-through-pcie-nics-with-proxmox-ve-on-intel-and-amd/) -- NIC-specific passthrough guide (MEDIUM confidence)
-- [Debian wiki: BridgeNetworkConnections](https://wiki.debian.org/BridgeNetworkConnections) -- Bridge configuration reference (HIGH confidence)
-- [iproute2 CAKE JSON output patch](https://lkml.kernel.org/netdev/20180719160515.4533-1-toke@toke.dk/) -- CAKE qdisc support added to iproute2 4.19 with JSON (HIGH confidence)
-- [CAKE qdisc IPv4 bandwidth management guide](https://oneuptime.com/blog/post/2026-03-20-cake-qdisc-ipv4-bandwidth-management/view) -- IFB setup and CAKE commands (MEDIUM confidence)
+- [Ruff rules documentation](https://docs.astral.sh/ruff/rules/) -- full rule catalog verified 2026-03-26
+- [Vulture GitHub](https://github.com/jendrikseipp/vulture) -- v2.16 confirmed via PyPI
+- [Radon documentation](https://radon.readthedocs.io/en/latest/) -- v6.0.1, last release ~12 months ago
+- [complexipy GitHub](https://github.com/rohaquinlop/complexipy) -- v5.2.0, Rust-based cognitive complexity
+- [deptry documentation](https://deptry.com/) -- v0.25.1, actively maintained
+- [import-linter documentation](https://import-linter.readthedocs.io/en/stable/) -- v2.11
+- [Semgrep Community Edition](https://semgrep.dev/products/community-edition/) -- v1.156.0, LGPL-2.1
+- [mutmut documentation](https://mutmut.readthedocs.io/en/latest/) -- mutation testing for Python
+- [mypy command line docs](https://mypy.readthedocs.io/en/stable/command_line.html) -- strict mode flags
+- PyPI version checks performed locally via `pip index versions` on 2026-03-26
 
 ---
-*Stack research for: wanctl v1.21 CAKE Offload to Linux VM*
-*Researched: 2026-03-24*
+*Stack research for: v1.22 Full System Audit*
+*Researched: 2026-03-26*

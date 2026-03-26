@@ -1,544 +1,425 @@
-# Architecture Research: CAKE Offload to Linux VM
+# Architecture Research: v1.22 Full System Audit
 
-**Domain:** Linux CAKE offload integration with existing wanctl dual-WAN controller
-**Researched:** 2026-03-24
-**Confidence:** HIGH (codebase fully explored, hardware known, tc CAKE well-documented)
+**Domain:** Audit methodology for production Python dual-WAN controller
+**Researched:** 2026-03-26
+**Confidence:** HIGH (codebase fully explored, dependency graph mapped, tooling verified)
 
-## Current Architecture (Baseline)
-
-```
-                    ┌──────────────────────────────────────────┐
-                    │            MikroTik RB5009                │
-                    │  CAKE queues + routing + firewall + NAT   │
-                    │  queue tree: WAN-Download-Spectrum, etc.  │
-                    └───────┬──────────────────┬───────────────┘
-                            │ REST/SSH API     │ REST/SSH API
-                    ┌───────┴──────┐   ┌──────┴──────────┐
-                    │ cake-spectrum │   │    cake-att      │
-                    │   (LXC)      │   │     (LXC)        │
-                    │ wanctl@spec  │   │  wanctl@att      │
-                    │ wanctl-steer │   │                   │
-                    └──────────────┘   └──────────────────┘
-```
-
-**Router interaction points (6 total, all via FailoverRouterClient.run_cmd):**
-
-| Component | Module | What it does | RouterOS commands used |
-|-----------|--------|-------------|----------------------|
-| `RouterOS.set_limits()` | autorate_continuous.py:1205 | Set DL+UL bandwidth | `/queue tree set ... max-limit=<bps>` |
-| `CakeStatsReader.read_stats()` | steering/cake_stats.py:193 | Read CAKE drops/queue depth | `/queue/tree print stats detail` |
-| `RouterOSController.get_rule_status()` | steering/daemon.py:732 | Check mangle rule state | `/ip firewall mangle print` |
-| `RouterOSController.enable_steering()` | steering/daemon.py:767 | Enable steering rule | `/ip firewall mangle enable` |
-| `RouterOSController.disable_steering()` | steering/daemon.py:796 | Disable steering rule | `/ip firewall mangle disable` |
-| `check_cake.py` validators | check_cake.py | Audit CAKE params, queue tree | Multiple `/queue tree/type` commands |
-
-**Key observation:** The `RouterBackend` ABC in `backends/base.py` exists but the autorate/steering code does NOT use it. The autorate loop uses the `RouterOS` class (wrapping `FailoverRouterClient` directly), and the steering daemon has its own `RouterOSController` class. Both construct raw RouterOS CLI strings and call `client.run_cmd()`. The `RouterBackend` interface was designed for future backend abstraction but the actual hot-path code bypasses it.
-
-## Target Architecture (CAKE Offload)
+## System Overview (Audit Baseline)
 
 ```
-  Spectrum Modem          ATT Modem
-       │                      │
-       │ nic0 (i210)          │ nic2 (i350)
-  ┌────┴──────────────────────┴────────────────┐
-  │          Debian 12 VM on odin              │
-  │                                            │
-  │  br-spectrum (nic0+nic1)  br-att (nic2+3)  │
-  │     CAKE egress on nic1      CAKE on nic3  │
-  │     CAKE ingress via IFB     IFB for DL    │
-  │                                            │
-  │  wanctl@spectrum   wanctl@att              │
-  │  wanctl-steering                           │
-  │                                            │
-  │  LinuxCakeBackend: tc qdisc change         │
-  │  RTT: icmplib (unchanged)                  │
-  │  Steering: still talks to router via REST  │
-  └────┬──────────────────────┬────────────────┘
-       │ nic1 (i210)          │ nic3 (i350)
-       │                      │
-  ┌────┴──────────────────────┴────────────────┐
-  │            MikroTik RB5009                 │
-  │  Routing + firewall + NAT + DSCP mangle    │
-  │  NO queue trees, NO CAKE                   │
-  │  Pure router/firewall appliance            │
-  └────────────────────────────────────────────┘
+                         wanctl System Architecture
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                     CLI Tools (offline)                         │
+  │  wanctl-check-config  wanctl-check-cake  wanctl-benchmark      │
+  │  wanctl-history       wanctl-calibrate   wanctl-dashboard      │
+  └─────────────────┬───────────────────────────────┬───────────────┘
+                    │ imports shared modules         │
+  ┌─────────────────┴───────────────────┐  ┌────────┴──────────────┐
+  │  Autorate Daemon (50ms loop)        │  │  Steering Daemon      │
+  │  autorate_continuous.py (4,282 LOC) │  │  steering/daemon.py   │
+  │  ContinuousAutoRate                 │  │  (2,384 LOC)          │
+  │    WANController                    │  │  SteeringDaemon       │
+  │    QueueController                  │  │  RouterOSController   │
+  │    Config                           │  │  BaselineLoader       │
+  │                                     │  │  CakeStatsReader      │
+  ├─────────────────────────────────────┤  │  ConfidenceController │
+  │  Signal Pipeline                    │  └───────────┬───────────┘
+  │  rtt_measurement -> signal_proc ->  │              │
+  │  reflector_scorer -> fusion ->      │              │
+  │  asymmetry_analyzer                 │              │
+  ├─────────────────────────────────────┤              │
+  │  Tuning Subsystem                   │              │
+  │  tuning/{analyzer,applier,safety}   │              │
+  │  strategies/{signal,threshold,adv}  │              │
+  └────────────┬────────────────────────┘              │
+               │                                       │
+  ┌────────────┴───────────────────────────────────────┴───────────┐
+  │                    Shared Infrastructure                        │
+  │  backends/{base,routeros,linux_cake,linux_cake_adapter}        │
+  │  storage/{writer,reader,schema,downsampler,retention,maint}    │
+  │  config_base, config_validation_utils, state_manager           │
+  │  health_check, metrics, alert_engine, webhook_delivery         │
+  │  router_client, routeros_rest, routeros_ssh                    │
+  │  signal_utils, systemd_utils, daemon_utils, lock_utils         │
+  │  error_handling, retry_utils, logging_utils, path_utils        │
+  │  perf_profiler, rate_utils, timeouts, pending_rates            │
+  └────────────────────────────────────────────────────────────────┘
+               │                              │
+  ┌────────────┴──────────┐    ┌──────────────┴───────────────────┐
+  │  Linux CAKE (tc)      │    │  MikroTik Router (REST/SSH)      │
+  │  LinuxCakeBackend     │    │  RouterOSBackend                 │
+  │  (cake-shaper VM)     │    │  FailoverRouterClient            │
+  └───────────────────────┘    └──────────────────────────────────┘
 ```
 
-## Component Changes: New vs Modified vs Unchanged
+### Module Inventory by Layer
 
-### NEW Components
+| Layer | Module Count | Total LOC | Largest Module |
+|-------|-------------|-----------|----------------|
+| Daemon cores | 2 | 6,666 | autorate_continuous.py (4,282) |
+| Signal pipeline | 5 | 1,326 | signal_processing.py (312) |
+| Tuning subsystem | 8 | 1,540 | strategies/signal_processing.py (387) |
+| Steering subpackage | 5 | 3,615 | steering/daemon.py (2,384) |
+| Backend abstraction | 4 | 1,050 | linux_cake.py (457) |
+| Storage subsystem | 7 | 1,505 | reader.py (430) |
+| Router communication | 5 | 2,217 | routeros_rest.py (781) |
+| Config/validation | 3 | 2,366 | check_config.py (1,484) |
+| CLI tools | 4 | 3,613 | check_config.py (1,484) |
+| Shared utilities | 12 | 3,424 | retry_utils.py (353) |
+| Dashboard (Textual) | 8 | 1,264 | app.py (418) |
+| **Total** | **~80 .py files** | **~29,848** | |
 
-#### 1. LinuxCakeBackend (new file: `backends/linux_cake.py`)
+### Dependency Heat Map (Import Count)
 
-**Purpose:** Implement the same bandwidth control and stats collection that `RouterOS.set_limits()` and `CakeStatsReader.read_stats()` currently do, but using local `tc` commands instead of RouterOS REST/SSH.
+Modules ordered by how many OTHER modules depend on them (most-imported first):
 
-**Interface contract (maps to existing operations):**
+| Module | Depended On By | Role |
+|--------|---------------|------|
+| `config_base` | autorate, steering, cake_params, check_config, config_validation | Foundation config class |
+| `storage.writer` | alert_engine, health_check, history, webhook, benchmark, storage/* | Metrics persistence singleton |
+| `tuning.models` | analyzer, applier, safety, all 4 strategies, autorate | Tuning data structures |
+| `rtt_measurement` | autorate, steering, calibrate, benchmark, reflector_scorer | RTT probing |
+| `signal_utils` | autorate, steering, calibrate | Signal handling |
+| `perf_profiler` | autorate, steering, health_check | Cycle timing |
+| `lock_utils` | autorate, steering, check_cake, benchmark | Lock file management |
+| `retry_utils` | routeros_rest, routeros_ssh, steering | Retry with backoff |
+| `path_utils` | logging_utils, state_utils | Path resolution |
+| `backends.base` | routeros, linux_cake | Backend ABC |
 
-```python
-class LinuxCakeBackend:
-    """Local CAKE qdisc control via tc commands.
+**Key coupling observation:** `autorate_continuous.py` imports from 38 internal modules -- it is the single most coupled module. `steering/daemon.py` imports from ~25 internal modules. Both are "god modules" that orchestrate everything.
 
-    Replaces RouterOS queue tree control for bandwidth shaping.
-    Does NOT handle steering rules (those stay on the router).
-    """
+## Audit Methodology: Recommended Approach
 
-    def __init__(
-        self,
-        dl_interface: str,      # e.g., "ifb-spectrum" (IFB device for download CAKE)
-        ul_interface: str,      # e.g., "nic1" (egress interface for upload CAKE)
-        logger: logging.Logger,
-    ):
-        ...
+### Strategy: Bottom-Up by Dependency Layer
 
-    def set_bandwidth(self, direction: str, rate_bps: int) -> bool:
-        """tc qdisc change dev <iface> root cake bandwidth <rate>"""
-        ...
+Audit from the leaves of the dependency graph inward toward the daemon cores. This ensures:
 
-    def get_stats(self, direction: str) -> dict | None:
-        """tc -s -j qdisc show dev <iface> -- parse JSON for drops, queue depth"""
-        ...
+1. Foundation modules are verified clean before auditing code that depends on them
+2. Findings in shared modules reveal impact scope immediately (anything importing them is affected)
+3. The hardest, most coupled code (daemon cores) is audited last, when all its dependencies are understood
 
-    def test_connection(self) -> bool:
-        """Verify interfaces exist and CAKE qdiscs are attached"""
-        ...
-```
-
-**Critical design decisions:**
-
-1. **Use `subprocess.run()` for tc commands, not pyroute2.** pyroute2 adds a dependency and its CAKE netlink attribute parsing is not well-documented. `tc -s -j qdisc show` gives JSON output since iproute2 5.x. The subprocess overhead (fork+exec) is ~2-5ms, well within the 50ms cycle budget.
-
-2. **`tc qdisc change` is non-destructive.** Per official CAKE documentation: "Most parameters can be updated without losing packets using tc's change command." Bandwidth changes specifically "don't cause any packet flushing or other trouble." This matches the existing flash-wear-protection pattern perfectly.
-
-3. **Two interfaces per WAN, not one.** CAKE shapes egress traffic. For download shaping, an IFB (Intermediate Functional Block) device mirrors ingress to egress, where CAKE shapes it. So each WAN needs:
-   - Upload: CAKE on the physical egress interface (nic1 for Spectrum, nic3 for ATT)
-   - Download: CAKE on an IFB device (ifb-spectrum, ifb-att) with traffic mirrored from the modem-side NIC
-
-4. **Requires CAP_NET_ADMIN capability.** The `tc` command needs `CAP_NET_ADMIN` (not root). The systemd service already grants `CAP_NET_RAW` for ICMP; add `CAP_NET_ADMIN` for tc.
-
-#### 2. Bridge Setup Scripts (new: `scripts/setup-bridge-*.sh`)
-
-**Purpose:** Create bridges, IFB devices, attach CAKE qdiscs at boot. Separate from wanctl Python code.
-
-**Per-WAN bridge setup (example for Spectrum):**
-
-```bash
-# Create bridge (transparent L2, no IP)
-ip link add br-spectrum type bridge
-ip link set nic0 master br-spectrum  # modem side
-ip link set nic1 master br-spectrum  # router side
-ip link set br-spectrum up
-ip link set nic0 up
-ip link set nic1 up
-
-# Upload CAKE: egress on router-side NIC
-tc qdisc replace dev nic1 root cake bandwidth 38mbit \
-    diffserv4 nat triple-isolate wash ack-filter \
-    ethernet overhead 34
-
-# Download CAKE: IFB mirrors ingress from modem-side NIC
-ip link add ifb-spectrum type ifb
-ip link set ifb-spectrum up
-tc qdisc add dev nic0 handle ffff: ingress
-tc filter add dev nic0 parent ffff: protocol all \
-    u32 match u32 0 0 action mirred egress redirect dev ifb-spectrum
-tc qdisc replace dev ifb-spectrum root cake bandwidth 900mbit \
-    diffserv4 nat triple-isolate noack \
-    ethernet overhead 34
-```
-
-This runs at VM boot (systemd oneshot before wanctl starts). wanctl only adjusts bandwidth via `tc qdisc change`.
-
-#### 3. Config Schema Extension
-
-New transport value in YAML config:
-
-```yaml
-router:
-  transport: "linux-cake"  # NEW: local tc commands
-  # Fields below only for steering (mangle rules still on router)
-  host: "10.10.99.1"
-  password: "${ROUTER_PASSWORD}"
-
-# NEW: Linux CAKE interface mapping
-linux_cake:
-  download_interface: "ifb-spectrum"
-  upload_interface: "nic1"
-  overhead: 34           # Ethernet framing overhead
-  diffserv: "diffserv4"  # Match existing 4-tier QoS
-```
-
-### MODIFIED Components
-
-#### 1. `RouterOS` class in autorate_continuous.py (wrapped via factory)
-
-**Current:** `RouterOS.__init__()` creates `FailoverRouterClient`, `set_limits()` builds RouterOS queue tree commands.
-
-**Change:** Factory pattern -- when `transport: "linux-cake"`, instantiate `LinuxCakeShaper` (a thin wrapper around `LinuxCakeBackend` matching the `set_limits(wan, down_bps, up_bps)` signature) instead. The method signature stays identical.
-
-```python
-# In autorate_continuous.py, factory replaces direct RouterOS() construction:
-def get_shaper_backend(config: Config, logger: logging.Logger):
-    """Create appropriate bandwidth control backend."""
-    if config.router_transport == "linux-cake":
-        from wanctl.backends.linux_cake import LinuxCakeShaper
-        return LinuxCakeShaper.from_config(config, logger)
-    else:
-        return RouterOS(config, logger)  # existing MikroTik path
-```
-
-**Impact:** WANController receives this from its constructor. WANController itself does NOT change. The `router` attribute just becomes polymorphic.
-
-#### 2. `CakeStatsReader` in steering/cake_stats.py
-
-**Current:** Reads CAKE stats via `client.run_cmd("/queue/tree print stats detail")` over REST/SSH.
-
-**Change:** When transport is `linux-cake`, read stats from local `tc -s -j qdisc show dev <iface>` instead. The delta-tracking logic (`_calculate_stats_delta`) stays identical. Only the data source changes.
-
-**Recommended approach:** CakeStatsReader constructor detects transport and delegates to `LinuxCakeBackend.get_stats()` for the raw data read, keeping all delta calculation logic in CakeStatsReader unchanged.
-
-#### 3. Steering daemon's `RouterOSController`
-
-**Partial change.** Steering needs to toggle mangle rules on the MikroTik router even when CAKE runs locally. The steering daemon must keep its `FailoverRouterClient` for mangle rule operations (enable/disable/check), while CAKE stats come from the local LinuxCakeBackend.
-
-This means the steering daemon needs TWO backends:
-- `LinuxCakeBackend` for `read_stats()` (local tc)
-- `FailoverRouterClient` for `enable_steering()`/`disable_steering()` (router REST/SSH)
-
-#### 4. Config class `_load_router_transport_config()`
-
-**Current:** Loads REST/SSH settings (password, port, SSL).
-
-**Change:** When `transport: "linux-cake"`, load interface names from `linux_cake` config section. Router settings are still loaded if present (steering still needs them for mangle rules).
-
-#### 5. `check_cake.py` CLI tool
-
-**Current:** Audits CAKE parameters on the RouterOS queue tree.
-
-**Change:** When transport is `linux-cake`, audit the local `tc` qdisc configuration instead. Check that CAKE is attached to the correct interfaces with expected parameters. The `--fix` mode would run `tc qdisc change` locally.
-
-#### 6. Systemd service template
-
-**Current:** `AmbientCapabilities=CAP_NET_RAW` for ICMP.
-
-**Change:** Add `CAP_NET_ADMIN` for tc commands: `AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN`.
-
-### UNCHANGED Components (majority of codebase)
-
-| Component | Why unchanged |
-|-----------|---------------|
-| WANController | Calls `router.set_limits()` -- polymorphic, doesn't care about transport |
-| QueueController | Pure state machine logic, no router awareness |
-| RTT measurement (icmplib) | Pings reflectors directly, no router dependency |
-| Signal processing chain | Operates on RTT values, transport-agnostic |
-| IRTT measurement | Independent UDP probes |
-| Fusion, tuning, calibration | All work on metrics, not router commands |
-| AlertEngine, Discord webhooks | Consume events, no router interaction |
-| State persistence (JSON, SQLite) | File-based, transport-agnostic |
-| Dashboard (TUI), history CLI | Read from health endpoint / SQLite |
-| BaseConfig, config validation | Additive change only (new transport value) |
-| Flash wear protection | Still valuable -- dedup prevents unnecessary subprocess calls |
-| Rate limiter | Still valuable -- protects against rapid tc calls in oscillation |
-
-## Data Flow Changes
-
-### Current Data Flow (RouterOS CAKE)
+### Audit Order (6 Phases)
 
 ```
-measure RTT (icmplib) -> signal processing -> congestion state
-    -> QueueController calculates new rate
-    -> RouterOS.set_limits() -> FailoverRouterClient.run_cmd()
-    -> RouterOS REST API -> queue tree max-limit update
+Phase 1: Foundation Layer (zero or minimal internal deps)
+         path_utils, timeouts, pending_rates, daemon_utils,
+         systemd_utils, signal_utils, logging_utils, lock_utils,
+         error_handling, state_utils
+         ~10 modules, ~1,800 LOC
+
+Phase 2: Data Layer (depends only on foundation)
+         config_base, config_validation_utils, state_manager,
+         storage/{schema,writer,reader,retention,downsampler,
+                  config_snapshot,maintenance}
+         backends/base
+         ~11 modules, ~3,200 LOC
+
+Phase 3: Communication Layer (depends on foundation + data)
+         routeros_rest, routeros_ssh, router_client,
+         router_command_utils, router_connectivity, retry_utils,
+         backends/{routeros,linux_cake,linux_cake_adapter}
+         ~8 modules, ~3,100 LOC
+
+Phase 4: Signal & Measurement Layer (depends on foundation + data)
+         rtt_measurement, irtt_measurement, irtt_thread,
+         signal_processing, reflector_scorer, asymmetry_analyzer,
+         baseline_rtt_manager, rate_utils, cake_params
+         ~9 modules, ~2,600 LOC
+
+Phase 5: Subsystems (depends on all lower layers)
+         tuning/{models,analyzer,applier,safety},
+         tuning/strategies/{base,signal,threshold,advanced},
+         steering/{congestion_assessment,cake_stats,
+                   steering_confidence,health},
+         alert_engine, webhook_delivery, metrics, health_check,
+         perf_profiler, steering_logger, wan_controller_state
+         ~17 modules, ~5,400 LOC
+
+Phase 6: Daemon Cores + CLI + Dashboard
+         autorate_continuous.py, steering/daemon.py,
+         check_config, check_cake, calibrate, benchmark, history,
+         dashboard/{app,config,poller,widgets/*}
+         ~18 modules, ~13,700 LOC
 ```
 
-### New Data Flow (Linux CAKE)
+### Why This Order (Not Hot-Path First)
+
+Hot-path-first sounds appealing ("audit the 50ms loop first") but is wrong for this codebase because:
+
+1. **autorate_continuous.py (4,282 LOC) imports 38 modules** -- auditing it without understanding its dependencies means you cannot distinguish "bug in autorate" from "bug inherited from config_base"
+2. **Shared module bugs have amplified impact** -- a flaw in `state_utils.atomic_write_json()` affects both daemons, all CLI tools, and state persistence. Finding it in Phase 1 immediately scopes the blast radius.
+3. **Foundation modules are fast to audit** -- Phase 1 is ~1,800 LOC of utility code, completable quickly, building momentum and establishing patterns to watch for in later phases.
+
+### Cross-Cutting Concerns (Audit Throughout)
+
+These span all phases and should be tracked as running observations:
+
+| Concern | What to Look For | Where It Appears |
+|---------|-----------------|------------------|
+| Error swallowing | `except: pass` or `except Exception` without logging | All modules |
+| Type safety gaps | `Any` return types, `# type: ignore` without explanation | All modules |
+| Dead code | Unreachable branches, unused imports, vestigial functions | All modules |
+| Test coverage gaps | Modules/functions with <90% branch coverage | Cross-reference with coverage report |
+| Hardcoded values | Magic numbers that should be config parameters | Daemon cores, signal pipeline |
+| Logging hygiene | Missing context in error logs, excessive DEBUG noise | All modules |
+
+## Data Flow: The 50ms Autorate Cycle
 
 ```
-measure RTT (icmplib) -> signal processing -> congestion state
-    -> QueueController calculates new rate
-    -> LinuxCakeShaper.set_limits() -> subprocess.run(["tc", ...])
-    -> kernel tc netlink -> CAKE qdisc bandwidth update (non-destructive)
+ContinuousAutoRate.run_cycle()
+    |
+    |-- WANController.measure_rtt()
+    |     |-- RTTMeasurement.measure() [icmplib raw ICMP]
+    |     |-- SignalProcessor.process() [Hampel -> EWMA]
+    |     |-- ReflectorScorer.update()
+    |     |-- WANController._compute_fused_rtt() [ICMP + IRTT fusion]
+    |     '-- IRTTThread.get_latest() [background UDP RTT]
+    |
+    |-- WANController.update_ewma(measured_rtt)
+    |     |-- BaselineRTTManager._update_baseline_if_idle()
+    |     '-- EWMA delta calculation
+    |
+    |-- QueueController.adjust_4state(delta)
+    |     |-- GREEN/YELLOW/SOFT_RED/RED state machine
+    |     |-- rate = enforce_rate_bounds(new_rate)
+    |     '-- PendingRateChange tracking
+    |
+    |-- WANController.apply_rate_changes_if_needed(dl_rate, ul_rate)
+    |     |-- RateLimiter.allow_change()
+    |     |-- RouterOS/LinuxCakeBackend.set_bandwidth()
+    |     '-- Flash wear protection (skip if unchanged)
+    |
+    |-- WANController.save_state() [periodic, dirty-tracking]
+    |-- WANController._record_profiling() [PerfTimer subsystem]
+    |-- MetricsWriter.record() [SQLite per-cycle]
+    |-- AlertEngine checks (congestion, loss, connectivity, drift, flapping)
+    |-- TuningAnalyzer (hourly, 4-layer rotation)
+    '-- systemd_utils.notify_watchdog()
 ```
 
-**Latency improvement:** ~2-5ms for local subprocess vs ~15-25ms for REST API round-trip. Frees cycle budget headroom within the 50ms interval.
+**Hot path audit targets** (executed every 50ms = 20 times/second):
+- `rtt_measurement.py` -- ICMP socket management
+- `signal_processing.py` -- Hampel filter, EWMA
+- `autorate_continuous.py::QueueController.adjust_4state()` -- state machine
+- `backends/linux_cake.py::set_bandwidth()` -- tc subprocess call
+- `rate_utils.py` -- bounds enforcement
+- `perf_profiler.py` -- timing overhead
 
-### CAKE Stats Data Flow Change
-
-```
-CURRENT: CakeStatsReader -> client.run_cmd("/queue/tree print stats") -> parse REST JSON or SSH text
-NEW:     CakeStatsReader -> subprocess.run(["tc", "-s", "-j", "qdisc", "show"]) -> parse tc JSON
-```
-
-### Steering Data Flow (Hybrid)
-
-```
-CAKE stats:    LinuxCakeBackend.get_stats() -> local tc (fast, ~2ms)
-RTT:           icmplib pings (unchanged)
-Mangle rules:  FailoverRouterClient -> RouterOS REST API (still remote, ~15ms)
-State files:   local filesystem (unchanged)
-```
-
-## Interface Topology (Physical + Virtual)
-
-### Per-WAN Interface Set
+## Steering Daemon Cycle (2s loop)
 
 ```
-For Spectrum:
-  nic0 (i210, PCIe passthrough) --- modem-side
-      |-- ingress: tc filter -> mirred to ifb-spectrum
-      +-- member of br-spectrum
-
-  nic1 (i210, PCIe passthrough) --- router-side
-      |-- egress: CAKE qdisc (upload shaping)
-      +-- member of br-spectrum
-
-  ifb-spectrum (virtual IFB device)
-      +-- egress: CAKE qdisc (download shaping, mirrored from nic0 ingress)
-
-  br-spectrum (Linux bridge, no IP address)
-      +-- transparent L2 forwarding between nic0 and nic1
-
-For ATT: identical structure with nic2/nic3/ifb-att/br-att
+SteeringDaemon.run_cycle()
+    |
+    |-- measure_current_rtt() [same RTTMeasurement as autorate]
+    |-- update_baseline_rtt()
+    |-- calculate_delta()
+    |-- collect_cake_stats() [CakeStatsReader -> LinuxCakeBackend]
+    |-- update_ewma_smoothing()
+    |
+    |-- update_state_machine(signals: CongestionSignals)
+    |     |-- assess_congestion_state() [3-state: GREEN/YELLOW/RED]
+    |     '-- _update_state_machine_unified()
+    |           |-- _handle_good_state() or _handle_degraded_state()
+    |           '-- _apply_confidence_decision()
+    |                 '-- ConfidenceController.evaluate()
+    |
+    |-- execute_steering_transition()
+    |     |-- RouterOSController.enable_steering() / disable_steering()
+    |     '-- [REST API to MikroTik -- mangle rule enable/disable]
+    |
+    |-- State persistence, metrics, alerting, watchdog
+    '-- BaselineLoader reads autorate state file (cross-daemon IPC)
 ```
 
-### Why IFB (Not Direct Ingress)
-
-Linux tc cannot shape ingress traffic directly. The IFB (Intermediate Functional Block) pattern is the standard approach:
-1. Attach ingress qdisc to the modem-side NIC
-2. Mirror all ingress packets to an IFB device via `tc filter ... mirred egress redirect`
-3. Attach CAKE to the IFB device's egress
-4. Packets flow: modem NIC ingress -> IFB egress (shaped by CAKE) -> bridge -> router NIC
-
-This is well-established Linux networking practice since kernel 2.6 and is used by OpenWrt's SQM scripts, pfSense, and every other Linux-based CAKE deployment.
-
-### DSCP Preservation Through Bridge
-
-DSCP marks set by the RB5009 mangle rules on outbound traffic are preserved through the transparent L2 bridge. CAKE's diffserv4 mode reads these marks for priority classification:
-- EF (DSCP 46) -> Voice tin
-- AF31 (DSCP 26) -> Video tin
-- CS0 (default) -> Best Effort tin
-- CS1 (DSCP 8) -> Bulk tin
-
-For download (ISP -> LAN), the ISP does not set DSCP marks, so all download traffic enters the Best Effort tin. This matches current behavior on the RB5009.
-
-## Architectural Patterns
-
-### Pattern 1: Transport Polymorphism via Factory
-
-**What:** Replace the direct `RouterOS()` construction with a factory that returns the appropriate backend based on config.
-
-**When to use:** Any time the control loop needs to apply rates or read stats.
-
-**Trade-offs:** Simple and low-risk. Does not require refactoring WANController or QueueController. The polymorphic object just needs `set_limits(wan, down_bps, up_bps)` and the stats methods.
-
-```python
-class LinuxCakeShaper:
-    """Drop-in replacement for RouterOS class when transport=linux-cake."""
-
-    def __init__(self, config, logger):
-        from wanctl.backends.linux_cake import LinuxCakeBackend
-        self.backend = LinuxCakeBackend.from_config(config, logger)
-
-    def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
-        """Same signature as RouterOS.set_limits()."""
-        dl_ok = self.backend.set_bandwidth("download", down_bps)
-        ul_ok = self.backend.set_bandwidth("upload", up_bps)
-        return dl_ok and ul_ok
-```
-
-### Pattern 2: Subprocess with JSON Parsing for tc
-
-**What:** Use `tc -s -j qdisc show dev <iface>` for machine-readable CAKE stats.
-
-**When to use:** Anywhere wanctl needs to read CAKE qdisc state (stats, current bandwidth, parameters).
-
-**Trade-offs:** The `-j` JSON flag is available in iproute2 5.x+ (Debian 12 ships iproute2 6.1). Faster to parse than regex on text output. Falls back cleanly if JSON parsing fails.
-
-```python
-def get_stats(self, interface: str) -> dict | None:
-    result = subprocess.run(
-        ["tc", "-s", "-j", "qdisc", "show", "dev", interface],
-        capture_output=True, text=True, timeout=5,
-    )
-    if result.returncode != 0:
-        return None
-    data = json.loads(result.stdout)
-    # tc JSON returns a list of qdiscs; find the cake one
-    for qdisc in data:
-        if qdisc.get("kind") == "cake":
-            return {
-                "packets": qdisc.get("packets", 0),
-                "bytes": qdisc.get("bytes", 0),
-                "dropped": qdisc.get("drops", 0),
-                "queued_packets": qdisc.get("backlog", {}).get("packets", 0),
-                "queued_bytes": qdisc.get("backlog", {}).get("bytes", 0),
-            }
-    return None
-```
-
-### Pattern 3: Dual-Backend for Steering Daemon
-
-**What:** Steering daemon holds both a local LinuxCakeBackend (for stats) and a remote FailoverRouterClient (for mangle rules).
-
-**When to use:** Only in the steering daemon, where CAKE stats and mangle rule control are on different hosts.
-
-**Trade-offs:** Slightly more complex init, but clean separation. The autorate daemon only needs the LinuxCakeBackend (no router communication at all in the hot path).
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Refactoring WANController to Know About Backends
-
-**What people do:** Pass the backend type into WANController, add if/else branches.
-
-**Why it's wrong:** WANController is the architectural spine (READ-ONLY per CLAUDE.md). Its control logic, state machine, and threshold evaluation must not change. The transport should be invisible to it.
-
-**Do this instead:** Make `RouterOS` and `LinuxCakeShaper` share the same `set_limits()` interface. WANController calls `self.router.set_limits()` regardless.
-
-### Anti-Pattern 2: Running tc Commands as Root
-
-**What people do:** Run wanctl as root to get tc access.
-
-**Why it's wrong:** Violates the existing security model (non-root wanctl user, minimal capabilities).
-
-**Do this instead:** Add `CAP_NET_ADMIN` ambient capability in systemd. The wanctl user can then run tc commands without root.
-
-### Anti-Pattern 3: Recreating CAKE Qdiscs on Every Rate Change
-
-**What people do:** `tc qdisc del` then `tc qdisc add` with new bandwidth.
-
-**Why it's wrong:** Causes packet loss during the delete-recreate gap. CAKE explicitly supports `tc qdisc change` for non-destructive bandwidth updates.
-
-**Do this instead:** Always use `tc qdisc change dev <iface> root cake bandwidth <rate>`. Only the initial setup (bridge scripts) uses `tc qdisc replace`.
-
-### Anti-Pattern 4: Using pyroute2 for CAKE Control
-
-**What people do:** Import pyroute2 for "proper" netlink access instead of subprocess.
-
-**Why it's wrong:** Adds a heavy dependency (~50+ modules). pyroute2's CAKE attribute parsing is poorly documented and may lag kernel changes. Subprocess `tc` is battle-tested, and the 2-5ms overhead is negligible vs the 15-25ms saved by not talking to the router.
-
-**Do this instead:** Use `subprocess.run(["tc", ...])` with JSON parsing. Zero new dependencies.
-
-## Integration Points
-
-### External Services
-
-| Service | Current | After Offload | Notes |
-|---------|---------|---------------|-------|
-| MikroTik REST API | Bandwidth + stats + mangle rules | Mangle rules ONLY | Autorate stops talking to router entirely |
-| MikroTik SSH | Failover for REST | Failover for mangle rules only | Reduced surface area |
-| Local tc command | Not used | Bandwidth + stats | New integration, subprocess |
-| Kernel CAKE qdisc | N/A (on router) | Local kernel module | Must be loaded at boot |
+## Component Boundaries and Integration Points
 
 ### Internal Boundaries
 
-| Boundary | Communication | Change |
-|----------|---------------|--------|
-| WANController -> Shaper | `set_limits(wan, dl, ul)` | Interface unchanged, implementation swapped |
-| SteeringDaemon -> CakeStats | `read_stats(queue_name)` | Source changes (local tc vs remote REST) |
-| SteeringDaemon -> MangleRules | `enable_steering()`, `disable_steering()` | Unchanged (still talks to router) |
-| check_cake CLI -> CAKE | Audits CAKE params | Splits: local tc audit OR remote router audit |
-| Health endpoint | Reports backend type, cycle budget | Add transport type to health response |
+| Boundary | Communication | Audit Concern |
+|----------|---------------|---------------|
+| autorate <-> steering | State file on disk (JSON) | Stale read, schema drift, race conditions |
+| autorate <-> storage | MetricsWriter singleton (SQLite) | Thread safety, WAL mode, connection handling |
+| autorate <-> backends | set_bandwidth()/get_stats() | Error propagation, subprocess timeout |
+| autorate <-> tuning | _apply_tuning_to_controller() hourly | Parameter bounds, revert safety |
+| steering <-> router | REST/SSH mangle rule toggle | Idempotency, error recovery |
+| autorate <-> IRTT | IRTTThread (background, lock-free cache) | Thread lifecycle, stale data |
+| health_check <-> autorate | TYPE_CHECKING import (avoids circular) | Attribute access fragility |
+| steering/health <-> daemon | TYPE_CHECKING import | Same concern |
 
-### Filesystem Layout (VM)
+### External Boundaries
+
+| External System | Integration | Audit Focus |
+|----------------|-------------|-------------|
+| MikroTik Router | REST API (routeros_rest.py) + SSH (routeros_ssh.py) | Timeout handling, password management, error codes |
+| Linux CAKE (tc) | subprocess via LinuxCakeBackend | Command injection safety, parse errors, tc failures |
+| IRTT Server (Dallas) | UDP via subprocess `irtt client` | Process lifecycle, timeout, parse JSON |
+| Discord Webhooks | HTTPS POST (requests library) | Rate limiting, retry backoff, error isolation |
+| systemd | notify_watchdog() via socket | Watchdog timeout vs cycle budget |
+| SQLite (metrics.db) | MetricsWriter singleton, WAL mode | Corruption recovery, disk full, concurrent access |
+| Filesystem | state files, lock files, logs | Permissions, atomic writes, tmpfs race |
+
+## Architectural Patterns to Audit
+
+### Pattern 1: Singleton MetricsWriter
+
+**What:** `MetricsWriter` in `storage/writer.py` uses a module-level singleton. Tests must call `_reset_instance()`.
+
+**Audit concern:** Verify singleton is properly thread-safe. Check that all callers get the same instance. Confirm `_reset_instance()` is only called in tests, never in production code.
+
+### Pattern 2: TYPE_CHECKING Circular Import Avoidance
+
+**What:** `health_check.py` imports `ContinuousAutoRate` only under `TYPE_CHECKING`. At runtime, the controller is passed as `Any`.
+
+**Audit concern:** No compile-time type checking on the actual object. Attribute access on the controller could silently break if method signatures change. Same pattern exists in `steering/health.py`.
+
+### Pattern 3: Flash Wear Protection (Write Deduplication)
+
+**What:** `last_applied_dl_rate` / `last_applied_ul_rate` tracking prevents sending unchanged values to the router/CAKE.
+
+**Audit concern:** Verify all paths through rate application check these guards. Confirm reset behavior on daemon restart.
+
+### Pattern 4: State File Cross-Daemon IPC
+
+**What:** Autorate writes `{wan}_state.json` with congestion zone. Steering reads it via `BaselineLoader`. No locking -- autorate writes atomically, steering tolerates stale reads.
+
+**Audit concern:** Verify atomic_write_json uses temp+fsync+rename correctly. Check staleness timeout (5s). Confirm schema compatibility between writer (autorate) and reader (steering).
+
+### Pattern 5: Daemon Duplication
+
+**What:** Both `autorate_continuous.py` and `steering/daemon.py` contain similar patterns: argparse setup, lock acquisition, health server start, signal handling, main loop with watchdog, cleanup.
+
+**Audit concern:** `daemon_utils.py` partially consolidated this in v1.10, but significant duplication remains. The `main()` functions are ~130 and ~120 lines respectively with parallel structure. Not a bug, but a maintenance burden.
+
+## Anti-Patterns to Flag
+
+### Anti-Pattern 1: God Module (autorate_continuous.py)
+
+**What:** 4,282 lines, 4 classes, ~8 top-level functions, imports from 38 internal modules. Houses Config (960 lines), RouterOS (50 lines), QueueController (240 lines), WANController (1,800 lines), ContinuousAutoRate (120 lines), plus main() and helpers.
+
+**Why problematic:** Config alone is 960 lines of schema validation that could be its own module. WANController at 1,800 lines handles measurement, fusion, tuning, alerting, state persistence, and profiling -- at least 4 distinct responsibilities.
+
+**Audit action:** Flag as complexity hotspot. Do NOT refactor in audit -- document recommendations only. Splitting Config into `autorate_config.py` and extracting alert-checking methods from WANController are the highest-value changes.
+
+### Anti-Pattern 2: RouterOS Class Bypasses Backend Abstraction
+
+**What:** `autorate_continuous.py` contains a `RouterOS` class (line 1204) that wraps `FailoverRouterClient` directly. The `RouterBackend` ABC in `backends/base.py` was created for abstraction, and `LinuxCakeBackend` properly implements it. But the autorate hot path does NOT go through `RouterBackend` when using RouterOS transport -- it uses its own `RouterOS` class.
+
+**Why problematic:** Two parallel abstractions for the same operation. The `LinuxCakeAdapter` bridges this gap for linux-cake transport, but the RouterOS path is outside the abstraction.
+
+**Audit action:** Document the divergence. It works correctly but creates confusion about where router interaction lives.
+
+### Anti-Pattern 3: Deployment Script Sprawl
+
+**What:** `scripts/` contains 20+ shell scripts, many dating from container-era deployment (pre-v1.21). An `.obsolete/` subdirectory exists but some non-obsolete scripts may also be stale.
+
+**Audit action:** Inventory every script, check last meaningful use, archive anything not needed for cake-shaper VM deployment.
+
+## Prioritization Framework for Findings
+
+### Severity Classification
+
+| Severity | Definition | Action Timing | Example |
+|----------|-----------|---------------|---------|
+| **P0 - Production Risk** | Could cause daemon crash, data loss, or network disruption | Fix immediately | Unhandled exception in hot loop, SQLite corruption path |
+| **P1 - Correctness** | Wrong behavior under edge conditions | Fix in audit milestone | Stale baseline not detected, rate bounds bypass |
+| **P2 - Security** | Hardening gap, credential exposure risk | Fix in audit milestone | systemd directives missing, log scrubbing gap |
+| **P3 - Maintainability** | Dead code, excessive complexity, poor naming | Fix if low risk | Unused imports, CC > 15 functions, dead branches |
+| **P4 - Documentation** | Stale docs, missing docstrings, wrong comments | Fix as encountered | Outdated architecture doc, wrong version refs |
+
+### Cross-Module Finding Template
+
+When a finding spans multiple modules, document it as:
 
 ```
-/opt/wanctl/                  # Application code (same structure)
-/etc/wanctl/                  # Config files
-  spectrum.yaml               # transport: linux-cake
-  att.yaml                    # transport: linux-cake
-  steering.yaml               # Still has router: section for mangle rules
-  secrets                     # ROUTER_PASSWORD (for steering)
-/var/lib/wanctl/              # State files (same)
-/var/log/wanctl/              # Logs (same)
-/etc/systemd/system/
-  wanctl@.service             # +CAP_NET_ADMIN
-  wanctl-bridge-setup.service # NEW: oneshot to create bridges/IFBs/CAKE at boot
+FINDING: [Short description]
+SEVERITY: P0/P1/P2/P3/P4
+MODULES: [list of affected files]
+ROOT CAUSE: [which module is the source]
+IMPACT: [what breaks or degrades]
+FIX: [concrete recommendation]
+TEST: [how to verify the fix]
 ```
 
-## Suggested Build Order
+## Audit Tooling
 
-Based on dependency analysis and risk:
+### Automated Analysis (Run Before Manual Audit)
 
-### Phase 1: LinuxCakeBackend Core (lowest risk, highest value)
+| Tool | What It Finds | Command |
+|------|--------------|---------|
+| `vulture` | Dead code (functions, imports, variables) | `vulture src/wanctl/ --min-confidence 80` |
+| `radon cc` | Cyclomatic complexity per function | `radon cc src/wanctl/ -s -n C` (show grade C and worse) |
+| `radon mi` | Maintainability index per file | `radon mi src/wanctl/ -s -n B` |
+| `ruff check` | Lint violations (already in CI) | `.venv/bin/ruff check src/ --select ALL` (temporary, broader ruleset) |
+| `mypy --strict` | Type safety gaps (stricter than CI) | `.venv/bin/mypy src/wanctl/ --strict` (compare to current) |
+| `bandit` | Security issues (already in CI) | `.venv/bin/bandit -r src/ -c pyproject.toml` |
+| `pytest --cov` | Coverage gaps (branch-level) | `.venv/bin/pytest --cov=src --cov-branch --cov-report=html` |
+| `systemd-analyze security` | Service hardening score | `systemd-analyze security wanctl@spectrum` |
+| `tc -s -j qdisc show` | Live CAKE parameter verification | On cake-shaper VM |
+| `pip-audit` | Dependency CVEs (already in CI) | `.venv/bin/pip-audit` |
 
-**Build:** `backends/linux_cake.py` with `set_bandwidth()` and `get_stats()`.
-**Test:** Unit tests with mocked subprocess. Integration test on dev machine with dummy interface.
-**Why first:** Self-contained module, no changes to existing code. Can be developed and fully tested in isolation.
+### Manual Audit Focus Areas
 
-**Depends on:** Nothing.
-**Blocks:** Everything else.
+Beyond what tools catch, human review should focus on:
 
-### Phase 2: Config + Factory Wiring
+1. **Algorithmic correctness** in the state machine (QueueController.adjust_4state, SteeringDaemon._update_state_machine_unified) -- tools cannot verify control logic
+2. **Timing assumptions** -- 50ms cycle budget, watchdog timeout margins, EWMA time constant preservation
+3. **Error recovery paths** -- what happens when the router is unreachable for 60 seconds? When SQLite is corrupt? When /var/lib/wanctl runs out of space?
+4. **Configuration interaction** -- do all config parameters actually affect behavior? Are any ignored? Do defaults match documentation?
+5. **CAKE parameter correctness** -- diffserv4 tin mapping, ack-filter, overhead values for DOCSIS vs DSL
 
-**Build:** Config schema extension (`linux_cake:` section), factory function in autorate_continuous.py.
-**Test:** Config parsing tests, factory returns correct backend type.
-**Why second:** Minimal surgical changes to existing code. Factory pattern means WANController stays untouched.
+## Scaling Considerations (Not Applicable)
 
-**Depends on:** Phase 1 (LinuxCakeBackend exists).
-**Blocks:** Phases 3-5.
+This is a single-host, single-user production system. There are no multi-tenant or horizontal scaling concerns. The relevant "scaling" dimensions are:
 
-### Phase 3: CakeStatsReader Adaptation
+| Dimension | Current | Audit Concern |
+|-----------|---------|---------------|
+| Cycle frequency | 50ms (20Hz) | CPU budget per cycle (30-40ms used of 50ms available) |
+| SQLite growth | ~months of metrics | Retention/downsampling working? Disk growth rate? |
+| Module count | 80 files, 29K LOC | Comprehension ceiling for one developer |
+| Config complexity | ~200 YAML parameters across 3 configs | Validation coverage, unused parameters |
 
-**Build:** Modify CakeStatsReader to use LinuxCakeBackend when transport is linux-cake.
-**Test:** Unit tests with mocked tc output. Verify delta tracking still works.
-**Why third:** Steering daemon needs stats from local tc.
+## Production Deployment Context
 
-**Depends on:** Phase 1 (LinuxCakeBackend.get_stats).
-**Blocks:** Phase 5 (steering integration).
+### cake-shaper VM (v1.21+)
 
-### Phase 4: check_cake CLI Adaptation
+```
+Host: VM 206 on Proxmox (odin)
+OS: Debian 12
+NICs: 4x PCIe passthrough (2x i210, 2x i350)
+Bridges: br-spectrum (nic0+nic1), br-att (nic2+nic3)
+Services: wanctl@spectrum, wanctl@att, wanctl-steering
+User: wanctl (dedicated service account)
+Config: /etc/wanctl/{spectrum,att,steering}.yaml
+State: /var/lib/wanctl/
+Logs: /var/log/wanctl/ + journald
+Secrets: /etc/wanctl/secrets (EnvironmentFile)
+```
 
-**Build:** Add linux-cake mode to check_cake.py for local qdisc auditing.
-**Test:** Verify it can audit CAKE params via tc.
-**Why fourth:** Operator tooling. Needed before production cutover but not for functional testing.
+### Audit Points for Deployment
 
-**Depends on:** Phase 1.
-**Blocks:** Nothing critical (nice-to-have before cutover).
-
-### Phase 5: Steering Dual-Backend
-
-**Build:** Steering daemon holds LinuxCakeBackend (stats) + FailoverRouterClient (mangle rules).
-**Test:** Integration tests verifying both paths work.
-**Why fifth:** Most complex change -- two backends in one daemon.
-
-**Depends on:** Phases 1, 2, 3.
-**Blocks:** Production cutover.
-
-### Phase 6: VM Setup + Bridge Scripts + Systemd
-
-**Build:** Bridge setup scripts, systemd oneshot service, updated service template, VM creation.
-**Test:** VM creation on odin, interface verification, basic tc tests.
-**Why last code phase:** Infrastructure, not application logic.
-
-**Depends on:** All prior phases.
-**Blocks:** Production cutover.
-
-### Phase 7: Cutover
-
-**Execute:** Cabling change, VM deploy, wanctl start, verify, disable RB5009 queue trees.
-**Rollback:** Re-cable modems direct to RB5009, re-enable queue trees.
-
-## Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Bridge/VM failure = total WAN outage | LOW | CRITICAL | Manual bypass cables, RB5009 fallback config |
-| tc JSON format differs from expected | LOW | MEDIUM | Validate JSON schema on Debian 12 before deployment |
-| IFB mirroring adds latency | VERY LOW | LOW | Measured at <0.1ms in Linux kernel |
-| 1GbE NIC bottleneck for Spectrum | KNOWN | LOW | 900Mbps ceiling already set; X552 10G upgrade path exists |
-| VM resource contention with other VMs | LOW | MEDIUM | Dedicate 2 CPU cores, 2GB RAM; CAKE is CPU-light on x86 |
-| DSCP marks lost through bridge | VERY LOW | HIGH | L2 bridge preserves all packet headers by definition |
-| Steering split-brain (local stats + remote rules) | LOW | MEDIUM | Atomic state file reads, same as current cross-container |
+| Item | What to Check |
+|------|--------------|
+| systemd unit files | Security directives completeness (compare to `systemd-analyze security` output) |
+| File permissions | /etc/wanctl/secrets readable only by wanctl user? |
+| NIC tuning | rx-udp-gro-forwarding persistence across reboot |
+| Log rotation | RotatingFileHandler (10MB/3 backups) -- is this sufficient? |
+| Bridge configuration | systemd-networkd managing bridges, NOT CAKE qdiscs |
+| CAKE init | tc qdisc replace on service start (idempotent) |
+| CAKE runtime | tc qdisc change (lossless rate adjustment) |
 
 ## Sources
 
-- [tc-cake(8) man page](https://man7.org/linux/man-pages/man8/tc-cake.8.html) -- CAKE parameters, change semantics, statistics
-- [CAKE Technical Wiki](https://www.bufferbloat.net/projects/codel/wiki/CakeTechnical/) -- Statistics fields, design rationale
-- [CAKE dynamic bandwidth change discussion](https://cerowrt-devel.bufferbloat.narkive.com/WGpQmsKp/cake-changing-bandwidth-on-the-rate-limiter-dynamically) -- Confirms non-destructive change
-- [Linux IFB Wiki](https://wiki.linuxfoundation.org/networking/ifb) -- IFB device pattern for ingress shaping
-- [Proxmox PCI Passthrough](https://pve.proxmox.com/wiki/PCI(e)_Passthrough) -- NIC passthrough requirements
-- [Network bridge - ArchWiki](https://wiki.archlinux.org/title/Network_bridge) -- Transparent bridge configuration
-- Existing codebase: `backends/base.py`, `autorate_continuous.py`, `steering/cake_stats.py`, `steering/daemon.py`, `check_cake.py` -- analyzed directly
+- Codebase analysis: full import graph extraction via AST parsing of all 80 modules
+- Module line counts: `wc -l` across src/wanctl/
+- [Radon documentation: cyclomatic complexity metrics](https://radon.readthedocs.io/en/latest/intro.html)
+- [Vulture: dead Python code detection](https://github.com/jendrikseipp/vulture)
+- [import-linter: architecture enforcement](https://import-linter.readthedocs.io/)
+- [systemd service hardening guide](https://linux-audit.com/systemd/how-to-harden-a-systemd-service-unit/)
+- [tc-cake(8) man page](https://man7.org/linux/man-pages/man8/tc-cake.8.html)
+- [Python code quality tools beyond linting](https://dev.to/ldrscke/python-code-quality-tools-beyond-linting-42d8)
 
 ---
-*Architecture research for: CAKE offload to Linux VM (wanctl v1.21)*
-*Researched: 2026-03-24*
+*Architecture research for: wanctl v1.22 Full System Audit*
+*Researched: 2026-03-26*

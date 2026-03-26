@@ -1,122 +1,341 @@
-# Pitfalls Research: v1.21 CAKE Offload to Linux VM
+# Pitfalls Research: v1.22 Full System Audit
 
-**Domain:** Transparent L2 bridge VM with CAKE shaping, replacing MikroTik CAKE backend
-**Researched:** 2026-03-24
-**Confidence:** HIGH (grounded in codebase analysis, LibreQoS architecture precedent, Linux kernel docs, Proxmox VFIO docs, and production wanctl experience across 21 milestones)
+**Domain:** Auditing and refactoring a production Python network controller after 21 milestones of rapid development
+**Researched:** 2026-03-26
+**Confidence:** HIGH (grounded in direct codebase analysis of 28K+ LOC, 80+ source files, 3,700+ tests, and production deployment knowledge across 21 milestones)
 
 ## Critical Pitfalls
 
-### Pitfall 1: VM Crash = Total Internet Outage (Single Point of Failure)
+### Pitfall 1: Removing "Dead Code" That Is Actually a Backend-Specific Path
 
-**What goes wrong:** Both WAN paths (Spectrum and ATT) physically pass through the VM's bridge interfaces. If the VM crashes, the Proxmox host kernel panics, or a VFIO passthrough driver fault occurs, both bridges go down simultaneously. The household loses all internet connectivity with no automatic recovery path.
+**What goes wrong:**
+The auditor identifies what appears to be duplicated or dead router control code and removes it. The system breaks for one deployment mode (linux-cake vs RouterOS) while appearing to work in the other. Since production currently runs `linux-cake` transport, RouterOS code paths look "unused" but are required for the MikroTik steering daemon and for future fallback.
 
-**Why it happens:** The transparent bridge architecture means the VM is physically inline on both WAN paths. Unlike the current LXC container architecture where MikroTik still handles the data plane (wanctl only adjusts queue parameters), the offload VM IS the data plane. The modem-to-router physical path no longer exists without the VM.
+**Why it happens:**
+wanctl has evolved from a single RouterOS-only system to a dual-backend architecture. The evolution left deliberate parallel code paths:
+
+- `autorate_continuous.py` line 1204: `class RouterOS` -- the original RouterOS interface using `get_router_client_with_failover()` and batched queue tree commands. This is NOT redundant with `backends/routeros.py`. The `RouterOS` class is the autorate daemon's transport; `RouterOSBackend` is the abstract backend implementation.
+- `autorate_continuous.py` line 3473: conditional `LinuxCakeAdapter` import -- runtime backend selection means only one branch executes per deployment.
+- `steering/daemon.py` line 721: `RouterOSController` -- the steering daemon's MikroTik mangle rule controller. This looks redundant with `router_client.py` but serves a completely different purpose (toggling firewall rules, not setting queue limits).
+- `routeros_rest.py` and `routeros_ssh.py` -- both are live code used by `router_client.py`'s failover system, even though only REST is typically active.
+
+**Why it happens:**
+Static analysis tools (vulture, deadcode, pyflakes) flag code that is only reachable through runtime configuration as "unused." A human auditor sees `RouterOS`, `RouterOSBackend`, `RouterOSREST`, `RouterOSSSH`, and `RouterOSController` -- five classes with similar names -- and concludes there is massive duplication. In reality each serves a distinct purpose in a specific deployment context.
 
 **How to avoid:**
-1. **Proxmox auto-restart with watchdog**: Configure `ha:` resources or `onboot: 1` with watchdog timer so the VM auto-restarts on crash. Target: recovery in <30 seconds.
-2. **Linux bridge survives wanctl crash**: The Linux bridge (not XDP) continues forwarding packets even if the wanctl daemon process dies inside the VM. CAKE shaping stops but connectivity is preserved. This is the LibreQoS-proven pattern.
-3. **Systemd restart inside VM**: wanctl systemd service with `Restart=on-failure` and `WatchdogSec=` handles daemon crashes without VM restart.
-4. **Hardware bypass consideration**: For ultimate safety, a managed switch with port mirroring or a manual patch cable bypass (modem directly to router) should be documented as emergency procedure.
-5. **Staged rollout**: Deploy one WAN first (ATT, the secondary). Run for a week. Only then migrate Spectrum (primary). This limits blast radius during initial deployment.
+1. Before marking any router/backend code as dead, trace all call paths from BOTH entry points: `wanctl` (autorate_continuous.py:main) AND `wanctl-steering` (steering/daemon.py:main).
+2. Check `pyproject.toml` `[project.scripts]` for all 8 entry points -- each may exercise different code paths.
+3. Test with BOTH `router_transport: "rest"` AND `router_transport: "linux-cake"` configs to verify reachability.
+4. The `LinuxCakeAdapter` exists specifically because autorate's `WANController` calls `router.set_limits(wan, down_bps, up_bps)` -- a different interface from the abstract `RouterBackend.set_bandwidth(queue, rate_bps)`. The adapter bridges these. Removing it breaks linux-cake mode silently.
 
-**Warning signs:** VM uptime dropping, VFIO driver errors in `dmesg`, Proxmox task log showing unexpected VM stops, bridge interface flapping in `ip link` output.
+**Warning signs:**
+- Static analysis tool reports `RouterOS` class as unused
+- Import graph shows `routeros_ssh.py` as unreferenced (it is referenced via lazy import in `router_client.py`)
+- `LinuxCakeAdapter` appears to have no direct callers (it is imported conditionally at runtime in `autorate_continuous.py` line 3474)
 
-**Phase to address:** Phase 1 (Infrastructure/VFIO) must validate VM stability before any bridge is created. Phase 2 (Bridge) must verify bridge survives process crashes. Separate validation phase before production cutover.
+**Phase to address:** Any dead code analysis phase MUST cross-reference against all 8 CLI entry points and both transport modes before flagging removals.
 
 ---
 
-### Pitfall 2: CAKE Bandwidth Change Latency Exceeds 50ms Cycle Budget
+### Pitfall 2: Refactoring the SIGUSR1 Reload Chain and Breaking Hot-Reload
 
-**What goes wrong:** The wanctl control loop runs at 50ms (20Hz). Currently, MikroTik REST API calls complete in ~5ms. If `tc qdisc change` via subprocess takes >10ms, the cycle budget is blown. If it takes >25ms, the controller cannot complete RTT measurement + state machine + rate application within 50ms.
+**What goes wrong:**
+The auditor sees multiple `_reload_*_config()` methods scattered across `autorate_continuous.py` (lines 2507, 2568) and `steering/daemon.py` (lines 1091, 1128, 1174) and consolidates them into a single generic reload method. The refactored version misses one reload target (fusion config, tuning config, webhook URL, dry_run flag, or wan_state.enabled), causing that parameter to no longer respond to SIGUSR1. The operator sends `kill -USR1` to change a setting and nothing happens -- a silent failure with no error log.
 
-**Why it happens:** Two latency sources: (a) subprocess fork/exec overhead to call `tc` binary (~2-5ms on modern Linux), and (b) the kernel netlink round-trip to modify the qdisc. Additionally, if the code shells out to `tc` using `subprocess.run()`, Python's GIL and process creation add latency. The current MikroTik REST path uses HTTP keep-alive sessions, avoiding per-call connection setup.
+**Why it happens:**
+The SIGUSR1 chain has grown incrementally across milestones v1.11 through v1.20:
+- v1.11: `wan_state.enabled` reload
+- v1.13: `dry_run` flag reload
+- v1.15: `webhook_url` reload
+- v1.19: fusion config reload
+- v1.20: tuning config reload
+
+Each reload method re-reads a specific YAML section and updates a specific runtime attribute. The chain is coordinated through `signal_utils.py`'s thread-safe `_reload_event` (a `threading.Event`), and the actual reload methods are called from the main event loop (autorate line 4169-4176, steering daemon's equivalent). Breaking any link in this chain silently disables that hot-reload capability.
 
 **How to avoid:**
-1. **Benchmark tc command latency first**: Before writing any LinuxCakeBackend code, measure `time tc qdisc change dev br-spectrum root cake bandwidth 500mbit` in the VM. Must be <5ms.
-2. **Use pyroute2 netlink library** instead of subprocess: Direct netlink socket communication avoids fork/exec overhead entirely. pyroute2's `tc()` method can change qdisc parameters with ~0.5-1ms latency. This is the recommended approach.
-3. **Fallback: subprocess with pre-opened pipe**: If pyroute2 does not support CAKE parameters cleanly, use `subprocess.Popen` with a persistent shell to avoid repeated fork/exec.
-4. **Flash wear protection becomes irrelevant**: Linux tc changes are in-memory kernel operations, not NAND writes. The `last_applied_dl_rate`/`last_applied_ul_rate` flash wear protection logic should still skip no-op writes (saves kernel calls) but the rationale changes from "NAND wear" to "unnecessary syscalls."
+1. Document the complete SIGUSR1 reload chain before touching it. There are currently 5 distinct reload targets across 2 daemons.
+2. If consolidating, ensure the consolidated method calls ALL existing reload targets.
+3. Add a test that sends SIGUSR1 and verifies each parameter actually changes -- currently, individual reload methods are tested but the full chain from signal to runtime change may not have E2E coverage.
+4. The `threading.Event` pattern in `signal_utils.py` is READ-ONLY in CLAUDE.md for good reason -- it is the thread-safe coordination mechanism between signal handlers (which run in the main thread) and the event loop.
 
-**Warning signs:** `cycle_budget` in health endpoint showing >80% utilization. PerfTimer for `router_update` subsystem showing >10ms. Watchdog failures from overlong cycles.
+**Warning signs:**
+- Reload methods have no callers in static analysis (they are called via the generic `_reload_event.is_set()` check in the event loop)
+- The `_reload_signal_handler` in `signal_utils.py` looks like it does nothing (it just sets an event flag)
+- Multiple `_reload_*` methods with similar patterns look "consolidatable"
 
-**Phase to address:** Phase 3 (LinuxCakeBackend) must include latency benchmarks as acceptance criteria. <5ms for bandwidth change, <2ms for stats read.
+**Phase to address:** Signal handling audit phase must catalog the full SIGUSR1 chain before any refactoring. Integration test coverage for the full chain should be added before changes.
 
 ---
 
-### Pitfall 3: DSCP Marks Lost or Remapped Through Bridge
+### Pitfall 3: Breaking the Inter-Process State File Contract
 
-**What goes wrong:** MikroTik mangle rules currently mark packets with DSCP values (EF, AF31, CS1, etc.) for CAKE's diffserv4 classification. When traffic crosses the Linux bridge, DSCP marks may be stripped, remapped, or ignored, causing all traffic to land in CAKE's Best Effort tin. The entire diffserv4 differentiation (Voice/Video/Best Effort/Bulk) stops working.
+**What goes wrong:**
+The auditor "cleans up" the state file schema -- renaming fields, removing "unused" fields like `congestion.dl_state`/`congestion.ul_state`, or changing the atomic write mechanism. The autorate daemon and steering daemon can no longer communicate. Steering loses WAN congestion awareness, makes bad decisions, or crashes reading the state file.
 
-**Why it happens:** Multiple mechanisms can destroy DSCP marks:
-- `br_netfilter` module with conntrack can interfere with IP header fields
-- The bridge's `wash` option in CAKE (enabled by default) deliberately strips DSCP marks
-- If the bridge does L3 processing (unlikely in pure L2 mode, but possible with `net.bridge.bridge-nf-call-iptables=1`), iptables/nftables rules might reset marks
-- MTU mismatches causing fragmentation and reassembly can affect TOS byte handling
+**Why it happens:**
+wanctl has TWO daemons that communicate via the filesystem:
+- `wanctl@spectrum` writes `/var/lib/wanctl/spectrum_state.json` every cycle (50ms)
+- `wanctl-steering` reads it to get WAN congestion zones for steering decisions
+
+The state file is a contract between processes. The `congestion` field was added in v1.11 with backward compatibility (unknown keys ignored, stale zone defaults to GREEN). An auditor examining only the autorate code might see `congestion.dl_state`/`congestion.ul_state` written but never read internally and conclude it is dead -- not realizing the steering daemon in a completely separate process reads it.
+
+Additionally:
+- `wan_controller_state.py` deliberately excludes `congestion` from dirty tracking (line 32) to avoid write amplification. This looks like a bug ("why is congestion not tracked?") but it is intentional -- congestion zone changes every cycle and should not trigger a full state write.
+- `atomic_write_json()` in `state_utils.py` uses temp+fsync+rename. Replacing this with a simple `json.dump()` causes data corruption under 20Hz write frequency.
 
 **How to avoid:**
-1. **CAKE must use `nowash`**: When configuring CAKE on the bridge egress, explicitly set `nowash` to preserve incoming DSCP marks. The wash option is designed for ISP edge where you distrust incoming marks -- that is not this use case.
-2. **Disable br_netfilter**: Set `net.bridge.bridge-nf-call-iptables=0` and `net.bridge.bridge-nf-call-ip6tables=0` in sysctl. The bridge should be pure L2 with no netfilter interference.
-3. **Verify with tcpdump**: Capture packets on bridge ingress and egress, compare DSCP values. The TOS byte in the IP header must be identical on both sides.
-4. **Test all four tins**: Send traffic with EF (Voice), AF41 (Video), CS0 (Best Effort), CS1 (Bulk) marks through the bridge and verify `tc -s qdisc show dev <iface>` shows packets in the correct tins.
+1. Map ALL consumers of each state file before modifying its schema. Use `grep -r "state.json\|state_file\|safe_json_load" src/`.
+2. The `congestion` exclusion from dirty tracking is documented in `wan_controller_state.py` line 32 -- read the comment before "fixing" it.
+3. State file changes MUST be tested with both daemons running simultaneously (integration test).
+4. The atomic write pattern (temp file + fsync + rename) is a POSIX safety guarantee for 20Hz concurrent read/write. Never simplify it.
 
-**Warning signs:** `tc -s qdisc show` on CAKE interface shows all traffic in a single tin (Best Effort). Voice/gaming traffic not getting priority treatment despite correct router mangle marks.
+**Warning signs:**
+- Fields in state JSON that appear to be written but never read within the same file
+- Dirty tracking exclusion that looks like a bug
+- `atomic_write_json` that looks over-engineered for "just writing JSON"
 
-**Phase to address:** Phase 2 (Bridge) must include DSCP preservation validation. Phase 3 (LinuxCakeBackend) must configure `nowash` and include tin distribution in health stats.
+**Phase to address:** State management audit must map the complete producer-consumer topology before any schema changes. Integration tests exercising both daemons should exist before modifications.
 
 ---
 
-### Pitfall 4: IOMMU Group Conflict Prevents Clean NIC Passthrough
+### Pitfall 4: "Cleaning Up" Flash Wear Protection as Unnecessary on Linux
 
-**What goes wrong:** PCIe passthrough requires each NIC to be in its own IOMMU group. If two NICs share a group (common with multi-port i350 cards), you must pass ALL devices in that group to the VM, potentially including devices the Proxmox host needs (like a management NIC or USB controller).
+**What goes wrong:**
+The auditor notices `last_applied_dl_rate`/`last_applied_ul_rate` tracking in `autorate_continuous.py` (lines 1661-1662, 2293, 2336-2337) and state persistence in `wan_controller_state.py`. Since the system now runs on a Linux VM (not MikroTik NAND flash), the auditor removes the "flash wear protection" as obsolete. This causes the controller to send `tc qdisc change` commands to the kernel on EVERY 50ms cycle (20 calls/second) even when the rate has not changed.
 
-**Why it happens:** IOMMU groups are determined by hardware topology (CPU PCIe lanes, chipset lanes, ACS support). Multi-port NICs like the i350 typically have all 4 ports in a single IOMMU group because they are functions of a single PCIe device. The context states all NICs are "in separate IOMMU groups" -- but this must be verified, not assumed.
+**Why it happens:**
+The variable names and comments reference "flash wear" from the MikroTik era. On Linux, the protection serves a different but equally critical purpose: avoiding 20Hz unnecessary kernel syscalls and netlink round-trips. Each `tc qdisc change` call takes ~1-3ms even when the rate does not change. Sending it every cycle would consume 20-60ms per second of CPU time and generate unnecessary netlink traffic. At 50ms cycle budget, this could push cycle utilization above 100%.
 
 **How to avoid:**
-1. **Verify IOMMU groups FIRST**: Run `find /sys/kernel/iommu_groups/ -type l | sort -V` on Proxmox and confirm each target NIC is isolated.
-2. **Choose 4 NICs from separate physical slots**: Use one i210, one i350 port (if isolated), and two from the X552 for the 4 bridge ports. Avoid using multiple ports from the same multi-function device if they share an IOMMU group.
-3. **Never use ACS override patch**: It breaks IOMMU security guarantees. If groups are not clean, pick different NICs or slots.
-4. **Test passthrough stability**: After binding NICs to vfio-pci, run the VM for 48 hours with sustained traffic (iperf3) before trusting it for production.
-5. **Driver load order**: Ensure vfio-pci claims the NICs before igb/ixgbe. Add `softdep igb pre: vfio-pci` and device IDs to `/etc/modprobe.d/vfio.conf`.
+1. Rename the concept from "flash wear protection" to "no-op write suppression" or "rate change deduplication" during the audit -- but do NOT remove the logic.
+2. The `last_applied_*` tracking in `autorate_continuous.py` and the dirty tracking in `wan_controller_state.py` serve the same purpose from different angles -- both must stay.
+3. Add a comment explaining the linux-cake rationale alongside the existing MikroTik rationale.
 
-**Warning signs:** `dmesg | grep -i iommu` showing group conflicts. VM failing to start with "device already in use" errors. NICs showing "Down" state after passthrough.
+**Warning signs:**
+- Comments mentioning "flash" or "NAND" on a system that runs on a VM with SSD storage
+- `last_applied_dl_rate == dl_rate` guard that looks like premature optimization
+- State persistence code that seems redundant with the backend's own state
 
-**Phase to address:** Phase 1 (Infrastructure/VFIO). This is the first thing to validate -- if IOMMU groups are not clean, the entire architecture must be reconsidered.
+**Phase to address:** Code cleanup phase should update comments and documentation to reflect the Linux rationale, not remove the mechanisms.
 
 ---
 
-### Pitfall 5: MikroTik Queue Tree Orphaned After Offload
+### Pitfall 5: Removing Container-Era Code That Supports Multi-Deployment
 
-**What goes wrong:** After offloading CAKE to the VM, the MikroTik RB5009 still has its queue tree entries, queue types, and mangle rules. If the wanctl LinuxCakeBackend fails and falls back to the RouterOS backend, there is a mismatch: the router's CAKE queues expect to shape traffic that is now being shaped by the VM. Double-shaping occurs, halving effective bandwidth.
+**What goes wrong:**
+The auditor identifies container-specific scripts (`container_install_spectrum.sh`, `container_install_att.sh`, `container_network_audit.py`) and Dockerfile artifacts as dead code from the pre-v1.21 era and deletes them. The system loses the ability to redeploy in container mode as a fallback, and reference material for future deployments is destroyed.
 
-**Why it happens:** The migration path is not atomic. During transition, both the router and the VM can have active shapers on the same traffic. The router's queue tree entries do not auto-disable when traffic stops flowing through them -- they are always active if configured.
+**Why it happens:**
+wanctl migrated from LXC containers to a Proxmox VM in v1.21. The container scripts, Dockerfiles, and container-specific deployment code are no longer used in production. However:
+- Container deployment is still a valid fallback if the VM architecture fails
+- `scripts/container_network_audit.py` contains measurement methodology that applies to any deployment
+- The `Dockerfile` documents the Python dependency chain and system package requirements
+- Other users might deploy wanctl in containers (open source consideration)
 
 **How to avoid:**
-1. **Explicit router cleanup phase**: Before going live with VM CAKE, disable (not delete) MikroTik queue tree entries and CAKE queue types. Keep them available for emergency rollback.
-2. **Backend selection is config-driven**: The YAML config `router.type: linux` vs `router.type: routeros` selects the backend. There is no runtime fallback between backends -- that would create double-shaping.
-3. **Rollback runbook**: Document exact steps to revert: (a) stop wanctl, (b) re-enable MikroTik queue tree entries, (c) switch config back to `router.type: routeros`, (d) restart wanctl.
-4. **Never leave both active**: A validation check at startup should detect if MikroTik queues are still active when using the linux backend, and warn loudly.
+1. Archive container-era code (move to `.archive/` with a README explaining why it is preserved) rather than deleting it.
+2. `.archive/` already exists with `systemd-legacy/` and `configs-production/` -- follow the established pattern.
+3. Scripts in `scripts/` that reference containers should be moved to `.archive/container-scripts/` with clear labels.
+4. The existing `.obsolete/` pattern in `scripts/` provides precedent for this approach.
 
-**Warning signs:** Download speeds dropping to half of expected. `tc -s qdisc show` on VM AND MikroTik queue tree both showing active shaping. Latency higher than baseline despite low load.
+**Warning signs:**
+- Scripts referencing "container" or "LXC" that appear unused
+- Dockerfile that does not match the current deployment model
+- Install scripts for hosts that no longer exist
 
-**Phase to address:** Dedicated migration/cutover phase must handle MikroTik cleanup and rollback documentation.
+**Phase to address:** Infrastructure audit phase should archive (not delete) container-era artifacts. A manifest file in `.archive/` documenting what each archived item is and why it is preserved.
 
 ---
 
-### Pitfall 6: Bridge MTU Black Hole
+### Pitfall 6: Improving the 4,282-Line autorate_continuous.py God Object
 
-**What goes wrong:** The Linux bridge silently drops or fragments packets when there is an MTU mismatch between bridge members. Since the bridge has no IP address (pure L2), it cannot send ICMP "Packet Too Big" messages. This creates a Path MTU Discovery (PMTUD) black hole where TCP connections for large transfers stall or fail completely.
+**What goes wrong:**
+The auditor correctly identifies `autorate_continuous.py` (4,282 lines) as the largest file and attempts to refactor it by extracting classes into separate modules. The extraction breaks subtle initialization ordering, shared state between methods, or the carefully sequenced event loop. Production crashes on the next cycle.
 
-**Why it happens:** Per the [ipSpace.net analysis](https://blog.ipspace.net/2025/03/linux-bridge-mtu-hell/), the Linux bridge implements IPv4 defragmentation on ingress (for br_netfilter compatibility) and then fragments on egress to match the outgoing interface MTU. If bridge member MTUs differ, larger frames are fragmented without notification. Additionally, VFIO-passed NICs may have different default MTUs than expected.
+**Why it happens:**
+`autorate_continuous.py` contains:
+- `Config` class (config loading and validation, ~200 lines)
+- `RouterOS` class (MikroTik transport, ~50 lines)
+- `ContinuousAutoRate` class (daemon orchestration, ~300 lines)
+- `WANController` class (core control loop, ~2,500 lines)
+- Signal handling, startup/shutdown, maintenance scheduling
+
+Many of these classes share state through constructor injection and method calls that assume co-location. For example:
+- `WANController` directly accesses `config` attributes set during `ContinuousAutoRate.__init__`
+- The `_reload_fusion_config()` and `_reload_tuning_config()` methods are called from `ContinuousAutoRate.run_cycle()` which iterates `self.wan_controllers`
+- The singleton `MetricsWriter` is initialized once and assumed available everywhere
+
+Extracting `WANController` to its own module is the most tempting refactoring target and also the most dangerous. It requires moving all of: the state machine logic, the EWMA calculations, the signal processing chain, the tuning integration, the metrics recording, the baseline management, the fusion config, and the rate application -- all of which have cross-references.
 
 **How to avoid:**
-1. **Set identical MTU on all bridge members and the bridge itself**: `ip link set dev enp3s0 mtu 1500; ip link set dev enp4s0 mtu 1500; ip link set dev br-spectrum mtu 1500`.
-2. **Verify with ping -s 1472**: Test with maximum-sized frames from both directions (modem-side and router-side) after bridge is up.
-3. **Disable br_netfilter**: Prevents the defragment-then-refragment behavior. `sysctl net.bridge.bridge-nf-call-iptables=0`.
-4. **Script MTU in systemd-networkd or netplan**: Do not rely on DHCP or defaults. Explicitly set MTU in network configuration.
+1. Do NOT attempt to refactor `autorate_continuous.py` during the audit. Instead, document the current structure and annotate which sections could be extracted in a FUTURE milestone.
+2. If extraction is attempted, it must be done one class at a time with the full test suite (3,700+ tests) passing after each extraction.
+3. The CLAUDE.md explicitly says "Never refactor core logic, algorithms, thresholds, or timing without approval" -- this applies to structural refactoring too.
+4. Any extraction must preserve the exact same initialization order and test with a real 50ms cycle timer to detect timing regressions.
 
-**Warning signs:** Large file downloads stalling or extremely slow. TCP window scaling problems. `ping -s 1472 -M do` failing across the bridge. Asymmetric behavior (small packets work, large ones fail).
+**Warning signs:**
+- "Just move this class to its own file" proposals for WANController
+- Refactoring that changes import order in a way that affects singleton initialization
+- Extraction that splits the `run_cycle()` hot path across module boundaries
 
-**Phase to address:** Phase 2 (Bridge). MTU validation must be part of bridge acceptance testing.
+**Phase to address:** Code complexity audit should document the structure of autorate_continuous.py and steering/daemon.py (2,384 lines) as known complexity, not attempt to fix it. Extraction planning belongs in a future milestone with dedicated testing phases.
+
+---
+
+## Moderate Pitfalls
+
+### Pitfall 7: Tightening Type Annotations That Break MagicMock Test Patterns
+
+**What goes wrong:**
+The auditor adds strict type annotations or changes `isinstance()` guards to satisfy mypy, and tests start failing because MagicMock objects no longer pass through the guards. Production code works fine, but the test suite loses coverage because mocked paths are blocked by type checks that production objects would pass.
+
+**Why it happens:**
+wanctl has an established pattern documented in MEMORY.md: `if value and isinstance(value, str)` before `Path(value)` for mock safety. This pattern protects against MagicMock objects being passed to `Path()` constructors during testing. Adding `type: ignore` comments or changing these guards to strict typing breaks the test safety net.
+
+Similarly, `isinstance(stats, dict)` guards protect against MagicMock objects in `_build_cycle_budget()`. These look like unnecessary runtime type checks but they are actually test infrastructure safety mechanisms.
+
+**How to avoid:**
+1. Search for the pattern `isinstance.*MagicMock\|isinstance.*str.*Path\|isinstance.*dict` before adding type annotations that would change guard behavior.
+2. Run the full test suite after ANY type annotation changes -- not just mypy.
+3. The `MetricsWriter._reset_instance()` method exists solely for testing. Do not remove it as "dead code."
+
+**Warning signs:**
+- `isinstance()` checks that look redundant for production code
+- `_reset_instance()` methods with no production callers
+- Type guards that seem to duplicate what mypy would catch
+
+**Phase to address:** Type safety audit must run the full test suite and verify test count does not decrease after changes.
+
+---
+
+### Pitfall 8: Consolidating "Duplicate" State Managers
+
+**What goes wrong:**
+The auditor finds `StateManager` in `state_manager.py`, `SteeringStateManager` in the same file, and `WANControllerState` in `wan_controller_state.py` and concludes these should be merged. The merge breaks because these serve fundamentally different processes with different schemas, different write frequencies, and different error recovery strategies.
+
+**Why it happens:**
+- `StateManager` (base class): Generic state persistence with schema validation, corruption recovery, and backup
+- `SteeringStateManager` (subclass): Steering daemon state with confidence scores, timer states, and WAN zone tracking. Written every 5 seconds (steering cycle).
+- `WANControllerState`: Autorate daemon state with EWMA values, streak counters, and last-applied rates. Written every 50ms (autorate cycle) with dirty tracking to suppress no-op writes.
+
+These look similar but have critical differences:
+- WANControllerState has dirty tracking; SteeringStateManager does not need it (5s vs 50ms write frequency)
+- SteeringStateManager has legacy schema migration; WANControllerState does not
+- They operate in different processes with different filesystem paths
+
+**How to avoid:**
+1. Document the intentional separation before suggesting consolidation.
+2. If consolidation is desired, it belongs in a future milestone with dedicated testing, not in an audit.
+3. The different write frequencies alone justify separate implementations.
+
+**Warning signs:**
+- Three classes with "State" in the name that look similar
+- `atomic_write_json` called from multiple places
+- Base class that looks underutilized
+
+**Phase to address:** Architecture documentation phase should annotate the state management hierarchy, not refactor it.
+
+---
+
+### Pitfall 9: Deleting "Obsolete" Deprecation Code After Config Migration
+
+**What goes wrong:**
+The auditor finds `deprecate_param()` in `config_validation_utils.py` with 8 legacy parameter translations and decides these are no longer needed because "all production configs have been migrated." The deprecation warnings are removed. A future config restore from backup or a new deployment using documented examples (which reference old parameter names) silently uses wrong defaults instead of warning and translating.
+
+**Why it happens:**
+v1.13 migrated away from legacy config parameters but kept `deprecate_param()` as a compatibility bridge. The 8 translated parameters include steering config names, EWMA alpha parameters, and timing intervals. Since production configs are already using modern names, the deprecation code never triggers in normal operation and looks dead.
+
+**How to avoid:**
+1. Deprecation bridges should be kept for at least 2 major versions (we are at v1.20, these were introduced in v1.13).
+2. If removing, first verify that ALL documentation, example configs, and backup configs use modern parameter names.
+3. The `check_config.py` validation tool has a "deprecated params" check category (line 18) that depends on this code.
+4. Consider adding a "removed in v1.X" timeline rather than silent removal.
+
+**Warning signs:**
+- `deprecate_param()` calls that never trigger in production logs
+- Config validation code that references parameter names not in current configs
+- `check_config.py` validation categories that seem unused
+
+**Phase to address:** Config audit phase should verify all documentation and example configs are current, then add removal timeline comments to deprecation code rather than deleting it.
+
+---
+
+### Pitfall 10: Upgrading Dependencies That Break Subtle Behavior
+
+**What goes wrong:**
+The auditor runs `pip-audit` or `uv pip compile`, finds outdated packages, and upgrades them. A dependency behavior change causes subtle production failures:
+- `icmplib` update changes the default timeout or socket behavior, breaking RTT measurement accuracy
+- `paramiko` update changes SSH key negotiation, breaking the REST-to-SSH failover path
+- `requests` update changes SSL verification defaults, breaking RouterOS REST API calls
+- `cryptography` update drops support for older cipher suites used by MikroTik's REST API
+
+**Why it happens:**
+wanctl's dependencies are pinned minimally (`>=` versions in pyproject.toml) and the real production behavior depends on exact versions deployed. The RTT measurement chain (`icmplib` raw sockets -> signal processing -> EWMA) is extremely sensitive to timing changes. A 1ms change in ICMP socket timeout behavior cascades through the entire control loop.
+
+**How to avoid:**
+1. Pin exact versions in production deployment (`uv pip freeze` output) separately from the development `pyproject.toml` minimum versions.
+2. After ANY dependency upgrade, run `wanctl-benchmark` to verify bufferbloat grading has not regressed.
+3. Test the REST-to-SSH failover path explicitly after `paramiko` or `requests` upgrades.
+4. The `cryptography` package is a transitive dependency through `paramiko` -- upgrades to `paramiko` implicitly upgrade `cryptography`.
+5. Never upgrade `icmplib` without measuring raw RTT accuracy against a known reflector.
+
+**Warning signs:**
+- `pip-audit` suggesting security updates for `cryptography` (frequent, usually safe but test anyway)
+- `icmplib` major version bumps (rare but dangerous for timing-sensitive code)
+- `requests` session behavior changes (keep-alive, timeout defaults)
+
+**Phase to address:** Dependency audit phase should create a `requirements-production.txt` lock file and test the full benchmark suite after any upgrade.
+
+---
+
+### Pitfall 11: Removing the Singleton Pattern From MetricsWriter
+
+**What goes wrong:**
+The auditor identifies the `MetricsWriter` singleton (thread-safe with `_instance_lock`) as an anti-pattern and refactors to dependency injection or module-level instance. The refactored version creates multiple SQLite connections from different threads, causing database locking errors under the 20Hz write frequency.
+
+**Why it happens:**
+The singleton pattern is genuinely problematic in most Python code, and modern best practices favor dependency injection. However, `MetricsWriter` is a thread-safe singleton for a specific reason: the autorate daemon has a main event loop thread, an IRTT measurement thread, a health check HTTP server thread, and a metrics Prometheus server thread -- all of which write metrics to the same SQLite database. The singleton ensures a single WAL-mode connection with proper locking.
+
+**How to avoid:**
+1. If replacing the singleton, ensure the replacement maintains a single SQLite connection shared across all threads.
+2. The `_reset_instance()` method is required for test isolation -- any replacement must provide an equivalent.
+3. SQLite in WAL mode supports concurrent readers but only one writer. Multiple connections would degrade under 20Hz writes.
+4. The `__enter__`/`__exit__` context manager deliberately does NOT close the connection (line 242-243) -- this is intentional singleton persistence, not a resource leak.
+
+**Warning signs:**
+- Context manager `__exit__` that does not close its resource
+- `_reset_instance()` class method that looks like test pollution
+- Thread lock on instance creation that looks like over-engineering
+
+**Phase to address:** Architecture audit should document the MetricsWriter singleton rationale, not refactor it. If DI is desired, it belongs in a future milestone.
+
+---
+
+### Pitfall 12: Auditing Systemd Integration Without Testing on the Live VM
+
+**What goes wrong:**
+The auditor reviews the systemd unit files (`wanctl@.service`, `steering.service`), identifies "improvements" (different restart policies, tighter security settings, capability changes), applies them, and the daemon fails to start or loses critical capabilities.
+
+**Why it happens:**
+The systemd unit files have been tuned for production over 21 milestones:
+- `CAP_NET_RAW` (line 39) is required for `icmplib` raw ICMP sockets. Removing it = no ping = no congestion detection = no bandwidth control.
+- `ProtectSystem=strict` with `ReadWritePaths` (lines 43-45) is the security boundary. Adding more restrictions (like `ProtectNetwork=yes`) would break all network operations.
+- `WatchdogSec=30s` is tuned for the 50ms cycle. Tightening it causes spurious restarts; loosening it delays failure detection.
+- `StartLimitBurst=5` / `StartLimitIntervalSec=300` is the circuit breaker (documented in CLAUDE.md). Changing these values alters the failure recovery behavior.
+- The `PYTHONPATH=/opt` environment variable is required because wanctl is deployed to `/opt/wanctl/` without pip install.
+
+**How to avoid:**
+1. Test ALL systemd changes on the cake-shaper VM (10.10.110.223) before committing.
+2. After any unit file change, run `systemd-analyze verify wanctl@spectrum.service` to check syntax.
+3. After any capability change, verify with `capsh --print` inside the service context.
+4. The circuit breaker values are documented in CLAUDE.md -- read that section before changing them.
+
+**Warning signs:**
+- Unit file changes that look like "security improvements"
+- Capability restrictions that seem safe but break ICMP
+- Watchdog timing changes without measuring actual cycle time
+
+**Phase to address:** Systemd audit phase must test every change on the production VM with actual service start/stop/restart cycles.
 
 ---
 
@@ -126,74 +345,87 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Subprocess `tc` instead of pyroute2 netlink | Simpler code, familiar CLI | ~3-5ms overhead per call, fork/exec per cycle, harder to parse output | Only during prototyping. Must migrate to pyroute2 before production 50ms cycle. |
-| Running wanctl as root for tc/netlink access | Works immediately | Security risk, broad privilege surface | Never in production. Use `NET_ADMIN` capability via systemd `AmbientCapabilities=CAP_NET_ADMIN`. |
-| Sharing one VM for both bridges + wanctl | Simpler deployment | Single failure domain for everything | Acceptable -- this is the design. But the bridge must survive daemon death. |
-| Hardcoded interface names (enp3s0, etc.) | Quick development | Breaks on NIC re-enumeration, different PCI slot mapping | Only in prototype. Production config must use YAML-configurable interface names. |
-| Skipping CAKE stats collection from Linux | Faster initial backend | Lose multi-signal congestion detection (drops, queue depth) | Never. Stats are core to the control algorithm. Must implement from day 1. |
+| Leaving RouterOS class inline in autorate_continuous.py | No risk of extraction bugs | 4,282-line god file, hard to navigate | Acceptable during audit -- extraction is a separate milestone |
+| Container scripts in active scripts/ dir | No effort to move them | Confusing to new contributors, looks like current deployment | Move to .archive/ during audit |
+| "Flash wear" comments on Linux system | No effort to update | Misleading to future auditors, false obsolescence signal | Update comments to dual-rationale during audit |
+| Separate state manager implementations | No consolidation risk | Three similar-looking classes, cognitive load | Acceptable -- different write frequencies justify separation |
+| Lazy imports in router_client.py | Avoid circular imports | Static analysis tools cannot trace the dependency | Acceptable -- document in module docstring |
+| MetricsWriter singleton | Thread-safe shared DB access | Testing complexity, global state | Acceptable until DI framework is introduced |
 
 ## Integration Gotchas
 
-Common mistakes when connecting the new Linux backend to the existing wanctl system.
+Common mistakes when modifying cross-component boundaries.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| RouterBackend interface | Adding Linux-only methods to the abstract base class | LinuxCakeBackend implements the existing RouterBackend ABC. New capabilities (like reading tin stats) go into optional methods with default no-ops in base class. |
-| Queue stats format | Linux `tc -s` output format differs from MikroTik REST JSON | The `get_queue_stats()` return dict must match the existing contract: `{packets, bytes, dropped, queued_packets, queued_bytes}`. Parse `tc -s -j qdisc show` JSON output or pyroute2 stats into this format. |
-| CAKE stats granularity | Linux CAKE exposes per-tin and per-flow stats that MikroTik does not | Map aggregate stats to the existing contract. Optionally expose per-tin stats via a new method for enhanced observability, but do not break the existing interface. |
-| Steering mangle rules | LinuxCakeBackend cannot enable/disable MikroTik mangle rules | Steering still talks to the MikroTik router. The LinuxCakeBackend only handles bandwidth/stats. Steering backend remains RouterOS. This separation must be explicit in config. |
-| Router connectivity check | `test_connection()` currently checks MikroTik REST/SSH | For LinuxCakeBackend, `test_connection()` should verify (a) bridge interfaces are up, (b) CAKE qdisc is attached, (c) tc/netlink is responsive. Not a router HTTP check. |
-| Config: queue names | MikroTik uses queue names like "WAN-Download-Spectrum" | Linux uses interface names like "br-spectrum". The config must map `queue_down`/`queue_up` to Linux interface + direction, not MikroTik queue names. |
-| wanctl-check-cake CLI | Currently validates MikroTik CAKE queue types via REST API | Must support `--backend linux` mode that checks local `tc qdisc show` instead. Reuse the CheckResult/Severity model but implement different validators. |
-| wanctl-benchmark CLI | Uses flent to test against the MikroTik-shaped connection | Benchmark target changes: flent runs against the VM-shaped connection. The netperf server (dallas) is unchanged, but the shaping point moves. Results should be comparable if CAKE config matches. |
+| Autorate <-> Steering (state file) | Modifying state schema without updating both daemons | Map all producers AND consumers before schema changes |
+| WANController <-> LinuxCakeAdapter | Changing set_limits() signature | The adapter exists to bridge interface differences -- changes must maintain both RouterOS.set_limits() and LinuxCakeAdapter.set_limits() |
+| Signal processing chain | Reordering Hampel -> Fusion -> EWMA pipeline | The order is deliberate: outlier removal before fusion before smoothing. Reordering changes control behavior. |
+| SIGUSR1 reload chain | Adding a new reload target without wiring it into the event loop | Follow the pattern: add _reload_X_config() method, call it from the SIGUSR1 handling block in run_cycle() |
+| Health endpoint <-> Metrics | Assuming health data comes from metrics DB | Health endpoints serve LIVE state from memory; metrics DB stores HISTORICAL data. Different sources, different freshness. |
+| Tuning <-> WANController | Modifying tuning parameter names | Tuning params persist in SQLite (tuning_params table). Renaming a param without migration loses learned values. |
+| Config <-> check_config CLI | Adding new config fields | check_config.py has an explicit allowlist of known keys (line ~110-180). New keys not in the allowlist trigger "unknown key" warnings. |
+| Steering <-> MikroTik | Changing mangle rule comment format | The steering daemon parses mangle rule output text (line 753: `if "ADAPTIVE" in line`). Changing the rule comment on the router breaks detection. |
 
 ## Performance Traps
 
-Patterns that work in development but fail under production load.
+Patterns that work at low frequency but fail at 20Hz.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Subprocess `tc` per cycle at 20Hz | Fork/exec creates ~40 processes/sec per bridge, kernel scheduler thrash | Use pyroute2 netlink: single long-lived socket, no fork overhead | Immediately at 50ms cycle with 2 bridges (spectrum + att) |
-| Parsing `tc -s` text output with regex | Fragile, format changes between iproute2 versions, slow string parsing | Use `tc -s -j` (JSON output) or pyroute2 structured stats | First iproute2 package update |
-| Bridge not tuned for throughput | Softirq bottleneck, NIC interrupt coalescing wrong, ring buffer too small | Tune `net.core.netdev_budget`, disable adaptive coalescing, set ring buffer to max | Under RRUL (full duplex flood) testing |
-| CAKE attached to wrong interface | CAKE on bridge (br0) instead of bridge port, or on wrong direction | Attach CAKE to the egress port facing the router (for download shaping) and the egress port facing the modem (for upload shaping) | First real traffic test -- shaping has no effect |
-| pyroute2 memory leak from unclosed sockets | Gradual memory growth over days/weeks | Use context manager or explicit `close()` on IPRoute objects. Pool and reuse rather than create/destroy per cycle. | After 24-72 hours of production runtime |
+| Removing no-op write suppression (last_applied_*) | Cycle budget >100%, watchdog timeout | Keep rate change deduplication even on Linux | Immediately at 20Hz -- 20 unnecessary tc calls/sec |
+| Adding logging in the hot path | Log rotation I/O stalls cycle | Use DEBUG level only, never INFO in per-cycle code | At 20Hz with file logging, stalls appear after hours |
+| Replacing atomic_write_json with json.dump | Corrupted state files under concurrent read/write | Keep temp+fsync+rename pattern | Under sustained load when reader and writer race |
+| Adding type() checks in WANController.run_cycle() | Measurable overhead at 50ms granularity | Use isinstance() which is C-optimized, not type() | Marginal at 20Hz but accumulates across all checks |
+| Synchronous HTTP calls in cycle path | Cycle timeout when endpoint is slow | All HTTP (health, metrics, Discord) is async or fire-and-forget | When external service latency spikes |
+| Full config re-parse every cycle | 1-2ms overhead per cycle compounds | Config is parsed once at startup, reloaded only on SIGUSR1 | If someone adds config.load() inside run_cycle() |
 
 ## Security Mistakes
 
-Domain-specific security issues.
+Domain-specific security issues for a network controller audit.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Running wanctl as root in VM | Compromise of wanctl = root on the inline bridge VM = can intercept/modify all household traffic | Use dedicated `wanctl` user with `CAP_NET_ADMIN` capability only. Systemd `User=wanctl` + `AmbientCapabilities=CAP_NET_ADMIN`. |
-| VFIO passthrough without IOMMU isolation | VM can DMA-read all host memory if IOMMU groups are not properly isolated | Verify IOMMU groups. Never use ACS override. Test with `vfio-pci.disable_denylist=1` only if needed. |
-| No SSH key rotation for VM management | Proxmox SSH keys to VM become stale | Use Proxmox qemu-guest-agent for management instead of SSH where possible. |
-| Leaving MikroTik API credentials in config when not needed | Unnecessary credential exposure | When using `router.type: linux`, the config should not require MikroTik password. Validate that linux backend does not load router password. |
+| Logging router passwords during audit debugging | Credentials in journal logs, potentially backed up | Password scrubbing is already implemented (v1.12). Verify scrubbing works before adding new log statements. |
+| Relaxing ProtectSystem=strict for debugging | Daemon can write anywhere on filesystem | Debug on a test VM, never relax production systemd security |
+| Exposing health endpoint on 0.0.0.0 | Network-accessible rate/congestion data | Health binds to 127.0.0.1 only. Verify this after any health server changes. |
+| Storing secrets in config YAML instead of EnvironmentFile | Secrets readable by any user who can read /etc/wanctl/ | Keep EnvironmentFile=-/etc/wanctl/secrets pattern with 600 permissions |
+| Upgrading cryptography without testing MikroTik TLS | RouterOS REST API may use older TLS -- newer cryptography lib may reject it | Test REST API connectivity after any cryptography upgrade |
 
-## UX Pitfalls
+## "Looks Dead But Isn't" Checklist
 
-Common operator experience mistakes.
+Things that appear unused/dead but are critical production code.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Health endpoint does not indicate backend type | Operator cannot tell if shaping is on MikroTik or VM from dashboard | Add `backend: "linux"` or `backend: "routeros"` to health JSON. Dashboard should display the active shaping point. |
-| Rollback requires manual steps across 3 systems | Stressful during outage: must stop VM, re-enable MikroTik queues, switch config | Provide `wanctl-offload rollback` CLI that automates the full sequence. Or at minimum a documented runbook with exact commands. |
-| Dashboard/sparklines look identical after migration | Operator has no visual confirmation that offload is working | Add bridge-specific metrics: per-tin packet counts, bridge forwarding rate, tc overhead latency. Show these in dashboard when backend is linux. |
-| No gradual cutover visibility | Cannot A/B compare MikroTik CAKE vs Linux CAKE performance | Run parallel benchmarks before and after cutover. Store results in benchmark SQLite for `wanctl-benchmark compare`. |
+- [ ] **RouterOS class in autorate_continuous.py:** Only used when `router_transport != "linux-cake"` -- still needed for RouterOS deployments
+- [ ] **routeros_ssh.py:** Lazy-imported by router_client.py only during REST failover -- appears unreferenced in import graph
+- [ ] **LinuxCakeAdapter:** Conditional import at runtime (line 3474) -- invisible to static analysis
+- [ ] **_reload_*_config() methods:** Called from event loop via threading.Event flag check, not direct call -- no static caller
+- [ ] **MetricsWriter._reset_instance():** Only called by tests -- removing it breaks test isolation
+- [ ] **congestion.dl_state/ul_state in state JSON:** Written by autorate, read by steering (separate process) -- looks dead within autorate
+- [ ] **dirty tracking exclusion for congestion field:** Intentional write amplification prevention, not a bug
+- [ ] **Context manager __exit__ that does not close:** MetricsWriter singleton persistence, not a resource leak
+- [ ] **deprecate_param() translations:** Never trigger in current production but protect against old configs/backups
+- [ ] **container_install_*.sh scripts:** Pre-v1.21 deployment -- still valid as fallback reference
+- [ ] **scripts/verify_steering.sh and verify_steering_new.sh:** May look duplicated but test different verification approaches
+- [ ] **CAP_NET_RAW in systemd unit:** Required for icmplib ICMP raw sockets -- looks like excessive privilege
+- [ ] **isinstance(stats, dict) guard:** MagicMock safety for tests, not redundant runtime check
+- [ ] **exclude_params in tuning config:** DOCSIS-specific feature -- looks like dead config on non-cable links but is production-active
+- [ ] **PYTHONPATH=/opt in systemd unit:** Required because wanctl is deployed without pip install -- looks like a misconfiguration
 
-## "Looks Done But Isn't" Checklist
+## False Positive Patterns
 
-Things that appear complete but are missing critical pieces.
+Audit findings that look like problems but are intentional design decisions.
 
-- [ ] **Bridge works**: Packets traverse bridge -- but verify DSCP marks are preserved end-to-end, not just that connectivity exists
-- [ ] **CAKE shaping works**: `tc -s qdisc show` shows CAKE active -- but verify all four diffserv4 tins receive traffic (not all in Best Effort)
-- [ ] **Bandwidth adjustment works**: `tc qdisc change` succeeds -- but measure the latency of the change operation under load (not just idle)
-- [ ] **Stats collection works**: `get_queue_stats()` returns data -- but verify the delta math (drops, queued_packets) matches the MikroTik stats contract
-- [ ] **VM survives reboot**: VM comes back after Proxmox restart -- but verify bridge, CAKE qdisc, and wanctl all auto-start in correct order (bridge before CAKE before wanctl)
-- [ ] **Performance matches MikroTik**: flent RRUL shows good grades -- but compare against the MikroTik baseline (currently 740Mbps DL at RB5009 55% CPU). The VM should achieve 940Mbps+ since it is not CPU-limited.
-- [ ] **Steering still works**: Mangle rules activate/deactivate -- but verify steering talks to MikroTik (unchanged) while bandwidth talks to Linux (new). Both paths must work simultaneously.
-- [ ] **Alerting fires correctly**: Alerts trigger on congestion -- but verify that alert thresholds still make sense with Linux CAKE's potentially different drop/queue behavior versus MikroTik CAKE.
-- [ ] **Service startup order**: wanctl starts after bridge -- but verify it handles the case where bridge is not yet ready (CAKE qdisc not attached) with a clear error, not a crash.
+| Finding | Why It Looks Wrong | Why It Is Correct |
+|---------|-------------------|-------------------|
+| Two RouterOS classes (RouterOS + RouterOSController) | Looks like duplication | Different purposes: queue limits vs. mangle rule toggling |
+| Three state manager classes | Looks like failed abstraction | Different write frequencies (50ms vs 5s) and schemas |
+| LinuxCakeAdapter wrapping LinuxCakeBackend | Looks like unnecessary indirection | Bridges two different interfaces (set_limits vs set_bandwidth) |
+| Five _reload methods instead of one | Looks like copy-paste | Each reloads a different YAML section with different validation |
+| atomic_write_json for a simple JSON file | Looks over-engineered | Required for POSIX safety at 20Hz concurrent read/write |
+| sleep(0.001) in test fixtures | Looks like timing hack | Thread synchronization in concurrent test scenarios |
+| `if value and isinstance(value, str)` | Looks like redundant check | MagicMock guard pattern for test safety |
+| Importing inside functions (lazy imports) | Looks like poor module structure | Avoids circular imports in router_client.py |
 
 ## Recovery Strategies
 
@@ -201,46 +433,47 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| VM crash (both WANs down) | MEDIUM (30-60s) | Proxmox HA auto-restarts VM. If not configured: `qm start <vmid>` from Proxmox console. Emergency: plug modems directly into router (requires physical access). |
-| DSCP marks lost | LOW (config change) | Add `nowash` to CAKE config. Restart wanctl. Verify with `tc -s qdisc show` per-tin stats. No data loss. |
-| IOMMU group conflict | HIGH (hardware change) | Move NICs to different PCIe slots. May require server downtime and physical access. Worst case: use virtio NICs instead of passthrough (lower performance). |
-| Double-shaping (MikroTik + VM) | LOW (disable one) | SSH to MikroTik, `/queue tree disable [find]`. Or stop wanctl in VM. Then investigate which config is wrong. |
-| Bridge MTU black hole | LOW (config change) | `ip link set dev <bridge> mtu 1500`. Add to persistent network config. Test with `ping -s 1472 -M do`. |
-| tc latency too high | MEDIUM (code change) | Switch from subprocess to pyroute2. If pyroute2 CAKE support is incomplete, use subprocess with pre-forked shell. |
-| wanctl crash loop in VM | LOW (auto-recovery) | Systemd `Restart=on-failure` handles this. Bridge keeps forwarding. Shaping pauses but connectivity preserved. |
+| Dead code removal breaks a backend | MEDIUM | `git revert` the commit. Verify both transport modes. Add integration test for the removed code path. |
+| SIGUSR1 chain broken | LOW | `git revert`. Send SIGUSR1 to verify all 5 reload targets respond. Restart service if needed. |
+| State file contract broken | HIGH | Stop both daemons. Restore state files from `.backup` suffix. Fix schema. Restart autorate first, then steering. |
+| Flash wear protection removed | MEDIUM | `git revert`. Monitor cycle budget in health endpoint. If cycles are over budget, restart to apply reverted code. |
+| Dependency upgrade breaks RTT | HIGH | Pin back to working versions in production. Run `wanctl-benchmark` to verify RTT accuracy restored. May need state file reset if learned tuning params are corrupted. |
+| Systemd capability removed | LOW | `systemctl edit wanctl@spectrum` to add back capability. `systemctl daemon-reload && systemctl restart wanctl@spectrum`. |
+| MetricsWriter singleton broken | MEDIUM | `git revert`. Check SQLite DB integrity with `sqlite3 metrics.db "PRAGMA integrity_check"`. May need `_reset_instance()` in test cleanup. |
+| God object extraction gone wrong | HIGH | `git revert`. The 4,282-line file is ugly but STABLE. Resist the urge to re-attempt immediately. |
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
+How v1.22 audit phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| VM crash = total outage | Phase 1 (VFIO/Infrastructure) | VM survives 48hr stress test. Proxmox auto-restart confirmed. Bridge forwards during daemon death. |
-| tc latency exceeds budget | Phase 3 (LinuxCakeBackend) | Benchmark: `tc qdisc change` < 5ms. pyroute2 netlink change < 2ms. Full cycle < 40ms. |
-| DSCP marks lost | Phase 2 (Bridge) | tcpdump DSCP comparison ingress vs egress. All 4 CAKE tins receive traffic. |
-| IOMMU group conflict | Phase 1 (VFIO/Infrastructure) | `find /sys/kernel/iommu_groups/` shows isolated groups for all 4 target NICs. |
-| MikroTik queue orphaned | Cutover Phase | MikroTik queue tree disabled. No duplicate shaping. wanctl-check-cake validates single shaping point. |
-| Bridge MTU black hole | Phase 2 (Bridge) | `ping -s 1472 -M do` passes both directions. `ip link show` confirms identical MTU on all members. |
-| Stats format mismatch | Phase 3 (LinuxCakeBackend) | Existing test suite passes with LinuxCakeBackend mock. Stats dict keys match RouterBackend contract. |
-| Steering/bandwidth split | Phase 3 (LinuxCakeBackend) | Steering tests pass unchanged (still RouterOS). Bandwidth tests pass with LinuxCakeBackend. |
-| Service startup ordering | Phase 4 (Deployment) | VM reboot test: bridge up, CAKE attached, wanctl starts, health endpoint responds -- all within 30s. |
-| Rollback path broken | Cutover Phase | Full rollback drill: VM stopped, MikroTik re-enabled, wanctl on RouterOS backend, within 5 minutes. |
+| Dead backend code removal | Dead code analysis | Run tests with both `linux-cake` and `rest` transport configs; all 8 CLI entry points exercised |
+| SIGUSR1 chain breakage | Signal handling audit | Send SIGUSR1 and verify all 5 parameters reload; add E2E test if missing |
+| State file contract break | State management audit | Map complete producer-consumer topology; integration test both daemons |
+| Flash wear protection removal | Performance audit | Verify `last_applied_*` dedup still active; measure cycle budget before/after |
+| Container code deletion | Infrastructure audit | Archive to `.archive/` with manifest; verify no broken references |
+| God object extraction | Code complexity audit | Document structure only; defer extraction to future milestone |
+| MagicMock guard removal | Type safety audit | Full test suite count must not decrease; run `pytest --tb=short` |
+| State manager consolidation | Architecture audit | Document intentional separation; no consolidation during audit |
+| Deprecation code removal | Config audit | Verify all docs use modern params; add removal timeline, do not delete |
+| Dependency upgrade regression | Dependency audit | Create production lock file; run `wanctl-benchmark` after upgrades |
+| Singleton refactoring | Architecture audit | Document thread safety rationale; defer DI to future milestone |
+| Systemd misconfiguration | Infrastructure audit | Test every change on production VM; `systemd-analyze verify` |
 
 ## Sources
 
-- [tc-cake(8) Linux manual page](https://man7.org/linux/man-pages/man8/tc-cake.8.html) -- CAKE parameter reference, wash/nowash, diffserv4 tin mapping
-- [CakeTechnical - Bufferbloat.net](https://www.bufferbloat.net/projects/codel/wiki/CakeTechnical/) -- tc change without packet loss, CAKE design principles
-- [LibreQoS Documentation](https://libreqos.readthedocs.io/en/latest/) -- Bridge architecture precedent, Linux Bridge vs XDP, failsafe behavior
-- [LibreQoS Bridge Configuration](https://libreqos.readthedocs.io/en/latest/docs/v2.0/bridge.html) -- Linux Bridge continues forwarding during lqosd failure
-- [Proxmox PCI Passthrough Wiki](https://pve.proxmox.com/wiki/PCI_Passthrough) -- IOMMU groups, VFIO setup, driver binding
-- [Linux Bridge MTU Hell (ipSpace.net, 2025)](https://blog.ipspace.net/2025/03/linux-bridge-mtu-hell/) -- MTU mismatch, defragmentation, PMTUD black holes
-- [pyroute2 Documentation](https://docs.pyroute2.org/) -- Netlink-based tc operations, avoiding subprocess overhead
-- [nftables Bridge Filtering](https://wiki.nftables.org/wiki-nftables/index.php/Bridge_filtering) -- br_netfilter replacement, bridge filtering
-- [ebtables/iptables bridge interaction](https://ebtables.netfilter.org/br_fw_ia/br_fw_ia.html) -- How netfilter interacts with bridged frames
-- [MikroTik CAKE Documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/196345874/CAKE) -- RouterOS CAKE implementation reference
-- [Linux Kernel Bridge Documentation](https://docs.kernel.org/networking/bridge.html) -- Bridge internals, STP, filtering
-- [VFIO Kernel Documentation](https://docs.kernel.org/driver-api/vfio.html) -- IOMMU group security model
+- Direct codebase analysis: 80+ source files in `src/wanctl/`, 28,629 LOC
+- Direct codebase analysis: 121 test files, 68,360 LOC, 3,723 tests
+- Project history: CLAUDE.md, MEMORY.md, PROJECT.md spanning v1.0-v1.21
+- [Meta Engineering: Automating Dead Code Cleanup](https://engineering.fb.com/2023/10/24/data-infrastructure/automating-dead-code-cleanup/) -- false positive management at scale
+- [Vulture: Find dead Python code](https://github.com/jendrikseipp/vulture) -- Python dynamic dispatch limitations in dead code detection
+- [Tembo: Code Refactoring Mistakes](https://www.tembo.io/blog/code-refactoring) -- mixing refactoring with bug fixes
+- [Real Python: Refactoring Python Applications](https://realpython.com/python-refactoring/) -- small safe steps
+- [Refactoring Guru: Singleton in Python](https://refactoring.guru/design-patterns/singleton/python/example) -- thread safety considerations
+- [systemd Watchdog Configuration](https://oneuptime.com/blog/post/2026-03-02-how-to-configure-systemd-watchdog-for-service-health-checks-on-ubuntu/view) -- watchdog timing requirements
+- Production deployment experience: 21 milestones, 111 phases, 227 plans
 
 ---
-*Pitfalls research for: v1.21 CAKE Offload to Linux VM*
-*Researched: 2026-03-24*
+*Pitfalls research for: v1.22 Full System Audit of wanctl production network controller*
+*Researched: 2026-03-26*
