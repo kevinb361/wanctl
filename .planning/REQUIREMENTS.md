@@ -12,7 +12,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 - [x] **FSCAN-01**: All Python dependencies scanned for CVEs with pip-audit (zero critical/high)
 - [x] **FSCAN-02**: Unused dependencies identified and removed via deptry
 - [x] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
-- [x] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0600, state/log dirs 0750)
+- [x] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0640, state/log dirs 0750)
 - [x] **FSCAN-05**: systemd-analyze security score assessed for all 3 service units
 - [x] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
 - [x] **FSCAN-07**: Orphaned test fixtures identified via pytest-deadfixtures
