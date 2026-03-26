@@ -1,16 +1,14 @@
 """Tests for webhook delivery: AlertFormatter Protocol, DiscordFormatter, WebhookDelivery."""
 
 import sqlite3
-import threading
-import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
-from wanctl.webhook_delivery import AlertFormatter, DiscordFormatter, WebhookDelivery
 from wanctl.storage.schema import ALERTS_SCHEMA
+from wanctl.webhook_delivery import AlertFormatter, DiscordFormatter, WebhookDelivery
 
 
 class TestAlertFormatterProtocol:
@@ -457,9 +455,7 @@ class TestWebhookDeliveryRetry:
         assert mock_post.call_count == 2
 
     @patch("wanctl.webhook_delivery.requests.post")
-    def test_no_retry_on_4xx(
-        self, mock_post: MagicMock, mock_formatter: MagicMock
-    ) -> None:
+    def test_no_retry_on_4xx(self, mock_post: MagicMock, mock_formatter: MagicMock) -> None:
         """4xx is permanent failure, no retry."""
         response_400 = MagicMock()
         response_400.status_code = 400
@@ -567,9 +563,7 @@ class TestWebhookDeliveryStatus:
         )
         delivery._do_deliver(1, "test_alert", "info", "spectrum", {})
 
-        row = alerts_db.execute(
-            "SELECT delivery_status FROM alerts WHERE id = 1"
-        ).fetchone()
+        row = alerts_db.execute("SELECT delivery_status FROM alerts WHERE id = 1").fetchone()
         assert row[0] == "delivered"
 
     @patch("wanctl.webhook_delivery.time.sleep")
@@ -603,9 +597,7 @@ class TestWebhookDeliveryStatus:
         )
         delivery._do_deliver(1, "test_alert", "info", "spectrum", {})
 
-        row = alerts_db.execute(
-            "SELECT delivery_status FROM alerts WHERE id = 1"
-        ).fetchone()
+        row = alerts_db.execute("SELECT delivery_status FROM alerts WHERE id = 1").fetchone()
         assert row[0] == "failed"
 
 

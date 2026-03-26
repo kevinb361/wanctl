@@ -56,9 +56,7 @@ class TestPingHostsWithResults:
         """All hosts succeed: each mapped to RTT float."""
         with patch.object(rtt_measurement, "ping_host") as mock_ping:
             mock_ping.side_effect = [10.0, 20.0, 30.0]
-            result = rtt_measurement.ping_hosts_with_results(
-                ["8.8.8.8", "1.1.1.1", "9.9.9.9"]
-            )
+            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
         assert len(result) == 3
         assert result["8.8.8.8"] == 10.0
         assert result["1.1.1.1"] == 20.0
@@ -68,9 +66,7 @@ class TestPingHostsWithResults:
         """Some hosts fail: failed hosts mapped to None."""
         with patch.object(rtt_measurement, "ping_host") as mock_ping:
             mock_ping.side_effect = [10.0, None, 30.0]
-            result = rtt_measurement.ping_hosts_with_results(
-                ["8.8.8.8", "1.1.1.1", "9.9.9.9"]
-            )
+            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
         assert result["8.8.8.8"] == 10.0
         assert result["1.1.1.1"] is None
         assert result["9.9.9.9"] == 30.0
@@ -79,9 +75,7 @@ class TestPingHostsWithResults:
         """All hosts fail: all mapped to None."""
         with patch.object(rtt_measurement, "ping_host") as mock_ping:
             mock_ping.return_value = None
-            result = rtt_measurement.ping_hosts_with_results(
-                ["8.8.8.8", "1.1.1.1"]
-            )
+            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8", "1.1.1.1"])
         assert result["8.8.8.8"] is None
         assert result["1.1.1.1"] is None
 
@@ -94,9 +88,7 @@ class TestPingHostsWithResults:
             return 10.0
 
         with patch.object(rtt_measurement, "ping_host", side_effect=slow_ping):
-            result = rtt_measurement.ping_hosts_with_results(
-                ["8.8.8.8"], timeout=0.01
-            )
+            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8"], timeout=0.01)
         assert result["8.8.8.8"] is None
 
 

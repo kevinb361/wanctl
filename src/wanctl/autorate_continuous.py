@@ -378,7 +378,10 @@ class Config(BaseConfig):
 
         # Deprecation: translate legacy alpha_baseline -> baseline_time_constant_sec
         _tc_from_baseline = deprecate_param(
-            thresh, "alpha_baseline", "baseline_time_constant_sec", logger,
+            thresh,
+            "alpha_baseline",
+            "baseline_time_constant_sec",
+            logger,
             transform_fn=lambda alpha: cycle_interval / alpha,
         )
         if _tc_from_baseline is not None:
@@ -386,7 +389,10 @@ class Config(BaseConfig):
 
         # Deprecation: translate legacy alpha_load -> load_time_constant_sec
         _tc_from_load = deprecate_param(
-            thresh, "alpha_load", "load_time_constant_sec", logger,
+            thresh,
+            "alpha_load",
+            "load_time_constant_sec",
+            logger,
             transform_fn=lambda alpha: cycle_interval / alpha,
         )
         if _tc_from_load is not None:
@@ -479,7 +485,9 @@ class Config(BaseConfig):
     def _load_router_transport_config(self) -> None:
         """Load router transport settings (SSH or REST)."""
         router = self.data.get("router", {})
-        self.router_transport = router.get("transport", "rest")  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
+        self.router_transport = router.get(
+            "transport", "rest"
+        )  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
         # REST API specific settings (only used if transport=rest)
         self.router_password = router.get("password", "")
         self.router_port = router.get("port", 443)
@@ -530,8 +538,7 @@ class Config(BaseConfig):
         enabled = alerting.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
-                f"alerting.enabled must be bool, got {type(enabled).__name__}; "
-                "disabling alerting"
+                f"alerting.enabled must be bool, got {type(enabled).__name__}; disabling alerting"
             )
             self.alerting_config = None
             return
@@ -560,9 +567,7 @@ class Config(BaseConfig):
 
         # Validate default_sustained_sec (congestion duration threshold)
         default_sustained_sec = alerting.get("default_sustained_sec", 60)
-        if not isinstance(default_sustained_sec, int) or isinstance(
-            default_sustained_sec, bool
-        ):
+        if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
             logger.warning(
                 f"alerting.default_sustained_sec must be int, "
                 f"got {type(default_sustained_sec).__name__}; disabling alerting"
@@ -581,8 +586,7 @@ class Config(BaseConfig):
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
             logger.warning(
-                f"alerting.rules must be a map, got {type(rules).__name__}; "
-                "disabling alerting"
+                f"alerting.rules must be a map, got {type(rules).__name__}; disabling alerting"
             )
             self.alerting_config = None
             return
@@ -611,7 +615,12 @@ class Config(BaseConfig):
 
         webhook_url = alerting.get("webhook_url", "")
         # Expand ${ENV_VAR} references (same pattern as router password)
-        if webhook_url and isinstance(webhook_url, str) and webhook_url.startswith("${") and webhook_url.endswith("}"):
+        if (
+            webhook_url
+            and isinstance(webhook_url, str)
+            and webhook_url.startswith("${")
+            and webhook_url.endswith("}")
+        ):
             env_var = webhook_url[2:-1]
             webhook_url = os.environ.get(env_var, "")
 
@@ -624,8 +633,7 @@ class Config(BaseConfig):
         mention_severity = alerting.get("mention_severity", "critical")
         if mention_severity not in ("info", "recovery", "warning", "critical"):
             logger.warning(
-                f"alerting.mention_severity invalid: '{mention_severity}'; "
-                "defaulting to critical"
+                f"alerting.mention_severity invalid: '{mention_severity}'; defaulting to critical"
             )
             mention_severity = "critical"
 
@@ -661,11 +669,7 @@ class Config(BaseConfig):
 
         # Validate and extract hampel parameters
         window_size = hampel.get("window_size", 7)
-        if (
-            not isinstance(window_size, int)
-            or isinstance(window_size, bool)
-            or window_size < 3
-        ):
+        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 3:
             logger.warning(
                 f"signal_processing.hampel.window_size must be int >= 3, "
                 f"got {window_size!r}; defaulting to 7"
@@ -686,20 +690,14 @@ class Config(BaseConfig):
 
         # Validate EWMA time constants
         jitter_tc = sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
-        if (
-            not isinstance(jitter_tc, (int, float))
-            or isinstance(jitter_tc, bool)
-            or jitter_tc <= 0
-        ):
+        if not isinstance(jitter_tc, (int, float)) or isinstance(jitter_tc, bool) or jitter_tc <= 0:
             logger.warning(
                 f"signal_processing.jitter_time_constant_sec must be positive number, "
                 f"got {jitter_tc!r}; defaulting to 2.0"
             )
             jitter_tc = 2.0
 
-        variance_tc = (
-            sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
-        )
+        variance_tc = sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
         if (
             not isinstance(variance_tc, (int, float))
             or isinstance(variance_tc, bool)
@@ -734,30 +732,22 @@ class Config(BaseConfig):
         irtt = self.data.get("irtt", {})
 
         if not isinstance(irtt, dict):
-            logger.warning(
-                f"irtt config must be dict, got {type(irtt).__name__}; using defaults"
-            )
+            logger.warning(f"irtt config must be dict, got {type(irtt).__name__}; using defaults")
             irtt = {}
 
         enabled = irtt.get("enabled", False)
         if not isinstance(enabled, bool):
-            logger.warning(
-                f"irtt.enabled must be bool, got {enabled!r}; defaulting to false"
-            )
+            logger.warning(f"irtt.enabled must be bool, got {enabled!r}; defaulting to false")
             enabled = False
 
-        server = irtt.get("server", None)
+        server = irtt.get("server")
         if server is not None and not isinstance(server, str):
-            logger.warning(
-                f"irtt.server must be str, got {server!r}; defaulting to None"
-            )
+            logger.warning(f"irtt.server must be str, got {server!r}; defaulting to None")
             server = None
 
         port = irtt.get("port", 2112)
         if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
-            logger.warning(
-                f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112"
-            )
+            logger.warning(f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112")
             port = 2112
 
         duration_sec = irtt.get("duration_sec", 1.0)
@@ -773,14 +763,9 @@ class Config(BaseConfig):
             duration_sec = 1.0
 
         interval_ms = irtt.get("interval_ms", 100)
-        if (
-            not isinstance(interval_ms, int)
-            or isinstance(interval_ms, bool)
-            or interval_ms < 1
-        ):
+        if not isinstance(interval_ms, int) or isinstance(interval_ms, bool) or interval_ms < 1:
             logger.warning(
-                f"irtt.interval_ms must be positive int, got {interval_ms!r}; "
-                f"defaulting to 100"
+                f"irtt.interval_ms must be positive int, got {interval_ms!r}; defaulting to 100"
             )
             interval_ms = 100
 
@@ -791,8 +776,7 @@ class Config(BaseConfig):
             or cadence_sec < 1
         ):
             logger.warning(
-                f"irtt.cadence_sec must be number >= 1, got {cadence_sec!r}; "
-                f"defaulting to 10"
+                f"irtt.cadence_sec must be number >= 1, got {cadence_sec!r}; defaulting to 10"
             )
             cadence_sec = 10
 
@@ -826,16 +810,14 @@ class Config(BaseConfig):
 
         if not isinstance(rq, dict):
             logger.warning(
-                f"reflector_quality config must be dict, got {type(rq).__name__}; "
-                "using defaults"
+                f"reflector_quality config must be dict, got {type(rq).__name__}; using defaults"
             )
             rq = {}
 
         min_score = rq.get("min_score", 0.8)
         if not isinstance(min_score, (int, float)) or isinstance(min_score, bool):
             logger.warning(
-                f"reflector_quality.min_score must be number, got {min_score!r}; "
-                "defaulting to 0.8"
+                f"reflector_quality.min_score must be number, got {min_score!r}; defaulting to 0.8"
             )
             min_score = 0.8
         min_score = max(0.0, min(1.0, float(min_score)))
@@ -935,16 +917,14 @@ class Config(BaseConfig):
             or icmp_weight > 1.0
         ):
             logger.warning(
-                f"fusion.icmp_weight must be number 0.0-1.0, got {icmp_weight!r}; "
-                "defaulting to 0.7"
+                f"fusion.icmp_weight must be number 0.0-1.0, got {icmp_weight!r}; defaulting to 0.7"
             )
             icmp_weight = 0.7
 
         enabled = fusion.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
-                f"fusion.enabled must be bool, got {type(enabled).__name__}; "
-                "defaulting to false"
+                f"fusion.enabled must be bool, got {type(enabled).__name__}; defaulting to false"
             )
             enabled = False
 
@@ -953,8 +933,7 @@ class Config(BaseConfig):
             "enabled": enabled,
         }
         logger.info(
-            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, "
-            f"irtt_weight={1.0 - icmp_weight}"
+            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, irtt_weight={1.0 - icmp_weight}"
         )
 
     def _load_tuning_config(self) -> None:
@@ -979,8 +958,7 @@ class Config(BaseConfig):
         enabled = tuning.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
-                f"tuning.enabled must be bool, got {type(enabled).__name__}; "
-                "disabling tuning"
+                f"tuning.enabled must be bool, got {type(enabled).__name__}; disabling tuning"
             )
             self.tuning_config = None
             return
@@ -1018,8 +996,7 @@ class Config(BaseConfig):
             return
         if lookback_hours < 1 or lookback_hours > 168:
             logger.warning(
-                f"tuning.lookback_hours must be 1-168, got {lookback_hours}; "
-                "disabling tuning"
+                f"tuning.lookback_hours must be 1-168, got {lookback_hours}; disabling tuning"
             )
             self.tuning_config = None
             return
@@ -1035,8 +1012,7 @@ class Config(BaseConfig):
             return
         if warmup_hours < 1 or warmup_hours > 24:
             logger.warning(
-                f"tuning.warmup_hours must be 1-24, got {warmup_hours}; "
-                "disabling tuning"
+                f"tuning.warmup_hours must be 1-24, got {warmup_hours}; disabling tuning"
             )
             self.tuning_config = None
             return
@@ -1053,8 +1029,7 @@ class Config(BaseConfig):
         max_step_pct = float(max_step_pct)
         if max_step_pct < 1.0 or max_step_pct > 50.0:
             logger.warning(
-                f"tuning.max_step_pct must be 1.0-50.0, got {max_step_pct}; "
-                "disabling tuning"
+                f"tuning.max_step_pct must be 1.0-50.0, got {max_step_pct}; disabling tuning"
             )
             self.tuning_config = None
             return
@@ -1074,8 +1049,7 @@ class Config(BaseConfig):
         raw_bounds = tuning.get("bounds", {})
         if not isinstance(raw_bounds, dict):
             logger.warning(
-                f"tuning.bounds must be a dict, got {type(raw_bounds).__name__}; "
-                "disabling tuning"
+                f"tuning.bounds must be a dict, got {type(raw_bounds).__name__}; disabling tuning"
             )
             self.tuning_config = None
             return
@@ -1095,16 +1069,14 @@ class Config(BaseConfig):
 
             if min_val is None or max_val is None:
                 logger.warning(
-                    f"tuning.bounds.{param_name} must have 'min' and 'max' keys; "
-                    "disabling tuning"
+                    f"tuning.bounds.{param_name} must have 'min' and 'max' keys; disabling tuning"
                 )
                 self.tuning_config = None
                 return
 
             if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
                 logger.warning(
-                    f"tuning.bounds.{param_name} min/max must be numeric; "
-                    "disabling tuning"
+                    f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning"
                 )
                 self.tuning_config = None
                 return
@@ -1533,9 +1505,7 @@ def _apply_tuning_to_controller(
         elif r.parameter == "hampel_window_size":
             new_size = round(r.new_value)
             wc.signal_processor._window_size = new_size
-            wc.signal_processor._window = deque(
-                wc.signal_processor._window, maxlen=new_size
-            )
+            wc.signal_processor._window = deque(wc.signal_processor._window, maxlen=new_size)
             wc.signal_processor._outlier_window = deque(
                 wc.signal_processor._outlier_window, maxlen=new_size
             )
@@ -1727,8 +1697,7 @@ class WANController:
                 url = ""
             if not url:
                 self.logger.warning(
-                    "alerting.webhook_url not set; alerts will fire and persist "
-                    "but not deliver"
+                    "alerting.webhook_url not set; alerts will fire and persist but not deliver"
                 )
 
             from wanctl import __version__
@@ -1840,9 +1809,7 @@ class WANController:
         self._ul_sustained_fired: bool = False
         self._dl_last_congested_zone: str = "RED"
         self._ul_last_congested_zone: str = "RED"
-        self._sustained_sec: int = (
-            ac.get("default_sustained_sec", 60) if ac else 60
-        )
+        self._sustained_sec: int = ac.get("default_sustained_sec", 60) if ac else 60
 
         # =====================================================================
         # CONNECTIVITY ALERT TIMERS (ALRT-04, ALRT-05)
@@ -1955,9 +1922,7 @@ class WANController:
                     latest[param] = row
 
             if not latest:
-                self.logger.info(
-                    f"{self.wan_name}: No non-reverted tuning params to restore"
-                )
+                self.logger.info(f"{self.wan_name}: No non-reverted tuning params to restore")
                 return
 
             # Build TuningResult list for _apply_tuning_to_controller
@@ -1976,16 +1941,13 @@ class WANController:
                 )
 
             _apply_tuning_to_controller(self, results)
-            param_summary = ", ".join(
-                f"{r.parameter}={r.new_value}" for r in results
-            )
+            param_summary = ", ".join(f"{r.parameter}={r.new_value}" for r in results)
             self.logger.info(
                 f"{self.wan_name}: Restored {len(results)} tuning params: {param_summary}"
             )
         except Exception as e:
             self.logger.warning(
-                f"{self.wan_name}: Failed to restore tuning params "
-                f"(using defaults): {e}"
+                f"{self.wan_name}: Failed to restore tuning params (using defaults): {e}"
             )
 
     def measure_rtt(self) -> float | None:
@@ -2028,14 +1990,10 @@ class WANController:
         # Graceful degradation based on available results
         if len(rtts) >= 3:
             rtt = statistics.median(rtts)
-            self.logger.debug(
-                f"{self.wan_name}: Median-of-{len(rtts)} RTT = {rtt:.2f}ms"
-            )
+            self.logger.debug(f"{self.wan_name}: Median-of-{len(rtts)} RTT = {rtt:.2f}ms")
         elif len(rtts) == 2:
             rtt = statistics.mean(rtts)
-            self.logger.debug(
-                f"{self.wan_name}: Average-of-2 RTT = {rtt:.2f}ms"
-            )
+            self.logger.debug(f"{self.wan_name}: Average-of-2 RTT = {rtt:.2f}ms")
         else:
             rtt = rtts[0]
 
@@ -2057,22 +2015,32 @@ class WANController:
                 import time as time_mod
 
                 timestamp = int(time_mod.time())
-                details = json.dumps({
-                    "host": event["host"],
-                    "score": round(event["score"], 3),
-                    "event": event["event_type"],
-                })
+                details = json.dumps(
+                    {
+                        "host": event["host"],
+                        "score": round(event["score"], 3),
+                        "event": event["event_type"],
+                    }
+                )
                 self._metrics_writer.connection.execute(
                     "INSERT INTO reflector_events "
                     "(timestamp, event_type, host, wan_name, score, details) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    (timestamp, event["event_type"], event["host"],
-                     self.wan_name, round(event["score"], 3), details),
+                    (
+                        timestamp,
+                        event["event_type"],
+                        event["host"],
+                        self.wan_name,
+                        round(event["score"], 3),
+                        details,
+                    ),
                 )
             except Exception:
                 self.logger.warning(
                     "Failed to persist reflector event %s for %s",
-                    event["event_type"], event["host"], exc_info=True,
+                    event["event_type"],
+                    event["host"],
+                    exc_info=True,
                 )
 
     def update_ewma(self, measured_rtt: float) -> None:
@@ -2380,28 +2348,27 @@ class WANController:
                         f"{self.config.fallback_max_cycles}) - using last RTT={measured_rtt:.1f}ms"
                     )
                     return (True, measured_rtt)
-                elif self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
+                if self.icmp_unavailable_cycles <= self.config.fallback_max_cycles:
                     self.logger.warning(
                         f"{self.wan_name}: ICMP unavailable, no TCP RTT "
                         f"(cycle {self.icmp_unavailable_cycles}/"
                         f"{self.config.fallback_max_cycles}) - freezing rates"
                     )
                     return (True, None)
-                else:
-                    self.logger.error(
-                        f"{self.wan_name}: ICMP unavailable for "
-                        f"{self.icmp_unavailable_cycles} cycles "
-                        f"(>{self.config.fallback_max_cycles}) - giving up"
-                    )
-                    return (False, None)
+                self.logger.error(
+                    f"{self.wan_name}: ICMP unavailable for "
+                    f"{self.icmp_unavailable_cycles} cycles "
+                    f"(>{self.config.fallback_max_cycles}) - giving up"
+                )
+                return (False, None)
 
-            elif self.config.fallback_mode == "freeze":
+            if self.config.fallback_mode == "freeze":
                 self.logger.warning(
                     f"{self.wan_name}: ICMP unavailable - freezing rates (mode: freeze)"
                 )
                 return (True, None)
 
-            elif self.config.fallback_mode == "use_last_rtt":
+            if self.config.fallback_mode == "use_last_rtt":
                 measured_rtt = self.load_rtt
                 self.logger.warning(
                     f"{self.wan_name}: ICMP unavailable - using last RTT={measured_rtt:.1f}ms "
@@ -2409,16 +2376,14 @@ class WANController:
                 )
                 return (True, measured_rtt)
 
-            else:
-                self.logger.error(
-                    f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}"
-                )
-                return (False, None)
-
-        else:
-            # Total connectivity loss confirmed (both ICMP and TCP failed)
-            self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+            self.logger.error(
+                f"{self.wan_name}: Unknown fallback_mode: {self.config.fallback_mode}"
+            )
             return (False, None)
+
+        # Total connectivity loss confirmed (both ICMP and TCP failed)
+        self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+        return (False, None)
 
     def _check_protocol_correlation(self, ratio: float) -> None:
         """Check ICMP/UDP RTT ratio for protocol deprioritization (IRTT-07).
@@ -2446,14 +2411,11 @@ class WANController:
                 )
                 self._irtt_deprioritization_logged = True
             else:
-                self.logger.debug(
-                    f"{self.wan_name}: Protocol ratio={ratio:.2f}"
-                )
+                self.logger.debug(f"{self.wan_name}: Protocol ratio={ratio:.2f}")
         else:
             if self._irtt_deprioritization_logged:
                 self.logger.info(
-                    f"{self.wan_name}: Protocol correlation recovered, "
-                    f"ratio={ratio:.2f}"
+                    f"{self.wan_name}: Protocol correlation recovered, ratio={ratio:.2f}"
                 )
                 self._irtt_deprioritization_logged = False
 
@@ -2495,7 +2457,9 @@ class WANController:
         if irtt_rtt <= 0:
             return filtered_rtt
 
-        fused = self._fusion_icmp_weight * filtered_rtt + (1.0 - self._fusion_icmp_weight) * irtt_rtt
+        fused = (
+            self._fusion_icmp_weight * filtered_rtt + (1.0 - self._fusion_icmp_weight) * irtt_rtt
+        )
         self._last_fused_rtt = fused
         self.logger.debug(
             f"{self.wan_name}: fused_rtt={fused:.1f}ms "
@@ -2542,8 +2506,7 @@ class WANController:
             or new_weight > 1.0
         ):
             self.logger.warning(
-                f"[FUSION] Reload: fusion.icmp_weight invalid ({new_weight!r}); "
-                "defaulting to 0.7"
+                f"[FUSION] Reload: fusion.icmp_weight invalid ({new_weight!r}); defaulting to 0.7"
             )
             new_weight = 0.7
         new_weight = float(new_weight)
@@ -2827,30 +2790,105 @@ class WANController:
                 # Signal quality metrics -- every cycle (OBSV-03)
                 if self._last_signal_result is not None:
                     sr = self._last_signal_result
-                    metrics_batch.extend([
-                        (ts, self.wan_name, "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
-                        (ts, self.wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
-                        (ts, self.wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
-                        (ts, self.wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
-                    ])
+                    metrics_batch.extend(
+                        [
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_signal_jitter_ms",
+                                sr.jitter_ms,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_signal_variance_ms2",
+                                sr.variance_ms2,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_signal_confidence",
+                                sr.confidence,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_signal_outlier_count",
+                                float(sr.total_outliers),
+                                None,
+                                "raw",
+                            ),
+                        ]
+                    )
 
                 # IRTT metrics -- only on new measurement (OBSV-04)
                 if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
-                    metrics_batch.extend([
-                        (ts, self.wan_name, "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                        (ts, self.wan_name, "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                        (ts, self.wan_name, "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                        (ts, self.wan_name, "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
-                    ])
+                    metrics_batch.extend(
+                        [
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_irtt_rtt_ms",
+                                irtt_result.rtt_mean_ms,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_irtt_ipdv_ms",
+                                irtt_result.ipdv_mean_ms,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_irtt_loss_up_pct",
+                                irtt_result.send_loss,
+                                None,
+                                "raw",
+                            ),
+                            (
+                                ts,
+                                self.wan_name,
+                                "wanctl_irtt_loss_down_pct",
+                                irtt_result.receive_loss,
+                                None,
+                                "raw",
+                            ),
+                        ]
+                    )
                     # OWD asymmetry metrics (ASYM-03) -- same dedup guard as IRTT metrics
                     if self._last_asymmetry_result is not None:
-                        metrics_batch.extend([
-                            (ts, self.wan_name, "wanctl_irtt_asymmetry_ratio",
-                             self._last_asymmetry_result.ratio, None, "raw"),
-                            (ts, self.wan_name, "wanctl_irtt_asymmetry_direction",
-                             DIRECTION_ENCODING.get(self._last_asymmetry_result.direction, 0.0),
-                             None, "raw"),
-                        ])
+                        metrics_batch.extend(
+                            [
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_asymmetry_ratio",
+                                    self._last_asymmetry_result.ratio,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_asymmetry_direction",
+                                    DIRECTION_ENCODING.get(
+                                        self._last_asymmetry_result.direction, 0.0
+                                    ),
+                                    None,
+                                    "raw",
+                                ),
+                            ]
+                        )
                     self._last_irtt_write_ts = irtt_result.timestamp
 
                 self._metrics_writer.write_metrics_batch(metrics_batch)
@@ -2985,9 +3023,9 @@ class WANController:
                 self._dl_congestion_start = now
             elif not self._dl_sustained_fired:
                 # Check per-rule sustained_sec override
-                sustained_sec = self.alert_engine._rules.get(
-                    "congestion_sustained_dl", {}
-                ).get("sustained_sec", self._sustained_sec)
+                sustained_sec = self.alert_engine._rules.get("congestion_sustained_dl", {}).get(
+                    "sustained_sec", self._sustained_sec
+                )
                 duration = now - self._dl_congestion_start
                 if duration >= sustained_sec:
                     severity = "critical" if dl_zone == "RED" else "warning"
@@ -3032,9 +3070,9 @@ class WANController:
             if self._ul_congestion_start is None:
                 self._ul_congestion_start = now
             elif not self._ul_sustained_fired:
-                sustained_sec = self.alert_engine._rules.get(
-                    "congestion_sustained_ul", {}
-                ).get("sustained_sec", self._sustained_sec)
+                sustained_sec = self.alert_engine._rules.get("congestion_sustained_ul", {}).get(
+                    "sustained_sec", self._sustained_sec
+                )
                 duration = now - self._ul_congestion_start
                 if duration >= sustained_sec:
                     fired = self.alert_engine.fire(
@@ -3085,9 +3123,7 @@ class WANController:
 
         # --- Upstream loss (send_loss) ---
         up_rule = self.alert_engine._rules.get("irtt_loss_upstream", {})
-        up_threshold = up_rule.get(
-            "loss_threshold_pct", self._irtt_loss_threshold_pct
-        )
+        up_threshold = up_rule.get("loss_threshold_pct", self._irtt_loss_threshold_pct)
         up_sustained = up_rule.get("sustained_sec", self._sustained_sec)
 
         if irtt_result.send_loss >= up_threshold:
@@ -3127,9 +3163,7 @@ class WANController:
 
         # --- Downstream loss (receive_loss) ---
         down_rule = self.alert_engine._rules.get("irtt_loss_downstream", {})
-        down_threshold = down_rule.get(
-            "loss_threshold_pct", self._irtt_loss_threshold_pct
-        )
+        down_threshold = down_rule.get("loss_threshold_pct", self._irtt_loss_threshold_pct)
         down_sustained = down_rule.get("sustained_sec", self._sustained_sec)
 
         if irtt_result.receive_loss >= down_threshold:
@@ -3186,9 +3220,9 @@ class WANController:
                 self._connectivity_offline_start = now
             elif not self._wan_offline_fired:
                 # Check per-rule sustained_sec override
-                sustained_sec = self.alert_engine._rules.get(
-                    "wan_offline", {}
-                ).get("sustained_sec", self._sustained_sec)
+                sustained_sec = self.alert_engine._rules.get("wan_offline", {}).get(
+                    "sustained_sec", self._sustained_sec
+                )
                 duration = now - self._connectivity_offline_start
                 if duration >= sustained_sec:
                     fired = self.alert_engine.fire(
@@ -3292,9 +3326,7 @@ class WANController:
         self._dl_prev_zone = dl_zone
 
         # Prune old transitions outside window
-        while self._dl_zone_transitions and (
-            now - self._dl_zone_transitions[0] > flap_window
-        ):
+        while self._dl_zone_transitions and (now - self._dl_zone_transitions[0] > flap_window):
             self._dl_zone_transitions.popleft()
 
         if len(self._dl_zone_transitions) >= flap_threshold:
@@ -3322,9 +3354,7 @@ class WANController:
         self._ul_prev_zone = ul_zone
 
         # Prune old transitions outside window
-        while self._ul_zone_transitions and (
-            now - self._ul_zone_transitions[0] > flap_window
-        ):
+        while self._ul_zone_transitions and (now - self._ul_zone_transitions[0] > flap_window):
             self._ul_zone_transitions.popleft()
 
         if len(self._ul_zone_transitions) >= flap_threshold:
@@ -4019,9 +4049,7 @@ def main() -> int | None:
                     first_config = controller.wan_controllers[0]["config"]
                     storage_config = get_storage_config(first_config.data)
                     db_path = storage_config.get("db_path", "")
-                    metrics_writer = controller.wan_controllers[0][
-                        "controller"
-                    ]._metrics_writer
+                    metrics_writer = controller.wan_controllers[0]["controller"]._metrics_writer
 
                     # Layer definitions for bottom-up tuning (SIGP-04)
                     SIGNAL_LAYER = [
@@ -4080,9 +4108,7 @@ def main() -> int | None:
                         wc._pending_observation = None  # Clear regardless
 
                         # Step 2: Select active layer via round-robin (SIGP-04)
-                        active_layer = ALL_LAYERS[
-                            wc._tuning_layer_index % len(ALL_LAYERS)
-                        ]
+                        active_layer = ALL_LAYERS[wc._tuning_layer_index % len(ALL_LAYERS)]
                         wc._tuning_layer_index += 1
 
                         # Step 3: Filter excluded and locked parameters from active layer
@@ -4091,9 +4117,7 @@ def main() -> int | None:
                             (pname, sfn)
                             for pname, sfn in active_layer
                             if pname not in excluded
-                            and not is_parameter_locked(
-                                wc._parameter_locks, pname
-                            )
+                            and not is_parameter_locked(wc._parameter_locks, pname)
                         ]
                         for pname, _ in active_layer:
                             if pname in excluded:
@@ -4102,9 +4126,7 @@ def main() -> int | None:
                                     wc.wan_name,
                                     pname,
                                 )
-                            elif is_parameter_locked(
-                                wc._parameter_locks, pname
-                            ):
+                            elif is_parameter_locked(wc._parameter_locks, pname):
                                 wan_info["logger"].info(
                                     "[TUNING] %s: %s locked until revert cooldown expires",
                                     wc.wan_name,
@@ -4144,19 +4166,14 @@ def main() -> int | None:
                                     pre_rate = measure_congestion_rate(
                                         db_path,
                                         wc.wan_name,
-                                        start_ts=int(time.time())
-                                        - tuning_config.cadence_sec,
+                                        start_ts=int(time.time()) - tuning_config.cadence_sec,
                                         end_ts=int(time.time()),
                                     )
                                     if pre_rate is not None:
-                                        wc._pending_observation = (
-                                            PendingObservation(
-                                                applied_ts=int(time.time()),
-                                                pre_congestion_rate=pre_rate,
-                                                applied_results=tuple(
-                                                    applied
-                                                ),
-                                            )
+                                        wc._pending_observation = PendingObservation(
+                                            applied_ts=int(time.time()),
+                                            pre_congestion_rate=pre_rate,
+                                            applied_results=tuple(applied),
                                         )
                         except Exception as e:
                             wan_info["logger"].error(
@@ -4169,9 +4186,7 @@ def main() -> int | None:
             # Check for config reload signal (SIGUSR1)
             if is_reload_requested():
                 for wan_info in controller.wan_controllers:
-                    wan_info["logger"].info(
-                        "SIGUSR1 received, reloading config"
-                    )
+                    wan_info["logger"].info("SIGUSR1 received, reloading config")
                     wan_info["controller"]._reload_fusion_config()
                     wan_info["controller"]._reload_tuning_config()
                 reset_reload_state()
@@ -4200,7 +4215,9 @@ def main() -> int | None:
                 wan_info["controller"].save_state(force=True)
             except Exception:
                 pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
-        check_cleanup_deadline("state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic()
+        )
 
         # 0.5. Stop IRTT background thread
         t0 = time.monotonic()
@@ -4209,7 +4226,14 @@ def main() -> int | None:
                 irtt_thread.stop()
             except Exception as e:
                 _cleanup_log.debug(f"Error stopping IRTT thread: {e}")
-        check_cleanup_deadline("irtt_thread", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "irtt_thread",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
 
         # 1. Clean up lock files (highest priority for restart capability)
         for lock_path in lock_files:
@@ -4238,7 +4262,14 @@ def main() -> int | None:
                     router.close()
             except Exception as e:
                 wan_info["logger"].debug(f"Error closing router connection: {e}")
-        check_cleanup_deadline("router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "router_close",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
 
         # 3. Shut down metrics server
         t0 = time.monotonic()
@@ -4248,7 +4279,14 @@ def main() -> int | None:
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
-        check_cleanup_deadline("metrics_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "metrics_server",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
 
         # 4. Shut down health check server
         t0 = time.monotonic()
@@ -4258,7 +4296,14 @@ def main() -> int | None:
             except Exception as e:
                 for wan_info in controller.wan_controllers:
                     wan_info["logger"].debug(f"Error shutting down health server: {e}")
-        check_cleanup_deadline("health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "health_server",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
 
         # 5. Close MetricsWriter (SQLite connection)
         t0 = time.monotonic()
@@ -4268,7 +4313,14 @@ def main() -> int | None:
                 _cleanup_log.debug("MetricsWriter connection closed")
         except Exception as e:
             _cleanup_log.debug(f"Error closing MetricsWriter: {e}")
-        check_cleanup_deadline("metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic())
+        check_cleanup_deadline(
+            "metrics_writer",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
 
         # Log clean shutdown
         total = time.monotonic() - cleanup_start

@@ -155,7 +155,11 @@ def compute_confidence(
         score += wan_red_weight if wan_red_weight is not None else ConfidenceWeights.WAN_RED
         contributors.append("WAN_RED")
     elif signals.wan_zone == "SOFT_RED":
-        score += wan_soft_red_weight if wan_soft_red_weight is not None else ConfidenceWeights.WAN_SOFT_RED
+        score += (
+            wan_soft_red_weight
+            if wan_soft_red_weight is not None
+            else ConfidenceWeights.WAN_SOFT_RED
+        )
         contributors.append("WAN_SOFT_RED")
     # GREEN, YELLOW, None: no WAN contribution (SAFE-02)
 
@@ -448,15 +452,14 @@ class FlapDetector:
             if time.monotonic() < timer_state.flap_penalty_expiry:
                 # Penalty still active
                 return base_threshold + self.penalty_threshold_add
-            else:
-                # Penalty expired
-                self.logger.warning(
-                    f"[FLAP-BRAKE] DISENGAGED: penalty_expired, "
-                    f"threshold={base_threshold + self.penalty_threshold_add}->{base_threshold} (restored)"
-                )
-                timer_state.flap_penalty_active = False
-                timer_state.flap_penalty_expiry = None
-                return base_threshold
+            # Penalty expired
+            self.logger.warning(
+                f"[FLAP-BRAKE] DISENGAGED: penalty_expired, "
+                f"threshold={base_threshold + self.penalty_threshold_add}->{base_threshold} (restored)"
+            )
+            timer_state.flap_penalty_active = False
+            timer_state.flap_penalty_expiry = None
+            return base_threshold
 
         # Check for flapping
         toggle_count = len(timer_state.flap_window)
@@ -606,7 +609,8 @@ class ConfidenceController:
         """
         # Compute confidence
         confidence, contributors = compute_confidence(
-            signals, self.logger,
+            signals,
+            self.logger,
             wan_red_weight=wan_red_weight,
             wan_soft_red_weight=wan_soft_red_weight,
         )

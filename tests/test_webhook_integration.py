@@ -12,7 +12,7 @@ Requirements: DLVR-01, DLVR-02, DLVR-03, DLVR-04.
 """
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import yaml

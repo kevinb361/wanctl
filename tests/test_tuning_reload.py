@@ -6,7 +6,6 @@ old->new logging, invalid config handling, and file read errors.
 
 import logging
 
-import pytest
 import yaml
 
 from wanctl.tuning.models import TuningState
@@ -61,9 +60,7 @@ class TestReloadTuningConfig:
         self, mock_autorate_config, tmp_path, caplog
     ):
         """Disabling tuning via SIGUSR1 should log WARNING with old->new."""
-        wc = self._make_wc(
-            mock_autorate_config, tmp_path, {"tuning": {"enabled": True}}
-        )
+        wc = self._make_wc(mock_autorate_config, tmp_path, {"tuning": {"enabled": True}})
         # Force enable
         wc._tuning_enabled = True
         wc._tuning_state = TuningState(
@@ -81,9 +78,7 @@ class TestReloadTuningConfig:
         assert wc._tuning_state is None
         assert "enabled=True->False" in caplog.text
 
-    def test_unchanged_state_logs_info(
-        self, mock_autorate_config, tmp_path, caplog
-    ):
+    def test_unchanged_state_logs_info(self, mock_autorate_config, tmp_path, caplog):
         """Unchanged enabled state should log INFO (not WARNING)."""
         wc = self._make_wc(mock_autorate_config, tmp_path)
         assert wc._tuning_enabled is False
@@ -98,9 +93,7 @@ class TestReloadTuningConfig:
         assert wc._tuning_enabled is False
         assert "enabled=False (unchanged)" in caplog.text
 
-    def test_invalid_enabled_type_defaults_to_false(
-        self, mock_autorate_config, tmp_path, caplog
-    ):
+    def test_invalid_enabled_type_defaults_to_false(self, mock_autorate_config, tmp_path, caplog):
         """Non-bool tuning.enabled should default to false with warning."""
         wc = self._make_wc(mock_autorate_config, tmp_path)
 
@@ -113,9 +106,7 @@ class TestReloadTuningConfig:
         assert wc._tuning_enabled is False
         assert "must be bool" in caplog.text
 
-    def test_missing_tuning_section_defaults_to_false(
-        self, mock_autorate_config, tmp_path
-    ):
+    def test_missing_tuning_section_defaults_to_false(self, mock_autorate_config, tmp_path):
         """Missing tuning section should default to false."""
         wc = self._make_wc(mock_autorate_config, tmp_path)
 
@@ -125,9 +116,7 @@ class TestReloadTuningConfig:
         wc._reload_tuning_config()
         assert wc._tuning_enabled is False
 
-    def test_file_read_error_logs_error_and_returns(
-        self, mock_autorate_config, tmp_path, caplog
-    ):
+    def test_file_read_error_logs_error_and_returns(self, mock_autorate_config, tmp_path, caplog):
         """File read error should be logged and state preserved."""
         wc = self._make_wc(mock_autorate_config, tmp_path)
 

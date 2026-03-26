@@ -59,8 +59,8 @@ def mock_drift_controller():
     controller.config.baseline_rtt_initial = 37.0
 
     # Bind the real method
-    controller._check_baseline_drift = (
-        WANController._check_baseline_drift.__get__(controller, WANController)
+    controller._check_baseline_drift = WANController._check_baseline_drift.__get__(
+        controller, WANController
     )
 
     return controller
@@ -235,8 +235,8 @@ def mock_flapping_controller():
     controller._ul_zone_hold = 0
 
     # Bind the real method
-    controller._check_flapping_alerts = (
-        WANController._check_flapping_alerts.__get__(controller, WANController)
+    controller._check_flapping_alerts = WANController._check_flapping_alerts.__get__(
+        controller, WANController
     )
 
     return controller
@@ -250,9 +250,7 @@ def mock_flapping_controller():
 class TestFlappingDL:
     """Tests for download congestion zone flapping detection."""
 
-    def test_dl_flapping_fires_when_transitions_exceed_threshold(
-        self, mock_flapping_controller
-    ):
+    def test_dl_flapping_fires_when_transitions_exceed_threshold(self, mock_flapping_controller):
         """DL zone transitions exceeding threshold in window fires flapping_dl."""
         now = time.monotonic()
 
@@ -278,18 +276,18 @@ class TestFlappingDL:
         # Only 4 transitions (below threshold of 6)
         zones = ["GREEN", "RED", "GREEN", "RED", "GREEN"]
         for i, zone in enumerate(zones):
-            with patch("time.monotonic", return_value=now + i * 5):
-                with patch.object(
+            with (
+                patch("time.monotonic", return_value=now + i * 5),
+                patch.object(
                     mock_flapping_controller.alert_engine, "fire", return_value=True
-                ) as mock_fire:
-                    mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+                ) as mock_fire,
+            ):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
 
         # fire should not have been called (only 4 transitions)
         mock_fire.assert_not_called()
 
-    def test_dl_flapping_details_include_required_fields(
-        self, mock_flapping_controller
-    ):
+    def test_dl_flapping_details_include_required_fields(self, mock_flapping_controller):
         """Flapping alert details include transition_count, window_sec, current_zone."""
         now = time.monotonic()
 
@@ -498,11 +496,13 @@ class TestFlappingCooldownAndWindow:
                 mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
 
         # At t=35, only transitions from t=25..35 should remain (2 transitions)
-        with patch("time.monotonic", return_value=now + 35):
-            with patch.object(
+        with (
+            patch("time.monotonic", return_value=now + 35),
+            patch.object(
                 mock_flapping_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
+            ) as mock_fire,
+        ):
+            mock_flapping_controller._check_flapping_alerts("RED", "GREEN")
 
         # Should NOT fire (only ~2 transitions in 10s window, need 6)
         mock_fire.assert_not_called()
@@ -555,11 +555,13 @@ class TestFlappingDequeClear:
 
         # Deque is now empty from clear. Advance past cooldown (300s).
         # No zone change (prev is GREEN, pass GREEN) = no new transition
-        with patch("time.monotonic", return_value=now + 400):
-            with patch.object(
+        with (
+            patch("time.monotonic", return_value=now + 400),
+            patch.object(
                 mock_flapping_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_flapping_controller._check_flapping_alerts("GREEN", "GREEN")
+            ) as mock_fire,
+        ):
+            mock_flapping_controller._check_flapping_alerts("GREEN", "GREEN")
 
         # Should NOT fire: deque was cleared, no new transitions added
         mock_fire.assert_not_called()
@@ -604,11 +606,13 @@ class TestFlappingDefaults:
 
         # 30th transition should fire
         next_zone = "RED" if zone == "GREEN" else "GREEN"
-        with patch("time.monotonic", return_value=now + 30 * 0.5):
-            with patch.object(
+        with (
+            patch("time.monotonic", return_value=now + 30 * 0.5),
+            patch.object(
                 mock_flapping_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_flapping_controller._check_flapping_alerts(next_zone, "GREEN")
+            ) as mock_fire,
+        ):
+            mock_flapping_controller._check_flapping_alerts(next_zone, "GREEN")
 
         mock_fire.assert_called_once()
 
@@ -738,16 +742,12 @@ class TestFlappingCooldownKeyFix:
         )
 
         # Fire with rule_key
-        engine.fire(
-            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
-        )
+        engine.fire("flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping")
 
         # _is_cooled_down should use congestion_flapping's 600s cooldown, not default 300s
         with patch("time.monotonic", return_value=time.monotonic() + 400):
             assert (
-                engine._is_cooled_down(
-                    "flapping_dl", "spectrum", rule_key="congestion_flapping"
-                )
+                engine._is_cooled_down("flapping_dl", "spectrum", rule_key="congestion_flapping")
                 is True
             )
 
@@ -766,9 +766,7 @@ class TestFlappingCooldownKeyFix:
         )
 
         # Fire with rule_key mapping
-        engine.fire(
-            "flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping"
-        )
+        engine.fire("flapping_dl", "warning", "spectrum", {}, rule_key="congestion_flapping")
 
         # Active cooldowns should use 600s from congestion_flapping rule
         with patch("time.monotonic", return_value=time.monotonic() + 400):
@@ -825,15 +823,13 @@ class TestFlappingCooldownKeyFix:
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
         controller._ul_zone_hold = 0
-        controller._check_flapping_alerts = (
-            WANController._check_flapping_alerts.__get__(controller, WANController)
+        controller._check_flapping_alerts = WANController._check_flapping_alerts.__get__(
+            controller, WANController
         )
 
         now = time.monotonic()
 
-        with patch.object(
-            controller.alert_engine, "fire", return_value=True
-        ) as mock_fire:
+        with patch.object(controller.alert_engine, "fire", return_value=True) as mock_fire:
             zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
             for i, zone in enumerate(zones):
                 with patch("time.monotonic", return_value=now + i * 5):
@@ -879,8 +875,8 @@ class TestFlappingDwellFilter:
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
         controller._ul_zone_hold = 0
-        controller._check_flapping_alerts = (
-            WANController._check_flapping_alerts.__get__(controller, WANController)
+        controller._check_flapping_alerts = WANController._check_flapping_alerts.__get__(
+            controller, WANController
         )
         return controller
 
@@ -891,9 +887,7 @@ class TestFlappingDwellFilter:
         # At 50ms cycle, min_hold_sec=1.0 => min_hold_cycles=20
         # Rapid blips: GREEN(1 cycle)->YELLOW(1 cycle)->GREEN(1 cycle)->YELLOW...
         # Each zone held only 1 cycle (< 20), so NO transitions should count
-        with patch.object(
-            dwell_controller.alert_engine, "fire", return_value=True
-        ) as mock_fire:
+        with patch.object(dwell_controller.alert_engine, "fire", return_value=True) as mock_fire:
             for i in range(40):
                 zone = "GREEN" if i % 2 == 0 else "YELLOW"
                 with patch("time.monotonic", return_value=now + i * 0.05):
@@ -909,9 +903,7 @@ class TestFlappingDwellFilter:
 
         # min_hold_cycles = 1.0 / 0.05 = 20
         # Hold GREEN for 25 cycles, then switch to YELLOW
-        with patch.object(
-            dwell_controller.alert_engine, "fire", return_value=True
-        ):
+        with patch.object(dwell_controller.alert_engine, "fire", return_value=True):
             # 25 cycles of GREEN (builds hold counter)
             for i in range(25):
                 with patch("time.monotonic", return_value=now + i * 0.05):
@@ -927,9 +919,7 @@ class TestFlappingDwellFilter:
     def test_min_hold_sec_configurable(self, dwell_controller):
         """min_hold_sec is read from congestion_flapping rule config."""
         # Override to 0.5s (10 cycles at 50ms)
-        dwell_controller.alert_engine._rules["congestion_flapping"]["min_hold_sec"] = (
-            0.5
-        )
+        dwell_controller.alert_engine._rules["congestion_flapping"]["min_hold_sec"] = 0.5
 
         now = time.monotonic()
 
@@ -956,9 +946,7 @@ class TestFlappingDwellFilter:
         now = time.monotonic()
 
         # 100 rapid zone changes (50 pairs), each zone held only 1 cycle
-        with patch.object(
-            dwell_controller.alert_engine, "fire", return_value=True
-        ) as mock_fire:
+        with patch.object(dwell_controller.alert_engine, "fire", return_value=True) as mock_fire:
             for i in range(100):
                 zone = "GREEN" if i % 2 == 0 else "YELLOW"
                 with patch("time.monotonic", return_value=now + i * 0.05):

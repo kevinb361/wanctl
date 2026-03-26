@@ -22,9 +22,7 @@ class SafetyBounds:
 
     def __post_init__(self) -> None:
         if self.min_value > self.max_value:
-            raise ValueError(
-                f"min_value ({self.min_value}) > max_value ({self.max_value})"
-            )
+            raise ValueError(f"min_value ({self.min_value}) > max_value ({self.max_value})")
 
 
 @dataclass(frozen=True, slots=True)

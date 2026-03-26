@@ -177,9 +177,7 @@ def is_parameter_locked(locks: dict[str, float], parameter: str) -> bool:
     return True
 
 
-def lock_parameter(
-    locks: dict[str, float], parameter: str, cooldown_sec: float
-) -> None:
+def lock_parameter(locks: dict[str, float], parameter: str, cooldown_sec: float) -> None:
     """Lock a parameter for a cooldown period after revert.
 
     Operates on caller-provided dict so WANController owns the state.

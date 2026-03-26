@@ -6,9 +6,7 @@ _apply_tuning_to_controller maps parameters to WANController attributes.
 """
 
 import time
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
 
@@ -171,9 +169,7 @@ class TestApplyTuningToController:
         """Empty results list should not modify TuningState."""
         from wanctl.autorate_continuous import _apply_tuning_to_controller
 
-        state = TuningState(
-            enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
-        )
+        state = TuningState(enabled=True, last_run_ts=None, recent_adjustments=[], parameters={})
         wc = MagicMock()
         wc._tuning_state = state
         _apply_tuning_to_controller(wc, [])
@@ -277,6 +273,7 @@ class TestStrategiesWired:
             calibrate_target_bloat,
             calibrate_warn_bloat,
         )
+
         assert callable(calibrate_target_bloat)
         assert callable(calibrate_warn_bloat)
 
@@ -286,6 +283,7 @@ class TestStrategiesWired:
             calibrate_target_bloat,
             calibrate_warn_bloat,
         )
+
         # Verify they can be called with StrategyFn args and return None for empty data
         result_target = calibrate_target_bloat([], 15.0, SafetyBounds(3.0, 30.0), "Test")
         result_warn = calibrate_warn_bloat([], 45.0, SafetyBounds(10.0, 100.0), "Test")

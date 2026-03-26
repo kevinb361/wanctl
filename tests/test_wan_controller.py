@@ -1333,8 +1333,7 @@ class TestVerifyTcpConnectivity:
             call_count[0] += 1
             if call_count[0] == 1:
                 return mock_socket
-            else:
-                raise TimeoutError("Connection timed out")
+            raise TimeoutError("Connection timed out")
 
         # Use a generator function for time.monotonic that never runs out
         time_count = [0]
@@ -1879,7 +1878,9 @@ class TestMeasureRttMedianOfThree:
 
         # 3 active hosts, but one fails
         ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": 10.0, "8.8.8.8": 15.0, "9.9.9.9": None
+            "1.1.1.1": 10.0,
+            "8.8.8.8": 15.0,
+            "9.9.9.9": None,
         }
 
         result = ctrl.measure_rtt()
@@ -1897,7 +1898,9 @@ class TestMeasureRttMedianOfThree:
 
         # Only 1 host succeeds
         ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": 10.0, "8.8.8.8": None, "9.9.9.9": None
+            "1.1.1.1": 10.0,
+            "8.8.8.8": None,
+            "9.9.9.9": None,
         }
 
         result = ctrl.measure_rtt()
@@ -1910,7 +1913,9 @@ class TestMeasureRttMedianOfThree:
 
         # All hosts fail
         ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": None, "8.8.8.8": None, "9.9.9.9": None
+            "1.1.1.1": None,
+            "8.8.8.8": None,
+            "9.9.9.9": None,
         }
 
         result = ctrl.measure_rtt()
@@ -1931,9 +1936,7 @@ class TestMeasureRttMedianOfThree:
 
         # Simulate single active host via reflector scorer
         ctrl._reflector_scorer._deprioritized = {"8.8.8.8", "9.9.9.9"}
-        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": 22.5
-        }
+        ctrl.rtt_measurement.ping_hosts_with_results.return_value = {"1.1.1.1": 22.5}
 
         result = ctrl.measure_rtt()
 
@@ -1949,7 +1952,9 @@ class TestMeasureRttMedianOfThree:
 
         # All 3 hosts respond
         ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": 10.0, "8.8.8.8": 20.0, "9.9.9.9": 15.0
+            "1.1.1.1": 10.0,
+            "8.8.8.8": 20.0,
+            "9.9.9.9": 15.0,
         }
 
         result = ctrl.measure_rtt()
@@ -1968,7 +1973,8 @@ class TestMeasureRttMedianOfThree:
         # Deprioritize one host so only 2 are active
         ctrl._reflector_scorer._deprioritized = {"9.9.9.9"}
         ctrl.rtt_measurement.ping_hosts_with_results.return_value = {
-            "1.1.1.1": 10.0, "8.8.8.8": 20.0
+            "1.1.1.1": 10.0,
+            "8.8.8.8": 20.0,
         }
 
         result = ctrl.measure_rtt()

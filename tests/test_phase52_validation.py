@@ -35,9 +35,7 @@ class TestOPS02LogicalCorruption:
     but integrity_check returns non-'ok' (logical corruption).
     """
 
-    def test_logical_corruption_detected_and_rebuilt(
-        self, reset_singleton, test_db_path
-    ):
+    def test_logical_corruption_detected_and_rebuilt(self, reset_singleton, test_db_path):
         """When integrity_check returns non-ok, DB is renamed .corrupt and rebuilt."""
         # Create a valid SQLite DB first
         test_db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,16 +50,12 @@ class TestOPS02LogicalCorruption:
         # reports corruption but the connection itself succeeds
         mock_conn = MagicMock(spec=sqlite3.Connection)
         mock_result = MagicMock()
-        mock_result.__getitem__ = MagicMock(
-            return_value="*** in table dummy: row count mismatch"
-        )
+        mock_result.__getitem__ = MagicMock(return_value="*** in table dummy: row count mismatch")
 
         def selective_execute(sql, *args, **kwargs):
             if "integrity_check" in str(sql):
                 result = MagicMock()
-                result.fetchone.return_value = (
-                    "*** in table dummy: row count mismatch",
-                )
+                result.fetchone.return_value = ("*** in table dummy: row count mismatch",)
                 return result
             return MagicMock()
 
@@ -81,13 +75,10 @@ class TestOPS02LogicalCorruption:
                 writer._connect_and_validate()
 
         assert rebuild_called, (
-            "Expected _rebuild_database to be called when integrity_check "
-            "returns non-ok result"
+            "Expected _rebuild_database to be called when integrity_check returns non-ok result"
         )
 
-    def test_logical_corruption_closes_old_connection(
-        self, reset_singleton, test_db_path
-    ):
+    def test_logical_corruption_closes_old_connection(self, reset_singleton, test_db_path):
         """When integrity_check fails, the corrupt connection is closed before rebuild."""
         test_db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(test_db_path)
@@ -107,11 +98,11 @@ class TestOPS02LogicalCorruption:
 
         mock_conn.execute = MagicMock(side_effect=selective_execute)
 
-        with patch.object(writer, "_open_connection", return_value=mock_conn):
-            with patch.object(
-                writer, "_rebuild_database", return_value=MagicMock()
-            ):
-                writer._connect_and_validate()
+        with (
+            patch.object(writer, "_open_connection", return_value=mock_conn),
+            patch.object(writer, "_rebuild_database", return_value=MagicMock()),
+        ):
+            writer._connect_and_validate()
 
         mock_conn.close.assert_called_once()
 
@@ -126,14 +117,11 @@ class TestOPS04CryptographyPin:
         version_parts = [int(x) for x in cryptography.__version__.split(".")]
         # Must be >= 46.0.5
         assert version_parts >= [46, 0, 5], (
-            f"cryptography {cryptography.__version__} is below 46.0.5 "
-            f"(CVE-2026-26007 fix)"
+            f"cryptography {cryptography.__version__} is below 46.0.5 (CVE-2026-26007 fix)"
         )
 
     def test_cryptography_pinned_in_pyproject(self):
         """pyproject.toml pins cryptography >= 46.0.5."""
         pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
         content = pyproject_path.read_text()
-        assert "cryptography>=46.0.5" in content, (
-            "cryptography>=46.0.5 not found in pyproject.toml"
-        )
+        assert "cryptography>=46.0.5" in content, "cryptography>=46.0.5 not found in pyproject.toml"

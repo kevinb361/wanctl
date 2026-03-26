@@ -314,8 +314,8 @@ def _make_controller_harness(
     ctrl._irtt_thread = irtt_thread_mock
 
     # Bind the real method to our mock
-    ctrl._check_protocol_correlation = (
-        lambda ratio: WANController._check_protocol_correlation(ctrl, ratio)
+    ctrl._check_protocol_correlation = lambda ratio: WANController._check_protocol_correlation(
+        ctrl, ratio
     )
     return ctrl
 
@@ -478,7 +478,9 @@ class TestStartIRTTThread:
             "cadence_sec": 10.0,
         }
         logger = logging.getLogger("test_start_irtt")
-        controller.wan_controllers = [{"config": config, "logger": logger, "controller": MagicMock()}]
+        controller.wan_controllers = [
+            {"config": config, "logger": logger, "controller": MagicMock()}
+        ]
 
         result = _start_irtt_thread(controller)
         assert result is None
@@ -506,7 +508,9 @@ class TestStartIRTTThread:
             "cadence_sec": 5.0,
         }
         logger = logging.getLogger("test_start_irtt")
-        controller.wan_controllers = [{"config": config, "logger": logger, "controller": MagicMock()}]
+        controller.wan_controllers = [
+            {"config": config, "logger": logger, "controller": MagicMock()}
+        ]
 
         mock_measurement = MagicMock()
         mock_measurement.is_available.return_value = True

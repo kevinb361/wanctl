@@ -7,9 +7,8 @@ disable clears lock and observation state.
 
 import logging
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 import yaml
 
 from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
@@ -54,7 +53,7 @@ def _make_revert_result(param: str, old: float, new: float) -> TuningResult:
         old_value=old,
         new_value=new,
         confidence=1.0,
-        rationale=f"REVERT: congestion rate 5.00%->15.00% (ratio 3.0x > 1.5x)",
+        rationale="REVERT: congestion rate 5.00%->15.00% (ratio 3.0x > 1.5x)",
         data_points=0,
         wan_name="Spectrum",
     )
@@ -140,7 +139,7 @@ class TestSafetyRevertWiring:
 
     def test_revert_locks_parameter(self):
         """After revert, the parameter should be locked via lock_parameter."""
-        from wanctl.tuning.safety import lock_parameter, is_parameter_locked
+        from wanctl.tuning.safety import is_parameter_locked, lock_parameter
 
         locks: dict[str, float] = {}
         lock_parameter(locks, "target_bloat_ms", cooldown_sec=86400)
@@ -176,9 +175,7 @@ class TestLockedParameterFiltering:
         ]
 
         active = [
-            (pname, sfn)
-            for pname, sfn in strategies
-            if not is_parameter_locked(locks, pname)
+            (pname, sfn) for pname, sfn in strategies if not is_parameter_locked(locks, pname)
         ]
 
         assert len(active) == 1
@@ -196,9 +193,7 @@ class TestLockedParameterFiltering:
         ]
 
         active = [
-            (pname, sfn)
-            for pname, sfn in strategies
-            if not is_parameter_locked(locks, pname)
+            (pname, sfn) for pname, sfn in strategies if not is_parameter_locked(locks, pname)
         ]
 
         assert len(active) == 2
@@ -258,9 +253,7 @@ class TestPendingObservationStorage:
 class TestReloadClearsSafetyState:
     """Tests for SIGUSR1 reload clearing safety state when tuning disabled."""
 
-    def test_sigusr1_disable_clears_parameter_locks(
-        self, mock_autorate_config, tmp_path
-    ):
+    def test_sigusr1_disable_clears_parameter_locks(self, mock_autorate_config, tmp_path):
         """When tuning disabled via SIGUSR1, _parameter_locks should be cleared."""
         from wanctl.autorate_continuous import WANController
 
@@ -286,9 +279,7 @@ class TestReloadClearsSafetyState:
 
         assert wc._parameter_locks == {}
 
-    def test_sigusr1_disable_clears_pending_observation(
-        self, mock_autorate_config, tmp_path
-    ):
+    def test_sigusr1_disable_clears_pending_observation(self, mock_autorate_config, tmp_path):
         """When tuning disabled via SIGUSR1, _pending_observation should be cleared."""
         from wanctl.autorate_continuous import WANController
 
@@ -318,9 +309,7 @@ class TestReloadClearsSafetyState:
 
         assert wc._pending_observation is None
 
-    def test_sigusr1_enable_preserves_empty_locks(
-        self, mock_autorate_config, tmp_path
-    ):
+    def test_sigusr1_enable_preserves_empty_locks(self, mock_autorate_config, tmp_path):
         """Enabling tuning via SIGUSR1 should start with clean state."""
         from wanctl.autorate_continuous import WANController
 
@@ -486,7 +475,7 @@ class TestHealthSafetySection:
         """locked_parameters should list parameter names with active (unexpired) locks."""
         locks = {
             "target_bloat_ms": time.monotonic() + 86400,  # Active
-            "warn_bloat_ms": time.monotonic() - 100,       # Expired
+            "warn_bloat_ms": time.monotonic() - 100,  # Expired
         }
         state = TuningState(
             enabled=True,

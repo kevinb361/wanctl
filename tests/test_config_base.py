@@ -940,10 +940,13 @@ lock_timeout: 300
 
     def test_max_bytes_and_backup_count_overridden(self, tmp_path):
         """Test max_bytes and backup_count can be overridden in YAML."""
-        self.MINIMAL_YAML + """\
+        (
+            self.MINIMAL_YAML
+            + """\
   max_bytes: 5242880
   backup_count: 5
 """
+        )
         # Need to insert into logging section, not at top level
         config_file = tmp_path / "config.yaml"
         config_file.write_text("""\

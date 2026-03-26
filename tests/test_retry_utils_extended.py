@@ -221,7 +221,7 @@ class TestMeasureWithRetry:
 
         def measure_func():
             measure_count[0] += 1
-            return None  # Always fail
+            return  # Always fail
 
         result = measure_with_retry(
             measure_func,
@@ -240,7 +240,7 @@ class TestMeasureWithRetry:
 
         def measure_func():
             measure_count[0] += 1
-            return None  # Always fail
+            return  # Always fail
 
         def fallback_func():
             return 99.9  # Fallback value
@@ -285,7 +285,7 @@ class TestMeasureWithRetry:
 
         def measure_func():
             timestamps.append(time.time())
-            return None  # Always fail to trigger delays
+            return  # Always fail to trigger delays
 
         measure_with_retry(
             measure_func,

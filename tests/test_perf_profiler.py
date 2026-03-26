@@ -69,10 +69,9 @@ class TestPerfTimer:
     def test_timer_handles_exception(self) -> None:
         """Timer should complete even if exception is raised in context."""
         timer = PerfTimer("test", None)
-        with pytest.raises(ValueError, match="test error"):
-            with timer:
-                time.sleep(0.001)
-                raise ValueError("test error")
+        with pytest.raises(ValueError, match="test error"), timer:
+            time.sleep(0.001)
+            raise ValueError("test error")
         # Timer should still have measured elapsed time
         assert timer.elapsed_ms > 0
 

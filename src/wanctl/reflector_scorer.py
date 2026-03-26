@@ -91,9 +91,7 @@ class ReflectorScorer:
         self._wan_name: str = wan_name
 
         # Per-host rolling windows of bool success/failure
-        self._windows: dict[str, deque[bool]] = {
-            h: deque(maxlen=window_size) for h in hosts
-        }
+        self._windows: dict[str, deque[bool]] = {h: deque(maxlen=window_size) for h in hosts}
         # Recovery counter per host
         self._consecutive_successes: dict[str, int] = {h: 0 for h in hosts}
         # Set of deprioritized host strings
@@ -143,8 +141,7 @@ class ReflectorScorer:
                 self._deprioritized.discard(host)
                 self._consecutive_successes[host] = 0
                 self._logger.info(
-                    f"{self._wan_name}: Reflector {host} recovered "
-                    f"(score={score:.3f})"
+                    f"{self._wan_name}: Reflector {host} recovered (score={score:.3f})"
                 )
                 self._pending_events.append(
                     {"event_type": "recovered", "host": host, "score": score}
@@ -174,8 +171,7 @@ class ReflectorScorer:
         if not active:
             best = self.get_best_host()
             self._logger.warning(
-                f"{self._wan_name}: All reflectors deprioritized, "
-                f"forcing best-scoring {best}"
+                f"{self._wan_name}: All reflectors deprioritized, forcing best-scoring {best}"
             )
             return [best]
         return active
@@ -228,9 +224,7 @@ class ReflectorScorer:
             )
         return statuses
 
-    def maybe_probe(
-        self, now: float, rtt_measurement: RTTMeasurement
-    ) -> list[tuple[str, bool]]:
+    def maybe_probe(self, now: float, rtt_measurement: RTTMeasurement) -> list[tuple[str, bool]]:
         """Probe one deprioritized host if probe interval has elapsed.
 
         Probes a single deprioritized host via round-robin to avoid

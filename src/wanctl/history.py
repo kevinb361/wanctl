@@ -383,15 +383,17 @@ def format_tins_table(results: list[dict]) -> str:
     headers = ["Timestamp", "WAN", "Tin", "Dropped", "ECN Marked", "Delay(us)", "Backlog(B)"]
     rows = []
     for (ts, wan, tin), metrics in sorted(rows_dict.items()):
-        rows.append([
-            format_timestamp(ts),
-            wan,
-            tin,
-            format_value(metrics.get("Dropped", 0.0)),
-            format_value(metrics.get("ECN Marked", 0.0)),
-            format_value(metrics.get("Delay(us)", 0.0)),
-            format_value(metrics.get("Backlog(B)", 0.0)),
-        ])
+        rows.append(
+            [
+                format_timestamp(ts),
+                wan,
+                tin,
+                format_value(metrics.get("Dropped", 0.0)),
+                format_value(metrics.get("ECN Marked", 0.0)),
+                format_value(metrics.get("Delay(us)", 0.0)),
+                format_value(metrics.get("Backlog(B)", 0.0)),
+            ]
+        )
 
     return tabulate(rows, headers=headers, tablefmt="simple")
 

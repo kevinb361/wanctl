@@ -63,10 +63,9 @@ class TestLockFile:
         """Test lock file is removed even if exception occurs."""
         lock_path = temp_dir / "test.lock"
 
-        with pytest.raises(ValueError):
-            with LockFile(lock_path, timeout=300, logger=logger):
-                assert lock_path.exists()
-                raise ValueError("Test exception")
+        with pytest.raises(ValueError), LockFile(lock_path, timeout=300, logger=logger):
+            assert lock_path.exists()
+            raise ValueError("Test exception")
 
         assert not lock_path.exists()
 

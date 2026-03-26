@@ -288,6 +288,4 @@ class SteeringLogger:
                 f"{self.wan_name} DEGRADED detected - {signals} (sustained {count} samples)"
             )
         else:  # recovered
-            self.logger.info(
-                f"{self.wan_name} RECOVERED - {signals} (sustained {count} samples)"
-            )
+            self.logger.info(f"{self.wan_name} RECOVERED - {signals} (sustained {count} samples)")

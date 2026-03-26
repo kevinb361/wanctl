@@ -836,8 +836,12 @@ class TestWANRecoveryGate:
     def test_recovery_allowed_with_wan_green(self, timer_mgr, timer_state):
         """wan_zone=GREEN should allow recovery (recovery_eligible)."""
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="GREEN",
         )
         # First call starts recovery timer, not yet expired
@@ -847,8 +851,12 @@ class TestWANRecoveryGate:
     def test_recovery_allowed_with_wan_none(self, timer_mgr, timer_state):
         """wan_zone=None should allow recovery (SAFE-02: unavailable = skip gate)."""
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone=None,
         )
         assert result is None
@@ -859,8 +867,12 @@ class TestWANRecoveryGate:
         # Start recovery timer first
         timer_state.recovery_timer = 5.0
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="YELLOW",
         )
         assert result is None
@@ -870,8 +882,12 @@ class TestWANRecoveryGate:
         """wan_zone=SOFT_RED should block recovery."""
         timer_state.recovery_timer = 5.0
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="SOFT_RED",
         )
         assert result is None
@@ -881,8 +897,12 @@ class TestWANRecoveryGate:
         """wan_zone=RED should block recovery."""
         timer_state.recovery_timer = 5.0
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="RED",
         )
         assert result is None
@@ -892,8 +912,12 @@ class TestWANRecoveryGate:
         """When wan_zone blocks recovery, reason should include wan_zone."""
         timer_state.recovery_timer = 5.0
         timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="RED",
         )
         # Check that logger was called with wan_zone in the reason
@@ -903,8 +927,12 @@ class TestWANRecoveryGate:
     def test_recovery_without_wan_zone_kwarg_defaults_to_allowed(self, timer_mgr, timer_state):
         """Calling update_recovery_timer without wan_zone kwarg should allow recovery (backward compat)."""
         result = timer_mgr.update_recovery_timer(
-            timer_state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            timer_state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
         )
         assert result is None
         assert timer_state.recovery_timer is not None  # Timer started (not blocked)
@@ -935,9 +963,7 @@ class TestWanStateGating:
             queue_depth_pct=10.0,
             wan_zone="RED",
         )
-        score, contributors = compute_confidence(
-            signals, logger, wan_red_weight=40
-        )
+        score, contributors = compute_confidence(signals, logger, wan_red_weight=40)
         assert score == 40
         assert "WAN_RED" in contributors
 
@@ -950,9 +976,7 @@ class TestWanStateGating:
             queue_depth_pct=10.0,
             wan_zone="SOFT_RED",
         )
-        score, contributors = compute_confidence(
-            signals, logger, wan_soft_red_weight=20
-        )
+        score, contributors = compute_confidence(signals, logger, wan_soft_red_weight=20)
         assert score == 20
         assert "WAN_SOFT_RED" in contributors
 
@@ -1090,8 +1114,12 @@ class TestWanAwarenessLogging:
         state.recovery_timer = 0.01
 
         result = timer_mgr.update_recovery_timer(
-            state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="GREEN",
         )
         assert result == "DISABLE_STEERING"
@@ -1109,8 +1137,12 @@ class TestWanAwarenessLogging:
         state.recovery_timer = 5.0
 
         timer_mgr.update_recovery_timer(
-            state, confidence=5, cake_state="GREEN",
-            rtt_delta=2.0, drops=0.0, current_state="WAN1_DEGRADED",
+            state,
+            confidence=5,
+            cake_state="GREEN",
+            rtt_delta=2.0,
+            drops=0.0,
+            current_state="WAN1_DEGRADED",
             wan_zone="RED",
         )
 

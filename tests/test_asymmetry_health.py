@@ -13,8 +13,6 @@ import time
 import urllib.request
 from unittest.mock import MagicMock
 
-import pytest
-
 from wanctl.asymmetry_analyzer import AsymmetryResult
 from wanctl.health_check import start_health_server
 from wanctl.irtt_measurement import IRTTResult

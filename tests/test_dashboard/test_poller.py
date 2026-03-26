@@ -173,8 +173,10 @@ class TestEndpointPollerBackoff:
     def test_custom_intervals(self):
         """Custom normal and backoff intervals are respected."""
         poller = EndpointPoller(
-            "autorate", "http://127.0.0.1:9101",
-            normal_interval=1.0, backoff_interval=10.0,
+            "autorate",
+            "http://127.0.0.1:9101",
+            normal_interval=1.0,
+            backoff_interval=10.0,
         )
         assert poller.current_interval == 1.0
 

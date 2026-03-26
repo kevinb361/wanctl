@@ -16,7 +16,6 @@ import pytest
 
 from wanctl.reflector_scorer import ReflectorScorer, ReflectorStatus
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================

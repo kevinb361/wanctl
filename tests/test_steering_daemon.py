@@ -41,7 +41,6 @@ class TestCollectCakeStats:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -993,7 +992,6 @@ class TestUpdateEwmaSmoothing:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -1389,9 +1387,7 @@ class TestUnifiedStateMachine:
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_DEGRADED"
         assert mock_state_mgr.state["red_count"] == 0  # Reset after transition
 
-    def test_cake_transitions_to_good_after_threshold(
-        self, daemon, mock_state_mgr, mock_router
-    ):
+    def test_cake_transitions_to_good_after_threshold(self, daemon, mock_state_mgr, mock_router):
         """Test CAKE transitions to GOOD after green_samples_required GREEN cycles."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1461,9 +1457,7 @@ class TestUnifiedStateMachine:
         # State should be normalized to config-driven name
         assert mock_state_mgr.state["current_state"] == "SPECTRUM_GOOD"
 
-    def test_metrics_recorded_on_transition_when_enabled(
-        self, daemon, mock_state_mgr, mock_router
-    ):
+    def test_metrics_recorded_on_transition_when_enabled(self, daemon, mock_state_mgr, mock_router):
         """Test metrics recorded when transition occurs and metrics_enabled=True."""
         from wanctl.steering.cake_stats import CongestionSignals
         from wanctl.steering.congestion_assessment import CongestionState
@@ -1476,11 +1470,13 @@ class TestUnifiedStateMachine:
             rtt_delta=20.0, rtt_delta_ewma=20.0, cake_drops=5, queued_packets=60, baseline_rtt=25.0
         )
 
-        with patch(
-            "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
+        with (
+            patch(
+                "wanctl.steering.daemon.assess_congestion_state", return_value=CongestionState.RED
+            ),
+            patch("wanctl.steering.daemon.record_steering_transition") as mock_record,
         ):
-            with patch("wanctl.steering.daemon.record_steering_transition") as mock_record:
-                daemon._update_state_machine_unified(signals)
+            daemon._update_state_machine_unified(signals)
 
         mock_record.assert_called_once_with("spectrum", "SPECTRUM_GOOD", "SPECTRUM_DEGRADED")
 
@@ -2100,7 +2096,9 @@ class TestBaselineLoader:
         assert baseline_rtt == 25.0
         # No staleness warning should be logged
         for call in mock_logger.warning.call_args_list:
-            assert "stale" not in str(call).lower(), "Should not warn about staleness for fresh file"
+            assert "stale" not in str(call).lower(), (
+                "Should not warn about staleness for fresh file"
+            )
 
     def test_stale_state_file_logs_warning_with_age(self, tmp_path, mock_config, mock_logger):
         """STEER-03: State file older than 5 minutes should log staleness warning with age."""
@@ -2213,7 +2211,9 @@ class TestBaselineLoader:
         assert len(staleness_warnings_2) == 1, "No new warning while file is fresh"
 
         # Verify _stale_baseline_warned has been reset
-        assert loader._stale_baseline_warned is False, "_stale_warned should reset when file is fresh"
+        assert loader._stale_baseline_warned is False, (
+            "_stale_warned should reset when file is fresh"
+        )
 
         # Make file stale again
         old_time = time.time() - 600
@@ -2916,8 +2916,14 @@ class TestWanStateConfig:
         """Enabled wan_state config dict contains all 6 required fields."""
         valid_config_dict["wan_state"] = {"enabled": True}
         config = self._make_config(tmp_path, valid_config_dict)
-        expected_keys = {"enabled", "red_weight", "soft_red_weight",
-                         "staleness_threshold_sec", "grace_period_sec", "wan_override"}
+        expected_keys = {
+            "enabled",
+            "red_weight",
+            "soft_red_weight",
+            "staleness_threshold_sec",
+            "grace_period_sec",
+            "wan_override",
+        }
         assert set(config.wan_state_config.keys()) == expected_keys
 
     def test_enabled_wan_state_default_values(self, tmp_path, valid_config_dict):
@@ -2985,7 +2991,9 @@ class TestWanStateConfig:
     # Weight clamping tests
     # =========================================================================
 
-    def test_red_weight_clamped_to_steer_threshold_minus_one(self, tmp_path, valid_config_dict, caplog):
+    def test_red_weight_clamped_to_steer_threshold_minus_one(
+        self, tmp_path, valid_config_dict, caplog
+    ):
         """red_weight >= steer_threshold is clamped with warning."""
 
         valid_config_dict["wan_state"] = {"enabled": True, "red_weight": 200}
@@ -3287,9 +3295,7 @@ class TestRunCycle:
         assert any("exceeds ceiling" in c for c in warning_calls)
         assert any("anomaly" in c for c in warning_calls)
 
-    def test_run_cycle_rtt_delta_at_ceiling_passes(
-        self, daemon_for_run_cycle, mock_state_mgr
-    ):
+    def test_run_cycle_rtt_delta_at_ceiling_passes(self, daemon_for_run_cycle, mock_state_mgr):
         """Test RTT delta exactly at MAX_SANE_RTT_DELTA_MS is accepted."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         # delta = 525 - 25 = 500ms (exactly at ceiling)
@@ -3386,7 +3392,6 @@ class TestConfidenceIntegration:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -3807,19 +3812,19 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        result = main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                    ):
+                        with patch("wanctl.steering.daemon.start_steering_health_server"):
+                            with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0):
+                                result = main()
 
         assert result == 0
 
@@ -3831,13 +3836,16 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested", side_effect=[False, False]
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=False
-                        ):
-                            result = main()
+                        ),
+                    ):
+                        result = main()
 
         assert result == 1
 
@@ -3863,23 +3871,25 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch(
-                                    "wanctl.steering.daemon.start_steering_health_server",
-                                    side_effect=track_health_start,
-                                ):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop",
-                                        side_effect=track_daemon_loop,
-                                    ):
-                                        main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                        patch(
+                            "wanctl.steering.daemon.start_steering_health_server",
+                            side_effect=track_health_start,
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.run_daemon_loop",
+                            side_effect=track_daemon_loop,
+                        ),
+                    ):
+                        main()
 
         assert call_order == ["health_start", "daemon_loop"]
 
@@ -3893,22 +3903,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch(
-                                    "wanctl.steering.daemon.start_steering_health_server",
-                                    return_value=mock_server,
-                                ):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                        patch(
+                            "wanctl.steering.daemon.start_steering_health_server",
+                            return_value=mock_server,
+                        ),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                    ):
+                        main()
 
         mock_server.shutdown.assert_called_once()
 
@@ -3921,22 +3931,24 @@ thresholds: {}
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logger = MagicMock()
                     mock_logging.return_value = mock_logger
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch(
-                                    "wanctl.steering.daemon.start_steering_health_server",
-                                    side_effect=Exception("Port in use"),
-                                ):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ) as mock_loop:
-                                        result = main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                        patch(
+                            "wanctl.steering.daemon.start_steering_health_server",
+                            side_effect=Exception("Port in use"),
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.run_daemon_loop", return_value=0
+                        ) as mock_loop,
+                    ):
+                        result = main()
 
         # Daemon loop should still be called despite health server failure
         mock_loop.assert_called_once()
@@ -3967,20 +3979,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop",
-                                        side_effect=KeyboardInterrupt,
-                                    ):
-                                        result = main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                    ):
+                        with patch("wanctl.steering.daemon.start_steering_health_server"):
+                            with patch(
+                                "wanctl.steering.daemon.run_daemon_loop",
+                                side_effect=KeyboardInterrupt,
+                            ):
+                                result = main()
 
         assert result == 130
 
@@ -3992,20 +4006,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, False],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, False],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop",
-                                        side_effect=RuntimeError("Test error"),
-                                    ):
-                                        result = main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                    ):
+                        with patch("wanctl.steering.daemon.start_steering_health_server"):
+                            with patch(
+                                "wanctl.steering.daemon.run_daemon_loop",
+                                side_effect=RuntimeError("Test error"),
+                            ):
+                                result = main()
 
         assert result == 1
 
@@ -4026,20 +4042,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=shutdown_requested_sequence,
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=shutdown_requested_sequence,
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop",
-                                        side_effect=RuntimeError("Error during run"),
-                                    ):
-                                        result = main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                    ):
+                        with patch("wanctl.steering.daemon.start_steering_health_server"):
+                            with patch(
+                                "wanctl.steering.daemon.run_daemon_loop",
+                                side_effect=RuntimeError("Error during run"),
+                            ):
+                                result = main()
 
         # Should return 0 because is_shutdown_requested returns True in except block
         assert result == 0
@@ -4058,22 +4076,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch(
-                                "wanctl.steering.daemon.SteeringDaemon",
-                                return_value=mock_daemon,
-                            ):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        main()
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.SteeringDaemon",
+                            return_value=mock_daemon,
+                        ),
+                        patch("wanctl.steering.daemon.start_steering_health_server"),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                    ):
+                        main()
 
         mock_daemon.state_mgr.save.assert_called_once()
 
@@ -4087,22 +4105,22 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch(
-                                "wanctl.steering.daemon.SteeringDaemon",
-                                return_value=mock_daemon,
-                            ):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        main()
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.SteeringDaemon",
+                            return_value=mock_daemon,
+                        ),
+                        patch("wanctl.steering.daemon.start_steering_health_server"),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                    ):
+                        main()
 
         mock_daemon.router.client.close.assert_called_once()
 
@@ -4116,23 +4134,21 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch("wanctl.steering.daemon.SteeringDaemon"):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        with patch(
-                                            "wanctl.steering.daemon.MetricsWriter"
-                                        ) as mock_mw_cls:
-                                            mock_mw_cls._instance = mock_writer
-                                            main()
+                        ),
+                        patch("wanctl.steering.daemon.SteeringDaemon"),
+                    ):
+                        with patch("wanctl.steering.daemon.start_steering_health_server"):
+                            with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0):
+                                with patch("wanctl.steering.daemon.MetricsWriter") as mock_mw_cls:
+                                    mock_mw_cls._instance = mock_writer
+                                    main()
 
         mock_writer.close.assert_called_once()
 
@@ -4148,26 +4164,24 @@ thresholds: {}
             with patch("wanctl.steering.daemon.register_signal_handlers"):
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logging.return_value = MagicMock()
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch(
-                                "wanctl.steering.daemon.SteeringDaemon",
-                                return_value=mock_daemon,
-                            ):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        with patch(
-                                            "wanctl.steering.daemon.MetricsWriter"
-                                        ) as mock_mw_cls:
-                                            mock_mw_cls._instance = mock_writer
-                                            result = main()
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.SteeringDaemon",
+                            return_value=mock_daemon,
+                        ),
+                        patch("wanctl.steering.daemon.start_steering_health_server"),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                        patch("wanctl.steering.daemon.MetricsWriter") as mock_mw_cls,
+                    ):
+                        mock_mw_cls._instance = mock_writer
+                        result = main()
 
         # Despite router close error, MetricsWriter and state save should still be called
         assert result == 0
@@ -4185,22 +4199,22 @@ thresholds: {}
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logger = MagicMock()
                     mock_logging.return_value = mock_logger
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch(
-                                "wanctl.steering.daemon.SteeringDaemon",
-                                return_value=mock_daemon,
-                            ):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        main()
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.SteeringDaemon",
+                            return_value=mock_daemon,
+                        ),
+                        patch("wanctl.steering.daemon.start_steering_health_server"),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                    ):
+                        main()
 
         # Verify "Shutdown complete" with timing was logged
         info_messages = [str(call) for call in mock_logger.info.call_args_list]
@@ -4232,26 +4246,24 @@ thresholds: {}
                 with patch("wanctl.steering.daemon.setup_logging") as mock_logging:
                     mock_logger = MagicMock()
                     mock_logging.return_value = mock_logger
-                    with patch(
-                        "wanctl.steering.daemon.is_shutdown_requested",
-                        side_effect=[False, False, True],
-                    ):
-                        with patch(
+                    with (
+                        patch(
+                            "wanctl.steering.daemon.is_shutdown_requested",
+                            side_effect=[False, False, True],
+                        ),
+                        patch(
                             "wanctl.steering.daemon.validate_and_acquire_lock", return_value=True
-                        ):
-                            with patch(
-                                "wanctl.steering.daemon.SteeringDaemon",
-                                return_value=mock_daemon,
-                            ):
-                                with patch("wanctl.steering.daemon.start_steering_health_server"):
-                                    with patch(
-                                        "wanctl.steering.daemon.run_daemon_loop", return_value=0
-                                    ):
-                                        with patch(
-                                            "wanctl.steering.daemon.time"
-                                        ) as mock_time:
-                                            mock_time.monotonic = mock_monotonic
-                                            main()
+                        ),
+                        patch(
+                            "wanctl.steering.daemon.SteeringDaemon",
+                            return_value=mock_daemon,
+                        ),
+                        patch("wanctl.steering.daemon.start_steering_health_server"),
+                        patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
+                        patch("wanctl.steering.daemon.time") as mock_time,
+                    ):
+                        mock_time.monotonic = mock_monotonic
+                        main()
 
         # Verify slow step warning was logged
         warning_messages = [str(call) for call in mock_logger.warning.call_args_list]
@@ -4343,7 +4355,6 @@ class TestRouterConnectivityTrackingSteeringDaemon:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4574,7 +4585,6 @@ class TestSteeringProfilingInstrumentation:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4690,22 +4700,24 @@ class TestSteeringProfilingInstrumentation:
         """--profile flag should be accepted by the steering argument parser."""
         from wanctl.steering.daemon import main
 
-        with patch(
-            "sys.argv",
-            ["steering", "--config", "test.yaml", "--profile"],
+        with (
+            patch(
+                "sys.argv",
+                ["steering", "--config", "test.yaml", "--profile"],
+            ),
+            patch("wanctl.steering.daemon.SteeringConfig") as mock_cfg,
         ):
-            with patch("wanctl.steering.daemon.SteeringConfig") as mock_cfg:
-                mock_cfg.return_value = MagicMock(
-                    primary_wan="spectrum",
-                    alternate_wan="att",
-                    state_good="SPECTRUM_GOOD",
-                    state_degraded="SPECTRUM_DEGRADED",
-                    data={},
-                )
-                try:
-                    main()
-                except (SystemExit, Exception):
-                    pass
+            mock_cfg.return_value = MagicMock(
+                primary_wan="spectrum",
+                alternate_wan="att",
+                state_good="SPECTRUM_GOOD",
+                state_degraded="SPECTRUM_DEGRADED",
+                data={},
+            )
+            try:
+                main()
+            except (SystemExit, Exception):
+                pass
                 # If --profile wasn't accepted, argparse would have called sys.exit(2)
 
 
@@ -4827,9 +4839,7 @@ class TestLegacyStateWarning:
 
         # Should have exactly 1 warning for WAN1_GOOD
         legacy_warnings = [
-            call
-            for call in mock_logger.warning.call_args_list
-            if "WAN1_GOOD" in str(call)
+            call for call in mock_logger.warning.call_args_list if "WAN1_GOOD" in str(call)
         ]
         assert len(legacy_warnings) == 1
 
@@ -4857,7 +4867,6 @@ class TestAnomalyCycleSkip:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -4902,9 +4911,7 @@ class TestAnomalyCycleSkip:
 
         return daemon
 
-    def test_anomaly_returns_true_cycle_skip(
-        self, daemon_for_anomaly, mock_state_mgr, mock_logger
-    ):
+    def test_anomaly_returns_true_cycle_skip(self, daemon_for_anomaly, mock_state_mgr, mock_logger):
         """run_cycle returns True when delta > MAX_SANE_RTT_DELTA_MS (anomaly = cycle-skip)."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         # Simulate extreme RTT: delta = 1525 - 25 = 1500ms >> 500ms ceiling
@@ -4915,9 +4922,7 @@ class TestAnomalyCycleSkip:
 
         assert result is True  # cycle-skip, NOT failure
 
-    def test_ping_failure_still_returns_false(
-        self, daemon_for_anomaly, mock_state_mgr
-    ):
+    def test_ping_failure_still_returns_false(self, daemon_for_anomaly, mock_state_mgr):
         """run_cycle returns False when current_rtt is None (real failure, not anomaly)."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         daemon_for_anomaly._measure_current_rtt_with_retry.return_value = None
@@ -4926,9 +4931,7 @@ class TestAnomalyCycleSkip:
 
         assert result is False  # Real failure
 
-    def test_normal_cycle_returns_true(
-        self, daemon_for_anomaly, mock_state_mgr
-    ):
+    def test_normal_cycle_returns_true(self, daemon_for_anomaly, mock_state_mgr):
         """run_cycle returns True on normal successful cycle."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         daemon_for_anomaly._measure_current_rtt_with_retry.return_value = 30.0
@@ -4937,9 +4940,7 @@ class TestAnomalyCycleSkip:
 
         assert result is True
 
-    def test_anomaly_does_not_update_state_machine(
-        self, daemon_for_anomaly, mock_state_mgr
-    ):
+    def test_anomaly_does_not_update_state_machine(self, daemon_for_anomaly, mock_state_mgr):
         """Anomaly path does NOT update state machine or record metrics."""
         mock_state_mgr.state["baseline_rtt"] = 25.0
         daemon_for_anomaly._measure_current_rtt_with_retry.return_value = 1525.0
@@ -5004,7 +5005,6 @@ class TestWanGracePeriodAndGating:
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
-
             "good_count": 0,
             "baseline_rtt": 25.0,
             "history_rtt": [],
@@ -5224,9 +5224,7 @@ class TestWanAwarenessTransitionLogging:
         # Set up a confidence_controller with WAN_RED in contributors
         daemon.confidence_controller = MagicMock()
         daemon.confidence_controller.timer_state = TimerState()
-        daemon.confidence_controller.timer_state.confidence_contributors = [
-            "RED", "WAN_RED"
-        ]
+        daemon.confidence_controller.timer_state.confidence_contributors = ["RED", "WAN_RED"]
 
         daemon.execute_steering_transition(
             "SPECTRUM_GOOD", "SPECTRUM_DEGRADED", enable_steering=True
@@ -5244,7 +5242,8 @@ class TestWanAwarenessTransitionLogging:
         daemon.confidence_controller = MagicMock()
         daemon.confidence_controller.timer_state = TimerState()
         daemon.confidence_controller.timer_state.confidence_contributors = [
-            "RED", "rtt_delta=150.0ms(severe)"
+            "RED",
+            "rtt_delta=150.0ms(severe)",
         ]
 
         daemon.execute_steering_transition(
@@ -5553,12 +5552,14 @@ class TestDryRunReload:
 
         daemon.run_cycle.side_effect = side_effect_shutdown
 
-        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
-             patch("wanctl.steering.daemon.reset_reload_state"), \
-             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
-             patch("wanctl.steering.daemon.update_steering_health_status"), \
-             patch("wanctl.steering.daemon.notify_watchdog"), \
-             patch("wanctl.steering.daemon.notify_degraded"):
+        with (
+            patch("wanctl.steering.daemon.is_reload_requested", return_value=True),
+            patch("wanctl.steering.daemon.reset_reload_state"),
+            patch("wanctl.steering.daemon.is_systemd_available", return_value=False),
+            patch("wanctl.steering.daemon.update_steering_health_status"),
+            patch("wanctl.steering.daemon.notify_watchdog"),
+            patch("wanctl.steering.daemon.notify_degraded"),
+        ):
             run_daemon_loop(daemon, config, logger, shutdown_event)
 
         daemon._reload_dry_run_config.assert_called()
@@ -5584,12 +5585,14 @@ class TestDryRunReload:
 
         daemon.run_cycle.side_effect = side_effect_shutdown
 
-        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
-             patch("wanctl.steering.daemon.reset_reload_state") as mock_reset, \
-             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
-             patch("wanctl.steering.daemon.update_steering_health_status"), \
-             patch("wanctl.steering.daemon.notify_watchdog"), \
-             patch("wanctl.steering.daemon.notify_degraded"):
+        with (
+            patch("wanctl.steering.daemon.is_reload_requested", return_value=True),
+            patch("wanctl.steering.daemon.reset_reload_state") as mock_reset,
+            patch("wanctl.steering.daemon.is_systemd_available", return_value=False),
+            patch("wanctl.steering.daemon.update_steering_health_status"),
+            patch("wanctl.steering.daemon.notify_watchdog"),
+            patch("wanctl.steering.daemon.notify_degraded"),
+        ):
             run_daemon_loop(daemon, config, logger, shutdown_event)
 
         mock_reset.assert_called()
@@ -5731,12 +5734,14 @@ class TestWanStateReload:
 
         daemon.run_cycle.side_effect = side_effect_shutdown
 
-        with patch("wanctl.steering.daemon.is_reload_requested", return_value=True), \
-             patch("wanctl.steering.daemon.reset_reload_state"), \
-             patch("wanctl.steering.daemon.is_systemd_available", return_value=False), \
-             patch("wanctl.steering.daemon.update_steering_health_status"), \
-             patch("wanctl.steering.daemon.notify_watchdog"), \
-             patch("wanctl.steering.daemon.notify_degraded"):
+        with (
+            patch("wanctl.steering.daemon.is_reload_requested", return_value=True),
+            patch("wanctl.steering.daemon.reset_reload_state"),
+            patch("wanctl.steering.daemon.is_systemd_available", return_value=False),
+            patch("wanctl.steering.daemon.update_steering_health_status"),
+            patch("wanctl.steering.daemon.notify_watchdog"),
+            patch("wanctl.steering.daemon.notify_degraded"),
+        ):
             run_daemon_loop(daemon, config, logger, shutdown_event)
 
         daemon._reload_dry_run_config.assert_called()

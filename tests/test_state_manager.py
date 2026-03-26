@@ -525,11 +525,11 @@ class TestStateManager:
         temp_state_file.write_text('{"count": 10}')
 
         # Mock validate_state to raise an exception
-        with patch.object(
-            schema, "validate_state", side_effect=RuntimeError("Validation exploded")
+        with (
+            patch.object(schema, "validate_state", side_effect=RuntimeError("Validation exploded")),
+            caplog.at_level(logging.ERROR),
         ):
-            with caplog.at_level(logging.ERROR):
-                result = manager.load()
+            result = manager.load()
 
         assert result is False
         assert manager.state["count"] == 42  # Defaults

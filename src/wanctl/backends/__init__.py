@@ -34,10 +34,15 @@ def get_backend(config: Any) -> RouterBackend:
 
     if transport in ("rest", "ssh"):
         return RouterOSBackend.from_config(config)
-    elif transport == "linux-cake":
+    if transport == "linux-cake":
         return LinuxCakeBackend.from_config(config)
-    else:
-        raise ValueError(f"Unsupported router transport: {transport}")
+    raise ValueError(f"Unsupported router transport: {transport}")
 
 
-__all__ = ["RouterBackend", "RouterOSBackend", "LinuxCakeBackend", "LinuxCakeAdapter", "get_backend"]
+__all__ = [
+    "RouterBackend",
+    "RouterOSBackend",
+    "LinuxCakeBackend",
+    "LinuxCakeAdapter",
+    "get_backend",
+]
