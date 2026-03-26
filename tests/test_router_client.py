@@ -425,9 +425,7 @@ class TestFailoverReprobe:
         client.run_cmd("/trigger-failover")
         return client
 
-    def test_reprobe_after_interval(
-        self, mock_config: MagicMock, mock_logger: MagicMock
-    ) -> None:
+    def test_reprobe_after_interval(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
         """After 30s in fallback mode, run_cmd re-probes primary transport.
 
         Uses time.monotonic to track interval. After interval elapses,
@@ -475,9 +473,7 @@ class TestFailoverReprobe:
             # Primary was re-probed (new client created and tried)
             reprobe_primary.run_cmd.assert_called_once()
 
-    def test_reprobe_restores_primary(
-        self, mock_config: MagicMock, mock_logger: MagicMock
-    ) -> None:
+    def test_reprobe_restores_primary(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
         """Successful re-probe restores primary, subsequent calls use primary.
 
         When primary succeeds on re-probe, _using_fallback is set to False
@@ -558,9 +554,7 @@ class TestFailoverReprobe:
             assert stdout == "ssh ok"
             assert client._using_fallback is True
 
-    def test_reprobe_backoff(
-        self, mock_config: MagicMock, mock_logger: MagicMock
-    ) -> None:
+    def test_reprobe_backoff(self, mock_config: MagicMock, mock_logger: MagicMock) -> None:
         """After failed probe, interval doubles: 30 -> 60 -> 120 -> 240 -> 300 (cap).
 
         Backoff prevents hammering a broken REST API.
@@ -743,9 +737,7 @@ class TestFailoverReprobe:
 
             assert rc == 0
             assert stdout == "fallback result"
-            mock_ssh.run_cmd.assert_called_once_with(
-                "/important-cmd", capture=False, timeout=None
-            )
+            mock_ssh.run_cmd.assert_called_once_with("/important-cmd", capture=False, timeout=None)
 
 
 class TestClearRouterPassword:
@@ -827,9 +819,7 @@ class TestClearRouterPassword:
         mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
 
         with (
-            patch(
-                "wanctl.router_client._create_transport_with_password"
-            ) as mock_create_pw,
+            patch("wanctl.router_client._create_transport_with_password") as mock_create_pw,
             patch("wanctl.router_client._time") as mock_time,
         ):
             mock_create_pw.side_effect = [mock_rest, mock_ssh]

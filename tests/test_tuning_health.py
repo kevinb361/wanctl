@@ -7,8 +7,6 @@ disabled, awaiting_data, and active. Also tests MagicMock safety.
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
 from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
 
 
@@ -198,9 +196,7 @@ class TestTuningHealthActive:
             recent_adjustments=[],
             parameters={"target_bloat_ms": 13.5},
         )
-        wc = _make_wan_controller(
-            tuning_enabled=True, tuning_state=state, tuning_config=tc
-        )
+        wc = _make_wan_controller(tuning_enabled=True, tuning_state=state, tuning_config=tc)
         handler = _make_health_handler(wc)
         health = handler._get_health_status()
 
@@ -236,10 +232,7 @@ class TestTuningHealthActive:
 
     def test_recent_adjustments_capped_at_5(self):
         """Health endpoint should show at most 5 recent adjustments."""
-        adjs = [
-            _make_tuning_result(f"param_{i}", old=1.0, new=2.0)
-            for i in range(8)
-        ]
+        adjs = [_make_tuning_result(f"param_{i}", old=1.0, new=2.0) for i in range(8)]
         state = TuningState(
             enabled=True,
             last_run_ts=time.monotonic() - 10.0,

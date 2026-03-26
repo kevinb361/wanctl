@@ -25,7 +25,6 @@ import pytest
 from wanctl.alert_engine import AlertEngine
 from wanctl.irtt_measurement import IRTTResult
 
-
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -83,8 +82,8 @@ def mock_controller():
     controller._sustained_sec = 60
 
     # Bind the real method
-    controller._check_irtt_loss_alerts = (
-        WANController._check_irtt_loss_alerts.__get__(controller, WANController)
+    controller._check_irtt_loss_alerts = WANController._check_irtt_loss_alerts.__get__(
+        controller, WANController
     )
 
     return controller
@@ -110,11 +109,11 @@ class TestSustainedUpstreamLoss:
         assert mock_controller._irtt_loss_up_fired is False
 
         # Second call: 61s later, should fire
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -137,11 +136,11 @@ class TestSustainedUpstreamLoss:
         # Timer should NOT start
         assert mock_controller._irtt_loss_up_start is None
 
-        with patch("time.monotonic", return_value=now + 120):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=3.0))
+        with (
+            patch("time.monotonic", return_value=now + 120),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=3.0))
 
         mock_fire.assert_not_called()
         assert mock_controller._irtt_loss_up_fired is False
@@ -185,11 +184,11 @@ class TestSustainedDownstreamLoss:
         assert mock_controller._irtt_loss_down_fired is False
 
         # Second call: 61s later, should fire
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=8.0))
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=8.0))
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -217,21 +216,17 @@ class TestIndependentTimers:
 
         # Both directions: upstream 10%, downstream 2%
         with patch("time.monotonic", return_value=now):
-            mock_controller._check_irtt_loss_alerts(
-                _make_irtt(send_loss=10.0, receive_loss=2.0)
-            )
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0, receive_loss=2.0))
 
         assert mock_controller._irtt_loss_up_start == now
         assert mock_controller._irtt_loss_down_start is None
 
         # 61s later: upstream should fire, downstream should not
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(
-                    _make_irtt(send_loss=10.0, receive_loss=2.0)
-                )
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0, receive_loss=2.0))
 
         # Only upstream alert
         mock_fire.assert_called_once()
@@ -256,20 +251,20 @@ class TestRecoveryAlerts:
         with patch("time.monotonic", return_value=now):
             mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ):
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True),
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         assert mock_controller._irtt_loss_up_fired is True
 
         # Loss clears -- should fire recovery
-        with patch("time.monotonic", return_value=now + 90):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=2.0))
+        with (
+            patch("time.monotonic", return_value=now + 90),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=2.0))
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -289,20 +284,20 @@ class TestRecoveryAlerts:
         with patch("time.monotonic", return_value=now):
             mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=8.0))
 
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ):
-                mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=8.0))
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True),
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=8.0))
 
         assert mock_controller._irtt_loss_down_fired is True
 
         # Loss clears -- should fire recovery
-        with patch("time.monotonic", return_value=now + 90):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=1.0))
+        with (
+            patch("time.monotonic", return_value=now + 90),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(receive_loss=1.0))
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -325,11 +320,11 @@ class TestRecoveryAlerts:
         assert mock_controller._irtt_loss_up_fired is False
 
         # Loss clears at 30s -- no recovery should fire
-        with patch("time.monotonic", return_value=now + 30):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=2.0))
+        with (
+            patch("time.monotonic", return_value=now + 30),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=2.0))
 
         mock_fire.assert_not_called()
         assert mock_controller._irtt_loss_up_start is None
@@ -359,11 +354,11 @@ class TestPerRuleOverrides:
         # Timer should NOT start (7% < 10% per-rule threshold)
         assert mock_controller._irtt_loss_up_start is None
 
-        with patch("time.monotonic", return_value=now + 120):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=7.0))
+        with (
+            patch("time.monotonic", return_value=now + 120),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=7.0))
 
         mock_fire.assert_not_called()
 
@@ -379,11 +374,11 @@ class TestPerRuleOverrides:
             mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         # At 31s -- should fire (30s rule override, not 60s default)
-        with patch("time.monotonic", return_value=now + 31):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         mock_fire.assert_called_once()
         assert mock_fire.call_args[0][0] == "irtt_loss_upstream"
@@ -406,11 +401,11 @@ class TestCooldownSuppression:
             mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         # 61s later, but fire returns False (in cooldown)
-        with patch("time.monotonic", return_value=now + 61):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=False
-            ) as mock_fire:
-                mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
+        with (
+            patch("time.monotonic", return_value=now + 61),
+            patch.object(mock_controller.alert_engine, "fire", return_value=False) as mock_fire,
+        ):
+            mock_controller._check_irtt_loss_alerts(_make_irtt(send_loss=10.0))
 
         mock_fire.assert_called_once()
         # _fired should NOT be set since fire() returned False

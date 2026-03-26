@@ -163,13 +163,12 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
             # Per-tin CAKE statistics (CAKE-07, D-05/D-06/D-07)
             # Only available when linux-cake transport is active
-            raw_tin_stats: list[dict[str, Any]] | None = getattr(
-                self.daemon.cake_reader, "last_tin_stats", None
-            ) if hasattr(self.daemon, "cake_reader") else None
-            if (
-                raw_tin_stats
-                and getattr(self.daemon.cake_reader, "_is_linux_cake", False)
-            ):
+            raw_tin_stats: list[dict[str, Any]] | None = (
+                getattr(self.daemon.cake_reader, "last_tin_stats", None)
+                if hasattr(self.daemon, "cake_reader")
+                else None
+            )
+            if raw_tin_stats and getattr(self.daemon.cake_reader, "_is_linux_cake", False):
                 from wanctl.backends.linux_cake import TIN_NAMES
 
                 tins_list = []
@@ -289,9 +288,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 if self.daemon.confidence_controller:
                     ts = self.daemon.confidence_controller.timer_state
                     wan_awareness["degrade_timer_remaining"] = (
-                        round(ts.degrade_timer, 2)
-                        if ts.degrade_timer is not None
-                        else None
+                        round(ts.degrade_timer, 2) if ts.degrade_timer is not None else None
                     )
                 else:
                     wan_awareness["degrade_timer_remaining"] = None

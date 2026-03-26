@@ -256,9 +256,8 @@ class SignalProcessor:
             self._jitter_ewma = delta
         else:
             self._jitter_ewma = (
-                (1.0 - self._jitter_alpha) * self._jitter_ewma
-                + self._jitter_alpha * delta
-            )
+                1.0 - self._jitter_alpha
+            ) * self._jitter_ewma + self._jitter_alpha * delta
 
         return self._jitter_ewma
 
@@ -282,9 +281,8 @@ class SignalProcessor:
             self._variance_ewma = deviation_sq
         else:
             self._variance_ewma = (
-                (1.0 - self._variance_alpha) * self._variance_ewma
-                + self._variance_alpha * deviation_sq
-            )
+                1.0 - self._variance_alpha
+            ) * self._variance_ewma + self._variance_alpha * deviation_sq
 
         return self._variance_ewma
 
@@ -309,4 +307,4 @@ class SignalProcessor:
         if baseline_rtt <= 0.0:
             return 1.0
 
-        return 1.0 / (1.0 + variance_ms2 / (baseline_rtt ** 2))
+        return 1.0 / (1.0 + variance_ms2 / (baseline_rtt**2))

@@ -115,20 +115,20 @@ def _extract_queue_names(data: dict, config_type: str) -> dict[str, str]:
             "download": queues.get("download", ""),
             "upload": queues.get("upload", ""),
         }
-    else:  # steering
-        topology = data.get("topology", {})
-        primary_wan = topology.get("primary_wan", "wan1")
-        cake_queues = data.get("cake_queues", {})
-        default_dl = f"WAN-Download-{primary_wan.capitalize()}"
-        default_ul = f"WAN-Upload-{primary_wan.capitalize()}"
+    # steering
+    topology = data.get("topology", {})
+    primary_wan = topology.get("primary_wan", "wan1")
+    cake_queues = data.get("cake_queues", {})
+    default_dl = f"WAN-Download-{primary_wan.capitalize()}"
+    default_ul = f"WAN-Upload-{primary_wan.capitalize()}"
 
-        # Support deprecated spectrum_download/spectrum_upload keys
-        dl = cake_queues.get("primary_download", cake_queues.get("spectrum_download", default_dl))
-        ul = cake_queues.get("primary_upload", cake_queues.get("spectrum_upload", default_ul))
-        return {
-            "download": dl,
-            "upload": ul,
-        }
+    # Support deprecated spectrum_download/spectrum_upload keys
+    dl = cake_queues.get("primary_download", cake_queues.get("spectrum_download", default_dl))
+    ul = cake_queues.get("primary_upload", cake_queues.get("spectrum_upload", default_ul))
+    return {
+        "download": dl,
+        "upload": ul,
+    }
 
 
 def _extract_ceilings(data: dict, config_type: str) -> dict[str, int | None]:
@@ -148,8 +148,8 @@ def _extract_ceilings(data: dict, config_type: str) -> dict[str, int | None]:
             "download": int(dl_ceiling * 1_000_000) if dl_ceiling else None,
             "upload": int(ul_ceiling * 1_000_000) if ul_ceiling else None,
         }
-    else:  # steering has no ceiling config
-        return {"download": None, "upload": None}
+    # steering has no ceiling config
+    return {"download": None, "upload": None}
 
 
 def _extract_mangle_comment(data: dict) -> str | None:
@@ -454,8 +454,7 @@ def check_cake_params(queue_type_data: dict, direction: str) -> list[CheckResult
             )
         else:
             wash_rationale = (
-                "Sub-optimal: clears your own DSCP marks before "
-                "LAN/WiFi WMM devices see them"
+                "Sub-optimal: clears your own DSCP marks before LAN/WiFi WMM devices see them"
             )
         results.append(
             CheckResult(
@@ -1112,12 +1111,11 @@ def _create_audit_client(router_cfg: dict) -> object:
         from wanctl.routeros_rest import RouterOSREST
 
         return RouterOSREST.from_config(ns, logger)
-    elif transport == "ssh":
+    if transport == "ssh":
         from wanctl.routeros_ssh import RouterOSSSH
 
         return RouterOSSSH.from_config(ns, logger)
-    else:
-        raise ValueError(f"Unsupported transport: {transport}")
+    raise ValueError(f"Unsupported transport: {transport}")
 
 
 # =============================================================================

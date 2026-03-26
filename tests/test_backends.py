@@ -532,7 +532,7 @@ class TestGetBackendFactory:
         config = MagicMock()
         config.router_transport = "rest"
         mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
-        result = get_backend(config)
+        get_backend(config)
         mock_from_config.assert_called_once_with(config)
 
     @patch("wanctl.backends.routeros.RouterOSBackend.from_config")
@@ -540,7 +540,7 @@ class TestGetBackendFactory:
         config = MagicMock()
         config.router_transport = "ssh"
         mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
-        result = get_backend(config)
+        get_backend(config)
         mock_from_config.assert_called_once_with(config)
 
     @patch("wanctl.backends.linux_cake.LinuxCakeBackend.from_config")
@@ -548,7 +548,7 @@ class TestGetBackendFactory:
         config = MagicMock()
         config.router_transport = "linux-cake"
         mock_from_config.return_value = MagicMock(spec=LinuxCakeBackend)
-        result = get_backend(config)
+        get_backend(config)
         mock_from_config.assert_called_once_with(config)
 
     def test_unknown_transport_raises(self):
@@ -561,5 +561,5 @@ class TestGetBackendFactory:
     def test_default_transport_when_attr_missing(self, mock_from_config):
         config = MagicMock(spec=[])  # no router_transport attr
         mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
-        result = get_backend(config)
+        get_backend(config)
         mock_from_config.assert_called_once_with(config)

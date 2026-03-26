@@ -2,14 +2,10 @@
 
 import json
 import sqlite3
-import sys
 from datetime import datetime
 from unittest.mock import patch
 
-import pytest
-
 from wanctl.storage.schema import TUNING_PARAMS_SCHEMA
-
 
 SAMPLE_ROWS = [
     # (timestamp, wan_name, parameter, old_value, new_value, confidence, rationale, data_points, reverted)

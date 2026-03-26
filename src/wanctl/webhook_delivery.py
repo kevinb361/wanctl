@@ -233,10 +233,7 @@ class DiscordFormatter:
             duration = details.get("duration", "")
             prev_state = details.get("previous_state", "")
             if duration and prev_state:
-                return (
-                    f"{wan_display} WAN recovered: was {prev_state} for {duration}, "
-                    f"now GREEN"
-                )
+                return f"{wan_display} WAN recovered: was {prev_state} for {duration}, now GREEN"
             return f"{wan_display} WAN has recovered to normal state"
 
         state = details.get("state", severity.upper())
@@ -375,9 +372,7 @@ class WebhookDelivery:
             return
 
         if not self._rate_limiter.can_change():
-            logger.warning(
-                "Webhook rate limited, dropping delivery for %s", alert_type
-            )
+            logger.warning("Webhook rate limited, dropping delivery for %s", alert_type)
             return
 
         self._rate_limiter.record_change()
@@ -418,9 +413,7 @@ class WebhookDelivery:
                 mention_severity=self._mention_severity,
             )
         except Exception:
-            logger.warning(
-                "Failed to format webhook payload for %s", alert_type, exc_info=True
-            )
+            logger.warning("Failed to format webhook payload for %s", alert_type, exc_info=True)
             with self._lock:
                 self._delivery_failures += 1
             return
@@ -429,9 +422,7 @@ class WebhookDelivery:
 
         for attempt in range(1, self._MAX_ATTEMPTS + 1):
             try:
-                response = requests.post(
-                    self._webhook_url, json=payload, timeout=10
-                )
+                response = requests.post(self._webhook_url, json=payload, timeout=10)
                 response.raise_for_status()
 
                 # Success
@@ -441,11 +432,7 @@ class WebhookDelivery:
                 return
 
             except requests.exceptions.HTTPError as e:
-                status = (
-                    e.response.status_code
-                    if e.response is not None
-                    else 0
-                )
+                status = e.response.status_code if e.response is not None else 0
                 if 400 <= status < 500 and status != 408:
                     # 4xx (except 408) = permanent failure, no retry
                     logger.warning(
@@ -532,9 +519,7 @@ class WebhookDelivery:
             return
 
         if not url.startswith("https://"):
-            logger.warning(
-                "Invalid webhook URL (must start with https://): %s", url[:50]
-            )
+            logger.warning("Invalid webhook URL (must start with https://): %s", url[:50])
             return
 
         self._webhook_url = url
@@ -559,6 +544,4 @@ class WebhookDelivery:
             )
             self._writer.connection.commit()
         except Exception:
-            logger.warning(
-                "Failed to update delivery_status for alert %d", alert_id, exc_info=True
-            )
+            logger.warning("Failed to update delivery_status for alert %d", alert_id, exc_info=True)

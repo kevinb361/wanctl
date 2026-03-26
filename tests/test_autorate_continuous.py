@@ -304,7 +304,9 @@ class TestProfilingInstrumentation:
     """
 
     @pytest.fixture
-    def profiled_controller(self, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger):
+    def profiled_controller(
+        self, mock_autorate_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
         """Create a WANController for profiling tests with mocked subsystems."""
         with patch.object(WANController, "load_state"):
             ctrl = WANController(
@@ -381,19 +383,21 @@ class TestProfilingInstrumentation:
 
         # We need to extract the parser. Since main() creates it internally,
         # we test by patching sys.argv and checking args.profile exists
-        with patch(
-            "sys.argv",
-            ["autorate", "--config", "test.yaml", "--profile"],
+        with (
+            patch(
+                "sys.argv",
+                ["autorate", "--config", "test.yaml", "--profile"],
+            ),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate") as mock_car,
         ):
-            with patch("wanctl.autorate_continuous.ContinuousAutoRate") as mock_car:
-                mock_car.return_value.wan_controllers = [
-                    {"config": MagicMock(data={}), "logger": MagicMock(), "controller": MagicMock()}
-                ]
-                # main() will try to proceed but we can catch it
-                try:
-                    main()
-                except (SystemExit, Exception):
-                    pass
+            mock_car.return_value.wan_controllers = [
+                {"config": MagicMock(data={}), "logger": MagicMock(), "controller": MagicMock()}
+            ]
+            # main() will try to proceed but we can catch it
+            try:
+                main()
+            except (SystemExit, Exception):
+                pass
                 # If --profile wasn't accepted, argparse would have called sys.exit(2)
                 # which we'd see as SystemExit with code 2
 
@@ -441,12 +445,15 @@ class TestMeasureRTTReflectorScoring:
             "8.8.8.8": 27.0,
         }
 
-        result = controller.measure_rtt()
+        controller.measure_rtt()
 
         # Verify ping_hosts_with_results called with active hosts
         mock_rtt_measurement.ping_hosts_with_results.assert_called_once()
         call_args = mock_rtt_measurement.ping_hosts_with_results.call_args
-        assert set(call_args[1]["hosts"]) == {"1.1.1.1", "8.8.8.8"} or set(call_args[0][0]) == {"1.1.1.1", "8.8.8.8"}
+        assert set(call_args[1]["hosts"]) == {"1.1.1.1", "8.8.8.8"} or set(call_args[0][0]) == {
+            "1.1.1.1",
+            "8.8.8.8",
+        }
 
     def test_measure_rtt_records_results(self, controller, mock_rtt_measurement):
         """measure_rtt should call record_result for each host with correct success/failure."""

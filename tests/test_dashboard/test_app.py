@@ -178,12 +178,8 @@ class TestDashboardAppPolling:
             config = DashboardConfig()
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                app._autorate_poller.poll = AsyncMock(
-                    return_value=_make_autorate_response()
-                )
-                app._steering_poller.poll = AsyncMock(
-                    return_value=_make_steering_response()
-                )
+                app._autorate_poller.poll = AsyncMock(return_value=_make_autorate_response())
+                app._steering_poller.poll = AsyncMock(return_value=_make_steering_response())
                 await app.action_refresh()
                 app._autorate_poller.poll.assert_called_once()
                 app._steering_poller.poll.assert_called_once()
@@ -231,9 +227,7 @@ class TestDashboardAppPolling:
             config = DashboardConfig()
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                response = _make_autorate_response(
-                    version="1.13.0", uptime=7200, disk_status="ok"
-                )
+                response = _make_autorate_response(version="1.13.0", uptime=7200, disk_status="ok")
                 app._autorate_poller.poll = AsyncMock(return_value=response)
                 await app._poll_autorate()
                 bar = app.query_one("#status-bar", StatusBarWidget)
@@ -256,9 +250,7 @@ class TestDashboardAppOfflineIsolation:
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
                 app._autorate_poller.poll = AsyncMock(return_value=None)
-                app._steering_poller.poll = AsyncMock(
-                    return_value=_make_steering_response()
-                )
+                app._steering_poller.poll = AsyncMock(return_value=_make_steering_response())
                 await app._poll_autorate()
                 await app._poll_steering()
 
@@ -278,9 +270,7 @@ class TestDashboardAppOfflineIsolation:
             config = DashboardConfig()
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                app._autorate_poller.poll = AsyncMock(
-                    return_value=_make_autorate_response()
-                )
+                app._autorate_poller.poll = AsyncMock(return_value=_make_autorate_response())
                 app._steering_poller.poll = AsyncMock(return_value=None)
                 await app._poll_autorate()
                 await app._poll_steering()
@@ -414,9 +404,7 @@ class TestDashboardAppSparklineRouting:
             config = DashboardConfig()
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                response = _make_autorate_response(
-                    wans_count=2, include_cycle_budget=False
-                )
+                response = _make_autorate_response(wans_count=2, include_cycle_budget=False)
                 app._autorate_poller.poll = AsyncMock(return_value=response)
                 await app._poll_autorate()
 
@@ -594,9 +582,7 @@ class TestDashboardAppDualPollerMode:
         from wanctl.dashboard.app import DashboardApp, WanPanelWidget
 
         async def _test():
-            config = DashboardConfig(
-                secondary_autorate_url="http://10.0.0.2:9101"
-            )
+            config = DashboardConfig(secondary_autorate_url="http://10.0.0.2:9101")
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
                 response = _make_autorate_response(wans_count=2)
@@ -617,16 +603,12 @@ class TestDashboardAppDualPollerMode:
         from wanctl.dashboard.app import DashboardApp, WanPanelWidget
 
         async def _test():
-            config = DashboardConfig(
-                secondary_autorate_url="http://10.0.0.2:9101"
-            )
+            config = DashboardConfig(secondary_autorate_url="http://10.0.0.2:9101")
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
                 secondary_response = _make_autorate_response(wans_count=1)
                 secondary_response["wans"][0]["name"] = "att"
-                app._secondary_autorate_poller.poll = AsyncMock(
-                    return_value=secondary_response
-                )
+                app._secondary_autorate_poller.poll = AsyncMock(return_value=secondary_response)
                 await app._poll_secondary_autorate()
                 wan2 = app.query_one("#wan-2", WanPanelWidget)
                 assert wan2._renderer._data is not None
@@ -639,20 +621,14 @@ class TestDashboardAppDualPollerMode:
         from wanctl.dashboard.app import DashboardApp
 
         async def _test():
-            config = DashboardConfig(
-                secondary_autorate_url="http://10.0.0.2:9101"
-            )
+            config = DashboardConfig(secondary_autorate_url="http://10.0.0.2:9101")
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                app._autorate_poller.poll = AsyncMock(
-                    return_value=_make_autorate_response()
-                )
+                app._autorate_poller.poll = AsyncMock(return_value=_make_autorate_response())
                 app._secondary_autorate_poller.poll = AsyncMock(
                     return_value=_make_autorate_response(wans_count=1)
                 )
-                app._steering_poller.poll = AsyncMock(
-                    return_value=_make_steering_response()
-                )
+                app._steering_poller.poll = AsyncMock(return_value=_make_steering_response())
                 await app.action_refresh()
                 app._secondary_autorate_poller.poll.assert_called_once()
 
@@ -666,12 +642,8 @@ class TestDashboardAppDualPollerMode:
             config = DashboardConfig()
             app = DashboardApp(config)
             async with app.run_test(size=(120, 40)):
-                app._autorate_poller.poll = AsyncMock(
-                    return_value=_make_autorate_response()
-                )
-                app._steering_poller.poll = AsyncMock(
-                    return_value=_make_steering_response()
-                )
+                app._autorate_poller.poll = AsyncMock(return_value=_make_autorate_response())
+                app._steering_poller.poll = AsyncMock(return_value=_make_steering_response())
                 await app.action_refresh()
                 app._autorate_poller.poll.assert_called_once()
                 app._steering_poller.poll.assert_called_once()

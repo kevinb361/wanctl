@@ -161,7 +161,9 @@ class SteeringConfig(BaseConfig):
     def _load_router_transport(self) -> None:
         """Load router transport settings (REST or SSH)."""
         router = self.data["router"]
-        self.router_transport = router.get("transport", "rest")  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
+        self.router_transport = router.get(
+            "transport", "rest"
+        )  # Default to REST (2x faster than SSH, see docs/TRANSPORT_COMPARISON.md)
         # REST-specific settings
         self.router_password = router.get("password", "")
         self.router_port = router.get("port", 443)
@@ -187,7 +189,10 @@ class SteeringConfig(BaseConfig):
 
         # Deprecation: translate legacy cake_state_sources.spectrum -> primary
         _primary_from_spectrum = deprecate_param(
-            sources, "spectrum", "primary", logger,
+            sources,
+            "spectrum",
+            "primary",
+            logger,
         )
         if _primary_from_spectrum is not None:
             sources["primary"] = _primary_from_spectrum
@@ -219,14 +224,20 @@ class SteeringConfig(BaseConfig):
 
         # Deprecation: translate legacy spectrum_download -> primary_download
         _dl_from_spectrum = deprecate_param(
-            cake_queues, "spectrum_download", "primary_download", logger,
+            cake_queues,
+            "spectrum_download",
+            "primary_download",
+            logger,
         )
         if _dl_from_spectrum is not None:
             cake_queues["primary_download"] = _dl_from_spectrum
 
         # Deprecation: translate legacy spectrum_upload -> primary_upload
         _ul_from_spectrum = deprecate_param(
-            cake_queues, "spectrum_upload", "primary_upload", logger,
+            cake_queues,
+            "spectrum_upload",
+            "primary_upload",
+            logger,
         )
         if _ul_from_spectrum is not None:
             cake_queues["primary_upload"] = _ul_from_spectrum
@@ -324,8 +335,11 @@ class SteeringConfig(BaseConfig):
 
         # Known keys for typo detection
         known_keys = {
-            "enabled", "red_weight", "staleness_threshold_sec",
-            "grace_period_sec", "wan_override",
+            "enabled",
+            "red_weight",
+            "staleness_threshold_sec",
+            "grace_period_sec",
+            "wan_override",
         }
 
         # Missing or empty wan_state section
@@ -385,9 +399,7 @@ class SteeringConfig(BaseConfig):
                 )
 
             grace_period_sec = wan_state.get("grace_period_sec", 30)
-            if not isinstance(grace_period_sec, (int, float)) or isinstance(
-                grace_period_sec, bool
-            ):
+            if not isinstance(grace_period_sec, (int, float)) or isinstance(grace_period_sec, bool):
                 raise TypeError(
                     f"wan_state.grace_period_sec must be numeric, "
                     f"got {type(grace_period_sec).__name__}"
@@ -426,8 +438,7 @@ class SteeringConfig(BaseConfig):
         # Startup logging
         if wan_override:
             logger.warning(
-                "WAN override active -- WAN RED can trigger failover "
-                "independently of CAKE signals"
+                "WAN override active -- WAN RED can trigger failover independently of CAKE signals"
             )
         logger.info(
             f"WAN awareness: enabled (grace period: {grace_period_sec}s, "
@@ -456,8 +467,7 @@ class SteeringConfig(BaseConfig):
         enabled = alerting.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
-                f"alerting.enabled must be bool, got {type(enabled).__name__}; "
-                "disabling alerting"
+                f"alerting.enabled must be bool, got {type(enabled).__name__}; disabling alerting"
             )
             self.alerting_config = None
             return
@@ -488,8 +498,7 @@ class SteeringConfig(BaseConfig):
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
             logger.warning(
-                f"alerting.rules must be a map, got {type(rules).__name__}; "
-                "disabling alerting"
+                f"alerting.rules must be a map, got {type(rules).__name__}; disabling alerting"
             )
             self.alerting_config = None
             return
@@ -535,7 +544,12 @@ class SteeringConfig(BaseConfig):
 
         webhook_url = alerting.get("webhook_url", "")
         # Expand ${ENV_VAR} references (same pattern as router password)
-        if webhook_url and isinstance(webhook_url, str) and webhook_url.startswith("${") and webhook_url.endswith("}"):
+        if (
+            webhook_url
+            and isinstance(webhook_url, str)
+            and webhook_url.startswith("${")
+            and webhook_url.endswith("}")
+        ):
             env_var = webhook_url[2:-1]
             webhook_url = os.environ.get(env_var, "")
 
@@ -548,8 +562,7 @@ class SteeringConfig(BaseConfig):
         mention_severity = alerting.get("mention_severity", "critical")
         if mention_severity not in ("info", "recovery", "warning", "critical"):
             logger.warning(
-                f"alerting.mention_severity invalid: '{mention_severity}'; "
-                "defaulting to critical"
+                f"alerting.mention_severity invalid: '{mention_severity}'; defaulting to critical"
             )
             mention_severity = "critical"
 
@@ -758,9 +771,8 @@ class RouterOSController:
                 if " X " in prefix or "\tX\t" in prefix or "\tX " in prefix or " X\t" in prefix:
                     self.logger.debug(f"Rule is DISABLED: {line[:60]}")
                     return False
-                else:
-                    self.logger.debug(f"Rule is ENABLED: {line[:60]}")
-                    return True
+                self.logger.debug(f"Rule is ENABLED: {line[:60]}")
+                return True
 
         self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
         return None
@@ -790,9 +802,8 @@ class RouterOSController:
         ):
             self.logger.info("Steering rule enabled and verified")
             return True
-        else:
-            self.logger.error("Steering rule enable verification failed after retries")
-            return False
+        self.logger.error("Steering rule enable verification failed after retries")
+        return False
 
     def disable_steering(self) -> bool:
         """Disable adaptive steering rule (all traffic uses default routing)"""
@@ -819,9 +830,8 @@ class RouterOSController:
         ):
             self.logger.info("Steering rule disabled and verified")
             return True
-        else:
-            self.logger.error("Steering rule disable verification failed after retries")
-            return False
+        self.logger.error("Steering rule disable verification failed after retries")
+        return False
 
 
 # Note: RTTMeasurement class is now unified in rtt_measurement.py
@@ -889,19 +899,15 @@ class BaselineLoader:
             # Sanity check using configured bounds (C4 fix: prevents malicious baseline attacks)
             # Default range: 10-60ms (typical home ISP latencies)
             if self.config.baseline_rtt_min <= baseline_rtt <= self.config.baseline_rtt_max:
-                self.logger.debug(
-                    f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms"
-                )
+                self.logger.debug(f"Loaded baseline RTT from autorate state: {baseline_rtt:.2f}ms")
                 return baseline_rtt, wan_zone
-            else:
-                self.logger.warning(
-                    f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
-                    f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
-                )
-                return None, wan_zone
-        else:
-            self.logger.warning("Baseline RTT not found in autorate state file")
+            self.logger.warning(
+                f"Baseline RTT out of bounds [{self.config.baseline_rtt_min:.1f}-{self.config.baseline_rtt_max:.1f}ms]: "
+                f"{baseline_rtt:.2f}ms, ignoring (possible autorate compromise)"
+            )
             return None, wan_zone
+        self.logger.warning("Baseline RTT not found in autorate state file")
+        return None, wan_zone
 
     def _get_wan_zone_age(self) -> float | None:
         """Get age of autorate state file in seconds.
@@ -1009,16 +1015,13 @@ class SteeringDaemon:
                 url = ""
             if not url:
                 self.logger.warning(
-                    "alerting.webhook_url not set; alerts will fire and persist "
-                    "but not deliver"
+                    "alerting.webhook_url not set; alerts will fire and persist but not deliver"
                 )
 
             from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
-            formatter = DiscordFormatter(
-                version=__version__, container_id=config.wan_name
-            )
+            formatter = DiscordFormatter(version=__version__, container_id=config.wan_name)
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
                 webhook_url=url,
@@ -1078,10 +1081,12 @@ class SteeringDaemon:
         self._wan_grace_period_sec = wsc["grace_period_sec"] if wsc else 30.0
         self._wan_red_weight: int | None = wsc["red_weight"] if wsc else None
         self._wan_soft_red_weight: int | None = wsc["soft_red_weight"] if wsc else None
-        self._wan_staleness_sec: float = wsc["staleness_threshold_sec"] if wsc else STALE_WAN_ZONE_THRESHOLD_SECONDS
+        self._wan_staleness_sec: float = (
+            wsc["staleness_threshold_sec"] if wsc else STALE_WAN_ZONE_THRESHOLD_SECONDS
+        )
 
         # Override BaselineLoader staleness threshold with config value
-        if hasattr(self.baseline_loader, '_wan_staleness_threshold'):
+        if hasattr(self.baseline_loader, "_wan_staleness_threshold"):
             self.baseline_loader._wan_staleness_threshold = self._wan_staleness_sec
 
         # STEER-01: Track which legacy state names have already been warned about
@@ -1152,9 +1157,7 @@ class SteeringDaemon:
         old_enabled = self._wan_state_enabled
 
         if new_enabled == old_enabled:
-            self.logger.warning(
-                f"[WAN_STATE] Config reload: enabled={old_enabled} (unchanged)"
-            )
+            self.logger.warning(f"[WAN_STATE] Config reload: enabled={old_enabled} (unchanged)")
             return
 
         self._wan_state_enabled = new_enabled
@@ -1167,9 +1170,7 @@ class SteeringDaemon:
                 f"(grace period re-triggered: {self._wan_grace_period_sec}s)"
             )
         else:
-            self.logger.warning(
-                f"[WAN_STATE] Config reload: enabled={old_enabled}->{new_enabled}"
-            )
+            self.logger.warning(f"[WAN_STATE] Config reload: enabled={old_enabled}->{new_enabled}")
 
     def _reload_webhook_url_config(self) -> None:
         """Re-read alerting.webhook_url from config YAML (triggered by SIGUSR1)."""
@@ -1181,7 +1182,12 @@ class SteeringDaemon:
             alerting = data.get("alerting", {})
             new_url = alerting.get("webhook_url", "")
             # Expand ${ENV_VAR} references
-            if new_url and isinstance(new_url, str) and new_url.startswith("${") and new_url.endswith("}"):
+            if (
+                new_url
+                and isinstance(new_url, str)
+                and new_url.startswith("${")
+                and new_url.endswith("}")
+            ):
                 env_var = new_url[2:-1]
                 new_url = os.environ.get(env_var, "")
             if self._webhook_delivery is not None:
@@ -1320,8 +1326,7 @@ class SteeringDaemon:
             if wan_contributors:
                 wan_str = ", ".join(wan_contributors)
                 self.logger.info(
-                    f"[STEERING] Transition {from_state} -> {to_state} "
-                    f"with WAN signal: [{wan_str}]"
+                    f"[STEERING] Transition {from_state} -> {to_state} with WAN signal: [{wan_str}]"
                 )
 
         # Record metrics if enabled (Prometheus)
@@ -1427,9 +1432,7 @@ class SteeringDaemon:
             )
 
             if recover_count >= recover_threshold:
-                self.logger.info(
-                    f"{wan} RECOVERED - {signals} (sustained {recover_count} samples)"
-                )
+                self.logger.info(f"{wan} RECOVERED - {signals} (sustained {recover_count} samples)")
                 if self.execute_steering_transition(
                     self.config.state_degraded, self.config.state_good, enable_steering=False
                 ):
@@ -1439,9 +1442,7 @@ class SteeringDaemon:
                     # Fire steering_recovered alert (ALRT-03)
                     duration_sec: float | None = None
                     if self._steering_activated_time is not None:
-                        duration_sec = round(
-                            time.monotonic() - self._steering_activated_time, 1
-                        )
+                        duration_sec = round(time.monotonic() - self._steering_activated_time, 1)
                     recovery_details: dict[str, object] = {
                         "from_state": self.config.state_degraded,
                         "to_state": self.config.state_good,
@@ -1577,13 +1578,11 @@ class SteeringDaemon:
                 )
 
             return True
-        else:
-            if self.state_mgr.state["baseline_rtt"] is None:
-                self.logger.warning("No baseline RTT available, cannot make steering decisions")
-                return False
-            else:
-                self.logger.debug("Using cached baseline RTT")
-                return True
+        if self.state_mgr.state["baseline_rtt"] is None:
+            self.logger.warning("No baseline RTT available, cannot make steering decisions")
+            return False
+        self.logger.debug("Using cached baseline RTT")
+        return True
 
     def calculate_delta(self, current_rtt: float) -> float:
         """Calculate RTT delta (current - baseline)"""
@@ -1610,7 +1609,7 @@ class SteeringDaemon:
             return self.execute_steering_transition(
                 current_state, self.config.state_degraded, enable_steering=True
             )
-        elif decision == "DISABLE_STEERING":
+        if decision == "DISABLE_STEERING":
             return self.execute_steering_transition(
                 current_state, self.config.state_good, enable_steering=False
             )
@@ -1652,7 +1651,8 @@ class SteeringDaemon:
 
             # Evaluate confidence (returns decision or None if dry-run)
             confidence_decision = self.confidence_controller.evaluate(
-                phase2b_signals, state["current_state"],
+                phase2b_signals,
+                state["current_state"],
                 wan_red_weight=self._wan_red_weight,
                 wan_soft_red_weight=self._wan_soft_red_weight,
             )
@@ -1715,25 +1715,24 @@ class SteeringDaemon:
             # No manual trim needed - deques with maxlen automatically evict oldest elements
 
             return (cake_drops, queued_packets)
-        else:
-            # W8 fix: Track consecutive CAKE read failures (stats returned None)
-            # Note: This is a soft failure, not a router connectivity failure
-            state["cake_read_failures"] += 1
-            if state["cake_read_failures"] == 1:
-                # First failure - log warning
-                self.logger.warning(
-                    f"CAKE stats read failed for {self.config.primary_download_queue}, "
-                    f"using RTT-only decisions (failure {state['cake_read_failures']})"
+        # W8 fix: Track consecutive CAKE read failures (stats returned None)
+        # Note: This is a soft failure, not a router connectivity failure
+        state["cake_read_failures"] += 1
+        if state["cake_read_failures"] == 1:
+            # First failure - log warning
+            self.logger.warning(
+                f"CAKE stats read failed for {self.config.primary_download_queue}, "
+                f"using RTT-only decisions (failure {state['cake_read_failures']})"
+            )
+        elif state["cake_read_failures"] >= 3:
+            # Multiple failures - enter degraded mode
+            if state["cake_read_failures"] == 3:
+                self.logger.error(
+                    f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
+                    f"entering degraded mode (RTT-only decisions)"
                 )
-            elif state["cake_read_failures"] >= 3:
-                # Multiple failures - enter degraded mode
-                if state["cake_read_failures"] == 3:
-                    self.logger.error(
-                        f"CAKE stats unavailable after {state['cake_read_failures']} attempts, "
-                        f"entering degraded mode (RTT-only decisions)"
-                    )
-            # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
-            return (0, 0)
+        # cake_drops=0 and queued_packets=0 signal RTT-only mode downstream
+        return (0, 0)
 
     def update_ewma_smoothing(self, delta: float, queued_packets: int) -> tuple[float, float]:
         """
@@ -1825,9 +1824,7 @@ class SteeringDaemon:
             self.logger.warning(
                 "Ping failed after retries and no fallback available, skipping cycle"
             )
-            self._record_profiling(
-                cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start
-            )
+            self._record_profiling(cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start)
             return False
 
         # === State Management (subsystem 3) ===
@@ -2009,9 +2006,7 @@ class SteeringDaemon:
                                 ts,
                                 self.config.primary_wan,
                                 "wanctl_wan_staleness_sec",
-                                float(staleness_age)
-                                if staleness_age is not None
-                                else -1.0,
+                                float(staleness_age) if staleness_age is not None else -1.0,
                                 None,
                                 "raw",
                             )
@@ -2023,25 +2018,47 @@ class SteeringDaemon:
                         and self.cake_reader.last_tin_stats
                     ):
                         for i, tin in enumerate(self.cake_reader.last_tin_stats):
-                            tin_name = (
-                                TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
-                            )
+                            tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
                             tin_labels = {"tin": tin_name}
                             metrics_batch.append(
-                                (ts, self.config.primary_wan, "wanctl_cake_tin_dropped",
-                                 float(tin.get("dropped_packets", 0)), tin_labels, "raw")
+                                (
+                                    ts,
+                                    self.config.primary_wan,
+                                    "wanctl_cake_tin_dropped",
+                                    float(tin.get("dropped_packets", 0)),
+                                    tin_labels,
+                                    "raw",
+                                )
                             )
                             metrics_batch.append(
-                                (ts, self.config.primary_wan, "wanctl_cake_tin_ecn_marked",
-                                 float(tin.get("ecn_marked_packets", 0)), tin_labels, "raw")
+                                (
+                                    ts,
+                                    self.config.primary_wan,
+                                    "wanctl_cake_tin_ecn_marked",
+                                    float(tin.get("ecn_marked_packets", 0)),
+                                    tin_labels,
+                                    "raw",
+                                )
                             )
                             metrics_batch.append(
-                                (ts, self.config.primary_wan, "wanctl_cake_tin_delay_us",
-                                 float(tin.get("avg_delay_us", 0)), tin_labels, "raw")
+                                (
+                                    ts,
+                                    self.config.primary_wan,
+                                    "wanctl_cake_tin_delay_us",
+                                    float(tin.get("avg_delay_us", 0)),
+                                    tin_labels,
+                                    "raw",
+                                )
                             )
                             metrics_batch.append(
-                                (ts, self.config.primary_wan, "wanctl_cake_tin_backlog_bytes",
-                                 float(tin.get("backlog_bytes", 0)), tin_labels, "raw")
+                                (
+                                    ts,
+                                    self.config.primary_wan,
+                                    "wanctl_cake_tin_backlog_bytes",
+                                    float(tin.get("backlog_bytes", 0)),
+                                    tin_labels,
+                                    "raw",
+                                )
                             )
 
                     self._metrics_writer.write_metrics_batch(metrics_batch)
@@ -2105,8 +2122,7 @@ def run_daemon_loop(
             if not watchdog_enabled:
                 watchdog_enabled = True
                 logger.info(
-                    "Cycle recovered after watchdog surrender. "
-                    "Re-enabling watchdog notifications."
+                    "Cycle recovered after watchdog surrender. Re-enabling watchdog notifications."
                 )
         else:
             consecutive_failures += 1
@@ -2126,9 +2142,7 @@ def run_daemon_loop(
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
-            logger.info(
-                "SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url)"
-            )
+            logger.info("SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url)")
             daemon._reload_dry_run_config()
             daemon._reload_wan_state_config()
             daemon._reload_webhook_url_config()
@@ -2340,7 +2354,9 @@ def main() -> int | None:
             logger.debug("State saved on shutdown")
         except Exception as e:
             logger.warning(f"Error saving state on shutdown: {e}")
-        check_cleanup_deadline("state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
+        check_cleanup_deadline(
+            "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+        )
 
         # 1. Shutdown health server (INTG-02)
         if health_server is not None:
@@ -2350,7 +2366,14 @@ def main() -> int | None:
                 logger.debug("Health server stopped")
             except Exception as e:
                 logger.warning(f"Error shutting down health server: {e}")
-            check_cleanup_deadline("health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
+            check_cleanup_deadline(
+                "health_server",
+                t0,
+                deadline,
+                SHUTDOWN_TIMEOUT_SECONDS,
+                logger,
+                now=time.monotonic(),
+            )
 
         # 2. Close router connection
         t0 = time.monotonic()
@@ -2359,7 +2382,9 @@ def main() -> int | None:
             logger.debug("Router connection closed")
         except Exception as e:
             logger.warning(f"Error closing router connection: {e}")
-        check_cleanup_deadline("router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
+        check_cleanup_deadline(
+            "router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+        )
 
         # 3. Close MetricsWriter (SQLite connection)
         t0 = time.monotonic()
@@ -2369,7 +2394,9 @@ def main() -> int | None:
                 logger.debug("MetricsWriter connection closed")
         except Exception as e:
             logger.warning(f"Error closing MetricsWriter: {e}")
-        check_cleanup_deadline("metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic())
+        check_cleanup_deadline(
+            "metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+        )
 
         # 4. Release lock file
         if config.lock_file.exists():

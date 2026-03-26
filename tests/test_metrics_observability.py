@@ -6,7 +6,6 @@ Tests verify that:
 - IRTT deduplication prevents row duplication at 20Hz cycle rate
 """
 
-import json
 import sqlite3
 import time
 from pathlib import Path
@@ -68,12 +67,21 @@ class TestSignalQualityMetrics:
         ]
 
         # Signal quality extension (OBSV-03)
-        metrics_batch.extend([
-            (ts, "spectrum", "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
-            (ts, "spectrum", "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
-            (ts, "spectrum", "wanctl_signal_confidence", sr.confidence, None, "raw"),
-            (ts, "spectrum", "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
-        ])
+        metrics_batch.extend(
+            [
+                (ts, "spectrum", "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
+                (ts, "spectrum", "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
+                (ts, "spectrum", "wanctl_signal_confidence", sr.confidence, None, "raw"),
+                (
+                    ts,
+                    "spectrum",
+                    "wanctl_signal_outlier_count",
+                    float(sr.total_outliers),
+                    None,
+                    "raw",
+                ),
+            ]
+        )
 
         writer.write_metrics_batch(metrics_batch)
 
@@ -175,9 +183,11 @@ class TestSignalQualityMetrics:
         # Simulate: if _last_signal_result is None, don't extend
         signal_result = None
         if signal_result is not None:
-            metrics_batch.extend([
-                (ts, "spectrum", "wanctl_signal_jitter_ms", 0.0, None, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (ts, "spectrum", "wanctl_signal_jitter_ms", 0.0, None, "raw"),
+                ]
+            )
 
         writer.write_metrics_batch(metrics_batch)
 
@@ -234,12 +244,21 @@ class TestIRTTMetricsPersistence:
 
         metrics_batch = []
         if irtt_result is not None and irtt_result.timestamp != last_irtt_write_ts:
-            metrics_batch.extend([
-                (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
+                    (
+                        ts,
+                        "spectrum",
+                        "wanctl_irtt_loss_down_pct",
+                        irtt_result.receive_loss,
+                        None,
+                        "raw",
+                    ),
+                ]
+            )
             last_irtt_write_ts = irtt_result.timestamp
 
         assert len(metrics_batch) == 4
@@ -314,12 +333,21 @@ class TestIRTTMetricsPersistence:
 
         metrics_batch = []
         if irtt_result is not None and irtt_result.timestamp != last_irtt_write_ts:
-            metrics_batch.extend([
-                (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
+                    (
+                        ts,
+                        "spectrum",
+                        "wanctl_irtt_loss_down_pct",
+                        irtt_result.receive_loss,
+                        None,
+                        "raw",
+                    ),
+                ]
+            )
 
         # No IRTT metrics should be in the batch
         assert len(metrics_batch) == 0
@@ -350,12 +378,21 @@ class TestIRTTMetricsPersistence:
 
         metrics_batch = []
         if irtt_result is not None and irtt_result.timestamp != last_irtt_write_ts:
-            metrics_batch.extend([
-                (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                (ts, "spectrum", "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
+                    (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
+                    (
+                        ts,
+                        "spectrum",
+                        "wanctl_irtt_loss_down_pct",
+                        irtt_result.receive_loss,
+                        None,
+                        "raw",
+                    ),
+                ]
+            )
             last_irtt_write_ts = irtt_result.timestamp
 
         # Should have written 4 IRTT metrics
@@ -386,19 +423,42 @@ class TestIRTTMetricsPersistence:
             metrics_batch = []
 
             if irtt_result is not None and irtt_result.timestamp != last_irtt_write_ts:
-                metrics_batch.extend([
-                    (ts, "spectrum", "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                    (ts, "spectrum", "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                    (ts, "spectrum", "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                    (
-                        ts,
-                        "spectrum",
-                        "wanctl_irtt_loss_down_pct",
-                        irtt_result.receive_loss,
-                        None,
-                        "raw",
-                    ),
-                ])
+                metrics_batch.extend(
+                    [
+                        (
+                            ts,
+                            "spectrum",
+                            "wanctl_irtt_rtt_ms",
+                            irtt_result.rtt_mean_ms,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            "spectrum",
+                            "wanctl_irtt_ipdv_ms",
+                            irtt_result.ipdv_mean_ms,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            "spectrum",
+                            "wanctl_irtt_loss_up_pct",
+                            irtt_result.send_loss,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            "spectrum",
+                            "wanctl_irtt_loss_down_pct",
+                            irtt_result.receive_loss,
+                            None,
+                            "raw",
+                        ),
+                    ]
+                )
                 last_irtt_write_ts = irtt_result.timestamp
 
             if metrics_batch:

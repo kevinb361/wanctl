@@ -111,8 +111,7 @@ class TestTransientFailureBlockingTime:
         mock_client = MagicMock()
         mock_client.exec_command.side_effect = ConnectionError("Transient failure")
 
-        with patch.object(ssh, "_ensure_connected"), \
-             patch.object(ssh, "_client", mock_client):
+        with patch.object(ssh, "_ensure_connected"), patch.object(ssh, "_client", mock_client):
             start = time.monotonic()
             with pytest.raises(ConnectionError):
                 ssh.run_cmd("/test")
@@ -120,9 +119,7 @@ class TestTransientFailureBlockingTime:
 
         # With max_attempts=2, initial_delay=0.05: worst case ~75ms (50ms + jitter)
         # Allow generous 200ms for test environment variance
-        assert elapsed < 0.2, (
-            f"Transient failure blocked for {elapsed:.3f}s, expected <0.2s"
-        )
+        assert elapsed < 0.2, f"Transient failure blocked for {elapsed:.3f}s, expected <0.2s"
 
 
 class TestAutorateShutdownEventWait:
@@ -186,8 +183,7 @@ def _extract_retry_closure_vars(method) -> dict:
 
     if not result:
         raise ValueError(
-            f"Could not extract retry parameters from {method.__name__}. "
-            f"Free vars: {freevars}"
+            f"Could not extract retry parameters from {method.__name__}. Free vars: {freevars}"
         )
 
     return result

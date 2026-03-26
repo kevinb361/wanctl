@@ -28,94 +28,134 @@ from wanctl.backends.linux_cake import LinuxCakeBackend
 # Test data: realistic tc -j -s qdisc show output
 # =============================================================================
 
-SAMPLE_CAKE_JSON = json.dumps([{
-    "kind": "cake",
-    "handle": "8001:",
-    "parent": "ffff:fff1",
-    "bytes": 123456789,
-    "packets": 987654,
-    "drops": 42,
-    "overlimits": 100,
-    "requeues": 0,
-    "backlog": 1500,
-    "qlen": 3,
-    "memory_used": 2097152,
-    "memory_limit": 33554432,
-    "capacity_estimate": 500000000,
-    "options": {
-        "bandwidth": 500000000,
-        "diffserv": "diffserv4",
-        "overhead": 18,
-        "rtt": 100000,
-        "split_gso": True,
-        "nat": False,
-        "wash": False,
-        "ingress": True,
-        "ack-filter": "ack-filter",
-        "memlimit": 33554432,
-    },
-    "tins": [
-        {  # Bulk (index 0)
-            "threshold_rate": 125000000,
-            "sent_bytes": 10000, "sent_packets": 100,
-            "drops": 2, "ecn_mark": 1,
-            "ack_drops": 0, "backlog_bytes": 0,
-            "peak_delay_us": 5000, "avg_delay_us": 2000, "base_delay_us": 500,
-            "sparse_flows": 3, "bulk_flows": 1, "unresponsive_flows": 0,
-        },
-        {  # BestEffort (index 1)
-            "threshold_rate": 250000000,
-            "sent_bytes": 50000, "sent_packets": 500,
-            "drops": 5, "ecn_mark": 3,
-            "ack_drops": 0, "backlog_bytes": 500,
-            "peak_delay_us": 3000, "avg_delay_us": 1000, "base_delay_us": 200,
-            "sparse_flows": 10, "bulk_flows": 2, "unresponsive_flows": 0,
-        },
-        {  # Video (index 2)
-            "threshold_rate": 375000000,
-            "sent_bytes": 80000, "sent_packets": 300,
-            "drops": 0, "ecn_mark": 0,
-            "ack_drops": 0, "backlog_bytes": 1000,
-            "peak_delay_us": 1000, "avg_delay_us": 500, "base_delay_us": 100,
-            "sparse_flows": 5, "bulk_flows": 0, "unresponsive_flows": 0,
-        },
-        {  # Voice (index 3)
-            "threshold_rate": 500000000,
-            "sent_bytes": 5000, "sent_packets": 50,
-            "drops": 0, "ecn_mark": 0,
-            "ack_drops": 0, "backlog_bytes": 0,
-            "peak_delay_us": 200, "avg_delay_us": 100, "base_delay_us": 50,
-            "sparse_flows": 2, "bulk_flows": 0, "unresponsive_flows": 0,
-        },
-    ],
-}])
+SAMPLE_CAKE_JSON = json.dumps(
+    [
+        {
+            "kind": "cake",
+            "handle": "8001:",
+            "parent": "ffff:fff1",
+            "bytes": 123456789,
+            "packets": 987654,
+            "drops": 42,
+            "overlimits": 100,
+            "requeues": 0,
+            "backlog": 1500,
+            "qlen": 3,
+            "memory_used": 2097152,
+            "memory_limit": 33554432,
+            "capacity_estimate": 500000000,
+            "options": {
+                "bandwidth": 500000000,
+                "diffserv": "diffserv4",
+                "overhead": 18,
+                "rtt": 100000,
+                "split_gso": True,
+                "nat": False,
+                "wash": False,
+                "ingress": True,
+                "ack-filter": "ack-filter",
+                "memlimit": 33554432,
+            },
+            "tins": [
+                {  # Bulk (index 0)
+                    "threshold_rate": 125000000,
+                    "sent_bytes": 10000,
+                    "sent_packets": 100,
+                    "drops": 2,
+                    "ecn_mark": 1,
+                    "ack_drops": 0,
+                    "backlog_bytes": 0,
+                    "peak_delay_us": 5000,
+                    "avg_delay_us": 2000,
+                    "base_delay_us": 500,
+                    "sparse_flows": 3,
+                    "bulk_flows": 1,
+                    "unresponsive_flows": 0,
+                },
+                {  # BestEffort (index 1)
+                    "threshold_rate": 250000000,
+                    "sent_bytes": 50000,
+                    "sent_packets": 500,
+                    "drops": 5,
+                    "ecn_mark": 3,
+                    "ack_drops": 0,
+                    "backlog_bytes": 500,
+                    "peak_delay_us": 3000,
+                    "avg_delay_us": 1000,
+                    "base_delay_us": 200,
+                    "sparse_flows": 10,
+                    "bulk_flows": 2,
+                    "unresponsive_flows": 0,
+                },
+                {  # Video (index 2)
+                    "threshold_rate": 375000000,
+                    "sent_bytes": 80000,
+                    "sent_packets": 300,
+                    "drops": 0,
+                    "ecn_mark": 0,
+                    "ack_drops": 0,
+                    "backlog_bytes": 1000,
+                    "peak_delay_us": 1000,
+                    "avg_delay_us": 500,
+                    "base_delay_us": 100,
+                    "sparse_flows": 5,
+                    "bulk_flows": 0,
+                    "unresponsive_flows": 0,
+                },
+                {  # Voice (index 3)
+                    "threshold_rate": 500000000,
+                    "sent_bytes": 5000,
+                    "sent_packets": 50,
+                    "drops": 0,
+                    "ecn_mark": 0,
+                    "ack_drops": 0,
+                    "backlog_bytes": 0,
+                    "peak_delay_us": 200,
+                    "avg_delay_us": 100,
+                    "base_delay_us": 50,
+                    "sparse_flows": 2,
+                    "bulk_flows": 0,
+                    "unresponsive_flows": 0,
+                },
+            ],
+        }
+    ]
+)
 
-SAMPLE_CAKE_NOSTAT_JSON = json.dumps([{
-    "kind": "cake",
-    "options": {
-        "bandwidth": 500000000,
-        "diffserv": "diffserv4",
-        "overhead": 18,
-        "rtt": 100000,
-        "split_gso": True,
-    },
-}])
+SAMPLE_CAKE_NOSTAT_JSON = json.dumps(
+    [
+        {
+            "kind": "cake",
+            "options": {
+                "bandwidth": 500000000,
+                "diffserv": "diffserv4",
+                "overhead": 18,
+                "rtt": 100000,
+                "split_gso": True,
+            },
+        }
+    ]
+)
 
 SAMPLE_NON_CAKE_JSON = json.dumps([{"kind": "fq_codel", "handle": "0:"}])
 
-SAMPLE_CAKE_EMPTY_TINS_JSON = json.dumps([{
-    "kind": "cake",
-    "bytes": 0,
-    "packets": 0,
-    "drops": 0,
-    "backlog": 0,
-    "qlen": 0,
-    "memory_used": 0,
-    "memory_limit": 0,
-    "capacity_estimate": 0,
-    "options": {"bandwidth": 100000000},
-    "tins": [],
-}])
+SAMPLE_CAKE_EMPTY_TINS_JSON = json.dumps(
+    [
+        {
+            "kind": "cake",
+            "bytes": 0,
+            "packets": 0,
+            "drops": 0,
+            "backlog": 0,
+            "qlen": 0,
+            "memory_used": 0,
+            "memory_limit": 0,
+            "capacity_estimate": 0,
+            "options": {"bandwidth": 100000000},
+            "tins": [],
+        }
+    ]
+)
 
 
 # =============================================================================
@@ -430,9 +470,17 @@ class TestGetQueueStats:
         stats = backend.get_queue_stats("q")
         assert stats is not None
         expected_fields = {
-            "sent_bytes", "sent_packets", "dropped_packets", "ecn_marked_packets",
-            "backlog_bytes", "peak_delay_us", "avg_delay_us", "base_delay_us",
-            "sparse_flows", "bulk_flows", "unresponsive_flows",
+            "sent_bytes",
+            "sent_packets",
+            "dropped_packets",
+            "ecn_marked_packets",
+            "backlog_bytes",
+            "peak_delay_us",
+            "avg_delay_us",
+            "base_delay_us",
+            "sparse_flows",
+            "bulk_flows",
+            "unresponsive_flows",
         }
         assert set(stats["tins"][0].keys()) == expected_fields
 
@@ -566,11 +614,13 @@ class TestInitializeCake:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
         )
-        backend.initialize_cake({
-            "split-gso": True,
-            "ingress": True,
-            "ecn": True,
-        })
+        backend.initialize_cake(
+            {
+                "split-gso": True,
+                "ingress": True,
+                "ecn": True,
+            }
+        )
         cmd = mock_run.call_args[0][0]
         assert "split-gso" in cmd
         assert "ingress" in cmd
@@ -641,17 +691,19 @@ class TestInitializeCake:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
         )
-        backend.initialize_cake({
-            "diffserv": "diffserv4",
-            "split-gso": True,
-            "ack-filter": True,
-            "ingress": False,
-            "ecn": False,
-            "overhead_keyword": "docsis",
-            "memlimit": "32mb",
-            "rtt": "100ms",
-            "bandwidth": "500000kbit",
-        })
+        backend.initialize_cake(
+            {
+                "diffserv": "diffserv4",
+                "split-gso": True,
+                "ack-filter": True,
+                "ingress": False,
+                "ecn": False,
+                "overhead_keyword": "docsis",
+                "memlimit": "32mb",
+                "rtt": "100ms",
+                "bandwidth": "500000kbit",
+            }
+        )
         cmd = mock_run.call_args[0][0]
         # All expected tokens present
         assert "bandwidth" in cmd
@@ -674,17 +726,19 @@ class TestInitializeCake:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
         )
-        backend.initialize_cake({
-            "diffserv": "diffserv4",
-            "split-gso": True,
-            "ack-filter": False,
-            "ingress": True,
-            "ecn": True,
-            "overhead_keyword": "bridged-ptm",
-            "memlimit": "32mb",
-            "rtt": "100ms",
-            "bandwidth": "300000kbit",
-        })
+        backend.initialize_cake(
+            {
+                "diffserv": "diffserv4",
+                "split-gso": True,
+                "ack-filter": False,
+                "ingress": True,
+                "ecn": True,
+                "overhead_keyword": "bridged-ptm",
+                "memlimit": "32mb",
+                "rtt": "100ms",
+                "bandwidth": "300000kbit",
+            }
+        )
         cmd = mock_run.call_args[0][0]
         # All expected tokens present
         assert "bandwidth" in cmd

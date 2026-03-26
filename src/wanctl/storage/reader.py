@@ -422,9 +422,8 @@ def select_granularity(start_ts: int, end_ts: int) -> str:
 
     if duration_seconds < six_hours:
         return "raw"
-    elif duration_seconds < one_day:
+    if duration_seconds < one_day:
         return "1m"
-    elif duration_seconds < seven_days:
+    if duration_seconds < seven_days:
         return "5m"
-    else:
-        return "1h"
+    return "1h"

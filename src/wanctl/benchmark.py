@@ -289,9 +289,7 @@ def build_result(
 # ---------------------------------------------------------------------------
 
 
-def check_server_connectivity(
-    server: str, timeout: int = 3
-) -> tuple[bool, float]:
+def check_server_connectivity(server: str, timeout: int = 3) -> tuple[bool, float]:
     """Probe *server* via a 1-second netperf TCP_STREAM, then measure baseline RTT.
 
     Returns ``(reachable, baseline_rtt_ms)``.  If the probe fails or times
@@ -354,25 +352,19 @@ def check_prerequisites(
     if flent_path:
         checks.append(("flent", True, f"found at {flent_path}"))
     else:
-        checks.append(
-            ("flent", False, "not found -- install with: sudo apt install flent")
-        )
+        checks.append(("flent", False, "not found -- install with: sudo apt install flent"))
 
     netperf_path = shutil.which("netperf")
     if netperf_path:
         checks.append(("netperf", True, f"found at {netperf_path}"))
     else:
-        checks.append(
-            ("netperf", False, "not found -- install with: sudo apt install netperf")
-        )
+        checks.append(("netperf", False, "not found -- install with: sudo apt install netperf"))
 
     # Only check server if both binaries present
     if flent_path and netperf_path:
         reachable, baseline_rtt = check_server_connectivity(server)
         if reachable:
-            checks.append(
-                ("server", True, f"reachable ({baseline_rtt:.0f}ms baseline)")
-            )
+            checks.append(("server", True, f"reachable ({baseline_rtt:.0f}ms baseline)"))
         else:
             checks.append(("server", False, f"{server} unreachable (3s timeout)"))
             baseline_rtt = 0.0
@@ -393,9 +385,7 @@ def check_daemon_running() -> tuple[bool, str]:
     return (False, "")
 
 
-def _print_prerequisites(
-    checks: list[tuple[str, bool, str]], color: bool
-) -> None:
+def _print_prerequisites(checks: list[tuple[str, bool, str]], color: bool) -> None:
     """Print prerequisite checklist to stderr.
 
     Uses green/red ANSI colors when *color* is ``True``.
@@ -542,10 +532,7 @@ def format_grade_display(result: BenchmarkResult, color: bool) -> str:
     # Quick mode note
     if result.duration <= 10:
         lines.append("")
-        lines.append(
-            "Note: Quick mode (10s) -- grades may be less accurate"
-            " than full 60s test"
-        )
+        lines.append("Note: Quick mode (10s) -- grades may be less accurate than full 60s test")
 
     return "\n".join(lines)
 
@@ -633,9 +620,7 @@ def _color_delta(text: str, value: float, invert: bool, color: bool) -> str:
     return f"\033[{code}m{text}\033[0m"
 
 
-def format_comparison(
-    before: dict, after: dict, deltas: dict, color: bool
-) -> str:
+def format_comparison(before: dict, after: dict, deltas: dict, color: bool) -> str:
     """Format a side-by-side benchmark comparison as multi-line string.
 
     Args:
@@ -681,9 +666,7 @@ def format_comparison(
             dv = deltas[field]
             delta_str = _format_delta(dv, "ms")
             delta_colored = _color_delta(delta_str, dv, invert=False, color=color)
-            lines.append(
-                f"  {stat_label:>3}: {bv:>7.1f}ms -> {av:>7.1f}ms  ({delta_colored})"
-            )
+            lines.append(f"  {stat_label:>3}: {bv:>7.1f}ms -> {av:>7.1f}ms  ({delta_colored})")
         lines.append("")
 
     # Throughput section
@@ -697,15 +680,11 @@ def format_comparison(
         dv = deltas[field]
         delta_str = _format_delta(dv, " Mbps")
         delta_colored = _color_delta(delta_str, dv, invert=True, color=color)
-        lines.append(
-            f"  {direction_label}: {bv:.1f} -> {av:.1f} Mbps  ({delta_colored})"
-        )
+        lines.append(f"  {direction_label}: {bv:.1f} -> {av:.1f} Mbps  ({delta_colored})")
     lines.append("")
 
     # Metadata
-    lines.append(
-        f"Baseline RTT: {before['baseline_rtt']:.1f}ms -> {after['baseline_rtt']:.1f}ms"
-    )
+    lines.append(f"Baseline RTT: {before['baseline_rtt']:.1f}ms -> {after['baseline_rtt']:.1f}ms")
     if before["server"] == after["server"]:
         lines.append(f"Server: {before['server']} (both runs)")
     else:
@@ -715,8 +694,7 @@ def format_comparison(
     else:
         lines.append(f"Duration: {before['duration']}s vs {after['duration']}s")
     lines.append(
-        f"Run #{before['id']} ({before['timestamp']}) vs "
-        f"Run #{after['id']} ({after['timestamp']})"
+        f"Run #{before['id']} ({before['timestamp']}) vs Run #{after['id']} ({after['timestamp']})"
     )
 
     return "\n".join(lines)
@@ -779,9 +757,7 @@ def run_compare(args: "argparse.Namespace") -> int:
     deltas = compute_deltas(before, after)
 
     if getattr(args, "json", False):
-        output = json.dumps(
-            {"before": before, "after": after, "deltas": deltas}, indent=2
-        )
+        output = json.dumps({"before": before, "after": after, "deltas": deltas}, indent=2)
         print(output)
     else:
         print(format_comparison(before, after, deltas, use_color))
@@ -812,15 +788,17 @@ def format_history(rows: list[dict], color: bool) -> str:
         except (ValueError, TypeError):
             ts_display = ts_str[:16] if len(ts_str) >= 16 else ts_str
 
-        table_data.append([
-            row["id"],
-            ts_display,
-            row["wan_name"],
-            _colorize(row["download_grade"], row["download_grade"], color),
-            f'{row["download_latency_avg"]:.1f}ms',
-            f'{row["download_throughput"]:.1f}',
-            row.get("label") or "",
-        ])
+        table_data.append(
+            [
+                row["id"],
+                ts_display,
+                row["wan_name"],
+                _colorize(row["download_grade"], row["download_grade"], color),
+                f"{row['download_latency_avg']:.1f}ms",
+                f"{row['download_throughput']:.1f}",
+                row.get("label") or "",
+            ]
+        )
 
     return tabulate(
         table_data,
@@ -862,9 +840,7 @@ def run_history(args: "argparse.Namespace") -> int:
     # WAN filter (history subparser uses hist_wan)
     wan = getattr(args, "hist_wan", None)
 
-    rows = query_benchmarks(
-        db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=wan
-    )
+    rows = query_benchmarks(db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=wan)
 
     if getattr(args, "json", False):
         print(json.dumps(rows, indent=2))

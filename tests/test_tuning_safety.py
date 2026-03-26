@@ -94,7 +94,7 @@ class TestMeasureCongestionRateInsufficientData:
 
     @patch("wanctl.tuning.safety.query_metrics")
     def test_returns_none_below_min_samples(self, mock_qm) -> None:
-        from wanctl.tuning.safety import MIN_OBSERVATION_SAMPLES, measure_congestion_rate
+        from wanctl.tuning.safety import measure_congestion_rate
 
         # Only 5 samples, below MIN_OBSERVATION_SAMPLES (10)
         rows = [_make_metric_row(timestamp=1000 + i * 60, value=0.0) for i in range(5)]
@@ -142,9 +142,7 @@ class TestMeasureCongestionRateFiltering:
 
         # 5 GREEN (0.0), 3 YELLOW (1.0), 2 SOFT_RED (2.0), 2 RED (3.0)
         values = [0.0] * 5 + [1.0] * 3 + [2.0] * 2 + [3.0] * 2
-        rows = [
-            _make_metric_row(timestamp=1000 + i * 60, value=v) for i, v in enumerate(values)
-        ]
+        rows = [_make_metric_row(timestamp=1000 + i * 60, value=v) for i, v in enumerate(values)]
         mock_qm.return_value = rows
         rate = measure_congestion_rate("/tmp/test.db", "Spectrum", 1000, 2000)
         # 4 out of 12 are >= 2.0 (2 SOFT_RED + 2 RED)
@@ -357,7 +355,6 @@ class TestCheckAndRevertTriggersRevert:
     @patch("wanctl.tuning.safety.measure_congestion_rate")
     def test_near_zero_pre_rate_uses_min_denominator(self, mock_measure) -> None:
         from wanctl.tuning.safety import (
-            DEFAULT_MIN_CONGESTION_RATE,
             PendingObservation,
             check_and_revert,
         )

@@ -236,11 +236,10 @@ class RouterOSSSH:
                 if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug(f"RouterOS stdout: {stdout_text}")
                 return exit_status, stdout_text, stderr_text
-            else:
-                # Drain the channels even if not capturing (required for proper cleanup)
-                stdout.read()
-                stderr.read()
-                return exit_status, "", ""
+            # Drain the channels even if not capturing (required for proper cleanup)
+            stdout.read()
+            stderr.read()
+            return exit_status, "", ""
 
         except paramiko.SSHException as e:
             # Connection issue - close and let retry reconnect

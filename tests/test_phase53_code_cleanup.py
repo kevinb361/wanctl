@@ -42,7 +42,11 @@ class TestClean01SelfSshRenamedToClient:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name == "RouterOS":
                 init_method = next(
-                    (n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == "__init__"),
+                    (
+                        n
+                        for n in node.body
+                        if isinstance(n, ast.FunctionDef) and n.name == "__init__"
+                    ),
                     None,
                 )
                 assert init_method is not None, "RouterOS.__init__ not found"
@@ -51,10 +55,7 @@ class TestClean01SelfSshRenamedToClient:
                     n
                     for n in ast.walk(init_method)
                     if isinstance(n, ast.Assign)
-                    and any(
-                        isinstance(t, ast.Attribute) and t.attr == "client"
-                        for t in n.targets
-                    )
+                    and any(isinstance(t, ast.Attribute) and t.attr == "client" for t in n.targets)
                 ]
                 assert len(assigns) > 0, "self.client assignment not found in RouterOS.__init__"
                 # Check that self.ssh is NOT assigned
@@ -62,10 +63,7 @@ class TestClean01SelfSshRenamedToClient:
                     n
                     for n in ast.walk(init_method)
                     if isinstance(n, ast.Assign)
-                    and any(
-                        isinstance(t, ast.Attribute) and t.attr == "ssh"
-                        for t in n.targets
-                    )
+                    and any(isinstance(t, ast.Attribute) and t.attr == "ssh" for t in n.targets)
                 ]
                 assert len(ssh_assigns) == 0, "self.ssh still assigned in RouterOS.__init__"
                 break
@@ -80,7 +78,11 @@ class TestClean01SelfSshRenamedToClient:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name == "RouterOSBackend":
                 init_method = next(
-                    (n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == "__init__"),
+                    (
+                        n
+                        for n in node.body
+                        if isinstance(n, ast.FunctionDef) and n.name == "__init__"
+                    ),
                     None,
                 )
                 assert init_method is not None, "RouterOSBackend.__init__ not found"
@@ -88,20 +90,16 @@ class TestClean01SelfSshRenamedToClient:
                     n
                     for n in ast.walk(init_method)
                     if isinstance(n, ast.Assign)
-                    and any(
-                        isinstance(t, ast.Attribute) and t.attr == "client"
-                        for t in n.targets
-                    )
+                    and any(isinstance(t, ast.Attribute) and t.attr == "client" for t in n.targets)
                 ]
-                assert len(assigns) > 0, "self.client assignment not found in RouterOSBackend.__init__"
+                assert len(assigns) > 0, (
+                    "self.client assignment not found in RouterOSBackend.__init__"
+                )
                 ssh_assigns = [
                     n
                     for n in ast.walk(init_method)
                     if isinstance(n, ast.Assign)
-                    and any(
-                        isinstance(t, ast.Attribute) and t.attr == "ssh"
-                        for t in n.targets
-                    )
+                    and any(isinstance(t, ast.Attribute) and t.attr == "ssh" for t in n.targets)
                 ]
                 assert len(ssh_assigns) == 0, "self.ssh still assigned in RouterOSBackend.__init__"
                 break
@@ -143,8 +141,8 @@ class TestClean02StaleDocstringsRemoved:
                     rel = py_file.relative_to(SRC_ROOT.parent.parent)
                     violations.append(f"  {rel}:{i}: {line.strip()}")
 
-        assert len(violations) == 0, (
-            "Stale '2-second' timing references found:\n" + "\n".join(violations)
+        assert len(violations) == 0, "Stale '2-second' timing references found:\n" + "\n".join(
+            violations
         )
 
 
@@ -166,9 +164,7 @@ class TestClean03NoHotLoopImportAlias:
                     rel = py_file.relative_to(SRC_ROOT.parent.parent)
                     violations.append(f"  {rel}:{i}: {line.strip()}")
 
-        assert len(violations) == 0, (
-            "Function-scoped time alias found:\n" + "\n".join(violations)
-        )
+        assert len(violations) == 0, "Function-scoped time alias found:\n" + "\n".join(violations)
 
 
 # =============================================================================

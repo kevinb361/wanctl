@@ -36,15 +36,17 @@ def _add_request_delegate(mock_session: MagicMock) -> None:
     After code change from self._session.get(...) to self._session.request("GET", ...),
     tests that set up mock_session.get/patch/post need this delegate.
     """
+
     def _request(method: str, url: str, **kwargs):
         m = method.upper()
         if m == "GET":
             return mock_session.get(url, **kwargs)
-        elif m == "PATCH":
+        if m == "PATCH":
             return mock_session.patch(url, **kwargs)
-        elif m == "POST":
+        if m == "POST":
             return mock_session.post(url, **kwargs)
         raise ValueError(f"Unsupported method: {method}")
+
     mock_session.request.side_effect = _request
 
 

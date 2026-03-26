@@ -21,6 +21,7 @@ from wanctl.tuning.models import SafetyBounds
 # Test data helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_green_metrics(
     count: int = 200,
     base_delta: float = 10.0,
@@ -46,22 +47,26 @@ def _make_green_metrics(
         delta = base_delta + (i % 5) * noise_scale / 5 + (i / count) * noise_scale
         state = 0.0 if i < green_count else 1.0
 
-        metrics.append({
-            "timestamp": ts,
-            "wan_name": "Spectrum",
-            "metric_name": "wanctl_rtt_delta_ms",
-            "value": delta,
-            "labels": None,
-            "granularity": "1m",
-        })
-        metrics.append({
-            "timestamp": ts,
-            "wan_name": "Spectrum",
-            "metric_name": "wanctl_state",
-            "value": state,
-            "labels": None,
-            "granularity": "1m",
-        })
+        metrics.append(
+            {
+                "timestamp": ts,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_rtt_delta_ms",
+                "value": delta,
+                "labels": None,
+                "granularity": "1m",
+            }
+        )
+        metrics.append(
+            {
+                "timestamp": ts,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_state",
+                "value": state,
+                "labels": None,
+                "granularity": "1m",
+            }
+        )
     return metrics
 
 
@@ -77,22 +82,26 @@ def _make_uniform_metrics(
     metrics: list[dict] = []
     for i in range(count):
         ts = now - (count - i) * 60
-        metrics.append({
-            "timestamp": ts,
-            "wan_name": "Spectrum",
-            "metric_name": "wanctl_rtt_delta_ms",
-            "value": delta_value,
-            "labels": None,
-            "granularity": "1m",
-        })
-        metrics.append({
-            "timestamp": ts,
-            "wan_name": "Spectrum",
-            "metric_name": "wanctl_state",
-            "value": 0.0,
-            "labels": None,
-            "granularity": "1m",
-        })
+        metrics.append(
+            {
+                "timestamp": ts,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_rtt_delta_ms",
+                "value": delta_value,
+                "labels": None,
+                "granularity": "1m",
+            }
+        )
+        metrics.append(
+            {
+                "timestamp": ts,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_state",
+                "value": 0.0,
+                "labels": None,
+                "granularity": "1m",
+            }
+        )
     return metrics
 
 
@@ -103,6 +112,7 @@ DEFAULT_BOUNDS = SafetyBounds(min_value=3.0, max_value=50.0)
 # ---------------------------------------------------------------------------
 # TestExtractGreenDeltas
 # ---------------------------------------------------------------------------
+
 
 class TestExtractGreenDeltas:
     """Tests for _extract_green_deltas helper."""
@@ -137,14 +147,24 @@ class TestExtractGreenDeltas:
         now = int(time.time())
         # State rows at timestamps 1000-1010, delta rows at 2000-2010
         metrics = [
-            {"timestamp": now + i, "wan_name": "Spectrum",
-             "metric_name": "wanctl_state", "value": 0.0,
-             "labels": None, "granularity": "1m"}
+            {
+                "timestamp": now + i,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_state",
+                "value": 0.0,
+                "labels": None,
+                "granularity": "1m",
+            }
             for i in range(10)
         ] + [
-            {"timestamp": now + 1000 + i, "wan_name": "Spectrum",
-             "metric_name": "wanctl_rtt_delta_ms", "value": 5.0,
-             "labels": None, "granularity": "1m"}
+            {
+                "timestamp": now + 1000 + i,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_rtt_delta_ms",
+                "value": 5.0,
+                "labels": None,
+                "granularity": "1m",
+            }
             for i in range(10)
         ]
         result = _extract_green_deltas(metrics)
@@ -159,18 +179,28 @@ class TestExtractGreenDeltas:
         now = int(time.time())
         # Only state rows
         state_only = [
-            {"timestamp": now + i, "wan_name": "Spectrum",
-             "metric_name": "wanctl_state", "value": 0.0,
-             "labels": None, "granularity": "1m"}
+            {
+                "timestamp": now + i,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_state",
+                "value": 0.0,
+                "labels": None,
+                "granularity": "1m",
+            }
             for i in range(10)
         ]
         assert _extract_green_deltas(state_only) == []
 
         # Only delta rows
         delta_only = [
-            {"timestamp": now + i, "wan_name": "Spectrum",
-             "metric_name": "wanctl_rtt_delta_ms", "value": 5.0,
-             "labels": None, "granularity": "1m"}
+            {
+                "timestamp": now + i,
+                "wan_name": "Spectrum",
+                "metric_name": "wanctl_rtt_delta_ms",
+                "value": 5.0,
+                "labels": None,
+                "granularity": "1m",
+            }
             for i in range(10)
         ]
         assert _extract_green_deltas(delta_only) == []
@@ -179,6 +209,7 @@ class TestExtractGreenDeltas:
 # ---------------------------------------------------------------------------
 # TestCalibrateTargetBloat (CALI-01)
 # ---------------------------------------------------------------------------
+
 
 class TestCalibrateTargetBloat:
     """Tests for calibrate_target_bloat strategy function."""
@@ -256,6 +287,7 @@ class TestCalibrateTargetBloat:
 # TestCalibrateWarnBloat (CALI-02)
 # ---------------------------------------------------------------------------
 
+
 class TestCalibrateWarnBloat:
     """Tests for calibrate_warn_bloat strategy function."""
 
@@ -317,6 +349,7 @@ class TestCalibrateWarnBloat:
 # TestConvergenceDetection (CALI-03)
 # ---------------------------------------------------------------------------
 
+
 class TestConvergenceDetection:
     """Tests for convergence detection via sub-window CoV."""
 
@@ -353,16 +386,26 @@ class TestConvergenceDetection:
             else:
                 delta = 35.0
 
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_rtt_delta_ms", "value": delta,
-                "labels": None, "granularity": "1m",
-            })
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_state", "value": 0.0,
-                "labels": None, "granularity": "1m",
-            })
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_rtt_delta_ms",
+                    "value": delta,
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_state",
+                    "value": 0.0,
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
 
         result = calibrate_target_bloat(metrics, 15.0, DEFAULT_BOUNDS, "Spectrum")
         assert result is not None  # Not converged, returns a result
@@ -398,6 +441,7 @@ class TestConvergenceDetection:
 # TestDiurnalLookback (CALI-04)
 # ---------------------------------------------------------------------------
 
+
 class TestDiurnalLookback:
     """Tests for 24h diurnal pattern processing."""
 
@@ -418,16 +462,26 @@ class TestDiurnalLookback:
             base = 8.0 + (4.0 if 8 <= hour <= 22 else 0.0)
             delta = base + random.gauss(0, 2.0)
 
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_rtt_delta_ms", "value": delta,
-                "labels": None, "granularity": "1m",
-            })
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_state", "value": 0.0,
-                "labels": None, "granularity": "1m",
-            })
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_rtt_delta_ms",
+                    "value": delta,
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_state",
+                    "value": 0.0,
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
 
         result = calibrate_target_bloat(metrics, 15.0, DEFAULT_BOUNDS, "Spectrum")
         # Should return a result (diurnal data has high variance -> not converged)
@@ -446,16 +500,26 @@ class TestDiurnalLookback:
         metrics: list[dict] = []
         for i in range(1440):
             ts = now - (1440 - i) * 60
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_rtt_delta_ms", "value": 10.0 + (i * 0.01),
-                "labels": None, "granularity": "1m",
-            })
-            metrics.append({
-                "timestamp": ts, "wan_name": "Spectrum",
-                "metric_name": "wanctl_state", "value": 0.0,
-                "labels": None, "granularity": "1m",
-            })
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_rtt_delta_ms",
+                    "value": 10.0 + (i * 0.01),
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
+            metrics.append(
+                {
+                    "timestamp": ts,
+                    "wan_name": "Spectrum",
+                    "metric_name": "wanctl_state",
+                    "value": 0.0,
+                    "labels": None,
+                    "granularity": "1m",
+                }
+            )
 
         result = _extract_green_deltas(metrics)
         assert len(result) == 1440

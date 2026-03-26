@@ -244,9 +244,7 @@ class TestClampToStep:
             (100.0, 10.0, 10.0, 50.0, 200.0, 90.0),
         ],
     )
-    def test_parametrized_cases(
-        self, current, candidate, max_step, min_val, max_val, expected
-    ):
+    def test_parametrized_cases(self, current, candidate, max_step, min_val, max_val, expected):
         result = clamp_to_step(
             current=current,
             candidate=candidate,

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-26T17:30:00Z"
-last_activity: 2026-03-26 -- Completed Wave 1 (112-01, 112-02)
+last_updated: "2026-03-26T18:00:00Z"
+last_activity: 2026-03-26 -- Wave 1 complete (112-01, 112-02, 112-03)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 3
+  percent: 75
 ---
 
 # Session State
@@ -26,25 +26,25 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Milestone:** v1.22 Full System Audit
 **Phase:** 112 of 116 (Foundation Scan) -- executing
-**Plan:** 2 of 4 complete
-**Status:** Executing Phase 112
-**Last activity:** 2026-03-26 -- Wave 1 complete (112-01, 112-02)
+**Plan:** 3 of 4 complete
+**Status:** Executing Phase 112 -- Wave 1 complete, Wave 2 next
+**Last activity:** 2026-03-26 -- Wave 1 complete (112-01, 112-02, 112-03)
 
-Progress: [###.......] 25%
+Progress: [########..] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 4min
-- Total execution time: 0.07 hours
+- Total plans completed: 3
+- Average duration: 14min
+- Total execution time: 0.7 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 | ----- | ---- | -------- | ----- | ----- |
-
-| 112 | 01 | 4min | 1 | 2 |
-| 112 | 02 | 4min | 2 | 1 |
+| 112   | 01   | 4min     | 1     | 2     |
+| 112   | 02   | 4min     | 2     | 1     |
+| 112   | 03   | 34min    | 2     | 120   |
 
 ## Accumulated Context
 
@@ -61,6 +61,8 @@ Progress: [###.......] 25%
 - 112-02: secrets file 0640 is correct (not 0600) -- wanctl group needs read access via EnvironmentFile
 - 112-02: Steering service is `steering.service` (not `wanctl-steering.service`)
 - 112-02: systemd hardening can reduce exposure from 8.4 to ~3.5-4.5 (Phase 115 target)
+- 112-03: Ruff expanded to 14 rule categories; 22 rules suppressed globally with documented rationale
+- 112-03: mccabe max-complexity=20 (permissive); functions >15 baselined for Phase 114 reduction
 
 ### Known Issues
 

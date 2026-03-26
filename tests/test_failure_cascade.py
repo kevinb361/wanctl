@@ -75,9 +75,7 @@ class TestAutorateFailureCascade:
         mock_router.set_limits.return_value = False
 
         # State save fails
-        with patch.object(
-            controller.state_manager, "save", side_effect=OSError("disk full")
-        ):
+        with patch.object(controller.state_manager, "save", side_effect=OSError("disk full")):
             # run_cycle should complete without crashing
             # Returns False because router failed, but no exception propagates
             result = controller.run_cycle()
@@ -111,9 +109,7 @@ class TestAutorateFailureCascade:
         # Should return False (router failed) but not crash
         assert result is False
 
-    def test_icmp_fails_plus_connectivity_lost(
-        self, controller, mock_rtt_measurement, mock_config
-    ):
+    def test_icmp_fails_plus_connectivity_lost(self, controller, mock_rtt_measurement, mock_config):
         """ICMP ping fails + TCP fallback fails -- WANController enters freeze/degradation.
 
         When all connectivity checks fail, run_cycle returns False (no crash).
@@ -122,9 +118,7 @@ class TestAutorateFailureCascade:
         mock_rtt_measurement.ping_host.return_value = None
 
         # Connectivity fallback also fails
-        with patch.object(
-            controller, "verify_connectivity_fallback", return_value=(False, None)
-        ):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
             result = controller.run_cycle()
 
         # Total connectivity loss -> returns False, no crash
@@ -142,9 +136,7 @@ class TestAutorateFailureCascade:
         mock_rtt_measurement.ping_host.return_value = None
 
         # Connectivity check says "yes" (gateway reachable) but no TCP RTT
-        with patch.object(
-            controller, "verify_connectivity_fallback", return_value=(True, None)
-        ):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
             # State save fails when trying to persist after freeze
             with patch.object(
                 controller.state_manager, "save", side_effect=OSError("corrupted FS")
@@ -171,13 +163,9 @@ class TestAutorateFailureCascade:
         mock_router.set_limits.side_effect = ConnectionError("router down")
 
         # Connectivity fallback fails
-        with patch.object(
-            controller, "verify_connectivity_fallback", return_value=(False, None)
-        ):
+        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
             # State save fails
-            with patch.object(
-                controller.state_manager, "save", side_effect=OSError("no space")
-            ):
+            with patch.object(controller.state_manager, "save", side_effect=OSError("no space")):
                 result = controller.run_cycle()
 
         # Total connectivity loss causes early return (False), no crash
@@ -198,8 +186,8 @@ class TestAutorateFailureCascade:
         # Enable metrics and inject a failing MetricsWriter
         controller.config.metrics_enabled = True
         controller._metrics_writer = MagicMock()
-        controller._metrics_writer.write_metrics_batch.side_effect = (
-            sqlite3.OperationalError("database is locked")
+        controller._metrics_writer.write_metrics_batch.side_effect = sqlite3.OperationalError(
+            "database is locked"
         )
 
         # Router returns garbage
@@ -265,8 +253,10 @@ class TestSteeringFailureCascade:
         mock_logger = MagicMock()
 
         # Patch get_storage_config and CakeStatsReader to avoid accessing real resources
-        with patch("wanctl.steering.daemon.get_storage_config", return_value={}), \
-             patch("wanctl.steering.daemon.CakeStatsReader"):
+        with (
+            patch("wanctl.steering.daemon.get_storage_config", return_value={}),
+            patch("wanctl.steering.daemon.CakeStatsReader"),
+        ):
             daemon = SteeringDaemon(
                 config=mock_config,
                 state=mock_state,
@@ -336,8 +326,10 @@ class TestSteeringFailureCascade:
 
         mock_logger = MagicMock()
 
-        with patch("wanctl.steering.daemon.get_storage_config", return_value={}), \
-             patch("wanctl.steering.daemon.CakeStatsReader"):
+        with (
+            patch("wanctl.steering.daemon.get_storage_config", return_value={}),
+            patch("wanctl.steering.daemon.CakeStatsReader"),
+        ):
             daemon = SteeringDaemon(
                 config=mock_config,
                 state=mock_state,

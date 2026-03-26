@@ -195,9 +195,7 @@ class AlertEngine:
             )
             return cursor.lastrowid
         except Exception:
-            logger.warning(
-                "Failed to persist alert %s on %s", alert_type, wan_name, exc_info=True
-            )
+            logger.warning("Failed to persist alert %s on %s", alert_type, wan_name, exc_info=True)
             return None
 
     def get_active_cooldowns(self) -> dict[tuple[str, str], float]:

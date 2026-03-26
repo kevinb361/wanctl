@@ -62,9 +62,7 @@ class TestApplyTuningResultsEmpty:
 class TestApplyTuningResultsLogging:
     """Single result logged at WARNING with correct format."""
 
-    def test_result_logged_at_warning(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_result_logged_at_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         from wanctl.tuning.applier import apply_tuning_results
 
         result = _make_result(old_value=15.0, new_value=13.5)
@@ -119,9 +117,7 @@ class TestApplyTuningResultsBoundsEnforcement:
 class TestApplyTuningResultsTrivialChange:
     """Trivial change (< 0.1 abs difference) is skipped and logged at DEBUG."""
 
-    def test_trivial_change_skipped(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_trivial_change_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
         from wanctl.tuning.applier import apply_tuning_results
 
         # Change from 15.0 to 15.05 -> after clamp still ~15.0, trivial
@@ -242,15 +238,11 @@ class TestPersistTuningResultSuccess:
 class TestPersistTuningResultException:
     """persist_tuning_result catches Exception and returns None."""
 
-    def test_exception_returns_none(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_exception_returns_none(self, caplog: pytest.LogCaptureFixture) -> None:
         from wanctl.tuning.applier import persist_tuning_result
 
         mock_writer = MagicMock()
-        mock_writer.connection.execute.side_effect = sqlite3.OperationalError(
-            "table not found"
-        )
+        mock_writer.connection.execute.side_effect = sqlite3.OperationalError("table not found")
 
         result = _make_result()
         with caplog.at_level(logging.WARNING):
@@ -394,15 +386,11 @@ class TestPersistRevertRecordSuccess:
 class TestPersistRevertRecordException:
     """persist_revert_record catches Exception and returns None."""
 
-    def test_exception_returns_none(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_exception_returns_none(self, caplog: pytest.LogCaptureFixture) -> None:
         from wanctl.tuning.applier import persist_revert_record
 
         mock_writer = MagicMock()
-        mock_writer.connection.execute.side_effect = sqlite3.OperationalError(
-            "table not found"
-        )
+        mock_writer.connection.execute.side_effect = sqlite3.OperationalError("table not found")
 
         result = _make_result()
         with caplog.at_level(logging.WARNING):

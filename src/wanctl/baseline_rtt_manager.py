@@ -240,9 +240,8 @@ class BaselineRTTLoader:
                 self.last_baseline = baseline_rtt
                 self.logger.debug(f"Loaded baseline RTT: {baseline_rtt:.2f}ms")
                 return baseline_rtt
-            else:
-                self.logger.debug("Baseline RTT not found in state file")
-                return None
+            self.logger.debug("Baseline RTT not found in state file")
+            return None
 
         except (KeyError, ValueError, TypeError) as e:
             self.logger.error(f"Failed to parse baseline RTT from state: {e}")

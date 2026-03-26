@@ -14,7 +14,6 @@ from wanctl.asymmetry_analyzer import (
 )
 from wanctl.irtt_measurement import IRTTResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -146,9 +145,7 @@ class TestAsymmetryAnalyzer:
 
     def test_custom_threshold(self) -> None:
         """Custom ratio_threshold changes asymmetry detection sensitivity."""
-        analyzer = AsymmetryAnalyzer(
-            ratio_threshold=3.0, logger=_make_logger(), wan_name="test"
-        )
+        analyzer = AsymmetryAnalyzer(ratio_threshold=3.0, logger=_make_logger(), wan_name="test")
         # 2x ratio is below 3.0 threshold -> symmetric
         result = analyzer.analyze(_make_irtt_result(send_delay_ms=20.0, receive_delay_ms=10.0))
         assert result.direction == "symmetric"

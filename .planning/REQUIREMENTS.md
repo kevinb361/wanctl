@@ -14,7 +14,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 - [ ] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
 - [x] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0600, state/log dirs 0750)
 - [x] **FSCAN-05**: systemd-analyze security score assessed for all 3 service units
-- [ ] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
+- [x] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
 - [x] **FSCAN-07**: Orphaned test fixtures identified via pytest-deadfixtures
 - [x] **FSCAN-08**: Log rotation verified (RotatingFileHandler active, retention appropriate)
 
@@ -49,7 +49,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 - [ ] **TDOC-01**: Test quality audit completed (assertion-free, over-mocked, tautological tests identified)
 - [ ] **TDOC-02**: Highest-risk test quality issues fixed
-- [ ] **TDOC-03**: All docs/* reviewed for accuracy against current architecture (post-v1.21)
+- [ ] **TDOC-03**: All docs/\* reviewed for accuracy against current architecture (post-v1.21)
 - [ ] **TDOC-04**: Container-era scripts archived to .archive/ with manifest
 - [ ] **TDOC-05**: CONFIG_SCHEMA.md aligned with config_validation_utils.py and accepted params
 - [ ] **TDOC-06**: Audit findings summary with remaining debt inventory produced
@@ -66,25 +66,26 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Rewriting autorate_continuous.py | Behavioral regressions in 50ms control loop take days to surface — separate milestone |
-| Global strict mypy | Produces unreviewable changeset — module-by-module probe only in v1.22 |
-| Removing all mocking from tests | Makes tests environment-dependent and slow |
-| Performance optimization of 50ms loop | Already within budget; premature optimization causes instability |
-| Prometheus/Grafana implementation | Document readiness only — implementation is scope creep |
-| New features of any kind | This is an audit milestone — hardening and cleanup only |
+| Feature                               | Reason                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------- |
+| Rewriting autorate_continuous.py      | Behavioral regressions in 50ms control loop take days to surface — separate milestone |
+| Global strict mypy                    | Produces unreviewable changeset — module-by-module probe only in v1.22                |
+| Removing all mocking from tests       | Makes tests environment-dependent and slow                                            |
+| Performance optimization of 50ms loop | Already within budget; premature optimization causes instability                      |
+| Prometheus/Grafana implementation     | Document readiness only — implementation is scope creep                               |
+| New features of any kind              | This is an audit milestone — hardening and cleanup only                               |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| FSCAN-01 | Phase 112 | Complete |
-| FSCAN-02 | Phase 112 | Complete |
-| FSCAN-03 | Phase 112 | Pending |
+| Requirement | Phase     | Status   |
+| ----------- | --------- | -------- |
+| FSCAN-01    | Phase 112 | Complete |
+| FSCAN-02    | Phase 112 | Complete |
+| FSCAN-03    | Phase 112 | Pending  |
+
 | FSCAN-04 | Phase 112 | Complete |
 | FSCAN-05 | Phase 112 | Complete |
-| FSCAN-06 | Phase 112 | Pending |
+| FSCAN-06 | Phase 112 | Complete |
 | FSCAN-07 | Phase 112 | Complete |
 | FSCAN-08 | Phase 112 | Complete |
 | NETENG-01 | Phase 113 | Pending |
@@ -113,10 +114,12 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | TDOC-06 | Phase 116 | Pending |
 
 **Coverage:**
+
 - v1.22 requirements: 32 total
 - Mapped to phases: 32/32
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after roadmap creation*
+
+_Requirements defined: 2026-03-26_
+_Last updated: 2026-03-26 after roadmap creation_
