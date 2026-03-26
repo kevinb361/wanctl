@@ -33,7 +33,13 @@ None
   3. Dead code inventory from vulture exists as a structured report (identification only, no removals)
   4. File permissions on /etc/wanctl/secrets (0600), state dirs (0750), and log dirs (0750) verified on production VM
   5. Ruff expanded rule set (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) enabled with findings triaged (fix, suppress, or defer)
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 112-01-PLAN.md -- Dependency hygiene scan (pip-audit, deptry, deadfixtures, log rotation)
+- [ ] 112-02-PLAN.md -- Production VM security audit (file permissions, systemd security scores)
+- [ ] 112-03-PLAN.md -- Ruff rule expansion with autofix and triage
+- [ ] 112-04-PLAN.md -- Vulture dead code inventory with false positive validation
 
 ### Phase 113: Network Engineering Audit
 **Goal**: CAKE configuration, DSCP mapping, steering logic, and measurement methodology are verified correct on the production VM
@@ -90,7 +96,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 112. Foundation Scan | 0/TBD | Not started | - |
+| 112. Foundation Scan | 0/4 | Planning complete | - |
 | 113. Network Engineering Audit | 0/TBD | Not started | - |
 | 114. Code Quality & Safety | 0/TBD | Not started | - |
 | 115. Operational Hardening | 0/TBD | Not started | - |
