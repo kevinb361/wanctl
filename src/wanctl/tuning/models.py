@@ -69,6 +69,7 @@ class TuningConfig:
     warmup_hours: int
     max_step_pct: float
     bounds: dict[str, SafetyBounds]
+    exclude_params: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)

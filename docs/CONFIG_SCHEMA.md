@@ -642,6 +642,7 @@ The tuning engine runs a 4-layer round-robin rotation (one layer per tuning cycl
 | `lookback_hours` | int   | `24`    | Hours of metrics history to analyze (1-168)           |
 | `warmup_hours`   | int   | `1`     | Minimum hours of data before first tuning run (1-24)  |
 | `max_step_pct`   | float | `10`    | Maximum percentage change per tuning cycle (1.0-50.0) |
+| `exclude_params` | list  | `[]`    | Parameter names to skip during autotuning             |
 | `bounds`         | map   | `{}`    | Per-parameter safety bounds (see below)               |
 
 #### `tuning.bounds` (required when enabled)
@@ -678,6 +679,9 @@ tuning:
   lookback_hours: 24 # Query last 24h of metrics
   warmup_hours: 1 # Wait 1h before first tuning
   max_step_pct: 10 # Max 10% change per cycle
+  exclude_params: # Optional: skip autotuning for these params
+    - target_bloat_ms # Recommended for DOCSIS cable links
+    - warn_bloat_ms # See docs/CABLE_TUNING.md
   bounds:
     target_bloat_ms: { min: 3, max: 30 }
     warn_bloat_ms: { min: 10, max: 100 }

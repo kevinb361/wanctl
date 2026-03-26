@@ -1059,6 +1059,17 @@ class Config(BaseConfig):
             self.tuning_config = None
             return
 
+        # Parse exclude_params list (parameters to skip during autotuning)
+        raw_exclude = tuning.get("exclude_params", [])
+        if not isinstance(raw_exclude, list):
+            logger.warning(
+                f"tuning.exclude_params must be a list, got {type(raw_exclude).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return
+        exclude_params = frozenset(str(p) for p in raw_exclude)
+
         # Parse bounds dict
         raw_bounds = tuning.get("bounds", {})
         if not isinstance(raw_bounds, dict):
@@ -1115,10 +1126,12 @@ class Config(BaseConfig):
             warmup_hours=warmup_hours,
             max_step_pct=max_step_pct,
             bounds=bounds,
+            exclude_params=exclude_params,
         )
+        exclude_msg = f", exclude={sorted(exclude_params)}" if exclude_params else ""
         logger.info(
             f"Tuning: enabled (cadence={cadence_sec}s, lookback={lookback_hours}h, "
-            f"{len(bounds)} bounds)"
+            f"{len(bounds)} bounds{exclude_msg})"
         )
 
     def _load_specific_fields(self) -> None:
@@ -4072,16 +4085,24 @@ def main() -> int | None:
                         ]
                         wc._tuning_layer_index += 1
 
-                        # Step 3: Filter locked parameters from active layer
+                        # Step 3: Filter excluded and locked parameters from active layer
+                        excluded = tuning_config.exclude_params
                         active_strategies = [
                             (pname, sfn)
                             for pname, sfn in active_layer
-                            if not is_parameter_locked(
+                            if pname not in excluded
+                            and not is_parameter_locked(
                                 wc._parameter_locks, pname
                             )
                         ]
                         for pname, _ in active_layer:
-                            if is_parameter_locked(
+                            if pname in excluded:
+                                wan_info["logger"].debug(
+                                    "[TUNING] %s: %s excluded via config",
+                                    wc.wan_name,
+                                    pname,
+                                )
+                            elif is_parameter_locked(
                                 wc._parameter_locks, pname
                             ):
                                 wan_info["logger"].info(

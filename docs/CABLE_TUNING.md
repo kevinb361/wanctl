@@ -28,6 +28,7 @@ The correct approach for cable is:
 CAKE's AQM (Cobalt) is the primary anti-bufferbloat mechanism. It handles packet-level queue management instantly. The autorate controller's job is capacity tracking — detecting when the ISP-side bandwidth changes (DOCSIS node congestion) and adjusting the shaped rate to match.
 
 With gentle YELLOW decay:
+
 - **Jitter event (200ms):** 4 cycles × 3% = ~12% total. Rate: 940 → 830 Mbps. Barely noticeable.
 - **Real congestion (2s):** 40 cycles × 3% = steady ramp-down. Rate: 940 → 290 Mbps. Proper response.
 - **Severe congestion:** Escalates to SOFT_RED/RED with firmer 10% decay.
@@ -37,18 +38,18 @@ With gentle YELLOW decay:
 ```yaml
 continuous_monitoring:
   download:
-    factor_down: 0.90          # 10% RED backoff (firm for real congestion)
-    factor_down_yellow: 0.97   # 3% YELLOW decay (gentle — jitter barely moves rates)
-    green_required: 5          # Slower recovery prevents oscillation
+    factor_down: 0.90 # 10% RED backoff (firm for real congestion)
+    factor_down_yellow: 0.97 # 3% YELLOW decay (gentle — jitter barely moves rates)
+    green_required: 5 # Slower recovery prevents oscillation
 
   upload:
-    factor_down: 0.93          # 7% backoff (upload is more sensitive on cable)
-    green_required: 5          # Match download
+    factor_down: 0.93 # 7% backoff (upload is more sensitive on cable)
+    green_required: 5 # Match download
 
   thresholds:
-    target_bloat_ms: 12.0      # Sensitive — catches congestion early
-    warn_bloat_ms: 30.0        # YELLOW→SOFT_RED boundary
-    load_time_constant_sec: 0.25  # Smooths DOCSIS scheduling noise (5 cycles at 50ms)
+    target_bloat_ms: 12.0 # Sensitive — catches congestion early
+    warn_bloat_ms: 30.0 # YELLOW→SOFT_RED boundary
+    load_time_constant_sec: 0.25 # Smooths DOCSIS scheduling noise (5 cycles at 50ms)
 ```
 
 ### Autotuner Bounds for Cable
@@ -57,10 +58,10 @@ continuous_monitoring:
 tuning:
   bounds:
     target_bloat_ms:
-      min: 11.0    # Safe floor with gentle response
+      min: 11.0 # Safe floor with gentle response
       max: 30.0
     warn_bloat_ms:
-      min: 20.0    # Safe floor with gentle response
+      min: 20.0 # Safe floor with gentle response
       max: 80.0
 ```
 
@@ -71,39 +72,53 @@ DSL connections have deterministic latency. Tight thresholds AND aggressive deca
 ```yaml
 # DSL (ATT example) — these would be wrong for cable
 thresholds:
-  target_bloat_ms: 1.4       # DSL can be this tight
+  target_bloat_ms: 1.4 # DSL can be this tight
   warn_bloat_ms: 5.0
 download:
-  factor_down: 0.90          # Aggressive is fine on DSL
-  green_required: 3           # Fast recovery is safe
+  factor_down: 0.90 # Aggressive is fine on DSL
+  green_required: 3 # Fast recovery is safe
 ```
 
 ## Key Metrics
 
 The metric that matters is **latency under load**, not GREEN percentage.
 
-| Metric | Good | Investigate |
-|--------|------|-------------|
-| Bufferbloat grade | A or A+ | B or below |
-| Ping increase under DL load | < 10ms | > 20ms |
-| Ping increase under UL load | < 5ms | > 10ms |
-| YELLOW % (idle) | 20-40% (normal for cable) | > 60% |
-| Rate at idle | Near ceiling | Stuck below ceiling |
+| Metric                      | Good                      | Investigate         |
+| --------------------------- | ------------------------- | ------------------- |
+| Bufferbloat grade           | A or A+                   | B or below          |
+| Ping increase under DL load | < 10ms                    | > 20ms              |
+| Ping increase under UL load | < 5ms                     | > 10ms              |
+| YELLOW % (idle)             | 20-40% (normal for cable) | > 60%               |
+| Rate at idle                | Near ceiling              | Stuck below ceiling |
 
 A cable connection spending 30% of idle time in YELLOW with 3% decay is healthy — it means the controller is monitoring actively while barely impacting throughput.
 
 ## Autotuner Interaction
 
-The adaptive tuner (v1.20+) will attempt to optimize thresholds based on observed GREEN-state deltas. On cable, this can create a self-tightening spiral:
+The adaptive tuner (v1.20+) will attempt to optimize thresholds based on observed GREEN-state deltas. On cable, this creates a self-tightening spiral:
 
 1. Tight thresholds → less GREEN time
 2. GREEN samples skew toward quietest moments
 3. Tuner sees low GREEN deltas → proposes tighter thresholds
-4. Repeat
+4. Hits bound → waits an hour → tries again
 
-**Mitigation:** Set appropriate `min` bounds on `target_bloat_ms` and `warn_bloat_ms` in the tuner config. With gentle YELLOW decay, lower bounds (11-12ms) are safe because YELLOW barely impacts rates.
+This is a fundamental mismatch: the tuner assumes idle RTT is stable (true for DSL/fiber, false for DOCSIS). Threshold autotuning is **not appropriate for cable links**.
 
-If the tuner persistently fights cable jitter despite bounds, disable threshold autotuning for cable WANs while keeping signal processing tuning (Hampel, EWMA) active.
+### Excluding Thresholds from Autotuning
+
+Use `exclude_params` to skip threshold autotuning while keeping signal processing tuning (Hampel, baseline bounds) active:
+
+```yaml
+tuning:
+  enabled: true
+  exclude_params: # Skip autotuning — set by link physics, not adaptive
+    - target_bloat_ms # DOCSIS jitter makes threshold autotuning counterproductive
+    - warn_bloat_ms # See docs/CABLE_TUNING.md for rationale
+```
+
+Excluded parameters are completely skipped — no analysis, no proposals, no DB writes. The tuner continues optimizing Hampel filter settings, baseline bounds, fusion weights, and other parameters that are legitimately adaptive.
+
+**Do not use `exclude_params` on DSL/fiber WANs.** Threshold autotuning works correctly on deterministic links.
 
 ## Tuning Param Persistence
 
