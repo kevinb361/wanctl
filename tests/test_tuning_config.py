@@ -189,6 +189,76 @@ class TestLoadTuningConfigValidation:
         assert "600" in caplog.text or "minimum" in caplog.text.lower()
 
 
+class TestExcludeParams:
+    """Tests for tuning.exclude_params config option."""
+
+    def _make_config_obj(self, data: dict) -> MagicMock:
+        config = MagicMock()
+        config.data = data
+        return config
+
+    def test_default_empty(self):
+        """No exclude_params defaults to empty frozenset."""
+        from wanctl.autorate_continuous import Config
+
+        config = self._make_config_obj({"tuning": {"enabled": True}})
+        Config._load_tuning_config(config)
+        tc = config.tuning_config
+        assert isinstance(tc, TuningConfig)
+        assert tc.exclude_params == frozenset()
+
+    def test_valid_list(self):
+        """exclude_params list is parsed into frozenset."""
+        from wanctl.autorate_continuous import Config
+
+        data = {
+            "tuning": {
+                "enabled": True,
+                "exclude_params": ["target_bloat_ms", "warn_bloat_ms"],
+            }
+        }
+        config = self._make_config_obj(data)
+        Config._load_tuning_config(config)
+        tc = config.tuning_config
+        assert tc.exclude_params == frozenset({"target_bloat_ms", "warn_bloat_ms"})
+
+    def test_non_list_disables(self, caplog):
+        """exclude_params: 'foo' (non-list) warns and disables tuning."""
+        from wanctl.autorate_continuous import Config
+
+        data = {"tuning": {"enabled": True, "exclude_params": "target_bloat_ms"}}
+        config = self._make_config_obj(data)
+        with caplog.at_level(logging.WARNING):
+            Config._load_tuning_config(config)
+        assert config.tuning_config is None
+        assert "must be a list" in caplog.text
+
+    def test_empty_list(self):
+        """exclude_params: [] is valid and results in empty frozenset."""
+        from wanctl.autorate_continuous import Config
+
+        data = {"tuning": {"enabled": True, "exclude_params": []}}
+        config = self._make_config_obj(data)
+        Config._load_tuning_config(config)
+        assert config.tuning_config.exclude_params == frozenset()
+
+    def test_logged_at_startup(self, caplog):
+        """Excluded params are logged in startup message."""
+        from wanctl.autorate_continuous import Config
+
+        data = {
+            "tuning": {
+                "enabled": True,
+                "exclude_params": ["target_bloat_ms"],
+            }
+        }
+        config = self._make_config_obj(data)
+        with caplog.at_level(logging.INFO):
+            Config._load_tuning_config(config)
+        assert "exclude=" in caplog.text
+        assert "target_bloat_ms" in caplog.text
+
+
 class TestTuningParamsSchema:
     """TUNING_PARAMS_SCHEMA creates correct table."""
 
