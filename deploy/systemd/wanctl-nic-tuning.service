@@ -1,0 +1,33 @@
+[Unit]
+Description=wanctl NIC tuning (ring buffers + GRO forwarding + IRQ affinity)
+After=systemd-networkd-wait-online.service
+Before=wanctl@spectrum.service wanctl@att.service steering.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/ethtool -G ens16 rx 4096 tx 4096
+ExecStart=/usr/sbin/ethtool -G ens17 rx 4096 tx 4096
+ExecStart=/usr/sbin/ethtool -G ens27 rx 4096 tx 4096
+ExecStart=/usr/sbin/ethtool -G ens28 rx 4096 tx 4096
+ExecStart=/usr/sbin/ethtool -K ens16 rx-udp-gro-forwarding on
+ExecStart=/usr/sbin/ethtool -K ens17 rx-udp-gro-forwarding on
+ExecStart=/usr/sbin/ethtool -K ens27 rx-udp-gro-forwarding on
+ExecStart=/usr/sbin/ethtool -K ens28 rx-udp-gro-forwarding on
+ExecStart=/bin/bash -c "for irq in $(grep -E 'ens16|ens17' /proc/interrupts | awk '{print $1}' | tr -d ':'); do echo 0 > /proc/irq/$irq/smp_affinity_list; done"
+ExecStart=/bin/bash -c "for irq in $(grep -E 'ens27|ens28' /proc/interrupts | awk '{print $1}' | tr -d ':'); do echo 1 > /proc/irq/$irq/smp_affinity_list; done"
+
+# Hardening (limited for root oneshot needing hardware access)
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+NoNewPrivileges=no
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

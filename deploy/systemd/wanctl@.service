@@ -1,0 +1,70 @@
+[Unit]
+Description=wanctl Adaptive CAKE Autorate Daemon - %i
+Documentation=https://github.com/kevinb361/wanctl
+After=network-online.target systemd-networkd-wait-online.service
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+[Service]
+Type=simple
+User=wanctl
+Group=wanctl
+WorkingDirectory=/opt/wanctl
+ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml
+Restart=on-failure
+RestartSec=5s
+WatchdogSec=30s
+Environment=PYTHONPATH=/opt
+Environment=WANCTL_STATE_DIR=/var/lib/wanctl
+Environment=WANCTL_LOG_DIR=/var/log/wanctl
+Environment=WANCTL_RUN_DIR=/run/wanctl
+EnvironmentFile=-/etc/wanctl/secrets
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wanctl-%i
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=yes
+
+# Filesystem protection
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/wanctl /var/log/wanctl /run/wanctl
+
+# Kernel protection
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+LockPersonality=yes
+
+# Capability bounding -- only keep what wanctl needs
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+
+# Namespace and address family restrictions
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+
+# System call filtering -- block dangerous syscall classes
+# Keep @privileged (cap_net_raw), @raw-io (ICMP sockets), @resources (process mgmt)
+SystemCallArchitectures=native
+SystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @reboot @swap
+
+# Memory and process
+MemoryDenyWriteExecute=yes
+UMask=0027
+
+# Process visibility
+ProtectProc=invisible
+ProcSubset=pid
+
+# Device ACL -- empty (no device access needed)
+DeviceAllow=
+
+[Install]
+WantedBy=multi-user.target
