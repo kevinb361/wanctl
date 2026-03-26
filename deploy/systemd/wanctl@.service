@@ -66,5 +66,12 @@ ProcSubset=pid
 # Device ACL -- empty (no device access needed)
 DeviceAllow=
 
+# Resource limits (sized from production observation 2026-03-26)
+# Spectrum cgroup=338MB RSS=64MB, ATT cgroup=64MB RSS=63MB, Tasks=3-6
+MemoryMax=512M
+MemoryHigh=384M
+TasksMax=64
+LimitNOFILE=1024
+
 [Install]
 WantedBy=multi-user.target
