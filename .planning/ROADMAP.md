@@ -96,7 +96,13 @@ Plans:
 3. Resource limits (MemoryMax, TasksMax, LimitNOFILE) set on all 3 service units and verified under load
 4. Backup/recovery procedure documented covering configs, metrics.db, VM snapshots, and rollback to previous state
 5. Production dependency lock file (requirements-production.txt) created from running VM and circuit breaker config verified consistent across all 3 units
-   **Plans**: TBD
+   **Plans:** 3 plans
+
+Plans:
+
+- [ ] 115-01-PLAN.md -- systemd unit hardening + circuit breaker consistency (OPSEC-01, OPSEC-06)
+- [ ] 115-02-PLAN.md -- Dependency lock + backup/recovery runbook (OPSEC-04, OPSEC-05)
+- [ ] 115-03-PLAN.md -- Resource limits + NIC persistence + reboot verification (OPSEC-02, OPSEC-03)
 
 ### Phase 116: Test & Documentation Hygiene
 
@@ -122,7 +128,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
 | 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
 | 114. Code Quality & Safety        | 3/3            | Complete    | 2026-03-26 |
-| 115. Operational Hardening        | 0/TBD          | Not started | -          |
+| 115. Operational Hardening        | 0/3            | Not started | -          |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
 
 <details>
