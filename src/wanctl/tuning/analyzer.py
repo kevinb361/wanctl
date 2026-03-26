@@ -122,9 +122,7 @@ def run_tuning_analysis(
 
         bounds = tuning_config.bounds.get(param_name)
         if bounds is None:
-            logger.debug(
-                "[TUNING] %s: no bounds for %s, skipping", wan_name, param_name
-            )
+            logger.debug("[TUNING] %s: no bounds for %s, skipping", wan_name, param_name)
             continue
 
         try:

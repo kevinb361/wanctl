@@ -129,8 +129,8 @@ def mock_controller():
     controller._sustained_sec = 60
 
     # Bind the real method
-    controller._check_congestion_alerts = (
-        WANController._check_congestion_alerts.__get__(controller, WANController)
+    controller._check_congestion_alerts = WANController._check_congestion_alerts.__get__(
+        controller, WANController
     )
 
     return controller

@@ -80,14 +80,13 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
         logger.debug("Using SSH transport (paramiko)")
         return RouterOSSSH.from_config(config, logger)
 
-    elif transport == "rest":
+    if transport == "rest":
         from wanctl.routeros_rest import RouterOSREST
 
         logger.debug("Using REST API transport")
         return RouterOSREST.from_config(config, logger)
 
-    else:
-        raise ValueError(f"Unsupported router transport: {transport}")
+    raise ValueError(f"Unsupported router transport: {transport}")
 
 
 def _resolve_password(config: Any) -> str:
@@ -103,7 +102,12 @@ def _resolve_password(config: Any) -> str:
         Resolved plaintext password string
     """
     password = getattr(config, "router_password", None) or ""
-    if password and isinstance(password, str) and password.startswith("${") and password.endswith("}"):
+    if (
+        password
+        and isinstance(password, str)
+        and password.startswith("${")
+        and password.endswith("}")
+    ):
         env_var = password[2:-1]
         password = os.environ.get(env_var, "")
     return password
@@ -147,7 +151,7 @@ def _create_transport_with_password(
     """
     if transport == "ssh":
         return RouterOSSSH.from_config(config, logger)
-    elif transport == "rest":
+    if transport == "rest":
         from wanctl.routeros_rest import RouterOSREST
 
         return RouterOSREST(
@@ -159,8 +163,7 @@ def _create_transport_with_password(
             timeout=getattr(config, "timeout_ssh_command", 15),
             logger=logger,
         )
-    else:
-        raise ValueError(f"Unsupported transport: {transport}")
+    raise ValueError(f"Unsupported transport: {transport}")
 
 
 def _create_transport(transport: str, config: Any, logger: logging.Logger) -> RouterClient:
@@ -181,12 +184,11 @@ def _create_transport(transport: str, config: Any, logger: logging.Logger) -> Ro
     """
     if transport == "ssh":
         return RouterOSSSH.from_config(config, logger)
-    elif transport == "rest":
+    if transport == "rest":
         from wanctl.routeros_rest import RouterOSREST
 
         return RouterOSREST.from_config(config, logger)
-    else:
-        raise ValueError(f"Unsupported transport: {transport}")
+    raise ValueError(f"Unsupported transport: {transport}")
 
 
 # Re-probe constants: after failover, periodically try primary transport
@@ -286,9 +288,7 @@ class FailoverRouterClient:
         try:
             result = self._get_primary().run_cmd(cmd, capture=capture, timeout=timeout)
             # Primary succeeded -- restore it
-            self.logger.info(
-                f"Primary transport ({self.primary_transport}) restored successfully"
-            )
+            self.logger.info(f"Primary transport ({self.primary_transport}) restored successfully")
             self._using_fallback = False
             self._probe_interval = _REPROBE_INITIAL_INTERVAL  # reset backoff
             return result

@@ -160,9 +160,7 @@ class TestDockerfileDependencyContract:
 
         for glob_pattern in source_globs:
             matches = list(_PROJECT_ROOT.glob(glob_pattern))
-            assert matches, (
-                f"Dockerfile COPY source {glob_pattern!r} resolves to zero files"
-            )
+            assert matches, f"Dockerfile COPY source {glob_pattern!r} resolves to zero files"
 
     def test_no_storage_copy_in_dockerfile(self):
         """Storage module exists locally but is NOT deployed via Dockerfile COPY.
@@ -177,9 +175,7 @@ class TestDockerfileDependencyContract:
 
         # Verify storage module does exist (so this test stays meaningful)
         storage_dir = _PROJECT_ROOT / "src" / "wanctl" / "storage"
-        assert storage_dir.is_dir(), (
-            "Storage module no longer exists -- this test can be removed"
-        )
+        assert storage_dir.is_dir(), "Storage module no longer exists -- this test can be removed"
 
         assert not storage_copies, (
             f"Dockerfile copies storage module (not deployed): {storage_copies}"
@@ -206,8 +202,7 @@ class TestRuntimeDependencyVersions:
             importlib.import_module(import_name)
         except ImportError:
             pytest.fail(
-                f"Runtime dependency {pkg_name!r} (import as {import_name!r}) "
-                f"is not importable"
+                f"Runtime dependency {pkg_name!r} (import as {import_name!r}) is not importable"
             )
 
     @pytest.mark.parametrize(

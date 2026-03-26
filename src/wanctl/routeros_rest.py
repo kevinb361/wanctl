@@ -211,8 +211,7 @@ class RouterOSREST:
                 import json
 
                 return 0, json.dumps(result), ""
-            else:
-                return 1, "", "Command failed"
+            return 1, "", "Command failed"
 
         except requests.RequestException as e:
             self.logger.warning(f"REST API error: {e}")
@@ -247,8 +246,7 @@ class RouterOSREST:
                     if result is None:
                         return None
             return {"status": "ok"}
-        else:
-            return self._execute_single_command(cmd, timeout=timeout_val)
+        return self._execute_single_command(cmd, timeout=timeout_val)
 
     def _execute_single_command(
         self, cmd: str, timeout: int | None = None
@@ -268,15 +266,14 @@ class RouterOSREST:
         # Parse /queue tree commands
         if cmd.startswith("/queue tree set"):
             return self._handle_queue_tree_set(cmd, timeout=timeout_val)
-        elif "reset-counters" in cmd and "/queue" in cmd:
+        if "reset-counters" in cmd and "/queue" in cmd:
             return self._handle_queue_reset_counters(cmd, timeout=timeout_val)
-        elif cmd.startswith("/queue tree print") or cmd.startswith("/queue/tree print"):
+        if cmd.startswith("/queue tree print") or cmd.startswith("/queue/tree print"):
             return self._handle_queue_tree_print(cmd, timeout=timeout_val)
-        elif cmd.startswith("/ip firewall mangle"):
+        if cmd.startswith("/ip firewall mangle"):
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
-        else:
-            self.logger.warning(f"Unsupported command for REST API: {cmd}")
-            return None
+        self.logger.warning(f"Unsupported command for REST API: {cmd}")
+        return None
 
     def _parse_find_name(self, cmd: str) -> str | None:
         """Extract queue name from [find name="..."] pattern.
@@ -367,11 +364,10 @@ class RouterOSREST:
             if resp.ok:
                 self.logger.debug(f"Queue {queue_name} updated: {params}")
                 return {"status": "ok", "queue": queue_name}
-            else:
-                self.logger.error(
-                    f"Failed to update queue {queue_name}: {resp.status_code} {resp.text}"
-                )
-                return None
+            self.logger.error(
+                f"Failed to update queue {queue_name}: {resp.status_code} {resp.text}"
+            )
+            return None
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error updating queue: {e}")
@@ -420,11 +416,10 @@ class RouterOSREST:
             if resp.ok:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
                 return {"status": "ok", "queue": queue_name}
-            else:
-                self.logger.error(
-                    f"Failed to reset counters for {queue_name}: {resp.status_code} {resp.text}"
-                )
-                return None
+            self.logger.error(
+                f"Failed to reset counters for {queue_name}: {resp.status_code} {resp.text}"
+            )
+            return None
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error resetting counters: {e}")
@@ -456,9 +451,8 @@ class RouterOSREST:
 
             if resp.ok:
                 return resp.json()
-            else:
-                self.logger.error(f"Failed to get queue: {resp.status_code}")
-                return None
+            self.logger.error(f"Failed to get queue: {resp.status_code}")
+            return None
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error: {e}")
@@ -506,9 +500,8 @@ class RouterOSREST:
             if resp.ok:
                 self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
                 return {"status": "ok", "comment": comment, "disabled": disabled}
-            else:
-                self.logger.error(f"Failed to update mangle rule: {resp.status_code}")
-                return None
+            self.logger.error(f"Failed to update mangle rule: {resp.status_code}")
+            return None
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error: {e}")
@@ -638,9 +631,8 @@ class RouterOSREST:
             if resp.ok:
                 self.logger.debug(f"Queue {queue_name} limit set to {max_limit}")
                 return True
-            else:
-                self.logger.error(f"Failed to set queue limit: {resp.status_code}")
-                return False
+            self.logger.error(f"Failed to set queue limit: {resp.status_code}")
+            return False
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error: {e}")
@@ -744,11 +736,8 @@ class RouterOSREST:
             if resp.ok:
                 self.logger.debug(f"Queue type {type_name} updated: {params}")
                 return True
-            else:
-                self.logger.error(
-                    f"Failed to set queue type params: {resp.status_code}"
-                )
-                return False
+            self.logger.error(f"Failed to set queue type params: {resp.status_code}")
+            return False
         except requests.RequestException as e:
             self.logger.error(f"REST API error: {e}")
             return False

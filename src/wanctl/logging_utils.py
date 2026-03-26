@@ -136,8 +136,7 @@ def _create_formatter(log_format: str, wan_name: str) -> logging.Formatter:
     """
     if log_format == "json":
         return JSONFormatter()
-    else:
-        return logging.Formatter(f"%(asctime)s [{wan_name}] [%(levelname)s] %(message)s")
+    return logging.Formatter(f"%(asctime)s [{wan_name}] [%(levelname)s] %(message)s")
 
 
 def setup_logging(
@@ -214,9 +213,7 @@ def setup_logging(
 
     if debug and hasattr(config, "debug_log"):
         # Debug mode: debug file + DEBUG-level console
-        dfh = RotatingFileHandler(
-            config.debug_log, maxBytes=max_bytes, backupCount=backup_count
-        )
+        dfh = RotatingFileHandler(config.debug_log, maxBytes=max_bytes, backupCount=backup_count)
         dfh.setLevel(logging.DEBUG)
         dfh.setFormatter(formatter)
         logger.addHandler(dfh)

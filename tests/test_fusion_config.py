@@ -16,7 +16,6 @@ import yaml
 
 from wanctl.autorate_continuous import Config
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
@@ -152,7 +151,7 @@ class TestFusionConfig:
         """INFO log contains icmp_weight and irtt_weight values."""
         autorate_config_dict["fusion"] = {"icmp_weight": 0.6}
         with caplog.at_level(logging.INFO):
-            config = _make_config(tmp_path, autorate_config_dict)
+            _make_config(tmp_path, autorate_config_dict)
         assert "icmp_weight=0.6" in caplog.text
         assert "irtt_weight=0.4" in caplog.text
 
@@ -177,9 +176,7 @@ class TestFusionConfig:
         config = _make_config(tmp_path, autorate_config_dict)
         assert config.fusion_config["enabled"] is False
 
-    def test_enabled_non_bool_warns_defaults_false(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_enabled_non_bool_warns_defaults_false(self, tmp_path, autorate_config_dict, caplog):
         """fusion.enabled='yes' (string) warns and defaults to False."""
         autorate_config_dict["fusion"] = {"enabled": "yes"}
         with caplog.at_level(logging.WARNING):

@@ -184,9 +184,8 @@ def check_command_success(
     if rc == 0:
         logger.debug(f"{operation} succeeded: {cmd}")
         return True
-    else:
-        logger.error(f"Failed {operation}: {cmd} -> {err}")
-        return False
+    logger.error(f"Failed {operation}: {cmd} -> {err}")
+    return False
 
 
 def safe_parse_output(
@@ -309,12 +308,11 @@ def extract_field_value(
         # Convert to requested type
         if field_type is int:
             return int(value_str)
-        elif field_type is float:
+        if field_type is float:
             return float(value_str)
-        elif field_type is str:
+        if field_type is str:
             return value_str
-        else:
-            return field_type(value_str)
+        return field_type(value_str)
 
     except (ValueError, TypeError) as e:
         logger.error(

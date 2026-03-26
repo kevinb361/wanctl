@@ -30,19 +30,21 @@ def _make_session_request_delegate(session: MagicMock):
     This allows existing tests that set up session.get/patch/post to continue
     working after the code was changed to use session.request(method, url, ...).
     """
+
     def _request(method: str, url: str, **kwargs):
         method_upper = method.upper()
         if method_upper == "GET":
             return session.get(url, **kwargs)
-        elif method_upper == "PATCH":
+        if method_upper == "PATCH":
             return session.patch(url, **kwargs)
-        elif method_upper == "POST":
+        if method_upper == "POST":
             return session.post(url, **kwargs)
-        elif method_upper == "PUT":
+        if method_upper == "PUT":
             return session.put(url, **kwargs)
-        elif method_upper == "DELETE":
+        if method_upper == "DELETE":
             return session.delete(url, **kwargs)
         raise ValueError(f"Unsupported method: {method}")
+
     return _request
 
 
@@ -1104,7 +1106,9 @@ class TestSSLWarningSuppressionPerSession:
             )
         client._session = mock_session
 
-        result = client._request("PATCH", "https://example.com/rest/queue/tree/*1", json={"max-limit": "500"}, timeout=15)
+        result = client._request(
+            "PATCH", "https://example.com/rest/queue/tree/*1", json={"max-limit": "500"}, timeout=15
+        )
 
         mock_session.request.assert_called_once_with(
             "PATCH", "https://example.com/rest/queue/tree/*1", json={"max-limit": "500"}, timeout=15

@@ -38,6 +38,4 @@ def check_cleanup_deadline(
     if elapsed > 5.0:
         logger.warning(f"Slow cleanup step: {step_name} took {elapsed:.1f}s")
     if current > deadline:
-        logger.error(
-            f"Cleanup deadline exceeded ({timeout_seconds}s) after {step_name}"
-        )
+        logger.error(f"Cleanup deadline exceeded ({timeout_seconds}s) after {step_name}")

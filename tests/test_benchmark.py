@@ -477,9 +477,7 @@ class TestPrerequisites:
 
     @patch("wanctl.benchmark.check_server_connectivity")
     @patch("wanctl.benchmark.shutil.which")
-    def test_server_unreachable(
-        self, mock_which: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_server_unreachable(self, mock_which: MagicMock, mock_server: MagicMock) -> None:
         """Both binaries present but server unreachable."""
         from wanctl.benchmark import check_prerequisites
 
@@ -544,9 +542,7 @@ class TestDaemonWarning:
 
     @patch("wanctl.benchmark.read_lock_pid")
     @patch("wanctl.benchmark.glob.glob")
-    def test_lock_no_pid(
-        self, mock_glob: MagicMock, mock_read_pid: MagicMock
-    ) -> None:
+    def test_lock_no_pid(self, mock_glob: MagicMock, mock_read_pid: MagicMock) -> None:
         """Lock file exists but PID cannot be read: not running."""
         from wanctl.benchmark import check_daemon_running
 
@@ -1076,9 +1072,7 @@ class TestMain:
         mock_daemon.return_value = (False, "")
         mock_run.return_value = _make_benchmark_result()
 
-        with patch(
-            "wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--server", "custom.host"]
-        ):
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark", "--server", "custom.host"]):
             main()
 
         mock_prereqs.assert_called_once_with("custom.host")
@@ -1153,7 +1147,9 @@ class TestStoreBenchmark:
         result = _make_benchmark_result()
         # Use a path under /dev/null to trigger error
         row_id = store_benchmark(
-            result, wan_name="spectrum", daemon_running=False,
+            result,
+            wan_name="spectrum",
+            daemon_running=False,
             db_path=Path("/dev/null/impossible/test.db"),
         )
         assert row_id is None
@@ -1189,8 +1185,11 @@ class TestStoreBenchmark:
         result = _make_benchmark_result()
         db = tmp_path / "test.db"
         store_benchmark(
-            result, wan_name="spectrum", daemon_running=False,
-            label="before-fix", db_path=db,
+            result,
+            wan_name="spectrum",
+            daemon_running=False,
+            label="before-fix",
+            db_path=db,
         )
 
         conn = sqlite3.connect(db)
@@ -1218,7 +1217,10 @@ class TestQueryBenchmarks:
     """Verify query_benchmarks() reads stored benchmark results with filters."""
 
     def _insert_benchmark(
-        self, db: Path, wan: str = "spectrum", ts: str = "2026-03-15T12:00:00+00:00",
+        self,
+        db: Path,
+        wan: str = "spectrum",
+        ts: str = "2026-03-15T12:00:00+00:00",
         label: str | None = None,
     ) -> int:
         """Helper to insert a benchmark row and return its ID."""
@@ -1226,8 +1228,11 @@ class TestQueryBenchmarks:
 
         result = _make_benchmark_result(timestamp=ts)
         row_id = store_benchmark(
-            result, wan_name=wan, daemon_running=False,
-            label=label, db_path=db,
+            result,
+            wan_name=wan,
+            daemon_running=False,
+            label=label,
+            db_path=db,
         )
         assert row_id is not None
         return row_id
@@ -1580,9 +1585,7 @@ class TestMainAutoStore:
 
         # stderr is mocked, but print(file=sys.stderr) goes to mock_stderr.write
         # Check the write calls
-        stderr_writes = [
-            str(call) for call in mock_stderr.write.call_args_list
-        ]
+        stderr_writes = [str(call) for call in mock_stderr.write.call_args_list]
         assert any("Result stored (#42)" in w for w in stderr_writes)
 
     @patch("wanctl.benchmark.store_benchmark")
@@ -1769,11 +1772,16 @@ class TestComputeDeltas:
         deltas = compute_deltas(before, after)
 
         expected_keys = {
-            "download_latency_avg", "download_latency_p50",
-            "download_latency_p95", "download_latency_p99",
-            "upload_latency_avg", "upload_latency_p50",
-            "upload_latency_p95", "upload_latency_p99",
-            "download_throughput", "upload_throughput",
+            "download_latency_avg",
+            "download_latency_p50",
+            "download_latency_p95",
+            "download_latency_p99",
+            "upload_latency_avg",
+            "upload_latency_p50",
+            "upload_latency_p95",
+            "upload_latency_p99",
+            "download_throughput",
+            "upload_throughput",
             "baseline_rtt",
         }
         assert set(deltas.keys()) == expected_keys
@@ -1983,9 +1991,7 @@ class TestRunCompare:
         captured = capsys.readouterr()
         assert "2" in captured.err or "two" in captured.err.lower()
 
-    def test_error_missing_id(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_error_missing_id(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Specific ID not found: error and return 1."""
         from wanctl.benchmark import main
 
@@ -2058,9 +2064,7 @@ class TestRunCompare:
         captured = capsys.readouterr()
         assert "duration" in captured.err.lower() or "Duration" in captured.err
 
-    def test_json_output(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_json_output(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """--json outputs structured JSON with before/after/deltas."""
         from wanctl.benchmark import main
 
@@ -2181,9 +2185,7 @@ class TestRunHistory:
         assert "spectrum" in captured.out
         assert "A+" in captured.out
 
-    def test_wan_filter(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_wan_filter(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """--wan filters by WAN name."""
         from wanctl.benchmark import main, store_benchmark
 
@@ -2208,9 +2210,7 @@ class TestRunHistory:
         for line in data_lines:
             assert "spectrum" not in line
 
-    def test_json_output(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_json_output(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """--json outputs list of result dicts."""
         from wanctl.benchmark import main
 
@@ -2257,9 +2257,7 @@ class TestRunHistory:
         captured = capsys.readouterr()
         assert "No benchmark results found" in captured.out
 
-    def test_last_filter(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_last_filter(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """--last filters by time range (recent results only)."""
         from wanctl.benchmark import main, store_benchmark
 

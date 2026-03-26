@@ -59,6 +59,7 @@ def _get_disk_space_status(
             "status": "unknown",
         }
 
+
 if TYPE_CHECKING:
     from wanctl.autorate_continuous import ContinuousAutoRate
     from wanctl.perf_profiler import OperationProfiler
@@ -274,7 +275,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     }
 
                 # Fusion section (FUSE-05) -- always present
-                if not getattr(wan_controller, '_fusion_enabled', False):
+                if not getattr(wan_controller, "_fusion_enabled", False):
                     wan_health["fusion"] = {"enabled": False, "reason": "disabled"}
                 else:
                     irtt_rtt_val: float | None = None
@@ -319,10 +320,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     }
 
                 # Tuning section -- always present (MagicMock safe: check is True)
-                if getattr(wan_controller, '_tuning_enabled', False) is not True:
+                if getattr(wan_controller, "_tuning_enabled", False) is not True:
                     wan_health["tuning"] = {"enabled": False, "reason": "disabled"}
                 else:
-                    tuning_state = getattr(wan_controller, '_tuning_state', None)
+                    tuning_state = getattr(wan_controller, "_tuning_state", None)
                     if tuning_state is None or tuning_state.last_run_ts is None:
                         wan_health["tuning"] = {
                             "enabled": True,
@@ -333,17 +334,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         }
                     else:
                         # Compute seconds since last run
-                        last_run_ago = round(
-                            time.monotonic() - tuning_state.last_run_ts, 1
-                        )
+                        last_run_ago = round(time.monotonic() - tuning_state.last_run_ts, 1)
 
                         # Build parameters dict with current tuned values
                         params_dict: dict[str, Any] = {}
                         for param_name, current_val in tuning_state.parameters.items():
-                            config = getattr(wan_controller, 'config', None)
+                            config = getattr(wan_controller, "config", None)
                             if config is not None:
-                                tc = getattr(config, 'tuning_config', None)
-                                if tc is not None and hasattr(tc, 'bounds'):
+                                tc = getattr(config, "tuning_config", None)
+                                if tc is not None and hasattr(tc, "bounds"):
                                     bounds = tc.bounds.get(param_name)
                                     if bounds is not None:
                                         params_dict[param_name] = {
@@ -359,13 +358,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         # Build recent adjustments list (last 5 for health)
                         recent = []
                         for adj in tuning_state.recent_adjustments[-5:]:
-                            recent.append({
-                                "parameter": adj.parameter,
-                                "old_value": adj.old_value,
-                                "new_value": adj.new_value,
-                                "confidence": adj.confidence,
-                                "rationale": adj.rationale,
-                            })
+                            recent.append(
+                                {
+                                    "parameter": adj.parameter,
+                                    "old_value": adj.old_value,
+                                    "new_value": adj.new_value,
+                                    "confidence": adj.confidence,
+                                    "rationale": adj.rationale,
+                                }
+                            )
 
                         wan_health["tuning"] = {
                             "enabled": True,
@@ -378,19 +379,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         revert_count = sum(
                             1
                             for adj in tuning_state.recent_adjustments
-                            if adj.rationale
-                            and adj.rationale.startswith("REVERT:")
+                            if adj.rationale and adj.rationale.startswith("REVERT:")
                         )
-                        locks_dict = getattr(
-                            wan_controller, "_parameter_locks", None
-                        )
+                        locks_dict = getattr(wan_controller, "_parameter_locks", None)
                         if isinstance(locks_dict, dict):
                             now_mono = time.monotonic()
-                            locked_params = [
-                                p
-                                for p, exp in locks_dict.items()
-                                if now_mono < exp
-                            ]
+                            locked_params = [p for p, exp in locks_dict.items() if now_mono < exp]
                         else:
                             locked_params = []
                         pending = (
@@ -693,14 +687,13 @@ def _get_current_state(queue_controller: Any) -> str:
     """
     if queue_controller.red_streak > 0:
         return "RED"
-    elif queue_controller.soft_red_streak >= queue_controller.soft_red_required:
+    if queue_controller.soft_red_streak >= queue_controller.soft_red_required:
         return "SOFT_RED"
-    elif queue_controller.green_streak >= queue_controller.green_required:
+    if queue_controller.green_streak >= queue_controller.green_required:
         return "GREEN"
-    elif queue_controller.green_streak > 0:
+    if queue_controller.green_streak > 0:
         return "GREEN"  # Building towards sustained GREEN
-    else:
-        return "YELLOW"
+    return "YELLOW"
 
 
 class HealthCheckServer:

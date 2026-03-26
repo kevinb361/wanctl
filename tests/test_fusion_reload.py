@@ -10,14 +10,12 @@ Requirements: FUSE-02 (disabled-by-default with SIGUSR1 toggle).
 """
 
 import logging
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 import yaml
 
 from wanctl.autorate_continuous import WANController
-
 
 # =============================================================================
 # HELPERS
@@ -51,8 +49,8 @@ def _make_controller(tmp_path, yaml_content, initial_enabled=False, initial_weig
     controller._fusion_icmp_weight = initial_weight
 
     # Bind the real method
-    controller._reload_fusion_config = (
-        WANController._reload_fusion_config.__get__(controller, WANController)
+    controller._reload_fusion_config = WANController._reload_fusion_config.__get__(
+        controller, WANController
     )
 
     return controller
@@ -212,7 +210,7 @@ class TestAutorateSIGUSR1Loop:
 
     def test_sigusr1_calls_reload_on_all_wan_controllers(self, tmp_path):
         """SIGUSR1 triggers _reload_fusion_config on every WANController."""
-        from unittest.mock import patch, call
+        from unittest.mock import patch
 
         # Create two mock WAN controllers
         ctrl1 = MagicMock()
@@ -239,9 +237,7 @@ class TestAutorateSIGUSR1Loop:
 
             if is_reload_requested():
                 for wan_info in wan_controllers:
-                    wan_info["logger"].info(
-                        "SIGUSR1 received, reloading fusion config"
-                    )
+                    wan_info["logger"].info("SIGUSR1 received, reloading fusion config")
                     wan_info["controller"]._reload_fusion_config()
                 reset_reload_state()
 

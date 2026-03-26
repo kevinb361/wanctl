@@ -107,9 +107,7 @@ class TestMeasureContainer:
 
     @patch("scripts.container_network_audit.subprocess.run")
     @patch("scripts.container_network_audit.parse_ping_output")
-    def test_successful_measurement(
-        self, mock_parse: MagicMock, mock_run: MagicMock
-    ) -> None:
+    def test_successful_measurement(self, mock_parse: MagicMock, mock_run: MagicMock) -> None:
         """Successful ping returns stats dict with host key."""
         mock_run.return_value = MagicMock(stdout="time=0.2\ntime=0.3\ntime=0.4\n")
         mock_parse.return_value = [0.2, 0.3, 0.4] * 100
@@ -130,9 +128,7 @@ class TestMeasureContainer:
 
     @patch("scripts.container_network_audit.subprocess.run")
     @patch("scripts.container_network_audit.parse_ping_output")
-    def test_empty_rtts_returns_none(
-        self, mock_parse: MagicMock, mock_run: MagicMock
-    ) -> None:
+    def test_empty_rtts_returns_none(self, mock_parse: MagicMock, mock_run: MagicMock) -> None:
         """Empty parse_ping_output result returns None."""
         mock_run.return_value = MagicMock(stdout="")
         mock_parse.return_value = []
@@ -146,9 +142,7 @@ class TestCaptureTopology:
     @patch("scripts.container_network_audit.subprocess.run")
     def test_successful_capture(self, mock_run: MagicMock) -> None:
         """Successful SSH returns dict with ip_link and ip_addr keys."""
-        mock_run.return_value = MagicMock(
-            stdout="eth0@if67: <BROADCAST> mtu 1500\n", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="eth0@if67: <BROADCAST> mtu 1500\n", returncode=0)
         result = capture_topology("cake-spectrum")
         assert "ip_link" in result
         assert "ip_addr" in result
@@ -262,9 +256,8 @@ class TestDryRun:
     @patch("scripts.container_network_audit.subprocess.run")
     def test_dry_run_does_not_call_subprocess(self, mock_run: MagicMock) -> None:
         """--dry-run flag does not call subprocess."""
-        with patch("builtins.open", MagicMock()):
-            with patch("builtins.print"):
-                main(["--dry-run"])
+        with patch("builtins.open", MagicMock()), patch("builtins.print"):
+            main(["--dry-run"])
         mock_run.assert_not_called()
 
 

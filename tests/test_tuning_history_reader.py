@@ -2,10 +2,7 @@
 
 import sqlite3
 
-import pytest
-
 from wanctl.storage.schema import TUNING_PARAMS_SCHEMA
-
 
 SAMPLE_ROWS = [
     # (timestamp, wan_name, parameter, old_value, new_value, confidence, rationale, data_points, reverted)

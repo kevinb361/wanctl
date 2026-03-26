@@ -18,9 +18,7 @@ from wanctl.tuning.strategies.advanced import (
 )
 
 
-def _make_metrics(
-    metric_name: str, values: list[float], start_ts: int = 1000000
-) -> list[dict]:
+def _make_metrics(metric_name: str, values: list[float], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for a single metric."""
     return [
         {"timestamp": start_ts + i * 60, "metric_name": metric_name, "value": v}
@@ -28,9 +26,7 @@ def _make_metrics(
     ]
 
 
-def _make_multi_metrics(
-    *args: tuple[str, list[float]], start_ts: int = 1000000
-) -> list[dict]:
+def _make_multi_metrics(*args: tuple[str, list[float]], start_ts: int = 1000000) -> list[dict]:
     """Build metrics_data list for multiple metrics aligned by timestamp."""
     result: list[dict] = []
     for metric_name, values in args:
@@ -216,9 +212,7 @@ class TestTuneBaselineBoundsMin:
         # Very low baseline values: p5 * 0.9 would be < 1.0
         values = [0.8 + i * 0.01 for i in range(n)]
         metrics = _make_metrics("wanctl_rtt_baseline_ms", values)
-        result = tune_baseline_bounds_min(
-            metrics, 2.0, self.BOUNDS, "Spectrum"
-        )
+        result = tune_baseline_bounds_min(metrics, 2.0, self.BOUNDS, "Spectrum")
         assert result is not None
         # p5 of these values is near 0.9, * 0.9 = ~0.81, floored to 1.0
         assert result.new_value >= 1.0

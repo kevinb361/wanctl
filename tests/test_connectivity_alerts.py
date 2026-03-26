@@ -64,8 +64,8 @@ def mock_controller():
     controller._sustained_sec = 60  # global default (per-rule overrides to 30)
 
     # Bind the real method
-    controller._check_connectivity_alerts = (
-        WANController._check_connectivity_alerts.__get__(controller, WANController)
+    controller._check_connectivity_alerts = WANController._check_connectivity_alerts.__get__(
+        controller, WANController
     )
 
     return controller
@@ -91,11 +91,11 @@ class TestWanOfflineDetection:
         assert mock_controller._wan_offline_fired is False
 
         # Second call: 31s later, should fire
-        with patch("time.monotonic", return_value=now + 31):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -111,11 +111,11 @@ class TestWanOfflineDetection:
         with patch("time.monotonic", return_value=now):
             mock_controller._check_connectivity_alerts(None)
 
-        with patch("time.monotonic", return_value=now + 35):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 35),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         details = mock_fire.call_args[0][3]
         assert details["duration_sec"] == 35.0
@@ -131,11 +131,11 @@ class TestWanOfflineDetection:
             mock_controller._check_connectivity_alerts(None)
 
         # 10s later, still None but below threshold
-        with patch("time.monotonic", return_value=now + 10):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 10),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_not_called()
         assert mock_controller._wan_offline_fired is False
@@ -149,11 +149,11 @@ class TestWanOfflineDetection:
             mock_controller._check_connectivity_alerts(None)
 
         # At 31s, should fire (per-rule 30s, not global 60s)
-        with patch("time.monotonic", return_value=now + 31):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_called_once()
         assert mock_fire.call_args[0][0] == "wan_offline"
@@ -179,20 +179,20 @@ class TestWanOfflineDetection:
             mock_controller._check_connectivity_alerts(None)
 
         # At 31s, should NOT fire (per-rule is 45s)
-        with patch("time.monotonic", return_value=now + 31):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_not_called()
 
         # At 46s, should fire
-        with patch("time.monotonic", return_value=now + 46):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 46),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_called_once()
 
@@ -226,11 +226,11 @@ class TestWanOfflineDetection:
         mock_controller._wan_offline_fired = False
 
         # At 45s, should re-fire (cooldown expired after 10s)
-        with patch("time.monotonic", return_value=now + 45):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 45),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_called_once()
 
@@ -258,11 +258,11 @@ class TestWanRecovery:
         assert mock_controller._wan_offline_fired is True
 
         # Recover
-        with patch("time.monotonic", return_value=now + 60):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(25.0)
+        with (
+            patch("time.monotonic", return_value=now + 60),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(25.0)
 
         mock_fire.assert_called_once()
         call_args = mock_fire.call_args
@@ -280,11 +280,11 @@ class TestWanRecovery:
         with patch("time.monotonic", return_value=now + 31):
             mock_controller._check_connectivity_alerts(None)
 
-        with patch("time.monotonic", return_value=now + 90):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(28.5)
+        with (
+            patch("time.monotonic", return_value=now + 90),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(28.5)
 
         details = mock_fire.call_args[0][3]
         assert details["outage_duration_sec"] == 90.0
@@ -302,11 +302,11 @@ class TestWanRecovery:
         assert mock_controller._wan_offline_fired is False
 
         # Recover before threshold
-        with patch("time.monotonic", return_value=now + 10):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(25.0)
+        with (
+            patch("time.monotonic", return_value=now + 10),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(25.0)
 
         # No recovery alert should fire
         mock_fire.assert_not_called()
@@ -339,20 +339,20 @@ class TestWanRecovery:
         assert mock_controller._connectivity_offline_start == now + 100
 
         # Must wait full 30s again
-        with patch("time.monotonic", return_value=now + 120):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 120),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_not_called()  # Only 20s into new offline period
 
         # At 131s total (31s into new offline period), fires
-        with patch("time.monotonic", return_value=now + 131):
-            with patch.object(
-                mock_controller.alert_engine, "fire", return_value=True
-            ) as mock_fire:
-                mock_controller._check_connectivity_alerts(None)
+        with (
+            patch("time.monotonic", return_value=now + 131),
+            patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire,
+        ):
+            mock_controller._check_connectivity_alerts(None)
 
         mock_fire.assert_called_once()
         assert mock_fire.call_args[0][0] == "wan_offline"

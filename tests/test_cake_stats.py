@@ -5,7 +5,6 @@ JSON/text parsing, delta calculation, and error handling.
 """
 
 import logging
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -674,9 +673,7 @@ class TestCakeStatsReaderLinuxCake:
         mock_steering_config.router.username = "admin"
         return mock_steering_config
 
-    def test_linux_cake_creates_backend_not_router_client(
-        self, linux_cake_config, logger
-    ):
+    def test_linux_cake_creates_backend_not_router_client(self, linux_cake_config, logger):
         """CakeStatsReader with linux-cake transport creates LinuxCakeBackend, not FailoverRouterClient."""
         mock_backend = MagicMock()
         with (
@@ -707,9 +704,7 @@ class TestCakeStatsReaderLinuxCake:
             assert reader.client is mock_client
             mock_router_factory.assert_called_once()
 
-    def test_linux_cake_read_stats_returns_cake_stats(
-        self, linux_cake_config, logger
-    ):
+    def test_linux_cake_read_stats_returns_cake_stats(self, linux_cake_config, logger):
         """read_stats on linux-cake path returns CakeStats with correct delta fields."""
         mock_backend = MagicMock()
         mock_backend.get_queue_stats.return_value = {
@@ -826,9 +821,7 @@ class TestCakeStatsReaderLinuxCake:
         assert reader.last_tin_stats[0]["dropped_packets"] == 1
         assert reader.last_tin_stats[1]["ecn_marked_packets"] == 1
 
-    def test_linux_cake_returns_none_when_backend_returns_none(
-        self, linux_cake_config, logger
-    ):
+    def test_linux_cake_returns_none_when_backend_returns_none(self, linux_cake_config, logger):
         """When LinuxCakeBackend.get_queue_stats() returns None, read_stats returns None."""
         mock_backend = MagicMock()
         mock_backend.get_queue_stats.return_value = None
@@ -839,9 +832,7 @@ class TestCakeStatsReaderLinuxCake:
 
         assert result is None
 
-    def test_linux_cake_last_tin_stats_initialized_none(
-        self, linux_cake_config, logger
-    ):
+    def test_linux_cake_last_tin_stats_initialized_none(self, linux_cake_config, logger):
         """last_tin_stats is None before any stats read."""
         mock_backend = MagicMock()
         with patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend:
@@ -850,9 +841,7 @@ class TestCakeStatsReaderLinuxCake:
 
         assert reader.last_tin_stats is None
 
-    def test_config_load_error_falls_back_to_routeros(
-        self, mock_steering_config, logger
-    ):
+    def test_config_load_error_falls_back_to_routeros(self, mock_steering_config, logger):
         """If autorate config can't be loaded, fall back to RouterOS path."""
         mock_steering_config.primary_wan_config = Path("/nonexistent/path.yaml")
         mock_steering_config.router = MagicMock()

@@ -74,9 +74,7 @@ class LinuxCakeBackend(RouterBackend):
         self.interface = interface
         self.tc_timeout = tc_timeout
 
-    def _run_tc(
-        self, args: list[str], timeout: float | None = None
-    ) -> tuple[int, str, str]:
+    def _run_tc(self, args: list[str], timeout: float | None = None) -> tuple[int, str, str]:
         """Execute a tc command and return (returncode, stdout, stderr).
 
         Args:
@@ -213,9 +211,7 @@ class LinuxCakeBackend(RouterBackend):
             timeout=self.tc_timeout,
         )
         if rc != 0:
-            self.logger.warning(
-                "tc qdisc show -s failed on %s: %s", self.interface, err
-            )
+            self.logger.warning("tc qdisc show -s failed on %s: %s", self.interface, err)
             return None
 
         cake_entry = self._find_cake_entry(out)
@@ -301,9 +297,7 @@ class LinuxCakeBackend(RouterBackend):
             timeout=self.tc_timeout,
         )
         if rc != 0:
-            self.logger.error(
-                "tc qdisc show failed on %s: %s", self.interface, err
-            )
+            self.logger.error("tc qdisc show failed on %s: %s", self.interface, err)
             return False
 
         cake_entry = self._find_cake_entry(out)
@@ -371,13 +365,9 @@ class LinuxCakeBackend(RouterBackend):
 
         rc, _, err = self._run_tc(cmd_args, timeout=10.0)
         if rc == 0:
-            self.logger.info(
-                "Initialized CAKE on %s: %s", self.interface, " ".join(cmd_args[6:])
-            )
+            self.logger.info("Initialized CAKE on %s: %s", self.interface, " ".join(cmd_args[6:]))
             return True
-        self.logger.error(
-            "Failed to initialize CAKE on %s: %s", self.interface, err
-        )
+        self.logger.error("Failed to initialize CAKE on %s: %s", self.interface, err)
         return False
 
     def validate_cake(self, expected: dict[str, Any]) -> bool:
@@ -406,9 +396,7 @@ class LinuxCakeBackend(RouterBackend):
 
         cake_entry = self._find_cake_entry(out)
         if cake_entry is None:
-            self.logger.error(
-                "No CAKE qdisc found on %s during validation", self.interface
-            )
+            self.logger.error("No CAKE qdisc found on %s during validation", self.interface)
             return False
 
         options = cake_entry.get("options", {})
@@ -428,9 +416,7 @@ class LinuxCakeBackend(RouterBackend):
         return all_match
 
     @classmethod
-    def from_config(
-        cls, config: Any, direction: str = "download"
-    ) -> "LinuxCakeBackend":
+    def from_config(cls, config: Any, direction: str = "download") -> "LinuxCakeBackend":
         """Create LinuxCakeBackend from config object.
 
         Reads interface from cake_params section based on direction.
@@ -450,8 +436,6 @@ class LinuxCakeBackend(RouterBackend):
         interface_key = f"{direction}_interface"
         interface = cake_params.get(interface_key, "")
         if not interface:
-            raise ValueError(
-                f"cake_params.{interface_key} required for linux-cake transport"
-            )
+            raise ValueError(f"cake_params.{interface_key} required for linux-cake transport")
         tc_timeout = config.data.get("timeouts", {}).get("tc_command", 5.0)
         return cls(interface=interface, tc_timeout=tc_timeout)

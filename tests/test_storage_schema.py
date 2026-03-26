@@ -49,7 +49,7 @@ class TestStoredMetrics:
 
     def test_stored_metrics_prometheus_naming(self):
         """Test metric names follow Prometheus naming conventions."""
-        for key in STORED_METRICS.keys():
+        for key in STORED_METRICS:
             # Must start with letter or underscore
             assert key[0].isalpha() or key[0] == "_"
             # Only alphanumeric and underscores
@@ -322,10 +322,25 @@ class TestBenchmarksSchema:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                "2026-03-15T12:00:00+00:00", "spectrum", "A+", "A+",
-                3.2, 2.8, 8.1, 12.4, 3.2, 2.8, 8.1, 12.4,
-                94.2, 11.3, 23.1, "netperf.bufferbloat.net", 60,
-                0, None,
+                "2026-03-15T12:00:00+00:00",
+                "spectrum",
+                "A+",
+                "A+",
+                3.2,
+                2.8,
+                8.1,
+                12.4,
+                3.2,
+                2.8,
+                8.1,
+                12.4,
+                94.2,
+                11.3,
+                23.1,
+                "netperf.bufferbloat.net",
+                60,
+                0,
+                None,
             ),
         )
         memory_db.commit()

@@ -76,9 +76,7 @@ def load_dashboard_config(path: Path | None = None) -> DashboardConfig:
     )
 
 
-def apply_cli_overrides(
-    config: DashboardConfig, args: argparse.Namespace
-) -> DashboardConfig:
+def apply_cli_overrides(config: DashboardConfig, args: argparse.Namespace) -> DashboardConfig:
     """Override config values with non-None CLI arguments.
 
     Args:
@@ -90,15 +88,18 @@ def apply_cli_overrides(
     """
     return DashboardConfig(
         autorate_url=(
-            args.autorate_url if getattr(args, "autorate_url", None) is not None
+            args.autorate_url
+            if getattr(args, "autorate_url", None) is not None
             else config.autorate_url
         ),
         steering_url=(
-            args.steering_url if getattr(args, "steering_url", None) is not None
+            args.steering_url
+            if getattr(args, "steering_url", None) is not None
             else config.steering_url
         ),
         refresh_interval=(
-            args.refresh_interval if getattr(args, "refresh_interval", None) is not None
+            args.refresh_interval
+            if getattr(args, "refresh_interval", None) is not None
             else config.refresh_interval
         ),
         wan_rate_limits=config.wan_rate_limits,

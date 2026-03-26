@@ -80,9 +80,7 @@ def _reload_signal_handler(signum: int, frame: types.FrameType | None) -> None:
     _reload_event.set()
 
 
-def register_signal_handlers(
-    include_sigterm: bool = True, include_sigusr1: bool = True
-) -> None:
+def register_signal_handlers(include_sigterm: bool = True, include_sigusr1: bool = True) -> None:
     """Register signal handlers for graceful shutdown and config reload.
 
     Registers handlers for:

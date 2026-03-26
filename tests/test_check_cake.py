@@ -10,16 +10,12 @@ Covers all phase requirements:
 
 import json
 import os
-import sys
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 
 from wanctl.check_config import CheckResult, Severity
-
 
 # =============================================================================
 # FIXTURES
@@ -573,9 +569,7 @@ class TestMaxLimitDiff:
         errors = [r for r in results if r.severity == Severity.ERROR]
         assert len(errors) == 0
         # Should have an informational message about the difference
-        info_results = [
-            r for r in results if "500000000" in r.message and "940000000" in r.message
-        ]
+        info_results = [r for r in results if "500000000" in r.message and "940000000" in r.message]
         assert len(info_results) >= 1
 
     def test_steering_skips_max_limit(self):
@@ -1050,9 +1044,7 @@ class TestGetQueueTypes:
 
         client = self._make_client()
 
-        with patch.object(
-            client, "_request", side_effect=requests.RequestException("timeout")
-        ):
+        with patch.object(client, "_request", side_effect=requests.RequestException("timeout")):
             result = client.get_queue_types("cake-down-spectrum")
 
         assert result is None
@@ -1409,9 +1401,7 @@ class TestCheckLinkParams:
         )
         assert all(r.category == "Link Params (download)" for r in dl_results)
 
-        ul_results = check_link_params(
-            _optimal_queue_type_data("upload"), "upload", cake_config
-        )
+        ul_results = check_link_params(_optimal_queue_type_data("upload"), "upload", cake_config)
         assert all(r.category == "Link Params (upload)" for r in ul_results)
 
 
@@ -1961,7 +1951,7 @@ class TestExtractChanges:
 
         data = _optimal_queue_type_data("download")
         data["cake-overhead"] = "44"  # Wrong but should be ignored
-        data["cake-rtt"] = "200ms"    # Wrong but should be ignored
+        data["cake-rtt"] = "200ms"  # Wrong but should be ignored
         changes = _extract_changes_for_direction(data, "download", None)
 
         assert "cake-overhead" not in changes
@@ -1981,7 +1971,10 @@ class TestShowDiffTable:
         from wanctl.check_cake import _show_diff_table
 
         changes = {
-            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+            "download": {
+                "cake-nat": ("no", "yes"),
+                "cake-flowmode": ("dual-srchost", "triple-isolate"),
+            },
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
         total = _show_diff_table(changes, queue_names)
@@ -2127,7 +2120,10 @@ class TestApplyChanges:
         client.set_queue_type_params.return_value = True
 
         changes = {
-            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+            "download": {
+                "cake-nat": ("no", "yes"),
+                "cake-flowmode": ("dual-srchost", "triple-isolate"),
+            },
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
         results = _apply_changes(client, changes, queue_names)
@@ -2144,7 +2140,10 @@ class TestApplyChanges:
         client.set_queue_type_params.return_value = True
 
         changes = {
-            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+            "download": {
+                "cake-nat": ("no", "yes"),
+                "cake-flowmode": ("dual-srchost", "triple-isolate"),
+            },
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
         _apply_changes(client, changes, queue_names)
@@ -2163,7 +2162,10 @@ class TestApplyChanges:
         client.set_queue_type_params.return_value = False
 
         changes = {
-            "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("dual-srchost", "triple-isolate")},
+            "download": {
+                "cake-nat": ("no", "yes"),
+                "cake-flowmode": ("dual-srchost", "triple-isolate"),
+            },
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
         results = _apply_changes(client, changes, queue_names)
@@ -2229,9 +2231,19 @@ class TestFixFlow:
 
         def get_queue_stats_side_effect(name):
             if "Download" in name or "down" in name.lower():
-                return {"queue": "cake-down-spectrum", "max-limit": "940000000", "name": name, ".id": "*1"}
+                return {
+                    "queue": "cake-down-spectrum",
+                    "max-limit": "940000000",
+                    "name": name,
+                    ".id": "*1",
+                }
             if "Upload" in name or "up" in name.lower():
-                return {"queue": "cake-up-spectrum", "max-limit": "38000000", "name": name, ".id": "*2"}
+                return {
+                    "queue": "cake-up-spectrum",
+                    "max-limit": "38000000",
+                    "name": name,
+                    ".id": "*2",
+                }
             return None
 
         def get_queue_types_side_effect(name):
@@ -2254,9 +2266,13 @@ class TestFixFlow:
         client = self._make_client()
         data = _autorate_config_data()
 
-        lock_result = CheckResult("Daemon Lock", "lock_check", Severity.ERROR,
-                                  "wanctl daemon is running (PID 1234)",
-                                  suggestion="Stop daemon first")
+        lock_result = CheckResult(
+            "Daemon Lock",
+            "lock_check",
+            Severity.ERROR,
+            "wanctl daemon is running (PID 1234)",
+            suggestion="Stop daemon first",
+        )
 
         with patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_result]):
             results = run_fix(data, "autorate", client)
@@ -2280,7 +2296,11 @@ class TestFixFlow:
             results = run_fix(data, "autorate", client, yes=True)
 
         # Should contain a "nothing to fix" message
-        nothing_results = [r for r in results if "nothing to fix" in r.message.lower() or "optimal" in r.message.lower()]
+        nothing_results = [
+            r
+            for r in results
+            if "nothing to fix" in r.message.lower() or "optimal" in r.message.lower()
+        ]
         assert len(nothing_results) >= 1
         assert nothing_results[0].severity == Severity.PASS
         client.set_queue_type_params.assert_not_called()
@@ -2298,7 +2318,6 @@ class TestFixFlow:
         lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
         call_order = []
 
-        original_save = None
         def mock_save(*args, **kwargs):
             call_order.append("snapshot")
             return tmp_path / "test_snapshot.json"
@@ -2314,7 +2333,7 @@ class TestFixFlow:
             patch("wanctl.check_cake._save_snapshot", side_effect=mock_save) as mock_snap,
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
-            results = run_fix(data, "autorate", client, yes=True)
+            run_fix(data, "autorate", client, yes=True)
 
         mock_snap.assert_called_once()
         assert call_order.index("snapshot") < call_order.index("apply")
@@ -2336,7 +2355,7 @@ class TestFixFlow:
             patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
-            results = run_fix(data, "autorate", client, yes=True)
+            run_fix(data, "autorate", client, yes=True)
 
         client.set_queue_type_params.assert_called_once_with(
             "cake-down-spectrum", {"cake-nat": "yes"}
@@ -2360,7 +2379,7 @@ class TestFixFlow:
             patch("wanctl.check_cake._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
-            results = run_fix(data, "autorate", client, yes=True)
+            run_fix(data, "autorate", client, yes=True)
 
         # Single PATCH call with both params
         assert client.set_queue_type_params.call_count == 1
@@ -2378,7 +2397,9 @@ class TestFixFlow:
         data = _autorate_config_data()
 
         lock_pass = CheckResult("Daemon Lock", "lock_check", Severity.PASS, "No daemon running")
-        verify_result = CheckResult("CAKE Params (download)", "nat", Severity.PASS, "nat: yes (optimal)")
+        verify_result = CheckResult(
+            "CAKE Params (download)", "nat", Severity.PASS, "nat: yes (optimal)"
+        )
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
@@ -2409,7 +2430,7 @@ class TestFixFlow:
             patch("wanctl.check_cake.run_audit", return_value=[]),
             patch("wanctl.check_cake._confirm_apply") as mock_confirm,
         ):
-            results = run_fix(data, "autorate", client, yes=True)
+            run_fix(data, "autorate", client, yes=True)
 
         mock_confirm.assert_not_called()
 
@@ -2452,7 +2473,9 @@ class TestFixFlow:
         with patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]):
             results = run_fix(data, "autorate", client, yes=False, json_mode=True)
 
-        error_results = [r for r in results if r.severity == Severity.ERROR and "--yes" in r.message]
+        error_results = [
+            r for r in results if r.severity == Severity.ERROR and "--yes" in r.message
+        ]
         assert len(error_results) >= 1
         client.set_queue_type_params.assert_not_called()
 
@@ -2537,7 +2560,9 @@ class TestFixCLI:
         config_file = _write_config(tmp_path, data)
 
         mock_client = MagicMock()
-        error_result = CheckResult("Fix Applied (download)", "nat", Severity.ERROR, "Failed to apply")
+        error_result = CheckResult(
+            "Fix Applied (download)", "nat", Severity.ERROR, "Failed to apply"
+        )
 
         with (
             patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
@@ -2631,8 +2656,9 @@ class TestFixJson:
         config_file = _write_config(tmp_path, data)
 
         mock_client = MagicMock()
-        error_result = CheckResult("Fix", "mode", Severity.ERROR,
-                                   "Fix in --json mode requires --yes flag")
+        error_result = CheckResult(
+            "Fix", "mode", Severity.ERROR, "Fix in --json mode requires --yes flag"
+        )
 
         with (
             patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),

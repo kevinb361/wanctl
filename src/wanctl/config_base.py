@@ -297,9 +297,7 @@ class BaseConfig:
                         f"YAML parse error in {config_path} at line {mark.line + 1}, "
                         f"column {mark.column + 1}: {e.problem}"
                     ) from e
-                raise ConfigValidationError(
-                    f"YAML parse error in {config_path}: {e}"
-                ) from e
+                raise ConfigValidationError(f"YAML parse error in {config_path}: {e}") from e
 
         # Validate schema version (defaults to 1.0 for legacy configs)
         self._validate_schema_version()

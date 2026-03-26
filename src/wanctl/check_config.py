@@ -357,9 +357,7 @@ def validate_schema_fields(data: dict) -> list[CheckResult]:
                 field_spec.get("choices"),
                 field_spec.get("default"),
             )
-            results.append(
-                CheckResult("Schema Validation", path, Severity.PASS, f"{path}: valid")
-            )
+            results.append(CheckResult("Schema Validation", path, Severity.PASS, f"{path}: valid"))
         except ConfigValidationError as e:
             results.append(CheckResult("Schema Validation", path, Severity.ERROR, str(e)))
 
@@ -490,9 +488,7 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
                 )
             )
         except ConfigValidationError as e:
-            results.append(
-                CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e))
-            )
+            results.append(CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e)))
 
     return results
 
@@ -784,15 +780,14 @@ def detect_config_type(data: dict) -> str:
             "ambiguous config type: contains both 'topology' and 'continuous_monitoring' keys. "
             "Use --type autorate|steering"
         )
-    elif has_topology:
+    if has_topology:
         return "steering"
-    elif has_continuous:
+    if has_continuous:
         return "autorate"
-    else:
-        raise ValueError(
-            "could not determine config type: no 'topology' or 'continuous_monitoring' key found. "
-            "Use --type autorate|steering"
-        )
+    raise ValueError(
+        "could not determine config type: no 'topology' or 'continuous_monitoring' key found. "
+        "Use --type autorate|steering"
+    )
 
 
 # =============================================================================
@@ -821,9 +816,7 @@ def validate_steering_schema_fields(data: dict) -> list[CheckResult]:
                 field_spec.get("choices"),
                 field_spec.get("default"),
             )
-            results.append(
-                CheckResult("Schema Validation", path, Severity.PASS, f"{path}: valid")
-            )
+            results.append(CheckResult("Schema Validation", path, Severity.PASS, f"{path}: valid"))
         except ConfigValidationError as e:
             results.append(CheckResult("Schema Validation", path, Severity.ERROR, str(e)))
 
@@ -1242,9 +1235,7 @@ def _use_color(no_color: bool) -> bool:
         return False
     if os.environ.get("NO_COLOR"):
         return False
-    if not sys.stdout.isatty():
-        return False
-    return True
+    return sys.stdout.isatty()
 
 
 def _marker(severity: Severity, color: bool) -> str:
@@ -1321,7 +1312,9 @@ def format_results(
     else:
         summary_word = "PASS"
 
-    summary = f"\nResult: {summary_word} ({type_label}) ({error_count} errors, {warn_count} warnings)"
+    summary = (
+        f"\nResult: {summary_word} ({type_label}) ({error_count} errors, {warn_count} warnings)"
+    )
     if color:
         if error_count > 0:
             summary = (
@@ -1330,13 +1323,11 @@ def format_results(
             )
         elif warn_count > 0:
             summary = (
-                f"\n{_YELLOW}{_BOLD}Result: WARN{_RESET} ({type_label}) "
-                f"({warn_count} warnings)"
+                f"\n{_YELLOW}{_BOLD}Result: WARN{_RESET} ({type_label}) ({warn_count} warnings)"
             )
         else:
             summary = (
-                f"\n{_GREEN}{_BOLD}Result: PASS{_RESET} ({type_label}) "
-                f"(no errors, no warnings)"
+                f"\n{_GREEN}{_BOLD}Result: PASS{_RESET} ({type_label}) (no errors, no warnings)"
             )
     lines.append(summary)
 
@@ -1407,15 +1398,9 @@ def create_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override auto-detection of config type",
     )
-    parser.add_argument(
-        "--no-color", action="store_true", help="Disable colored output"
-    )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Only show warnings and errors"
-    )
-    parser.add_argument(
-        "--json", action="store_true", help="Output results as JSON"
-    )
+    parser.add_argument("--no-color", action="store_true", help="Disable colored output")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Only show warnings and errors")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     return parser
 
 
@@ -1441,7 +1426,10 @@ def main() -> int:
         return 1
 
     if not isinstance(data, dict):
-        print(f"Error: config file must contain a YAML mapping, got {type(data).__name__}", file=sys.stderr)
+        print(
+            f"Error: config file must contain a YAML mapping, got {type(data).__name__}",
+            file=sys.stderr,
+        )
         return 1
 
     # Determine config type

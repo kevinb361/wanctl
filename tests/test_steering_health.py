@@ -1065,9 +1065,7 @@ class TestDiskSpaceInSteeringHealth:
             side_effect=OSError("path not found"),
         ):
             port = find_free_port()
-            server = start_steering_health_server(
-                host="127.0.0.1", port=port, daemon=None
-            )
+            server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
 
             try:
                 url = f"http://127.0.0.1:{port}/health"

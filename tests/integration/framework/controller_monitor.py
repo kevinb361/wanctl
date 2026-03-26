@@ -52,10 +52,7 @@ class ControllerAnalysis:
     @property
     def detected_congestion(self) -> bool:
         """Whether controller detected congestion (any non-GREEN state)."""
-        for t in self.state_transitions:
-            if t.dl_state != "GREEN" or t.ul_state != "GREEN":
-                return True
-        return False
+        return any(t.dl_state != "GREEN" or t.ul_state != "GREEN" for t in self.state_transitions)
 
 
 class ControllerMonitor:

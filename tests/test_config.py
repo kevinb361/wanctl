@@ -5,7 +5,6 @@ when present, and falls back to lock_file-derived path for backward compat.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 from wanctl.autorate_continuous import Config
 

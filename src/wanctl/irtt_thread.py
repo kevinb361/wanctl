@@ -55,9 +55,7 @@ class IRTTThread:
             daemon=True,
         )
         self._thread.start()
-        self._logger.info(
-            f"IRTT thread started (cadence={self._cadence_sec}s)"
-        )
+        self._logger.info(f"IRTT thread started (cadence={self._cadence_sec}s)")
 
     def stop(self) -> None:
         """Join the background thread (up to 5 s timeout)."""
@@ -77,7 +75,5 @@ class IRTTThread:
                 if result is not None:
                     self._cached_result = result
             except Exception:
-                self._logger.debug(
-                    "IRTT measurement error", exc_info=True
-                )
+                self._logger.debug("IRTT measurement error", exc_info=True)
             self._shutdown_event.wait(timeout=self._cadence_sec)

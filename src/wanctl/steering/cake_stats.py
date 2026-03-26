@@ -75,9 +75,7 @@ class CakeStatsReader:
             if autorate_config_path:
                 with open(autorate_config_path) as f:
                     autorate_data = yaml.safe_load(f)
-                autorate_transport = (
-                    autorate_data.get("router", {}).get("transport", "rest")
-                )
+                autorate_transport = autorate_data.get("router", {}).get("transport", "rest")
             else:
                 autorate_transport = "rest"
         except Exception as e:
@@ -93,9 +91,7 @@ class CakeStatsReader:
 
                     def __init__(self, data: dict):
                         self.data = data
-                        self.router_transport = data.get("router", {}).get(
-                            "transport", "rest"
-                        )
+                        self.router_transport = data.get("router", {}).get("transport", "rest")
                         self.router = data.get("router", {})
 
                 proxy = _AutorateConfigProxy(autorate_data)

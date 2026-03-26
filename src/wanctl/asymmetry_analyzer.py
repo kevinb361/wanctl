@@ -90,9 +90,7 @@ class AsymmetryAnalyzer:
         # Divide-by-zero guards -- one side is zero, other is positive
         if receive <= 0:
             # send > 0, receive <= 0: upstream dominant, cap ratio at 100.0
-            result = AsymmetryResult(
-                "upstream", min(send / _MIN_DELAY_MS, 100.0), send, receive
-            )
+            result = AsymmetryResult("upstream", min(send / _MIN_DELAY_MS, 100.0), send, receive)
             self._log_transition(result.direction)
             return result
         if send <= 0:
@@ -125,7 +123,6 @@ class AsymmetryAnalyzer:
         """Log direction transitions at INFO, suppress repeated states."""
         if new_direction != self._last_direction:
             self._logger.info(
-                f"{self._wan_name}: Asymmetry transition "
-                f"{self._last_direction} -> {new_direction}"
+                f"{self._wan_name}: Asymmetry transition {self._last_direction} -> {new_direction}"
             )
             self._last_direction = new_direction

@@ -174,7 +174,7 @@ class TestWarmUp:
         """warming_up=True for first window_size calls (window not yet full at check time)."""
         for i in range(DEFAULT_WINDOW_SIZE):
             result = processor.process(raw_rtt=25.0, load_rtt=25.0, baseline_rtt=25.0)
-            assert result.warming_up is True, f"Call {i+1} should be warming up"
+            assert result.warming_up is True, f"Call {i + 1} should be warming up"
 
     def test_warming_up_false_after_window_full(self, processor):
         """warming_up=False once window has window_size samples at check time."""
@@ -361,9 +361,9 @@ class TestOutlierRate:
         _fill_window_varying(processor)
         # Send 3 outliers interspersed with normal values
         processor.process(raw_rtt=100.0, load_rtt=25.0, baseline_rtt=25.0)  # outlier 1
-        processor.process(raw_rtt=25.0, load_rtt=25.0, baseline_rtt=25.0)   # normal
+        processor.process(raw_rtt=25.0, load_rtt=25.0, baseline_rtt=25.0)  # normal
         processor.process(raw_rtt=100.0, load_rtt=25.0, baseline_rtt=25.0)  # outlier 2
-        processor.process(raw_rtt=25.0, load_rtt=25.0, baseline_rtt=25.0)   # normal
+        processor.process(raw_rtt=25.0, load_rtt=25.0, baseline_rtt=25.0)  # normal
         result = processor.process(raw_rtt=100.0, load_rtt=25.0, baseline_rtt=25.0)  # outlier 3
         assert result.total_outliers == 3
 

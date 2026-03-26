@@ -97,9 +97,7 @@ class TestFromConfig:
     @patch("wanctl.backends.linux_cake_adapter.LinuxCakeBackend")
     @patch("wanctl.backends.linux_cake_adapter.build_cake_params")
     @patch("wanctl.backends.linux_cake_adapter.build_expected_readback")
-    def test_from_config_creates_two_backends(
-        self, mock_readback, mock_build, mock_backend_cls
-    ):
+    def test_from_config_creates_two_backends(self, mock_readback, mock_build, mock_backend_cls):
         config = self._make_config()
         logger = MagicMock()
 
@@ -130,9 +128,7 @@ class TestFromConfig:
     @patch("wanctl.backends.linux_cake_adapter.LinuxCakeBackend")
     @patch("wanctl.backends.linux_cake_adapter.build_cake_params")
     @patch("wanctl.backends.linux_cake_adapter.build_expected_readback")
-    def test_from_config_calls_initialize_cake(
-        self, mock_readback, mock_build, mock_backend_cls
-    ):
+    def test_from_config_calls_initialize_cake(self, mock_readback, mock_build, mock_backend_cls):
         config = self._make_config()
         logger = MagicMock()
 
@@ -158,9 +154,7 @@ class TestFromConfig:
     @patch("wanctl.backends.linux_cake_adapter.LinuxCakeBackend")
     @patch("wanctl.backends.linux_cake_adapter.build_cake_params")
     @patch("wanctl.backends.linux_cake_adapter.build_expected_readback")
-    def test_from_config_raises_on_init_failure(
-        self, mock_readback, mock_build, mock_backend_cls
-    ):
+    def test_from_config_raises_on_init_failure(self, mock_readback, mock_build, mock_backend_cls):
         config = self._make_config()
         logger = MagicMock()
 

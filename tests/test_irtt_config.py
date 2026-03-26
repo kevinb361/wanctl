@@ -171,9 +171,7 @@ class TestIRTTConfigValid:
 class TestIRTTConfigValidation:
     """Warn+default behavior for invalid config values."""
 
-    def test_irtt_not_dict_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_irtt_not_dict_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt: 'foo' (not a dict) warns and uses all defaults."""
         autorate_config_dict["irtt"] = "foo"
         with caplog.at_level(logging.WARNING):
@@ -183,9 +181,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["port"] == 2112
         assert "irtt config must be dict" in caplog.text
 
-    def test_enabled_not_bool_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_enabled_not_bool_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.enabled: 'yes' warns and defaults to false."""
         autorate_config_dict["irtt"] = {"enabled": "yes"}
         with caplog.at_level(logging.WARNING):
@@ -193,9 +189,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["enabled"] is False
         assert "irtt.enabled must be bool" in caplog.text
 
-    def test_server_not_str_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_server_not_str_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.server: 123 warns and defaults to None."""
         autorate_config_dict["irtt"] = {"server": 123}
         with caplog.at_level(logging.WARNING):
@@ -203,9 +197,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["server"] is None
         assert "irtt.server must be str" in caplog.text
 
-    def test_port_not_int_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_port_not_int_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.port: 'abc' warns and defaults to 2112."""
         autorate_config_dict["irtt"] = {"port": "abc"}
         with caplog.at_level(logging.WARNING):
@@ -213,9 +205,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["port"] == 2112
         assert "irtt.port must be int 1-65535" in caplog.text
 
-    def test_port_zero_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_port_zero_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.port: 0 warns and defaults to 2112."""
         autorate_config_dict["irtt"] = {"port": 0}
         with caplog.at_level(logging.WARNING):
@@ -223,9 +213,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["port"] == 2112
         assert "irtt.port must be int 1-65535" in caplog.text
 
-    def test_port_too_high_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_port_too_high_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.port: 70000 warns and defaults to 2112."""
         autorate_config_dict["irtt"] = {"port": 70000}
         with caplog.at_level(logging.WARNING):
@@ -233,9 +221,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["port"] == 2112
         assert "irtt.port must be int 1-65535" in caplog.text
 
-    def test_port_bool_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_port_bool_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.port: True warns and defaults to 2112."""
         autorate_config_dict["irtt"] = {"port": True}
         with caplog.at_level(logging.WARNING):
@@ -253,9 +239,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["duration_sec"] == 1.0
         assert "irtt.duration_sec must be positive number" in caplog.text
 
-    def test_duration_sec_negative_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_duration_sec_negative_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.duration_sec: -1.0 warns and defaults to 1.0."""
         autorate_config_dict["irtt"] = {"duration_sec": -1.0}
         with caplog.at_level(logging.WARNING):
@@ -263,9 +247,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["duration_sec"] == 1.0
         assert "irtt.duration_sec must be positive number" in caplog.text
 
-    def test_duration_sec_bool_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_duration_sec_bool_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.duration_sec: True warns and defaults to 1.0."""
         autorate_config_dict["irtt"] = {"duration_sec": True}
         with caplog.at_level(logging.WARNING):
@@ -273,9 +255,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["duration_sec"] == 1.0
         assert "irtt.duration_sec must be positive number" in caplog.text
 
-    def test_interval_ms_not_int_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_interval_ms_not_int_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.interval_ms: 1.5 warns and defaults to 100."""
         autorate_config_dict["irtt"] = {"interval_ms": 1.5}
         with caplog.at_level(logging.WARNING):
@@ -283,9 +263,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["interval_ms"] == 100
         assert "irtt.interval_ms must be positive int" in caplog.text
 
-    def test_interval_ms_zero_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_interval_ms_zero_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.interval_ms: 0 warns and defaults to 100."""
         autorate_config_dict["irtt"] = {"interval_ms": 0}
         with caplog.at_level(logging.WARNING):
@@ -293,9 +271,7 @@ class TestIRTTConfigValidation:
         assert config.irtt_config["interval_ms"] == 100
         assert "irtt.interval_ms must be positive int" in caplog.text
 
-    def test_interval_ms_bool_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_interval_ms_bool_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """irtt.interval_ms: True warns and defaults to 100."""
         autorate_config_dict["irtt"] = {"interval_ms": True}
         with caplog.at_level(logging.WARNING):
@@ -312,7 +288,9 @@ class TestIRTTConfigValidation:
 class TestIRTTConfigCadenceValidation:
     """Warn+default for invalid cadence_sec values."""
 
-    def test_cadence_sec_not_number_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
+    def test_cadence_sec_not_number_warns_and_defaults(
+        self, tmp_path, autorate_config_dict, caplog
+    ):
         autorate_config_dict["irtt"] = {"cadence_sec": "fast"}
         with caplog.at_level(logging.WARNING):
             config = _make_config(tmp_path, autorate_config_dict)
@@ -358,9 +336,7 @@ class TestIRTTConfigCadenceValidation:
 class TestIRTTConfigLogging:
     """Verify IRTT config logging output."""
 
-    def test_enabled_with_server_logs_info(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_enabled_with_server_logs_info(self, tmp_path, autorate_config_dict, caplog):
         """Enabled IRTT with server logs connection details."""
         autorate_config_dict["irtt"] = {
             "enabled": True,

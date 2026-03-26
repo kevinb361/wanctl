@@ -194,6 +194,7 @@ def retry_with_backoff(
             # Should never reach here, but just in case
             if last_exception:
                 raise last_exception
+            return None
 
         return wrapper
 
