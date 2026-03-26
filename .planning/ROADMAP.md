@@ -121,7 +121,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
 | 113. Network Engineering Audit    | 3/3            | Complete    | 2026-03-26 |
-| 114. Code Quality & Safety        | 3/3            | In Progress |            |
+| 114. Code Quality & Safety        | 3/3            | Complete    | 2026-03-26 |
 | 115. Operational Hardening        | 0/TBD          | Not started | -          |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
 
