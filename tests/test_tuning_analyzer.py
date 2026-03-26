@@ -230,9 +230,7 @@ class TestRunTuningAnalysisLookback:
 
     @patch("wanctl.tuning.analyzer.query_metrics")
     @patch("wanctl.tuning.analyzer.time")
-    def test_lookback_hours_in_query(
-        self, mock_time: MagicMock, mock_qm: MagicMock
-    ) -> None:
+    def test_lookback_hours_in_query(self, mock_time: MagicMock, mock_qm: MagicMock) -> None:
         from wanctl.tuning.analyzer import run_tuning_analysis
 
         mock_time.time.return_value = 1000000.0

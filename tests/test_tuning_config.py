@@ -2,12 +2,10 @@
 
 import logging
 import sqlite3
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from wanctl.storage.schema import TUNING_PARAMS_SCHEMA, create_tables
-from wanctl.tuning.models import SafetyBounds, TuningConfig
+from wanctl.tuning.models import TuningConfig
 
 
 class TestLoadTuningConfigDisabled:
@@ -321,10 +319,10 @@ class TestLoadSpecificFieldsIntegration:
 
     def test_load_specific_fields_calls_tuning(self):
         """_load_specific_fields calls _load_tuning_config."""
-        from wanctl.autorate_continuous import Config
-
         # Verify the method exists and is called in _load_specific_fields
         import inspect
+
+        from wanctl.autorate_continuous import Config
 
         source = inspect.getsource(Config._load_specific_fields)
         assert "_load_tuning_config" in source

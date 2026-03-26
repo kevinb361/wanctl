@@ -60,9 +60,13 @@ class LinuxCakeAdapter:
         ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
 
         if not dl_ok:
-            self.logger.error("%s: Failed to set download bandwidth on %s", wan, self.dl_backend.interface)
+            self.logger.error(
+                "%s: Failed to set download bandwidth on %s", wan, self.dl_backend.interface
+            )
         if not ul_ok:
-            self.logger.error("%s: Failed to set upload bandwidth on %s", wan, self.ul_backend.interface)
+            self.logger.error(
+                "%s: Failed to set upload bandwidth on %s", wan, self.ul_backend.interface
+            )
 
         return dl_ok and ul_ok
 

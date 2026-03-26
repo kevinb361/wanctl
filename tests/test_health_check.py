@@ -544,7 +544,9 @@ class TestBuildCycleBudget:
     def test_returns_none_when_profiler_has_no_data(self):
         """Cold start: profiler has no samples, should return None (D9)."""
         profiler = OperationProfiler(max_samples=1200)
-        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
         assert result is None
 
     def test_returns_correct_dict_when_profiler_has_data(self):
@@ -554,7 +556,9 @@ class TestBuildCycleBudget:
         for val in [37.0, 38.0, 39.0, 40.0, 41.0]:
             profiler.record("autorate_cycle_total", val)
 
-        result = _build_cycle_budget(profiler, overrun_count=5, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        result = _build_cycle_budget(
+            profiler, overrun_count=5, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
         assert result is not None
         assert "cycle_time_ms" in result
         assert "utilization_pct" in result
@@ -571,7 +575,9 @@ class TestBuildCycleBudget:
         profiler.record("autorate_cycle_total", 37.6)
         profiler.record("autorate_cycle_total", 37.6)
 
-        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
         assert result is not None
         # (37.6 / 50.0) * 100 = 75.2
         assert result["utilization_pct"] == 75.2
@@ -582,7 +588,9 @@ class TestBuildCycleBudget:
         profiler.record("autorate_cycle_total", 37.654)
         profiler.record("autorate_cycle_total", 38.123)
 
-        result = _build_cycle_budget(profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total")
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
         assert result is not None
         # Check all values are rounded to 1 decimal
         for key in ("avg", "p95", "p99"):
@@ -1117,9 +1125,7 @@ class TestIRTTHealth:
 
     def test_irtt_disabled_reason(self, mock_wan_with_irtt):
         """irtt section available=False, reason='disabled' when IRTT disabled and no thread."""
-        controller = self._make_controller(
-            mock_wan_with_irtt, irtt_config={"enabled": False}
-        )
+        controller = self._make_controller(mock_wan_with_irtt, irtt_config={"enabled": False})
 
         port = find_free_port()
         server = start_health_server(host="127.0.0.1", port=port, controller=controller)
@@ -1407,7 +1413,13 @@ class TestReflectorQualityHealth:
 
         scorer = MagicMock(spec=ReflectorScorer)
         scorer.get_all_statuses.return_value = [
-            ReflectorStatus(host="1.1.1.1", score=0.95, status="active", measurements=50, consecutive_successes=0),
+            ReflectorStatus(
+                host="1.1.1.1",
+                score=0.95,
+                status="active",
+                measurements=50,
+                consecutive_successes=0,
+            ),
         ]
         mock_wan_with_reflector._reflector_scorer = scorer
         controller = self._make_controller(mock_wan_with_reflector)
@@ -1430,8 +1442,20 @@ class TestReflectorQualityHealth:
 
         scorer = MagicMock(spec=ReflectorScorer)
         scorer.get_all_statuses.return_value = [
-            ReflectorStatus(host="1.1.1.1", score=0.95123, status="active", measurements=50, consecutive_successes=0),
-            ReflectorStatus(host="8.8.8.8", score=0.72456, status="deprioritized", measurements=30, consecutive_successes=1),
+            ReflectorStatus(
+                host="1.1.1.1",
+                score=0.95123,
+                status="active",
+                measurements=50,
+                consecutive_successes=0,
+            ),
+            ReflectorStatus(
+                host="8.8.8.8",
+                score=0.72456,
+                status="deprioritized",
+                measurements=30,
+                consecutive_successes=1,
+            ),
         ]
         mock_wan_with_reflector._reflector_scorer = scorer
         controller = self._make_controller(mock_wan_with_reflector)
@@ -1460,8 +1484,20 @@ class TestReflectorQualityHealth:
 
         scorer = MagicMock(spec=ReflectorScorer)
         scorer.get_all_statuses.return_value = [
-            ReflectorStatus(host="1.1.1.1", score=0.98, status="active", measurements=50, consecutive_successes=0),
-            ReflectorStatus(host="8.8.8.8", score=0.96, status="active", measurements=48, consecutive_successes=0),
+            ReflectorStatus(
+                host="1.1.1.1",
+                score=0.98,
+                status="active",
+                measurements=50,
+                consecutive_successes=0,
+            ),
+            ReflectorStatus(
+                host="8.8.8.8",
+                score=0.96,
+                status="active",
+                measurements=48,
+                consecutive_successes=0,
+            ),
         ]
         mock_wan_with_reflector._reflector_scorer = scorer
         controller = self._make_controller(mock_wan_with_reflector)
@@ -1483,8 +1519,20 @@ class TestReflectorQualityHealth:
 
         scorer = MagicMock(spec=ReflectorScorer)
         scorer.get_all_statuses.return_value = [
-            ReflectorStatus(host="1.1.1.1", score=0.95, status="active", measurements=50, consecutive_successes=0),
-            ReflectorStatus(host="8.8.8.8", score=0.65, status="deprioritized", measurements=50, consecutive_successes=2),
+            ReflectorStatus(
+                host="1.1.1.1",
+                score=0.95,
+                status="active",
+                measurements=50,
+                consecutive_successes=0,
+            ),
+            ReflectorStatus(
+                host="8.8.8.8",
+                score=0.65,
+                status="deprioritized",
+                measurements=50,
+                consecutive_successes=2,
+            ),
         ]
         mock_wan_with_reflector._reflector_scorer = scorer
         controller = self._make_controller(mock_wan_with_reflector)

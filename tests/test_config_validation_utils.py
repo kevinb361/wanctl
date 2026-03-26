@@ -667,7 +667,10 @@ class TestDeprecateParam:
         """deprecate_param applies transform_fn to old value."""
         config = {"alpha_baseline": 0.001}
         result = deprecate_param(
-            config, "alpha_baseline", "baseline_time_constant_sec", logger,
+            config,
+            "alpha_baseline",
+            "baseline_time_constant_sec",
+            logger,
             transform_fn=lambda v: 0.05 / v,  # cycle_interval / alpha
         )
         assert result == pytest.approx(50.0)
@@ -677,7 +680,10 @@ class TestDeprecateParam:
         called = []
         config = {"new_key": "value"}
         deprecate_param(
-            config, "old_key", "new_key", logger,
+            config,
+            "old_key",
+            "new_key",
+            logger,
             transform_fn=lambda v: called.append(v) or v,
         )
         assert called == []
@@ -687,7 +693,10 @@ class TestDeprecateParam:
         config = {"alpha_baseline": 0.001}
         with caplog.at_level(logging.WARNING):
             deprecate_param(
-                config, "alpha_baseline", "baseline_time_constant_sec", logger,
+                config,
+                "alpha_baseline",
+                "baseline_time_constant_sec",
+                logger,
                 transform_fn=lambda v: 0.05 / v,
             )
         assert any("50.0" in msg for msg in caplog.messages)

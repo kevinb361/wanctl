@@ -150,8 +150,7 @@ def build_cake_params(
             tc_key = YAML_TO_TC_KEY.get(key, key)
             if tc_key in EXCLUDED_PARAMS:
                 raise ConfigValidationError(
-                    f"Excluded CAKE parameter: {key!r} -- "
-                    f"not valid for transparent bridge topology"
+                    f"Excluded CAKE parameter: {key!r} -- not valid for transparent bridge topology"
                 )
             params[tc_key] = value
 

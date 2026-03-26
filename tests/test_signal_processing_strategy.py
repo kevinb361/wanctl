@@ -11,10 +11,9 @@ SIGP-03: Load EWMA time constant from settling time analysis
 
 import pytest
 
-from wanctl.tuning.models import SafetyBounds, TuningResult
+from wanctl.tuning.models import SafetyBounds
 from wanctl.tuning.strategies.signal_processing import (
     MAX_WINDOW,
-    MIN_SAMPLES,
     tune_alpha_load,
     tune_hampel_sigma,
     tune_hampel_window,

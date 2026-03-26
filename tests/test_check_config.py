@@ -149,7 +149,9 @@ class TestCLI:
         assert result in (0, 2)
 
     def test_main_nonexistent_file_returns_1(self, monkeypatch, capsys):
-        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", "/nonexistent/config.yaml", "--no-color"])
+        monkeypatch.setattr(
+            sys, "argv", ["wanctl-check-config", "/nonexistent/config.yaml", "--no-color"]
+        )
         result = main()
         assert result == 1
         captured = capsys.readouterr()
@@ -284,10 +286,7 @@ class TestPathChecks:
         data = _valid_config_data()
         data["logging"]["main_log"] = "/nonexistent/deep/path/test.log"
         results = check_paths(data)
-        errors = [
-            r for r in results
-            if r.severity == Severity.ERROR and "main_log" in r.field
-        ]
+        errors = [r for r in results if r.severity == Severity.ERROR and "main_log" in r.field]
         assert len(errors) == 1
         assert "mkdir -p" in (errors[0].suggestion or "")
 
@@ -296,10 +295,7 @@ class TestPathChecks:
         data["logging"]["main_log"] = str(tmp_path / "test.log")
         data["logging"]["debug_log"] = str(tmp_path / "debug.log")
         results = check_paths(data)
-        passes = [
-            r for r in results
-            if r.severity == Severity.PASS and "log" in r.field
-        ]
+        passes = [r for r in results if r.severity == Severity.PASS and "log" in r.field]
         assert len(passes) >= 2
 
     def test_missing_ssh_key_produces_error(self):
@@ -307,10 +303,7 @@ class TestPathChecks:
         data["router"]["ssh_key"] = "/nonexistent/key"
         data["router"]["transport"] = "ssh"  # SSH transport makes it ERROR
         results = check_paths(data)
-        errors = [
-            r for r in results
-            if r.severity == Severity.ERROR and "ssh_key" in r.field
-        ]
+        errors = [r for r in results if r.severity == Severity.ERROR and "ssh_key" in r.field]
         assert len(errors) == 1
 
     def test_ssh_key_insecure_perms_produces_warn(self, tmp_path):
@@ -320,10 +313,7 @@ class TestPathChecks:
         data = _valid_config_data()
         data["router"]["ssh_key"] = str(key_file)
         results = check_paths(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "ssh_key" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "ssh_key" in r.field]
         assert len(warns) == 1
         assert "chmod 600" in (warns[0].suggestion or "")
 
@@ -334,10 +324,7 @@ class TestPathChecks:
         data = _valid_config_data()
         data["router"]["ssh_key"] = str(key_file)
         results = check_paths(data)
-        passes = [
-            r for r in results
-            if r.severity == Severity.PASS and "ssh_key" in r.field
-        ]
+        passes = [r for r in results if r.severity == Severity.PASS and "ssh_key" in r.field]
         assert len(passes) == 1
 
 
@@ -470,10 +457,7 @@ class TestUnknownKeys:
         data = _valid_config_data()
         data["continuous_monitoring"]["download"]["ceilling_mbps"] = 100  # typo
         results = check_unknown_keys(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "ceilling" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "ceilling" in r.field]
         assert len(warns) == 1
         assert "did you mean" in (warns[0].suggestion or "").lower()
 
@@ -497,10 +481,7 @@ class TestUnknownKeys:
             },
         }
         results = check_unknown_keys(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "alerting" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "alerting" in r.field]
         assert len(warns) == 0
 
 
@@ -651,7 +632,8 @@ class TestConfigTypeDetection:
         config_path = _write_config(tmp_path, config)
 
         monkeypatch.setattr(
-            sys, "argv",
+            sys,
+            "argv",
             ["wanctl-check-config", config_path, "--no-color", "--type", "autorate"],
         )
         # Should not crash -- runs autorate validators (may produce errors, that's OK)
@@ -678,8 +660,7 @@ class TestSteeringValidation:
         del data["topology"]["primary_wan"]
         results = validate_steering_schema_fields(data)
         errors = [
-            r for r in results
-            if r.severity == Severity.ERROR and "topology.primary_wan" in r.field
+            r for r in results if r.severity == Severity.ERROR and "topology.primary_wan" in r.field
         ]
         assert len(errors) == 1
 
@@ -687,10 +668,7 @@ class TestSteeringValidation:
         data = _valid_steering_data()
         data["measuremnt"] = {"interval_seconds": 0.5}  # typo
         results = check_steering_unknown_keys(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "measuremnt" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "measuremnt" in r.field]
         assert len(warns) >= 1
         assert "did you mean" in (warns[0].suggestion or "").lower()
 
@@ -716,10 +694,7 @@ class TestSteeringValidation:
             },
         }
         results = check_steering_unknown_keys(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "alerting" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "alerting" in r.field]
         assert len(warns) == 0
 
 
@@ -752,17 +727,16 @@ class TestSteeringCrossField:
             "recovery_threshold": 20,
         }
         results = validate_steering_cross_fields(data)
-        passes = [r for r in results if r.severity == Severity.PASS and "confidence" in r.field.lower()]
+        passes = [
+            r for r in results if r.severity == Severity.PASS and "confidence" in r.field.lower()
+        ]
         assert len(passes) >= 1
 
     def test_interval_below_005_produces_warn(self):
         data = _valid_steering_data()
         data["measurement"]["interval_seconds"] = 0.01
         results = validate_steering_cross_fields(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "interval" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "interval" in r.field]
         assert len(warns) == 1
 
     def test_history_window_below_30s_produces_warn(self):
@@ -770,10 +744,7 @@ class TestSteeringCrossField:
         data["measurement"]["interval_seconds"] = 0.5
         data["state"]["history_size"] = 10  # 10 * 0.5 = 5s < 30s
         results = validate_steering_cross_fields(data)
-        warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "history_size" in r.field
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "history_size" in r.field]
         assert len(warns) == 1
 
 
@@ -803,7 +774,9 @@ class TestSteeringDeprecated:
         data = _valid_steering_data()
         data["cake_queues"] = {"spectrum_download": "WAN-Download-Spectrum"}
         results = check_steering_deprecated_params(data)
-        warns = [r for r in results if r.severity == Severity.WARN and "spectrum_download" in r.field]
+        warns = [
+            r for r in results if r.severity == Severity.WARN and "spectrum_download" in r.field
+        ]
         assert len(warns) == 1
 
 
@@ -820,8 +793,7 @@ class TestCrossConfigValidation:
         data["topology"]["primary_wan_config"] = "/nonexistent/spectrum.yaml"
         results = check_steering_cross_config(data)
         warns = [
-            r for r in results
-            if r.severity == Severity.WARN and "primary_wan_config" in r.field
+            r for r in results if r.severity == Severity.WARN and "primary_wan_config" in r.field
         ]
         assert len(warns) == 1
 
@@ -1042,9 +1014,7 @@ class TestJsonOutput:
         config["router"]["password"] = "plaintext"
         config_path = _write_config(tmp_path, config)
 
-        monkeypatch.setattr(
-            sys, "argv", ["wanctl-check-config", config_path, "--json"]
-        )
+        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", config_path, "--json"])
         result = main()
         assert result == 0
 
@@ -1054,9 +1024,7 @@ class TestJsonOutput:
         config["router"]["password"] = "plaintext"
         config_path = _write_config(tmp_path, config)
 
-        monkeypatch.setattr(
-            sys, "argv", ["wanctl-check-config", config_path, "--json"]
-        )
+        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", config_path, "--json"])
         result = main()
         assert result == 1
 
@@ -1071,9 +1039,7 @@ class TestJsonOutput:
         config["router"]["password"] = "plaintext"
         config_path = _write_config(tmp_path, config)
 
-        monkeypatch.setattr(
-            sys, "argv", ["wanctl-check-config", config_path, "--json"]
-        )
+        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", config_path, "--json"])
         result = main()
         assert result == 2
 
@@ -1088,16 +1054,12 @@ class TestJsonOutput:
         config_path = _write_config(tmp_path, config)
 
         # Run with --json only
-        monkeypatch.setattr(
-            sys, "argv", ["wanctl-check-config", config_path, "--json"]
-        )
+        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", config_path, "--json"])
         main()
         json_only = capsys.readouterr().out.strip()
 
         # Run with --json --quiet
-        monkeypatch.setattr(
-            sys, "argv", ["wanctl-check-config", config_path, "--json", "-q"]
-        )
+        monkeypatch.setattr(sys, "argv", ["wanctl-check-config", config_path, "--json", "-q"])
         main()
         json_quiet = capsys.readouterr().out.strip()
 
@@ -1235,11 +1197,7 @@ class TestLinuxCakeValidation:
         results = validate_linux_cake(data)
         errors = [r for r in results if r.severity == Severity.ERROR]
         assert any("overhead" in r.field for r in errors)
-        assert any(
-            "suggestion" in dir(r) and r.suggestion
-            for r in errors
-            if "overhead" in r.field
-        )
+        assert any("suggestion" in dir(r) and r.suggestion for r in errors if "overhead" in r.field)
 
     def test_no_overhead_no_error(self):
         """Overhead is optional -- absence is not an error."""
@@ -1264,9 +1222,7 @@ class TestLinuxCakeValidation:
             },
         )
         results = validate_linux_cake(data)
-        passes = [
-            r for r in results if r.severity == Severity.PASS and "tc" in r.field.lower()
-        ]
+        passes = [r for r in results if r.severity == Severity.PASS and "tc" in r.field.lower()]
         assert len(passes) >= 1
 
     @patch("shutil.which", return_value=None)
@@ -1280,9 +1236,7 @@ class TestLinuxCakeValidation:
             },
         )
         results = validate_linux_cake(data)
-        warns = [
-            r for r in results if r.severity == Severity.WARN and "tc" in r.field.lower()
-        ]
+        warns = [r for r in results if r.severity == Severity.WARN and "tc" in r.field.lower()]
         assert len(warns) >= 1
         errors = [r for r in results if r.severity == Severity.ERROR]
         assert len(errors) == 0  # tc absence must NOT be ERROR

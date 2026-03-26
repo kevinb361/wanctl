@@ -15,12 +15,11 @@ Requirements: FBLK-01, FBLK-02, FBLK-03, FBLK-04, FBLK-05.
 """
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from wanctl.autorate_continuous import WANController
-
 
 # =============================================================================
 # HELPERS
@@ -41,9 +40,7 @@ def _make_controller(**overrides):
     # EWMA parameters
     controller.alpha_load = overrides.get("alpha_load", 0.1)
     controller.alpha_baseline = overrides.get("alpha_baseline", 0.001)
-    controller.baseline_update_threshold = overrides.get(
-        "baseline_update_threshold", 3.0
-    )
+    controller.baseline_update_threshold = overrides.get("baseline_update_threshold", 3.0)
 
     # RTT state
     controller.load_rtt = overrides.get("load_rtt", 25.0)
@@ -52,12 +49,10 @@ def _make_controller(**overrides):
     controller.baseline_rtt_max = overrides.get("baseline_rtt_max", 60.0)
 
     # Bind real methods
-    controller._update_baseline_if_idle = (
-        WANController._update_baseline_if_idle.__get__(controller, WANController)
+    controller._update_baseline_if_idle = WANController._update_baseline_if_idle.__get__(
+        controller, WANController
     )
-    controller.update_ewma = (
-        WANController.update_ewma.__get__(controller, WANController)
-    )
+    controller.update_ewma = WANController.update_ewma.__get__(controller, WANController)
 
     return controller
 
@@ -127,9 +122,8 @@ class TestLoadEwmaUsesFused:
         fused_rtt = 33.2
         # Inline load EWMA (the fix does this instead of update_ewma)
         controller.load_rtt = (
-            (1 - controller.alpha_load) * controller.load_rtt
-            + controller.alpha_load * fused_rtt
-        )
+            1 - controller.alpha_load
+        ) * controller.load_rtt + controller.alpha_load * fused_rtt
 
         # Expected: 0.9*25 + 0.1*33.2 = 25.82
         assert controller.load_rtt == pytest.approx(25.82, abs=0.01)
@@ -143,9 +137,8 @@ class TestLoadEwmaUsesFused:
 
         fused_rtt = 33.2
         controller.load_rtt = (
-            (1 - controller.alpha_load) * controller.load_rtt
-            + controller.alpha_load * fused_rtt
-        )
+            1 - controller.alpha_load
+        ) * controller.load_rtt + controller.alpha_load * fused_rtt
 
         # load_rtt must be > 25.0 (moved toward fused, not stayed at ICMP)
         assert controller.load_rtt > 25.0
@@ -185,9 +178,8 @@ class TestBaselineUpdatesWithIrttDivergence:
 
             # Split EWMA (the fix): load uses fused, baseline uses ICMP
             controller.load_rtt = (
-                (1 - controller.alpha_load) * controller.load_rtt
-                + controller.alpha_load * fused_rtt
-            )
+                1 - controller.alpha_load
+            ) * controller.load_rtt + controller.alpha_load * fused_rtt
             controller._update_baseline_if_idle(icmp_filtered)
 
         # After 100 cycles:
@@ -218,9 +210,8 @@ class TestBaselineUpdatesWithIrttDivergence:
             # 0.7*25 + 0.3*19 = 23.2
 
             controller.load_rtt = (
-                (1 - controller.alpha_load) * controller.load_rtt
-                + controller.alpha_load * fused_rtt
-            )
+                1 - controller.alpha_load
+            ) * controller.load_rtt + controller.alpha_load * fused_rtt
             controller._update_baseline_if_idle(icmp_filtered)
 
         # load_rtt converges toward 23.2 (fused)
@@ -269,18 +260,13 @@ class TestFusionDisabledIdentical:
             # Controller B: new split path (fusion disabled, fused == filtered)
             fused_rtt = filtered_rtt  # No fusion
             controller_b.load_rtt = (
-                (1 - controller_b.alpha_load) * controller_b.load_rtt
-                + controller_b.alpha_load * fused_rtt
-            )
+                1 - controller_b.alpha_load
+            ) * controller_b.load_rtt + controller_b.alpha_load * fused_rtt
             controller_b._update_baseline_if_idle(filtered_rtt)
 
         # Both should produce identical results
-        assert controller_a.load_rtt == pytest.approx(
-            controller_b.load_rtt, abs=1e-10
-        )
-        assert controller_a.baseline_rtt == pytest.approx(
-            controller_b.baseline_rtt, abs=1e-10
-        )
+        assert controller_a.load_rtt == pytest.approx(controller_b.load_rtt, abs=1e-10)
+        assert controller_a.baseline_rtt == pytest.approx(controller_b.baseline_rtt, abs=1e-10)
 
 
 # =============================================================================

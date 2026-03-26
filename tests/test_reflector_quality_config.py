@@ -9,11 +9,9 @@ Covers _load_reflector_quality_config in Config class:
 
 import logging
 
-import pytest
 import yaml
 
 from wanctl.autorate_continuous import Config
-
 
 # =============================================================================
 # HELPERS

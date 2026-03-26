@@ -59,11 +59,7 @@ def _extract_green_deltas(metrics_data: list[dict]) -> list[float]:
         elif name == "wanctl_rtt_delta_ms":
             delta_by_ts[ts] = val
 
-    return [
-        delta_by_ts[ts]
-        for ts in delta_by_ts
-        if state_by_ts.get(ts) == STATE_GREEN
-    ]
+    return [delta_by_ts[ts] for ts in delta_by_ts if state_by_ts.get(ts) == STATE_GREEN]
 
 
 def _extract_green_deltas_with_timestamps(
@@ -127,9 +123,7 @@ def _is_converged(
         win_start = min_ts + i * window_size
         win_end = win_start + window_size
         chunk = [
-            d
-            for d, t in zip(green_deltas, timestamps, strict=True)
-            if win_start <= t < win_end
+            d for d, t in zip(green_deltas, timestamps, strict=True) if win_start <= t < win_end
         ]
         if len(chunk) < _MIN_SUB_WINDOW_SAMPLES:
             return False  # Insufficient data in sub-window

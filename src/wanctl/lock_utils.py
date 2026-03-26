@@ -56,12 +56,11 @@ def is_process_alive(pid: int) -> bool:
         if e.errno == errno.ESRCH:
             # No such process - definitely dead
             return False
-        elif e.errno == errno.EPERM:
+        if e.errno == errno.EPERM:
             # Permission denied - process exists but not ours (conservative)
             return True
-        else:
-            # Unexpected error - conservative: treat as alive
-            return True
+        # Unexpected error - conservative: treat as alive
+        return True
 
     # os.kill succeeded - process exists
     # Additional check: is it a zombie?
@@ -127,10 +126,9 @@ def validate_lock(lock_path: Path, timeout: int, logger: logging.Logger) -> bool
                     "Assuming recent - another instance may be running."
                 )
                 return False  # Lock is recent, must exit
-            else:
-                logger.info(f"Removing stale lock file (age {age:.1f}s): {lock_path}")
-                lock_path.unlink()
-                return True  # Stale lock removed, safe to continue
+            logger.info(f"Removing stale lock file (age {age:.1f}s): {lock_path}")
+            lock_path.unlink()
+            return True  # Stale lock removed, safe to continue
 
         # PID found - check if process is alive
         if is_process_alive(existing_pid):

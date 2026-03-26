@@ -256,9 +256,7 @@ class RTTMeasurement:
         results: dict[str, float | None] = {}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
-            future_to_host = {
-                executor.submit(self.ping_host, host, count): host for host in hosts
-            }
+            future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
             try:
                 for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
                     host = future_to_host[future]
@@ -267,7 +265,7 @@ class RTTMeasurement:
                     except Exception:
                         results[host] = None
             except concurrent.futures.TimeoutError:
-                for _future, host in future_to_host.items():
+                for host in future_to_host.values():
                     if host not in results:
                         results[host] = None
 

@@ -114,9 +114,7 @@ class TestLoadDashboardConfig:
     def test_secondary_autorate_url_loaded_from_yaml(self, tmp_config_dir):
         """secondary_autorate_url loaded from YAML config."""
         config_file = tmp_config_dir / "dashboard.yaml"
-        config_file.write_text(
-            yaml.dump({"secondary_autorate_url": "http://10.0.0.2:9101"})
-        )
+        config_file.write_text(yaml.dump({"secondary_autorate_url": "http://10.0.0.2:9101"}))
         config = load_dashboard_config(config_file)
         assert config.secondary_autorate_url == "http://10.0.0.2:9101"
 

@@ -138,9 +138,7 @@ class TestAlertEngineFire:
                 # No cooldown_sec -- should use default (60)
             },
         }
-        eng = AlertEngine(
-            enabled=True, default_cooldown_sec=60, rules=rules, writer=tmp_writer
-        )
+        eng = AlertEngine(enabled=True, default_cooldown_sec=60, rules=rules, writer=tmp_writer)
 
         eng.fire("steering_activated", "warning", "spectrum", {})
 
@@ -164,9 +162,7 @@ class TestAlertEngineFire:
                 "severity": "critical",
             },
         }
-        eng = AlertEngine(
-            enabled=True, default_cooldown_sec=300, rules=rules, writer=tmp_writer
-        )
+        eng = AlertEngine(enabled=True, default_cooldown_sec=300, rules=rules, writer=tmp_writer)
 
         eng.fire("congestion_sustained", "critical", "spectrum", {})
 
@@ -208,9 +204,7 @@ class TestAlertEngineEnabled:
                 "severity": "warning",
             },
         }
-        eng = AlertEngine(
-            enabled=True, default_cooldown_sec=300, rules=rules, writer=tmp_writer
-        )
+        eng = AlertEngine(enabled=True, default_cooldown_sec=300, rules=rules, writer=tmp_writer)
 
         result_disabled = eng.fire("congestion_sustained", "critical", "spectrum", {})
         result_enabled = eng.fire("steering_activated", "warning", "spectrum", {})
@@ -224,17 +218,13 @@ class TestAlertEngineNoWriter:
 
     def test_fire_without_writer_returns_true(self, default_rules):
         """AlertEngine with writer=None still fires (returns True) but skips persistence."""
-        eng = AlertEngine(
-            enabled=True, default_cooldown_sec=300, rules=default_rules, writer=None
-        )
+        eng = AlertEngine(enabled=True, default_cooldown_sec=300, rules=default_rules, writer=None)
         result = eng.fire("congestion_sustained", "critical", "spectrum", {})
         assert result is True
 
     def test_cooldown_works_without_writer(self, default_rules):
         """Cooldown suppression works even without a writer."""
-        eng = AlertEngine(
-            enabled=True, default_cooldown_sec=300, rules=default_rules, writer=None
-        )
+        eng = AlertEngine(enabled=True, default_cooldown_sec=300, rules=default_rules, writer=None)
         eng.fire("congestion_sustained", "critical", "spectrum", {})
         result = eng.fire("congestion_sustained", "critical", "spectrum", {})
         assert result is False
@@ -271,9 +261,7 @@ class TestAlertsSchema:
         conn = sqlite3.connect(":memory:")
         create_tables(conn)
 
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='alerts'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alerts'")
         result = cursor.fetchone()
         assert result is not None
         assert result[0] == "alerts"

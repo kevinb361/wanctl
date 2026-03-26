@@ -164,9 +164,7 @@ class TestSteeringActivatedAlert:
             details = spy.call_args[0][3]
             assert details["confidence_score"] == 85
 
-    def test_steering_activated_omits_confidence_score_when_controller_none(
-        self, daemon, signals
-    ):
+    def test_steering_activated_omits_confidence_score_when_controller_none(self, daemon, signals):
         """steering_activated details omit confidence_score when confidence controller is None."""
         daemon.confidence_controller = None
 
@@ -377,9 +375,7 @@ class TestSteeringAlertCooldown:
         )
 
         # Second activation -- fire() is called but returns False (suppressed)
-        result = daemon.alert_engine.fire(
-            "steering_activated", "warning", "spectrum", {}
-        )
+        result = daemon.alert_engine.fire("steering_activated", "warning", "spectrum", {})
         assert result is False
 
 
@@ -400,9 +396,7 @@ class TestDurationTracking:
         with patch("wanctl.steering.daemon.time") as mock_time:
             mock_time.monotonic.return_value = activation_time + 300.0
 
-            with patch.object(
-                daemon.alert_engine, "fire", wraps=daemon.alert_engine.fire
-            ) as spy:
+            with patch.object(daemon.alert_engine, "fire", wraps=daemon.alert_engine.fire) as spy:
                 daemon._handle_degraded_state(
                     signals=signals,
                     is_recovered=True,

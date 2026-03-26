@@ -197,8 +197,14 @@ class TestWanAwarenessMetrics:
         zone_val = zone_map.get(effective_zone or "GREEN", 0)
 
         metrics_batch = [
-            (ts, "spectrum", "wanctl_wan_zone", float(zone_val),
-             {"zone": effective_zone or "none"}, "raw"),
+            (
+                ts,
+                "spectrum",
+                "wanctl_wan_zone",
+                float(zone_val),
+                {"zone": effective_zone or "none"},
+                "raw",
+            ),
         ]
         writer.write_metrics_batch(metrics_batch)
 
@@ -409,10 +415,30 @@ class TestPerTinMetrics:
         from wanctl.backends.linux_cake import TIN_NAMES
 
         sample_tin_stats = [
-            {"dropped_packets": 5, "ecn_marked_packets": 2, "avg_delay_us": 150, "backlog_bytes": 1024},
-            {"dropped_packets": 0, "ecn_marked_packets": 0, "avg_delay_us": 50, "backlog_bytes": 256},
-            {"dropped_packets": 1, "ecn_marked_packets": 0, "avg_delay_us": 80, "backlog_bytes": 512},
-            {"dropped_packets": 0, "ecn_marked_packets": 1, "avg_delay_us": 20, "backlog_bytes": 128},
+            {
+                "dropped_packets": 5,
+                "ecn_marked_packets": 2,
+                "avg_delay_us": 150,
+                "backlog_bytes": 1024,
+            },
+            {
+                "dropped_packets": 0,
+                "ecn_marked_packets": 0,
+                "avg_delay_us": 50,
+                "backlog_bytes": 256,
+            },
+            {
+                "dropped_packets": 1,
+                "ecn_marked_packets": 0,
+                "avg_delay_us": 80,
+                "backlog_bytes": 512,
+            },
+            {
+                "dropped_packets": 0,
+                "ecn_marked_packets": 1,
+                "avg_delay_us": 20,
+                "backlog_bytes": 128,
+            },
         ]
 
         # Build per-tin metrics batch the same way daemon should
@@ -421,16 +447,44 @@ class TestPerTinMetrics:
             tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
             tin_labels = {"tin": tin_name}
             metrics_batch.append(
-                (ts, "spectrum", "wanctl_cake_tin_dropped", float(tin.get("dropped_packets", 0)), tin_labels, "raw")
+                (
+                    ts,
+                    "spectrum",
+                    "wanctl_cake_tin_dropped",
+                    float(tin.get("dropped_packets", 0)),
+                    tin_labels,
+                    "raw",
+                )
             )
             metrics_batch.append(
-                (ts, "spectrum", "wanctl_cake_tin_ecn_marked", float(tin.get("ecn_marked_packets", 0)), tin_labels, "raw")
+                (
+                    ts,
+                    "spectrum",
+                    "wanctl_cake_tin_ecn_marked",
+                    float(tin.get("ecn_marked_packets", 0)),
+                    tin_labels,
+                    "raw",
+                )
             )
             metrics_batch.append(
-                (ts, "spectrum", "wanctl_cake_tin_delay_us", float(tin.get("avg_delay_us", 0)), tin_labels, "raw")
+                (
+                    ts,
+                    "spectrum",
+                    "wanctl_cake_tin_delay_us",
+                    float(tin.get("avg_delay_us", 0)),
+                    tin_labels,
+                    "raw",
+                )
             )
             metrics_batch.append(
-                (ts, "spectrum", "wanctl_cake_tin_backlog_bytes", float(tin.get("backlog_bytes", 0)), tin_labels, "raw")
+                (
+                    ts,
+                    "spectrum",
+                    "wanctl_cake_tin_backlog_bytes",
+                    float(tin.get("backlog_bytes", 0)),
+                    tin_labels,
+                    "raw",
+                )
             )
 
         assert len(metrics_batch) == 16  # 4 tins x 4 metrics
@@ -474,7 +528,12 @@ class TestPerTinMetrics:
         # Simulate non-linux-cake path: only base metrics, no per-tin
         _is_linux_cake = False
         last_tin_stats = [
-            {"dropped_packets": 5, "ecn_marked_packets": 2, "avg_delay_us": 150, "backlog_bytes": 1024},
+            {
+                "dropped_packets": 5,
+                "ecn_marked_packets": 2,
+                "avg_delay_us": 150,
+                "backlog_bytes": 1024,
+            },
         ]
 
         metrics_batch = [

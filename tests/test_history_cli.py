@@ -636,16 +636,26 @@ class TestPerTinHistory:
         db_path = tmp_path / "tins_test.db"
         writer = MetricsWriter(db_path=db_path)
         now = int(datetime.now().timestamp())
-        writer.write_metrics_batch([
-            (now, "spectrum", "wanctl_cake_tin_dropped", 5.0, json.dumps({"tin": "Bulk"}), "raw"),
-        ])
+        writer.write_metrics_batch(
+            [
+                (
+                    now,
+                    "spectrum",
+                    "wanctl_cake_tin_dropped",
+                    5.0,
+                    json.dumps({"tin": "Bulk"}),
+                    "raw",
+                ),
+            ]
+        )
         writer.close()
         MetricsWriter._reset_instance()
 
         with patch("wanctl.history.query_metrics") as mock_query:
             mock_query.return_value = []
             monkeypatch.setattr(
-                sys, "argv",
+                sys,
+                "argv",
                 ["wanctl-history", "--tins", "--last", "1h", "--db", str(db_path)],
             )
             main()
@@ -659,22 +669,70 @@ class TestPerTinHistory:
 
         now = int(datetime.now().timestamp())
         results = [
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
-             "value": 5.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
-             "value": 2.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_delay_us",
-             "value": 150.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_backlog_bytes",
-             "value": 1024.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
-             "value": 0.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
-             "value": 0.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_delay_us",
-             "value": 50.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_backlog_bytes",
-             "value": 256.0, "labels": json.dumps({"tin": "BestEffort"}), "granularity": "raw"},
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_dropped",
+                "value": 5.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_ecn_marked",
+                "value": 2.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_delay_us",
+                "value": 150.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_backlog_bytes",
+                "value": 1024.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_dropped",
+                "value": 0.0,
+                "labels": json.dumps({"tin": "BestEffort"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_ecn_marked",
+                "value": 0.0,
+                "labels": json.dumps({"tin": "BestEffort"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_delay_us",
+                "value": 50.0,
+                "labels": json.dumps({"tin": "BestEffort"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_backlog_bytes",
+                "value": 256.0,
+                "labels": json.dumps({"tin": "BestEffort"}),
+                "granularity": "raw",
+            },
         ]
 
         table = format_tins_table(results)
@@ -703,7 +761,8 @@ class TestPerTinHistory:
         MetricsWriter._reset_instance()
 
         monkeypatch.setattr(
-            sys, "argv",
+            sys,
+            "argv",
             ["wanctl-history", "--tins", "--last", "1h", "--db", str(db_path)],
         )
         result = main()
@@ -717,10 +776,22 @@ class TestPerTinHistory:
 
         now = int(datetime.now().timestamp())
         results = [
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_dropped",
-             "value": 5.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
-            {"timestamp": now, "wan_name": "spectrum", "metric_name": "wanctl_cake_tin_ecn_marked",
-             "value": 2.0, "labels": json.dumps({"tin": "Bulk"}), "granularity": "raw"},
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_dropped",
+                "value": 5.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
+            {
+                "timestamp": now,
+                "wan_name": "spectrum",
+                "metric_name": "wanctl_cake_tin_ecn_marked",
+                "value": 2.0,
+                "labels": json.dumps({"tin": "Bulk"}),
+                "granularity": "raw",
+            },
         ]
 
         output = format_tins_json(results)

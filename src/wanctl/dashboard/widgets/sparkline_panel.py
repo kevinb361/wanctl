@@ -57,9 +57,7 @@ class SparklinePanelWidget(Widget):
             max_color=self._rtt_max_color,
         )
 
-    def append_data(
-        self, dl_rate: float, ul_rate: float, rtt_delta: float
-    ) -> None:
+    def append_data(self, dl_rate: float, ul_rate: float, rtt_delta: float) -> None:
         """Append new data points and update sparkline reactives."""
         self._dl_data.append(dl_rate)
         self._ul_data.append(ul_rate)

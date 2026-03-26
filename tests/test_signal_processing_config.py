@@ -122,9 +122,7 @@ class TestSignalProcessingConfigDefaults:
 class TestSignalProcessingConfigValidation:
     """Warn+default behavior for invalid config values."""
 
-    def test_window_size_too_small_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_window_size_too_small_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """window_size < 3 triggers warning and defaults to 7."""
         autorate_config_dict["signal_processing"] = {"hampel": {"window_size": 2}}
         with caplog.at_level(logging.WARNING):
@@ -132,9 +130,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["hampel_window_size"] == 7
         assert "window_size must be int >= 3" in caplog.text
 
-    def test_window_size_not_int_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_window_size_not_int_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """window_size as string triggers warning and defaults to 7."""
         autorate_config_dict["signal_processing"] = {"hampel": {"window_size": "five"}}
         with caplog.at_level(logging.WARNING):
@@ -142,9 +138,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["hampel_window_size"] == 7
         assert "window_size must be int >= 3" in caplog.text
 
-    def test_sigma_threshold_zero_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_sigma_threshold_zero_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """sigma_threshold <= 0 triggers warning and defaults to 3.0."""
         autorate_config_dict["signal_processing"] = {"hampel": {"sigma_threshold": 0}}
         with caplog.at_level(logging.WARNING):
@@ -162,9 +156,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["hampel_sigma_threshold"] == 3.0
         assert "sigma_threshold must be positive" in caplog.text
 
-    def test_jitter_tc_zero_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_jitter_tc_zero_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """jitter_time_constant_sec <= 0 triggers warning and defaults to 2.0."""
         autorate_config_dict["signal_processing"] = {"jitter_time_constant_sec": 0}
         with caplog.at_level(logging.WARNING):
@@ -172,9 +164,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["jitter_time_constant_sec"] == 2.0
         assert "jitter_time_constant_sec must be positive" in caplog.text
 
-    def test_variance_tc_negative_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_variance_tc_negative_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """variance_time_constant_sec < 0 triggers warning and defaults to 5.0."""
         autorate_config_dict["signal_processing"] = {"variance_time_constant_sec": -2.0}
         with caplog.at_level(logging.WARNING):
@@ -182,9 +172,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["variance_time_constant_sec"] == 5.0
         assert "variance_time_constant_sec must be positive" in caplog.text
 
-    def test_boolean_window_size_warns_and_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_boolean_window_size_warns_and_defaults(self, tmp_path, autorate_config_dict, caplog):
         """window_size=True (isinstance(True, int) is True) triggers warning."""
         autorate_config_dict["signal_processing"] = {"hampel": {"window_size": True}}
         with caplog.at_level(logging.WARNING):
@@ -192,9 +180,7 @@ class TestSignalProcessingConfigValidation:
         assert config.signal_processing_config["hampel_window_size"] == 7
         assert "window_size must be int >= 3" in caplog.text
 
-    def test_non_dict_section_uses_defaults(
-        self, tmp_path, autorate_config_dict, caplog
-    ):
+    def test_non_dict_section_uses_defaults(self, tmp_path, autorate_config_dict, caplog):
         """signal_processing: "invalid" (not a dict) uses all defaults."""
         autorate_config_dict["signal_processing"] = "invalid"
         with caplog.at_level(logging.WARNING):
@@ -254,9 +240,7 @@ class TestSignalProcessingConfigCustom:
             "variance_time_constant_sec": 3.0,
         }
 
-    def test_integer_sigma_threshold_converted_to_float(
-        self, tmp_path, autorate_config_dict
-    ):
+    def test_integer_sigma_threshold_converted_to_float(self, tmp_path, autorate_config_dict):
         """Integer sigma_threshold=2 is stored as float 2.0."""
         autorate_config_dict["signal_processing"] = {"hampel": {"sigma_threshold": 2}}
         config = _make_config(tmp_path, autorate_config_dict)

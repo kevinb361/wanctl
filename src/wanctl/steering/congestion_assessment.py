@@ -84,7 +84,7 @@ def assess_congestion_state(
         return CongestionState.RED
 
     # YELLOW: Early warning (elevated RTT OR rising queue, but no drops yet)
-    elif rtt > thresholds.yellow_rtt or queue >= thresholds.min_queue_yellow:
+    if rtt > thresholds.yellow_rtt or queue >= thresholds.min_queue_yellow:
         logger.debug(
             f"Assessment: YELLOW - rtt={rtt:.1f}ms (threshold={thresholds.yellow_rtt}), "
             f"queue={queue} (threshold={thresholds.min_queue_yellow}), drops={drops}"
@@ -92,9 +92,8 @@ def assess_congestion_state(
         return CongestionState.YELLOW
 
     # GREEN: All systems nominal
-    else:
-        logger.debug(f"Assessment: GREEN - rtt={rtt:.1f}ms, drops={drops}, queue={queue}")
-        return CongestionState.GREEN
+    logger.debug(f"Assessment: GREEN - rtt={rtt:.1f}ms, drops={drops}, queue={queue}")
+    return CongestionState.GREEN
 
 
 def ewma_update(

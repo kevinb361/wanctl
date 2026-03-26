@@ -15,12 +15,11 @@ Requirements: FUSE-01, FUSE-04.
 
 import logging
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from wanctl.irtt_measurement import IRTTResult
-
 
 # =============================================================================
 # HELPERS
@@ -75,8 +74,8 @@ def mock_controller():
     controller._irtt_thread = None
 
     # Bind the real method
-    controller._compute_fused_rtt = (
-        WANController._compute_fused_rtt.__get__(controller, WANController)
+    controller._compute_fused_rtt = WANController._compute_fused_rtt.__get__(
+        controller, WANController
     )
 
     return controller
@@ -279,9 +278,7 @@ class TestFusionEnabledGuard:
     def test_enabled_with_irtt_computes_fusion(self, mock_controller):
         """When _fusion_enabled=True and IRTT is valid, returns weighted average."""
         irtt_thread = MagicMock()
-        irtt_thread.get_latest.return_value = _make_irtt_result(
-            rtt_ms=20.0, age_offset=1.0
-        )
+        irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
         irtt_thread._cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_enabled = True
@@ -321,9 +318,7 @@ class TestFusionRTTTracking:
     def test_fused_stores_both_values(self, mock_controller):
         """When fusion active, stores both ICMP and fused RTT values."""
         irtt_thread = MagicMock()
-        irtt_thread.get_latest.return_value = _make_irtt_result(
-            rtt_ms=20.0, age_offset=1.0
-        )
+        irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
         irtt_thread._cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_enabled = True

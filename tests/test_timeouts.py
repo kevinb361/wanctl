@@ -149,4 +149,3 @@ class TestGetPingTimeout:
             timeout = get_ping_timeout(component)
             assert isinstance(timeout, int)
             assert timeout > 0
-

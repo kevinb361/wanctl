@@ -59,11 +59,59 @@ select = [
     "I",      # isort
     "B",      # flake8-bugbear
     "UP",     # pyupgrade
+    "C901",   # mccabe complexity
+    "SIM",    # flake8-simplify
+    "PERF",   # perflint
+    "RET",    # flake8-return
+    "PT",     # flake8-pytest-style
+    "TRY",    # tryceratops
+    "ARG",    # flake8-unused-arguments
+    "ERA",    # eradicate (commented-out code)
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in default argument
+    # v1.22 audit suppressions (FSCAN-06):
+    # TRY: exception handling patterns acceptable in production controller
+    "TRY003", # long exception messages -- descriptive errors aid debugging
+    "TRY300", # try-consider-else -- style preference, existing patterns readable
+    "TRY301", # raise-within-try -- common retry/re-raise pattern
+    "TRY400", # logging.error vs logging.exception -- intentional (no traceback wanted)
+    # ARG: unused arguments from interface contracts, callbacks, fixtures
+    "ARG001", # unused function argument -- callbacks, signal handlers, fixture injection
+    "ARG002", # unused method argument -- interface implementations, overrides
+    "ARG004", # unused static method argument -- interface compliance
+    "ARG005", # unused lambda argument -- event handler signatures
+    # RET: return pattern preferences
+    "RET504", # unnecessary assignment before return -- aids debugger inspection
+    # SIM: simplification suggestions that reduce readability
+    "SIM105", # contextlib.suppress vs try/except pass -- explicit is better
+    "SIM108", # ternary vs if-else -- multi-line clarity preferred
+    "SIM117", # multiple-with-statements -- nested context managers more readable
+    # PT: pytest style preferences
+    "PT006",  # parametrize names wrong type -- tuple vs list is style
+    "PT011",  # pytest.raises too broad -- acceptable for exception-type testing
+    "PT012",  # pytest.raises with multiple statements -- common setup pattern
+    "PT018",  # composite assertion -- acceptable in unit tests
+    # PERF: performance suggestions deferred to Phase 114
+    "PERF401",# manual list comprehension -- defer optimization to Phase 114
+    # ERA: commented-out code deferred to Phase 114
+    "ERA001", # commented-out code -- defer cleanup to Phase 114 dead code removal
+    # SIM: nested-if clarity
+    "SIM102", # collapsible-if -- nested conditions more readable with comments
+    # E: pre-existing suppressions
+    "E741",   # ambiguous variable name -- math/network code uses i, l, n conventions
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20  # permissive for audit baseline; functions >15 documented for Phase 114
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SIM102"]  # collapsible-if in tests -- readability over compactness
+# C901: complex functions documented for Phase 114 reduction (CQUAL-05)
+"src/wanctl/autorate_continuous.py" = ["C901"]  # run_cycle(30), main(68)
+"src/wanctl/health_check.py" = ["C901"]         # _get_health_status(24)
+"src/wanctl/steering/daemon.py" = ["C901"]      # main(23)
 
 [tool.ruff.lint.isort]
 known-first-party = ["wanctl"]

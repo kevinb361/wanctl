@@ -127,9 +127,7 @@ class StatusBarWidget(Widget):
         super().__init__(id=id)
         self._renderer = StatusBar()
 
-    def update_status(
-        self, version: str, uptime_seconds: float, disk_status: str
-    ) -> None:
+    def update_status(self, version: str, uptime_seconds: float, disk_status: str) -> None:
         """Forward status update to the renderer and refresh display."""
         self._renderer.update(
             version=version, uptime_seconds=uptime_seconds, disk_status=disk_status
@@ -211,18 +209,14 @@ class DashboardApp(App):
         self.set_interval(self.config.refresh_interval, self._poll_autorate)
         self.set_interval(self.config.refresh_interval, self._poll_steering)
         if self._secondary_autorate_poller is not None:
-            self.set_interval(
-                self.config.refresh_interval, self._poll_secondary_autorate
-            )
+            self.set_interval(self.config.refresh_interval, self._poll_secondary_autorate)
         self._apply_layout()
 
     def on_resize(self, event: Resize) -> None:
         """Debounced layout switch on terminal resize."""
         if self._resize_timer is not None:
             self._resize_timer.stop()
-        self._resize_timer = self.set_timer(
-            HYSTERESIS_DELAY, self._apply_layout
-        )
+        self._resize_timer = self.set_timer(HYSTERESIS_DELAY, self._apply_layout)
 
     def _apply_layout(self) -> None:
         """Switch layout based on current terminal width."""
@@ -278,9 +272,7 @@ class DashboardApp(App):
 
         cycle_budget = wan_data.get("cycle_budget")
         if cycle_budget is not None:
-            gauge = self.query_one(
-                f"#gauge-wan-{wan_num}", CycleBudgetGaugeWidget
-            )
+            gauge = self.query_one(f"#gauge-wan-{wan_num}", CycleBudgetGaugeWidget)
             gauge.update_utilization(cycle_budget.get("utilization_pct", 0))
 
     async def _poll_autorate(self) -> None:
@@ -311,9 +303,7 @@ class DashboardApp(App):
         else:
             wan1.update_from_data(None, last_seen=self._autorate_poller.last_seen)
             if self._secondary_autorate_poller is None:
-                wan2.update_from_data(
-                    None, last_seen=self._autorate_poller.last_seen
-                )
+                wan2.update_from_data(None, last_seen=self._autorate_poller.last_seen)
 
     async def _poll_secondary_autorate(self) -> None:
         """Poll secondary autorate endpoint and route data to WAN 2 panel."""
@@ -328,9 +318,7 @@ class DashboardApp(App):
             if wans:
                 self._route_wan_data(wans[0], 2, data)
         else:
-            wan2.update_from_data(
-                None, last_seen=self._secondary_autorate_poller.last_seen
-            )
+            wan2.update_from_data(None, last_seen=self._secondary_autorate_poller.last_seen)
 
     async def _poll_steering(self) -> None:
         """Poll steering endpoint and route data to steering panel."""

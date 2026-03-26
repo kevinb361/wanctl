@@ -7,8 +7,6 @@ when tuning is enabled, and gracefully handles all edge cases.
 import logging
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningState
 
 
@@ -38,12 +36,16 @@ def _make_wc(*, tuning_enabled: bool = True, metrics_writer=None):
     wc.logger = logging.getLogger("test_tuning_restore")
     wc._tuning_enabled = tuning_enabled
     wc._metrics_writer = metrics_writer
-    wc._tuning_state = TuningState(
-        enabled=tuning_enabled,
-        last_run_ts=None,
-        recent_adjustments=[],
-        parameters={},
-    ) if tuning_enabled else None
+    wc._tuning_state = (
+        TuningState(
+            enabled=tuning_enabled,
+            last_run_ts=None,
+            recent_adjustments=[],
+            parameters={},
+        )
+        if tuning_enabled
+        else None
+    )
     # Attributes that _apply_tuning_to_controller writes to
     wc.green_threshold = 15.0
     wc.target_delta = 15.0

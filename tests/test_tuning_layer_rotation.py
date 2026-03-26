@@ -119,9 +119,7 @@ class TestApplySignalProcessingParams:
         sp = MagicMock()
         sp._window_size = 7
         sp._window = deque([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], maxlen=7)
-        sp._outlier_window = deque(
-            [True, False, True, False, True, False, True], maxlen=7
-        )
+        sp._outlier_window = deque([True, False, True, False, True, False, True], maxlen=7)
         wc.signal_processor = sp
 
         result = _make_result("hampel_window_size", old=7.0, new=5.0)
@@ -336,9 +334,7 @@ class TestLayerRoundRobin:
 
     def test_layer_index_increments(self):
         """Layer index should increment by 1 per tuning cycle."""
-        layer_index = 0
-        for expected in range(1, 7):
-            layer_index += 1
+        for layer_index, expected in enumerate(range(1, 7), start=1):
             assert layer_index == expected
 
     def test_locked_params_filtered_from_active_layer(self):
@@ -353,9 +349,7 @@ class TestLayerRoundRobin:
             ("hampel_window_size", "tune_hampel_window"),
         ]
         active_strategies = [
-            (pname, sfn)
-            for pname, sfn in active_layer
-            if not is_parameter_locked(locks, pname)
+            (pname, sfn) for pname, sfn in active_layer if not is_parameter_locked(locks, pname)
         ]
         # Only hampel_window_size should remain
         assert len(active_strategies) == 1

@@ -204,9 +204,8 @@ def check_ssh_connectivity(host: str, user: str, ssh_key: str | None = None) -> 
         if result.returncode == 0 and "ok" in result.stdout:
             print_success("SSH connection successful")
             return True
-        else:
-            print_error(f"SSH connection failed: {result.stderr}")
-            return False
+        print_error(f"SSH connection failed: {result.stderr}")
+        return False
     except subprocess.TimeoutExpired:
         print_error("SSH connection timed out")
         return False
@@ -228,9 +227,8 @@ def check_netperf_server(host: str) -> bool:
         if result.returncode == 0:
             print_success("Netperf server reachable")
             return True
-        else:
-            print_error(f"Netperf test failed: {result.stderr}")
-            return False
+        print_error(f"Netperf test failed: {result.stderr}")
+        return False
     except FileNotFoundError:
         print_error("netperf not installed - please install: apt install netperf")
         return False
@@ -658,8 +656,7 @@ def _step_connectivity_tests(
     if not check_netperf_server(netperf_host):
         print_warning("Netperf server not reachable - will measure RTT only")
         return True, True
-    else:
-        return True, False
+    return True, False
 
 
 def _step_baseline_rtt(ping_host: str) -> float | None:
@@ -1125,10 +1122,9 @@ Examples:
 
     if result:
         return 0
-    elif is_shutdown_requested():
+    if is_shutdown_requested():
         return 130  # Standard SIGINT exit code
-    else:
-        return 1
+    return 1
 
 
 if __name__ == "__main__":
