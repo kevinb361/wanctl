@@ -56,7 +56,13 @@ Plans:
 3. Steering logic audit confirms confidence scoring weights, degrade timers, and CAKE-primary invariant are correct
 4. Measurement methodology validated: reflector selection, signal chain (Hampel/Fusion/EWMA), IRTT vs ICMP paths documented with correctness rationale
 5. Queue depth and memory pressure baseline documented from production `tc -s qdisc show` statistics
-   **Plans**: TBD
+   **Plans:** 3 plans
+
+Plans:
+
+- [ ] 113-01-PLAN.md -- CAKE parameter verification + DSCP end-to-end trace
+- [ ] 113-02-PLAN.md -- Steering logic audit + measurement methodology validation
+- [ ] 113-03-PLAN.md -- Queue depth and memory pressure baseline
 
 ### Phase 114: Code Quality & Safety
 
@@ -108,7 +114,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | Phase                             | Plans Complete | Status      | Completed |
 | --------------------------------- | -------------- | ----------- | --------- |
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
-| 113. Network Engineering Audit    | 0/TBD          | Not started | -         |
+| 113. Network Engineering Audit    | 0/3            | Not started | -         |
 | 114. Code Quality & Safety        | 0/TBD          | Not started | -         |
 | 115. Operational Hardening        | 0/TBD          | Not started | -         |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -         |
