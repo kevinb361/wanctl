@@ -11,7 +11,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 - [x] **FSCAN-01**: All Python dependencies scanned for CVEs with pip-audit (zero critical/high)
 - [x] **FSCAN-02**: Unused dependencies identified and removed via deptry
-- [ ] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
+- [x] **FSCAN-03**: Dead code inventory produced via vulture (identification only, no removal)
 - [x] **FSCAN-04**: File permissions verified (/etc/wanctl/secrets 0600, state/log dirs 0750)
 - [x] **FSCAN-05**: systemd-analyze security score assessed for all 3 service units
 - [x] **FSCAN-06**: Ruff rule expansion (C901/SIM/PERF/RET/PT/TRY/ARG/ERA) applied and findings triaged
@@ -81,37 +81,36 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | ----------- | --------- | -------- |
 | FSCAN-01    | Phase 112 | Complete |
 | FSCAN-02    | Phase 112 | Complete |
-| FSCAN-03    | Phase 112 | Pending  |
-
-| FSCAN-04 | Phase 112 | Complete |
-| FSCAN-05 | Phase 112 | Complete |
-| FSCAN-06 | Phase 112 | Complete |
-| FSCAN-07 | Phase 112 | Complete |
-| FSCAN-08 | Phase 112 | Complete |
-| NETENG-01 | Phase 113 | Pending |
-| NETENG-02 | Phase 113 | Pending |
-| NETENG-03 | Phase 113 | Pending |
-| NETENG-04 | Phase 113 | Pending |
-| NETENG-05 | Phase 113 | Pending |
-| CQUAL-01 | Phase 114 | Pending |
-| CQUAL-02 | Phase 114 | Pending |
-| CQUAL-03 | Phase 114 | Pending |
-| CQUAL-04 | Phase 114 | Pending |
-| CQUAL-05 | Phase 114 | Pending |
-| CQUAL-06 | Phase 114 | Pending |
-| CQUAL-07 | Phase 114 | Pending |
-| OPSEC-01 | Phase 115 | Pending |
-| OPSEC-02 | Phase 115 | Pending |
-| OPSEC-03 | Phase 115 | Pending |
-| OPSEC-04 | Phase 115 | Pending |
-| OPSEC-05 | Phase 115 | Pending |
-| OPSEC-06 | Phase 115 | Pending |
-| TDOC-01 | Phase 116 | Pending |
-| TDOC-02 | Phase 116 | Pending |
-| TDOC-03 | Phase 116 | Pending |
-| TDOC-04 | Phase 116 | Pending |
-| TDOC-05 | Phase 116 | Pending |
-| TDOC-06 | Phase 116 | Pending |
+| FSCAN-03    | Phase 112 | Complete |
+| FSCAN-04    | Phase 112 | Complete |
+| FSCAN-05    | Phase 112 | Complete |
+| FSCAN-06    | Phase 112 | Complete |
+| FSCAN-07    | Phase 112 | Complete |
+| FSCAN-08    | Phase 112 | Complete |
+| NETENG-01   | Phase 113 | Pending  |
+| NETENG-02   | Phase 113 | Pending  |
+| NETENG-03   | Phase 113 | Pending  |
+| NETENG-04   | Phase 113 | Pending  |
+| NETENG-05   | Phase 113 | Pending  |
+| CQUAL-01    | Phase 114 | Pending  |
+| CQUAL-02    | Phase 114 | Pending  |
+| CQUAL-03    | Phase 114 | Pending  |
+| CQUAL-04    | Phase 114 | Pending  |
+| CQUAL-05    | Phase 114 | Pending  |
+| CQUAL-06    | Phase 114 | Pending  |
+| CQUAL-07    | Phase 114 | Pending  |
+| OPSEC-01    | Phase 115 | Pending  |
+| OPSEC-02    | Phase 115 | Pending  |
+| OPSEC-03    | Phase 115 | Pending  |
+| OPSEC-04    | Phase 115 | Pending  |
+| OPSEC-05    | Phase 115 | Pending  |
+| OPSEC-06    | Phase 115 | Pending  |
+| TDOC-01     | Phase 116 | Pending  |
+| TDOC-02     | Phase 116 | Pending  |
+| TDOC-03     | Phase 116 | Pending  |
+| TDOC-04     | Phase 116 | Pending  |
+| TDOC-05     | Phase 116 | Pending  |
+| TDOC-06     | Phase 116 | Pending  |
 
 **Coverage:**
 
