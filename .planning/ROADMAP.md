@@ -117,7 +117,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | 113. Network Engineering Audit    | 2/3            | In Progress |            |
 | 114. Code Quality & Safety        | 0/TBD          | Not started | -          |
 | 115. Operational Hardening        | 0/TBD          | Not started | -          |
-| 116. Test & Documentation Hygiene | 0/TBD          | Not started | -          |
+| 116. Test & Documentation Hygiene | 1/3            | In Progress | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.21)</summary>

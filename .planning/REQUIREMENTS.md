@@ -47,8 +47,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 ### Test & Documentation
 
-- [ ] **TDOC-01**: Test quality audit completed (assertion-free, over-mocked, tautological tests identified)
-- [ ] **TDOC-02**: Highest-risk test quality issues fixed
+- [x] **TDOC-01**: Test quality audit completed (assertion-free, over-mocked, tautological tests identified)
+- [x] **TDOC-02**: Highest-risk test quality issues fixed
 - [ ] **TDOC-03**: All docs/\* reviewed for accuracy against current architecture (post-v1.21)
 - [ ] **TDOC-04**: Container-era scripts archived to .archive/ with manifest
 - [ ] **TDOC-05**: CONFIG_SCHEMA.md aligned with config_validation_utils.py and accepted params
@@ -105,8 +105,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | OPSEC-04    | Phase 115 | Pending  |
 | OPSEC-05    | Phase 115 | Pending  |
 | OPSEC-06    | Phase 115 | Pending  |
-| TDOC-01     | Phase 116 | Pending  |
-| TDOC-02     | Phase 116 | Pending  |
+| TDOC-01     | Phase 116 | Complete |
+| TDOC-02     | Phase 116 | Complete |
 | TDOC-03     | Phase 116 | Pending  |
 | TDOC-04     | Phase 116 | Pending  |
 | TDOC-05     | Phase 116 | Pending  |
