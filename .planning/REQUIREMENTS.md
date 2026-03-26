@@ -21,7 +21,7 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 ### Network Engineering
 
 - [ ] **NETENG-01**: CAKE parameters verified per WAN (overhead, diffserv4, ack-filter, split-gso, memlimit)
-- [ ] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle → CAKE tins → verify EF/AF/CS1 mapping)
+- [ ] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle -> CAKE tins -> verify EF/AF/CS1 mapping)
 - [ ] **NETENG-03**: Steering logic correctness audited (confidence scoring, degrade timers, CAKE-primary invariant)
 - [ ] **NETENG-04**: Measurement methodology validated (reflector selection, signal chain, IRTT vs ICMP paths)
 - [ ] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
@@ -79,44 +79,44 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FSCAN-01 | TBD | Pending |
-| FSCAN-02 | TBD | Pending |
-| FSCAN-03 | TBD | Pending |
-| FSCAN-04 | TBD | Pending |
-| FSCAN-05 | TBD | Pending |
-| FSCAN-06 | TBD | Pending |
-| FSCAN-07 | TBD | Pending |
-| FSCAN-08 | TBD | Pending |
-| NETENG-01 | TBD | Pending |
-| NETENG-02 | TBD | Pending |
-| NETENG-03 | TBD | Pending |
-| NETENG-04 | TBD | Pending |
-| NETENG-05 | TBD | Pending |
-| CQUAL-01 | TBD | Pending |
-| CQUAL-02 | TBD | Pending |
-| CQUAL-03 | TBD | Pending |
-| CQUAL-04 | TBD | Pending |
-| CQUAL-05 | TBD | Pending |
-| CQUAL-06 | TBD | Pending |
-| CQUAL-07 | TBD | Pending |
-| OPSEC-01 | TBD | Pending |
-| OPSEC-02 | TBD | Pending |
-| OPSEC-03 | TBD | Pending |
-| OPSEC-04 | TBD | Pending |
-| OPSEC-05 | TBD | Pending |
-| OPSEC-06 | TBD | Pending |
-| TDOC-01 | TBD | Pending |
-| TDOC-02 | TBD | Pending |
-| TDOC-03 | TBD | Pending |
-| TDOC-04 | TBD | Pending |
-| TDOC-05 | TBD | Pending |
-| TDOC-06 | TBD | Pending |
+| FSCAN-01 | Phase 112 | Pending |
+| FSCAN-02 | Phase 112 | Pending |
+| FSCAN-03 | Phase 112 | Pending |
+| FSCAN-04 | Phase 112 | Pending |
+| FSCAN-05 | Phase 112 | Pending |
+| FSCAN-06 | Phase 112 | Pending |
+| FSCAN-07 | Phase 112 | Pending |
+| FSCAN-08 | Phase 112 | Pending |
+| NETENG-01 | Phase 113 | Pending |
+| NETENG-02 | Phase 113 | Pending |
+| NETENG-03 | Phase 113 | Pending |
+| NETENG-04 | Phase 113 | Pending |
+| NETENG-05 | Phase 113 | Pending |
+| CQUAL-01 | Phase 114 | Pending |
+| CQUAL-02 | Phase 114 | Pending |
+| CQUAL-03 | Phase 114 | Pending |
+| CQUAL-04 | Phase 114 | Pending |
+| CQUAL-05 | Phase 114 | Pending |
+| CQUAL-06 | Phase 114 | Pending |
+| CQUAL-07 | Phase 114 | Pending |
+| OPSEC-01 | Phase 115 | Pending |
+| OPSEC-02 | Phase 115 | Pending |
+| OPSEC-03 | Phase 115 | Pending |
+| OPSEC-04 | Phase 115 | Pending |
+| OPSEC-05 | Phase 115 | Pending |
+| OPSEC-06 | Phase 115 | Pending |
+| TDOC-01 | Phase 116 | Pending |
+| TDOC-02 | Phase 116 | Pending |
+| TDOC-03 | Phase 116 | Pending |
+| TDOC-04 | Phase 116 | Pending |
+| TDOC-05 | Phase 116 | Pending |
+| TDOC-06 | Phase 116 | Pending |
 
 **Coverage:**
 - v1.22 requirements: 32 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 32
+- Mapped to phases: 32/32
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after initial definition*
+*Last updated: 2026-03-26 after roadmap creation*
