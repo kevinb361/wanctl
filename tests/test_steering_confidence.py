@@ -523,11 +523,12 @@ class TestConfidenceControllerEvaluate:
         signals = self._make_signals()
 
         # Enough cycles for recovery timer to expire (10s / 0.05s = 200 + 1 start)
+        result = None
         for _ in range(210):
-            controller.evaluate(signals, "WAN1_DEGRADED")
+            result = controller.evaluate(signals, "WAN1_DEGRADED")
 
-        # Dry-run: no actual action
-        # The evaluate call itself returns None in dry-run
+        # Dry-run: evaluate returns None (no actual steering action taken)
+        assert result is None
 
     def test_non_dry_run_returns_disable_steering(self, config_v3, logger):
         """Non-dry-run recovery should return DISABLE_STEERING."""
