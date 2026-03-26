@@ -38,7 +38,7 @@ None
 Plans:
 - [ ] 112-01-PLAN.md -- Dependency hygiene scan (pip-audit, deptry, deadfixtures, log rotation)
 - [ ] 112-02-PLAN.md -- Production VM security audit (file permissions, systemd security scores)
-- [ ] 112-03-PLAN.md -- Ruff rule expansion with autofix and triage
+- [x] 112-03-PLAN.md -- Ruff rule expansion with autofix and triage
 - [ ] 112-04-PLAN.md -- Vulture dead code inventory with false positive validation
 
 ### Phase 113: Network Engineering Audit
@@ -96,7 +96,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 112. Foundation Scan | 0/4 | Planning complete | - |
+| 112. Foundation Scan | 1/4 | In Progress|  |
 | 113. Network Engineering Audit | 0/TBD | Not started | - |
 | 114. Code Quality & Safety | 0/TBD | Not started | - |
 | 115. Operational Hardening | 0/TBD | Not started | - |
