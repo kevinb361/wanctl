@@ -20,8 +20,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 
 ### Network Engineering
 
-- [ ] **NETENG-01**: CAKE parameters verified per WAN (overhead, diffserv4, ack-filter, split-gso, memlimit)
-- [ ] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle -> CAKE tins -> verify EF/AF/CS1 mapping)
+- [x] **NETENG-01**: CAKE parameters verified per WAN (overhead, diffserv4, ack-filter, split-gso, memlimit)
+- [x] **NETENG-02**: DSCP end-to-end trace completed (MikroTik mangle -> CAKE tins -> verify EF/AF/CS1 mapping)
 - [ ] **NETENG-03**: Steering logic correctness audited (confidence scoring, degrade timers, CAKE-primary invariant)
 - [ ] **NETENG-04**: Measurement methodology validated (reflector selection, signal chain, IRTT vs ICMP paths)
 - [ ] **NETENG-05**: Queue depth and memory pressure baseline documented from production CAKE stats
@@ -87,8 +87,8 @@ Comprehensive audit from network engineering, Linux sysadmin, and Python develop
 | FSCAN-06    | Phase 112 | Complete |
 | FSCAN-07    | Phase 112 | Complete |
 | FSCAN-08    | Phase 112 | Complete |
-| NETENG-01   | Phase 113 | Pending  |
-| NETENG-02   | Phase 113 | Pending  |
+| NETENG-01   | Phase 113 | Complete |
+| NETENG-02   | Phase 113 | Complete |
 | NETENG-03   | Phase 113 | Pending  |
 | NETENG-04   | Phase 113 | Pending  |
 | NETENG-05   | Phase 113 | Pending  |

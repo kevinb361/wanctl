@@ -60,7 +60,7 @@ Plans:
 
 Plans:
 
-- [ ] 113-01-PLAN.md -- CAKE parameter verification + DSCP end-to-end trace
+- [x] 113-01-PLAN.md -- CAKE parameter verification + DSCP end-to-end trace
 - [ ] 113-02-PLAN.md -- Steering logic audit + measurement methodology validation
 - [ ] 113-03-PLAN.md -- Queue depth and memory pressure baseline
 
@@ -114,7 +114,7 @@ Phases execute in numeric order: 112 -> 113 -> 114 -> 115 -> 116
 | Phase                             | Plans Complete | Status      | Completed |
 | --------------------------------- | -------------- | ----------- | --------- |
 | 112. Foundation Scan              | 4/4            | Complete    | 2026-03-26 |
-| 113. Network Engineering Audit    | 0/3            | Not started | -         |
+| 113. Network Engineering Audit    | 1/3 | In Progress|  |
 | 114. Code Quality & Safety        | 0/TBD          | Not started | -         |
 | 115. Operational Hardening        | 0/TBD          | Not started | -         |
 | 116. Test & Documentation Hygiene | 0/TBD          | Not started | -         |
