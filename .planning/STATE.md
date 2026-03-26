@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-26T20:12:17.547Z"
+status: executing
+last_updated: "2026-03-26T23:29:01.885Z"
 last_activity: 2026-03-26
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 7
-  completed_plans: 5
-  percent: 100
+  total_plans: 10
+  completed_plans: 7
+  percent: 71
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Milestone:** v1.22 Full System Audit
 **Phase:** 113 of 116 (network engineering audit)
-**Plan:** 1 of 3 complete
-**Status:** Executing Phase 113
-**Last activity:** 2026-03-26 -- Completed 113-01-PLAN.md
+**Plan:** 2 of 3 complete
+**Status:** Ready to execute
+**Last activity:** 2026-03-26
 
 Progress: [███████░░░] 71%
 
@@ -40,13 +40,14 @@ Progress: [███████░░░] 71%
 - Average duration: 11min
 - Total execution time: 0.9 hours
 
-| Phase | Plan | Duration | Tasks | Files |
-| ----- | ---- | -------- | ----- | ----- |
-| 112   | 01   | 4min     | 1     | 2     |
-| 112   | 02   | 4min     | 2     | 1     |
-| 112   | 03   | 34min    | 2     | 120   |
-| 112   | 04   | 6min     | 1     | 2     |
-| 113   | 01   | 5min     | 2     | 1     |
+| Phase         | Plan | Duration | Tasks    | Files |
+| ------------- | ---- | -------- | -------- | ----- |
+| 112           | 01   | 4min     | 1        | 2     |
+| 112           | 02   | 4min     | 2        | 1     |
+| 112           | 03   | 34min    | 2        | 120   |
+| 112           | 04   | 6min     | 1        | 2     |
+| 113           | 01   | 5min     | 2        | 1     |
+| Phase 116 P02 | 9min | 2 tasks  | 14 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Progress: [███████░░░] 71%
 - 112-04: .vulture_whitelist.py created with 68 entries covering all 15 PITFALLS.md false positives
 - 113-01: wanctl-check-cake does not support linux-cake transport -- tc readback is the correct verification method
 - 113-01: Measurement traffic (ICMP/IRTT) correctly classified CS0/Best Effort for accurate autorate readings
+- 116-02: CONFIG_SCHEMA.md had 6 undocumented sections (storage, cake_params, cake_optimization, fallback_checks, linux-cake transport, logging rotation) -- all added
+- 116-02: container*install*\*.sh already removed pre-v1.22 -- documented in .archive/manifest.md
+- 116-02: .archive/ requires git add -f due to .gitignore rule
 
 ### Known Issues
 
