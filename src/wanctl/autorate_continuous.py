@@ -3992,13 +3992,21 @@ def main() -> int | None:
                         vacuumed = vacuum_if_needed(maintenance_conn, deleted)
                         notify_watchdog()
 
+                        # Truncate WAL file to reclaim disk/page-cache
+                        wal_result = maintenance_conn.execute(
+                            "PRAGMA wal_checkpoint(TRUNCATE)"
+                        ).fetchone()
+                        wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
+                        notify_watchdog()
+
                         total_ds = sum(downsampled.values())
-                        if deleted > 0 or total_ds > 0 or vacuumed:
+                        if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
                             maint_logger.info(
-                                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s",
+                                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
                                 deleted,
                                 total_ds,
                                 vacuumed,
+                                wal_truncated,
                             )
                     except Exception as e:
                         maint_logger.error("Periodic maintenance failed: %s", e)

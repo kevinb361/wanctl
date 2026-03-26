@@ -114,6 +114,7 @@ class MetricsWriter:
         )
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA journal_size_limit=67108864")  # 64 MB WAL cap
         conn.row_factory = sqlite3.Row
         return conn
 
