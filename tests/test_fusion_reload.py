@@ -47,6 +47,7 @@ def _make_controller(tmp_path, yaml_content, initial_enabled=False, initial_weig
     controller.config.config_file_path = str(config_file)
     controller._fusion_enabled = initial_enabled
     controller._fusion_icmp_weight = initial_weight
+    controller._fusion_healer = None
 
     # Bind the real method
     controller._reload_fusion_config = WANController._reload_fusion_config.__get__(
