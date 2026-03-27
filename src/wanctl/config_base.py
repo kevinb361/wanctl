@@ -132,6 +132,36 @@ STORAGE_SCHEMA: list[dict] = [
         "required": False,
         "default": DEFAULT_STORAGE_DB_PATH,
     },
+    {
+        "path": "storage.retention.raw_age_seconds",
+        "type": int,
+        "required": False,
+        "default": 3600,
+        "min": 60,
+        "max": 604800,
+    },
+    {
+        "path": "storage.retention.aggregate_1m_age_seconds",
+        "type": int,
+        "required": False,
+        "default": 86400,
+        "min": 3600,
+        "max": 2592000,
+    },
+    {
+        "path": "storage.retention.aggregate_5m_age_seconds",
+        "type": int,
+        "required": False,
+        "default": 604800,
+        "min": 3600,
+        "max": 31536000,
+    },
+    {
+        "path": "storage.retention.prometheus_compensated",
+        "type": bool,
+        "required": False,
+        "default": False,
+    },
 ]
 
 
@@ -143,13 +173,59 @@ def get_storage_config(data: dict) -> dict[str, Any]:
 
     Returns:
         Dict with keys:
-        - retention_days: int (default 7)
+        - retention_days: int (backward compat, computed from aggregate_5m_age_seconds)
         - db_path: str (default /var/lib/wanctl/metrics.db)
+        - retention: dict with per-granularity thresholds:
+            - raw_age_seconds: int (default 3600)
+            - aggregate_1m_age_seconds: int (default 86400)
+            - aggregate_5m_age_seconds: int (default 604800)
+            - prometheus_compensated: bool (default False)
     """
+    # Lazy import to avoid circular dependency (config_validation_utils imports ConfigValidationError)
+    from wanctl.config_validation_utils import deprecate_param
+
+    logger = logging.getLogger(__name__)
     storage = data.get("storage", {})
+
+    # Translate deprecated retention_days to new retention section
+    translated = deprecate_param(
+        storage,
+        old_key="retention_days",
+        new_key="retention",
+        logger=logger,
+        transform_fn=lambda days: {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": days * 86400,
+        },
+    )
+    if translated is not None:
+        storage["retention"] = translated
+
+    retention = storage.get("retention", {})
+    prometheus_compensated = retention.get("prometheus_compensated", False)
+
+    # Defaults based on prometheus_compensated mode
+    if prometheus_compensated:
+        default_raw = 3600
+        default_1m = 86400  # 24h
+        default_5m = 172800  # 48h
+    else:
+        default_raw = 3600
+        default_1m = 86400
+        default_5m = 604800
+
+    retention_config = {
+        "raw_age_seconds": retention.get("raw_age_seconds", default_raw),
+        "aggregate_1m_age_seconds": retention.get("aggregate_1m_age_seconds", default_1m),
+        "aggregate_5m_age_seconds": retention.get("aggregate_5m_age_seconds", default_5m),
+        "prometheus_compensated": prometheus_compensated,
+    }
+
     return {
-        "retention_days": storage.get("retention_days", DEFAULT_STORAGE_RETENTION_DAYS),
         "db_path": storage.get("db_path", DEFAULT_STORAGE_DB_PATH),
+        "retention_days": retention_config["aggregate_5m_age_seconds"] // 86400,
+        "retention": retention_config,
     }
 
 
