@@ -1120,7 +1120,14 @@ class Config(BaseConfig):
             return
 
         # Parse exclude_params list (parameters to skip during autotuning)
-        raw_exclude = tuning.get("exclude_params", [])
+        # Default: response params excluded (RTUN-05 graduation pattern).
+        # No exclude_params in YAML -> response params excluded (safe default).
+        # Explicit exclude_params: [] -> nothing excluded (all params tunable).
+        # Explicit exclude_params: ["x"] -> only "x" excluded (user manages list).
+        from wanctl.tuning.strategies.response import RESPONSE_PARAMS as _RESP_DEFAULTS
+
+        _DEFAULT_EXCLUDE = list(_RESP_DEFAULTS)
+        raw_exclude = tuning.get("exclude_params", _DEFAULT_EXCLUDE)
         if not isinstance(raw_exclude, list):
             logger.warning(
                 f"tuning.exclude_params must be a list, got {type(raw_exclude).__name__}; "
@@ -1569,6 +1576,12 @@ def _apply_tuning_to_controller(
       reflector_min_score   -> _reflector_scorer._min_score
       baseline_rtt_min      -> baseline_rtt_min
       baseline_rtt_max      -> baseline_rtt_max
+      dl_step_up_mbps       -> download.step_up_bps (Mbps -> bps)
+      ul_step_up_mbps       -> upload.step_up_bps (Mbps -> bps)
+      dl_factor_down        -> download.factor_down
+      ul_factor_down        -> upload.factor_down
+      dl_green_required     -> download.green_required (round to int)
+      ul_green_required     -> upload.green_required (round to int)
 
     Also updates TuningState with recent adjustments (capped at 10).
     """
@@ -1609,6 +1622,18 @@ def _apply_tuning_to_controller(
             wc.baseline_rtt_min = r.new_value
         elif r.parameter == "baseline_rtt_max":
             wc.baseline_rtt_max = r.new_value
+        elif r.parameter == "dl_step_up_mbps":
+            wc.download.step_up_bps = int(r.new_value * 1_000_000)
+        elif r.parameter == "ul_step_up_mbps":
+            wc.upload.step_up_bps = int(r.new_value * 1_000_000)
+        elif r.parameter == "dl_factor_down":
+            wc.download.factor_down = r.new_value
+        elif r.parameter == "ul_factor_down":
+            wc.upload.factor_down = r.new_value
+        elif r.parameter == "dl_green_required":
+            wc.download.green_required = round(r.new_value)
+        elif r.parameter == "ul_green_required":
+            wc.upload.green_required = round(r.new_value)
 
     # Update TuningState with recent adjustments
     if results and wc._tuning_state is not None:
@@ -1984,6 +2009,18 @@ class WANController:
         # Safety: revert detection and hysteresis lock state (Plan 100-02)
         self._parameter_locks: dict[str, float] = {}  # param -> monotonic lock expiry
         self._pending_observation = None  # PendingObservation | None (lazy import)
+        # Oscillation lockout threshold (RTUN-04) -- parsed from tuning config
+        from wanctl.tuning.strategies.response import DEFAULT_OSCILLATION_THRESHOLD
+
+        osc_raw = self.config.data.get("tuning", {}).get("oscillation_threshold")
+        if (
+            osc_raw is not None
+            and isinstance(osc_raw, (int, float))
+            and not isinstance(osc_raw, bool)
+        ):
+            self._oscillation_threshold: float = float(osc_raw)
+        else:
+            self._oscillation_threshold = DEFAULT_OSCILLATION_THRESHOLD
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -4255,6 +4292,15 @@ def main() -> int | None:
                         calibrate_target_bloat,
                         calibrate_warn_bloat,
                     )
+                    from wanctl.tuning.strategies.response import (
+                        check_oscillation_lockout,
+                        tune_dl_factor_down,
+                        tune_dl_green_required,
+                        tune_dl_step_up,
+                        tune_ul_factor_down,
+                        tune_ul_green_required,
+                        tune_ul_step_up,
+                    )
                     from wanctl.tuning.strategies.signal_processing import (
                         tune_alpha_load,
                         tune_hampel_sigma,
@@ -4284,7 +4330,15 @@ def main() -> int | None:
                         ("baseline_rtt_min", tune_baseline_bounds_min),
                         ("baseline_rtt_max", tune_baseline_bounds_max),
                     ]
-                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER, ADVANCED_LAYER]
+                    RESPONSE_LAYER = [
+                        ("dl_step_up_mbps", tune_dl_step_up),
+                        ("ul_step_up_mbps", tune_ul_step_up),
+                        ("dl_factor_down", tune_dl_factor_down),
+                        ("ul_factor_down", tune_ul_factor_down),
+                        ("dl_green_required", tune_dl_green_required),
+                        ("ul_green_required", tune_ul_green_required),
+                    ]
+                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER, ADVANCED_LAYER, RESPONSE_LAYER]
 
                     for wan_info in controller.wan_controllers:
                         wc = wan_info["controller"]
@@ -4326,6 +4380,28 @@ def main() -> int | None:
                         active_layer = ALL_LAYERS[wc._tuning_layer_index % len(ALL_LAYERS)]
                         wc._tuning_layer_index += 1
 
+                        # Step 2.5: Oscillation lockout for response layer (RTUN-04)
+                        if active_layer is RESPONSE_LAYER:
+                            try:
+                                from wanctl.tuning.analyzer import _query_wan_metrics
+
+                                osc_metrics = _query_wan_metrics(
+                                    db_path, wc.wan_name, tuning_config.lookback_hours
+                                )
+                                check_oscillation_lockout(
+                                    osc_metrics,
+                                    wc._parameter_locks,
+                                    getattr(wc, "_oscillation_threshold", 0.1),
+                                    getattr(wc, "_alert_engine", None),
+                                    wc.wan_name,
+                                )
+                            except Exception as e:
+                                wan_info["logger"].debug(
+                                    "[TUNING] %s: oscillation check failed: %s",
+                                    wc.wan_name,
+                                    e,
+                                )
+
                         # Step 3: Filter excluded and locked parameters from active layer
                         excluded = tuning_config.exclude_params
                         active_strategies = [
@@ -4362,6 +4438,12 @@ def main() -> int | None:
                             "reflector_min_score": wc._reflector_scorer._min_score,
                             "baseline_rtt_min": wc.baseline_rtt_min,
                             "baseline_rtt_max": wc.baseline_rtt_max,
+                            "dl_step_up_mbps": wc.download.step_up_bps / 1e6,
+                            "ul_step_up_mbps": wc.upload.step_up_bps / 1e6,
+                            "dl_factor_down": wc.download.factor_down,
+                            "ul_factor_down": wc.upload.factor_down,
+                            "dl_green_required": float(wc.download.green_required),
+                            "ul_green_required": float(wc.upload.green_required),
                         }
                         try:
                             results = run_tuning_analysis(
