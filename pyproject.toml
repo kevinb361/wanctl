@@ -24,6 +24,7 @@ wanctl-benchmark = "wanctl.benchmark:main"
 
 [project.optional-dependencies]
 dashboard = ["textual>=0.50", "httpx>=0.27"]
+netlink = ["pyroute2>=0.9.5"]
 
 [tool.uv]
 package = true
