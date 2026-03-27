@@ -276,7 +276,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
                 # Fusion section (FUSE-05) -- always present
                 if not getattr(wan_controller, "_fusion_enabled", False):
-                    wan_health["fusion"] = {"enabled": False, "reason": "disabled"}
+                    healer = getattr(wan_controller, "_fusion_healer", None)
+                    wan_health["fusion"] = {
+                        "enabled": False,
+                        "reason": "disabled",
+                        "heal_state": healer.state.value if healer is not None else "no_healer",
+                        "heal_grace_active": healer.is_grace_active if healer is not None else False,
+                    }
                 else:
                     irtt_rtt_val: float | None = None
                     active_source = "icmp_only"
@@ -318,6 +324,27 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         "icmp_rtt_ms": icmp_rtt_val,
                         "irtt_rtt_ms": irtt_rtt_val,
                     }
+
+                    # Fusion healer state (Phase 119: FUSE-05)
+                    healer = getattr(wan_controller, "_fusion_healer", None)
+                    if healer is not None:
+                        wan_health["fusion"]["heal_state"] = healer.state.value
+                        wan_health["fusion"]["pearson_correlation"] = (
+                            round(healer.pearson_r, 4)
+                            if healer.pearson_r is not None
+                            else None
+                        )
+                        wan_health["fusion"]["correlation_window_avg"] = (
+                            round(healer.window_avg, 4)
+                            if healer.window_avg is not None
+                            else None
+                        )
+                        wan_health["fusion"]["heal_grace_active"] = healer.is_grace_active
+                    else:
+                        wan_health["fusion"]["heal_state"] = "no_healer"
+                        wan_health["fusion"]["pearson_correlation"] = None
+                        wan_health["fusion"]["correlation_window_avg"] = None
+                        wan_health["fusion"]["heal_grace_active"] = False
 
                 # Tuning section -- always present (MagicMock safe: check is True)
                 if getattr(wan_controller, "_tuning_enabled", False) is not True:
