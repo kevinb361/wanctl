@@ -3,6 +3,7 @@
 RTUN-01: Step up adjustment from recovery episode re-trigger analysis
 RTUN-02: Factor down adjustment from congestion resolution speed
 RTUN-03: Green required adjustment from re-trigger rate
+RTUN-04: Oscillation lockout -- freeze response params when state transitions exceed threshold
 
 All strategies are pure StrategyFn callables matching the established
 Callable[[list[dict], float, SafetyBounds, str], TuningResult | None]
@@ -17,8 +18,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from statistics import median
+from typing import Any
 
 from wanctl.tuning.models import SafetyBounds, TuningResult
+from wanctl.tuning.safety import lock_parameter
 
 logger = logging.getLogger(__name__)
 
@@ -446,3 +449,97 @@ def tune_ul_green_required(
         metrics_data, current_value, bounds, wan_name,
         param_name="ul_green_required", direction="download",
     )
+
+
+# ---------------------------------------------------------------------------
+# Oscillation lockout (RTUN-04)
+# ---------------------------------------------------------------------------
+
+OSCILLATION_LOCKOUT_SEC = 7200  # 2 hours
+DEFAULT_OSCILLATION_THRESHOLD = 0.1  # transitions per minute (6/hour)
+
+
+def check_oscillation_lockout(
+    metrics_data: list[dict],
+    locks: dict[str, float],
+    oscillation_threshold: float = DEFAULT_OSCILLATION_THRESHOLD,
+    alert_engine: Any = None,
+    wan_name: str = "",
+) -> bool:
+    """Check state transition rate and lock all response params if oscillating.
+
+    Counts state transitions in the last 60 minutes of wanctl_state data.
+    If transitions/minute exceeds the threshold, locks ALL 6 RESPONSE_PARAMS
+    for OSCILLATION_LOCKOUT_SEC (2 hours) and optionally fires a Discord alert.
+
+    Args:
+        metrics_data: List of metric dicts with timestamp, metric_name, value.
+        locks: Parameter lock dict (modified in-place via lock_parameter).
+        oscillation_threshold: Max transitions/minute before lockout (default 0.1).
+        alert_engine: Optional AlertEngine instance for Discord alerts.
+        wan_name: WAN name for logging/alerting.
+
+    Returns:
+        True if lockout was triggered, False otherwise.
+    """
+    # Extract state values by timestamp
+    state_by_ts: dict[int, float] = {}
+    for row in metrics_data:
+        if row["metric_name"] == "wanctl_state":
+            state_by_ts[row["timestamp"]] = row["value"]
+
+    if len(state_by_ts) < 2:
+        return False
+
+    sorted_ts = sorted(state_by_ts.keys())
+
+    # Count transitions in last 60 minutes
+    cutoff = sorted_ts[-1] - 3600
+    recent = [ts for ts in sorted_ts if ts >= cutoff]
+
+    if len(recent) < 2:
+        return False
+
+    transitions = sum(
+        1
+        for i in range(1, len(recent))
+        if state_by_ts[recent[i]] != state_by_ts[recent[i - 1]]
+    )
+
+    span_min = max(1, (recent[-1] - recent[0]) / 60)
+    trans_per_min = transitions / span_min
+
+    if trans_per_min <= oscillation_threshold:
+        return False
+
+    # Lock ALL response parameters
+    for p in RESPONSE_PARAMS:
+        lock_parameter(locks, p, OSCILLATION_LOCKOUT_SEC)
+
+    logger.warning(
+        "[TUNING] %s: oscillation lockout triggered (%.2f trans/min > %.2f), "
+        "all response params locked for %ds",
+        wan_name,
+        trans_per_min,
+        oscillation_threshold,
+        OSCILLATION_LOCKOUT_SEC,
+    )
+
+    # Fire Discord alert if engine available
+    if alert_engine is not None:
+        try:
+            alert_engine.fire(
+                alert_type="oscillation_lockout",
+                severity="warning",
+                wan_name=wan_name,
+                details={
+                    "transitions_per_min": round(trans_per_min, 2),
+                    "threshold": oscillation_threshold,
+                    "locked_params": list(RESPONSE_PARAMS),
+                    "lockout_sec": OSCILLATION_LOCKOUT_SEC,
+                },
+            )
+        except Exception:
+            pass  # Alert delivery failure must not crash daemon
+
+    return True

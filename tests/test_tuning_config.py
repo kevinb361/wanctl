@@ -195,15 +195,16 @@ class TestExcludeParams:
         config.data = data
         return config
 
-    def test_default_empty(self):
-        """No exclude_params defaults to empty frozenset."""
+    def test_default_excludes_response_params(self):
+        """No exclude_params defaults to RESPONSE_PARAMS frozenset (RTUN-05)."""
         from wanctl.autorate_continuous import Config
+        from wanctl.tuning.strategies.response import RESPONSE_PARAMS
 
         config = self._make_config_obj({"tuning": {"enabled": True}})
         Config._load_tuning_config(config)
         tc = config.tuning_config
         assert isinstance(tc, TuningConfig)
-        assert tc.exclude_params == frozenset()
+        assert tc.exclude_params == frozenset(RESPONSE_PARAMS)
 
     def test_valid_list(self):
         """exclude_params list is parsed into frozenset."""

@@ -7,16 +7,14 @@ and default exclude_params includes all 6 response params (RTUN-04, RTUN-05).
 """
 
 import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
-import pytest
-
-from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult, TuningState
+from wanctl.tuning.models import TuningResult, TuningState
 from wanctl.tuning.strategies.response import (
+    DEFAULT_OSCILLATION_THRESHOLD,
+    OSCILLATION_LOCKOUT_SEC,
     RESPONSE_PARAMS,
     check_oscillation_lockout,
-    OSCILLATION_LOCKOUT_SEC,
-    DEFAULT_OSCILLATION_THRESHOLD,
 )
 
 
@@ -177,12 +175,12 @@ class TestResponseLayerDefinition:
     def test_response_strategy_imports_work(self):
         """All 6 response strategy functions can be imported."""
         from wanctl.tuning.strategies.response import (
-            tune_dl_step_up,
-            tune_ul_step_up,
             tune_dl_factor_down,
-            tune_ul_factor_down,
             tune_dl_green_required,
+            tune_dl_step_up,
+            tune_ul_factor_down,
             tune_ul_green_required,
+            tune_ul_step_up,
         )
         # All are callable
         assert callable(tune_dl_step_up)
@@ -214,13 +212,15 @@ class TestOscillationLockout:
 
     def test_low_transition_rate_no_lockout(self):
         """When transitions/min < threshold, no lockout triggered."""
-        # 3 transitions over 60 minutes = 0.05/min (below 0.1 threshold)
+        # 2 transitions over 60 minutes: one brief congestion episode.
+        # Transition 1: ts=10 (0->2), Transition 2: ts=11 (2->0) = 2 transitions
+        # 2 transitions / 59 minutes ~= 0.034/min (well below 0.1 threshold)
         base = 1000
         states = []
         for i in range(60):
             ts = base + i * 60
-            if i in (10, 30, 50):
-                states.append((ts, 2.0))  # congestion
+            if i == 10:
+                states.append((ts, 2.0))  # single congestion sample
             else:
                 states.append((ts, 0.0))  # green
 
@@ -351,87 +351,46 @@ class TestOscillationLockout:
 class TestExcludeParamsDefault:
     """Tests for default exclude_params including response params (RTUN-05)."""
 
-    def test_default_excludes_response_params(self, mock_autorate_config):
+    def _make_config_obj(self, data: dict) -> MagicMock:
+        """Create a mock Config with data dict for _load_tuning_config."""
+        config = MagicMock()
+        config.data = data
+        return config
+
+    def test_default_excludes_response_params(self):
         """When no exclude_params in YAML, response params are excluded."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.autorate_continuous import Config
 
-        # Config with tuning enabled but no explicit exclude_params
-        mock_autorate_config.data = {
-            "tuning": {
-                "cadence_sec": 3600,
-                "lookback_hours": 24,
-                "warmup_hours": 1,
-                "max_step_pct": 10.0,
-                "bounds": {
-                    "target_bloat_ms": {"min": 3.0, "max": 30.0},
-                },
-            }
-        }
-        wc = WANController(
-            wan_name="Test",
-            config=mock_autorate_config,
-            router=MagicMock(),
-            rtt_measurement=MagicMock(),
-            logger=MagicMock(),
-        )
-        assert wc.tuning_config is not None
+        config = self._make_config_obj({"tuning": {"enabled": True}})
+        Config._load_tuning_config(config)
+        assert config.tuning_config is not None
         for p in RESPONSE_PARAMS:
-            assert p in wc.tuning_config.exclude_params, f"{p} not in exclude_params"
+            assert p in config.tuning_config.exclude_params, f"{p} not in exclude_params"
 
-    def test_explicit_empty_enables_all(self, mock_autorate_config):
+    def test_explicit_empty_enables_all(self):
         """When exclude_params: [] is set, nothing is excluded."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.autorate_continuous import Config
 
-        mock_autorate_config.data = {
-            "tuning": {
-                "cadence_sec": 3600,
-                "lookback_hours": 24,
-                "warmup_hours": 1,
-                "max_step_pct": 10.0,
-                "exclude_params": [],
-                "bounds": {
-                    "target_bloat_ms": {"min": 3.0, "max": 30.0},
-                },
-            }
-        }
-        wc = WANController(
-            wan_name="Test",
-            config=mock_autorate_config,
-            router=MagicMock(),
-            rtt_measurement=MagicMock(),
-            logger=MagicMock(),
-        )
-        assert wc.tuning_config is not None
-        assert len(wc.tuning_config.exclude_params) == 0
+        config = self._make_config_obj({
+            "tuning": {"enabled": True, "exclude_params": []}
+        })
+        Config._load_tuning_config(config)
+        assert config.tuning_config is not None
+        assert len(config.tuning_config.exclude_params) == 0
 
-    def test_explicit_list_overrides_default(self, mock_autorate_config):
+    def test_explicit_list_overrides_default(self):
         """When user provides explicit list, only those are excluded."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.autorate_continuous import Config
 
-        mock_autorate_config.data = {
-            "tuning": {
-                "cadence_sec": 3600,
-                "lookback_hours": 24,
-                "warmup_hours": 1,
-                "max_step_pct": 10.0,
-                "exclude_params": ["fusion_icmp_weight"],
-                "bounds": {
-                    "target_bloat_ms": {"min": 3.0, "max": 30.0},
-                },
-            }
-        }
-        wc = WANController(
-            wan_name="Test",
-            config=mock_autorate_config,
-            router=MagicMock(),
-            rtt_measurement=MagicMock(),
-            logger=MagicMock(),
-        )
-        assert wc.tuning_config is not None
-        assert wc.tuning_config.exclude_params == frozenset(["fusion_icmp_weight"])
+        config = self._make_config_obj({
+            "tuning": {"enabled": True, "exclude_params": ["fusion_icmp_weight"]}
+        })
+        Config._load_tuning_config(config)
+        assert config.tuning_config is not None
+        assert config.tuning_config.exclude_params == frozenset(["fusion_icmp_weight"])
         # Response params should NOT be excluded when user provides explicit list
         for p in RESPONSE_PARAMS:
-            assert p not in wc.tuning_config.exclude_params
+            assert p not in config.tuning_config.exclude_params
 
 
 class TestCurrentParamsExtension:
