@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-03-27
+
+**Self-Optimizing Controller** - Completes the tuner's vision with response parameter tuning,
+auto-fusion healing, pyroute2 netlink, and configurable metrics retention. 4 phases, 8 plans,
+18/22 requirements satisfied (4 OBSV deferred to v1.24). ~3,800+ tests.
+
+### Added
+
+- **pyroute2 netlink backend** (Phase 117) - Kernel netlink for CAKE tc operations
+  - `NetlinkCakeBackend` subclass with per-call subprocess fallback via `super()`
+  - Singleton `IPRoute(groups=0)` connection with automatic reconnect on socket death
+  - Per-tin CAKE stats via netlink TCA_STATS2 decoder (no subprocess tc -j)
+  - Factory registration: `transport: "linux-cake-netlink"` config option
+  - pyroute2 as optional dependency (`pip install wanctl[netlink]`)
+- **Configurable metrics retention** (Phase 118) - Per-granularity retention thresholds
+  - `storage.retention` YAML section: `raw_age_seconds`, `aggregate_1m_age_seconds`, `aggregate_5m_age_seconds`
+  - Cross-section validation: rejects configs where 1m retention < tuner `lookback_hours * 3600`
+  - `prometheus_compensated` mode: shortens 5m tier to 48h when Prometheus TSDB available
+  - Backward-compatible `deprecate_param()` migration from `storage.retention_days`
+  - SIGUSR1 reload for retention config changes without restart
+- **Auto-fusion healing** (Phase 119) - Automatic fusion state management
+  - `FusionHealer` standalone module: incremental rolling Pearson correlation (3.3us/cycle)
+  - 3-state machine: ACTIVE → SUSPENDED → RECOVERING → ACTIVE
+  - Asymmetric hysteresis: 60s suspend window, 300s recovery window
+  - Operator SIGUSR1 override with configurable grace period (default 30 min)
+  - Parameter locking: `fusion_icmp_weight` locked via `float('inf')` sentinel during SUSPENDED
+  - Discord alerts on all state transitions via AlertEngine
+  - Health endpoint: `fusion.heal_state`, `fusion.pearson_correlation`, `fusion.heal_grace_active`
+- **Adaptive rate step tuning** (Phase 120) - Response parameter self-optimization
+  - 3 response strategies: `tune_step_up`, `tune_factor_down`, `tune_green_required`
+  - Episode detection from `wanctl_state` 1m time series (congestion/recovery pattern analysis)
+  - 6 tuneable parameters: DL/UL variants of step_up_mbps, factor_down, green_required
+  - 5th RESPONSE_LAYER in tuning rotation (5-hour full cycle)
+  - Oscillation lockout: freezes all 6 response params for 2h + Discord alert
+  - Disabled by default via `exclude_params` (RTUN-05 graduation pattern)
+
+### Changed
+
+- Tuning rotation expanded from 4-layer to 5-layer (signal → EWMA → threshold → advanced → response)
+- `get_storage_config()` returns full retention dict instead of flat `retention_days`
+- `cleanup_old_metrics()` now performs per-granularity deletion (separate age per tier)
+- `run_startup_maintenance()` accepts `retention_config` dict for config-driven thresholds
+- `downsample_metrics()` accepts optional `thresholds` parameter for config-driven age thresholds
+- `_apply_tuning_to_controller()` extended for QueueController response parameters (Mbps→bps conversion)
+
+### Deferred
+
+- Phase 121: Prometheus/Grafana Export — infrastructure not yet deployed, moved to v1.24
+
 ## [1.20.0] - 2026-03-19
 
 **Adaptive Tuning** - Self-optimizing controller that learns optimal parameters from production
