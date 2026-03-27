@@ -48,7 +48,11 @@ None
 3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
 4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
 5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
-   **Plans**: TBD
+   **Plans**: 2 plans
+
+Plans:
+- [ ] 117-01-PLAN.md -- NetlinkCakeBackend class with bandwidth change, IPRoute lifecycle, subprocess fallback
+- [ ] 117-02-PLAN.md -- Per-tin stats via netlink, factory registration for linux-cake-netlink transport
 
 ### Phase 118: Metrics Retention Strategy
 
@@ -110,7 +114,7 @@ Phases execute in numeric order: 117 -> 118 -> 119 -> 120 -> 121
 
 | Phase                           | Plans Complete | Status      | Completed |
 | ------------------------------- | -------------- | ----------- | --------- |
-| 117. pyroute2 Netlink Backend   | 0/TBD          | Not started | -         |
+| 117. pyroute2 Netlink Backend   | 0/2            | Planning    | -         |
 | 118. Metrics Retention Strategy | 0/TBD          | Not started | -         |
 | 119. Auto-Fusion Healing        | 0/TBD          | Not started | -         |
 | 120. Adaptive Rate Step Tuning  | 0/TBD          | Not started | -         |
