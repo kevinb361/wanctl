@@ -714,3 +714,83 @@ class TestDeprecateParam:
         config = {old_key: old_val}
         result = deprecate_param(config, old_key, new_key, logger)
         assert result == expected
+
+
+# =============================================================================
+# Tests for validate_retention_tuner_compat
+# =============================================================================
+
+
+class TestValidateRetentionTunerCompat:
+    """Tests for retention-tuner cross-section validation."""
+
+    def test_valid_equal_age_and_lookback(self, logger):
+        """Config accepted when 1m age == lookback_hours * 3600 (equal is OK)."""
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        validate_retention_tuner_compat(
+            {"aggregate_1m_age_seconds": 86400},
+            {"enabled": True, "lookback_hours": 24},
+            logger=logger,
+        )
+
+    def test_rejects_insufficient_retention(self, logger):
+        """Config rejected when 1m age < lookback_hours * 3600."""
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_retention_tuner_compat(
+                {"aggregate_1m_age_seconds": 43200},
+                {"enabled": True, "lookback_hours": 24},
+                logger=logger,
+            )
+        error_msg = str(exc_info.value)
+        assert "aggregate_1m_age_seconds" in error_msg
+        assert "lookback_hours" in error_msg
+
+    def test_skips_when_tuning_disabled(self, logger):
+        """Config accepted when tuning.enabled is False (no constraint)."""
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        # Should not raise even though retention is too short
+        validate_retention_tuner_compat(
+            {"aggregate_1m_age_seconds": 43200},
+            {"enabled": False, "lookback_hours": 24},
+            logger=logger,
+        )
+
+    def test_skips_when_tuning_none(self, logger):
+        """Config accepted when tuning_config is None."""
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        validate_retention_tuner_compat(
+            {"aggregate_1m_age_seconds": 43200},
+            None,
+            logger=logger,
+        )
+
+    def test_prometheus_compensated_warns_instead_of_raising(self, logger):
+        """prometheus_compensated=True downgrades validation error to warning."""
+        from unittest.mock import MagicMock
+
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        mock_logger = MagicMock()
+        # Should NOT raise despite insufficient retention
+        validate_retention_tuner_compat(
+            {"aggregate_1m_age_seconds": 43200, "prometheus_compensated": True},
+            {"enabled": True, "lookback_hours": 24},
+            logger=mock_logger,
+        )
+        assert mock_logger.warning.called
+
+    def test_default_lookback_hours_used_when_absent(self, logger):
+        """Defaults to lookback_hours=24 when key absent from tuning_config."""
+        from wanctl.config_validation_utils import validate_retention_tuner_compat
+
+        # 86400 == 24 * 3600, so equal is OK with default lookback
+        validate_retention_tuner_compat(
+            {"aggregate_1m_age_seconds": 86400},
+            {"enabled": True},
+            logger=logger,
+        )

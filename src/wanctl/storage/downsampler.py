@@ -20,27 +20,45 @@ logger = logging.getLogger(__name__)
 # Granularity levels
 Granularity = Literal["raw", "1m", "5m", "1h"]
 
+def get_downsample_thresholds(
+    raw_age_seconds: int = 3600,
+    aggregate_1m_age_seconds: int = 86400,
+    aggregate_5m_age_seconds: int = 604800,
+) -> dict[str, dict[str, int | str]]:
+    """Build downsample thresholds from config values or defaults.
+
+    Args:
+        raw_age_seconds: Age threshold for raw -> 1m downsampling (default 3600 = 1h).
+        aggregate_1m_age_seconds: Age threshold for 1m -> 5m (default 86400 = 1d).
+        aggregate_5m_age_seconds: Age threshold for 5m -> 1h (default 604800 = 7d).
+
+    Returns:
+        Dict of threshold configs keyed by transition name.
+    """
+    return {
+        "raw_to_1m": {
+            "from_granularity": "raw",
+            "to_granularity": "1m",
+            "bucket_seconds": 60,
+            "age_seconds": raw_age_seconds,
+        },
+        "1m_to_5m": {
+            "from_granularity": "1m",
+            "to_granularity": "5m",
+            "bucket_seconds": 300,
+            "age_seconds": aggregate_1m_age_seconds,
+        },
+        "5m_to_1h": {
+            "from_granularity": "5m",
+            "to_granularity": "1h",
+            "bucket_seconds": 3600,
+            "age_seconds": aggregate_5m_age_seconds,
+        },
+    }
+
+
 # Downsampling thresholds (age in seconds when data should be downsampled)
-DOWNSAMPLE_THRESHOLDS: dict[str, dict[str, int | str]] = {
-    "raw_to_1m": {
-        "from_granularity": "raw",
-        "to_granularity": "1m",
-        "bucket_seconds": 60,
-        "age_seconds": 3600,  # 1 hour
-    },
-    "1m_to_5m": {
-        "from_granularity": "1m",
-        "to_granularity": "5m",
-        "bucket_seconds": 300,
-        "age_seconds": 86400,  # 1 day
-    },
-    "5m_to_1h": {
-        "from_granularity": "5m",
-        "to_granularity": "1h",
-        "bucket_seconds": 3600,
-        "age_seconds": 604800,  # 7 days
-    },
-}
+DOWNSAMPLE_THRESHOLDS: dict[str, dict[str, int | str]] = get_downsample_thresholds()
 
 # Metrics that should use MODE aggregation (most common value) instead of AVG
 # These are state/boolean metrics where averaging doesn't make sense
@@ -233,6 +251,7 @@ def downsample_to_granularity(
 def downsample_metrics(
     conn: sqlite3.Connection,
     watchdog_fn: Callable[[], None] | None = None,
+    thresholds: dict[str, dict[str, int | str]] | None = None,
 ) -> dict[str, int]:
     """Run all applicable downsampling based on current time.
 
@@ -241,6 +260,7 @@ def downsample_metrics(
     Args:
         conn: Database connection
         watchdog_fn: Optional callback to ping between aggregation levels
+        thresholds: Optional config-driven thresholds (default: DOWNSAMPLE_THRESHOLDS)
 
     Returns:
         Dict mapping downsampling level to rows created, e.g.:
@@ -248,8 +268,9 @@ def downsample_metrics(
     """
     now = int(time.time())
     results: dict[str, int] = {}
+    effective_thresholds = thresholds if thresholds is not None else DOWNSAMPLE_THRESHOLDS
 
-    for name, config in DOWNSAMPLE_THRESHOLDS.items():
+    for name, config in effective_thresholds.items():
         cutoff = now - int(config["age_seconds"])
         rows = downsample_to_granularity(
             conn,
