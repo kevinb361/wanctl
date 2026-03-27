@@ -364,3 +364,149 @@ class TestConfigLoading:
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_window_sec"] == 60.0
+
+
+# =============================================================================
+# TestHealthEndpoint
+# =============================================================================
+
+
+class TestHealthEndpoint:
+    """Tests for fusion heal state in health endpoint response."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        from wanctl.health_check import HealthCheckHandler
+
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    def _make_wan(self, fusion_enabled=True, healer=None):
+        """Create a mock WAN controller with fusion healer attributes."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = fusion_enabled
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = 25.0
+        wan._fusion_healer = healer
+        return wan
+
+    def _make_controller(self, wan):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def _get_health(self, controller):
+        """Start health server, fetch data, shut down."""
+        import json
+        import socket
+        import urllib.request
+
+        from wanctl.health_check import start_health_server
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return json.loads(response.read().decode())
+        finally:
+            server.shutdown()
+
+    def test_health_shows_heal_state_active(self):
+        """Health response contains heal_state=active when healer is ACTIVE."""
+        healer = MagicMock()
+        healer.state = HealState.ACTIVE
+        healer.pearson_r = 0.85
+        healer.window_avg = 0.83
+        healer.is_grace_active = False
+
+        wan = self._make_wan(fusion_enabled=True, healer=healer)
+        data = self._get_health(self._make_controller(wan))
+
+        fusion = data["wans"][0]["fusion"]
+        assert fusion["heal_state"] == "active"
+        assert fusion["pearson_correlation"] == 0.85
+        assert fusion["correlation_window_avg"] == 0.83
+        assert fusion["heal_grace_active"] is False
+
+    def test_health_shows_heal_state_suspended(self):
+        """Health response contains heal_state=suspended when healer is SUSPENDED."""
+        healer = MagicMock()
+        healer.state = HealState.SUSPENDED
+        healer.pearson_r = 0.15
+        healer.window_avg = 0.12
+        healer.is_grace_active = False
+
+        wan = self._make_wan(fusion_enabled=False, healer=healer)
+        data = self._get_health(self._make_controller(wan))
+
+        fusion = data["wans"][0]["fusion"]
+        assert fusion["heal_state"] == "suspended"
+        assert fusion["heal_grace_active"] is False
+
+    def test_health_no_healer(self):
+        """Health response contains heal_state=no_healer when _fusion_healer is None."""
+        wan = self._make_wan(fusion_enabled=True, healer=None)
+        data = self._get_health(self._make_controller(wan))
+
+        fusion = data["wans"][0]["fusion"]
+        assert fusion["heal_state"] == "no_healer"
+        assert fusion["pearson_correlation"] is None
+        assert fusion["heal_grace_active"] is False
+
+    def test_health_warmup_pearson_none(self):
+        """Health response has pearson_correlation=None during warmup."""
+        healer = MagicMock()
+        healer.state = HealState.ACTIVE
+        healer.pearson_r = None
+        healer.window_avg = None
+        healer.is_grace_active = False
+
+        wan = self._make_wan(fusion_enabled=True, healer=healer)
+        data = self._get_health(self._make_controller(wan))
+
+        fusion = data["wans"][0]["fusion"]
+        assert fusion["heal_state"] == "active"
+        assert fusion["pearson_correlation"] is None
+        assert fusion["correlation_window_avg"] is None
