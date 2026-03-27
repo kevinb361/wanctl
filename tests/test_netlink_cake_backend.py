@@ -15,13 +15,12 @@ Coverage targets:
 """
 
 import logging
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.netlink_cake import NetlinkCakeBackend
-
 
 # =============================================================================
 # Fixtures
