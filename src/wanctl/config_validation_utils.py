@@ -58,6 +58,57 @@ def deprecate_param(
     return translated
 
 
+def validate_retention_tuner_compat(
+    retention_config: dict,
+    tuning_config: dict | None,
+    logger: logging.Logger | None = None,
+) -> None:
+    """Validate retention config doesn't break tuner data availability.
+
+    The tuner reads 1m-granularity data for lookback_hours * 3600 seconds.
+    If aggregate_1m_age_seconds < lookback_hours * 3600, the tuner will
+    silently get incomplete data and make bad decisions.
+
+    Args:
+        retention_config: Dict with retention thresholds (from get_storage_config).
+        tuning_config: Dict with tuning section, or None if absent.
+        logger: Logger instance (optional).
+
+    Raises:
+        ConfigValidationError: If retention is too short for tuner lookback
+            and prometheus_compensated is not enabled.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    if tuning_config is None or not tuning_config.get("enabled", False):
+        return  # No tuner, no constraint
+
+    lookback_hours = tuning_config.get("lookback_hours", 24)
+    lookback_seconds = lookback_hours * 3600
+
+    agg_1m_age = retention_config.get("aggregate_1m_age_seconds", 86400)
+    prometheus_compensated = retention_config.get("prometheus_compensated", False)
+
+    if agg_1m_age < lookback_seconds:
+        if prometheus_compensated:
+            logger.warning(
+                f"storage.retention.aggregate_1m_age_seconds ({agg_1m_age}s = "
+                f"{agg_1m_age / 3600:.0f}h) is less than tuning.lookback_hours "
+                f"({lookback_hours}h = {lookback_seconds}s). "
+                f"Prometheus-compensated mode allows this, but tuner may get "
+                f"incomplete data."
+            )
+            return
+        raise ConfigValidationError(
+            f"storage.retention.aggregate_1m_age_seconds ({agg_1m_age}s = "
+            f"{agg_1m_age / 3600:.0f}h) is less than tuning.lookback_hours "
+            f"({lookback_hours}h = {lookback_seconds}s). The tuner needs 1m "
+            f"data for at least {lookback_hours} hours. Either increase "
+            f"aggregate_1m_age_seconds or decrease lookback_hours."
+        )
+
+
 def validate_bandwidth_order(
     name: str,
     floor_red: int,
