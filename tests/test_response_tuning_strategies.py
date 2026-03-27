@@ -9,7 +9,7 @@ RTUN-02: Factor down adjustment from congestion resolution speed
 RTUN-03: Green required adjustment from re-trigger rate
 """
 
-from wanctl.tuning.models import SafetyBounds, TuningResult
+from wanctl.tuning.models import SafetyBounds
 from wanctl.tuning.strategies.response import (
     RESPONSE_PARAMS,
     RecoveryEpisode,
@@ -308,7 +308,7 @@ class TestTuneStepUp:
         # Pad to >= 60
         states.extend([0.0] * (61 - len(states)))
         metrics = _make_state_sequence(states)
-        result = tune_dl_step_up(metrics, 1.0, self.BOUNDS, "Spectrum")
+        result = tune_dl_step_up(metrics, 1.0, self.BOUNDS, "Spectrum")  # noqa: F841
         # Between 30-50% re-trigger rate should return None
         # If the data doesn't land precisely in the range, that's fine -- the
         # important thing is testing the mid-range path exists
