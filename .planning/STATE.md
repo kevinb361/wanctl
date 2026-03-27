@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 116 — test-documentation-hygiene
+**Current focus:** Phase 117 — pyroute2-netlink-backend
 
 ## Position
 
-**Milestone:** v1.22 Full System Audit
-**Phase:** 116 of 116 (test & documentation hygiene)
-**Plan:** Not started
-**Status:** Executing Phase 116
-**Last activity:** 2026-03-26
+**Milestone:** v1.23 Self-Optimizing Controller
+**Phase:** 117 of 117 (pyroute2 netlink backend)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 117
+**Last activity:** 2026-03-27
 
 Progress: [█████████░] 92%
 
@@ -46,6 +46,8 @@ Progress: [█████████░] 92%
 - 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
 - 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
 - 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
+- 117-01: NetlinkCakeBackend inherits LinuxCakeBackend, overrides methods with netlink + per-call subprocess fallback via super()
+- 117-01: pyroute2 as optional dependency (netlink extra), IPRoute(groups=0) singleton with reconnect
 
 ### Known Issues
 
