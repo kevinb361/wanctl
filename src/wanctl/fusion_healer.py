@@ -73,7 +73,7 @@ class FusionHealer:
         recover_window_sec: float = 300.0,
         grace_period_sec: float = 1800.0,
         cycle_interval_sec: float = 0.05,
-        min_samples: int = 100,
+        min_samples: int = 6,
         alert_engine: AlertEngine | None = None,
         parameter_locks: dict[str, float] | None = None,
     ) -> None:
