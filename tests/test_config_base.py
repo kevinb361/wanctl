@@ -1033,3 +1033,126 @@ lock_timeout: 300
         """Test default log rotation constants are defined on class."""
         assert BaseConfig.DEFAULT_LOG_MAX_BYTES == 10_485_760
         assert BaseConfig.DEFAULT_LOG_BACKUP_COUNT == 3
+
+
+# =============================================================================
+# Tests for get_storage_config() retention section
+# =============================================================================
+
+
+class TestGetStorageConfigRetention:
+    """Tests for extended get_storage_config() with retention section."""
+
+    def test_empty_config_returns_default_retention(self):
+        """get_storage_config({}) returns default retention dict."""
+        result = get_storage_config({})
+        retention = result["retention"]
+        assert retention["raw_age_seconds"] == 3600
+        assert retention["aggregate_1m_age_seconds"] == 86400
+        assert retention["aggregate_5m_age_seconds"] == 604800
+        assert retention["prometheus_compensated"] is False
+
+    def test_explicit_retention_values(self):
+        """get_storage_config with explicit retention values returns those values."""
+        data = {
+            "storage": {
+                "retention": {
+                    "raw_age_seconds": 1800,
+                    "aggregate_1m_age_seconds": 43200,
+                    "aggregate_5m_age_seconds": 259200,
+                }
+            }
+        }
+        result = get_storage_config(data)
+        retention = result["retention"]
+        assert retention["raw_age_seconds"] == 1800
+        assert retention["aggregate_1m_age_seconds"] == 43200
+        assert retention["aggregate_5m_age_seconds"] == 259200
+
+    def test_partial_retention_uses_defaults(self):
+        """get_storage_config with partial retention fills defaults for the rest."""
+        data = {
+            "storage": {
+                "retention": {
+                    "aggregate_5m_age_seconds": 172800,
+                }
+            }
+        }
+        result = get_storage_config(data)
+        retention = result["retention"]
+        assert retention["aggregate_5m_age_seconds"] == 172800
+        assert retention["raw_age_seconds"] == 3600  # default
+        assert retention["aggregate_1m_age_seconds"] == 86400  # default
+
+    def test_deprecated_retention_days_translates(self):
+        """get_storage_config with retention_days translates to new retention section."""
+        data = {"storage": {"retention_days": 14}}
+        result = get_storage_config(data)
+        retention = result["retention"]
+        assert retention["aggregate_5m_age_seconds"] == 1209600  # 14 * 86400
+        assert retention["raw_age_seconds"] == 3600  # default
+        assert retention["aggregate_1m_age_seconds"] == 86400  # default
+
+    def test_retention_days_ignored_when_retention_present(self):
+        """retention_days is ignored when new retention section present."""
+        data = {
+            "storage": {
+                "retention_days": 14,
+                "retention": {
+                    "aggregate_5m_age_seconds": 259200,
+                },
+            }
+        }
+        result = get_storage_config(data)
+        retention = result["retention"]
+        # New key takes precedence per deprecate_param semantics
+        assert retention["aggregate_5m_age_seconds"] == 259200
+
+    def test_prometheus_compensated_defaults(self):
+        """prometheus_compensated=True sets aggressive defaults."""
+        data = {
+            "storage": {
+                "retention": {
+                    "prometheus_compensated": True,
+                }
+            }
+        }
+        result = get_storage_config(data)
+        retention = result["retention"]
+        assert retention["aggregate_1m_age_seconds"] == 86400  # 24h
+        assert retention["aggregate_5m_age_seconds"] == 172800  # 48h
+        assert retention["prometheus_compensated"] is True
+
+    def test_prometheus_compensated_explicit_override(self):
+        """Explicit override wins over prometheus_compensated defaults."""
+        data = {
+            "storage": {
+                "retention": {
+                    "prometheus_compensated": True,
+                    "aggregate_5m_age_seconds": 259200,
+                }
+            }
+        }
+        result = get_storage_config(data)
+        retention = result["retention"]
+        assert retention["aggregate_5m_age_seconds"] == 259200  # explicit wins
+
+    def test_storage_schema_has_retention_entries(self):
+        """STORAGE_SCHEMA includes retention field entries."""
+        paths = [entry["path"] for entry in STORAGE_SCHEMA]
+        assert "storage.retention.raw_age_seconds" in paths
+        assert "storage.retention.aggregate_1m_age_seconds" in paths
+        assert "storage.retention.aggregate_5m_age_seconds" in paths
+        assert "storage.retention.prometheus_compensated" in paths
+
+    def test_backward_compat_retention_days_key(self):
+        """Return dict still includes retention_days for backward compat."""
+        result = get_storage_config({})
+        assert "retention_days" in result
+        # Default 5m age is 604800 = 7 * 86400
+        assert result["retention_days"] == 7
+
+    def test_db_path_still_returned(self):
+        """Return dict still includes db_path."""
+        result = get_storage_config({})
+        assert "db_path" in result
