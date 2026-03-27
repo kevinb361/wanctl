@@ -46,8 +46,6 @@ def _make_controller(mock_autorate_config, fusion_enabled=True, irtt_enabled=Tru
             "grace_period_sec": 1800.0,
         },
     }
-    mock_autorate_config.cycle_interval = 0.05
-
     with patch.object(WANController, "load_state"):
         ctrl = WANController(
             wan_name="TestWAN",

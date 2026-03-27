@@ -30,6 +30,7 @@ from wanctl.config_validation_utils import (
 )
 from wanctl.daemon_utils import check_cleanup_deadline
 from wanctl.error_handling import handle_errors
+from wanctl.fusion_healer import FusionHealer, HealState
 from wanctl.health_check import start_health_server, update_health_status
 from wanctl.irtt_measurement import IRTTMeasurement, IRTTResult
 from wanctl.irtt_thread import IRTTThread
@@ -928,12 +929,95 @@ class Config(BaseConfig):
             )
             enabled = False
 
+        # Healing config (Phase 119: FUSE-01 through FUSE-05)
+        healing = fusion.get("healing", {})
+        if not isinstance(healing, dict):
+            logger.warning(
+                f"fusion.healing must be dict, got {type(healing).__name__}; using defaults"
+            )
+            healing = {}
+
+        suspend_threshold = healing.get("suspend_threshold", 0.3)
+        if (
+            not isinstance(suspend_threshold, (int, float))
+            or isinstance(suspend_threshold, bool)
+            or not (0.0 <= suspend_threshold <= 1.0)
+        ):
+            logger.warning(
+                f"fusion.healing.suspend_threshold invalid ({suspend_threshold!r}); defaulting to 0.3"
+            )
+            suspend_threshold = 0.3
+
+        recover_threshold = healing.get("recover_threshold", 0.5)
+        if (
+            not isinstance(recover_threshold, (int, float))
+            or isinstance(recover_threshold, bool)
+            or not (0.0 <= recover_threshold <= 1.0)
+        ):
+            logger.warning(
+                f"fusion.healing.recover_threshold invalid ({recover_threshold!r}); defaulting to 0.5"
+            )
+            recover_threshold = 0.5
+
+        if recover_threshold <= suspend_threshold:
+            logger.warning(
+                f"fusion.healing.recover_threshold ({recover_threshold}) must be > "
+                f"suspend_threshold ({suspend_threshold}); "
+                f"defaulting to suspend_threshold + 0.2"
+            )
+            recover_threshold = min(suspend_threshold + 0.2, 1.0)
+
+        suspend_window_sec = healing.get("suspend_window_sec", 60.0)
+        if (
+            not isinstance(suspend_window_sec, (int, float))
+            or isinstance(suspend_window_sec, bool)
+            or suspend_window_sec < 10.0
+        ):
+            logger.warning(
+                f"fusion.healing.suspend_window_sec invalid ({suspend_window_sec!r}); "
+                f"defaulting to 60.0"
+            )
+            suspend_window_sec = 60.0
+
+        recover_window_sec = healing.get("recover_window_sec", 300.0)
+        if (
+            not isinstance(recover_window_sec, (int, float))
+            or isinstance(recover_window_sec, bool)
+            or recover_window_sec < 30.0
+        ):
+            logger.warning(
+                f"fusion.healing.recover_window_sec invalid ({recover_window_sec!r}); "
+                f"defaulting to 300.0"
+            )
+            recover_window_sec = 300.0
+
+        grace_period_sec = healing.get("grace_period_sec", 1800.0)
+        if (
+            not isinstance(grace_period_sec, (int, float))
+            or isinstance(grace_period_sec, bool)
+            or grace_period_sec < 0
+        ):
+            logger.warning(
+                f"fusion.healing.grace_period_sec invalid ({grace_period_sec!r}); "
+                f"defaulting to 1800.0"
+            )
+            grace_period_sec = 1800.0
+
         self.fusion_config = {
             "icmp_weight": float(icmp_weight),
             "enabled": enabled,
+            "healing": {
+                "suspend_threshold": float(suspend_threshold),
+                "recover_threshold": float(recover_threshold),
+                "suspend_window_sec": float(suspend_window_sec),
+                "recover_window_sec": float(recover_window_sec),
+                "grace_period_sec": float(grace_period_sec),
+            },
         }
         logger.info(
-            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, irtt_weight={1.0 - icmp_weight}"
+            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, "
+            f"healing.suspend_threshold={suspend_threshold}, "
+            f"healing.recover_threshold={recover_threshold}"
         )
 
     def _load_tuning_config(self) -> None:
@@ -1779,6 +1863,18 @@ class WANController:
         self._last_icmp_filtered_rtt: float | None = None
 
         # =====================================================================
+        # FUSION HEALING (Phase 119: FUSE-01 through FUSE-05)
+        # =====================================================================
+        # Automatic fusion state management based on rolling Pearson correlation.
+        # When ICMP/IRTT path divergence is detected, healer suspends fusion
+        # and locks fusion_icmp_weight. Only instantiated when both fusion AND
+        # IRTT are enabled (healer needs both signals).
+        # =====================================================================
+        self._fusion_healer: FusionHealer | None = None
+        self._prev_filtered_rtt: float | None = None
+        self._prev_irtt_rtt: float | None = None
+
+        # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
         # =====================================================================
         # Per-reflector rolling quality scoring with automatic deprioritization
@@ -2421,6 +2517,35 @@ class WANController:
 
         self._irtt_correlation = ratio
 
+    def _init_fusion_healer(self) -> None:
+        """Initialize FusionHealer if both fusion and IRTT are enabled.
+
+        Called by main() after _irtt_thread is assigned. The healer needs
+        both ICMP and IRTT signals, so it cannot be created at __init__ time
+        when _irtt_thread is still None.
+        """
+        if not self._fusion_enabled:
+            return
+        if self._irtt_thread is None:
+            return
+        healing_cfg = self.config.fusion_config.get("healing", {})
+        self._fusion_healer = FusionHealer(
+            wan_name=self.wan_name,
+            suspend_threshold=healing_cfg.get("suspend_threshold", 0.3),
+            recover_threshold=healing_cfg.get("recover_threshold", 0.5),
+            suspend_window_sec=healing_cfg.get("suspend_window_sec", 60.0),
+            recover_window_sec=healing_cfg.get("recover_window_sec", 300.0),
+            grace_period_sec=healing_cfg.get("grace_period_sec", 1800.0),
+            cycle_interval_sec=CYCLE_INTERVAL_SECONDS,
+            alert_engine=self.alert_engine if isinstance(self.alert_engine, AlertEngine) else None,
+            parameter_locks=self._parameter_locks,
+        )
+        self.logger.info(
+            f"{self.wan_name}: FusionHealer initialized "
+            f"(suspend<{healing_cfg.get('suspend_threshold', 0.3)}, "
+            f"recover>{healing_cfg.get('recover_threshold', 0.5)})"
+        )
+
     def _compute_fused_rtt(self, filtered_rtt: float) -> float:
         """Compute fused RTT from ICMP filtered_rtt and cached IRTT rtt_mean_ms.
 
@@ -2527,6 +2652,16 @@ class WANController:
 
         self._fusion_enabled = new_enabled
         self._fusion_icmp_weight = new_weight
+
+        # SIGUSR1 grace period for fusion healer (Phase 119: D-06)
+        if self._fusion_healer is not None:
+            if new_enabled and not old_enabled:
+                if self._fusion_healer.state == HealState.SUSPENDED:
+                    self._fusion_healer.start_grace_period()
+                    self.logger.warning(
+                        f"[FUSION] Operator override: healer paused for "
+                        f"{self._fusion_healer._grace_period_sec:.0f}s grace period"
+                    )
 
     def _reload_tuning_config(self) -> None:
         """Re-read tuning config from YAML (triggered by SIGUSR1).
@@ -2724,8 +2859,49 @@ class WANController:
                 if age <= cadence * 3 and irtt_result.rtt_mean_ms > 0 and self.load_rtt > 0:
                     ratio = self.load_rtt / irtt_result.rtt_mean_ms
                     self._check_protocol_correlation(ratio)
+
+                    # Feed deltas to fusion healer (Phase 119: FUSE-01)
+                    if self._fusion_healer is not None:
+                        icmp_rtt = signal_result.filtered_rtt
+                        irtt_rtt = irtt_result.rtt_mean_ms
+                        icmp_delta = (
+                            icmp_rtt - self._prev_filtered_rtt
+                            if self._prev_filtered_rtt is not None
+                            else 0.0
+                        )
+                        irtt_delta = (
+                            irtt_rtt - self._prev_irtt_rtt
+                            if self._prev_irtt_rtt is not None
+                            else 0.0
+                        )
+                        self._prev_filtered_rtt = icmp_rtt
+                        self._prev_irtt_rtt = irtt_rtt
+
+                        old_state = self._fusion_healer.state
+                        new_state = self._fusion_healer.tick(icmp_delta, irtt_delta)
+
+                        # Act on state transitions
+                        if new_state != old_state:
+                            if new_state == HealState.SUSPENDED:
+                                self._fusion_enabled = False
+                                self.logger.warning(
+                                    f"{self.wan_name}: [FUSION HEALER] Suspended fusion "
+                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                )
+                            elif new_state == HealState.ACTIVE:
+                                self._fusion_enabled = True
+                                self.logger.warning(
+                                    f"{self.wan_name}: [FUSION HEALER] Recovered to ACTIVE "
+                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                )
+                            elif new_state == HealState.RECOVERING:
+                                self.logger.info(
+                                    f"{self.wan_name}: [FUSION HEALER] Entering RECOVERING "
+                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                )
                 elif age > cadence * 3:
                     self._irtt_correlation = None
+                    self._prev_irtt_rtt = None  # Reset stale IRTT tracking
                     self.logger.debug(
                         f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
                         f"skipping correlation"
@@ -3890,6 +4066,7 @@ def main() -> int | None:
     # Pass irtt_thread reference to each WAN controller
     for wan_info in controller.wan_controllers:
         wan_info["controller"]._irtt_thread = irtt_thread
+        wan_info["controller"]._init_fusion_healer()
 
     # Log startup
     for wan_info in controller.wan_controllers:
