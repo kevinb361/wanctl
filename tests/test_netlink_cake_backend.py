@@ -1,6 +1,6 @@
 """Tests for NetlinkCakeBackend implementation.
 
-NLNK-01, NLNK-02, NLNK-03: Netlink CAKE backend tests.
+NLNK-01, NLNK-02, NLNK-03, NLNK-04: Netlink CAKE backend tests.
 
 Coverage targets:
 - NetlinkCakeBackend constructor and from_config: 100%
@@ -8,12 +8,15 @@ Coverage targets:
 - set_bandwidth netlink path + bps-to-kbit conversion: 100%
 - set_bandwidth fallback on NetlinkError/OSError: 100%
 - get_bandwidth netlink read + fallback: 100%
+- get_queue_stats netlink per-tin stats parsing: 100%
+- get_queue_stats fallback and edge cases: 100%
 - initialize_cake param mapping + fallback: 100%
 - validate_cake readback + fallback: 100%
 - test_connection netlink path + fallback: 100%
 - close() resource cleanup: 100%
 """
 
+import json
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -633,3 +636,519 @@ class TestPyroute2NotAvailable:
         result = backend.get_bandwidth("q")
         assert result == 500_000_000
         mock_super_get.assert_called_once()
+
+
+# =============================================================================
+# Mock helpers for get_queue_stats netlink response
+# =============================================================================
+
+# Per-tin data matching SAMPLE_CAKE_JSON from test_linux_cake_backend.py
+_TIN_DATA = [
+    {  # Bulk (index 0)
+        "TCA_CAKE_TIN_STATS_SENT_BYTES64": 10000,
+        "TCA_CAKE_TIN_STATS_SENT_PACKETS": 100,
+        "TCA_CAKE_TIN_STATS_DROPPED_PACKETS": 2,
+        "TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS": 1,
+        "TCA_CAKE_TIN_STATS_BACKLOG_BYTES": 0,
+        "TCA_CAKE_TIN_STATS_PEAK_DELAY_US": 5000,
+        "TCA_CAKE_TIN_STATS_AVG_DELAY_US": 2000,
+        "TCA_CAKE_TIN_STATS_BASE_DELAY_US": 500,
+        "TCA_CAKE_TIN_STATS_SPARSE_FLOWS": 3,
+        "TCA_CAKE_TIN_STATS_BULK_FLOWS": 1,
+        "TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS": 0,
+    },
+    {  # BestEffort (index 1)
+        "TCA_CAKE_TIN_STATS_SENT_BYTES64": 50000,
+        "TCA_CAKE_TIN_STATS_SENT_PACKETS": 500,
+        "TCA_CAKE_TIN_STATS_DROPPED_PACKETS": 5,
+        "TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS": 3,
+        "TCA_CAKE_TIN_STATS_BACKLOG_BYTES": 500,
+        "TCA_CAKE_TIN_STATS_PEAK_DELAY_US": 3000,
+        "TCA_CAKE_TIN_STATS_AVG_DELAY_US": 1000,
+        "TCA_CAKE_TIN_STATS_BASE_DELAY_US": 200,
+        "TCA_CAKE_TIN_STATS_SPARSE_FLOWS": 10,
+        "TCA_CAKE_TIN_STATS_BULK_FLOWS": 2,
+        "TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS": 0,
+    },
+    {  # Video (index 2)
+        "TCA_CAKE_TIN_STATS_SENT_BYTES64": 80000,
+        "TCA_CAKE_TIN_STATS_SENT_PACKETS": 300,
+        "TCA_CAKE_TIN_STATS_DROPPED_PACKETS": 0,
+        "TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS": 0,
+        "TCA_CAKE_TIN_STATS_BACKLOG_BYTES": 1000,
+        "TCA_CAKE_TIN_STATS_PEAK_DELAY_US": 1000,
+        "TCA_CAKE_TIN_STATS_AVG_DELAY_US": 500,
+        "TCA_CAKE_TIN_STATS_BASE_DELAY_US": 100,
+        "TCA_CAKE_TIN_STATS_SPARSE_FLOWS": 5,
+        "TCA_CAKE_TIN_STATS_BULK_FLOWS": 0,
+        "TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS": 0,
+    },
+    {  # Voice (index 3)
+        "TCA_CAKE_TIN_STATS_SENT_BYTES64": 5000,
+        "TCA_CAKE_TIN_STATS_SENT_PACKETS": 50,
+        "TCA_CAKE_TIN_STATS_DROPPED_PACKETS": 0,
+        "TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS": 0,
+        "TCA_CAKE_TIN_STATS_BACKLOG_BYTES": 0,
+        "TCA_CAKE_TIN_STATS_PEAK_DELAY_US": 200,
+        "TCA_CAKE_TIN_STATS_AVG_DELAY_US": 100,
+        "TCA_CAKE_TIN_STATS_BASE_DELAY_US": 50,
+        "TCA_CAKE_TIN_STATS_SPARSE_FLOWS": 2,
+        "TCA_CAKE_TIN_STATS_BULK_FLOWS": 0,
+        "TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS": 0,
+    },
+]
+
+
+def _make_mock_tin(tin_data: dict) -> MagicMock:
+    """Build a mock pyroute2 tin stats nla object."""
+    tin = MagicMock()
+    tin.get_attr.side_effect = lambda key: tin_data.get(key)
+    return tin
+
+
+def _make_mock_tins_container(tin_data_list: list[dict]) -> MagicMock:
+    """Build a mock TCA_CAKE_STATS_TIN_STATS container."""
+    tins_by_index = {}
+    for i, td in enumerate(tin_data_list):
+        tins_by_index[f"TCA_CAKE_TIN_STATS_{i}"] = _make_mock_tin(td)
+    container = MagicMock()
+    container.get_attr.side_effect = lambda key: tins_by_index.get(key)
+    return container
+
+
+def _make_mock_stats_app(
+    memory_used: int = 2097152,
+    memory_limit: int = 33554432,
+    capacity_estimate: int = 500000000,
+    tin_data_list: list[dict] | None = None,
+) -> MagicMock:
+    """Build a mock TCA_STATS_APP nla object."""
+    if tin_data_list is None:
+        tin_data_list = _TIN_DATA
+    tins_container = _make_mock_tins_container(tin_data_list) if tin_data_list else None
+    app_attrs = {
+        "TCA_CAKE_STATS_MEMORY_USED": memory_used,
+        "TCA_CAKE_STATS_MEMORY_LIMIT": memory_limit,
+        "TCA_CAKE_STATS_CAPACITY_ESTIMATE64": capacity_estimate,
+        "TCA_CAKE_STATS_TIN_STATS": tins_container,
+    }
+    app = MagicMock()
+    app.get_attr.side_effect = lambda key: app_attrs.get(key)
+    return app
+
+
+def _make_mock_stats2(
+    packets: int = 987654,
+    bytes_val: int = 123456789,
+    drops: int = 42,
+    qlen: int = 3,
+    backlog: int = 1500,
+    app: MagicMock | None = None,
+) -> MagicMock:
+    """Build a mock TCA_STATS2 nla object."""
+    basic = {"bytes": bytes_val, "packets": packets}
+    queue = {"drops": drops, "qlen": qlen, "backlog": backlog}
+    if app is None:
+        app = _make_mock_stats_app()
+    stats2_attrs = {
+        "TCA_STATS_BASIC": basic,
+        "TCA_STATS_QUEUE": queue,
+        "TCA_STATS_APP": app,
+    }
+    stats2 = MagicMock()
+    stats2.get_attr.side_effect = lambda key: stats2_attrs.get(key)
+    return stats2
+
+
+def _make_mock_cake_dump_msg(stats2: MagicMock | None = None) -> MagicMock:
+    """Build mock pyroute2 tcmsg for CAKE stats matching SAMPLE_CAKE_JSON values."""
+    if stats2 is None:
+        stats2 = _make_mock_stats2()
+    msg_attrs = {
+        "TCA_KIND": "cake",
+        "TCA_STATS2": stats2,
+    }
+    msg = MagicMock()
+    msg.get_attr.side_effect = lambda key: msg_attrs.get(key)
+    return msg
+
+
+# =============================================================================
+# TestGetQueueStats (NLNK-04)
+# =============================================================================
+
+
+class TestGetQueueStats:
+    """get_queue_stats netlink per-tin stats parsing tests -- NLNK-04."""
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_returns_dict_with_all_base_fields(self, MockIPRoute, backend):
+        """get_queue_stats returns dict with packets, bytes, dropped, queued_packets, queued_bytes."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert result["packets"] == 987654
+        assert result["bytes"] == 123456789
+        assert result["dropped"] == 42
+        assert result["queued_packets"] == 3
+        assert result["queued_bytes"] == 1500
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_returns_extended_fields(self, MockIPRoute, backend):
+        """get_queue_stats returns memory_used, memory_limit, capacity_estimate."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert result["memory_used"] == 2097152
+        assert result["memory_limit"] == 33554432
+        assert result["capacity_estimate"] == 500000000
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_returns_tins_list_with_4_entries(self, MockIPRoute, backend):
+        """get_queue_stats returns tins list with 4 entries (diffserv4)."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert len(result["tins"]) == 4
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_per_tin_field_mapping(self, MockIPRoute, backend):
+        """Per-tin fields are mapped correctly from TCA attributes."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        # Check Bulk tin (index 0)
+        tin0 = result["tins"][0]
+        assert tin0["sent_bytes"] == 10000
+        assert tin0["sent_packets"] == 100
+        assert tin0["dropped_packets"] == 2
+        assert tin0["ecn_marked_packets"] == 1
+        assert tin0["backlog_bytes"] == 0
+        assert tin0["peak_delay_us"] == 5000
+        assert tin0["avg_delay_us"] == 2000
+        assert tin0["base_delay_us"] == 500
+        assert tin0["sparse_flows"] == 3
+        assert tin0["bulk_flows"] == 1
+        assert tin0["unresponsive_flows"] == 0
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_per_tin_has_11_fields_each(self, MockIPRoute, backend):
+        """Each tin dict has exactly 11 fields."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        expected_keys = {
+            "sent_bytes", "sent_packets", "dropped_packets",
+            "ecn_marked_packets", "backlog_bytes", "peak_delay_us",
+            "avg_delay_us", "base_delay_us", "sparse_flows",
+            "bulk_flows", "unresponsive_flows",
+        }
+        for tin in result["tins"]:
+            assert set(tin.keys()) == expected_keys
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_ecn_marked_equals_sum_of_tin_ecn(self, MockIPRoute, backend):
+        """ecn_marked is sum of ecn_marked_packets across all tins (1+3+0+0=4)."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert result["ecn_marked"] == 4
+        # Verify it equals the sum
+        total = sum(t["ecn_marked_packets"] for t in result["tins"])
+        assert result["ecn_marked"] == total
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    @patch.object(LinuxCakeBackend, "get_queue_stats", return_value={"packets": 1})
+    def test_fallback_on_netlink_error(self, mock_super_stats, MockIPRoute, backend):
+        """get_queue_stats falls back to super().get_queue_stats() on NetlinkError."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        from pyroute2.netlink.exceptions import NetlinkError
+
+        mock_instance.tc.side_effect = NetlinkError(22)
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result == {"packets": 1}
+        mock_super_stats.assert_called_once_with("q")
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    @patch.object(LinuxCakeBackend, "get_queue_stats", return_value={"packets": 1})
+    def test_fallback_on_oserror(self, mock_super_stats, MockIPRoute, backend):
+        """get_queue_stats falls back on OSError (socket death)."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.side_effect = OSError("socket died")
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result == {"packets": 1}
+        mock_super_stats.assert_called_once_with("q")
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    @patch.object(LinuxCakeBackend, "get_queue_stats", return_value={"packets": 1})
+    def test_fallback_nulls_ipr(self, mock_super_stats, MockIPRoute, backend):
+        """Fallback nulls _ipr for reconnect on next call."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.side_effect = OSError("broken")
+        MockIPRoute.return_value = mock_instance
+
+        backend.get_queue_stats("q")
+        assert backend._ipr is None
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_no_cake_qdisc_returns_none(self, MockIPRoute, backend):
+        """get_queue_stats returns None when no CAKE qdisc found."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        # Return a non-CAKE message
+        mock_msg = MagicMock()
+        mock_msg.get_attr.side_effect = lambda key: {
+            "TCA_KIND": "fq_codel",
+        }.get(key)
+        mock_instance.tc.return_value = [mock_msg]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is None
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_empty_tins_returns_empty_list(self, MockIPRoute, backend):
+        """get_queue_stats handles empty tins list gracefully (0 tins -> empty list)."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        app = _make_mock_stats_app(tin_data_list=[])
+        stats2 = _make_mock_stats2(app=app)
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg(stats2=stats2)]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert result["tins"] == []
+        assert result["ecn_marked"] == 0
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    @patch.object(LinuxCakeBackend, "get_queue_stats", return_value={"packets": 1})
+    def test_missing_stats2_fallback(self, mock_super_stats, MockIPRoute, backend):
+        """get_queue_stats falls back when TCA_STATS2 is missing."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        # CAKE message with no TCA_STATS2
+        mock_msg = MagicMock()
+        mock_msg.get_attr.side_effect = lambda key: {
+            "TCA_KIND": "cake",
+            "TCA_STATS2": None,
+        }.get(key)
+        mock_instance.tc.return_value = [mock_msg]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result == {"packets": 1}
+        mock_super_stats.assert_called_once_with("q")
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_missing_app_returns_zero_extended_fields(self, MockIPRoute, backend):
+        """get_queue_stats returns 0 for extended fields when TCA_STATS_APP is None."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        # Stats2 with no app
+        stats2_attrs = {
+            "TCA_STATS_BASIC": {"bytes": 100, "packets": 10},
+            "TCA_STATS_QUEUE": {"drops": 0, "qlen": 0, "backlog": 0},
+            "TCA_STATS_APP": None,
+        }
+        mock_stats2 = MagicMock()
+        mock_stats2.get_attr.side_effect = lambda key: stats2_attrs.get(key)
+        mock_msg = MagicMock()
+        mock_msg.get_attr.side_effect = lambda key: {
+            "TCA_KIND": "cake",
+            "TCA_STATS2": mock_stats2,
+        }.get(key)
+        mock_instance.tc.return_value = [mock_msg]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+        assert result is not None
+        assert result["memory_used"] == 0
+        assert result["memory_limit"] == 0
+        assert result["capacity_estimate"] == 0
+        assert result["tins"] == []
+        assert result["ecn_marked"] == 0
+
+
+# =============================================================================
+# TestStatsContractParity (NLNK-04)
+# =============================================================================
+
+# SAMPLE_CAKE_JSON from test_linux_cake_backend.py (same values)
+_SAMPLE_CAKE_JSON = json.dumps(
+    [
+        {
+            "kind": "cake",
+            "handle": "8001:",
+            "parent": "ffff:fff1",
+            "bytes": 123456789,
+            "packets": 987654,
+            "drops": 42,
+            "overlimits": 100,
+            "requeues": 0,
+            "backlog": 1500,
+            "qlen": 3,
+            "memory_used": 2097152,
+            "memory_limit": 33554432,
+            "capacity_estimate": 500000000,
+            "options": {"bandwidth": 500000000},
+            "tins": [
+                {
+                    "sent_bytes": 10000,
+                    "sent_packets": 100,
+                    "drops": 2,
+                    "ecn_mark": 1,
+                    "backlog_bytes": 0,
+                    "peak_delay_us": 5000,
+                    "avg_delay_us": 2000,
+                    "base_delay_us": 500,
+                    "sparse_flows": 3,
+                    "bulk_flows": 1,
+                    "unresponsive_flows": 0,
+                },
+                {
+                    "sent_bytes": 50000,
+                    "sent_packets": 500,
+                    "drops": 5,
+                    "ecn_mark": 3,
+                    "backlog_bytes": 500,
+                    "peak_delay_us": 3000,
+                    "avg_delay_us": 1000,
+                    "base_delay_us": 200,
+                    "sparse_flows": 10,
+                    "bulk_flows": 2,
+                    "unresponsive_flows": 0,
+                },
+                {
+                    "sent_bytes": 80000,
+                    "sent_packets": 300,
+                    "drops": 0,
+                    "ecn_mark": 0,
+                    "backlog_bytes": 1000,
+                    "peak_delay_us": 1000,
+                    "avg_delay_us": 500,
+                    "base_delay_us": 100,
+                    "sparse_flows": 5,
+                    "bulk_flows": 0,
+                    "unresponsive_flows": 0,
+                },
+                {
+                    "sent_bytes": 5000,
+                    "sent_packets": 50,
+                    "drops": 0,
+                    "ecn_mark": 0,
+                    "backlog_bytes": 0,
+                    "peak_delay_us": 200,
+                    "avg_delay_us": 100,
+                    "base_delay_us": 50,
+                    "sparse_flows": 2,
+                    "bulk_flows": 0,
+                    "unresponsive_flows": 0,
+                },
+            ],
+        }
+    ]
+)
+
+
+class TestStatsContractParity:
+    """Contract parity: netlink stats dict matches subprocess stats dict -- NLNK-04."""
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_netlink_keys_match_subprocess_keys(self, MockIPRoute, backend):
+        """Netlink get_queue_stats returns identical dict keys as subprocess path."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        netlink_result = backend.get_queue_stats("q")
+
+        # Get subprocess result via LinuxCakeBackend
+        sub_backend = LinuxCakeBackend(interface="eth0")
+        with patch.object(sub_backend, "_run_tc", return_value=(0, _SAMPLE_CAKE_JSON, "")):
+            subprocess_result = sub_backend.get_queue_stats("q")
+
+        assert netlink_result is not None
+        assert subprocess_result is not None
+        assert set(netlink_result.keys()) == set(subprocess_result.keys())
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_netlink_tin_keys_match_subprocess_tin_keys(self, MockIPRoute, backend):
+        """Per-tin dict keys from netlink match subprocess path exactly."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        netlink_result = backend.get_queue_stats("q")
+
+        sub_backend = LinuxCakeBackend(interface="eth0")
+        with patch.object(sub_backend, "_run_tc", return_value=(0, _SAMPLE_CAKE_JSON, "")):
+            subprocess_result = sub_backend.get_queue_stats("q")
+
+        assert netlink_result is not None
+        assert subprocess_result is not None
+        assert len(netlink_result["tins"]) > 0
+        assert len(subprocess_result["tins"]) > 0
+        assert set(netlink_result["tins"][0].keys()) == set(subprocess_result["tins"][0].keys())
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_netlink_values_match_subprocess_values(self, MockIPRoute, backend):
+        """Netlink stats values match subprocess stats for identical CAKE state."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        netlink_result = backend.get_queue_stats("q")
+
+        sub_backend = LinuxCakeBackend(interface="eth0")
+        with patch.object(sub_backend, "_run_tc", return_value=(0, _SAMPLE_CAKE_JSON, "")):
+            subprocess_result = sub_backend.get_queue_stats("q")
+
+        assert netlink_result is not None
+        assert subprocess_result is not None
+        # Compare base fields
+        for key in ("packets", "bytes", "dropped", "queued_packets", "queued_bytes"):
+            assert netlink_result[key] == subprocess_result[key], f"Mismatch on {key}"
+        # Compare extended fields
+        for key in ("memory_used", "memory_limit", "capacity_estimate", "ecn_marked"):
+            assert netlink_result[key] == subprocess_result[key], f"Mismatch on {key}"
+        # Compare per-tin values
+        for i, (nl_tin, sp_tin) in enumerate(
+            zip(netlink_result["tins"], subprocess_result["tins"])
+        ):
+            for key in nl_tin:
+                assert nl_tin[key] == sp_tin[key], f"Mismatch on tin[{i}].{key}"
