@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: Remaining
 status: executing
-last_updated: "2026-03-26T23:17:11.685Z"
-last_activity: 2026-03-26
+last_updated: "2026-03-27T22:53:28.700Z"
+last_activity: 2026-03-27
 progress:
-  total_phases: 14
-  completed_phases: 12
-  total_plans: 33
-  completed_plans: 30
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
   percent: 92
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Milestone:** v1.22 Full System Audit
 **Phase:** 120 of 120 (adaptive rate step tuning)
-**Plan:** 1 of 2 complete
-**Status:** Executing Phase 120
+**Plan:** 2 of 2 complete
+**Status:** Phase 120 complete
 **Last activity:** 2026-03-27
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -48,6 +48,8 @@ Progress: [█████████░] 92%
 - 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
 - 120-01: 6 thin dl/ul wrappers over 3 shared response strategy implementations for StrategyFn compliance
 - 120-01: Episode detection uses state >= 2.0 as congestion, == 0.0 as recovery; YELLOW (1.0) not congestion
+- 120-02: check_oscillation_lockout as testable function in response.py rather than inline maintenance loop code
+- 120-02: Default exclude_params uses RESPONSE_PARAMS as default arg; operator opts in via explicit empty list
 
 ### Known Issues
 
