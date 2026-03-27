@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.backends import get_backend
+from wanctl.backends import NetlinkCakeBackend, get_backend
 from wanctl.backends.base import RouterBackend
 from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.routeros import RouterOSBackend
@@ -557,9 +557,42 @@ class TestGetBackendFactory:
         with pytest.raises(ValueError, match="Unsupported router transport"):
             get_backend(config)
 
+    def test_get_backend_linux_cake_netlink(self):
+        """NLNK-05: Factory returns NetlinkCakeBackend for linux-cake-netlink transport."""
+        config = MagicMock()
+        config.router_transport = "linux-cake-netlink"
+        config.data = {
+            "cake_params": {"download_interface": "ens19"},
+            "timeouts": {"tc_command": 5.0},
+        }
+        backend = get_backend(config)
+        assert isinstance(backend, NetlinkCakeBackend)
+        assert backend.interface == "ens19"
+
     @patch("wanctl.backends.routeros.RouterOSBackend.from_config")
     def test_default_transport_when_attr_missing(self, mock_from_config):
         config = MagicMock(spec=[])  # no router_transport attr
         mock_from_config.return_value = MagicMock(spec=RouterOSBackend)
         get_backend(config)
         mock_from_config.assert_called_once_with(config)
+
+
+# =============================================================================
+# TestNetlinkCakeBackendImportable - NLNK-05 package export
+# =============================================================================
+
+
+class TestNetlinkCakeBackendImportable:
+    """NetlinkCakeBackend is exported from backends package."""
+
+    def test_netlink_cake_backend_importable(self):
+        """NetlinkCakeBackend is importable from wanctl.backends."""
+        from wanctl.backends import NetlinkCakeBackend
+
+        assert NetlinkCakeBackend is not None
+
+    def test_netlink_cake_backend_in_all(self):
+        """NetlinkCakeBackend is listed in __all__."""
+        import wanctl.backends
+
+        assert "NetlinkCakeBackend" in wanctl.backends.__all__
