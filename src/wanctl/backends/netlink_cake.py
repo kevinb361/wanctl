@@ -7,7 +7,7 @@ Falls back to subprocess (via super()) on any netlink failure.
 Performance: Netlink tc call ~0.3ms vs subprocess tc ~3.1ms, reclaiming ~5ms
 per 50ms control cycle (two directions x ~2.8ms savings each).
 
-Requirements: NLNK-01, NLNK-02, NLNK-03
+Requirements: NLNK-01, NLNK-02, NLNK-03, NLNK-04
 Optional dependency: pyroute2>=0.9.5 (install via `pip install wanctl[netlink]`)
 
 Config schema:
@@ -182,6 +182,109 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             )
             self._reset_ipr()
             return super().get_bandwidth(queue)
+
+    def get_queue_stats(self, queue: str) -> dict[str, Any] | None:
+        """Get CAKE qdisc statistics with per-tin parsing via netlink.
+
+        Reads TCA_STATS2 from tc("dump") response and maps netlink attributes
+        to the same dict contract as LinuxCakeBackend.get_queue_stats():
+        - 5 base fields: packets, bytes, dropped, queued_packets, queued_bytes
+        - 4 extended fields: memory_used, memory_limit, capacity_estimate, ecn_marked
+        - tins list: per-tin dicts with 11 fields each
+
+        Falls back to subprocess on NetlinkError/OSError/ImportError.
+
+        Args:
+            queue: Ignored for linux-cake (interface set at init). Kept for ABC compat.
+
+        Returns:
+            Stats dict with base 5 + extended 4 fields + tins list, or None on error.
+        """
+        try:
+            ipr = self._get_ipr()
+            msgs = ipr.tc("dump", index=self._ifindex)
+        except (NetlinkError, OSError, ImportError) as e:
+            self.logger.warning(
+                "Netlink stats dump failed on %s: %s -- falling back to subprocess",
+                self.interface,
+                e,
+            )
+            self._reset_ipr()
+            return super().get_queue_stats(queue)
+
+        # Find CAKE message in dump response
+        cake_msg = None
+        for msg in msgs:
+            if msg.get_attr("TCA_KIND") == "cake":
+                cake_msg = msg
+                break
+        if cake_msg is None:
+            self.logger.warning("No CAKE qdisc found on %s via netlink", self.interface)
+            return None
+
+        # Extract base stats from TCA_STATS2
+        stats2 = cake_msg.get_attr("TCA_STATS2")
+        if stats2 is None:
+            self.logger.warning(
+                "No TCA_STATS2 in CAKE response on %s -- falling back to subprocess",
+                self.interface,
+            )
+            self._reset_ipr()
+            return super().get_queue_stats(queue)
+
+        basic = stats2.get_attr("TCA_STATS_BASIC") or {}
+        queue_stats = stats2.get_attr("TCA_STATS_QUEUE") or {}
+
+        # pyroute2 TCA_STATS_BASIC/QUEUE return dict-like objects
+        stats: dict[str, Any] = {
+            "packets": basic.get("packets", 0) if isinstance(basic, dict) else getattr(basic, "packets", 0),
+            "bytes": basic.get("bytes", 0) if isinstance(basic, dict) else getattr(basic, "bytes", 0),
+            "dropped": queue_stats.get("drops", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "drops", 0),
+            "queued_packets": queue_stats.get("qlen", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "qlen", 0),
+            "queued_bytes": queue_stats.get("backlog", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "backlog", 0),
+        }
+
+        # Extract CAKE-specific stats from TCA_STATS_APP
+        app = stats2.get_attr("TCA_STATS_APP")
+        if app is not None:
+            stats["memory_used"] = app.get_attr("TCA_CAKE_STATS_MEMORY_USED") or 0
+            stats["memory_limit"] = app.get_attr("TCA_CAKE_STATS_MEMORY_LIMIT") or 0
+            stats["capacity_estimate"] = app.get_attr("TCA_CAKE_STATS_CAPACITY_ESTIMATE64") or 0
+        else:
+            stats["memory_used"] = 0
+            stats["memory_limit"] = 0
+            stats["capacity_estimate"] = 0
+
+        # Extract per-tin stats
+        tins: list[dict[str, Any]] = []
+        total_ecn = 0
+        if app is not None:
+            tins_container = app.get_attr("TCA_CAKE_STATS_TIN_STATS")
+            if tins_container is not None:
+                # Iterate over tin attrs: TCA_CAKE_TIN_STATS_0, _1, _2, ...
+                for i in range(8):  # up to 8 tins (diffserv4=4, besteffort=1, diffserv3=3)
+                    tin = tins_container.get_attr(f"TCA_CAKE_TIN_STATS_{i}")
+                    if tin is None:
+                        break
+                    tin_stats: dict[str, Any] = {
+                        "sent_bytes": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_BYTES64") or 0,
+                        "sent_packets": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_PACKETS") or 0,
+                        "dropped_packets": tin.get_attr("TCA_CAKE_TIN_STATS_DROPPED_PACKETS") or 0,
+                        "ecn_marked_packets": tin.get_attr("TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS") or 0,
+                        "backlog_bytes": tin.get_attr("TCA_CAKE_TIN_STATS_BACKLOG_BYTES") or 0,
+                        "peak_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_PEAK_DELAY_US") or 0,
+                        "avg_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_AVG_DELAY_US") or 0,
+                        "base_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_BASE_DELAY_US") or 0,
+                        "sparse_flows": tin.get_attr("TCA_CAKE_TIN_STATS_SPARSE_FLOWS") or 0,
+                        "bulk_flows": tin.get_attr("TCA_CAKE_TIN_STATS_BULK_FLOWS") or 0,
+                        "unresponsive_flows": tin.get_attr("TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS") or 0,
+                    }
+                    total_ecn += tin_stats["ecn_marked_packets"]
+                    tins.append(tin_stats)
+
+        stats["tins"] = tins
+        stats["ecn_marked"] = total_ecn
+        return stats
 
     def initialize_cake(self, params: dict[str, Any]) -> bool:
         """Initialize CAKE qdisc via netlink tc replace. Falls back on failure.
