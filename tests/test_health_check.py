@@ -215,6 +215,7 @@ class TestHealthServer:
         mock_wan_controller._fusion_icmp_weight = 0.7
         mock_wan_controller._last_fused_rtt = None
         mock_wan_controller._last_icmp_filtered_rtt = None
+        mock_wan_controller._fusion_healer = None
 
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
@@ -296,6 +297,7 @@ class TestRouterConnectivityReporting:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
         return wan
 
     def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
@@ -459,6 +461,7 @@ class TestRouterConnectivityReporting:
         wan1._fusion_icmp_weight = 0.7
         wan1._last_fused_rtt = None
         wan1._last_icmp_filtered_rtt = None
+        wan1._fusion_healer = None
 
         # WAN 2: unreachable
         wan2 = MagicMock()
@@ -492,6 +495,7 @@ class TestRouterConnectivityReporting:
         wan2._fusion_icmp_weight = 0.7
         wan2._last_fused_rtt = None
         wan2._last_icmp_filtered_rtt = None
+        wan2._fusion_healer = None
 
         mock_controller = MagicMock()
         config1 = MagicMock()
@@ -647,6 +651,7 @@ class TestCycleBudgetInHealthEndpoint:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
 
         # Set profiler attributes (from Plan 01)
         wan._profiler = OperationProfiler(max_samples=1200)
@@ -914,6 +919,7 @@ class TestSignalQualityHealth:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1110,6 +1116,7 @@ class TestIRTTHealth:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
         return wan
 
     def _make_controller(self, wan, irtt_config=None):
@@ -1394,6 +1401,7 @@ class TestReflectorQualityHealth:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1641,6 +1649,7 @@ class TestFusionHealth:
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1655,7 +1664,7 @@ class TestFusionHealth:
         return mock_controller
 
     def test_fusion_disabled_shows_minimal_section(self, mock_wan_with_fusion):
-        """Fusion disabled shows enabled=False with reason='disabled'."""
+        """Fusion disabled shows enabled=False with reason='disabled' and heal state."""
         mock_wan_with_fusion._fusion_enabled = False
         controller = self._make_controller(mock_wan_with_fusion)
 
@@ -1666,7 +1675,10 @@ class TestFusionHealth:
             with urllib.request.urlopen(url, timeout=5) as response:
                 data = json.loads(response.read().decode())
             fusion = data["wans"][0]["fusion"]
-            assert fusion == {"enabled": False, "reason": "disabled"}
+            assert fusion["enabled"] is False
+            assert fusion["reason"] == "disabled"
+            assert fusion["heal_state"] == "no_healer"
+            assert fusion["heal_grace_active"] is False
         finally:
             server.shutdown()
 
