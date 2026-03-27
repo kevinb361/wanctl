@@ -1,5 +1,47 @@
 # Project Milestones: wanctl
 
+## v1.22 Full System Audit (Shipped: 2026-03-27)
+
+**Phases completed:** 14 phases, 33 plans, 55 tasks
+
+**Key accomplishments:**
+
+- All 4 target NICs (2x i210, 2x i350) confirmed in separate single-device IOMMU groups on odin -- PCIe passthrough feasible, Phase 109 unblocked
+- LinuxCakeBackend implementing RouterBackend ABC with tc subprocess calls for CAKE bandwidth control, per-tin stats parsing, and qdisc initialization/validation
+- Direction-aware CakeParamsBuilder with upload ack-filter, download ingress+ecn, overhead keyword validation, and readback-to-numeric conversion
+- Extended initialize_cake with overhead_keyword standalone tc token support, elif priority over numeric fallback, and build_cake_params integration tests
+- get_backend() factory routes linux-cake transport to LinuxCakeBackend with direction-parameterized from_config reading cake_params interfaces
+- validate_linux_cake() added to wanctl-check-config: validates cake_params structure, interfaces, overhead keywords, and tc binary with 14 TDD tests
+- Transport-aware CakeStatsReader delegates to LinuxCakeBackend for linux-cake transport with per-tin CAKE stats in health endpoint
+- Per-tin CAKE observability pipeline: 4 metrics registered in STORED_METRICS, batch writes in daemon gated on linux-cake transport, --tins flag in wanctl-history with pivoted table display
+- VFIO passthrough active on odin: 4 NICs (2x i210, 2x i350) bound to vfio-pci, management X552 unaffected
+- VM 206 (cake-shaper) running Debian 13 with 4 VFIO passthrough NICs: ens16/ens17 (i210 Spectrum), ens27/ens28 (i350 ATT)
+- Two transparent L2 bridges (br-spectrum, br-att) configured via systemd-networkd with STP disabled, verified across reboot
+- wanctl deployed to cake-shaper with CAKE qdiscs verified on ens17 (Spectrum) and ens28 (ATT) — JSON stats parseable
+- linux-cake configs created for both WANs, baseline RRUL benchmarks captured: Spectrum 696 Mbps avg download (MikroTik ceiling to beat)
+- ATT migrated to Linux CAKE on cake-shaper: +8.5% download, +97% upload, -3.8% latency vs MikroTik baseline
+- Rollback proven organically during ATT cutover — bridge forwards L2 without CAKE, MikroTik queues re-enableable
+- Full production cutover complete: both WANs on Linux CAKE, steering active, grade A bufferbloat
+- Fixed 60x outlier rate underestimate in SIGP-01 via time-gap-aware normalization, updated MAX_WINDOW to 21, widened 4 config bounds stuck at limits
+- pip-audit zero critical CVEs, 2 unused deps removed (cryptography + pyflakes), 8 orphaned fixtures cataloged, log rotation verified at 10MB/3 backups
+- File permissions verified (31 items, 0 FAIL) and systemd exposure scores documented (8.4 EXPOSED for 3 runtime services) with prioritized hardening roadmap for Phase 115
+- Enabled 8 new ruff categories (C901/SIM/PERF/RET/PT/TRY/ARG/ERA), resolved 839 findings via autofix + manual fix + triage, established complexity baseline for Phase 114
+- Vulture 2.16 scan of 28,629 LOC identifying 0 true dead items at 80% confidence after whitelisting all 15 PITFALLS.md false positive patterns
+- CAKE parameters verified correct for 4 qdiscs across 2 WANs; DSCP classification chain traced end-to-end from MikroTik mangle through transparent bridge to CAKE diffserv4 tins
+- Confidence scoring audit with all 10 weights documented, timer match verified, CAKE-primary invariant confirmed; signal chain traced from reflector selection through Hampel/Fusion/EWMA to delta, with IRTT/ICMP/TCP paths and reflector scoring validated against production config
+- Production CAKE queue statistics baseline: 0-60.9% memory across 4 qdiscs, zero backlog in GREEN state, 32mb memlimit confirmed appropriate
+- Triaged all 96 except Exception catches: 88 safety nets, 5 bug-swallowing catches fixed with DEBUG logging
+- MyPy strictness probe (5/5 leaf modules pass), complexity hotspot analysis with 8 extraction recommendations for v1.23, and import graph audit finding 2 safe TYPE_CHECKING-guarded cycles
+- Thread safety audit of 10 files (24 shared state instances, 0 high-severity races) plus SIGUSR1 reload chain catalog with 10 E2E tests covering all 5 reload targets
+- Hardened all 4 systemd units on production VM -- wanctl@ scored 2.1 OK and steering 1.9 OK (down from 8.4 EXPOSED), with circuit breaker config made consistent across all 3 runtime services
+- Production dependency lock from live VM pip freeze (28 pinned packages) plus comprehensive backup/recovery runbook covering configs, metrics.db, VM snapshots, and Phase 115 rollback procedures
+- Resource limits (MemoryMax/MemoryHigh/TasksMax/LimitNOFILE) applied to all runtime services from production observation, NIC tuning persistence confirmed across full VM reboot with all 4 services healthy post-boot
+- AST-scanned 126 test files (3,888 tests), found 20 assertion-free tests (4 fixed), 0 tautological, 9 over-mocked (documented only)
+- CONFIG_SCHEMA.md aligned with 6 missing config sections (storage, cake_params, fallback_checks, linux-cake transport, logging rotation, cake_optimization), 12 docs updated for VM architecture, container audit script archived
+- Capstone v1.22 audit document aggregating 15 findings files across 5 phases: 87 findings identified, 34 resolved, 38 remaining debt (0 P0, 4 P1, 11 P2, 9 P3, 14 P4) with v1.23 recommendations
+
+---
+
 ## v1.20 Adaptive Tuning (Shipped: 2026-03-19)
 
 **Delivered:** Self-optimizing controller that learns optimal parameters from production metrics via 4-layer tuning rotation, with safety revert detection, signal processing optimization, and fusion baseline deadlock fix.
