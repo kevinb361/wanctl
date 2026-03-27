@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: Remaining
 status: executing
-last_updated: "2026-03-27T16:15:34.151Z"
+last_updated: "2026-03-27T17:07:22.162Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 6
+  total_phases: 2
   completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 100
 ---
 
 # Session State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Milestone:** v1.23 Self-Optimizing Controller
 **Phase:** 118 (metrics retention strategy)
-**Plan:** 1 of 2 complete
-**Status:** Executing Phase 118
+**Plan:** 2 of 2 complete
+**Status:** Ready to execute
 **Last activity:** 2026-03-27
 
 Progress: [██████████] 100%
@@ -52,6 +52,8 @@ Progress: [██████████] 100%
 - 117-02: Contract parity tests prove netlink and subprocess stats paths produce identical output
 - 118-01: Unified thresholds (age_seconds controls both downsampling and deletion), prometheus_compensated is boolean modifier not preset
 - 118-01: Lazy import in config_base.py breaks circular dependency with config_validation_utils
+- 118-02: MagicMock guard on retention_config via isinstance(dict) for test safety in \_init_storage()
+- 118-02: SIGUSR1 retention reload catches ConfigValidationError and keeps old config (safe rollback)
 
 ### Known Issues
 
