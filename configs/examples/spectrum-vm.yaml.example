@@ -151,6 +151,14 @@ tuning:
       min: 25.0
       max: 100.0
 
+storage:
+  db_path: /var/lib/wanctl/metrics.db
+  retention:
+    raw_age_seconds: 3600          # 1 hour (raw 50ms samples)
+    aggregate_1m_age_seconds: 86400   # 1 day (1-minute averages)
+    aggregate_5m_age_seconds: 604800  # 7 days (5-minute averages)
+    # prometheus_compensated: false  # Set true if Prometheus handles long-term storage
+
 alerting:
   enabled: true
   webhook_url: "${DISCORD_WEBHOOK_URL}"

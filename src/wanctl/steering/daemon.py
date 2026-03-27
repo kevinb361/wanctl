@@ -33,7 +33,11 @@ from pathlib import Path
 from ..alert_engine import AlertEngine
 from ..backends.linux_cake import TIN_NAMES
 from ..config_base import BaseConfig, get_storage_config
-from ..config_validation_utils import deprecate_param, validate_alpha
+from ..config_validation_utils import (
+    deprecate_param,
+    validate_alpha,
+    validate_retention_tuner_compat,
+)
 from ..daemon_utils import check_cleanup_deadline
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
@@ -2234,6 +2238,15 @@ def main() -> int | None:
     # Record config snapshot on startup (if storage enabled)
     storage_config = get_storage_config(config.data)
     db_path = storage_config.get("db_path")
+    retention_config = storage_config.get("retention")
+
+    # Cross-section validation: retention vs tuner data availability
+    validate_retention_tuner_compat(
+        retention_config,
+        config.data.get("tuning"),
+        logger=logger,
+    )
+
     if db_path and isinstance(db_path, str):
         from wanctl.storage import record_config_snapshot, run_startup_maintenance
 
@@ -2243,7 +2256,7 @@ def main() -> int | None:
         # Run startup maintenance (cleanup + downsampling)
         maint_result = run_startup_maintenance(
             writer.connection,
-            retention_days=storage_config.get("retention_days", 7),
+            retention_config=retention_config,
             log=logger,
         )
         if maint_result.get("error"):

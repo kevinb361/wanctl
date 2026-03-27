@@ -22,10 +22,11 @@ from typing import Any
 
 from wanctl.alert_engine import AlertEngine
 from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
-from wanctl.config_base import BaseConfig, get_storage_config
+from wanctl.config_base import BaseConfig, ConfigValidationError, get_storage_config
 from wanctl.config_validation_utils import (
     deprecate_param,
     validate_bandwidth_order,
+    validate_retention_tuner_compat,
     validate_threshold_order,
 )
 from wanctl.daemon_utils import check_cleanup_deadline
@@ -3655,21 +3656,40 @@ def _parse_autorate_args() -> argparse.Namespace:
 
 def _init_storage(
     controller: "ContinuousAutoRate",
-) -> tuple[Any, int]:
+) -> tuple[Any, dict]:
     """Initialize storage, record config snapshot, and run startup maintenance.
 
     Args:
         controller: The ContinuousAutoRate instance (for config/logger access).
 
     Returns:
-        Tuple of (maintenance_conn, maintenance_retention_days).
+        Tuple of (maintenance_conn, maintenance_retention_config).
         maintenance_conn is None if storage is not enabled.
+        maintenance_retention_config is the per-granularity retention dict.
     """
     first_config = controller.wan_controllers[0]["config"]
     storage_config = get_storage_config(first_config.data)
     db_path = storage_config.get("db_path")
     maintenance_conn = None
-    maintenance_retention_days = storage_config.get("retention_days", 7)
+    default_retention = {
+        "raw_age_seconds": 3600,
+        "aggregate_1m_age_seconds": 86400,
+        "aggregate_5m_age_seconds": 604800,
+        "prometheus_compensated": False,
+    }
+    retention_raw = storage_config.get("retention")
+    # Guard against MagicMock in tests (isinstance(dict) check)
+    maintenance_retention_config = (
+        retention_raw if isinstance(retention_raw, dict) else default_retention
+    )
+
+    # Cross-section validation: retention vs tuner data availability
+    startup_logger = controller.wan_controllers[0]["logger"]
+    validate_retention_tuner_compat(
+        maintenance_retention_config,
+        first_config.data.get("tuning") if isinstance(first_config.data, dict) else None,
+        logger=startup_logger,
+    )
 
     # Only record snapshot if db_path is a valid string (not MagicMock in tests)
     if db_path and isinstance(db_path, str):
@@ -3683,17 +3703,17 @@ def _init_storage(
         # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
         maint_result = run_startup_maintenance(
             maintenance_conn,
-            retention_days=maintenance_retention_days,
-            log=controller.wan_controllers[0]["logger"],
+            retention_config=maintenance_retention_config,
+            log=startup_logger,
             watchdog_fn=notify_watchdog,
             max_seconds=20,
         )
         if maint_result.get("error"):
-            controller.wan_controllers[0]["logger"].warning(
+            startup_logger.warning(
                 f"Startup maintenance error: {maint_result['error']}"
             )
 
-    return maintenance_conn, maintenance_retention_days
+    return maintenance_conn, maintenance_retention_config
 
 
 def _acquire_daemon_locks(
@@ -3845,7 +3865,7 @@ def main() -> int | None:
             wan_info["controller"]._profiling_enabled = True
 
     # Initialize storage, record config snapshot, and run startup maintenance
-    maintenance_conn, maintenance_retention_days = _init_storage(controller)
+    maintenance_conn, maintenance_retention_config = _init_storage(controller)
 
     # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
@@ -3974,18 +3994,28 @@ def main() -> int | None:
                 if now - last_maintenance >= MAINTENANCE_INTERVAL:
                     maint_logger = controller.wan_controllers[0]["logger"]
                     try:
-                        from wanctl.storage.downsampler import downsample_metrics
+                        from wanctl.storage.downsampler import (
+                            downsample_metrics,
+                            get_downsample_thresholds,
+                        )
                         from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
 
                         deleted = cleanup_old_metrics(
                             maintenance_conn,
-                            maintenance_retention_days,
+                            retention_config=maintenance_retention_config,
                             watchdog_fn=notify_watchdog,
                         )
                         notify_watchdog()
 
+                        custom_thresholds = get_downsample_thresholds(
+                            raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
+                            aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
+                            aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
+                        )
                         downsampled = downsample_metrics(
-                            maintenance_conn, watchdog_fn=notify_watchdog
+                            maintenance_conn,
+                            watchdog_fn=notify_watchdog,
+                            thresholds=custom_thresholds,
                         )
                         notify_watchdog()
 
@@ -4197,6 +4227,24 @@ def main() -> int | None:
                     wan_info["logger"].info("SIGUSR1 received, reloading config")
                     wan_info["controller"]._reload_fusion_config()
                     wan_info["controller"]._reload_tuning_config()
+
+                # Reload retention config
+                try:
+                    reload_wan = controller.wan_controllers[0]
+                    new_storage_config = get_storage_config(reload_wan["config"].data)
+                    new_retention = new_storage_config.get("retention")
+                    validate_retention_tuner_compat(
+                        new_retention,
+                        reload_wan["config"].data.get("tuning"),
+                        logger=reload_wan["logger"],
+                    )
+                    maintenance_retention_config = new_retention
+                    reload_wan["logger"].info("Retention config reloaded via SIGUSR1")
+                except ConfigValidationError as e:
+                    controller.wan_controllers[0]["logger"].error(
+                        "Retention config reload failed, keeping previous config: %s", e
+                    )
+
                 reset_reload_state()
 
             # Sleep for remainder of cycle interval
