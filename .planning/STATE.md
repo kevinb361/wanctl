@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: Remaining
-status: completed
-last_updated: "2026-03-27T17:14:05.688Z"
-last_activity: 2026-03-27
+status: executing
+last_updated: "2026-03-27T21:22:57.087Z"
+last_activity: 2026-03-26
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 15
+  completed_phases: 13
+  total_plans: 35
+  completed_plans: 35
+  percent: 92
 ---
 
 # Session State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 118 — metrics-retention-strategy
+**Current focus:** Phase 119 — auto-fusion-healing
 
 ## Position
 
 **Milestone:** v1.23 Self-Optimizing Controller
-**Phase:** 118
-**Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 119 (auto-fusion-healing)
+**Plan:** 01 of 02 complete
+**Status:** Executing Phase 119
 **Last activity:** 2026-03-27
 
 Progress: [██████████] 100%
@@ -46,14 +46,8 @@ Progress: [██████████] 100%
 - 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
 - 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
 - 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
-- 117-01: NetlinkCakeBackend inherits LinuxCakeBackend, overrides methods with netlink + per-call subprocess fallback via super()
-- 117-01: pyroute2 as optional dependency (netlink extra), IPRoute(groups=0) singleton with reconnect
-- 117-02: get_queue_stats uses dict-style access for TCA_STATS_BASIC/QUEUE with isinstance guard for mock safety
-- 117-02: Contract parity tests prove netlink and subprocess stats paths produce identical output
-- 118-01: Unified thresholds (age_seconds controls both downsampling and deletion), prometheus_compensated is boolean modifier not preset
-- 118-01: Lazy import in config_base.py breaks circular dependency with config_validation_utils
-- 118-02: MagicMock guard on retention_config via isinstance(dict) for test safety in \_init_storage()
-- 118-02: SIGUSR1 retention reload catches ConfigValidationError and keeps old config (safe rollback)
+- 119-01: Incremental Pearson via running sums -- O(1) per tick, verified 1e-10 accuracy vs statistics.correlation
+- 119-01: Recovery requires 2x6000 cycles (SUSPENDED->RECOVERING + RECOVERING->ACTIVE) for 10-minute asymmetric hysteresis
 
 ### Known Issues
 
