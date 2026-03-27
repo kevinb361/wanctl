@@ -8,26 +8,17 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.23 Self-Optimizing Controller
-
-**Goal:** Complete the tuner's vision (detection + response), heal fusion automatically, make tc calls cheaper via direct netlink, and add proper observability with Prometheus/Grafana export.
-
-**Target features:**
-
-- pyroute2 netlink for tc calls (subprocess 3ms → netlink 0.3ms in LinuxCakeBackend)
-- Auto-disable fusion on low protocol correlation (fixes ATT ICMP/IRTT path divergence)
-- Adaptive rate steps (tuner learns step_up_mbps, factor_down, green_cycles_required)
-- Prometheus/Grafana metrics export (real-time dashboards, long-term TSDB)
-- metrics.db retention strategy (aggressive downsampling, 24-48h hot data locally)
-
 ## Current State
 
-**Version:** v1.20.0 (Adaptive Tuning) — shipped 2026-03-19
-**Tests:** ~3,723 passing, 91%+ coverage
-**LOC:** ~28,629 Python (src/)
-**Milestones:** 22 shipped (v1.0-v1.21), 111 phases, 227 plans
+**Version:** v1.23.0 (Self-Optimizing Controller) — shipped 2026-03-27
+**Tests:** ~3,800+ passing, 91%+ coverage
+**LOC:** ~31,714 Python (src/)
+**Milestones:** 24 shipped (v1.0-v1.23), 121 phases, 243 plans
 
-**Previous:** v1.20 Adaptive Tuning — Self-optimizing controller with 4-layer tuning rotation, fusion baseline deadlock fix
+**Latest:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
+**Previous:** v1.22 Full System Audit — 5 phases, 16 plans, 87 findings, systemd 2.1 OK
+
+**Deferred to v1.24:** Prometheus/Grafana export (infrastructure not yet deployed)
 **Latest:** v1.21 CAKE Offload — Linux CAKE backend on Proxmox VM with PCIe passthrough, transparent bridges, production cutover
 
 ## Requirements
@@ -260,16 +251,28 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Production cutover from containers to VM completed — v1.21
 - ✓ `exclude_params` tuning feature for DOCSIS cable links — v1.21
 
+**v1.22 Full System Audit (Shipped: 2026-03-26):**
+
+- ✓ Test quality audit, docs freshness review, container script archival — v1.22
+- ✓ CONFIG_SCHEMA.md alignment, systemd hardening, NIC tuning persistence — v1.22
+
+**v1.23 Self-Optimizing Controller (Shipped: 2026-03-27):**
+
+- ✓ pyroute2 netlink for CAKE tc calls (3ms → 0.3ms, 10x faster) — v1.23
+- ✓ Configurable per-granularity metrics retention with tuner safety validation — v1.23
+- ✓ Auto-fusion healing: Pearson correlation, 3-state machine, Discord alerts — v1.23
+- ✓ Adaptive rate step tuning: 5-layer rotation, episode detection, oscillation lockout — v1.23
+- ✓ 18/22 requirements satisfied (4 OBSV deferred to v1.24) — v1.23
+
 ### Active
 
-**Current Milestone: v1.22 Full System Audit**
-
-See Current Milestone section above for target areas.
+**Next milestone:** v1.24 (not yet planned — Prometheus/Grafana export is the primary candidate)
 
 ### Deferred
 
 - [ ] SSH connection pooling — Low ROI, REST API already optimal
 - [ ] CAKE stats caching — Not needed, flash wear protection working
+- [ ] Prometheus/Grafana export (OBSV-01 through OBSV-04) — Infrastructure not yet deployed, deferred from v1.23
 
 ### Out of Scope
 
