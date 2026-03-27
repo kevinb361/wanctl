@@ -1897,8 +1897,9 @@ class WANController:
         # IRTT are enabled (healer needs both signals).
         # =====================================================================
         self._fusion_healer: FusionHealer | None = None
-        self._prev_filtered_rtt: float | None = None
-        self._prev_irtt_rtt: float | None = None
+        self._prev_healer_icmp_rtt: float | None = None
+        self._prev_healer_irtt_rtt: float | None = None
+        self._prev_irtt_ts: float | None = None
 
         # =====================================================================
         # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
@@ -2574,7 +2575,7 @@ class WANController:
             suspend_window_sec=healing_cfg.get("suspend_window_sec", 60.0),
             recover_window_sec=healing_cfg.get("recover_window_sec", 300.0),
             grace_period_sec=healing_cfg.get("grace_period_sec", 1800.0),
-            cycle_interval_sec=CYCLE_INTERVAL_SECONDS,
+            cycle_interval_sec=self.config.irtt_config.get("cadence_sec", 10.0),
             alert_engine=self.alert_engine if isinstance(self.alert_engine, AlertEngine) else None,
             parameter_locks=self._parameter_locks,
         )
@@ -2899,21 +2900,26 @@ class WANController:
                     self._check_protocol_correlation(ratio)
 
                     # Feed deltas to fusion healer (Phase 119: FUSE-01)
-                    if self._fusion_healer is not None:
+                    # Only tick on NEW IRTT measurements (timestamp changes).
+                    # IRTT updates every cadence_sec (~10s), but this code runs
+                    # every 50ms. Feeding stale IRTT values produces (varying, 0.0)
+                    # delta pairs that drive Pearson to zero at idle.
+                    if self._fusion_healer is not None and irtt_result.timestamp != self._prev_irtt_ts:
+                        self._prev_irtt_ts = irtt_result.timestamp
                         icmp_rtt = signal_result.filtered_rtt
                         irtt_rtt = irtt_result.rtt_mean_ms
                         icmp_delta = (
-                            icmp_rtt - self._prev_filtered_rtt
-                            if self._prev_filtered_rtt is not None
+                            icmp_rtt - self._prev_healer_icmp_rtt
+                            if self._prev_healer_icmp_rtt is not None
                             else 0.0
                         )
                         irtt_delta = (
-                            irtt_rtt - self._prev_irtt_rtt
-                            if self._prev_irtt_rtt is not None
+                            irtt_rtt - self._prev_healer_irtt_rtt
+                            if self._prev_healer_irtt_rtt is not None
                             else 0.0
                         )
-                        self._prev_filtered_rtt = icmp_rtt
-                        self._prev_irtt_rtt = irtt_rtt
+                        self._prev_healer_icmp_rtt = icmp_rtt
+                        self._prev_healer_irtt_rtt = irtt_rtt
 
                         old_state = self._fusion_healer.state
                         new_state = self._fusion_healer.tick(icmp_delta, irtt_delta)
@@ -2939,7 +2945,7 @@ class WANController:
                                 )
                 elif age > cadence * 3:
                     self._irtt_correlation = None
-                    self._prev_irtt_rtt = None  # Reset stale IRTT tracking
+                    self._prev_healer_irtt_rtt = None  # Reset stale IRTT tracking
                     self.logger.debug(
                         f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
                         f"skipping correlation"
