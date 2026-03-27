@@ -15,16 +15,9 @@ None
 
 ## Phases
 
-<details>
-<summary>v1.22 Full System Audit (Phases 112-116) — SHIPPED 2026-03-26</summary>
+### v1.22 Remaining (Full System Audit)
 
-- [x] Phase 112: Foundation Scan (4/4 plans)
-- [x] Phase 113: Network Engineering Audit (3/3 plans)
-- [x] Phase 114: Code Quality & Safety (3/3 plans)
-- [x] Phase 115: Operational Hardening (3/3 plans)
-- [x] Phase 116: Test & Documentation Hygiene (3/3 plans)
-
-</details>
+- [x] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
 
 ### v1.23 Self-Optimizing Controller
 
@@ -35,6 +28,26 @@ None
 - [ ] **Phase 121: Prometheus/Grafana Export** - Prometheus metrics on port 9103 with Grafana dashboard and per-tin CAKE labels
 
 ## Phase Details
+
+### Phase 116: Test & Documentation Hygiene
+
+**Goal**: Test suite quality issues are identified and fixed, all documentation reflects current architecture, and a complete audit findings summary exists
+**Depends on**: Phase 115
+**Requirements**: TDOC-01, TDOC-02, TDOC-03, TDOC-04, TDOC-05, TDOC-06
+**Success Criteria** (what must be TRUE):
+
+1. Test quality audit completed with assertion-free, over-mocked, and tautological tests identified and highest-risk cases fixed
+2. All files in docs/\* reviewed and updated to reflect post-v1.21 architecture (container references removed, VM architecture documented)
+3. Container-era scripts archived to .archive/ with a manifest documenting what each script was and why it was archived
+4. CONFIG_SCHEMA.md aligned with config_validation_utils.py (all accepted params documented, no stale entries)
+5. Audit findings summary produced with remaining debt inventory categorized by severity and recommended milestone
+   **Plans**: 3 plans
+
+Plans:
+
+- [x] 116-01-PLAN.md -- Test quality audit scan + fix assertion-free and tautological tests
+- [x] 116-02-PLAN.md -- CONFIG_SCHEMA.md alignment, docs VM updates, container script archival
+- [x] 116-03-PLAN.md -- Capstone v1.22 audit findings summary (aggregates all phases 112-116)
 
 ### Phase 117: pyroute2 Netlink Backend
 
@@ -48,11 +61,7 @@ None
 3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
 4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
 5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
-   **Plans**: 2 plans
-
-Plans:
-- [ ] 117-01-PLAN.md -- NetlinkCakeBackend class with bandwidth change, IPRoute lifecycle, subprocess fallback
-- [ ] 117-02-PLAN.md -- Per-tin stats via netlink, factory registration for linux-cake-netlink transport
+   **Plans**: TBD
 
 ### Phase 118: Metrics Retention Strategy
 
@@ -110,15 +119,16 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 117 -> 118 -> 119 -> 120 -> 121
+Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 
-| Phase                           | Plans Complete | Status      | Completed |
-| ------------------------------- | -------------- | ----------- | --------- |
-| 117. pyroute2 Netlink Backend   | 0/2            | Planning    | -         |
-| 118. Metrics Retention Strategy | 0/TBD          | Not started | -         |
-| 119. Auto-Fusion Healing        | 0/TBD          | Not started | -         |
-| 120. Adaptive Rate Step Tuning  | 0/TBD          | Not started | -         |
-| 121. Prometheus/Grafana Export  | 0/TBD          | Not started | -         |
+| Phase                             | Plans Complete | Status      | Completed  |
+| --------------------------------- | -------------- | ----------- | ---------- |
+| 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
+| 117. pyroute2 Netlink Backend     | 1/1 | Complete   | 2026-03-27 |
+| 118. Metrics Retention Strategy   | 0/TBD          | Not started | -          |
+| 119. Auto-Fusion Healing          | 0/TBD          | Not started | -          |
+| 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
+| 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.22)</summary>

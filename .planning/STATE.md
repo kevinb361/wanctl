@@ -1,46 +1,53 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.23
-milestone_name: Self-Optimizing Controller
-status: planning
-last_updated: "2026-03-27T03:45:00.000Z"
-last_activity: 2026-03-27
+milestone: v1.22
+milestone_name: Remaining
+status: executing
+last_updated: "2026-03-26T23:17:11.685Z"
+last_activity: 2026-03-26
 progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 14
+  completed_phases: 12
+  total_plans: 33
+  completed_plans: 30
+  percent: 92
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-27)
+See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 117 — pyroute2 netlink backend
+**Current focus:** Phase 117 — pyroute2-netlink-backend
 
 ## Position
 
 **Milestone:** v1.23 Self-Optimizing Controller
-**Phase:** 117 of 121 (pyroute2 netlink backend)
-**Plan:** Not started
-**Status:** Context gathered, ready to plan
-**Last activity:** 2026-03-27 — v1.22 archived, v1.23 started
+**Phase:** 117 of 117 (pyroute2 netlink backend)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 117
+**Last activity:** 2026-03-27
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 92%
 
 ## Accumulated Context
 
 ### Key Decisions
 
 - 50ms cycle validated as optimal — measurement cadence feeds signal processing chain
+- CAKE kernel autorate-ingress 250ms is irrelevant (different algorithm, different problem domain)
 - pyroute2 netlink replaces subprocess tc (3ms → 0.3ms), no cycle interval change
 - ATT fusion manually disabled due to ICMP/IRTT path divergence (correlation 0.74)
 - metrics.db growing ~500MB/day — retention strategy required
 - Prometheus export is optional, core operation remains self-contained
+- 115-02: Production uses system Python (no venv); requests 2.32.3 below declared >=2.33.0 (CVE pending)
+- 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
+- 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
+- 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
+- 117-01: NetlinkCakeBackend inherits LinuxCakeBackend, overrides methods with netlink + per-call subprocess fallback via super()
+- 117-01: pyroute2 as optional dependency (netlink extra), IPRoute(groups=0) singleton with reconnect
 
 ### Known Issues
 
