@@ -17,10 +17,10 @@ Complete the tuner's vision, heal fusion automatically, make tc calls cheaper vi
 
 ### Fusion Healing
 
-- [ ] **FUSE-01**: Controller auto-suspends fusion when protocol correlation drops below configurable threshold for sustained period
-- [ ] **FUSE-02**: Controller auto-re-enables fusion when protocol correlation recovers (3-state: ACTIVE/SUSPENDED/RECOVERING)
-- [ ] **FUSE-03**: Fusion state transitions trigger Discord alerts via AlertEngine
-- [ ] **FUSE-04**: TuningEngine locks fusion_icmp_weight parameter when fusion healer suspends fusion
+- [x] **FUSE-01**: Controller auto-suspends fusion when protocol correlation drops below configurable threshold for sustained period
+- [x] **FUSE-02**: Controller auto-re-enables fusion when protocol correlation recovers (3-state: ACTIVE/SUSPENDED/RECOVERING)
+- [x] **FUSE-03**: Fusion state transitions trigger Discord alerts via AlertEngine
+- [x] **FUSE-04**: TuningEngine locks fusion_icmp_weight parameter when fusion healer suspends fusion
 - [ ] **FUSE-05**: Health endpoint exposes fusion heal state (active/suspended/recovering) and correlation history
 
 ### Response Tuning
@@ -73,10 +73,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NLNK-03 | Phase 117 | Pending |
 | NLNK-04 | Phase 117 | Pending |
 | NLNK-05 | Phase 117 | Pending |
-| FUSE-01 | Phase 119 | Pending |
-| FUSE-02 | Phase 119 | Pending |
-| FUSE-03 | Phase 119 | Pending |
-| FUSE-04 | Phase 119 | Pending |
+| FUSE-01 | Phase 119 | Complete |
+| FUSE-02 | Phase 119 | Complete |
+| FUSE-03 | Phase 119 | Complete |
+| FUSE-04 | Phase 119 | Complete |
 | FUSE-05 | Phase 119 | Pending |
 | RTUN-01 | Phase 120 | Pending |
 | RTUN-02 | Phase 120 | Pending |

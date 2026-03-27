@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: Remaining
 status: executing
-last_updated: "2026-03-26T23:17:11.685Z"
+last_updated: "2026-03-27T21:22:57.087Z"
 last_activity: 2026-03-26
 progress:
-  total_phases: 14
-  completed_phases: 12
-  total_plans: 33
-  completed_plans: 30
+  total_phases: 15
+  completed_phases: 13
+  total_plans: 35
+  completed_plans: 35
   percent: 92
 ---
 
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 116 — test-documentation-hygiene
+**Current focus:** Phase 119 — auto-fusion-healing
 
 ## Position
 
-**Milestone:** v1.22 Full System Audit
-**Phase:** 116 of 116 (test & documentation hygiene)
-**Plan:** Not started
-**Status:** Executing Phase 116
-**Last activity:** 2026-03-26
+**Milestone:** v1.23 Self-Optimizing Controller
+**Phase:** 119 (auto-fusion-healing)
+**Plan:** 01 of 02 complete
+**Status:** Executing Phase 119
+**Last activity:** 2026-03-27
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -46,6 +46,8 @@ Progress: [█████████░] 92%
 - 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
 - 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
 - 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
+- 119-01: Incremental Pearson via running sums -- O(1) per tick, verified 1e-10 accuracy vs statistics.correlation
+- 119-01: Recovery requires 2x6000 cycles (SUSPENDED->RECOVERING + RECOVERING->ACTIVE) for 10-minute asymmetric hysteresis
 
 ### Known Issues
 
