@@ -16,13 +16,9 @@ Requirements: FUSE-01, FUSE-02, FUSE-03, FUSE-04.
 import math
 import random
 import statistics
-import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from wanctl.fusion_healer import FusionHealer, HealState
-
 
 # =============================================================================
 # HELPERS
@@ -177,8 +173,9 @@ class TestRecovery:
         _feed_correlated(healer, 1500, correlation="low")
         assert healer.state == HealState.SUSPENDED
 
-        # Recover with good correlation
-        _feed_correlated(healer, 7000, correlation="high")
+        # Recover with good correlation (need 6000 for SUSPENDED->RECOVERING
+        # + 6000 for RECOVERING->ACTIVE = 12000 total, add margin)
+        _feed_correlated(healer, 13000, correlation="high")
         assert healer.state == HealState.ACTIVE
 
     def test_recovering_requires_sustained_good_correlation(self):
@@ -188,13 +185,10 @@ class TestRecovery:
         _feed_correlated(healer, 1500, correlation="low")
         assert healer.state == HealState.SUSPENDED
 
-        # Some good correlation but not enough for full recovery
-        _feed_correlated(healer, 3000, correlation="high")
-        # Should be in RECOVERING but not yet ACTIVE (need 6000 total good cycles
-        # per the RECOVERING state -- two phases of 6000 each for SUSPENDED->RECOVERING
-        # and RECOVERING->ACTIVE)
-        assert healer.state in (HealState.SUSPENDED, HealState.RECOVERING)
-        assert healer.state != HealState.ACTIVE
+        # Feed 7000 good cycles: enough for SUSPENDED->RECOVERING (6000)
+        # but not for RECOVERING->ACTIVE (need another 6000)
+        _feed_correlated(healer, 7000, correlation="high")
+        assert healer.state == HealState.RECOVERING
 
 
 class TestHysteresis:
@@ -244,20 +238,21 @@ class TestAlerts:
         healer = _make_healer(alert_engine=alert_engine)
         _feed_correlated(healer, 1500, correlation="low")
         assert healer.state == HealState.SUSPENDED
-        alert_engine.fire.assert_any_call(
-            alert_type="fusion_suspended",
-            severity="warning",
-            wan_name="test",
-            details=pytest.approx(
-                {
-                    "pearson_r": pytest.approx(healer.pearson_r, abs=0.01),
-                    "threshold": 0.3,
-                    "state": "suspended",
-                },
-                abs=0.1,
-            ),
-            rule_key="fusion_healing",
-        )
+
+        # Find the fusion_suspended call
+        suspended_calls = [
+            c
+            for c in alert_engine.fire.call_args_list
+            if c.kwargs.get("alert_type") == "fusion_suspended"
+        ]
+        assert len(suspended_calls) == 1
+        call_kw = suspended_calls[0].kwargs
+        assert call_kw["severity"] == "warning"
+        assert call_kw["wan_name"] == "test"
+        assert call_kw["rule_key"] == "fusion_healing"
+        assert call_kw["details"]["threshold"] == 0.3
+        assert call_kw["details"]["state"] == "suspended"
+        assert isinstance(call_kw["details"]["pearson_r"], float)
 
     def test_suspended_to_recovering_alert(self):
         """SUSPENDED -> RECOVERING calls alert_engine.fire with fusion_recovering."""
@@ -280,7 +275,7 @@ class TestAlerts:
         alert_engine = MagicMock()
         healer = _make_healer(alert_engine=alert_engine)
         _feed_correlated(healer, 1500, correlation="low")
-        _feed_correlated(healer, 15000, correlation="high")
+        _feed_correlated(healer, 13000, correlation="high")
         assert healer.state == HealState.ACTIVE
         recovered_calls = [
             c for c in alert_engine.fire.call_args_list
@@ -322,7 +317,7 @@ class TestParameterLock:
         _feed_correlated(healer, 1500, correlation="low")
         assert healer.state == HealState.SUSPENDED
 
-        _feed_correlated(healer, 15000, correlation="high")
+        _feed_correlated(healer, 13000, correlation="high")
         assert healer.state == HealState.ACTIVE
         assert "fusion_icmp_weight" not in locks
 
