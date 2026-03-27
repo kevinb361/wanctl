@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.22
 milestone_name: Remaining
-status: completed
-last_updated: "2026-03-27T11:29:05.725Z"
+status: executing
+last_updated: "2026-03-27T16:15:34.151Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 6
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 3
+  percent: 50
 ---
 
 # Session State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 117 — pyroute2-netlink-backend
+**Current focus:** Phase 118 — metrics-retention-strategy
 
 ## Position
 
 **Milestone:** v1.23 Self-Optimizing Controller
-**Phase:** 117 of 117 (pyroute2 netlink backend)
-**Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 118 (metrics retention strategy)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 118
 **Last activity:** 2026-03-27
 
 Progress: [██████████] 100%
@@ -50,6 +50,8 @@ Progress: [██████████] 100%
 - 117-01: pyroute2 as optional dependency (netlink extra), IPRoute(groups=0) singleton with reconnect
 - 117-02: get_queue_stats uses dict-style access for TCA_STATS_BASIC/QUEUE with isinstance guard for mock safety
 - 117-02: Contract parity tests prove netlink and subprocess stats paths produce identical output
+- 118-01: Unified thresholds (age_seconds controls both downsampling and deletion), prometheus_compensated is boolean modifier not preset
+- 118-01: Lazy import in config_base.py breaks circular dependency with config_validation_utils
 
 ### Known Issues
 

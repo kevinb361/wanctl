@@ -439,3 +439,73 @@ class TestDownsampleWatchdogSupport:
 
         results = downsample_metrics(test_db)
         assert isinstance(results, dict)
+
+
+# =============================================================================
+# Tests for get_downsample_thresholds
+# =============================================================================
+
+
+class TestGetDownsampleThresholds:
+    """Tests for config-driven downsample threshold factory."""
+
+    def test_default_matches_old_constant(self):
+        """get_downsample_thresholds() with no args matches DOWNSAMPLE_THRESHOLDS."""
+        from wanctl.storage.downsampler import get_downsample_thresholds
+
+        result = get_downsample_thresholds()
+        assert result == DOWNSAMPLE_THRESHOLDS
+
+    def test_custom_values_flow_through(self):
+        """get_downsample_thresholds with custom args uses those values."""
+        from wanctl.storage.downsampler import get_downsample_thresholds
+
+        result = get_downsample_thresholds(
+            raw_age_seconds=1800,
+            aggregate_1m_age_seconds=43200,
+            aggregate_5m_age_seconds=172800,
+        )
+        assert result["raw_to_1m"]["age_seconds"] == 1800
+        assert result["1m_to_5m"]["age_seconds"] == 43200
+        assert result["5m_to_1h"]["age_seconds"] == 172800
+
+    def test_structure_preserved(self):
+        """get_downsample_thresholds preserves from/to/bucket_seconds structure."""
+        from wanctl.storage.downsampler import get_downsample_thresholds
+
+        result = get_downsample_thresholds(raw_age_seconds=900)
+        assert result["raw_to_1m"]["from_granularity"] == "raw"
+        assert result["raw_to_1m"]["to_granularity"] == "1m"
+        assert result["raw_to_1m"]["bucket_seconds"] == 60
+        assert result["1m_to_5m"]["from_granularity"] == "1m"
+        assert result["1m_to_5m"]["to_granularity"] == "5m"
+        assert result["1m_to_5m"]["bucket_seconds"] == 300
+
+
+class TestDownsampleMetricsWithThresholds:
+    """Tests for downsample_metrics with explicit thresholds parameter."""
+
+    def test_custom_thresholds_used(self, test_db):
+        """downsample_metrics uses custom thresholds when provided."""
+        from wanctl.storage.downsampler import get_downsample_thresholds
+
+        now = int(time.time())
+        # Insert raw data 40 minutes ago
+        start = align_to_bucket(now - 2400, 60)
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
+
+        # Default threshold is 3600s (1h) -- 40min data should NOT be downsampled
+        results_default = downsample_metrics(test_db)
+        assert results_default["raw->1m"] == 0
+
+        # Reinsert data (was not deleted since nothing was downsampled)
+        # Use custom threshold of 1800s (30min) -- 40min data SHOULD be downsampled
+        custom = get_downsample_thresholds(raw_age_seconds=1800)
+        results_custom = downsample_metrics(test_db, thresholds=custom)
+        assert results_custom["raw->1m"] == 1
+
+    def test_backward_compat_no_thresholds(self, test_db):
+        """downsample_metrics still works with no thresholds param."""
+        results = downsample_metrics(test_db)
+        assert isinstance(results, dict)
+        assert "raw->1m" in results

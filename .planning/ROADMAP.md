@@ -129,8 +129,8 @@ Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 | Phase                             | Plans Complete | Status      | Completed  |
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
-| 117. pyroute2 Netlink Backend     | 2/2 | Complete    | 2026-03-27 |
-| 118. Metrics Retention Strategy   | 0/2            | Not started | -          |
+| 117. pyroute2 Netlink Backend     | 2/2            | Complete    | 2026-03-27 |
+| 118. Metrics Retention Strategy   | 1/2            | In Progress | -          |
 | 119. Auto-Fusion Healing          | 0/TBD          | Not started | -          |
 | 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
 | 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |

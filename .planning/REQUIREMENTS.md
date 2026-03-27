@@ -40,9 +40,9 @@ Complete the tuner's vision, heal fusion automatically, make tc calls cheaper vi
 
 ### Retention
 
-- [ ] **RETN-01**: Retention thresholds configurable via `storage.retention` YAML section
-- [ ] **RETN-02**: Config validation enforces retention >= tuner lookback_hours data availability
-- [ ] **RETN-03**: Prometheus-compensated mode enables aggressive local retention (24-48h) when long-term TSDB is available
+- [x] **RETN-01**: Retention thresholds configurable via `storage.retention` YAML section
+- [x] **RETN-02**: Config validation enforces retention >= tuner lookback_hours data availability
+- [x] **RETN-03**: Prometheus-compensated mode enables aggressive local retention (24-48h) when long-term TSDB is available
 
 ## Future Requirements
 
@@ -87,9 +87,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OBSV-02 | Phase 121 | Pending |
 | OBSV-03 | Phase 121 | Pending |
 | OBSV-04 | Phase 121 | Pending |
-| RETN-01 | Phase 118 | Pending |
-| RETN-02 | Phase 118 | Pending |
-| RETN-03 | Phase 118 | Pending |
+| RETN-01 | Phase 118 | Complete |
+| RETN-02 | Phase 118 | Complete |
+| RETN-03 | Phase 118 | Complete |
 
 **Coverage:**
 - v1.23 requirements: 22 total
