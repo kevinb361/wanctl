@@ -21,11 +21,11 @@ None
 
 ### v1.23 Self-Optimizing Controller
 
-- [ ] **Phase 117: pyroute2 Netlink Backend** - Replace subprocess tc with pyroute2 netlink for CAKE bandwidth changes and per-tin stats readback
-- [ ] **Phase 118: Metrics Retention Strategy** - Configurable retention thresholds with tuner data availability validation
-- [ ] **Phase 119: Auto-Fusion Healing** - Automatic fusion suspend/recovery based on protocol correlation with Discord alerts
-- [ ] **Phase 120: Adaptive Rate Step Tuning** - Tuner learns optimal step_up, factor_down, green_cycles_required with oscillation lockout
-- [ ] **Phase 121: Prometheus/Grafana Export** - Prometheus metrics on port 9103 with Grafana dashboard and per-tin CAKE labels
+- [x] **Phase 117: pyroute2 Netlink Backend** - Replace subprocess tc with pyroute2 netlink for CAKE bandwidth changes and per-tin stats readback
+- [x] **Phase 118: Metrics Retention Strategy** - Configurable retention thresholds with tuner data availability validation
+- [x] **Phase 119: Auto-Fusion Healing** - Automatic fusion suspend/recovery based on protocol correlation with Discord alerts
+- [x] **Phase 120: Adaptive Rate Step Tuning** - Tuner learns optimal step_up, factor_down, green_cycles_required with oscillation lockout
+- [ ] ~~**Phase 121: Prometheus/Grafana Export**~~ - Deferred to v1.24 (Prometheus/Grafana infrastructure not yet deployed)
 
 ## Phase Details
 
@@ -121,14 +121,14 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 
-| Phase                             | Plans Complete | Status      | Completed  |
-| --------------------------------- | -------------- | ----------- | ---------- |
-| 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
-| 117. pyroute2 Netlink Backend     | 2/2            | Complete    | 2026-03-27 |
-| 118. Metrics Retention Strategy   | 2/2            | Complete    | 2026-03-27 |
-| 119. Auto-Fusion Healing          | 2/2            | Complete    | 2026-03-27 |
-| 120. Adaptive Rate Step Tuning    | 2/2 | Complete    | 2026-03-27 |
-| 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
+| Phase                             | Plans Complete | Status   | Completed  |
+| --------------------------------- | -------------- | -------- | ---------- |
+| 116. Test & Documentation Hygiene | 3/3            | Complete | 2026-03-26 |
+| 117. pyroute2 Netlink Backend     | 2/2            | Complete | 2026-03-27 |
+| 118. Metrics Retention Strategy   | 2/2            | Complete | 2026-03-27 |
+| 119. Auto-Fusion Healing          | 2/2            | Complete | 2026-03-27 |
+| 120. Adaptive Rate Step Tuning    | 2/2            | Complete | 2026-03-27 |
+| 121. Prometheus/Grafana Export    | -              | Deferred | v1.24      |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.22)</summary>
