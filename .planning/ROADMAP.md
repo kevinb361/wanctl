@@ -91,7 +91,12 @@ Plans:
 2. When protocol correlation recovers, the controller transitions through RECOVERING to ACTIVE and sends a Discord alert
 3. The health endpoint shows current fusion heal state (ACTIVE/SUSPENDED/RECOVERING) and recent correlation history
 4. While fusion is suspended by the healer, the TuningEngine cannot modify fusion_icmp_weight (parameter is locked)
-   **Plans**: TBD
+   **Plans**: 2 plans
+
+Plans:
+
+- [ ] 119-01-PLAN.md -- FusionHealer class with incremental Pearson correlation, 3-state machine, alerts, parameter locking, grace period
+- [ ] 119-02-PLAN.md -- WANController wiring, config loading, SIGUSR1 grace integration, health endpoint heal state
 
 ### Phase 120: Adaptive Rate Step Tuning
 
@@ -131,7 +136,7 @@ Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 | 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
 | 117. pyroute2 Netlink Backend     | 2/2            | Complete    | 2026-03-27 |
 | 118. Metrics Retention Strategy   | 2/2 | Complete    | 2026-03-27 |
-| 119. Auto-Fusion Healing          | 0/TBD          | Not started | -          |
+| 119. Auto-Fusion Healing          | 0/2            | Not started | -          |
 | 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
 | 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
 
