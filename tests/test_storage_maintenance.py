@@ -258,3 +258,71 @@ class TestStartupMaintenanceWatchdog:
 
         assert result["error"] is None
         assert result["cleanup_deleted"] == 50
+
+
+class TestStartupMaintenanceRetentionConfig:
+    """Tests for run_startup_maintenance with retention_config dict."""
+
+    def test_retention_config_passed_to_cleanup(self, test_db):
+        """retention_config is forwarded to cleanup_old_metrics."""
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        with patch("wanctl.storage.maintenance.cleanup_old_metrics") as mock_cleanup:
+            mock_cleanup.return_value = 0
+
+            run_startup_maintenance(test_db, retention_config=retention_config)
+
+            mock_cleanup.assert_called_once()
+            _, kwargs = mock_cleanup.call_args
+            assert kwargs.get("retention_config") == retention_config
+
+    def test_retention_config_builds_downsample_thresholds(self, test_db):
+        """retention_config causes get_downsample_thresholds to be called and passed to downsample_metrics."""
+        retention_config = {
+            "raw_age_seconds": 1800,
+            "aggregate_1m_age_seconds": 43200,
+            "aggregate_5m_age_seconds": 302400,
+        }
+        with (
+            patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
+            patch("wanctl.storage.maintenance.downsample_metrics", return_value={}) as mock_downsample,
+            patch("wanctl.storage.maintenance.get_downsample_thresholds", return_value={"test": {}}) as mock_get_thresholds,
+        ):
+            run_startup_maintenance(test_db, retention_config=retention_config)
+
+            mock_get_thresholds.assert_called_once_with(
+                raw_age_seconds=1800,
+                aggregate_1m_age_seconds=43200,
+                aggregate_5m_age_seconds=302400,
+            )
+            mock_downsample.assert_called_once()
+            _, kwargs = mock_downsample.call_args
+            assert kwargs.get("thresholds") == {"test": {}}
+
+    def test_backward_compat_retention_days_still_works(self, test_db):
+        """Calling with retention_days=7 (no retention_config) still passes retention_days to cleanup."""
+        with patch("wanctl.storage.maintenance.cleanup_old_metrics") as mock_cleanup:
+            mock_cleanup.return_value = 0
+
+            run_startup_maintenance(test_db, retention_days=7)
+
+            mock_cleanup.assert_called_once()
+            args, kwargs = mock_cleanup.call_args
+            # retention_days should be passed as positional or keyword, retention_config should be absent or None
+            assert kwargs.get("retention_config") is None or "retention_config" not in kwargs
+
+    def test_retention_config_none_uses_default_downsample(self, test_db):
+        """Without retention_config, downsample_metrics is called without custom thresholds."""
+        with (
+            patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
+            patch("wanctl.storage.maintenance.downsample_metrics", return_value={}) as mock_downsample,
+        ):
+            run_startup_maintenance(test_db, retention_days=7)
+
+            mock_downsample.assert_called_once()
+            _, kwargs = mock_downsample.call_args
+            # No custom thresholds passed
+            assert "thresholds" not in kwargs or kwargs.get("thresholds") is None

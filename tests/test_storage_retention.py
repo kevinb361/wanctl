@@ -324,3 +324,167 @@ class TestCleanupWatchdogSupport:
 
         assert deleted == 100
         assert watchdog.call_count >= 2  # At least 2 batches + final
+
+
+def _insert_granularity_metrics(
+    conn: sqlite3.Connection,
+    count: int,
+    seconds_old: int,
+    granularity: str,
+    wan_name: str = "spectrum",
+) -> None:
+    """Insert test metrics at a specific granularity with age in seconds."""
+    timestamp = int(time.time()) - seconds_old
+    rows = [
+        (timestamp + i, wan_name, "wanctl_rtt_ms", 15.0 + i * 0.1, None, granularity)
+        for i in range(count)
+    ]
+    conn.executemany(
+        """
+        INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        rows,
+    )
+    conn.commit()
+
+
+class TestCleanupPerGranularity:
+    """Tests for per-granularity cleanup via retention_config dict."""
+
+    def test_backward_compat_retention_days_still_works(self, test_db):
+        """Calling with just retention_days=7 still works unchanged."""
+        insert_test_metrics(test_db, 100, days_old=10)
+        deleted = cleanup_old_metrics(test_db, retention_days=7)
+        assert deleted == 100
+
+    def test_retention_config_deletes_old_raw_data(self, test_db):
+        """retention_config raw_age_seconds=3600 deletes raw data older than 1h."""
+        # Insert raw data 2h old (should be deleted)
+        _insert_granularity_metrics(test_db, 50, seconds_old=7200, granularity="raw")
+        # Insert raw data 30min old (should be preserved)
+        _insert_granularity_metrics(test_db, 50, seconds_old=1800, granularity="raw")
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 50
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'")
+        assert cursor.fetchone()[0] == 50
+
+    def test_retention_config_deletes_old_1m_data(self, test_db):
+        """retention_config aggregate_1m_age_seconds=86400 deletes 1m data older than 1d."""
+        # Insert 1m data 2 days old (should be deleted)
+        _insert_granularity_metrics(test_db, 30, seconds_old=172800, granularity="1m")
+        # Insert 1m data 12h old (should be preserved)
+        _insert_granularity_metrics(test_db, 30, seconds_old=43200, granularity="1m")
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 30
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1m'")
+        assert cursor.fetchone()[0] == 30
+
+    def test_retention_config_deletes_old_5m_data(self, test_db):
+        """retention_config aggregate_5m_age_seconds=604800 deletes 5m data older than 7d."""
+        # Insert 5m data 10 days old (should be deleted)
+        _insert_granularity_metrics(test_db, 20, seconds_old=864000, granularity="5m")
+        # Insert 5m data 3 days old (should be preserved)
+        _insert_granularity_metrics(test_db, 20, seconds_old=259200, granularity="5m")
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 20
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '5m'")
+        assert cursor.fetchone()[0] == 20
+
+    def test_retention_config_deletes_old_1h_data_using_5m_threshold(self, test_db):
+        """1h data uses aggregate_5m_age_seconds as its cutoff (final tier)."""
+        # Insert 1h data 10 days old (should be deleted)
+        _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="1h")
+        # Insert 1h data 3 days old (should be preserved)
+        _insert_granularity_metrics(test_db, 10, seconds_old=259200, granularity="1h")
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 10
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1h'")
+        assert cursor.fetchone()[0] == 10
+
+    def test_retention_config_only_deletes_correct_granularity(self, test_db):
+        """Short raw_age_seconds deletes raw but leaves 1m data alone."""
+        # Insert raw data 2min old (will be deleted with 60s raw threshold)
+        _insert_granularity_metrics(test_db, 50, seconds_old=120, granularity="raw")
+        # Insert 1m data 2min old (should be preserved - 1m threshold is 86400s)
+        _insert_granularity_metrics(test_db, 50, seconds_old=120, granularity="1m")
+
+        retention_config = {
+            "raw_age_seconds": 60,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 50  # Only raw deleted
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1m'")
+        assert cursor.fetchone()[0] == 50  # 1m untouched
+
+    def test_retention_config_all_granularities_mixed(self, test_db):
+        """Full per-granularity cleanup with mixed data across all tiers."""
+        # Old data for each tier (should be deleted)
+        _insert_granularity_metrics(test_db, 10, seconds_old=7200, granularity="raw")    # 2h > 1h threshold
+        _insert_granularity_metrics(test_db, 10, seconds_old=172800, granularity="1m")   # 2d > 1d threshold
+        _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="5m")   # 10d > 7d threshold
+        _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="1h")   # 10d > 7d threshold
+
+        # Recent data for each tier (should be preserved)
+        _insert_granularity_metrics(test_db, 5, seconds_old=1800, granularity="raw")     # 30m < 1h
+        _insert_granularity_metrics(test_db, 5, seconds_old=43200, granularity="1m")     # 12h < 1d
+        _insert_granularity_metrics(test_db, 5, seconds_old=259200, granularity="5m")    # 3d < 7d
+        _insert_granularity_metrics(test_db, 5, seconds_old=259200, granularity="1h")    # 3d < 7d
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(test_db, retention_config=retention_config)
+
+        assert deleted == 40  # 10 * 4 tiers
+        cursor = test_db.execute("SELECT COUNT(*) FROM metrics")
+        assert cursor.fetchone()[0] == 20  # 5 * 4 tiers preserved
+
+    def test_retention_config_respects_max_seconds(self, test_db):
+        """Per-granularity cleanup respects max_seconds time budget."""
+        _insert_granularity_metrics(test_db, 500, seconds_old=7200, granularity="raw")
+
+        retention_config = {
+            "raw_age_seconds": 3600,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        deleted = cleanup_old_metrics(
+            test_db, retention_config=retention_config, max_seconds=0
+        )
+
+        # Should bail immediately
+        assert deleted == 0
