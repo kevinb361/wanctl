@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.20.0
+**Version:** 1.23.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -117,15 +117,15 @@ None currently. See `CHANGELOG.md` for resolved issues.
 
 ## Version
 
-**Current:** v1.20.0 (Adaptive Tuning)
+**Current:** v1.23.0 (Self-Optimizing Controller)
 
-- Self-optimizing controller: learns optimal parameters from production metrics
-- 4-layer tuning rotation: signal processing → EWMA → thresholds → advanced (hourly)
-- Tuning strategies: Hampel sigma/window, load time constant, fusion weight, reflector min_score, baseline bounds
-- Safety: automatic revert on congestion rate increase, observation periods, parameter locks
-- Fix: fusion baseline deadlock (Phase 96 regression) via signal path split
-- CLI: `wanctl-history --tuning` for operator tuning visibility
-- 3,723 unit tests passing, 91%+ coverage
+- pyroute2 netlink for CAKE tc calls (3ms → 0.3ms, 10x faster)
+- Configurable per-granularity metrics retention with tuner safety validation
+- Auto-fusion healing: Pearson correlation, 3-state machine (ACTIVE/SUSPENDED/RECOVERING), Discord alerts
+- Adaptive rate step tuning: 5-layer rotation (signal→EWMA→threshold→advanced→response)
+- Response parameter tuning: step_up_mbps, factor_down, green_cycles_required (opt-in via exclude_params)
+- Oscillation lockout: freezes response parameters for 2h on excessive transitions
+- 3,800+ unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
