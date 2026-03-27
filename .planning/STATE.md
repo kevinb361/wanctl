@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 116 — test-documentation-hygiene
+**Current focus:** Phase 120 — adaptive-rate-step-tuning
 
 ## Position
 
 **Milestone:** v1.22 Full System Audit
-**Phase:** 116 of 116 (test & documentation hygiene)
-**Plan:** Not started
-**Status:** Executing Phase 116
-**Last activity:** 2026-03-26
+**Phase:** 120 of 120 (adaptive rate step tuning)
+**Plan:** 1 of 2 complete
+**Status:** Executing Phase 120
+**Last activity:** 2026-03-27
 
 Progress: [█████████░] 92%
 
@@ -46,6 +46,8 @@ Progress: [█████████░] 92%
 - 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
 - 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
 - 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
+- 120-01: 6 thin dl/ul wrappers over 3 shared response strategy implementations for StrategyFn compliance
+- 120-01: Episode detection uses state >= 2.0 as congestion, == 0.0 as recovery; YELLOW (1.0) not congestion
 
 ### Known Issues
 

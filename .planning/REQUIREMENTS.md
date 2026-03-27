@@ -25,9 +25,9 @@ Complete the tuner's vision, heal fusion automatically, make tc calls cheaper vi
 
 ### Response Tuning
 
-- [ ] **RTUN-01**: Tuner learns optimal step_up_mbps from production recovery episode analysis
-- [ ] **RTUN-02**: Tuner learns optimal factor_down from congestion resolution speed
-- [ ] **RTUN-03**: Tuner learns optimal green_cycles_required from step-up re-trigger rate
+- [x] **RTUN-01**: Tuner learns optimal step_up_mbps from production recovery episode analysis
+- [x] **RTUN-02**: Tuner learns optimal factor_down from congestion resolution speed
+- [x] **RTUN-03**: Tuner learns optimal green_cycles_required from step-up re-trigger rate
 - [ ] **RTUN-04**: Oscillation lockout freezes all response parameters when transitions/minute exceeds threshold
 - [ ] **RTUN-05**: Response tuning is opt-in via exclude_params (disabled by default, matching existing tuning graduation pattern)
 
@@ -78,9 +78,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FUSE-03 | Phase 119 | Pending |
 | FUSE-04 | Phase 119 | Pending |
 | FUSE-05 | Phase 119 | Pending |
-| RTUN-01 | Phase 120 | Pending |
-| RTUN-02 | Phase 120 | Pending |
-| RTUN-03 | Phase 120 | Pending |
+| RTUN-01 | Phase 120 | Complete |
+| RTUN-02 | Phase 120 | Complete |
+| RTUN-03 | Phase 120 | Complete |
 | RTUN-04 | Phase 120 | Pending |
 | RTUN-05 | Phase 120 | Pending |
 | OBSV-01 | Phase 121 | Pending |
