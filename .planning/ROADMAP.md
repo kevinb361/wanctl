@@ -73,7 +73,12 @@ Plans:
 1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
 2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours \* 3600, with a clear error message
 3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when long-term TSDB is available
-   **Plans**: TBD
+   **Plans**: 2 plans
+
+Plans:
+
+- [ ] 118-01-PLAN.md -- Config schema, get_storage_config() retention section, cross-section validation, config-driven downsampler thresholds
+- [ ] 118-02-PLAN.md -- Daemon wiring (autorate + steering), per-granularity cleanup, SIGUSR1 reload, example configs
 
 ### Phase 119: Auto-Fusion Healing
 
@@ -125,7 +130,7 @@ Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 116. Test & Documentation Hygiene | 3/3            | Complete    | 2026-03-26 |
 | 117. pyroute2 Netlink Backend     | 2/2 | Complete    | 2026-03-27 |
-| 118. Metrics Retention Strategy   | 0/TBD          | Not started | -          |
+| 118. Metrics Retention Strategy   | 0/2            | Not started | -          |
 | 119. Auto-Fusion Healing          | 0/TBD          | Not started | -          |
 | 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
 | 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
