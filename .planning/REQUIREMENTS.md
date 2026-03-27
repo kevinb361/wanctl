@@ -12,8 +12,8 @@ Complete the tuner's vision, heal fusion automatically, make tc calls cheaper vi
 - [x] **NLNK-01**: LinuxCakeBackend can change CAKE bandwidth via pyroute2 netlink instead of subprocess `tc`
 - [x] **NLNK-02**: NetlinkCakeBackend maintains a singleton IPRoute connection for daemon lifetime with reconnect on socket death
 - [x] **NLNK-03**: NetlinkCakeBackend falls back to subprocess `tc` if netlink call fails
-- [ ] **NLNK-04**: NetlinkCakeBackend reads CAKE per-tin stats via netlink instead of subprocess `tc -j qdisc show`
-- [ ] **NLNK-05**: Factory registration allows config `transport: "linux-cake-netlink"` to select the netlink backend
+- [x] **NLNK-04**: NetlinkCakeBackend reads CAKE per-tin stats via netlink instead of subprocess `tc -j qdisc show`
+- [x] **NLNK-05**: Factory registration allows config `transport: "linux-cake-netlink"` to select the netlink backend
 
 ### Fusion Healing
 
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NLNK-01 | Phase 117 | Complete |
 | NLNK-02 | Phase 117 | Complete |
 | NLNK-03 | Phase 117 | Complete |
-| NLNK-04 | Phase 117 | Pending |
-| NLNK-05 | Phase 117 | Pending |
+| NLNK-04 | Phase 117 | Complete |
+| NLNK-05 | Phase 117 | Complete |
 | FUSE-01 | Phase 119 | Pending |
 | FUSE-02 | Phase 119 | Pending |
 | FUSE-03 | Phase 119 | Pending |
