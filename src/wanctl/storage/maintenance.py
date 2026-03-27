@@ -16,7 +16,7 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-from wanctl.storage.downsampler import downsample_metrics
+from wanctl.storage.downsampler import downsample_metrics, get_downsample_thresholds
 from wanctl.storage.retention import (
     DEFAULT_RETENTION_DAYS,
     cleanup_old_metrics,
@@ -31,6 +31,7 @@ def run_startup_maintenance(
     log: logging.Logger | None = None,
     watchdog_fn: Callable[[], None] | None = None,
     max_seconds: float | None = None,
+    retention_config: dict | None = None,
 ) -> dict[str, Any]:
     """Run all maintenance tasks at daemon startup.
 
@@ -43,10 +44,13 @@ def run_startup_maintenance(
 
     Args:
         conn: SQLite connection (from MetricsWriter.connection)
-        retention_days: Retention period for cleanup
+        retention_days: Retention period for cleanup (used when retention_config is None)
         log: Optional logger (uses module logger if None)
         watchdog_fn: Optional callback to ping between steps (e.g. systemd watchdog)
         max_seconds: Optional time budget for cleanup (passed to cleanup_old_metrics)
+        retention_config: Optional per-granularity retention thresholds dict.
+            If provided, overrides retention_days for cleanup and builds custom
+            downsample thresholds.
 
     Returns:
         Dict with maintenance results:
@@ -63,12 +67,20 @@ def run_startup_maintenance(
 
     try:
         # 1. Cleanup old metrics beyond retention period
-        deleted = cleanup_old_metrics(
-            conn,
-            retention_days,
-            watchdog_fn=watchdog_fn,
-            max_seconds=max_seconds,
-        )
+        if retention_config is not None:
+            deleted = cleanup_old_metrics(
+                conn,
+                watchdog_fn=watchdog_fn,
+                max_seconds=max_seconds,
+                retention_config=retention_config,
+            )
+        else:
+            deleted = cleanup_old_metrics(
+                conn,
+                retention_days,
+                watchdog_fn=watchdog_fn,
+                max_seconds=max_seconds,
+            )
         result["cleanup_deleted"] = deleted
 
         if watchdog_fn is not None:
@@ -79,7 +91,17 @@ def run_startup_maintenance(
         # Deferred to periodic maintenance where pings continue between steps.
 
         # 3. Downsample metrics at each level
-        downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
+        if retention_config is not None:
+            custom_thresholds = get_downsample_thresholds(
+                raw_age_seconds=retention_config["raw_age_seconds"],
+                aggregate_1m_age_seconds=retention_config["aggregate_1m_age_seconds"],
+                aggregate_5m_age_seconds=retention_config["aggregate_5m_age_seconds"],
+            )
+            downsampling = downsample_metrics(
+                conn, watchdog_fn=watchdog_fn, thresholds=custom_thresholds
+            )
+        else:
+            downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
         result["downsampling"] = downsampling
 
         if watchdog_fn is not None:

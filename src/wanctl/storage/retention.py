@@ -25,23 +25,48 @@ def cleanup_old_metrics(
     batch_size: int = BATCH_SIZE,
     watchdog_fn: Callable[[], None] | None = None,
     max_seconds: float | None = None,
+    retention_config: dict | None = None,
 ) -> int:
     """Delete metrics older than retention period in batches.
 
     Processes deletions in batches to avoid long-running transactions
     that could block other database operations.
 
+    If retention_config is provided, performs per-granularity cleanup using
+    tier-specific age thresholds. Otherwise falls back to flat-cutoff behavior
+    using retention_days.
+
     Args:
         conn: SQLite database connection
-        retention_days: Number of days to retain data (default 7)
+        retention_days: Number of days to retain data (default 7, used when retention_config is None)
         batch_size: Rows to delete per transaction (default 10000)
         watchdog_fn: Optional callback to ping between batches (e.g. systemd watchdog)
         max_seconds: Optional time budget; bail out early if exceeded
+        retention_config: Optional dict with per-granularity thresholds:
+            - raw_age_seconds: int (age threshold for raw data)
+            - aggregate_1m_age_seconds: int (age threshold for 1m data)
+            - aggregate_5m_age_seconds: int (age threshold for 5m data)
+            1h data uses aggregate_5m_age_seconds (final tier).
 
     Returns:
         Total number of rows deleted (may be partial if max_seconds exceeded)
     """
-    # Calculate cutoff timestamp (seconds since epoch)
+    if retention_config is not None:
+        return _cleanup_per_granularity(
+            conn, retention_config, batch_size, watchdog_fn, max_seconds
+        )
+
+    return _cleanup_flat(conn, retention_days, batch_size, watchdog_fn, max_seconds)
+
+
+def _cleanup_flat(
+    conn: sqlite3.Connection,
+    retention_days: int,
+    batch_size: int,
+    watchdog_fn: Callable[[], None] | None,
+    max_seconds: float | None,
+) -> int:
+    """Delete all metrics older than retention_days (flat cutoff, original behavior)."""
     cutoff = int(time.time()) - (retention_days * 86400)
 
     total_deleted = 0
@@ -93,6 +118,75 @@ def cleanup_old_metrics(
             "Retention cleanup: deleted %d metrics older than %d days",
             total_deleted,
             retention_days,
+        )
+
+    return total_deleted
+
+
+def _cleanup_per_granularity(
+    conn: sqlite3.Connection,
+    retention_config: dict,
+    batch_size: int,
+    watchdog_fn: Callable[[], None] | None,
+    max_seconds: float | None,
+) -> int:
+    """Delete metrics per-granularity using tier-specific age thresholds."""
+    now = int(time.time())
+    start_time = time.monotonic()
+    total_deleted = 0
+
+    # Build per-granularity cutoffs. 1h tier uses 5m threshold (final tier).
+    tier_cutoffs = {
+        "raw": now - retention_config["raw_age_seconds"],
+        "1m": now - retention_config["aggregate_1m_age_seconds"],
+        "5m": now - retention_config["aggregate_5m_age_seconds"],
+        "1h": now - retention_config["aggregate_5m_age_seconds"],
+    }
+
+    for granularity, cutoff in tier_cutoffs.items():
+        while True:
+            # Check time budget before starting next batch
+            if max_seconds is not None:
+                elapsed = time.monotonic() - start_time
+                if elapsed >= max_seconds:
+                    logger.info(
+                        "Retention cleanup: time budget %.1fs exceeded after %d rows, deferring rest",
+                        max_seconds,
+                        total_deleted,
+                    )
+                    return total_deleted
+
+            cursor = conn.execute(
+                """
+                DELETE FROM metrics
+                WHERE rowid IN (
+                    SELECT rowid FROM metrics
+                    WHERE granularity = ? AND timestamp < ?
+                    LIMIT ?
+                )
+                """,
+                (granularity, cutoff, batch_size),
+            )
+            conn.commit()
+
+            rows_deleted = cursor.rowcount
+            total_deleted += rows_deleted
+
+            if rows_deleted > 0:
+                logger.debug(
+                    "Deleted batch of %d old %s metrics", rows_deleted, granularity
+                )
+
+            if watchdog_fn is not None:
+                watchdog_fn()
+
+            if rows_deleted < batch_size:
+                break
+
+    if total_deleted > 0:
+        logger.info(
+            "Retention cleanup (per-granularity): deleted %d metrics total",
+            total_deleted,
         )
 
     return total_deleted
