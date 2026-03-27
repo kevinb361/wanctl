@@ -100,7 +100,11 @@ Plans:
 3. The tuner analyzes step-up re-trigger rates and adjusts green_cycles_required to prevent premature recovery
 4. When transitions/minute exceeds the oscillation threshold, all response parameters are frozen and a Discord alert fires
 5. Response tuning is disabled by default via exclude_params and must be explicitly opted in (matching existing tuning graduation pattern)
-   **Plans**: TBD
+   **Plans**: 2 plans
+
+Plans:
+- [ ] 120-01-PLAN.md -- Response tuning strategies (tune_step_up, tune_factor_down, tune_green_required) with episode detection
+- [ ] 120-02-PLAN.md -- RESPONSE_LAYER wiring, _apply_tuning_to_controller extension, oscillation lockout, default exclude_params
 
 ### Phase 121: Prometheus/Grafana Export
 
@@ -127,7 +131,7 @@ Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
 | 117. pyroute2 Netlink Backend     | 2/2            | Complete    | 2026-03-27 |
 | 118. Metrics Retention Strategy   | 2/2            | Complete    | 2026-03-27 |
 | 119. Auto-Fusion Healing          | 2/2            | Complete    | 2026-03-27 |
-| 120. Adaptive Rate Step Tuning    | 0/TBD          | Not started | -          |
+| 120. Adaptive Rate Step Tuning    | 0/2            | Not started | -          |
 | 121. Prometheus/Grafana Export    | 0/TBD          | Not started | -          |
 
 <details>
