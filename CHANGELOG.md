@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Spike detector confirmation counter** - Require `accel_confirm_cycles` (default 3) consecutive
+  spike cycles before forcing RED state, eliminating false positives from DOCSIS cable jitter
+  - Root cause: `accel_threshold_ms: 12` triggered on single-sample RTT jitter (9,225 false
+    positives/hr during idle on Spectrum cable at prime-time). Real congestion produces zero
+    spike triggers — it builds gradually through the EWMA.
+  - DOCSIS cable jitter profile (idle, DL=940M): p90=21ms, p95=28ms, p99=44ms cycle-to-cycle
+    delta at 50ms resolution. No single threshold eliminates false positives without also
+    missing genuine events.
+  - Fix: `_spike_streak` counter tracks consecutive spike cycles. Only forces RED after 3
+    consecutive cycles (150ms at 50ms/cycle). Single-sample jitter resets counter to zero.
+  - New config param `accel_confirm_cycles` (int, default 3, range 1-10) in
+    `continuous_monitoring.thresholds`. No YAML changes needed — default takes effect.
+  - Production impact: 36 flapping alert pairs in 54 hours → expected zero from jitter.
+    Awaiting prime-time validation (DOCSIS node load peaks ~9 PM).
+
+### Analysis Record (2026-03-28)
+
+- **Autotuner status (60h in):** 6 parameter changes across both WANs, zero reverts. Signal
+  and advanced layers active; EWMA, threshold, and response layers have not produced changes.
+  Response layer needs congestion episodes to analyze (none at 3 AM).
+- **Pegged parameters — no action needed:**
+  - `hampel_window_size` at max (15/21): Off by 1 sample on Spectrum (750ms vs 800ms window),
+    diminishing returns on ATT. Bounds set from Phase 101 jitter-based analysis.
+  - `baseline_rtt_max` at min (25.1): Security bound rejecting corrupted baselines, not a
+    tuning constraint. Baseline EWMA (tc=50s) rarely exceeds 24ms even at prime-time.
+  - `load_time_constant_sec` (0.10) below tuner bounds [0.5, 10]: Intentional expert override
+    for cable's fast RTT dynamics. Tuner has not attempted to change it in 60 hours.
+- **Spectrum RTT profile (2h nighttime sample, 82K cycles):**
+  p5=19.4 p50=22.4 p95=27.1 p99=37.5ms | jitter p50=2.2 p95=4.6ms | baseline=21.8ms
+- **ATT RTT profile (2h nighttime sample, 75K cycles):**
+  p5=27.8 p50=28.3 p95=28.9 p99=29.6ms | jitter p50=0.4 p95=0.6ms | baseline=28.3ms
+
 ## [1.23.0] - 2026-03-27
 
 **Self-Optimizing Controller** - Completes the tuner's vision with response parameter tuning,
