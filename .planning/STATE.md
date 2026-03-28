@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 **Phase:** 120 of 120 (adaptive rate step tuning)
 **Plan:** Not started
 **Status:** v1.23 milestone complete
-**Last activity:** 2026-03-27
+**Last activity:** 2026-03-28 - Completed quick task 260327-uy3: Add spike detector confirmation counter to fix DOCSIS cable flapping
 
 Progress: [██████████] 100%
 
@@ -57,6 +57,12 @@ Progress: [██████████] 100%
 - VM inline on both WAN paths = single point of failure
 - ATT fusion disabled — protocol correlation 0.74 causes permanent delta offset
 - metrics.db at 521MB after 25h — disk fills in ~50 days at current rate
+
+### Quick Tasks Completed
+
+| #          | Description                                                          | Date       | Commit  | Directory                                                                                                           |
+| ---------- | -------------------------------------------------------------------- | ---------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| 260327-uy3 | Add spike detector confirmation counter to fix DOCSIS cable flapping | 2026-03-28 | 1ac69dc | [260327-uy3-add-spike-detector-confirmation-counter-](./quick/260327-uy3-add-spike-detector-confirmation-counter-/) |
 
 ### Blockers
 
