@@ -1103,6 +1103,7 @@ class TestVerifyLocalConnectivity:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
@@ -1240,6 +1241,7 @@ class TestVerifyTcpConnectivity:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
@@ -1410,6 +1412,7 @@ class TestVerifyConnectivityFallback:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
@@ -1564,6 +1567,7 @@ class TestStateLoadSave:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]
@@ -1826,6 +1830,7 @@ class TestMeasureRttMedianOfThree:
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1", "8.8.8.8", "9.9.9.9"]  # 3 hosts for median
@@ -2020,6 +2025,7 @@ class TestBaselineRttBoundsRejection:
         config.baseline_rtt_min = 5.0  # Minimum sane baseline
         config.baseline_rtt_max = 100.0  # Maximum sane baseline
         config.accel_threshold_ms = 15.0
+        config.accel_confirm_cycles = 3
         config.download_green_required = 5
         config.upload_green_required = 5
         config.ping_hosts = ["1.1.1.1"]

@@ -617,7 +617,7 @@ class TestRunCycleErrorPaths:
         assert ctrl._cycles_since_forced_save == 0
 
     def test_run_cycle_rate_spike_forces_red(self, controller_with_mocks):
-        """RTT spike (delta_accel > threshold) should force RED state."""
+        """RTT spike confirmed after accel_confirm consecutive spikes forces RED."""
         ctrl, mock_config, _, mock_logger = controller_with_mocks
         # Acceleration detection looks at: load_rtt - previous_load_rtt > accel_threshold
         # Need to make the EWMA update create a spike relative to previous_load_rtt
@@ -631,6 +631,8 @@ class TestRunCycleErrorPaths:
         ctrl.load_rtt = 25.0
         ctrl.baseline_rtt = 20.0
         ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 2  # One below threshold, so this spike confirms
 
         # Force very high RTT measurement to create spike
         with (
@@ -639,9 +641,51 @@ class TestRunCycleErrorPaths:
         ):
             ctrl.run_cycle()
 
-        # Check that warning about spike was logged
+        # Check that warning about spike confirmed was logged
         warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
-        assert any("spike detected" in call for call in warning_calls)
+        assert any("spike confirmed" in call for call in warning_calls)
+
+    def test_spike_single_cycle_no_force(self, controller_with_mocks):
+        """Single RTT spike with streak=0 should NOT force RED (confirmation required)."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        ctrl.previous_load_rtt = 25.0
+        ctrl.load_rtt = 25.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 0
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=200.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Should NOT log spike confirmed warning
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert not any("spike confirmed" in call for call in warning_calls)
+        # Streak should be 1 (incremented but not yet at threshold)
+        assert ctrl._spike_streak == 1
+
+    def test_spike_streak_resets_on_non_spike(self, controller_with_mocks):
+        """Spike streak should reset to 0 when a non-spike cycle occurs."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        ctrl.previous_load_rtt = 25.0
+        ctrl.load_rtt = 25.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 2  # Two spikes already
+
+        # Normal RTT (no spike) — delta will be small
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=26.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        # Streak should reset
+        assert ctrl._spike_streak == 0
 
 
 # =============================================================================
