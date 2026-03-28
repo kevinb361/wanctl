@@ -59,6 +59,9 @@ class FusionHealer:
         grace_period_sec: Duration of SIGUSR1 grace period.
         cycle_interval_sec: Control loop interval (default 50ms).
         min_samples: Minimum samples before Pearson is meaningful.
+        min_signal_variance: Minimum variance (ms²) in both signals for
+            Pearson to be considered valid. Below this, signals are idle
+            noise and correlation is meaningless. Default 0.1ms².
         alert_engine: Optional AlertEngine for transition alerts.
         parameter_locks: Optional reference to WANController._parameter_locks dict.
     """
@@ -74,11 +77,13 @@ class FusionHealer:
         grace_period_sec: float = 1800.0,
         cycle_interval_sec: float = 0.05,
         min_samples: int = 6,
+        min_signal_variance: float = 0.1,
         alert_engine: AlertEngine | None = None,
         parameter_locks: dict[str, float] | None = None,
     ) -> None:
         self._wan_name = wan_name
         self._suspend_threshold = suspend_threshold
+        self._min_signal_variance = min_signal_variance
         self._recover_threshold = recover_threshold
         self._grace_period_sec = grace_period_sec
         self._min_samples = min_samples
@@ -136,12 +141,22 @@ class FusionHealer:
         """Compute Pearson correlation from running sums.
 
         Returns:
-            Pearson r in [-1, 1], or None if insufficient samples.
+            Pearson r in [-1, 1], or None if insufficient samples
+            or signal variance is too low (idle noise).
         """
         if self._n < self._min_samples:
             return None
 
         n = self._n
+
+        # Variance check: if both signals have near-zero variance,
+        # Pearson of noise is statistically meaningless. Skip rather
+        # than returning ~0.0 which would trigger false suspension.
+        var_x = (self._sum_x2 / n) - (self._sum_x / n) ** 2
+        var_y = (self._sum_y2 / n) - (self._sum_y / n) ** 2
+        if var_x < self._min_signal_variance and var_y < self._min_signal_variance:
+            return None
+
         numerator = n * self._sum_xy - self._sum_x * self._sum_y
         denom_sq = (n * self._sum_x2 - self._sum_x**2) * (
             n * self._sum_y2 - self._sum_y**2
