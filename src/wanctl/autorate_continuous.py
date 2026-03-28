@@ -269,6 +269,13 @@ class Config(BaseConfig):
             "min": 5,
             "max": 50,
         },
+        {
+            "path": "continuous_monitoring.thresholds.accel_confirm_cycles",
+            "type": int,
+            "required": False,
+            "min": 1,
+            "max": 10,
+        },
         # Baseline RTT bounds (optional - security validation)
         {
             "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -439,6 +446,7 @@ class Config(BaseConfig):
         # Acceleration threshold for rate-of-change detection (Phase 3)
         # Detects sudden RTT spikes and triggers immediate RED state
         self.accel_threshold_ms = thresh.get("accel_threshold_ms", 15.0)
+        self.accel_confirm_cycles = thresh.get("accel_confirm_cycles", 3)
 
         # Baseline RTT security bounds - reject values outside this range
         bounds = thresh.get("baseline_rtt_bounds", {})
@@ -1686,6 +1694,8 @@ class WANController:
         # Rate-of-change (acceleration) detection for sudden RTT spikes
         self.previous_load_rtt = self.load_rtt
         self.accel_threshold = config.accel_threshold_ms
+        self.accel_confirm = config.accel_confirm_cycles
+        self._spike_streak = 0
 
         # Create queue controllers
         self.download = QueueController(
