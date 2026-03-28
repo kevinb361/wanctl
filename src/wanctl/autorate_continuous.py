@@ -2853,17 +2853,22 @@ class WANController:
             self._update_baseline_if_idle(signal_result.filtered_rtt)
 
             # Rate-of-change (acceleration) detection for sudden RTT spikes
-            # Catches spikes that EWMA smooths over, triggers immediate RED
+            # Requires accel_confirm consecutive spike cycles to filter DOCSIS jitter
             delta_accel = self.load_rtt - self.previous_load_rtt
             if delta_accel > self.accel_threshold:
-                self.logger.warning(
-                    f"{self.wan_name}: RTT spike detected! delta_accel={delta_accel:.1f}ms "
-                    f"(threshold={self.accel_threshold}ms) - forcing RED"
-                )
-                # Force RED by setting streak counter (bypasses hysteresis)
-                self.download.red_streak = 1
-                self.download.green_streak = 0
-                self.download.soft_red_streak = 0
+                self._spike_streak += 1
+                if self._spike_streak >= self.accel_confirm:
+                    self.logger.warning(
+                        f"{self.wan_name}: RTT spike confirmed! delta_accel={delta_accel:.1f}ms "
+                        f"(threshold={self.accel_threshold}ms, {self._spike_streak} consecutive) "
+                        f"- forcing RED"
+                    )
+                    # Force RED by setting streak counter (bypasses hysteresis)
+                    self.download.red_streak = 1
+                    self.download.green_streak = 0
+                    self.download.soft_red_streak = 0
+            else:
+                self._spike_streak = 0
             self.previous_load_rtt = self.load_rtt
 
             # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
