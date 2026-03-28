@@ -113,7 +113,18 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Known Issues
 
-None currently. See `CHANGELOG.md` for resolved issues.
+- **Spike detector confirmation counter** (unreleased, deployed 2026-03-28): `accel_confirm_cycles=3`
+  eliminates DOCSIS jitter false positives. Awaiting prime-time validation. See `CHANGELOG.md` [Unreleased].
+
+## Tuning Parameter Reference
+
+**Do not recommend tuning/bounds changes without first reading:**
+
+- `.planning/` phase research (phases 88-103 for signal processing and adaptive tuning)
+- Config YAML comments (contain seeding rationale)
+- `CHANGELOG.md` analysis records
+
+"Pegged at bounds" is often by design — security bounds, marginal differences, or expert overrides.
 
 ## Version
 
@@ -125,7 +136,7 @@ None currently. See `CHANGELOG.md` for resolved issues.
 - Adaptive rate step tuning: 5-layer rotation (signal→EWMA→threshold→advanced→response)
 - Response parameter tuning: step_up_mbps, factor_down, green_cycles_required (opt-in via exclude_params)
 - Oscillation lockout: freezes response parameters for 2h on excessive transitions
-- 3,800+ unit tests passing, 91%+ coverage
+- 3,928 unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
