@@ -21,25 +21,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     consecutive cycles (150ms at 50ms/cycle). Single-sample jitter resets counter to zero.
   - New config param `accel_confirm_cycles` (int, default 3, range 1-10) in
     `continuous_monitoring.thresholds`. No YAML changes needed — default takes effect.
-  - Production impact: 36 flapping alert pairs in 54 hours → expected zero from jitter.
-    Awaiting prime-time validation (DOCSIS node load peaks ~9 PM).
+  - Production validation (full diurnal cycle, 2026-03-28/29):
+    36 flapping alert pairs / 54h → 1 pair / 24h (97% reduction).
+    Zero confirmed spikes across nighttime, afternoon congestion, and prime-time peak.
+    Single remaining alert (21:38 Sat) caused by EWMA threshold boundary oscillation,
+    not spike detector — separate lower-priority issue (state machine hysteresis).
+  - Deploy incident: `deploy.sh` overwrote production `exclude_params` with repo config
+    (repo lacked hand-edit). Tuner immediately changed `target_bloat_ms` (12→10.8) and
+    `warn_bloat_ms` (45→40.5). Reverted in SQLite, config restored, repo synced.
 
-### Analysis Record (2026-03-28)
+### Analysis Record (2026-03-29, 36h post-deploy)
 
-- **Autotuner status (60h in):** 6 parameter changes across both WANs, zero reverts. Signal
-  and advanced layers active; EWMA, threshold, and response layers have not produced changes.
-  Response layer needs congestion episodes to analyze (none at 3 AM).
-- **Pegged parameters — no action needed:**
-  - `hampel_window_size` at max (15/21): Off by 1 sample on Spectrum (750ms vs 800ms window),
-    diminishing returns on ATT. Bounds set from Phase 101 jitter-based analysis.
-  - `baseline_rtt_max` at min (25.1): Security bound rejecting corrupted baselines, not a
-    tuning constraint. Baseline EWMA (tc=50s) rarely exceeds 24ms even at prime-time.
-  - `load_time_constant_sec` (0.10) below tuner bounds [0.5, 10]: Intentional expert override
-    for cable's fast RTT dynamics. Tuner has not attempted to change it in 60 hours.
-- **Spectrum RTT profile (2h nighttime sample, 82K cycles):**
-  p5=19.4 p50=22.4 p95=27.1 p99=37.5ms | jitter p50=2.2 p95=4.6ms | baseline=21.8ms
-- **ATT RTT profile (2h nighttime sample, 75K cycles):**
-  p5=27.8 p50=28.3 p95=28.9 p99=29.6ms | jitter p50=0.4 p95=0.6ms | baseline=28.3ms
+- **Autotuner status (36h in):** 14 total changes (12 active, 2 reverted), zero safety reverts.
+  Tuner in steady-state plateau — signal and advanced layers converged, waiting on data for
+  response layer.
+- **Layer activity:**
+  - SIGNAL: 3 changes (`hampel_window_size` only). Spectrum oscillating 13.5-15 with diurnal
+    jitter variation — low-confidence (0.09) shrink during afternoon congestion, may widen back.
+  - EWMA: Silent. `load_time_constant_sec` (0.10) is intentional expert override below bounds.
+  - THRESHOLD: 2 changes reverted. Now properly in `exclude_params` for Spectrum cable.
+  - ADVANCED: 9 changes. Baseline bounds converged: Spectrum [20.3, 25.1], ATT [25.5, 31.2].
+  - RESPONSE: Silent. Needs congestion/recovery episodes in 24h lookback window.
+- **Pegged parameters — no action needed** (per Phase 101/102 analysis):
+  - `hampel_window_size` at max (ATT 21/21): Diminishing returns on ultra-clean DSL (0.4ms jitter).
+  - `baseline_rtt_max` at min (Spectrum 25.1): Security bound, not tuning constraint.
+  - `load_time_constant_sec` below bounds: Expert override for cable's fast RTT dynamics.
+- **Spectrum diurnal RTT profile (2026-03-28):**
+  Night: p50=22.4 p95=27.1 p99=37.5 | jitter p50=2.2 p95=4.6
+  Afternoon: p50=23.1 p95=33.5 p99=47.7 | jitter p50=2.7 p95=6.9
+  Prime-time: p50=23.9 p95=40.3 p99=60.6 | jitter p50=4.1 p95=13.3 max=37.1
+- **ATT profile (stable across all windows):**
+  p50=28.3 p95=28.9 p99=29.7 | jitter p50=0.4 p95=0.6
 
 ## [1.23.0] - 2026-03-27
 
