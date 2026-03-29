@@ -114,7 +114,9 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 ## Known Issues
 
 - **Spike detector confirmation counter** (unreleased, deployed 2026-03-28): `accel_confirm_cycles=3`
-  eliminates DOCSIS jitter false positives. Awaiting prime-time validation. See `CHANGELOG.md` [Unreleased].
+  eliminates DOCSIS jitter false positives. Validated across full diurnal cycle (97% flapping reduction).
+  One remaining flapping source: EWMA threshold boundary oscillation during peak DOCSIS load (state
+  machine hysteresis — v1.24 candidate). See `CHANGELOG.md` [Unreleased].
 
 ## Tuning Parameter Reference
 
