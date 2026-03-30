@@ -21,37 +21,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     consecutive cycles (150ms at 50ms/cycle). Single-sample jitter resets counter to zero.
   - New config param `accel_confirm_cycles` (int, default 3, range 1-10) in
     `continuous_monitoring.thresholds`. No YAML changes needed — default takes effect.
-  - Production validation (full diurnal cycle, 2026-03-28/29):
-    36 flapping alert pairs / 54h → 1 pair / 24h (97% reduction).
-    Zero confirmed spikes across nighttime, afternoon congestion, and prime-time peak.
-    Single remaining alert (21:38 Sat) caused by EWMA threshold boundary oscillation,
-    not spike detector — separate lower-priority issue (state machine hysteresis).
+  - Production validation (44h, 3 prime-time windows, 2026-03-28/30):
+    36 flapping alert pairs / 54h → 3 pairs / 44h (92% reduction).
+    Zero spike false positives. 2 genuine spike confirmations (RRUL stress test only).
+    Remaining 1-2 alerts/evening from EWMA threshold boundary oscillation during peak
+    DOCSIS load — state machine hysteresis, v1.24 candidate.
   - Deploy incident: `deploy.sh` overwrote production `exclude_params` with repo config
     (repo lacked hand-edit). Tuner immediately changed `target_bloat_ms` (12→10.8) and
     `warn_bloat_ms` (45→40.5). Reverted in SQLite, config restored, repo synced.
 
-### Analysis Record (2026-03-29, 36h post-deploy)
+### Analysis Record (2026-03-30, 44h post-deploy)
 
-- **Autotuner status (36h in):** 14 total changes (12 active, 2 reverted), zero safety reverts.
-  Tuner in steady-state plateau — signal and advanced layers converged, waiting on data for
-  response layer.
-- **Layer activity:**
-  - SIGNAL: 3 changes (`hampel_window_size` only). Spectrum oscillating 13.5-15 with diurnal
-    jitter variation — low-confidence (0.09) shrink during afternoon congestion, may widen back.
-  - EWMA: Silent. `load_time_constant_sec` (0.10) is intentional expert override below bounds.
-  - THRESHOLD: 2 changes reverted. Now properly in `exclude_params` for Spectrum cable.
+- **Autotuner status:** Converged. 14 total changes (12 active, 2 reverted), zero safety reverts.
+  No changes in 38 hours across 3 prime-time windows + RRUL stress test. Response layer has not
+  activated — hand-tuned step_up/factor_down/green_required appear near-optimal for both links.
+- **Layer activity (final):**
+  - SIGNAL: 3 changes (`hampel_window_size` only). Spectrum settled at 13.5, ATT at 21 (pegged).
+  - EWMA: Silent. `load_time_constant_sec` (0.10) intentional expert override below bounds.
+  - THRESHOLD: 2 changes reverted. Locked via `exclude_params` for Spectrum cable.
   - ADVANCED: 9 changes. Baseline bounds converged: Spectrum [20.3, 25.1], ATT [25.5, 31.2].
-  - RESPONSE: Silent. Needs congestion/recovery episodes in 24h lookback window.
+  - RESPONSE: Silent after 3 prime-time windows + RRUL. Current values acceptable.
 - **Pegged parameters — no action needed** (per Phase 101/102 analysis):
   - `hampel_window_size` at max (ATT 21/21): Diminishing returns on ultra-clean DSL (0.4ms jitter).
   - `baseline_rtt_max` at min (Spectrum 25.1): Security bound, not tuning constraint.
   - `load_time_constant_sec` below bounds: Expert override for cable's fast RTT dynamics.
-- **Spectrum diurnal RTT profile (2026-03-28):**
-  Night: p50=22.4 p95=27.1 p99=37.5 | jitter p50=2.2 p95=4.6
+- **Spectrum diurnal RTT profile (2026-03-28/29, 3-day observation):**
+  Night: p50=22.3 p95=25.5 p99=32.6 | jitter p50=1.8 p95=2.6
   Afternoon: p50=23.1 p95=33.5 p99=47.7 | jitter p50=2.7 p95=6.9
-  Prime-time: p50=23.9 p95=40.3 p99=60.6 | jitter p50=4.1 p95=13.3 max=37.1
+  Prime-time: p50=23.7 p95=42.7 p99=65.4 | jitter p50=4.5 p95=15.4 max=37.1
 - **ATT profile (stable across all windows):**
   p50=28.3 p95=28.9 p99=29.7 | jitter p50=0.4 p95=0.6
+- **Flapping alert pattern (post-fix steady state):**
+  Sat: 1 pair (21:38). Sun: 2 pairs (18:25, 18:31). Overnight: 0.
+  Source: EWMA boundary oscillation at baseline+12ms during peak DOCSIS load.
 
 ## [1.23.0] - 2026-03-27
 
