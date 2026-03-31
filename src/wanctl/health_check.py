@@ -171,10 +171,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "download": {
                         "current_rate_mbps": round(wan_controller.download.current_rate / 1e6, 1),
                         "state": _get_current_state(wan_controller.download),
+                        "hysteresis": {
+                            "dwell_counter": wan_controller.download._yellow_dwell,
+                            "dwell_cycles": wan_controller.download.dwell_cycles,
+                            "deadband_ms": wan_controller.download.deadband_ms,
+                            "transitions_suppressed": wan_controller.download._transitions_suppressed,
+                        },
                     },
                     "upload": {
                         "current_rate_mbps": round(wan_controller.upload.current_rate / 1e6, 1),
                         "state": _get_current_state(wan_controller.upload),
+                        "hysteresis": {
+                            "dwell_counter": wan_controller.upload._yellow_dwell,
+                            "dwell_cycles": wan_controller.upload.dwell_cycles,
+                            "deadband_ms": wan_controller.upload.deadband_ms,
+                            "transitions_suppressed": wan_controller.upload._transitions_suppressed,
+                        },
                     },
                     "router_connectivity": wan_controller.router_connectivity.to_dict(),
                 }
