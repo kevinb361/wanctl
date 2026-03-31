@@ -16,9 +16,9 @@ Requirements for EWMA Boundary Hysteresis milestone. Each maps to roadmap phases
 
 ### Configuration (CONF)
 
-- [ ] **CONF-01**: Hysteresis parameters (dwell_cycles, deadband_ms) configurable in YAML under `continuous_monitoring.thresholds`
+- [x] **CONF-01**: Hysteresis parameters (dwell_cycles, deadband_ms) configurable in YAML under `continuous_monitoring.thresholds`
 - [ ] **CONF-02**: SIGUSR1 hot-reload updates hysteresis parameters without service restart (consistent with existing reload pattern)
-- [ ] **CONF-03**: Sensible defaults that work without config changes (dwell_cycles=3, deadband_ms=3.0)
+- [x] **CONF-03**: Sensible defaults that work without config changes (dwell_cycles=3, deadband_ms=3.0)
 
 ### Observability (OBSV)
 
@@ -41,36 +41,38 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| YELLOW->RED hysteresis | RED transitions are already protected by sustained threshold checks |
-| Upload-specific thresholds | Upload uses same delta-based detection, shared hysteresis is sufficient |
-| Adaptive hysteresis (auto-tuning dwell/deadband) | Premature -- fixed values need production validation first |
-| Rate ramp smoothing | Separate concern from state transition hysteresis, future milestone |
+| Feature                                          | Reason                                                                  |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| YELLOW->RED hysteresis                           | RED transitions are already protected by sustained threshold checks     |
+| Upload-specific thresholds                       | Upload uses same delta-based detection, shared hysteresis is sufficient |
+| Adaptive hysteresis (auto-tuning dwell/deadband) | Premature -- fixed values need production validation first              |
+| Rate ramp smoothing                              | Separate concern from state transition hysteresis, future milestone     |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| HYST-01 | Phase 121 | Complete |
-| HYST-02 | Phase 121 | Complete |
-| HYST-03 | Phase 121 | Complete |
-| HYST-04 | Phase 121 | Complete |
-| CONF-01 | Phase 122 | Pending |
-| CONF-02 | Phase 122 | Pending |
-| CONF-03 | Phase 122 | Pending |
-| OBSV-01 | Phase 123 | Pending |
-| OBSV-02 | Phase 123 | Pending |
-| VALN-01 | Phase 124 | Pending |
-| VALN-02 | Phase 124 | Pending |
+| Requirement | Phase     | Status   |
+| ----------- | --------- | -------- |
+| HYST-01     | Phase 121 | Complete |
+| HYST-02     | Phase 121 | Complete |
+| HYST-03     | Phase 121 | Complete |
+| HYST-04     | Phase 121 | Complete |
+| CONF-01     | Phase 122 | Complete |
+| CONF-02     | Phase 122 | Pending  |
+| CONF-03     | Phase 122 | Complete |
+| OBSV-01     | Phase 123 | Pending  |
+| OBSV-02     | Phase 123 | Pending  |
+| VALN-01     | Phase 124 | Pending  |
+| VALN-02     | Phase 124 | Pending  |
 
 **Coverage:**
+
 - v1.24 requirements: 11 total
 - Mapped to phases: 11
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-30*
-*Last updated: 2026-03-30 after roadmap creation*
+
+_Requirements defined: 2026-03-30_
+_Last updated: 2026-03-30 after roadmap creation_

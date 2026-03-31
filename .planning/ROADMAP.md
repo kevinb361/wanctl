@@ -33,64 +33,74 @@ None
 ## Phase Details
 
 ### Phase 121: Core Hysteresis Logic
+
 **Goal**: The controller absorbs transient EWMA threshold crossings without triggering state transitions, so only sustained congestion causes GREEN->YELLOW
 **Depends on**: Nothing (first phase of v1.24)
 **Requirements**: HYST-01, HYST-02, HYST-03, HYST-04
 **Success Criteria** (what must be TRUE):
-  1. Controller remains in GREEN when delta briefly exceeds target_bloat_ms for fewer than N consecutive cycles (dwell timer absorbs transients)
-  2. Controller transitions from YELLOW back to GREEN only when delta drops below (target_bloat_ms - deadband_ms), not at the exact threshold (split threshold prevents boundary oscillation)
-  3. Dwell counter resets to zero whenever delta drops below threshold mid-dwell, so only uninterrupted above-threshold runs trigger YELLOW
-  4. Upload state machine applies identical dwell timer and deadband logic as download (both directions protected from flapping)
-**Plans:** 1 plan
+
+1. Controller remains in GREEN when delta briefly exceeds target_bloat_ms for fewer than N consecutive cycles (dwell timer absorbs transients)
+2. Controller transitions from YELLOW back to GREEN only when delta drops below (target_bloat_ms - deadband_ms), not at the exact threshold (split threshold prevents boundary oscillation)
+3. Dwell counter resets to zero whenever delta drops below threshold mid-dwell, so only uninterrupted above-threshold runs trigger YELLOW
+4. Upload state machine applies identical dwell timer and deadband logic as download (both directions protected from flapping)
+   **Plans:** 1 plan
 
 Plans:
+
 - [x] 121-01-PLAN.md -- TDD: Dwell timer + deadband margin in QueueController (adjust + adjust_4state)
 
 ### Phase 122: Hysteresis Configuration
+
 **Goal**: Operators can tune hysteresis behavior via YAML config with sensible defaults that work without changes, and update parameters at runtime via SIGUSR1
 **Depends on**: Phase 121
 **Requirements**: CONF-01, CONF-02, CONF-03
 **Success Criteria** (what must be TRUE):
-  1. Operator can set dwell_cycles and deadband_ms under continuous_monitoring.thresholds in YAML and the controller applies them
-  2. Sending SIGUSR1 to the daemon reloads hysteresis parameters from disk without service restart (consistent with existing dry_run/fusion/wan_state reload chain)
-  3. A fresh install with no hysteresis config uses sensible defaults (dwell_cycles=3, deadband_ms=3.0) that eliminate flapping without masking genuine congestion
-**Plans:** 2 plans
+
+1. Operator can set dwell_cycles and deadband_ms under continuous_monitoring.thresholds in YAML and the controller applies them
+2. Sending SIGUSR1 to the daemon reloads hysteresis parameters from disk without service restart (consistent with existing dry_run/fusion/wan_state reload chain)
+3. A fresh install with no hysteresis config uses sensible defaults (dwell_cycles=3, deadband_ms=3.0) that eliminate flapping without masking genuine congestion
+   **Plans:** 2 plans
 
 Plans:
-- [ ] 122-01-PLAN.md -- Config parsing, SCHEMA validation, KNOWN_KEYS, WANController wiring, defaults
+
+- [x] 122-01-PLAN.md -- Config parsing, SCHEMA validation, KNOWN_KEYS, WANController wiring, defaults
 - [ ] 122-02-PLAN.md -- SIGUSR1 hot-reload method and main loop integration
 
 ### Phase 123: Hysteresis Observability
+
 **Goal**: Operators can see hysteresis state in the health endpoint and identify suppressed transitions in logs without adding overhead to the control loop
 **Depends on**: Phase 121
 **Requirements**: OBSV-01, OBSV-02
 **Success Criteria** (what must be TRUE):
-  1. Health endpoint JSON includes hysteresis section with current dwell_counter value, configured deadband_margins, and cumulative transitions_suppressed count
-  2. When the dwell timer absorbs a would-be GREEN->YELLOW transition, a log message appears indicating "transition suppressed, dwell N/M" (showing current count vs required)
-  3. Suppressed transition count is visible in health endpoint for monitoring without log parsing
-**Plans**: TBD
+
+1. Health endpoint JSON includes hysteresis section with current dwell_counter value, configured deadband_margins, and cumulative transitions_suppressed count
+2. When the dwell timer absorbs a would-be GREEN->YELLOW transition, a log message appears indicating "transition suppressed, dwell N/M" (showing current count vs required)
+3. Suppressed transition count is visible in health endpoint for monitoring without log parsing
+   **Plans**: TBD
 
 ### Phase 124: Production Validation
+
 **Goal**: Hysteresis is proven effective in production -- flapping is eliminated and genuine congestion detection latency remains acceptable
 **Depends on**: Phase 121, Phase 122, Phase 123
 **Requirements**: VALN-01, VALN-02
 **Success Criteria** (what must be TRUE):
-  1. During a prime-time evening window (7pm-11pm), zero flapping alerts fire (vs baseline of 1-3 alert pairs per evening)
-  2. An RRUL stress test triggers YELLOW within 500ms of the no-hysteresis baseline (dwell_cycles=3 at 50ms = 150ms additional latency, well within budget)
-  3. Health endpoint transitions_suppressed counter is non-zero, confirming hysteresis is actively absorbing transients
-**Plans**: TBD
+
+1. During a prime-time evening window (7pm-11pm), zero flapping alerts fire (vs baseline of 1-3 alert pairs per evening)
+2. An RRUL stress test triggers YELLOW within 500ms of the no-hysteresis baseline (dwell_cycles=3 at 50ms = 150ms additional latency, well within budget)
+3. Health endpoint transitions_suppressed counter is non-zero, confirming hysteresis is actively absorbing transients
+   **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 121. Core Hysteresis Logic | 1/1 | Complete   | 2026-03-31 |
-| 122. Hysteresis Configuration | 0/2 | Not started | - |
-| 123. Hysteresis Observability | 0/TBD | Not started | - |
-| 124. Production Validation | 0/TBD | Not started | - |
+| Phase                         | Plans Complete | Status      | Completed  |
+| ----------------------------- | -------------- | ----------- | ---------- |
+| 121. Core Hysteresis Logic    | 1/1            | Complete    | 2026-03-31 |
+| 122. Hysteresis Configuration | 1/2            | In progress | -          |
+| 123. Hysteresis Observability | 0/TBD          | Not started | -          |
+| 124. Production Validation    | 0/TBD          | Not started | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.23)</summary>

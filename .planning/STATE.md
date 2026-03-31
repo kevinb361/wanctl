@@ -9,8 +9,8 @@ progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 1
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 40
 ---
 
 # Session State
@@ -25,13 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Position
 
 **Milestone:** v1.24 EWMA Boundary Hysteresis
-**Phase:** 1 of 4 (Core Hysteresis Logic)
-**Plan:** 0 of TBD in current phase
-**Plan:** 1 of 1 in current phase
-**Status:** Phase 121 Plan 01 complete
-**Last activity:** 2026-03-31 -- Completed 121-01-PLAN.md (dwell timer + deadband hysteresis)
+**Phase:** 2 of 4 (Hysteresis Configuration)
+**Plan:** 1 of 2 in current phase
+**Status:** Phase 122 Plan 01 complete
+**Last activity:** 2026-03-31 -- Completed 122-01-PLAN.md (config parsing, schema, wiring for dwell_cycles/deadband_ms)
 
-Progress: [###.......] 25%
+Progress: [####......] 40%
 
 ## Accumulated Context
 
@@ -44,6 +43,8 @@ Progress: [###.......] 25%
 - Hysteresis approach: dwell timer (N consecutive cycles) + deadband (split threshold for enter vs exit)
 - Default dwell_cycles=3 (150ms at 50ms cycle), deadband_ms=3.0
 - Upload and download share same hysteresis logic (both delta-based)
+- 122-01: min=0 allows disabling hysteresis (backward-compat escape hatch)
+- 122-01: Shared hysteresis params (not per-direction) -- both DL and UL use same dwell_cycles/deadband_ms
 
 ### Known Issues
 
