@@ -119,6 +119,8 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "continuous_monitoring.thresholds.load_time_constant_sec",
     "continuous_monitoring.thresholds.accel_threshold_ms",
     "continuous_monitoring.thresholds.accel_confirm_cycles",
+    "continuous_monitoring.thresholds.dwell_cycles",
+    "continuous_monitoring.thresholds.deadband_ms",
     "continuous_monitoring.thresholds.baseline_update_threshold_ms",
     "continuous_monitoring.thresholds.baseline_rtt_bounds",
     "continuous_monitoring.thresholds.baseline_rtt_bounds.min",

@@ -276,6 +276,21 @@ class Config(BaseConfig):
             "min": 1,
             "max": 10,
         },
+        # Hysteresis parameters (Phase 122)
+        {
+            "path": "continuous_monitoring.thresholds.dwell_cycles",
+            "type": int,
+            "required": False,
+            "min": 0,
+            "max": 20,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.deadband_ms",
+            "type": (int, float),
+            "required": False,
+            "min": 0.0,
+            "max": 20.0,
+        },
         # Baseline RTT bounds (optional - security validation)
         {
             "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -447,6 +462,10 @@ class Config(BaseConfig):
         # Detects sudden RTT spikes and triggers immediate RED state
         self.accel_threshold_ms = thresh.get("accel_threshold_ms", 15.0)
         self.accel_confirm_cycles = thresh.get("accel_confirm_cycles", 3)
+
+        # Hysteresis: dwell timer and deadband for GREEN<->YELLOW transitions (Phase 122)
+        self.dwell_cycles = thresh.get("dwell_cycles", 3)
+        self.deadband_ms = thresh.get("deadband_ms", 3.0)
 
         # Baseline RTT security bounds - reject values outside this range
         bounds = thresh.get("baseline_rtt_bounds", {})
@@ -1750,6 +1769,8 @@ class WANController:
             factor_down=config.download_factor_down,
             factor_down_yellow=config.download_factor_down_yellow,  # YELLOW decay
             green_required=config.download_green_required,  # Faster recovery
+            dwell_cycles=config.dwell_cycles,
+            deadband_ms=config.deadband_ms,
         )
 
         self.upload = QueueController(
@@ -1763,6 +1784,8 @@ class WANController:
             factor_down=config.upload_factor_down,
             factor_down_yellow=config.upload_factor_down_yellow,  # Upload YELLOW decay
             green_required=config.upload_green_required,  # Faster recovery
+            dwell_cycles=config.dwell_cycles,
+            deadband_ms=config.deadband_ms,
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
