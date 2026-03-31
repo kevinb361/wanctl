@@ -49,7 +49,7 @@ def _make_wan_controller() -> MagicMock:
         "last_failure_type": None,
         "last_failure_time": None,
     }
-    # Prevent MagicMock truthy issues
+    # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
     wan._last_signal_result = None
     wan._irtt_thread = None
     wan._irtt_correlation = None
@@ -61,6 +61,13 @@ def _make_wan_controller() -> MagicMock:
     wan._fusion_icmp_weight = 0.7
     wan._last_fused_rtt = None
     wan._last_icmp_filtered_rtt = None
+    wan._fusion_healer = None
+    wan._tuning_enabled = False
+    wan._tuning_state = None
+    wan._parameter_locks = None
+    wan._overrun_count = 0
+    wan._cycle_interval_ms = 50.0
+    wan._profiler.stats.return_value = None
     return wan
 
 
