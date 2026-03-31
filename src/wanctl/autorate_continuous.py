@@ -2832,6 +2832,82 @@ class WANController:
             self._parameter_locks = {}
             self._pending_observation = None
 
+    def _reload_hysteresis_config(self) -> None:
+        """Re-read hysteresis config from YAML (triggered by SIGUSR1).
+
+        Reloads dwell_cycles and deadband_ms from continuous_monitoring.thresholds.
+        Validates with same bounds as SCHEMA. Logs old->new transitions at WARNING level.
+        Applies to both download and upload QueueControllers.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[HYSTERESIS] Config reload failed: {e}")
+            return
+
+        cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
+        if not isinstance(cm, dict):
+            cm = {}
+        thresh = cm.get("thresholds", {})
+        if not isinstance(thresh, dict):
+            thresh = {}
+
+        # Parse dwell_cycles (default 3, bounds [0, 20])
+        new_dwell = thresh.get("dwell_cycles", 3)
+        if (
+            not isinstance(new_dwell, int)
+            or isinstance(new_dwell, bool)
+            or new_dwell < 0
+            or new_dwell > 20
+        ):
+            self.logger.warning(
+                "[HYSTERESIS] Reload: dwell_cycles invalid (%r); keeping current value",
+                new_dwell,
+            )
+            new_dwell = self.download.dwell_cycles
+
+        # Parse deadband_ms (default 3.0, bounds [0.0, 20.0])
+        new_deadband = thresh.get("deadband_ms", 3.0)
+        if (
+            not isinstance(new_deadband, (int, float))
+            or isinstance(new_deadband, bool)
+            or new_deadband < 0.0
+            or new_deadband > 20.0
+        ):
+            self.logger.warning(
+                "[HYSTERESIS] Reload: deadband_ms invalid (%r); keeping current value",
+                new_deadband,
+            )
+            new_deadband = self.download.deadband_ms
+        new_deadband = float(new_deadband)
+
+        old_dwell = self.download.dwell_cycles
+        old_deadband = self.download.deadband_ms
+
+        # Log transitions
+        dwell_str = (
+            f"dwell_cycles={old_dwell}->{new_dwell}"
+            if old_dwell != new_dwell
+            else f"dwell_cycles={new_dwell} (unchanged)"
+        )
+        deadband_str = (
+            f"deadband_ms={old_deadband}->{new_deadband}"
+            if old_deadband != new_deadband
+            else f"deadband_ms={new_deadband} (unchanged)"
+        )
+        self.logger.warning(
+            "[HYSTERESIS] Config reload: %s, %s", dwell_str, deadband_str
+        )
+
+        # Apply to both directions
+        self.download.dwell_cycles = new_dwell
+        self.download.deadband_ms = new_deadband
+        self.upload.dwell_cycles = new_dwell
+        self.upload.deadband_ms = new_deadband
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -4571,6 +4647,7 @@ def main() -> int | None:
                     wan_info["logger"].info("SIGUSR1 received, reloading config")
                     wan_info["controller"]._reload_fusion_config()
                     wan_info["controller"]._reload_tuning_config()
+                    wan_info["controller"]._reload_hysteresis_config()
 
                 # Reload retention config
                 try:
