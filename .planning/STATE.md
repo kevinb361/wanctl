@@ -9,8 +9,8 @@ progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 25
 ---
 
 # Session State
@@ -27,10 +27,11 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 **Milestone:** v1.24 EWMA Boundary Hysteresis
 **Phase:** 1 of 4 (Core Hysteresis Logic)
 **Plan:** 0 of TBD in current phase
-**Status:** Executing Phase 121
-**Last activity:** 2026-03-31
+**Plan:** 1 of 1 in current phase
+**Status:** Phase 121 Plan 01 complete
+**Last activity:** 2026-03-31 -- Completed 121-01-PLAN.md (dwell timer + deadband hysteresis)
 
-Progress: [..........] 0%
+Progress: [###.......] 25%
 
 ## Accumulated Context
 
