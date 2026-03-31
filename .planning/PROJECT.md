@@ -11,15 +11,22 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 ## Current State
 
 **Version:** v1.23.0 (Self-Optimizing Controller) — shipped 2026-03-27
-**Tests:** ~3,800+ passing, 91%+ coverage
+**Tests:** ~3,928 passing, 91%+ coverage
 **LOC:** ~31,714 Python (src/)
 **Milestones:** 24 shipped (v1.0-v1.23), 121 phases, 243 plans
 
 **Latest:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
 **Previous:** v1.22 Full System Audit — 5 phases, 16 plans, 87 findings, systemd 2.1 OK
 
-**Deferred to v1.24:** Prometheus/Grafana export (infrastructure not yet deployed)
-**Latest:** v1.21 CAKE Offload — Linux CAKE backend on Proxmox VM with PCIe passthrough, transparent bridges, production cutover
+## Current Milestone: v1.24 EWMA Boundary Hysteresis
+
+**Goal:** Eliminate GREEN/YELLOW flapping at the EWMA threshold boundary during peak DOCSIS load by adding state transition hysteresis.
+
+**Target features:**
+
+- State machine hysteresis on GREEN->YELLOW transition (dwell time / confirmation counter)
+- Deadband / split thresholds (different values for entering vs exiting YELLOW)
+- Flapping rate reduction from 3+ alert pairs/evening to zero
 
 ## Requirements
 
@@ -266,7 +273,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-**Next milestone:** v1.24 (not yet planned — Prometheus/Grafana export is the primary candidate)
+**v1.24 EWMA Boundary Hysteresis:**
+
+- [ ] State transition hysteresis (dwell time on GREEN->YELLOW)
+- [ ] Deadband thresholds (separate enter/exit values)
+- [ ] Flapping elimination during peak DOCSIS load
+
+**Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
 
 ### Deferred
 
@@ -584,4 +597,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-03-26 after v1.23 Self-Optimizing Controller milestone started_
+_Last updated: 2026-03-30 after v1.24 EWMA Boundary Hysteresis milestone started_

@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.22
-milestone_name: Remaining
-status: completed
-last_updated: "2026-03-27T23:19:59.411Z"
-last_activity: 2026-03-27
+milestone: v1.24
+milestone_name: EWMA Boundary Hysteresis
+status: in_progress
+last_updated: "2026-03-30"
+last_activity: 2026-03-30
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-26)
+See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 120 — adaptive-rate-step-tuning
+**Current focus:** Defining requirements for v1.24
 
 ## Position
 
-**Milestone:** v1.22 Full System Audit
-**Phase:** 120 of 120 (adaptive rate step tuning)
-**Plan:** Not started
-**Status:** v1.23 milestone complete
-**Last activity:** 2026-03-28 - Completed quick task 260327-uy3: Add spike detector confirmation counter to fix DOCSIS cable flapping
+**Milestone:** v1.24 EWMA Boundary Hysteresis
+**Phase:** Not started (defining requirements)
+**Plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-03-30 — Milestone v1.24 started
 
-Progress: [██████████] 100%
+Progress: [ ] 0%
 
 ## Accumulated Context
 
