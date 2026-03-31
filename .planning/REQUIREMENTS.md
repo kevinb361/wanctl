@@ -9,10 +9,10 @@ Requirements for EWMA Boundary Hysteresis milestone. Each maps to roadmap phases
 
 ### State Machine Hysteresis (HYST)
 
-- [ ] **HYST-01**: Controller requires N consecutive above-threshold cycles before transitioning GREEN->YELLOW (dwell timer), preventing single-cycle jitter from triggering rate clamping
-- [ ] **HYST-02**: Controller uses a deadband margin so YELLOW->GREEN recovery requires delta dropping below (target_bloat_ms - deadband_ms), preventing oscillation at the exact threshold boundary
-- [ ] **HYST-03**: Dwell counter resets to zero when delta drops below threshold, so only sustained congestion triggers YELLOW
-- [ ] **HYST-04**: Upload state machine applies same hysteresis logic as download (both directions protected)
+- [x] **HYST-01**: Controller requires N consecutive above-threshold cycles before transitioning GREEN->YELLOW (dwell timer), preventing single-cycle jitter from triggering rate clamping
+- [x] **HYST-02**: Controller uses a deadband margin so YELLOW->GREEN recovery requires delta dropping below (target_bloat_ms - deadband_ms), preventing oscillation at the exact threshold boundary
+- [x] **HYST-03**: Dwell counter resets to zero when delta drops below threshold, so only sustained congestion triggers YELLOW
+- [x] **HYST-04**: Upload state machine applies same hysteresis logic as download (both directions protected)
 
 ### Configuration (CONF)
 
@@ -54,10 +54,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYST-01 | Phase 121 | Pending |
-| HYST-02 | Phase 121 | Pending |
-| HYST-03 | Phase 121 | Pending |
-| HYST-04 | Phase 121 | Pending |
+| HYST-01 | Phase 121 | Complete |
+| HYST-02 | Phase 121 | Complete |
+| HYST-03 | Phase 121 | Complete |
+| HYST-04 | Phase 121 | Complete |
 | CONF-01 | Phase 122 | Pending |
 | CONF-02 | Phase 122 | Pending |
 | CONF-03 | Phase 122 | Pending |

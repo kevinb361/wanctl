@@ -44,7 +44,7 @@ None
 **Plans:** 1 plan
 
 Plans:
-- [ ] 121-01-PLAN.md -- TDD: Dwell timer + deadband margin in QueueController (adjust + adjust_4state)
+- [x] 121-01-PLAN.md -- TDD: Dwell timer + deadband margin in QueueController (adjust + adjust_4state)
 
 ### Phase 122: Hysteresis Configuration
 **Goal**: Operators can tune hysteresis behavior via YAML config with sensible defaults that work without changes, and update parameters at runtime via SIGUSR1
@@ -83,7 +83,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 121. Core Hysteresis Logic | 0/1 | Not started | - |
+| 121. Core Hysteresis Logic | 1/1 | Complete   | 2026-03-31 |
 | 122. Hysteresis Configuration | 0/TBD | Not started | - |
 | 123. Hysteresis Observability | 0/TBD | Not started | - |
 | 124. Production Validation | 0/TBD | Not started | - |
