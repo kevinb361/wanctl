@@ -314,7 +314,7 @@ verify_deployment() {
     fi
 
     # Check config
-    if ssh "$TARGET_HOST" "test -f $TARGET_CONFIG_DIR/${wan_name}.yaml"; then
+    if ssh "$TARGET_HOST" "sudo test -f $TARGET_CONFIG_DIR/${wan_name}.yaml"; then
         print_success "Config present: ${wan_name}.yaml"
     else
         print_warning "Config not found: ${wan_name}.yaml"
@@ -542,7 +542,7 @@ fi
 # Run pre-startup validation
 print_step "Running pre-startup validation..."
 if ssh "$TARGET_HOST" "test -f $TARGET_CODE_DIR/scripts/validate-deployment.sh" && \
-   ssh "$TARGET_HOST" "$TARGET_CODE_DIR/scripts/validate-deployment.sh $TARGET_CONFIG_DIR/${WAN_NAME}.yaml"; then
+   ssh "$TARGET_HOST" "sudo $TARGET_CODE_DIR/scripts/validate-deployment.sh $TARGET_CONFIG_DIR/${WAN_NAME}.yaml"; then
     print_success "Pre-startup validation passed"
 else
     print_warning "Pre-startup validation found issues - review before starting daemon"
