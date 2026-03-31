@@ -32,11 +32,11 @@ class TestAutorateReloadChainE2E:
         reset_shutdown_state()
 
     def test_sigusr1_calls_all_autorate_reload_methods(self):
-        """SIGUSR1 triggers both _reload_fusion_config AND _reload_tuning_config
-        on every WANController in the autorate daemon.
+        """SIGUSR1 triggers _reload_fusion_config, _reload_tuning_config, AND
+        _reload_hysteresis_config on every WANController in the autorate daemon.
 
         Chain: _reload_event.set() -> is_reload_requested() returns True
-        -> loop iterates wan_controllers -> calls both reload methods
+        -> loop iterates wan_controllers -> calls all reload methods
         -> reset_reload_state() clears event.
         """
         # Simulate SIGUSR1 by setting the reload event
@@ -54,19 +54,22 @@ class TestAutorateReloadChainE2E:
             {"controller": ctrl2, "logger": logger2},
         ]
 
-        # Execute the reload block from autorate_continuous.py main loop (lines 4194-4200)
+        # Execute the reload block from autorate_continuous.py main loop
         if is_reload_requested():
             for wan_info in wan_controllers:
                 wan_info["logger"].info("SIGUSR1 received, reloading config")
                 wan_info["controller"]._reload_fusion_config()
                 wan_info["controller"]._reload_tuning_config()
+                wan_info["controller"]._reload_hysteresis_config()
             reset_reload_state()
 
         # Verify ALL reload methods called on ALL controllers
         ctrl1._reload_fusion_config.assert_called_once()
         ctrl1._reload_tuning_config.assert_called_once()
+        ctrl1._reload_hysteresis_config.assert_called_once()
         ctrl2._reload_fusion_config.assert_called_once()
         ctrl2._reload_tuning_config.assert_called_once()
+        ctrl2._reload_hysteresis_config.assert_called_once()
 
         # Verify event cleared (ready for next SIGUSR1)
         assert not is_reload_requested()
@@ -86,6 +89,7 @@ class TestAutorateReloadChainE2E:
             for wan_info in wan_controllers:
                 wan_info["controller"]._reload_fusion_config()
                 wan_info["controller"]._reload_tuning_config()
+                wan_info["controller"]._reload_hysteresis_config()
             reset_reload_state()
 
         # Event is cleared
@@ -130,11 +134,13 @@ class TestAutorateReloadChainE2E:
                 except Exception:
                     pass  # Production methods catch internally; this simulates that
                 wan_info["controller"]._reload_tuning_config()
+                wan_info["controller"]._reload_hysteresis_config()
             reset_reload_state()
 
-        # Both methods were called (fusion raised but was caught, tuning proceeded)
+        # All methods were called (fusion raised but was caught, others proceeded)
         ctrl._reload_fusion_config.assert_called_once()
         ctrl._reload_tuning_config.assert_called_once()
+        ctrl._reload_hysteresis_config.assert_called_once()
         assert not is_reload_requested()
 
 
@@ -282,6 +288,7 @@ class TestSignalToReloadIntegration:
         if is_reload_requested():
             daemon._reload_fusion_config()
             daemon._reload_tuning_config()
+            daemon._reload_hysteresis_config()
             reset_reload_state()
 
         # 4. Event cleared
@@ -291,6 +298,7 @@ class TestSignalToReloadIntegration:
         # 5. Reload methods were called
         daemon._reload_fusion_config.assert_called_once()
         daemon._reload_tuning_config.assert_called_once()
+        daemon._reload_hysteresis_config.assert_called_once()
 
     def test_multiple_sigusr1_signals_coalesce(self):
         """Multiple SIGUSR1 signals before reload handling coalesce into one reload.
