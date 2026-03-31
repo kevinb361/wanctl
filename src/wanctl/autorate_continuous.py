@@ -1337,6 +1337,8 @@ class QueueController:
         factor_down: float,
         factor_down_yellow: float = 1.0,
         green_required: int = 5,
+        dwell_cycles: int = 3,
+        deadband_ms: float = 3.0,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -1357,6 +1359,11 @@ class QueueController:
         self.red_streak = 0
         self.green_required = green_required  # Consecutive GREEN cycles before stepping up
         self.soft_red_required = 1  # Reduced from 3 for faster response (50ms vs 150ms)
+
+        # Hysteresis: dwell timer gates GREEN->YELLOW (requires consecutive above-threshold cycles)
+        self.dwell_cycles = dwell_cycles
+        self.deadband_ms = deadband_ms
+        self._yellow_dwell = 0
 
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
@@ -1382,21 +1389,38 @@ class QueueController:
         """
         delta = load_rtt - baseline_rtt
 
-        # Update streak counters
+        # State-dependent zone classification with dwell timer and deadband
         if delta > warn_delta:
-            # RED zone
+            # RED: immediate, bypasses dwell (D-02)
             self.red_streak += 1
             self.green_streak = 0
+            self._yellow_dwell = 0
             zone = "RED"
         elif delta > target_delta:
-            # YELLOW zone
+            # Above GREEN->YELLOW threshold
             self.green_streak = 0
             self.red_streak = 0
+            if self._last_zone == "YELLOW":
+                # Already in YELLOW, stay there
+                zone = "YELLOW"
+            else:
+                # In GREEN (or dwell-held GREEN), apply dwell timer (HYST-01)
+                self._yellow_dwell += 1
+                if self._yellow_dwell >= self.dwell_cycles:
+                    zone = "YELLOW"  # Dwell satisfied, transition
+                else:
+                    zone = "GREEN"  # Hold GREEN during dwell, rates hold steady (D-01)
+        elif self._last_zone == "YELLOW" and delta >= (target_delta - self.deadband_ms):
+            # Deadband: delta below target but within deadband margin -> stay YELLOW (HYST-02, D-03)
+            self.green_streak = 0
+            self.red_streak = 0
+            self._yellow_dwell = 0
             zone = "YELLOW"
         else:
-            # GREEN zone
+            # GREEN: delta below threshold (and below deadband if was YELLOW)
             self.green_streak += 1
             self.red_streak = 0
+            self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
             zone = "GREEN"
 
         # Apply rate adjustments with hysteresis
@@ -1479,13 +1503,12 @@ class QueueController:
         else:
             raw_state = "GREEN"
 
-        # Apply sustain logic for SOFT_RED
-        # SOFT_RED requires 3 consecutive samples to confirm
+        # Apply sustain logic for SOFT_RED (unchanged, D-02)
         if raw_state == "SOFT_RED":
             self.soft_red_streak += 1
             self.green_streak = 0
             self.red_streak = 0
-
+            self._yellow_dwell = 0
             if self.soft_red_streak >= self.soft_red_required:
                 zone = "SOFT_RED"
             else:
@@ -1495,16 +1518,34 @@ class QueueController:
             self.red_streak += 1
             self.soft_red_streak = 0
             self.green_streak = 0
+            self._yellow_dwell = 0
             zone = "RED"
         elif raw_state == "YELLOW":
+            # Above GREEN->YELLOW threshold: apply dwell timer (HYST-01)
             self.green_streak = 0
             self.soft_red_streak = 0
             self.red_streak = 0
+            if self._last_zone == "YELLOW":
+                zone = "YELLOW"  # Already YELLOW, stay
+            else:
+                self._yellow_dwell += 1
+                if self._yellow_dwell >= self.dwell_cycles:
+                    zone = "YELLOW"  # Dwell satisfied
+                else:
+                    zone = "GREEN"  # Hold during dwell (D-01)
+        elif self._last_zone == "YELLOW" and delta >= (green_threshold - self.deadband_ms):
+            # Deadband: raw GREEN but within deadband margin -> stay YELLOW (HYST-02, D-03)
+            self.green_streak = 0
+            self.soft_red_streak = 0
+            self.red_streak = 0
+            self._yellow_dwell = 0
             zone = "YELLOW"
-        else:  # GREEN
+        else:
+            # GREEN: below threshold and below deadband
             self.green_streak += 1
             self.soft_red_streak = 0
             self.red_streak = 0
+            self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
             zone = "GREEN"
 
         # Apply rate adjustments with state-appropriate floors

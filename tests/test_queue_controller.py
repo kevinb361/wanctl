@@ -35,6 +35,8 @@ def controller_3state():
         factor_down=0.85,  # 15% decay on RED
         factor_down_yellow=0.96,  # 4% decay on YELLOW
         green_required=5,  # 5 consecutive GREEN cycles before step up
+        dwell_cycles=0,  # Disable dwell for backward compat
+        deadband_ms=0.0,  # Disable deadband for backward compat
     )
 
 
@@ -59,6 +61,8 @@ def controller_4state():
         factor_down=0.85,  # 15% decay on RED
         factor_down_yellow=0.96,  # 4% decay on YELLOW
         green_required=5,  # 5 consecutive GREEN cycles before step up
+        dwell_cycles=0,  # Disable dwell for backward compat
+        deadband_ms=0.0,  # Disable deadband for backward compat
     )
 
 
@@ -809,6 +813,8 @@ class TestStateTransitionSequences:
             factor_down=0.85,
             factor_down_yellow=0.96,
             green_required=5,
+            dwell_cycles=0,
+            deadband_ms=0.0,
         )
 
         baseline = 25.0
@@ -872,6 +878,8 @@ class TestStateTransitionSequences:
             factor_down=0.85,
             factor_down_yellow=0.96,
             green_required=5,
+            dwell_cycles=0,
+            deadband_ms=0.0,
         )
         controller.current_rate = 35_000_000  # Start below ceiling
 
