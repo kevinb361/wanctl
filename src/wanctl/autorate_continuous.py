@@ -1344,6 +1344,8 @@ class RouterOS:
 class QueueController:
     """Controls one queue (download or upload) with 3-zone or 4-zone logic"""
 
+    _logger = logging.getLogger(__name__)
+
     def __init__(
         self,
         name: str,
@@ -1383,6 +1385,7 @@ class QueueController:
         self.dwell_cycles = dwell_cycles
         self.deadband_ms = deadband_ms
         self._yellow_dwell = 0
+        self._transitions_suppressed = 0  # Cumulative count of absorbed dwell cycles
 
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
@@ -1427,8 +1430,21 @@ class QueueController:
                 self._yellow_dwell += 1
                 if self._yellow_dwell >= self.dwell_cycles:
                     zone = "YELLOW"  # Dwell satisfied, transition
+                    _dir = "DL" if self.name == "download" else "UL"
+                    self._logger.info(
+                        "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed",
+                        _dir,
+                    )
                 else:
                     zone = "GREEN"  # Hold GREEN during dwell, rates hold steady (D-01)
+                    self._transitions_suppressed += 1
+                    _dir = "DL" if self.name == "download" else "UL"
+                    self._logger.debug(
+                        "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
+                        _dir,
+                        self._yellow_dwell,
+                        self.dwell_cycles,
+                    )
         elif self._last_zone == "YELLOW" and delta >= (target_delta - self.deadband_ms):
             # Deadband: delta below target but within deadband margin -> stay YELLOW (HYST-02, D-03)
             self.green_streak = 0
@@ -1550,8 +1566,21 @@ class QueueController:
                 self._yellow_dwell += 1
                 if self._yellow_dwell >= self.dwell_cycles:
                     zone = "YELLOW"  # Dwell satisfied
+                    _dir = "DL" if self.name == "download" else "UL"
+                    self._logger.info(
+                        "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed",
+                        _dir,
+                    )
                 else:
                     zone = "GREEN"  # Hold during dwell (D-01)
+                    self._transitions_suppressed += 1
+                    _dir = "DL" if self.name == "download" else "UL"
+                    self._logger.debug(
+                        "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
+                        _dir,
+                        self._yellow_dwell,
+                        self.dwell_cycles,
+                    )
         elif self._last_zone == "YELLOW" and delta >= (green_threshold - self.deadband_ms):
             # Deadband: raw GREEN but within deadband margin -> stay YELLOW (HYST-02, D-03)
             self.green_streak = 0
