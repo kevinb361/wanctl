@@ -41,7 +41,10 @@ None
   2. Controller transitions from YELLOW back to GREEN only when delta drops below (target_bloat_ms - deadband_ms), not at the exact threshold (split threshold prevents boundary oscillation)
   3. Dwell counter resets to zero whenever delta drops below threshold mid-dwell, so only uninterrupted above-threshold runs trigger YELLOW
   4. Upload state machine applies identical dwell timer and deadband logic as download (both directions protected from flapping)
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 121-01-PLAN.md -- TDD: Dwell timer + deadband margin in QueueController (adjust + adjust_4state)
 
 ### Phase 122: Hysteresis Configuration
 **Goal**: Operators can tune hysteresis behavior via YAML config with sensible defaults that work without changes, and update parameters at runtime via SIGUSR1
@@ -80,7 +83,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 121. Core Hysteresis Logic | 0/TBD | Not started | - |
+| 121. Core Hysteresis Logic | 0/1 | Not started | - |
 | 122. Hysteresis Configuration | 0/TBD | Not started | - |
 | 123. Hysteresis Observability | 0/TBD | Not started | - |
 | 124. Production Validation | 0/TBD | Not started | - |
