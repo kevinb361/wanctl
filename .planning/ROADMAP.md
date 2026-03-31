@@ -54,7 +54,11 @@ Plans:
   1. Operator can set dwell_cycles and deadband_ms under continuous_monitoring.thresholds in YAML and the controller applies them
   2. Sending SIGUSR1 to the daemon reloads hysteresis parameters from disk without service restart (consistent with existing dry_run/fusion/wan_state reload chain)
   3. A fresh install with no hysteresis config uses sensible defaults (dwell_cycles=3, deadband_ms=3.0) that eliminate flapping without masking genuine congestion
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 122-01-PLAN.md -- Config parsing, SCHEMA validation, KNOWN_KEYS, WANController wiring, defaults
+- [ ] 122-02-PLAN.md -- SIGUSR1 hot-reload method and main loop integration
 
 ### Phase 123: Hysteresis Observability
 **Goal**: Operators can see hysteresis state in the health endpoint and identify suppressed transitions in logs without adding overhead to the control loop
@@ -84,7 +88,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 121. Core Hysteresis Logic | 1/1 | Complete   | 2026-03-31 |
-| 122. Hysteresis Configuration | 0/TBD | Not started | - |
+| 122. Hysteresis Configuration | 0/2 | Not started | - |
 | 123. Hysteresis Observability | 0/TBD | Not started | - |
 | 124. Production Validation | 0/TBD | Not started | - |
 
