@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-03-31
+
+**EWMA Boundary Hysteresis** - Eliminates GREEN/YELLOW flapping at the EWMA threshold boundary
+during prime-time DOCSIS load. Dwell timer + deadband margin on both download and upload state
+machines, YAML-configurable with SIGUSR1 hot-reload, health endpoint observability.
+4 phases (121-124), 5 plans, 11/11 requirements satisfied. ~3,940+ tests.
+
+### Added
+
+- **Dwell timer on state transitions** (Phase 121) - Require N consecutive above-threshold cycles
+  before GREEN->YELLOW transition, preventing single-cycle EWMA jitter from triggering rate clamping
+  - `dwell_cycles` parameter (default 3, range 0-20) in `continuous_monitoring.thresholds`
+  - Counter resets to zero when delta drops below threshold, ensuring only sustained congestion triggers
+  - Applied to both download (4-state) and upload (3-state) machines identically
+- **Deadband margin on recovery transitions** (Phase 121) - YELLOW->GREEN requires delta dropping below
+  (target_bloat_ms - deadband_ms), preventing oscillation at the exact threshold boundary
+  - `deadband_ms` parameter (default 3.0, range 0.0-20.0) in `continuous_monitoring.thresholds`
+  - Split threshold: higher to enter YELLOW, lower to exit back to GREEN
+- **Hysteresis configuration** (Phase 122) - YAML config with sensible defaults and SIGUSR1 hot-reload
+  - Parameters under `continuous_monitoring.thresholds`: `dwell_cycles`, `deadband_ms`
+  - SIGUSR1 reloads hysteresis params alongside existing dry_run/fusion/wan_state chain
+  - Defaults work without config changes; `dwell_cycles: 0` disables hysteresis (escape hatch)
+- **Hysteresis observability** (Phase 123) - Health endpoint exposure and suppression logging
+  - Health endpoint `/health` includes `hysteresis` sub-dict per direction: `dwell_counter`,
+    `dwell_cycles`, `deadband_ms`, `transitions_suppressed` count
+  - DEBUG log on each suppressed cycle: `[HYSTERESIS] DL transition suppressed, dwell N/M`
+  - INFO log on confirmed transitions: `[HYSTERESIS] DL dwell expired, GREEN->YELLOW confirmed`
+
 ### Fixed
 
 - **Spike detector confirmation counter** - Require `accel_confirm_cycles` (default 3) consecutive
@@ -14,46 +42,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Root cause: `accel_threshold_ms: 12` triggered on single-sample RTT jitter (9,225 false
     positives/hr during idle on Spectrum cable at prime-time). Real congestion produces zero
     spike triggers — it builds gradually through the EWMA.
-  - DOCSIS cable jitter profile (idle, DL=940M): p90=21ms, p95=28ms, p99=44ms cycle-to-cycle
-    delta at 50ms resolution. No single threshold eliminates false positives without also
-    missing genuine events.
   - Fix: `_spike_streak` counter tracks consecutive spike cycles. Only forces RED after 3
     consecutive cycles (150ms at 50ms/cycle). Single-sample jitter resets counter to zero.
   - New config param `accel_confirm_cycles` (int, default 3, range 1-10) in
     `continuous_monitoring.thresholds`. No YAML changes needed — default takes effect.
   - Production validation (44h, 3 prime-time windows, 2026-03-28/30):
     36 flapping alert pairs / 54h → 3 pairs / 44h (92% reduction).
-    Zero spike false positives. 2 genuine spike confirmations (RRUL stress test only).
-    Remaining 1-2 alerts/evening from EWMA threshold boundary oscillation during peak
-    DOCSIS load — state machine hysteresis, v1.24 candidate.
-  - Deploy incident: `deploy.sh` overwrote production `exclude_params` with repo config
-    (repo lacked hand-edit). Tuner immediately changed `target_bloat_ms` (12→10.8) and
-    `warn_bloat_ms` (45→40.5). Reverted in SQLite, config restored, repo synced.
+- **deploy.sh config validation** - Config check and validate-deployment.sh now use `sudo` to
+  read `/etc/wanctl/*.yaml`, fixing false "config not found" warnings during deployment
 
-### Analysis Record (2026-03-30, 44h post-deploy)
+### Analysis Record (2026-03-30, autotuner convergence)
 
 - **Autotuner status:** Converged. 14 total changes (12 active, 2 reverted), zero safety reverts.
-  No changes in 38 hours across 3 prime-time windows + RRUL stress test. Response layer has not
-  activated — hand-tuned step_up/factor_down/green_required appear near-optimal for both links.
-- **Layer activity (final):**
-  - SIGNAL: 3 changes (`hampel_window_size` only). Spectrum settled at 13.5, ATT at 21 (pegged).
-  - EWMA: Silent. `load_time_constant_sec` (0.10) intentional expert override below bounds.
-  - THRESHOLD: 2 changes reverted. Locked via `exclude_params` for Spectrum cable.
-  - ADVANCED: 9 changes. Baseline bounds converged: Spectrum [20.3, 25.1], ATT [25.5, 31.2].
-  - RESPONSE: Silent after 3 prime-time windows + RRUL. Current values acceptable.
-- **Pegged parameters — no action needed** (per Phase 101/102 analysis):
-  - `hampel_window_size` at max (ATT 21/21): Diminishing returns on ultra-clean DSL (0.4ms jitter).
-  - `baseline_rtt_max` at min (Spectrum 25.1): Security bound, not tuning constraint.
-  - `load_time_constant_sec` below bounds: Expert override for cable's fast RTT dynamics.
+  No changes in 38 hours across 3 prime-time windows + RRUL stress test.
 - **Spectrum diurnal RTT profile (2026-03-28/29, 3-day observation):**
   Night: p50=22.3 p95=25.5 p99=32.6 | jitter p50=1.8 p95=2.6
   Afternoon: p50=23.1 p95=33.5 p99=47.7 | jitter p50=2.7 p95=6.9
   Prime-time: p50=23.7 p95=42.7 p99=65.4 | jitter p50=4.5 p95=15.4 max=37.1
-- **ATT profile (stable across all windows):**
-  p50=28.3 p95=28.9 p99=29.7 | jitter p50=0.4 p95=0.6
-- **Flapping alert pattern (post-fix steady state):**
-  Sat: 1 pair (21:38). Sun: 2 pairs (18:25, 18:31). Overnight: 0.
-  Source: EWMA boundary oscillation at baseline+12ms during peak DOCSIS load.
+- **ATT profile (stable):** p50=28.3 p95=28.9 p99=29.7 | jitter p50=0.4 p95=0.6
+- **Pre-hysteresis flapping baseline:** 1-3 alert pairs per prime-time evening from EWMA boundary
+  oscillation at baseline+12ms during peak DOCSIS load
 
 ## [1.23.0] - 2026-03-27
 

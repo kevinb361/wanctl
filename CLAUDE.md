@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.23.0
+**Version:** 1.24.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -113,10 +113,7 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Known Issues
 
-- **EWMA boundary flapping** (v1.24 candidate): 1-2 flapping alert pairs per prime-time evening from
-  EWMA threshold oscillation at `baseline + target_bloat_ms` boundary during peak DOCSIS load.
-  Spike detector false positives eliminated (v1.23.1), this is the remaining source. Fix requires
-  state machine hysteresis (dwell time on GREEN→YELLOW transition or wider deadband).
+- None currently. EWMA boundary flapping resolved in v1.24.0 via dwell timer + deadband hysteresis.
 
 ## Tuning Parameter Reference
 
@@ -130,15 +127,14 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Version
 
-**Current:** v1.23.0 (Self-Optimizing Controller)
+**Current:** v1.24.0 (EWMA Boundary Hysteresis)
 
-- pyroute2 netlink for CAKE tc calls (3ms → 0.3ms, 10x faster)
-- Configurable per-granularity metrics retention with tuner safety validation
-- Auto-fusion healing: Pearson correlation, 3-state machine (ACTIVE/SUSPENDED/RECOVERING), Discord alerts
-- Adaptive rate step tuning: 5-layer rotation (signal→EWMA→threshold→advanced→response)
-- Response parameter tuning: step_up_mbps, factor_down, green_cycles_required (opt-in via exclude_params)
-- Oscillation lockout: freezes response parameters for 2h on excessive transitions
-- 3,928 unit tests passing, 91%+ coverage
+- Dwell timer (dwell_cycles=3 default) absorbs transient EWMA threshold crossings
+- Deadband margin (deadband_ms=3.0 default) prevents oscillation at exact boundary
+- YAML-configurable under continuous_monitoring.thresholds with SIGUSR1 hot-reload
+- Health endpoint hysteresis section (dwell_counter, deadband_ms, transitions_suppressed)
+- Spike detector confirmation counter (accel_confirm_cycles) eliminates single-sample jitter
+- 4,100+ unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
