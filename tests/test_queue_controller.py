@@ -1233,3 +1233,556 @@ class TestBaselineFreezeInvariant:
             f"Baseline should freeze at threshold, but moved from "
             f"{original_baseline} to {controller.baseline_rtt}"
         )
+
+
+# =============================================================================
+# HYSTERESIS FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def controller_3state_hysteresis():
+    """3-state controller with hysteresis enabled (dwell_cycles=3, deadband_ms=3.0)."""
+    return QueueController(
+        name="TestUpload",
+        floor_green=35_000_000,
+        floor_yellow=30_000_000,
+        floor_soft_red=25_000_000,
+        floor_red=25_000_000,
+        ceiling=40_000_000,
+        step_up=1_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.96,
+        green_required=5,
+        dwell_cycles=3,
+        deadband_ms=3.0,
+    )
+
+
+@pytest.fixture
+def controller_4state_hysteresis():
+    """4-state controller with hysteresis enabled (dwell_cycles=3, deadband_ms=3.0)."""
+    return QueueController(
+        name="TestDownload",
+        floor_green=800_000_000,
+        floor_yellow=600_000_000,
+        floor_soft_red=500_000_000,
+        floor_red=400_000_000,
+        ceiling=920_000_000,
+        step_up=10_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.96,
+        green_required=5,
+        dwell_cycles=3,
+        deadband_ms=3.0,
+    )
+
+
+# =============================================================================
+# DWELL TIMER 3-STATE TESTS
+# =============================================================================
+
+
+class TestDwellTimer3State:
+    """Tests for dwell timer gating GREEN->YELLOW in 3-state adjust().
+
+    Dwell timer requires dwell_cycles consecutive above-threshold cycles
+    before transitioning from GREEN to YELLOW. During dwell, zone stays
+    GREEN and rates hold steady.
+    """
+
+    BASELINE = 25.0
+    TARGET_DELTA = 15.0
+    WARN_DELTA = 45.0
+
+    def test_dwell_holds_green_below_threshold(self, controller_3state_hysteresis):
+        """2 cycles delta>target -> stays GREEN (dwell_cycles=3)."""
+        for i in range(2):
+            zone, _, _ = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target=15ms
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN", f"Cycle {i + 1}: should stay GREEN during dwell"
+
+        assert controller_3state_hysteresis._yellow_dwell == 2
+
+    def test_dwell_transitions_yellow_at_threshold(self, controller_3state_hysteresis):
+        """3 consecutive cycles delta>target -> transitions YELLOW."""
+        zones = []
+        for _ in range(3):
+            zone, _, _ = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target=15ms
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            zones.append(zone)
+
+        assert zones[0] == "GREEN"
+        assert zones[1] == "GREEN"
+        assert zones[2] == "YELLOW"
+
+    def test_dwell_resets_on_below_threshold(self, controller_3state_hysteresis):
+        """2 above, 1 below, 2 above -> stays GREEN (counter reset)."""
+        # 2 cycles above threshold
+        for _ in range(2):
+            zone, _, _ = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN"
+
+        # 1 cycle below threshold -> resets dwell counter
+        zone, _, _ = controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 10.0,  # delta=10ms < target
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "GREEN"
+
+        # 2 more cycles above -> should still be GREEN (counter was reset)
+        for _ in range(2):
+            zone, _, _ = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN"
+
+        assert controller_3state_hysteresis._yellow_dwell == 2
+
+    def test_dwell_holds_rates_steady(self, controller_3state_hysteresis):
+        """During dwell, rate does not decay (holds previous value)."""
+        controller_3state_hysteresis.current_rate = 38_000_000
+
+        for _ in range(2):
+            zone, rate, _ = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target (in dwell)
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN"
+            assert rate == 38_000_000, "Rate should hold steady during dwell"
+
+    def test_red_bypasses_dwell(self, controller_3state_hysteresis):
+        """delta>warn -> immediate RED regardless of dwell state."""
+        zone, _, _ = controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms > warn=45ms
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "RED"
+
+    def test_dwell_counter_resets_on_red(self, controller_3state_hysteresis):
+        """RED transition resets _yellow_dwell to 0."""
+        # 2 cycles in dwell
+        for _ in range(2):
+            controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms (in dwell)
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state_hysteresis._yellow_dwell == 2
+
+        # RED
+        controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms -> RED
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state_hysteresis._yellow_dwell == 0
+
+    def test_dwell_counter_resets_on_full_green(self, controller_3state_hysteresis):
+        """Full GREEN (delta well below threshold) resets _yellow_dwell."""
+        # 2 cycles in dwell
+        for _ in range(2):
+            controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms (in dwell)
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert controller_3state_hysteresis._yellow_dwell == 2
+
+        # GREEN
+        controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 5.0,  # delta=5ms -> GREEN
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert controller_3state_hysteresis._yellow_dwell == 0
+
+
+# =============================================================================
+# DEADBAND 3-STATE TESTS
+# =============================================================================
+
+
+class TestDeadband3State:
+    """Tests for deadband margin on YELLOW->GREEN recovery in 3-state adjust().
+
+    Deadband is asymmetric: only applies to YELLOW->GREEN recovery.
+    YELLOW->GREEN requires delta < (target_delta - deadband_ms).
+    """
+
+    BASELINE = 25.0
+    TARGET_DELTA = 15.0
+    WARN_DELTA = 45.0
+
+    def _enter_yellow(self, controller):
+        """Helper: transition controller to YELLOW via 3 dwell cycles."""
+        for _ in range(3):
+            controller.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > target
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+
+    def test_deadband_stays_yellow(self, controller_3state_hysteresis):
+        """In YELLOW, delta drops below target but within deadband -> stays YELLOW."""
+        self._enter_yellow(controller_3state_hysteresis)
+
+        # delta=14ms: below target=15 but above target-deadband=12
+        zone, _, _ = controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 14.0,  # delta=14ms
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "YELLOW", "Should stay YELLOW in deadband range"
+
+    def test_deadband_recovers_green(self, controller_3state_hysteresis):
+        """In YELLOW, delta drops below (target - deadband) -> recovers to GREEN."""
+        self._enter_yellow(controller_3state_hysteresis)
+
+        # delta=11ms: below target-deadband=12
+        zone, _, _ = controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 11.0,  # delta=11ms < 12ms
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "GREEN", "Should recover to GREEN below deadband"
+
+    def test_deadband_at_exact_boundary(self, controller_3state_hysteresis):
+        """Delta exactly at (target - deadband) stays YELLOW (need strictly below)."""
+        self._enter_yellow(controller_3state_hysteresis)
+
+        # delta=12.0ms: exactly target(15) - deadband(3) = 12
+        zone, _, _ = controller_3state_hysteresis.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 12.0,  # delta=12.0ms exactly
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+        assert zone == "YELLOW", "Exact boundary should stay YELLOW"
+
+
+# =============================================================================
+# DWELL TIMER 4-STATE TESTS
+# =============================================================================
+
+
+class TestDwellTimer4State:
+    """Tests for dwell timer gating GREEN->YELLOW in 4-state adjust_4state().
+
+    Same dwell logic as 3-state but applied to adjust_4state().
+    RED and SOFT_RED transitions bypass dwell entirely.
+    """
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_4state_dwell_holds_green(self, controller_4state_hysteresis):
+        """2 cycles delta>green_threshold -> stays GREEN (dwell not met)."""
+        for i in range(2):
+            zone, _, _ = controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > green=15ms
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            assert zone == "GREEN", f"Cycle {i + 1}: should stay GREEN during dwell"
+
+    def test_4state_dwell_transitions_yellow(self, controller_4state_hysteresis):
+        """3 consecutive cycles delta>green_threshold -> transitions YELLOW."""
+        zones = []
+        for _ in range(3):
+            zone, _, _ = controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms > green=15ms
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            zones.append(zone)
+
+        assert zones[0] == "GREEN"
+        assert zones[1] == "GREEN"
+        assert zones[2] == "YELLOW"
+
+    def test_4state_dwell_resets_mid_dwell(self, controller_4state_hysteresis):
+        """2 above, 1 below, 2 above -> all GREEN, _yellow_dwell == 2."""
+        # 2 cycles above
+        for _ in range(2):
+            zone, _, _ = controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            assert zone == "GREEN"
+
+        # 1 below -> resets
+        zone, _, _ = controller_4state_hysteresis.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 10.0,  # delta=10ms < green=15ms
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert zone == "GREEN"
+
+        # 2 more above
+        for _ in range(2):
+            zone, _, _ = controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+            assert zone == "GREEN"
+
+        assert controller_4state_hysteresis._yellow_dwell == 2
+
+    def test_4state_deadband_stays_yellow(self, controller_4state_hysteresis):
+        """In YELLOW, delta in deadband range -> stays YELLOW."""
+        # Transition to YELLOW via 3 dwell cycles
+        for _ in range(3):
+            controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+
+        # delta=14ms: below green=15 but above green-deadband=12
+        zone, _, _ = controller_4state_hysteresis.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 14.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert zone == "YELLOW", "Should stay YELLOW in deadband range"
+
+    def test_4state_deadband_recovers_green(self, controller_4state_hysteresis):
+        """Delta below (green_threshold - deadband) -> GREEN."""
+        # Transition to YELLOW
+        for _ in range(3):
+            controller_4state_hysteresis.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+
+        # delta=11ms: below green-deadband=12
+        zone, _, _ = controller_4state_hysteresis.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 11.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert zone == "GREEN", "Should recover to GREEN below deadband"
+
+    def test_4state_red_bypasses_dwell(self, controller_4state_hysteresis):
+        """Immediate RED not affected by dwell."""
+        zone, _, _ = controller_4state_hysteresis.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 85.0,  # delta=85ms > hard_red=80ms
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert zone == "RED"
+
+    def test_4state_soft_red_unchanged(self, controller_4state_hysteresis):
+        """SOFT_RED sustain behavior unchanged by dwell (dwell only gates GREEN->YELLOW)."""
+        # soft_red_required=1, so first SOFT_RED delta should transition immediately
+        zone, _, _ = controller_4state_hysteresis.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 50.0,  # delta=50ms -> SOFT_RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        assert zone == "SOFT_RED"
+
+
+# =============================================================================
+# HYSTERESIS PARAMETER TESTS
+# =============================================================================
+
+
+class TestHysteresisParams:
+    """Tests for QueueController dwell_cycles and deadband_ms constructor params."""
+
+    def test_default_params(self):
+        """Default dwell_cycles=3 and deadband_ms=3.0 when not specified."""
+        controller = QueueController(
+            name="Test",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+        assert controller.dwell_cycles == 3
+        assert controller.deadband_ms == 3.0
+
+    def test_custom_params(self):
+        """Constructor accepts custom dwell_cycles and deadband_ms."""
+        controller = QueueController(
+            name="Test",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+            dwell_cycles=5,
+            deadband_ms=5.0,
+        )
+        assert controller.dwell_cycles == 5
+        assert controller.deadband_ms == 5.0
+
+    def test_zero_dwell_disables(self):
+        """dwell_cycles=0 means immediate transition (backward compat)."""
+        controller = QueueController(
+            name="Test",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+            dwell_cycles=0,
+            deadband_ms=0.0,
+        )
+        # 1 cycle delta=20ms should transition to YELLOW immediately
+        zone, _, _ = controller.adjust(
+            baseline_rtt=25.0,
+            load_rtt=45.0,  # delta=20ms > target=15ms
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        assert zone == "YELLOW", "dwell_cycles=0 should allow immediate transition"
+
+    def test_zero_deadband_disables(self):
+        """deadband_ms=0.0 means exact threshold recovery (no deadband)."""
+        controller = QueueController(
+            name="Test",
+            floor_green=35_000_000,
+            floor_yellow=30_000_000,
+            floor_soft_red=25_000_000,
+            floor_red=25_000_000,
+            ceiling=40_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+            dwell_cycles=0,
+            deadband_ms=0.0,
+        )
+        # Transition to YELLOW (immediate with dwell_cycles=0)
+        controller.adjust(
+            baseline_rtt=25.0,
+            load_rtt=45.0,  # delta=20ms -> YELLOW
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        # delta=14.9ms (just below target=15) -> should recover to GREEN
+        zone, _, _ = controller.adjust(
+            baseline_rtt=25.0,
+            load_rtt=39.9,  # delta=14.9ms < 15ms
+            target_delta=15.0,
+            warn_delta=45.0,
+        )
+        assert zone == "GREEN", "deadband_ms=0.0 should allow exact threshold recovery"
+
+
+# =============================================================================
+# TRANSITION REASON DURING HYSTERESIS TESTS
+# =============================================================================
+
+
+class TestTransitionReasonsDuringHysteresis:
+    """Tests for transition_reason behavior during dwell and after dwell expires."""
+
+    BASELINE = 25.0
+    TARGET_DELTA = 15.0
+    WARN_DELTA = 45.0
+
+    def test_no_transition_reason_during_dwell(self, controller_3state_hysteresis):
+        """During dwell, zone stays GREEN -> no transition_reason emitted."""
+        for i in range(2):
+            zone, _, transition_reason = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms (in dwell)
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            assert zone == "GREEN"
+            assert transition_reason is None, (
+                f"Cycle {i + 1}: no transition_reason during dwell"
+            )
+
+    def test_transition_reason_after_dwell(self, controller_3state_hysteresis):
+        """When dwell expires and YELLOW entered, transition_reason is emitted."""
+        reasons = []
+        for _ in range(3):
+            _, _, transition_reason = controller_3state_hysteresis.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE + 20.0,  # delta=20ms
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+            reasons.append(transition_reason)
+
+        # First 2 cycles: no reason (dwell, still GREEN)
+        assert reasons[0] is None
+        assert reasons[1] is None
+        # 3rd cycle: dwell expires, YELLOW entered -> reason emitted
+        assert reasons[2] is not None
+        assert "exceeded target threshold" in reasons[2]
