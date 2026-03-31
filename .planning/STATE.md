@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.24
-milestone_name: EWMA Boundary Hysteresis
-status: in_progress
-last_updated: "2026-03-30"
-last_activity: 2026-03-30
+milestone: v1.23
+milestone_name: Self-Optimizing Controller
+status: executing
+last_updated: "2026-03-31T10:23:21.111Z"
+last_activity: 2026-03-31
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 0
   total_plans: 1
-  completed_plans: 1
-  percent: 25
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.24 Phase 121 - Core Hysteresis Logic
+**Current focus:** Phase 121 — core-hysteresis-logic
 
 ## Position
 
 **Milestone:** v1.24 EWMA Boundary Hysteresis
 **Phase:** 1 of 4 (Core Hysteresis Logic)
-**Plan:** 1 of 1 in current phase
-**Status:** Phase 121 Plan 01 complete
-**Last activity:** 2026-03-31 -- Completed 121-01-PLAN.md (dwell timer + deadband hysteresis)
+**Plan:** 0 of TBD in current phase
+**Status:** Executing Phase 121
+**Last activity:** 2026-03-31
 
-Progress: [###.......] 25%
+Progress: [..........] 0%
 
 ## Accumulated Context
 
@@ -43,8 +43,6 @@ Progress: [###.......] 25%
 - Hysteresis approach: dwell timer (N consecutive cycles) + deadband (split threshold for enter vs exit)
 - Default dwell_cycles=3 (150ms at 50ms cycle), deadband_ms=3.0
 - Upload and download share same hysteresis logic (both delta-based)
-- 121-01: Deadband boundary uses >= comparison (exact boundary stays YELLOW, must drop strictly below)
-- 121-01: Existing QueueController callers get dwell_cycles=3 default; test fixtures use dwell_cycles=0 for backward compat
 
 ### Known Issues
 
