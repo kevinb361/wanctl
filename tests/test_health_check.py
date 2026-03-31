@@ -188,6 +188,10 @@ class TestHealthServer:
         mock_wan_controller.download.soft_red_required = 3
         mock_wan_controller.download.green_streak = 5
         mock_wan_controller.download.green_required = 5
+        mock_wan_controller.download._yellow_dwell = 0
+        mock_wan_controller.download.dwell_cycles = 3
+        mock_wan_controller.download.deadband_ms = 3.0
+        mock_wan_controller.download._transitions_suppressed = 0
 
         # Mock upload queue
         mock_wan_controller.upload.current_rate = 35_000_000
@@ -196,6 +200,10 @@ class TestHealthServer:
         mock_wan_controller.upload.soft_red_required = 3
         mock_wan_controller.upload.green_streak = 5
         mock_wan_controller.upload.green_required = 5
+        mock_wan_controller.upload._yellow_dwell = 0
+        mock_wan_controller.upload.dwell_cycles = 3
+        mock_wan_controller.upload.deadband_ms = 3.0
+        mock_wan_controller.upload._transitions_suppressed = 0
 
         # Mock router connectivity state
         mock_wan_controller.router_connectivity.is_reachable = True
@@ -275,12 +283,20 @@ class TestRouterConnectivityReporting:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -439,12 +455,20 @@ class TestRouterConnectivityReporting:
         wan1.download.soft_red_required = 3
         wan1.download.green_streak = 5
         wan1.download.green_required = 5
+        wan1.download._yellow_dwell = 0
+        wan1.download.dwell_cycles = 3
+        wan1.download.deadband_ms = 3.0
+        wan1.download._transitions_suppressed = 0
         wan1.upload.current_rate = 20_000_000
         wan1.upload.red_streak = 0
         wan1.upload.soft_red_streak = 0
         wan1.upload.soft_red_required = 3
         wan1.upload.green_streak = 5
         wan1.upload.green_required = 5
+        wan1.upload._yellow_dwell = 0
+        wan1.upload.dwell_cycles = 3
+        wan1.upload.deadband_ms = 3.0
+        wan1.upload._transitions_suppressed = 0
         wan1.router_connectivity.is_reachable = True
         wan1.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -473,12 +497,20 @@ class TestRouterConnectivityReporting:
         wan2.download.soft_red_required = 3
         wan2.download.green_streak = 5
         wan2.download.green_required = 5
+        wan2.download._yellow_dwell = 0
+        wan2.download.dwell_cycles = 3
+        wan2.download.deadband_ms = 3.0
+        wan2.download._transitions_suppressed = 0
         wan2.upload.current_rate = 10_000_000
         wan2.upload.red_streak = 0
         wan2.upload.soft_red_streak = 0
         wan2.upload.soft_red_required = 3
         wan2.upload.green_streak = 5
         wan2.upload.green_required = 5
+        wan2.upload._yellow_dwell = 0
+        wan2.upload.dwell_cycles = 3
+        wan2.upload.deadband_ms = 3.0
+        wan2.upload._transitions_suppressed = 0
         wan2.router_connectivity.is_reachable = False
         wan2.router_connectivity.to_dict.return_value = {
             "is_reachable": False,
@@ -628,12 +660,20 @@ class TestCycleBudgetInHealthEndpoint:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -897,12 +937,20 @@ class TestSignalQualityHealth:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -1094,12 +1142,20 @@ class TestIRTTHealth:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -1379,12 +1435,20 @@ class TestReflectorQualityHealth:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -1627,12 +1691,20 @@ class TestFusionHealth:
         wan.download.soft_red_required = 3
         wan.download.green_streak = 5
         wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
         wan.upload.soft_red_required = 3
         wan.upload.green_streak = 5
         wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -1803,5 +1875,143 @@ class TestFusionHealth:
                 data = json.loads(response.read().decode())
             wan_data = data["wans"][0]
             assert "fusion" in wan_data
+        finally:
+            server.shutdown()
+
+
+# =============================================================================
+# HYSTERESIS HEALTH ENDPOINT TESTS (OBSV-01)
+# =============================================================================
+
+
+class TestHysteresisHealth:
+    """Tests for hysteresis sub-dict in health endpoint download/upload sections."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_hysteresis(self):
+        """Create a mock WAN controller with hysteresis state."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 17
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 1
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 5
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        # Prevent MagicMock truthy issues
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
+        return wan
+
+    def _make_controller(self, wan):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_health_hysteresis_in_download(self, mock_wan_with_hysteresis):
+        """Health endpoint download section has hysteresis with correct values."""
+        controller = self._make_controller(mock_wan_with_hysteresis)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            dl = data["wans"][0]["download"]["hysteresis"]
+            assert dl["dwell_counter"] == 0
+            assert dl["transitions_suppressed"] == 17
+        finally:
+            server.shutdown()
+
+    def test_health_hysteresis_in_upload(self, mock_wan_with_hysteresis):
+        """Health endpoint upload section has hysteresis with correct values."""
+        controller = self._make_controller(mock_wan_with_hysteresis)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            ul = data["wans"][0]["upload"]["hysteresis"]
+            assert ul["dwell_counter"] == 1
+            assert ul["transitions_suppressed"] == 5
+        finally:
+            server.shutdown()
+
+    def test_health_hysteresis_keys_complete(self, mock_wan_with_hysteresis):
+        """Both download and upload hysteresis dicts have all 4 required keys."""
+        controller = self._make_controller(mock_wan_with_hysteresis)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            expected_keys = {"dwell_counter", "dwell_cycles", "deadband_ms", "transitions_suppressed"}
+            dl_keys = set(data["wans"][0]["download"]["hysteresis"].keys())
+            ul_keys = set(data["wans"][0]["upload"]["hysteresis"].keys())
+            assert dl_keys == expected_keys
+            assert ul_keys == expected_keys
+        finally:
+            server.shutdown()
+
+    def test_health_hysteresis_config_values(self, mock_wan_with_hysteresis):
+        """Hysteresis config values (dwell_cycles, deadband_ms) reflect configured values."""
+        controller = self._make_controller(mock_wan_with_hysteresis)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            dl = data["wans"][0]["download"]["hysteresis"]
+            assert dl["dwell_cycles"] == 3
+            assert dl["deadband_ms"] == 3.0
         finally:
             server.shutdown()
