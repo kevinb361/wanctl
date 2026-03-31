@@ -6,6 +6,8 @@ and QueueController.adjust_4state() (4-state) methods.
 Coverage target: autorate_continuous.py lines 611-760 (QueueController class)
 """
 
+import logging
+
 import pytest
 
 from wanctl.autorate_continuous import QueueController
@@ -1794,3 +1796,185 @@ class TestTransitionReasonsDuringHysteresis:
         # 3rd cycle: dwell expires, YELLOW entered -> reason emitted
         assert reasons[2] is not None
         assert "exceeded target threshold" in reasons[2]
+
+
+# =============================================================================
+# HYSTERESIS OBSERVABILITY TESTS
+# =============================================================================
+
+
+class TestHysteresisObservability:
+    """Tests for hysteresis observability: _transitions_suppressed counter and log messages."""
+
+    BASELINE = 10.0
+    LOAD_RTT = 20.0  # delta=10.0
+    TARGET_DELTA = 5.0  # delta > 5 triggers dwell
+    WARN_DELTA = 25.0
+
+    # 4-state thresholds (delta-based): GREEN < 5, YELLOW < 15, SOFT_RED < 25, RED >= 25
+    GREEN_THRESHOLD = 5.0
+    SOFT_RED_THRESHOLD = 15.0
+    HARD_RED_THRESHOLD = 25.0
+
+    @staticmethod
+    def _make_upload_controller(dwell_cycles: int = 3) -> QueueController:
+        return QueueController(
+            name="upload",
+            floor_green=5_000_000,
+            floor_yellow=4_000_000,
+            floor_soft_red=3_000_000,
+            floor_red=2_000_000,
+            ceiling=10_000_000,
+            step_up=500_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+            dwell_cycles=dwell_cycles,
+            deadband_ms=0.0,
+        )
+
+    @staticmethod
+    def _make_download_controller(dwell_cycles: int = 3) -> QueueController:
+        return QueueController(
+            name="download",
+            floor_green=500_000_000,
+            floor_yellow=400_000_000,
+            floor_soft_red=300_000_000,
+            floor_red=200_000_000,
+            ceiling=900_000_000,
+            step_up=10_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+            dwell_cycles=dwell_cycles,
+            deadband_ms=0.0,
+        )
+
+    def test_transitions_suppressed_initialized_zero(self):
+        """QueueController initializes _transitions_suppressed to 0."""
+        qc = self._make_upload_controller()
+        assert qc._transitions_suppressed == 0
+
+    def test_dwell_suppression_increments_counter(self):
+        """Each absorbed cycle during dwell increments _transitions_suppressed."""
+        qc = self._make_upload_controller(dwell_cycles=3)
+        # 2 cycles above threshold but below dwell_cycles -> 2 suppressed
+        for _ in range(2):
+            qc.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert qc._transitions_suppressed == 2
+
+    def test_dwell_expiry_does_not_increment_counter(self):
+        """When dwell expires (transition fires), counter is NOT incremented."""
+        qc = self._make_upload_controller(dwell_cycles=3)
+        # 3 cycles: first 2 suppressed, 3rd fires transition
+        for _ in range(3):
+            qc.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        # Only 2 suppressed (cycles 1 and 2), not 3
+        assert qc._transitions_suppressed == 2
+
+    def test_suppression_counter_accumulates(self):
+        """Counter accumulates across multiple dwell sequences."""
+        qc = self._make_upload_controller(dwell_cycles=3)
+        # First dwell sequence: 3 cycles (2 suppressed + 1 fires)
+        for _ in range(3):
+            qc.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert qc._transitions_suppressed == 2
+
+        # Return to GREEN to reset dwell
+        qc.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 1.0,  # delta=1.0, well below target
+            target_delta=self.TARGET_DELTA,
+            warn_delta=self.WARN_DELTA,
+        )
+
+        # Second dwell sequence: 3 cycles (2 more suppressed + 1 fires)
+        for _ in range(3):
+            qc.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert qc._transitions_suppressed == 4  # 2 + 2
+
+    def test_adjust_suppression_debug_log(self, caplog):
+        """adjust() emits DEBUG log on suppressed cycle."""
+        qc = self._make_upload_controller(dwell_cycles=3)
+        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+            qc.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                target_delta=self.TARGET_DELTA,
+                warn_delta=self.WARN_DELTA,
+            )
+        assert any(
+            "[HYSTERESIS] UL transition suppressed, dwell 1/3" in rec.message
+            for rec in caplog.records
+        ), f"Expected suppression log, got: {[r.message for r in caplog.records]}"
+
+    def test_adjust_expiry_info_log(self, caplog):
+        """adjust() emits INFO log when dwell expires."""
+        qc = self._make_upload_controller(dwell_cycles=3)
+        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+            for _ in range(3):
+                qc.adjust(
+                    baseline_rtt=self.BASELINE,
+                    load_rtt=self.LOAD_RTT,
+                    target_delta=self.TARGET_DELTA,
+                    warn_delta=self.WARN_DELTA,
+                )
+        info_records = [r for r in caplog.records if r.levelno == logging.INFO]
+        assert any(
+            "[HYSTERESIS] UL dwell expired, GREEN->YELLOW confirmed" in rec.message
+            for rec in info_records
+        ), f"Expected expiry log, got: {[r.message for r in info_records]}"
+
+    def test_adjust_4state_suppression_debug_log(self, caplog):
+        """adjust_4state() emits DEBUG log with DL direction on suppressed cycle."""
+        qc = self._make_download_controller(dwell_cycles=3)
+        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+            qc.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.LOAD_RTT,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+            )
+        assert any(
+            "[HYSTERESIS] DL transition suppressed, dwell 1/3" in rec.message
+            for rec in caplog.records
+        ), f"Expected DL suppression log, got: {[r.message for r in caplog.records]}"
+
+    def test_adjust_4state_expiry_info_log(self, caplog):
+        """adjust_4state() emits INFO log with DL direction when dwell expires."""
+        qc = self._make_download_controller(dwell_cycles=3)
+        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+            for _ in range(3):
+                qc.adjust_4state(
+                    baseline_rtt=self.BASELINE,
+                    load_rtt=self.LOAD_RTT,
+                    green_threshold=self.GREEN_THRESHOLD,
+                    soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                    hard_red_threshold=self.HARD_RED_THRESHOLD,
+                )
+        info_records = [r for r in caplog.records if r.levelno == logging.INFO]
+        assert any(
+            "[HYSTERESIS] DL dwell expired, GREEN->YELLOW confirmed" in rec.message
+            for rec in info_records
+        ), f"Expected DL expiry log, got: {[r.message for r in info_records]}"
