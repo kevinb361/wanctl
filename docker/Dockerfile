@@ -46,7 +46,7 @@ RUN chown -R root:wanctl /etc/wanctl \
 
 # Dependencies must match pyproject.toml [project.dependencies]
 RUN pip install --no-cache-dir \
-    requests>=2.31.0 \
+    requests>=2.33.0 \
     pyyaml>=6.0.1 \
     paramiko>=3.4.0 \
     tabulate>=0.9.0 \

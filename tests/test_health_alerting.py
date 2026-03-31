@@ -132,7 +132,7 @@ class TestAutorateHealthAlerting:
         wan_controller.upload.soft_red_required = 3
         wan_controller.upload.green_streak = 5
         wan_controller.upload.green_required = 5
-        # Phase 92: signal quality and IRTT attributes (prevent MagicMock truthy trap)
+        # Phase 92+: signal quality, IRTT, fusion, tuning attributes (prevent MagicMock truthy trap)
         wan_controller._last_signal_result = None
         wan_controller._irtt_thread = None
         wan_controller._irtt_correlation = None
@@ -141,6 +141,11 @@ class TestAutorateHealthAlerting:
         wan_controller._fusion_icmp_weight = 0.7
         wan_controller._last_fused_rtt = None
         wan_controller._last_icmp_filtered_rtt = None
+        wan_controller._fusion_healer = None
+        wan_controller._tuning_enabled = False
+        wan_controller._tuning_state = None
+        wan_controller._parameter_locks = None
+        wan_controller._reflector_scorer = None
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, engine):

@@ -153,7 +153,7 @@ class TestFusionConfig:
         with caplog.at_level(logging.INFO):
             _make_config(tmp_path, autorate_config_dict)
         assert "icmp_weight=0.6" in caplog.text
-        assert "irtt_weight=0.4" in caplog.text
+        assert "healing.suspend_threshold=" in caplog.text
 
     # -----------------------------------------------------------------
     # fusion.enabled tests (FUSE-02)
