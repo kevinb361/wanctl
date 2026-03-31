@@ -76,7 +76,11 @@ Plans:
 1. Health endpoint JSON includes hysteresis section with current dwell_counter value, configured deadband_margins, and cumulative transitions_suppressed count
 2. When the dwell timer absorbs a would-be GREEN->YELLOW transition, a log message appears indicating "transition suppressed, dwell N/M" (showing current count vs required)
 3. Suppressed transition count is visible in health endpoint for monitoring without log parsing
-   **Plans**: TBD
+   **Plans:** 1 plan
+
+Plans:
+
+- [ ] 123-01-PLAN.md -- Counter + logging in QueueController, hysteresis sub-dict in health endpoint
 
 ### Phase 124: Production Validation
 
@@ -99,7 +103,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 | ----------------------------- | -------------- | ----------- | ---------- |
 | 121. Core Hysteresis Logic    | 1/1            | Complete    | 2026-03-31 |
 | 122. Hysteresis Configuration | 2/2 | Complete   | 2026-03-31 |
-| 123. Hysteresis Observability | 0/TBD          | Not started | -          |
+| 123. Hysteresis Observability | 0/1            | Not started | -          |
 | 124. Production Validation    | 0/TBD          | Not started | -          |
 
 <details>
