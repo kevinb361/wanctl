@@ -103,7 +103,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 | ----------------------------- | -------------- | ----------- | ---------- |
 | 121. Core Hysteresis Logic    | 1/1            | Complete    | 2026-03-31 |
 | 122. Hysteresis Configuration | 2/2 | Complete   | 2026-03-31 |
-| 123. Hysteresis Observability | 1/1 | Complete   | 2026-03-31 |
+| 123. Hysteresis Observability | 1/1 | Complete    | 2026-03-31 |
 | 124. Production Validation    | 0/TBD          | Not started | -          |
 
 <details>
