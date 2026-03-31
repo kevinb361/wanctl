@@ -6,7 +6,7 @@ status: in_progress
 last_updated: "2026-03-30"
 last_activity: 2026-03-30
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,43 +20,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining requirements for v1.24
+**Current focus:** v1.24 Phase 121 - Core Hysteresis Logic
 
 ## Position
 
 **Milestone:** v1.24 EWMA Boundary Hysteresis
-**Phase:** Not started (defining requirements)
-**Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-03-30 — Milestone v1.24 started
+**Phase:** 1 of 4 (Core Hysteresis Logic)
+**Plan:** 0 of TBD in current phase
+**Status:** Ready to plan
+**Last activity:** 2026-03-30 -- Roadmap created (4 phases, 11 requirements mapped)
 
-Progress: [ ] 0%
+Progress: [..........] 0%
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- 50ms cycle validated as optimal — measurement cadence feeds signal processing chain
-- CAKE kernel autorate-ingress 250ms is irrelevant (different algorithm, different problem domain)
-- pyroute2 netlink replaces subprocess tc (3ms → 0.3ms), no cycle interval change
-- ATT fusion manually disabled due to ICMP/IRTT path divergence (correlation 0.74)
-- metrics.db growing ~500MB/day — retention strategy required
-- Prometheus export is optional, core operation remains self-contained
-- 115-02: Production uses system Python (no venv); requests 2.32.3 below declared >=2.33.0 (CVE pending)
-- 115-02: Backup runbook is documentation only (no automated backup) per OPSEC-04
-- 115-03: Resource limits sized from production observation (MemoryMax=512M wanctl, 384M steering; MemoryHigh at 75% of max)
-- 115-03: NIC tuning persistence confirmed via reboot -- wanctl-nic-tuning.service enabled and runs on boot
-- 120-01: 6 thin dl/ul wrappers over 3 shared response strategy implementations for StrategyFn compliance
-- 120-01: Episode detection uses state >= 2.0 as congestion, == 0.0 as recovery; YELLOW (1.0) not congestion
-- 120-02: check_oscillation_lockout as testable function in response.py rather than inline maintenance loop code
-- 120-02: Default exclude_params uses RESPONSE_PARAMS as default arg; operator opts in via explicit empty list
+- 50ms cycle validated as optimal -- measurement cadence feeds signal processing chain
+- pyroute2 netlink replaces subprocess tc (3ms -> 0.3ms), no cycle interval change
+- Spike detector confirmation counter (v1.23.1) solved single-sample jitter
+- EWMA boundary flapping remains: 30 GREEN<->YELLOW transitions / 120s during prime-time DOCSIS load
+- Hysteresis approach: dwell timer (N consecutive cycles) + deadband (split threshold for enter vs exit)
+- Default dwell_cycles=3 (150ms at 50ms cycle), deadband_ms=3.0
+- Upload and download share same hysteresis logic (both delta-based)
 
 ### Known Issues
 
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure
-- ATT fusion disabled — protocol correlation 0.74 causes permanent delta offset
-- metrics.db at 521MB after 25h — disk fills in ~50 days at current rate
+- ATT fusion disabled -- protocol correlation 0.74 causes permanent delta offset
+- metrics.db at 521MB after 25h -- disk fills in ~50 days at current rate
 
 ### Quick Tasks Completed
 

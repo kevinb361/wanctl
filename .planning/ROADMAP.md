@@ -2,7 +2,7 @@
 
 ## Overview
 
-wanctl v1.23 completes the self-optimizing controller vision by extending adaptive tuning to response parameters (step_up, factor_down, green_cycles), automating fusion healing for ICMP/IRTT path divergence, replacing subprocess tc calls with pyroute2 netlink for 10x latency reduction, adding Prometheus/Grafana observability, and making metrics.db retention configurable. Five phases ordered by technical uncertainty and dependency: netlink backend first (highest uncertainty, fully independent), retention second (prerequisite for Prometheus aggressive mode), fusion healing third (addresses known ATT production issue), adaptive rate steps fourth (highest blast radius, needs stable foundation), Prometheus last (purely additive, benefits from all prior phases).
+wanctl v1.24 adds state machine hysteresis to eliminate GREEN/YELLOW flapping at the EWMA threshold boundary during prime-time DOCSIS load. Production data (2026-03-30) shows 30 GREEN<->YELLOW transitions per 120s window during evening peak -- the spike detector confirmation counter (v1.23.1) solved single-sample jitter, but EWMA oscillation at the exact `baseline + target_bloat_ms` boundary persists. Four phases: core hysteresis logic first (dwell timer + deadband on both DL and UL state machines), then configuration wiring (YAML + SIGUSR1 hot-reload + sensible defaults), then observability (health endpoint state + suppression logging), and finally production validation (deploy, confirm zero flapping alerts, verify genuine congestion still detected within latency budget).
 
 ## Domain Expertise
 
@@ -11,130 +11,86 @@ None
 ## Milestones
 
 - v1.0 through v1.22: See MILESTONES.md (shipped)
-- v1.23 Self-Optimizing Controller: Phases 117-121 (current)
+- v1.23 Self-Optimizing Controller: Phases 117-120 (shipped 2026-03-27)
+- v1.24 EWMA Boundary Hysteresis: Phases 121-124 (current)
 
 ## Phases
 
-### v1.22 Remaining (Full System Audit)
-
-- [x] **Phase 116: Test & Documentation Hygiene** - Test quality audit and fixes, docs freshness review, container script archival, audit findings summary
-
-### v1.23 Self-Optimizing Controller
+### v1.23 Self-Optimizing Controller (shipped)
 
 - [x] **Phase 117: pyroute2 Netlink Backend** - Replace subprocess tc with pyroute2 netlink for CAKE bandwidth changes and per-tin stats readback
 - [x] **Phase 118: Metrics Retention Strategy** - Configurable retention thresholds with tuner data availability validation
 - [x] **Phase 119: Auto-Fusion Healing** - Automatic fusion suspend/recovery based on protocol correlation with Discord alerts
 - [x] **Phase 120: Adaptive Rate Step Tuning** - Tuner learns optimal step_up, factor_down, green_cycles_required with oscillation lockout
-- [ ] ~~**Phase 121: Prometheus/Grafana Export**~~ - Deferred to v1.24 (Prometheus/Grafana infrastructure not yet deployed)
+
+### v1.24 EWMA Boundary Hysteresis
+
+- [ ] **Phase 121: Core Hysteresis Logic** - Dwell timer and deadband margin on GREEN/YELLOW state transitions for both download and upload
+- [ ] **Phase 122: Hysteresis Configuration** - YAML config, sensible defaults, and SIGUSR1 hot-reload for hysteresis parameters
+- [ ] **Phase 123: Hysteresis Observability** - Health endpoint state exposure and transition suppression logging
+- [ ] **Phase 124: Production Validation** - Deploy, confirm zero flapping, verify genuine congestion detection latency
 
 ## Phase Details
 
-### Phase 116: Test & Documentation Hygiene
-
-**Goal**: Test suite quality issues are identified and fixed, all documentation reflects current architecture, and a complete audit findings summary exists
-**Depends on**: Phase 115
-**Requirements**: TDOC-01, TDOC-02, TDOC-03, TDOC-04, TDOC-05, TDOC-06
+### Phase 121: Core Hysteresis Logic
+**Goal**: The controller absorbs transient EWMA threshold crossings without triggering state transitions, so only sustained congestion causes GREEN->YELLOW
+**Depends on**: Nothing (first phase of v1.24)
+**Requirements**: HYST-01, HYST-02, HYST-03, HYST-04
 **Success Criteria** (what must be TRUE):
+  1. Controller remains in GREEN when delta briefly exceeds target_bloat_ms for fewer than N consecutive cycles (dwell timer absorbs transients)
+  2. Controller transitions from YELLOW back to GREEN only when delta drops below (target_bloat_ms - deadband_ms), not at the exact threshold (split threshold prevents boundary oscillation)
+  3. Dwell counter resets to zero whenever delta drops below threshold mid-dwell, so only uninterrupted above-threshold runs trigger YELLOW
+  4. Upload state machine applies identical dwell timer and deadband logic as download (both directions protected from flapping)
+**Plans**: TBD
 
-1. Test quality audit completed with assertion-free, over-mocked, and tautological tests identified and highest-risk cases fixed
-2. All files in docs/\* reviewed and updated to reflect post-v1.21 architecture (container references removed, VM architecture documented)
-3. Container-era scripts archived to .archive/ with a manifest documenting what each script was and why it was archived
-4. CONFIG_SCHEMA.md aligned with config_validation_utils.py (all accepted params documented, no stale entries)
-5. Audit findings summary produced with remaining debt inventory categorized by severity and recommended milestone
-   **Plans**: 3 plans
-
-Plans:
-
-- [x] 116-01-PLAN.md -- Test quality audit scan + fix assertion-free and tautological tests
-- [x] 116-02-PLAN.md -- CONFIG_SCHEMA.md alignment, docs VM updates, container script archival
-- [x] 116-03-PLAN.md -- Capstone v1.22 audit findings summary (aggregates all phases 112-116)
-
-### Phase 117: pyroute2 Netlink Backend
-
-**Goal**: tc calls in the 50ms hot loop use kernel netlink instead of subprocess fork/exec, reclaiming ~5ms/cycle
-**Depends on**: Nothing (first phase, fully independent)
-**Requirements**: NLNK-01, NLNK-02, NLNK-03, NLNK-04, NLNK-05
+### Phase 122: Hysteresis Configuration
+**Goal**: Operators can tune hysteresis behavior via YAML config with sensible defaults that work without changes, and update parameters at runtime via SIGUSR1
+**Depends on**: Phase 121
+**Requirements**: CONF-01, CONF-02, CONF-03
 **Success Criteria** (what must be TRUE):
+  1. Operator can set dwell_cycles and deadband_ms under continuous_monitoring.thresholds in YAML and the controller applies them
+  2. Sending SIGUSR1 to the daemon reloads hysteresis parameters from disk without service restart (consistent with existing dry_run/fusion/wan_state reload chain)
+  3. A fresh install with no hysteresis config uses sensible defaults (dwell_cycles=3, deadband_ms=3.0) that eliminate flapping without masking genuine congestion
+**Plans**: TBD
 
-1. Operator can set `transport: "linux-cake-netlink"` in YAML and the controller uses pyroute2 for all tc operations
-2. CAKE bandwidth changes via netlink produce identical queue state to subprocess tc (verified by tc -j readback)
-3. Per-tin CAKE stats (bytes, packets, drops per tin) are available via netlink without subprocess tc -j qdisc show
-4. If pyroute2 netlink fails, the controller falls back to subprocess tc and logs a warning (no service interruption)
-5. The IPRoute connection persists for daemon lifetime and automatically reconnects on socket death without cycle disruption
-   **Plans**: TBD
-
-### Phase 118: Metrics Retention Strategy
-
-**Goal**: Operators can configure metrics.db retention thresholds and the system enforces that tuner data availability is never silently broken
-**Depends on**: Nothing (independent, but ships before Prometheus for config design coordination)
-**Requirements**: RETN-01, RETN-02, RETN-03
+### Phase 123: Hysteresis Observability
+**Goal**: Operators can see hysteresis state in the health endpoint and identify suppressed transitions in logs without adding overhead to the control loop
+**Depends on**: Phase 121
+**Requirements**: OBSV-01, OBSV-02
 **Success Criteria** (what must be TRUE):
+  1. Health endpoint JSON includes hysteresis section with current dwell_counter value, configured deadband_margins, and cumulative transitions_suppressed count
+  2. When the dwell timer absorbs a would-be GREEN->YELLOW transition, a log message appears indicating "transition suppressed, dwell N/M" (showing current count vs required)
+  3. Suppressed transition count is visible in health endpoint for monitoring without log parsing
+**Plans**: TBD
 
-1. Operator can configure retention thresholds (raw_age_seconds, aggregate_1m_age_seconds, aggregate_5m_age_seconds) via storage.retention YAML section
-2. Config validation rejects any retention config where aggregate_1m_age_seconds is less than tuning.lookback_hours \* 3600, with a clear error message
-3. Operator can enable prometheus_compensated mode for aggressive local retention (24-48h) when long-term TSDB is available
-   **Plans**: TBD
-
-### Phase 119: Auto-Fusion Healing
-
-**Goal**: The controller automatically manages fusion state based on protocol correlation, eliminating manual SIGUSR1 toggle for ICMP/IRTT path divergence
-**Depends on**: Nothing (independent, ships after Phase 117 for sequential validation)
-**Requirements**: FUSE-01, FUSE-02, FUSE-03, FUSE-04, FUSE-05
+### Phase 124: Production Validation
+**Goal**: Hysteresis is proven effective in production -- flapping is eliminated and genuine congestion detection latency remains acceptable
+**Depends on**: Phase 121, Phase 122, Phase 123
+**Requirements**: VALN-01, VALN-02
 **Success Criteria** (what must be TRUE):
-
-1. When ICMP/IRTT protocol correlation drops below threshold for a sustained period, the controller auto-suspends fusion and sends a Discord alert
-2. When protocol correlation recovers, the controller transitions through RECOVERING to ACTIVE and sends a Discord alert
-3. The health endpoint shows current fusion heal state (ACTIVE/SUSPENDED/RECOVERING) and recent correlation history
-4. While fusion is suspended by the healer, the TuningEngine cannot modify fusion_icmp_weight (parameter is locked)
-   **Plans**: TBD
-
-### Phase 120: Adaptive Rate Step Tuning
-
-**Goal**: The tuning engine learns optimal response parameters from production episodes, completing the self-optimizing controller vision
-**Depends on**: Phase 118 (retention must guarantee 1m data availability for strategy lookback)
-**Requirements**: RTUN-01, RTUN-02, RTUN-03, RTUN-04, RTUN-05
-**Success Criteria** (what must be TRUE):
-
-1. The tuner analyzes production recovery episodes and adjusts step_up_mbps toward faster recovery without overshoot
-2. The tuner analyzes congestion resolution speed and adjusts factor_down toward faster resolution without excessive bandwidth sacrifice
-3. The tuner analyzes step-up re-trigger rates and adjusts green_cycles_required to prevent premature recovery
-4. When transitions/minute exceeds the oscillation threshold, all response parameters are frozen and a Discord alert fires
-5. Response tuning is disabled by default via exclude_params and must be explicitly opted in (matching existing tuning graduation pattern)
-   **Plans**: TBD
-
-### Phase 121: Prometheus/Grafana Export
-
-**Goal**: Operators can view live wanctl metrics in Grafana dashboards backed by Prometheus, with zero overhead added to the 50ms control loop
-**Depends on**: Phase 118 (prometheus_compensated retention mode depends on retention config design)
-**Requirements**: OBSV-01, OBSV-02, OBSV-03, OBSV-04
-**Success Criteria** (what must be TRUE):
-
-1. Prometheus can scrape wanctl metrics from port 9103 and display them in Grafana using the committed dashboard JSON
-2. Per-tin CAKE metrics are exported with stable labels (wan, direction, tin) enabling per-traffic-class Grafana panels
-3. The core wanctl daemon starts and operates normally without prometheus_client installed (optional dependency)
-4. The /metrics endpoint adds zero overhead to the 50ms control loop (CustomCollector reads state on scrape, not push from cycle)
-   **Plans**: TBD
-   **UI hint**: yes
+  1. During a prime-time evening window (7pm-11pm), zero flapping alerts fire (vs baseline of 1-3 alert pairs per evening)
+  2. An RRUL stress test triggers YELLOW within 500ms of the no-hysteresis baseline (dwell_cycles=3 at 50ms = 150ms additional latency, well within budget)
+  3. Health endpoint transitions_suppressed counter is non-zero, confirming hysteresis is actively absorbing transients
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 116 -> 117 -> 118 -> 119 -> 120 -> 121
+Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 
-| Phase                             | Plans Complete | Status   | Completed  |
-| --------------------------------- | -------------- | -------- | ---------- |
-| 116. Test & Documentation Hygiene | 3/3            | Complete | 2026-03-26 |
-| 117. pyroute2 Netlink Backend     | 2/2            | Complete | 2026-03-27 |
-| 118. Metrics Retention Strategy   | 2/2            | Complete | 2026-03-27 |
-| 119. Auto-Fusion Healing          | 2/2            | Complete | 2026-03-27 |
-| 120. Adaptive Rate Step Tuning    | 2/2            | Complete | 2026-03-27 |
-| 121. Prometheus/Grafana Export    | -              | Deferred | v1.24      |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 121. Core Hysteresis Logic | 0/TBD | Not started | - |
+| 122. Hysteresis Configuration | 0/TBD | Not started | - |
+| 123. Hysteresis Observability | 0/TBD | Not started | - |
+| 124. Production Validation | 0/TBD | Not started | - |
 
 <details>
-<summary>Previous Milestones (v1.0-v1.22)</summary>
+<summary>Previous Milestones (v1.0-v1.23)</summary>
 
 | Milestone                            | Phases  | Plans | Status   | Completed  |
 | ------------------------------------ | ------- | ----- | -------- | ---------- |
+| v1.23 Self-Optimizing Controller     | 117-120 | 8     | Complete | 2026-03-27 |
 | v1.22 Full System Audit              | 112-116 | 16+   | Complete | 2026-03-26 |
 | v1.21 CAKE Offload                   | 104-110 | 14    | Complete | 2026-03-25 |
 | v1.20 Adaptive Tuning                | 98-103  | 13    | Complete | 2026-03-19 |

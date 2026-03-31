@@ -45,7 +45,7 @@ Deferred to future release. Tracked but not in current roadmap.
 |---------|--------|
 | YELLOW->RED hysteresis | RED transitions are already protected by sustained threshold checks |
 | Upload-specific thresholds | Upload uses same delta-based detection, shared hysteresis is sufficient |
-| Adaptive hysteresis (auto-tuning dwell/deadband) | Premature — fixed values need production validation first |
+| Adaptive hysteresis (auto-tuning dwell/deadband) | Premature -- fixed values need production validation first |
 | Rate ramp smoothing | Separate concern from state transition hysteresis, future milestone |
 
 ## Traceability
@@ -54,23 +54,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYST-01 | — | Pending |
-| HYST-02 | — | Pending |
-| HYST-03 | — | Pending |
-| HYST-04 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| CONF-03 | — | Pending |
-| OBSV-01 | — | Pending |
-| OBSV-02 | — | Pending |
-| VALN-01 | — | Pending |
-| VALN-02 | — | Pending |
+| HYST-01 | Phase 121 | Pending |
+| HYST-02 | Phase 121 | Pending |
+| HYST-03 | Phase 121 | Pending |
+| HYST-04 | Phase 121 | Pending |
+| CONF-01 | Phase 122 | Pending |
+| CONF-02 | Phase 122 | Pending |
+| CONF-03 | Phase 122 | Pending |
+| OBSV-01 | Phase 123 | Pending |
+| OBSV-02 | Phase 123 | Pending |
+| VALN-01 | Phase 124 | Pending |
+| VALN-02 | Phase 124 | Pending |
 
 **Coverage:**
 - v1.24 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-30*
-*Last updated: 2026-03-30 after initial definition*
+*Last updated: 2026-03-30 after roadmap creation*
