@@ -22,8 +22,8 @@ Requirements for EWMA Boundary Hysteresis milestone. Each maps to roadmap phases
 
 ### Observability (OBSV)
 
-- [ ] **OBSV-01**: Health endpoint exposes hysteresis state (dwell_counter, deadband_margins, transitions_suppressed count)
-- [ ] **OBSV-02**: Log messages indicate when transitions are suppressed by dwell timer ("transition suppressed, dwell N/M")
+- [x] **OBSV-01**: Health endpoint exposes hysteresis state (dwell_counter, deadband_margins, transitions_suppressed count)
+- [x] **OBSV-02**: Log messages indicate when transitions are suppressed by dwell timer ("transition suppressed, dwell N/M")
 
 ### Validation (VALN)
 
@@ -61,8 +61,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-01     | Phase 122 | Complete |
 | CONF-02     | Phase 122 | Complete |
 | CONF-03     | Phase 122 | Complete |
-| OBSV-01     | Phase 123 | Pending  |
-| OBSV-02     | Phase 123 | Pending  |
+| OBSV-01     | Phase 123 | Complete |
+| OBSV-02     | Phase 123 | Complete |
 | VALN-01     | Phase 124 | Pending  |
 | VALN-02     | Phase 124 | Pending  |
 
