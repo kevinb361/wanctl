@@ -1,66 +1,52 @@
-# Requirements: wanctl v1.23 Self-Optimizing Controller
+# Requirements: wanctl v1.24
 
-**Defined:** 2026-03-26
-**Core Value:** Sub-second congestion detection with 50ms control loops — now self-optimizing across detection AND response
+**Defined:** 2026-03-30
+**Core Value:** Sub-second congestion detection with 50ms control loops
 
-## v1.23 Requirements
+## v1.24 Requirements
 
-Complete the tuner's vision, heal fusion automatically, make tc calls cheaper via direct netlink, and add proper observability.
+Requirements for EWMA Boundary Hysteresis milestone. Each maps to roadmap phases.
 
-### Netlink Backend
+### State Machine Hysteresis (HYST)
 
-- [x] **NLNK-01**: LinuxCakeBackend can change CAKE bandwidth via pyroute2 netlink instead of subprocess `tc`
-- [x] **NLNK-02**: NetlinkCakeBackend maintains a singleton IPRoute connection for daemon lifetime with reconnect on socket death
-- [x] **NLNK-03**: NetlinkCakeBackend falls back to subprocess `tc` if netlink call fails
-- [x] **NLNK-04**: NetlinkCakeBackend reads CAKE per-tin stats via netlink instead of subprocess `tc -j qdisc show`
-- [x] **NLNK-05**: Factory registration allows config `transport: "linux-cake-netlink"` to select the netlink backend
+- [ ] **HYST-01**: Controller requires N consecutive above-threshold cycles before transitioning GREEN->YELLOW (dwell timer), preventing single-cycle jitter from triggering rate clamping
+- [ ] **HYST-02**: Controller uses a deadband margin so YELLOW->GREEN recovery requires delta dropping below (target_bloat_ms - deadband_ms), preventing oscillation at the exact threshold boundary
+- [ ] **HYST-03**: Dwell counter resets to zero when delta drops below threshold, so only sustained congestion triggers YELLOW
+- [ ] **HYST-04**: Upload state machine applies same hysteresis logic as download (both directions protected)
 
-### Fusion Healing
+### Configuration (CONF)
 
-- [x] **FUSE-01**: Controller auto-suspends fusion when protocol correlation drops below configurable threshold for sustained period
-- [x] **FUSE-02**: Controller auto-re-enables fusion when protocol correlation recovers (3-state: ACTIVE/SUSPENDED/RECOVERING)
-- [x] **FUSE-03**: Fusion state transitions trigger Discord alerts via AlertEngine
-- [x] **FUSE-04**: TuningEngine locks fusion_icmp_weight parameter when fusion healer suspends fusion
-- [x] **FUSE-05**: Health endpoint exposes fusion heal state (active/suspended/recovering) and correlation history
+- [ ] **CONF-01**: Hysteresis parameters (dwell_cycles, deadband_ms) configurable in YAML under `continuous_monitoring.thresholds`
+- [ ] **CONF-02**: SIGUSR1 hot-reload updates hysteresis parameters without service restart (consistent with existing reload pattern)
+- [ ] **CONF-03**: Sensible defaults that work without config changes (dwell_cycles=3, deadband_ms=3.0)
 
-### Response Tuning
+### Observability (OBSV)
 
-- [x] **RTUN-01**: Tuner learns optimal step_up_mbps from production recovery episode analysis
-- [x] **RTUN-02**: Tuner learns optimal factor_down from congestion resolution speed
-- [x] **RTUN-03**: Tuner learns optimal green_cycles_required from step-up re-trigger rate
-- [x] **RTUN-04**: Oscillation lockout freezes all response parameters when transitions/minute exceeds threshold
-- [x] **RTUN-05**: Response tuning is opt-in via exclude_params (disabled by default, matching existing tuning graduation pattern)
+- [ ] **OBSV-01**: Health endpoint exposes hysteresis state (dwell_counter, deadband_margins, transitions_suppressed count)
+- [ ] **OBSV-02**: Log messages indicate when transitions are suppressed by dwell timer ("transition suppressed, dwell N/M")
 
-### Observability
+### Validation (VALN)
 
-- [ ] **OBSV-01**: Prometheus metrics exported via CustomCollector on separate port (9103) with zero hot-loop overhead
-- [ ] **OBSV-02**: Grafana dashboard JSON committed to repo with provisioning YAML for operator import
-- [ ] **OBSV-03**: Per-tin CAKE metrics exported with stable labels (wan, direction, tin)
-- [ ] **OBSV-04**: prometheus_client is optional dependency — core operation works without it installed
-
-### Retention
-
-- [x] **RETN-01**: Retention thresholds configurable via `storage.retention` YAML section
-- [x] **RETN-02**: Config validation enforces retention >= tuner lookback_hours data availability
-- [x] **RETN-03**: Prometheus-compensated mode enables aggressive local retention (24-48h) when long-term TSDB is available
+- [ ] **VALN-01**: Production validation shows zero flapping alerts during prime-time evening window (vs 1-3 pairs/evening baseline)
+- [ ] **VALN-02**: Genuine sustained congestion (RRUL stress test) still triggers YELLOW within acceptable latency (< 500ms additional detection delay)
 
 ## Future Requirements
 
-### v1.24 Candidates
+Deferred to future release. Tracked but not in current roadmap.
 
-- **IRTT-01**: Multiple IRTT servers for geographic diversity and redundancy
-- **RESIL-01**: Graceful VM bypass if cake-shaper VM fails (bridge failover or MikroTik fallback route)
-- **TEST-01**: Integration/contract tests for RouterOS communication (VCR-style replay)
+### Prometheus/Grafana Export
+
+- **OBSV-03**: Prometheus metrics endpoint for external TSDB scraping
+- **OBSV-04**: Grafana dashboard templates for latency/throughput visualization
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| ML-based bandwidth prediction | Statistical tuning is already the adaptive learning system; ML adds complexity without measurable gain |
-| Auto-tuning ceiling_mbps from speed tests | Policy decision, not measurement; saturating the link disrupts latency-sensitive traffic |
-| Push-gateway / remote-write bridge | Pull model works on same VLAN; adds complexity without benefit |
-| Cycle interval < 50ms | Validated as optimal for 20Hz signal processing chain; CAKE AQM interval is 100ms |
-| Breaking changes to config format | Maintain backward compatibility |
+| YELLOW->RED hysteresis | RED transitions are already protected by sustained threshold checks |
+| Upload-specific thresholds | Upload uses same delta-based detection, shared hysteresis is sufficient |
+| Adaptive hysteresis (auto-tuning dwell/deadband) | Premature — fixed values need production validation first |
+| Rate ramp smoothing | Separate concern from state transition hysteresis, future milestone |
 
 ## Traceability
 
@@ -68,34 +54,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NLNK-01 | Phase 117 | Complete |
-| NLNK-02 | Phase 117 | Complete |
-| NLNK-03 | Phase 117 | Complete |
-| NLNK-04 | Phase 117 | Complete |
-| NLNK-05 | Phase 117 | Complete |
-| FUSE-01 | Phase 119 | Complete |
-| FUSE-02 | Phase 119 | Complete |
-| FUSE-03 | Phase 119 | Complete |
-| FUSE-04 | Phase 119 | Complete |
-| FUSE-05 | Phase 119 | Complete |
-| RTUN-01 | Phase 120 | Complete |
-| RTUN-02 | Phase 120 | Complete |
-| RTUN-03 | Phase 120 | Complete |
-| RTUN-04 | Phase 120 | Complete |
-| RTUN-05 | Phase 120 | Complete |
-| OBSV-01 | Phase 121 | Pending |
-| OBSV-02 | Phase 121 | Pending |
-| OBSV-03 | Phase 121 | Pending |
-| OBSV-04 | Phase 121 | Pending |
-| RETN-01 | Phase 118 | Complete |
-| RETN-02 | Phase 118 | Complete |
-| RETN-03 | Phase 118 | Complete |
+| HYST-01 | — | Pending |
+| HYST-02 | — | Pending |
+| HYST-03 | — | Pending |
+| HYST-04 | — | Pending |
+| CONF-01 | — | Pending |
+| CONF-02 | — | Pending |
+| CONF-03 | — | Pending |
+| OBSV-01 | — | Pending |
+| OBSV-02 | — | Pending |
+| VALN-01 | — | Pending |
+| VALN-02 | — | Pending |
 
 **Coverage:**
-- v1.23 requirements: 22 total
-- Mapped to phases: 22
-- Unmapped: 0
+- v1.24 requirements: 11 total
+- Mapped to phases: 0
+- Unmapped: 11
 
 ---
-*Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after roadmap creation*
+*Requirements defined: 2026-03-30*
+*Last updated: 2026-03-30 after initial definition*
