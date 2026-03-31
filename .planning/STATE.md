@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.23
 milestone_name: Self-Optimizing Controller
-status: verifying
-last_updated: "2026-03-31T14:46:59.350Z"
+status: executing
+last_updated: "2026-03-31T14:37:39.692Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 7
-  completed_phases: 7
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 12
+  completed_plans: 11
   percent: 40
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Position
 
 **Milestone:** v1.24 EWMA Boundary Hysteresis
-**Phase:** 3 of 4 (Hysteresis Observability)
-**Plan:** 1 of 1 in current phase (complete)
-**Status:** Phase 123 complete
-**Last activity:** 2026-03-31 - Completed 123-01-PLAN.md (hysteresis observability)
+**Phase:** 2 of 4 (Hysteresis Configuration)
+**Plan:** 2 of 2 in current phase (complete)
+**Status:** Executing Phase 123
+**Last activity:** 2026-03-31
 
-Progress: [██████████] 100%
+Progress: [████......] 40%
 
 ## Accumulated Context
 
@@ -46,8 +46,6 @@ Progress: [██████████] 100%
 - 122-01: min=0 allows disabling hysteresis (backward-compat escape hatch)
 - 122-01: Shared hysteresis params (not per-direction) -- both DL and UL use same dwell_cycles/deadband_ms
 - 122-02: Hysteresis reload validates with same bounds as SCHEMA; invalid values preserve current runtime values (no accidental reset)
-- 123-01: Class-level \_logger on QueueController for 20Hz-safe logging
-- 123-01: Hysteresis sub-dict inlined in \_get_health_status (nested in download/upload)
 
 ### Known Issues
 
