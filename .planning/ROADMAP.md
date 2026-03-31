@@ -64,7 +64,7 @@ Plans:
 Plans:
 
 - [x] 122-01-PLAN.md -- Config parsing, SCHEMA validation, KNOWN_KEYS, WANController wiring, defaults
-- [ ] 122-02-PLAN.md -- SIGUSR1 hot-reload method and main loop integration
+- [x] 122-02-PLAN.md -- SIGUSR1 hot-reload method and main loop integration
 
 ### Phase 123: Hysteresis Observability
 
@@ -98,7 +98,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 | Phase                         | Plans Complete | Status      | Completed  |
 | ----------------------------- | -------------- | ----------- | ---------- |
 | 121. Core Hysteresis Logic    | 1/1            | Complete    | 2026-03-31 |
-| 122. Hysteresis Configuration | 1/2            | In progress | -          |
+| 122. Hysteresis Configuration | 2/2 | Complete   | 2026-03-31 |
 | 123. Hysteresis Observability | 0/TBD          | Not started | -          |
 | 124. Production Validation    | 0/TBD          | Not started | -          |
 

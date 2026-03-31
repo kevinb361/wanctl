@@ -17,7 +17,7 @@ Requirements for EWMA Boundary Hysteresis milestone. Each maps to roadmap phases
 ### Configuration (CONF)
 
 - [x] **CONF-01**: Hysteresis parameters (dwell_cycles, deadband_ms) configurable in YAML under `continuous_monitoring.thresholds`
-- [ ] **CONF-02**: SIGUSR1 hot-reload updates hysteresis parameters without service restart (consistent with existing reload pattern)
+- [x] **CONF-02**: SIGUSR1 hot-reload updates hysteresis parameters without service restart (consistent with existing reload pattern)
 - [x] **CONF-03**: Sensible defaults that work without config changes (dwell_cycles=3, deadband_ms=3.0)
 
 ### Observability (OBSV)
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HYST-03     | Phase 121 | Complete |
 | HYST-04     | Phase 121 | Complete |
 | CONF-01     | Phase 122 | Complete |
-| CONF-02     | Phase 122 | Pending  |
+| CONF-02     | Phase 122 | Complete |
 | CONF-03     | Phase 122 | Complete |
 | OBSV-01     | Phase 123 | Pending  |
 | OBSV-02     | Phase 123 | Pending  |

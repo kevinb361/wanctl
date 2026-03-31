@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.23
 milestone_name: Self-Optimizing Controller
 status: executing
-last_updated: "2026-03-31T10:23:21.111Z"
+last_updated: "2026-03-31T13:26:55.569Z"
 last_activity: 2026-03-31
 progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 2
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 11
+  completed_plans: 11
   percent: 40
 ---
 
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 121 — core-hysteresis-logic
+**Current focus:** Phase 122 — hysteresis-configuration
 
 ## Position
 
 **Milestone:** v1.24 EWMA Boundary Hysteresis
 **Phase:** 2 of 4 (Hysteresis Configuration)
-**Plan:** 1 of 2 in current phase
-**Status:** Phase 122 Plan 01 complete
-**Last activity:** 2026-03-31 -- Completed 122-01-PLAN.md (config parsing, schema, wiring for dwell_cycles/deadband_ms)
+**Plan:** 2 of 2 in current phase (complete)
+**Status:** Phase 122 complete
+**Last activity:** 2026-03-31 - Completed 122-02-PLAN.md (SIGUSR1 hot-reload for hysteresis)
 
-Progress: [####......] 40%
+Progress: [████......] 40%
 
 ## Accumulated Context
 
@@ -45,6 +45,7 @@ Progress: [####......] 40%
 - Upload and download share same hysteresis logic (both delta-based)
 - 122-01: min=0 allows disabling hysteresis (backward-compat escape hatch)
 - 122-01: Shared hysteresis params (not per-direction) -- both DL and UL use same dwell_cycles/deadband_ms
+- 122-02: Hysteresis reload validates with same bounds as SCHEMA; invalid values preserve current runtime values (no accidental reset)
 
 ### Known Issues
 
