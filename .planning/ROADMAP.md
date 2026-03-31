@@ -92,7 +92,12 @@ Plans:
 1. During a prime-time evening window (7pm-11pm), zero flapping alerts fire (vs baseline of 1-3 alert pairs per evening)
 2. An RRUL stress test triggers YELLOW within 500ms of the no-hysteresis baseline (dwell_cycles=3 at 50ms = 150ms additional latency, well within budget)
 3. Health endpoint transitions_suppressed counter is non-zero, confirming hysteresis is actively absorbing transients
-   **Plans**: TBD
+   **Plans:** 2 plans
+
+Plans:
+
+- [ ] 124-01-PLAN.md -- Deploy to production, prime-time soak, RRUL stress test
+- [ ] 124-02-PLAN.md -- Version bump to 1.24.0, CHANGELOG, CLAUDE.md, git tag, push
 
 ## Progress
 
@@ -104,7 +109,7 @@ Phases execute in numeric order: 121 -> 122 -> 123 -> 124
 | 121. Core Hysteresis Logic    | 1/1            | Complete    | 2026-03-31 |
 | 122. Hysteresis Configuration | 2/2 | Complete   | 2026-03-31 |
 | 123. Hysteresis Observability | 1/1 | Complete    | 2026-03-31 |
-| 124. Production Validation    | 0/TBD          | Not started | -          |
+| 124. Production Validation    | 0/2          | Not started | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.23)</summary>
