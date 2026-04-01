@@ -12,6 +12,9 @@ coverage-report/
 # Test pollution (MagicMock path leaks)
 MagicMock/
 
+# Test data (flent/netperf output)
+*.flent.gz
+
 # Logs
 *.log
 /logs/
