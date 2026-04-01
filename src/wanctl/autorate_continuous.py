@@ -1445,8 +1445,9 @@ class QueueController:
                         self._yellow_dwell,
                         self.dwell_cycles,
                     )
-        elif self._last_zone == "YELLOW" and delta >= (target_delta - self.deadband_ms):
+        elif self._last_zone == "YELLOW" and delta >= (target_delta - min(self.deadband_ms, target_delta * 0.5)):
             # Deadband: delta below target but within deadband margin -> stay YELLOW (HYST-02, D-03)
+            # Clamp deadband to 50% of target_delta to prevent impossible recovery when deadband >= target
             self.green_streak = 0
             self.red_streak = 0
             self._yellow_dwell = 0
@@ -1581,8 +1582,9 @@ class QueueController:
                         self._yellow_dwell,
                         self.dwell_cycles,
                     )
-        elif self._last_zone == "YELLOW" and delta >= (green_threshold - self.deadband_ms):
+        elif self._last_zone == "YELLOW" and delta >= (green_threshold - min(self.deadband_ms, green_threshold * 0.5)):
             # Deadband: raw GREEN but within deadband margin -> stay YELLOW (HYST-02, D-03)
+            # Clamp deadband to 50% of green_threshold to prevent impossible recovery when deadband >= threshold
             self.green_streak = 0
             self.soft_red_streak = 0
             self.red_streak = 0
