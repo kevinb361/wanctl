@@ -1978,3 +1978,122 @@ class TestHysteresisObservability:
             "[HYSTERESIS] DL dwell expired, GREEN->YELLOW confirmed" in rec.message
             for rec in info_records
         ), f"Expected DL expiry log, got: {[r.message for r in info_records]}"
+
+
+class TestDeadbandClamp:
+    """Tests for deadband clamping when deadband_ms >= target_bloat_ms.
+
+    Regression test for ATT stuck-in-YELLOW bug: autotuner set target_bloat_ms=1.4
+    with deadband_ms=3.0, making recovery require delta < -1.6ms (impossible).
+    Fix: clamp effective deadband to 50% of threshold.
+    """
+
+    def test_3state_recovers_when_deadband_exceeds_threshold(self):
+        """adjust() recovers from YELLOW when deadband_ms > target_delta."""
+        qc = QueueController(
+            name="upload",
+            floor_green=35_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=38_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            green_required=1,
+            dwell_cycles=3,
+            deadband_ms=3.0,  # Larger than target_delta (1.4)
+        )
+        baseline = 28.0
+        target_delta = 1.4  # Autotuned ultra-low (ATT DSL)
+        warn_delta = 45.0
+
+        # Force into YELLOW via sustained above-threshold delta
+        for _ in range(5):
+            qc.adjust(baseline, baseline + 2.0, target_delta, warn_delta)
+
+        assert qc._last_zone == "YELLOW", f"Expected YELLOW, got {qc._last_zone}"
+
+        # Now delta drops well below threshold — should recover, not get stuck
+        for _ in range(10):
+            zone, _, _ = qc.adjust(baseline, baseline + 0.1, target_delta, warn_delta)
+
+        assert zone == "GREEN", (
+            f"Expected GREEN after delta=0.1ms (well below target={target_delta}ms), "
+            f"got {zone} — deadband clamp not working"
+        )
+
+    def test_4state_recovers_when_deadband_exceeds_threshold(self):
+        """adjust_4state() recovers from YELLOW when deadband_ms > green_threshold."""
+        qc = QueueController(
+            name="download",
+            floor_green=80_000_000,
+            floor_yellow=25_000_000,
+            floor_soft_red=15_000_000,
+            floor_red=10_000_000,
+            ceiling=95_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            green_required=1,
+            dwell_cycles=3,
+            deadband_ms=3.0,
+        )
+        baseline = 28.0
+        green_threshold = 1.4
+        yellow_threshold = 15.0
+        hard_red_threshold = 45.0
+
+        # Force into YELLOW
+        for _ in range(5):
+            qc.adjust_4state(
+                baseline, baseline + 2.0,
+                green_threshold, yellow_threshold, hard_red_threshold,
+            )
+
+        assert qc._last_zone == "YELLOW", f"Expected YELLOW, got {qc._last_zone}"
+
+        # Delta drops — should recover
+        for _ in range(10):
+            zone, _, _ = qc.adjust_4state(
+                baseline, baseline + 0.1,
+                green_threshold, yellow_threshold, hard_red_threshold,
+            )
+
+        assert zone == "GREEN", (
+            f"Expected GREEN after delta=0.1ms (well below threshold={green_threshold}ms), "
+            f"got {zone} — deadband clamp not working"
+        )
+
+    def test_deadband_still_works_when_smaller_than_threshold(self):
+        """Normal case: deadband < threshold — deadband prevents oscillation."""
+        qc = QueueController(
+            name="upload",
+            floor_green=35_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=38_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            green_required=1,
+            dwell_cycles=3,
+            deadband_ms=3.0,
+        )
+        baseline = 28.0
+        target_delta = 12.0  # Normal threshold (Spectrum)
+        warn_delta = 45.0
+
+        # Force into YELLOW
+        for _ in range(5):
+            qc.adjust(baseline, baseline + 15.0, target_delta, warn_delta)
+
+        assert qc._last_zone == "YELLOW"
+
+        # Delta at 10ms: below target (12) but within deadband (12-3=9) — should STAY YELLOW
+        zone, _, _ = qc.adjust(baseline, baseline + 10.0, target_delta, warn_delta)
+        assert zone == "YELLOW", "Deadband should keep YELLOW when delta is within margin"
+
+        # Delta at 8ms: below deadband threshold (9) — should recover to GREEN
+        for _ in range(5):
+            zone, _, _ = qc.adjust(baseline, baseline + 8.0, target_delta, warn_delta)
+
+        assert zone == "GREEN", "Should recover when delta drops below deadband margin"
