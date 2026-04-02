@@ -45,12 +45,12 @@ DOCS_FILES=(
 
 # Systemd units (daemon mode - no timer needed)
 SYSTEMD_FILES=(
-    "systemd/wanctl@.service"
+    "deploy/systemd/wanctl@.service"
+    "deploy/systemd/wanctl-nic-tuning.service"
 )
 
 STEERING_SYSTEMD=(
-    "systemd/steering.service"
-    "systemd/steering.timer"
+    "deploy/systemd/steering.service"
 )
 
 # Helper functions
@@ -233,6 +233,18 @@ deploy_docs() {
     done
 
     print_success "Documentation deployed"
+}
+
+deploy_nic_tuning_script() {
+    print_step "Deploying NIC tuning script..."
+
+    if [[ -f "$PROJECT_ROOT/deploy/scripts/wanctl-nic-tuning.sh" ]]; then
+        scp "$PROJECT_ROOT/deploy/scripts/wanctl-nic-tuning.sh" "$TARGET_HOST:/tmp/wanctl-nic-tuning.sh"
+        ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-nic-tuning.sh /usr/local/bin/wanctl-nic-tuning.sh && sudo chown root:root /usr/local/bin/wanctl-nic-tuning.sh && sudo chmod 755 /usr/local/bin/wanctl-nic-tuning.sh"
+        print_success "NIC tuning script deployed to /usr/local/bin/wanctl-nic-tuning.sh"
+    else
+        print_warning "NIC tuning script not found: deploy/scripts/wanctl-nic-tuning.sh"
+    fi
 }
 
 deploy_systemd() {
@@ -509,6 +521,7 @@ fi
 deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_docs
+deploy_nic_tuning_script
 deploy_systemd
 
 if [[ "$WITH_STEERING" == "true" ]]; then
