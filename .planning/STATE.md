@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.26
 milestone_name: Tuning Validation
-status: completed
-stopped_at: Phase 129 context gathered
-last_updated: "2026-04-02T23:11:08.336Z"
+status: executing
+stopped_at: Completed 129-01-PLAN.md
+last_updated: "2026-04-02T23:57:17.824Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 60
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 80
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 129 — CAKE RTT + Confirmation Pass
+**Current focus:** Phase 130 — production-config-commit
 
 ## Position
 
 **Milestone:** v1.26 Tuning Validation
-**Phase:** 128 of 130 (UL Parameter Sweep) -- 3 of 5 in milestone -- COMPLETE
+**Phase:** 129 of 130 (CAKE RTT + Confirmation Pass) -- 4 of 5 in milestone -- COMPLETE
 **Plan:** 1/1 complete
-**Status:** Phase 128 complete, ready for Phase 129
+**Status:** Phase 129 complete, Phase 130 next
 **Last activity:** 2026-04-02
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Accumulated Context
 
@@ -51,6 +51,9 @@ Progress: [██████░░░░] 60%
 - UL step_up_mbps=2 wins over 1 on linux-cake -- faster feedback allows larger step without oscillation
 - UL factor_down=0.85 confirmed -- constrained upstream still needs aggressive RED decay
 - UL green_required=3 confirmed -- matches DL finding that linux-cake feedback makes 3 cycles sufficient
+- CAKE rtt=40ms optimal (~2x baseline RTT of 22-25ms), tested 25-100ms range
+- target_bloat_ms reverted from 15 to 9 after confirmation pass -- CAKE rtt=40ms restored tight threshold viability
+- Confirmation pass: 6/7 params confirmed, 1 flipped (target_bloat), methodology validated
 
 ### Known Issues
 
@@ -68,5 +71,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T23:11:08.328Z
-Stopped at: Phase 129 context gathered
+Last session: 2026-04-02T23:53:09Z
+Stopped at: Completed 129-01-PLAN.md

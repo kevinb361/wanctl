@@ -46,7 +46,7 @@ None
 - [ ] **Phase 126: Pre-Test Gate** - Verify linux-cake transport active, CAKE qdiscs on VM, no double-shaping from MikroTik
 - [x] **Phase 127: DL Parameter Sweep** - A/B test 9 download parameters sequentially with RRUL methodology
 - [x] **Phase 128: UL Parameter Sweep** - A/B test 3 upload parameters sequentially with RRUL methodology
-- [ ] **Phase 129: CAKE RTT + Confirmation Pass** - Test CAKE rtt parameter, then re-test response group for interaction effects
+- [x] **Phase 129: CAKE RTT + Confirmation Pass** - Test CAKE rtt parameter, then re-test response group for interaction effects
 - [ ] **Phase 130: Production Config Commit** - Update spectrum.yaml with full validated parameter set
 
 ## Phase Details
@@ -114,7 +114,7 @@ Plans:
 
 Plans:
 
-- [ ] 129-01-PLAN.md -- CAKE rtt test + confirmation re-test of 7 changed params
+- [x] 129-01-PLAN.md -- CAKE rtt test + confirmation re-test of 7 changed params
 
 ### Phase 130: Production Config Commit
 
@@ -137,7 +137,7 @@ Plans:
 | 126. Pre-Test Gate                | 1/1            | Complete    | 2026-04-02 |
 | 127. DL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
 | 128. UL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
-| 129. CAKE RTT + Confirmation Pass | 0/1            | Not started | -          |
+| 129. CAKE RTT + Confirmation Pass | 1/1            | Complete    | 2026-04-02 |
 | 130. Production Config Commit     | 0/TBD          | Not started | -          |
 
 <details>
