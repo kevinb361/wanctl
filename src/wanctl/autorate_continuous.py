@@ -2794,12 +2794,33 @@ class WANController:
         )
         self.logger.warning(f"[FUSION] Config reload: {enabled_str}, {weight_str}")
 
-        self._fusion_enabled = new_enabled
+        # Respect FusionHealer's runtime state: if the healer has SUSPENDED
+        # fusion due to low protocol correlation, don't re-enable just because
+        # YAML says enabled=true. The healer's decision is authoritative.
+        # Only override if: (a) no healer, (b) healer is ACTIVE, or
+        # (c) YAML explicitly disables fusion (operator kill switch).
+        if (
+            self._fusion_healer is not None
+            and new_enabled
+            and not old_enabled
+            and self._fusion_healer.state == HealState.SUSPENDED
+        ):
+            self.logger.warning(
+                "[FUSION] Config reload: YAML says enabled=true but healer "
+                "has SUSPENDED fusion (low correlation). Respecting healer "
+                "state — fusion stays disabled. Healer will re-enable when "
+                "correlation recovers."
+            )
+            # Don't change _fusion_enabled — healer is managing it
+        else:
+            self._fusion_enabled = new_enabled
+
         self._fusion_icmp_weight = new_weight
 
         # SIGUSR1 grace period for fusion healer (Phase 119: D-06)
+        # Only triggers when fusion was genuinely re-enabled (not blocked above)
         if self._fusion_healer is not None:
-            if new_enabled and not old_enabled:
+            if self._fusion_enabled and not old_enabled:
                 if self._fusion_healer.state == HealState.SUSPENDED:
                     self._fusion_healer.start_grace_period()
                     self.logger.warning(
