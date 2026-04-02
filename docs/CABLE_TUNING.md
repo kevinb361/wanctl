@@ -52,6 +52,24 @@ continuous_monitoring:
     load_time_constant_sec: 0.25 # Smooths DOCSIS scheduling noise (5 cycles at 50ms)
 ```
 
+### Note on factor_down_yellow
+
+The 0.97 value above is a conservative starting point. On the production Spectrum link,
+A/B testing (2026-04-02) via back-to-back 5-minute RRUL soaks showed that 0.92 (8%
+decay) produces significantly better latency under heavy load:
+
+| Metric              | 0.97 (3%) | 0.92 (8%) |
+| ------------------- | --------- | --------- |
+| ICMP median latency | 57.3ms    | 33.7ms    |
+| ICMP 99th pct       | 235ms     | 90.7ms    |
+| SOFT_RED/RED cycles | 23%       | 2%        |
+| DL throughput       | 848 Mbps  | 852 Mbps  |
+
+Throughput was identical — the gentler decay only added latency. Higher-bandwidth cable
+links (500+ Mbps) may benefit from the more aggressive 0.92 value because RRUL-style
+load overwhelms CAKE's queues faster at higher rates. Start with 0.97 and test with RRUL
+to find the right value for your link.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
