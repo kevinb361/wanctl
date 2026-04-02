@@ -121,6 +121,24 @@ Slower step-up (10) can't keep up, leaving rates depressed and queues fuller.
 clearance (5 cycles), then ramp aggressively (15 Mbps/step). Changing one without the
 other may produce worse results than either alone.
 
+### Note on dwell_cycles
+
+The v1.24 hysteresis dwell timer defaults to 3 cycles (150ms at 50ms interval). For
+cable/DOCSIS links, `dwell_cycles: 5` (250ms) was validated via RRUL A/B testing
+(2026-04-02). Must be added explicitly under `thresholds:` — not present in YAML by default.
+
+| Metric              | Dwell=3 (default) | Dwell=5 (validated) |
+| ------------------- | ----------------- | ------------------- |
+| ICMP median latency | 49.9ms            | 43.4ms              |
+| ICMP 99th pct       | 150ms             | 126ms               |
+| SOFT_RED/RED cycles | 14%               | 11%                 |
+| UL throughput       | 19.2 Mbps         | 22.8 Mbps (+19%)    |
+
+DOCSIS CMTS scheduling jitter can persist for 1-3 cycles (50-150ms). Dwell=3 is too
+short to filter this noise — the controller commits to YELLOW on jitter, triggering
+unnecessary rate decay. Dwell=5 waits long enough to distinguish jitter from sustained
+congestion. DSL/fiber links with near-zero idle jitter may work fine with dwell=3.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
