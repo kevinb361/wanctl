@@ -35,8 +35,10 @@ With gentle YELLOW decay:
 
 ## Recommended Cable Parameters
 
-All values below validated via RRUL A/B testing (2026-04-02, 30 soaks).
+All values below validated via RRUL A/B testing on REST transport (2026-04-02, 30 soaks).
 See "Note on" sections below for test data and rationale for each.
+
+**linux-cake transport:** Values differ significantly. See [linux-cake Transport Results](#linux-cake-transport-results-2026-04) below for re-validated parameters.
 
 ```yaml
 continuous_monitoring:
@@ -265,6 +267,74 @@ tuning:
       min: 20.0 # Safe floor with gentle response
       max: 80.0
 ```
+
+## linux-cake Transport Results (2026-04)
+
+After switching Spectrum from REST API to linux-cake transport (direct tc qdisc manipulation
+on cake-shaper VM), all 9 DL parameters were re-tested via RRUL A/B testing (2026-04-02,
+17:00-17:36 CDT). **6 of 9 parameters changed.** Full results in
+`.planning/phases/127-dl-parameter-sweep/127-DL-RESULTS.md`.
+
+### REST vs linux-cake Comparison
+
+| Parameter          | REST Winner | linux-cake Winner | Changed? | Key Finding                                      |
+| ------------------ | ----------- | ----------------- | -------- | ------------------------------------------------ |
+| factor_down_yellow | 0.92        | 0.92              | No       | DOCSIS-intrinsic, transport-independent          |
+| green_required     | 5           | 3                 | YES      | Faster feedback = safe with fewer GREEN cycles   |
+| step_up_mbps       | 15          | 10                | YES      | Smaller steps avoid overshoot with faster loop   |
+| factor_down (RED)  | 0.90        | 0.85              | YES      | Deeper RED cuts resolve congestion faster        |
+| dwell_cycles       | 5           | 5                 | No       | DOCSIS jitter filtering, transport-independent   |
+| deadband_ms        | 3.0         | 3.0               | No       | Hysteresis margin, transport-independent         |
+| target_bloat_ms    | 9           | 15                | YES      | Let CAKE AQM work; tighter threshold unnecessary |
+| warn_bloat_ms      | 45          | 60                | YES      | More headroom between GREEN->YELLOW and SOFT_RED |
+| hard_red_bloat_ms  | 60          | 100               | YES      | Needs operating room above warn_bloat_ms=60      |
+
+### Recommended linux-cake Cable Parameters
+
+```yaml
+continuous_monitoring:
+  download:
+    step_up_mbps: 10 # Moderate ramp (REST used 15)
+    factor_down: 0.85 # 15% RED backoff (REST used 0.90)
+    factor_down_yellow: 0.92 # 8% YELLOW decay (same as REST)
+    green_required: 3 # Faster recovery safe with direct tc (REST used 5)
+
+  upload:
+    step_up_mbps: 1 # Gentle climb (not retested -- UL sweep in Phase 128)
+    factor_down: 0.85 # 15% backoff (not retested)
+    green_required: 5 # Not retested
+
+  thresholds:
+    target_bloat_ms: 15.0 # GREEN->YELLOW (REST used 9 -- too tight for linux-cake)
+    warn_bloat_ms: 60.0 # YELLOW->SOFT_RED (REST used 45)
+    hard_red_bloat_ms: 100.0 # SOFT_RED->RED (REST used 60)
+    dwell_cycles: 5 # Hysteresis dwell (same as REST)
+    deadband_ms: 3.0 # Hysteresis deadband (same as REST)
+    load_time_constant_sec: 0.25
+```
+
+### Why linux-cake Differs from REST
+
+linux-cake applies rate changes via direct `tc` system calls (~0.1ms) vs REST API HTTP
+roundtrips (~15-30ms). This faster feedback loop shifts optimal tuning in two directions:
+
+1. **Response parameters become less aggressive.** The controller acts on fresher data, so
+   it can use smaller steps (10 vs 15 Mbps) and recover faster (3 vs 5 GREEN cycles) without
+   losing responsiveness. Aggressive steps that were needed on REST to compensate for stale
+   data now cause overshoot.
+
+2. **Thresholds become wider.** CAKE's AQM (Cobalt) gets more cycles to manage queues before
+   the autorate controller intervenes. Tight thresholds (9ms target, 45ms warn) that were
+   necessary on REST now trigger unnecessary state transitions, harming both latency and
+   throughput.
+
+The 3 unchanged parameters (factor_down_yellow, dwell_cycles, deadband_ms) are
+DOCSIS-intrinsic -- they filter cable plant jitter regardless of transport speed.
+
+**Key interaction change:** On REST, `green_required=5 + step_up=15` worked as a pair (wait
+long, ramp fast). On linux-cake, `green_required=3 + step_up=10` replaces it (recover
+sooner, ramp gently). The pairing principle still applies -- don't mix REST and linux-cake
+values.
 
 ## DSL Comparison
 
