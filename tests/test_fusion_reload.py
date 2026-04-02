@@ -16,6 +16,7 @@ import pytest
 import yaml
 
 from wanctl.autorate_continuous import WANController
+from wanctl.fusion_healer import HealState
 
 # =============================================================================
 # HELPERS
@@ -184,6 +185,76 @@ class TestReloadFusionConfig:
 
         assert ctrl._fusion_enabled is False
         assert ctrl._fusion_icmp_weight == pytest.approx(0.7)
+
+    def test_healer_suspended_blocks_reenable(self, tmp_path, caplog):
+        """YAML says enabled=true but healer is SUSPENDED. Fusion stays disabled.
+
+        Regression test for SIGUSR1 override bug discovered 2026-04-02:
+        sending SIGUSR1 to reload any config change would re-enable fusion
+        from YAML despite the healer having suspended it for low correlation.
+        """
+        ctrl = _make_controller(
+            tmp_path,
+            {"fusion": {"enabled": True, "icmp_weight": 0.7}},
+            initial_enabled=False,
+        )
+        # Attach a mock healer in SUSPENDED state
+        ctrl._fusion_healer = MagicMock()
+        ctrl._fusion_healer.state = HealState.SUSPENDED
+
+        with caplog.at_level(logging.WARNING, logger="test.fusion_reload"):
+            ctrl._reload_fusion_config()
+
+        assert ctrl._fusion_enabled is False, (
+            "Fusion must stay disabled when healer is SUSPENDED"
+        )
+        assert "Respecting healer state" in caplog.text
+
+    def test_healer_active_allows_reenable(self, tmp_path, caplog):
+        """YAML says enabled=true and healer is ACTIVE. Fusion re-enables normally."""
+        ctrl = _make_controller(
+            tmp_path,
+            {"fusion": {"enabled": True, "icmp_weight": 0.7}},
+            initial_enabled=False,
+        )
+        ctrl._fusion_healer = MagicMock()
+        ctrl._fusion_healer.state = HealState.ACTIVE
+
+        with caplog.at_level(logging.WARNING, logger="test.fusion_reload"):
+            ctrl._reload_fusion_config()
+
+        assert ctrl._fusion_enabled is True
+
+    def test_healer_suspended_allows_disable(self, tmp_path, caplog):
+        """YAML says enabled=false with healer SUSPENDED. Operator kill switch works."""
+        ctrl = _make_controller(
+            tmp_path,
+            {"fusion": {"enabled": False, "icmp_weight": 0.7}},
+            initial_enabled=True,
+        )
+        ctrl._fusion_healer = MagicMock()
+        ctrl._fusion_healer.state = HealState.SUSPENDED
+
+        with caplog.at_level(logging.WARNING, logger="test.fusion_reload"):
+            ctrl._reload_fusion_config()
+
+        assert ctrl._fusion_enabled is False, (
+            "Operator kill switch (enabled=false) must always work"
+        )
+
+    def test_no_healer_allows_reenable(self, tmp_path, caplog):
+        """No healer attached. YAML enabled=true takes effect (backward compat)."""
+        ctrl = _make_controller(
+            tmp_path,
+            {"fusion": {"enabled": True, "icmp_weight": 0.7}},
+            initial_enabled=False,
+        )
+        # _fusion_healer is already None from _make_controller
+
+        with caplog.at_level(logging.WARNING, logger="test.fusion_reload"):
+            ctrl._reload_fusion_config()
+
+        assert ctrl._fusion_enabled is True
 
     def test_empty_yaml_uses_defaults(self, tmp_path, caplog):
         """YAML is empty (safe_load returns None). After reload, defaults."""
