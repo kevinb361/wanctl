@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.26
 milestone_name: Tuning Validation
-status: completed
-stopped_at: Phase 128 context gathered
-last_updated: "2026-04-02T22:47:13.380Z"
+status: executing
+stopped_at: Completed 128-01-PLAN.md
+last_updated: "2026-04-02T23:10:00.000Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 40
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
+  percent: 60
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 127 — dl-parameter-sweep
+**Current focus:** Phase 129 — CAKE RTT + Confirmation Pass
 
 ## Position
 
 **Milestone:** v1.26 Tuning Validation
-**Phase:** 127 of 130 (DL Parameter Sweep) -- 2 of 5 in milestone -- COMPLETE
+**Phase:** 128 of 130 (UL Parameter Sweep) -- 3 of 5 in milestone -- COMPLETE
 **Plan:** 1/1 complete
-**Status:** Phase 127 complete, Phase 128 next
+**Status:** Phase 128 complete, ready for Phase 129
 **Last activity:** 2026-04-02
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Accumulated Context
 
@@ -48,6 +48,9 @@ Progress: [████░░░░░░] 40%
 - 6 of 9 DL params changed: green_required=3, step_up=10, factor_down=0.85, target_bloat=15, warn_bloat=60, hard_red=100
 - 3 DL params confirmed DOCSIS-intrinsic (transport-independent): factor_down_yellow=0.92, dwell=5, deadband=3.0
 - linux-cake faster feedback shifts tuning: less aggressive response + wider thresholds
+- UL step_up_mbps=2 wins over 1 on linux-cake -- faster feedback allows larger step without oscillation
+- UL factor_down=0.85 confirmed -- constrained upstream still needs aggressive RED decay
+- UL green_required=3 confirmed -- matches DL finding that linux-cake feedback makes 3 cycles sufficient
 
 ### Known Issues
 
@@ -65,5 +68,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T22:47:13.374Z
-Stopped at: Phase 128 context gathered
+Last session: 2026-04-02T23:10:00.000Z
+Stopped at: Completed 128-01-PLAN.md

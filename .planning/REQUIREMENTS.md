@@ -16,7 +16,7 @@ Requirements for Tuning Validation milestone. Re-test all tuning parameters on l
 ### Tuning
 
 - [x] **TUNE-01**: All 9 DL parameters tested sequentially (one variable at a time), each winner applied before next test, under consistent network conditions
-- [ ] **TUNE-02**: All 3 UL parameters tested sequentially, each winner applied before next test
+- [x] **TUNE-02**: All 3 UL parameters tested sequentially, each winner applied before next test
 - [ ] **TUNE-03**: CAKE rtt (50ms vs 100ms) tested after DL/UL sweep complete
 - [ ] **TUNE-04**: Confirmation re-test of response group (factor_down_yellow, factor_down, step_up_mbps) with all other winners in place to check for interaction effects
 
@@ -46,7 +46,7 @@ None identified.
 | GATE-02     | Phase 126 | Complete |
 | GATE-03     | Phase 126 | Complete |
 | TUNE-01     | Phase 127 | Complete |
-| TUNE-02     | Phase 128 | Pending  |
+| TUNE-02     | Phase 128 | Complete |
 | TUNE-03     | Phase 129 | Pending  |
 | TUNE-04     | Phase 129 | Pending  |
 | RSLT-01     | Phase 127 | Complete |
