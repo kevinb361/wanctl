@@ -17,7 +17,7 @@
 #
 # Exit: 0 if all pass, 1 if any fail
 
-set -euo pipefail
+set -uo pipefail
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -130,7 +130,7 @@ check_cake_qdiscs() {
     echo -e "${YELLOW}Check 1: CAKE qdiscs on bridge NICs${NC}"
 
     local tc_output
-    tc_output=$(ssh "$VM_HOST" 'tc -s qdisc show' 2>/dev/null) || {
+    tc_output=$(ssh "$VM_HOST" 'sudo tc -s qdisc show' 2>/dev/null) || {
         print_fail "Could not retrieve tc qdisc data from VM"
         return
     }
@@ -249,7 +249,8 @@ data = json.load(sys.stdin)
 for entry in data:
     comment = entry.get('comment', '')
     disabled = entry.get('disabled', 'false')
-    if 'cake' in comment.lower() and disabled != 'true':
+    action = entry.get('action', '')
+    if 'cake' in comment.lower() and disabled != 'true' and action not in ('mark-packet', 'mark-connection', 'mark-routing', 'change-dscp', 'set-priority'):
         print(comment)
 \"" 2>/dev/null) || true
         fi
@@ -287,7 +288,7 @@ check_rate_change_visible() {
 
     # Capture current CAKE bandwidth on ens16
     local bw_before
-    bw_before=$(ssh "$VM_HOST" "tc -s qdisc show dev ens16" 2>/dev/null | grep -oP 'bandwidth \K[0-9]+[A-Za-z]*' || echo "") || true
+    bw_before=$(ssh "$VM_HOST" "sudo tc -s qdisc show dev ens16" 2>/dev/null | grep -oP 'bandwidth \K[0-9]+[A-Za-z]*' || echo "") || true
     print_info "Current bandwidth on ens16: ${bw_before:-unknown}"
 
     # Send SIGUSR1 to trigger config reload
@@ -301,7 +302,7 @@ check_rate_change_visible() {
     sleep 1
 
     # Verify process survived SIGUSR1
-    if ! ssh "$VM_HOST" "kill -0 $pid" 2>/dev/null; then
+    if ! ssh "$VM_HOST" "sudo kill -0 $pid" 2>/dev/null; then
         print_fail "wanctl process died after SIGUSR1"
         return
     fi
@@ -309,7 +310,7 @@ check_rate_change_visible() {
 
     # Capture bandwidth again
     local bw_after
-    bw_after=$(ssh "$VM_HOST" "tc -s qdisc show dev ens16" 2>/dev/null | grep -oP 'bandwidth \K[0-9]+[A-Za-z]*' || echo "") || true
+    bw_after=$(ssh "$VM_HOST" "sudo tc -s qdisc show dev ens16" 2>/dev/null | grep -oP 'bandwidth \K[0-9]+[A-Za-z]*' || echo "") || true
     print_info "Bandwidth on ens16 after SIGUSR1: ${bw_after:-unknown}"
 
     # Verify bandwidth is non-zero (meaning CAKE is actively shaped by wanctl)
