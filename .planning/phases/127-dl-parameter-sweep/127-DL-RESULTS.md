@@ -319,4 +319,36 @@ The green_required=3 confirmation on UL reinforces the DL finding: linux-cake's 
 
 ---
 
-_Phase 127 DL + Phase 128 UL Parameter Sweep -- Completed 2026-04-02_
+## Phase 129: CAKE rtt + Confirmation Pass (2026-04-02, 18:18-18:50 CDT)
+
+### CAKE rtt Test
+
+Tested 25ms, 35ms, 40ms, 50ms, 100ms. **Winner: 40ms** -- dominated all metrics (median
+46.55ms, p99 113ms, DL 522 Mbps). Optimal rtt is ~2x baseline RTT. See
+`.planning/phases/129-cake-rtt-confirmation-pass/129-CONFIRMATION-RESULTS.md` for full data.
+
+### Confirmation Pass
+
+Re-tested all 7 changed params with full winner set active (including CAKE rtt=40ms):
+
+| Parameter            | Phase Winner | Confirmation | Status    |
+| -------------------- | ------------ | ------------ | --------- |
+| DL green_required    | 3            | 3            | CONFIRMED |
+| DL step_up_mbps      | 10           | 10           | CONFIRMED |
+| DL factor_down       | 0.85         | 0.85         | CONFIRMED |
+| DL target_bloat_ms   | 15           | **9**        | FLIPPED   |
+| DL warn_bloat_ms     | 60           | 60           | CONFIRMED |
+| DL hard_red_bloat_ms | 100          | 100          | CONFIRMED |
+| UL step_up_mbps      | 2            | 2            | CONFIRMED |
+
+**target_bloat_ms FLIPPED** from 15 back to 9: CAKE rtt=40ms (vs 100ms during Phase 127)
+makes AQM aggressive enough that 9ms threshold no longer triggers false YELLOWs.
+
+### Post-Confirmation Final Config
+
+The DL Summary table (above) should be read with this correction: target_bloat_ms final
+validated value is **9** (not 15). All other values unchanged from Phase 127-128 results.
+
+---
+
+_Phase 127 DL + Phase 128 UL Parameter Sweep + Phase 129 Confirmation -- Completed 2026-04-02_
