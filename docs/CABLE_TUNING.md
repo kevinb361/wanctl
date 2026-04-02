@@ -35,28 +35,36 @@ With gentle YELLOW decay:
 
 ## Recommended Cable Parameters
 
+All values below validated via RRUL A/B testing (2026-04-02, 23 soaks).
+See "Note on" sections below for test data and rationale for each.
+
 ```yaml
 continuous_monitoring:
   download:
-    factor_down: 0.90 # 10% RED backoff (firm for real congestion)
-    factor_down_yellow: 0.97 # 3% YELLOW decay (gentle — jitter barely moves rates)
-    green_required: 5 # Slower recovery prevents oscillation
+    step_up_mbps: 15 # Fast ramp (validated over 10)
+    factor_down: 0.90 # 10% RED backoff (validated over 0.85)
+    factor_down_yellow: 0.92 # 8% YELLOW decay (validated: 0.97 doubles latency)
+    green_required: 5 # Conservative recovery (validated over 3)
 
   upload:
-    factor_down: 0.93 # 7% backoff (upload is more sensitive on cable)
-    green_required: 5 # Match download
+    step_up_mbps: 1 # Gentle climb
+    factor_down: 0.85 # 15% backoff (UL not independently tested for this param)
+    green_required: 5 # Match download (validated independently)
 
   thresholds:
-    target_bloat_ms: 12.0 # Sensitive — catches congestion early
-    warn_bloat_ms: 30.0 # YELLOW→SOFT_RED boundary
+    target_bloat_ms: 9.0 # GREEN→YELLOW (validated over 12 — safe with dwell=5)
+    warn_bloat_ms: 45.0 # YELLOW→SOFT_RED (validated: 30 too aggressive, 60 too loose)
+    hard_red_bloat_ms: 60.0 # SOFT_RED→RED (validated over 80 — faster floor clamp)
+    dwell_cycles: 5 # Hysteresis dwell (validated over default 3)
+    deadband_ms: 3.0 # Hysteresis deadband (validated: 5.0 is worse)
     load_time_constant_sec: 0.25 # Smooths DOCSIS scheduling noise (5 cycles at 50ms)
 ```
 
 ### Note on factor_down_yellow
 
-The 0.97 value above is a conservative starting point. On the production Spectrum link,
-A/B testing (2026-04-02) via back-to-back 5-minute RRUL soaks showed that 0.92 (8%
-decay) produces significantly better latency under heavy load:
+On the production Spectrum link, A/B testing (2026-04-02) via back-to-back 5-minute RRUL
+soaks showed that 0.92 (8% decay) produces significantly better latency than the
+originally recommended 0.97 (3% decay):
 
 | Metric              | 0.97 (3%) | 0.92 (8%) |
 | ------------------- | --------- | --------- |
