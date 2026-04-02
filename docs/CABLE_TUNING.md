@@ -70,6 +70,24 @@ links (500+ Mbps) may benefit from the more aggressive 0.92 value because RRUL-s
 load overwhelms CAKE's queues faster at higher rates. Start with 0.97 and test with RRUL
 to find the right value for your link.
 
+### Note on green_required
+
+The recommended `green_required: 5` was validated via RRUL A/B testing (2026-04-02).
+Compared against `green_required: 3` (which was briefly deployed for faster recovery):
+
+| Metric              | GR=3 (fast) | GR=5 (conservative) |
+| ------------------- | ----------- | ------------------- |
+| ICMP 99th pct       | 175ms       | 110ms               |
+| ICMP max            | 643ms       | 255ms               |
+| SOFT_RED/RED cycles | 11%         | 6%                  |
+| Recovery to ceiling | ~2s         | ~3s                 |
+| DL throughput       | 853 Mbps    | 854 Mbps            |
+
+GR=3 recovers 1 second faster but overshoots during brief lulls in heavy load, causing
+tail latency spikes and more time in severe congestion states. GR=5 prevents premature
+ramp-up. For latency-sensitive traffic (gaming, video calls), the 40% tail improvement
+far outweighs 1 extra second of recovery.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
