@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.26
 milestone_name: Tuning Validation
-status: completed
-stopped_at: Phase 127 context gathered
-last_updated: "2026-04-02T21:44:24.291Z"
+status: executing
+stopped_at: Completed 127-01-PLAN.md
+last_updated: "2026-04-02T22:45:00Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 20
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 40
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 126 complete, Phase 127 next (DL Parameter Sweep)
+**Current focus:** Phase 127 — dl-parameter-sweep
 
 ## Position
 
 **Milestone:** v1.26 Tuning Validation
-**Phase:** 126 of 130 (Pre-Test Gate) -- 1 of 5 in milestone -- COMPLETE
+**Phase:** 127 of 130 (DL Parameter Sweep) -- 2 of 5 in milestone -- COMPLETE
 **Plan:** 1/1 complete
-**Status:** Phase 126 complete
+**Status:** Phase 127 complete, Phase 128 next
 **Last activity:** 2026-04-02
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Accumulated Context
 
@@ -45,6 +45,9 @@ Progress: [██░░░░░░░░] 20%
 - sudo required for tc and kill on cake-shaper VM (non-root kevin user)
 - Mangle rule filtering by action type (mark-connection/mark-packet), not comment text
 - Gate script uses set -uo pipefail without set -e -- checks must run independently
+- 6 of 9 DL params changed: green_required=3, step_up=10, factor_down=0.85, target_bloat=15, warn_bloat=60, hard_red=100
+- 3 DL params confirmed DOCSIS-intrinsic (transport-independent): factor_down_yellow=0.92, dwell=5, deadband=3.0
+- linux-cake faster feedback shifts tuning: less aggressive response + wider thresholds
 
 ### Known Issues
 
@@ -62,5 +65,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T21:44:24.285Z
-Stopped at: Phase 127 context gathered
+Last session: 2026-04-02T22:45:00Z
+Stopped at: Completed 127-01-PLAN.md
