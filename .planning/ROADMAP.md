@@ -58,7 +58,10 @@ None
   1. `tc -s qdisc show` on cake-shaper VM reports CAKE qdiscs on ens16, ens17, ens27, ens28
   2. MikroTik `/queue/type` and `/queue/tree` show no active CAKE queues on Spectrum WAN
   3. A wanctl rate change (e.g., SIGUSR1 or manual config edit) produces a visible bandwidth change in `tc -s qdisc show` output
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 126-01-PLAN.md -- Gate script + production validation
 
 ### Phase 127: DL Parameter Sweep
 **Goal**: Determine optimal download parameters on linux-cake transport by A/B testing each of the 9 DL tunables one at a time
@@ -107,7 +110,7 @@ None
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 126. Pre-Test Gate | 0/TBD | Not started | - |
+| 126. Pre-Test Gate | 0/1 | Planning | - |
 | 127. DL Parameter Sweep | 0/TBD | Not started | - |
 | 128. UL Parameter Sweep | 0/TBD | Not started | - |
 | 129. CAKE RTT + Confirmation Pass | 0/TBD | Not started | - |
