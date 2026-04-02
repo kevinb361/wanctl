@@ -276,26 +276,32 @@ tuning:
 
 After switching Spectrum from REST API to linux-cake transport (direct tc qdisc manipulation
 on cake-shaper VM), all 9 DL parameters were re-tested via RRUL A/B testing (2026-04-02,
-17:00-17:36 CDT). **6 of 9 parameters changed.** Full results in
-`.planning/phases/127-dl-parameter-sweep/127-DL-RESULTS.md`.
+17:00-17:36 CDT), followed by a confirmation pass (18:18-18:50 CDT) that re-tested all
+changed parameters with the full winner set active. **6 of 9 DL parameters changed, then
+confirmation pass reverted target_bloat_ms back to 9.** Full results in
+`.planning/phases/127-dl-parameter-sweep/127-DL-RESULTS.md` and
+`.planning/phases/129-cake-rtt-confirmation-pass/129-CONFIRMATION-RESULTS.md`.
 
 ### REST vs linux-cake Comparison
 
-| Parameter          | REST Winner | linux-cake Winner | Changed? | Key Finding                                      |
-| ------------------ | ----------- | ----------------- | -------- | ------------------------------------------------ |
-| factor_down_yellow | 0.92        | 0.92              | No       | DOCSIS-intrinsic, transport-independent          |
-| green_required     | 5           | 3                 | YES      | Faster feedback = safe with fewer GREEN cycles   |
-| step_up_mbps       | 15          | 10                | YES      | Smaller steps avoid overshoot with faster loop   |
-| factor_down (RED)  | 0.90        | 0.85              | YES      | Deeper RED cuts resolve congestion faster        |
-| dwell_cycles       | 5           | 5                 | No       | DOCSIS jitter filtering, transport-independent   |
-| deadband_ms        | 3.0         | 3.0               | No       | Hysteresis margin, transport-independent         |
-| target_bloat_ms    | 9           | 15                | YES      | Let CAKE AQM work; tighter threshold unnecessary |
-| warn_bloat_ms      | 45          | 60                | YES      | More headroom between GREEN->YELLOW and SOFT_RED |
-| hard_red_bloat_ms  | 60          | 100               | YES      | Needs operating room above warn_bloat_ms=60      |
+| Parameter          | REST Winner | linux-cake Winner | Changed? | Key Finding                                                                         |
+| ------------------ | ----------- | ----------------- | -------- | ----------------------------------------------------------------------------------- |
+| factor_down_yellow | 0.92        | 0.92              | No       | DOCSIS-intrinsic, transport-independent                                             |
+| green_required     | 5           | 3                 | YES      | Faster feedback = safe with fewer GREEN cycles                                      |
+| step_up_mbps       | 15          | 10                | YES      | Smaller steps avoid overshoot with faster loop                                      |
+| factor_down (RED)  | 0.90        | 0.85              | YES      | Deeper RED cuts resolve congestion faster                                           |
+| dwell_cycles       | 5           | 5                 | No       | DOCSIS jitter filtering, transport-independent                                      |
+| deadband_ms        | 3.0         | 3.0               | No       | Hysteresis margin, transport-independent                                            |
+| target_bloat_ms    | 9           | 9                 | No       | Phase 127: 15 won; Phase 129 confirmation: FLIPPED back to 9 (CAKE rtt interaction) |
+| warn_bloat_ms      | 45          | 60                | YES      | More headroom between GREEN->YELLOW and SOFT_RED                                    |
+| hard_red_bloat_ms  | 60          | 100               | YES      | Needs operating room above warn_bloat_ms=60                                         |
 
 ### Recommended linux-cake Cable Parameters
 
 ```yaml
+cake_params:
+  rtt: "40ms" # Optimal ~2x baseline RTT (Phase 129: tested 25-100ms, 40ms dominated)
+
 continuous_monitoring:
   download:
     step_up_mbps: 10 # Moderate ramp (REST used 15)
@@ -309,7 +315,7 @@ continuous_monitoring:
     green_required: 3 # Fast recovery safe with direct tc (REST used 5)
 
   thresholds:
-    target_bloat_ms: 15.0 # GREEN->YELLOW (REST used 9 -- too tight for linux-cake)
+    target_bloat_ms: 9.0 # GREEN->YELLOW (same as REST -- CAKE rtt=40ms restored tight threshold viability)
     warn_bloat_ms: 60.0 # YELLOW->SOFT_RED (REST used 45)
     hard_red_bloat_ms: 100.0 # SOFT_RED->RED (REST used 60)
     dwell_cycles: 5 # Hysteresis dwell (same as REST)
@@ -327,18 +333,74 @@ roundtrips (~15-30ms). This faster feedback loop shifts optimal tuning in two di
    losing responsiveness. Aggressive steps that were needed on REST to compensate for stale
    data now cause overshoot.
 
-2. **Thresholds become wider.** CAKE's AQM (Cobalt) gets more cycles to manage queues before
-   the autorate controller intervenes. Tight thresholds (9ms target, 45ms warn) that were
-   necessary on REST now trigger unnecessary state transitions, harming both latency and
-   throughput.
+2. **Thresholds become wider** (warn_bloat, hard_red). CAKE's AQM (Cobalt) gets more cycles
+   to manage queues before the autorate controller intervenes. The 45ms warn and 60ms hard_red
+   thresholds that were necessary on REST now trigger unnecessary state transitions.
 
-The 3 unchanged parameters (factor_down_yellow, dwell_cycles, deadband_ms) are
-DOCSIS-intrinsic -- they filter cable plant jitter regardless of transport speed.
+**Exception: target_bloat_ms stays at 9.** Phase 127 initially found 15ms winning on linux-cake
+(with CAKE rtt=100ms). But Phase 129's confirmation pass -- after lowering CAKE rtt to 40ms --
+showed 9ms winning again. The interaction: CAKE rtt=40ms makes the AQM more aggressive at queue
+management, restoring the viability of the tight 9ms threshold. This demonstrates that CAKE rtt
+and target_bloat_ms are coupled parameters.
+
+The 4 unchanged parameters (factor_down_yellow, dwell_cycles, deadband_ms, target_bloat_ms) are
+either DOCSIS-intrinsic or CAKE rtt-dependent -- they don't change with transport speed alone.
 
 **Key interaction change:** On REST, `green_required=5 + step_up=15` worked as a pair (wait
 long, ramp fast). On linux-cake, `green_required=3 + step_up=10` replaces it (recover
 sooner, ramp gently). The pairing principle still applies -- don't mix REST and linux-cake
 values.
+
+### CAKE rtt (linux-cake)
+
+The CAKE `rtt` parameter controls Cobalt AQM's target delay. Lower values make queue management
+more aggressive. Tested at 25ms, 35ms, 40ms, 50ms, and 100ms via RRUL A/B testing (2026-04-02,
+18:18-18:30 CDT).
+
+| Metric        | 25ms     | 35ms     | 40ms     | 50ms     | 100ms (default) |
+| ------------- | -------- | -------- | -------- | -------- | --------------- |
+| ICMP median   | 51.20ms  | 49.85ms  | 46.55ms  | 48.90ms  | 55.30ms         |
+| ICMP p99      | 135ms    | 128ms    | 113ms    | 141ms    | 184ms           |
+| DL throughput | 498 Mbps | 510 Mbps | 522 Mbps | 505 Mbps | 490 Mbps        |
+
+**Winner: 40ms** -- Dominated all metrics: median -16%, p99 -39%, throughput +7% vs default.
+
+The optimal CAKE rtt is approximately 2x the baseline RTT (22-25ms to Dallas). At 40ms, Cobalt
+has enough headroom to absorb normal RTT variation without premature drops, while being tight
+enough to catch real queue buildup. Below 35ms, good packets start getting dropped (25ms showed
+throughput loss). Above 50ms, too much queue slack increases tail latency.
+
+**CRITICAL: CAKE rtt interacts with target_bloat_ms.** Lowering rtt from 100ms to 40ms made
+the tight 9ms target_bloat threshold viable again (it had been loosened to 15ms under rtt=100ms).
+Always re-test target_bloat_ms after changing CAKE rtt.
+
+**Guideline for other links:** Start with rtt = 2x your baseline RTT. For Dallas at ~22ms,
+that's 40-50ms. For a 10ms baseline, try 20-25ms. Always A/B test.
+
+### Confirmation Pass (linux-cake)
+
+After all individual parameter sweeps (Phases 127-128) and the CAKE rtt test (Phase 129), all 7
+changed parameters were re-tested with the full winner set active to check for interaction
+effects. This catches cases where parameters that won in isolation behave differently when
+combined.
+
+| Parameter            | Phase 127/128 Winner | Confirmation Result | Status    |
+| -------------------- | -------------------- | ------------------- | --------- |
+| DL green_required    | 3                    | 3                   | CONFIRMED |
+| DL step_up_mbps      | 10                   | 10                  | CONFIRMED |
+| DL factor_down       | 0.85                 | 0.85                | CONFIRMED |
+| DL target_bloat_ms   | 15                   | **9** (reverted)    | FLIPPED   |
+| DL warn_bloat_ms     | 60                   | 60                  | CONFIRMED |
+| DL hard_red_bloat_ms | 100                  | 100                 | CONFIRMED |
+| UL step_up_mbps      | 2                    | 2                   | CONFIRMED |
+
+**6 of 7 confirmed, 1 flipped.** The target_bloat_ms flip is the most significant finding:
+CAKE rtt=40ms (vs 100ms during Phase 127 testing) makes the AQM aggressive enough that the
+tight 9ms threshold no longer triggers false YELLOWs. This validates the confirmation pass
+methodology -- without it, production would have run target_bloat=15 which is suboptimal with
+rtt=40ms.
+
+Full confirmation results in `.planning/phases/129-cake-rtt-confirmation-pass/129-CONFIRMATION-RESULTS.md`.
 
 ### UL Parameters (linux-cake)
 
