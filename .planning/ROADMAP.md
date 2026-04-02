@@ -36,14 +36,16 @@ None
 **Depends on**: Nothing (first phase of v1.25)
 **Requirements**: BOOT-01, BOOT-02, BOOT-03, BOOT-04
 **Success Criteria** (what must be TRUE):
-  1. After a VM reboot, all 4 bridge NICs (ens16, ens17, ens27, ens28) have rx-udp-gro-forwarding enabled without manual intervention
-  2. The NIC tuning oneshot is idempotent (safe to re-run), logs each optimization it applies, and exits cleanly if a NIC is missing rather than failing the boot chain
-  3. wanctl@spectrum and wanctl@att do not start until the NIC tuning oneshot reports success (systemd After/Requires dependency)
-  4. A full VM reboot produces the complete chain -- bridges up, NIC tuning applied, wanctl starts with CAKE qdiscs initialized, recovery timer active -- all verified via systemctl status
-**Plans:** 2 plans
+
+1. After a VM reboot, all 4 bridge NICs (ens16, ens17, ens27, ens28) have rx-udp-gro-forwarding enabled without manual intervention
+2. The NIC tuning oneshot is idempotent (safe to re-run), logs each optimization it applies, and exits cleanly if a NIC is missing rather than failing the boot chain
+3. wanctl@spectrum and wanctl@att do not start until the NIC tuning oneshot reports success (systemd After/Requires dependency)
+4. A full VM reboot produces the complete chain -- bridges up, NIC tuning applied, wanctl starts with CAKE qdiscs initialized, recovery timer active -- all verified via systemctl status
+   **Plans:** 2 plans
 
 Plans:
-- [ ] 125-01-PLAN.md -- NIC tuning shell script with logging, idempotency, and graceful error handling
+
+- [x] 125-01-PLAN.md -- NIC tuning shell script with logging, idempotency, and graceful error handling
 - [ ] 125-02-PLAN.md -- systemd dependency wiring, deploy.sh update, directory reconciliation, dry-run validation
 
 ### Phase 126: Boot Validation
@@ -52,27 +54,28 @@ Plans:
 **Depends on**: Phase 125
 **Requirements**: VALN-01, VALN-02
 **Success Criteria** (what must be TRUE):
-  1. A post-boot validation step confirms all 3 layers: NIC tuning applied (rx-udp-gro-forwarding on all 4 NICs), CAKE qdiscs active on bridge interfaces (ens17, ens28), and wanctl services healthy (health endpoint returns 200)
-  2. The validation is available as an on-demand CLI command (e.g., wanctl-check-boot) that an operator can run at any time, not only at boot
-  3. Validation output clearly reports pass/fail per check with actionable messages for any failures
-**Plans**: TBD
+
+1. A post-boot validation step confirms all 3 layers: NIC tuning applied (rx-udp-gro-forwarding on all 4 NICs), CAKE qdiscs active on bridge interfaces (ens17, ens28), and wanctl services healthy (health endpoint returns 200)
+2. The validation is available as an on-demand CLI command (e.g., wanctl-check-boot) that an operator can run at any time, not only at boot
+3. Validation output clearly reports pass/fail per check with actionable messages for any failures
+   **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 125 -> 126
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 125. Boot Resilience | 0/2 | Planned | - |
-| 126. Boot Validation | 0/? | Not started | - |
+| Phase                | Plans Complete | Status      | Completed |
+| -------------------- | -------------- | ----------- | --------- |
+| 125. Boot Resilience | 1/2            | Executing   | -         |
+| 126. Boot Validation | 0/?            | Not started | -         |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.24)</summary>
 
 | Milestone                            | Phases  | Plans | Status   | Completed  |
 | ------------------------------------ | ------- | ----- | -------- | ---------- |
-| v1.24 EWMA Boundary Hysteresis      | 121-124 | 6     | Complete | 2026-04-02 |
+| v1.24 EWMA Boundary Hysteresis       | 121-124 | 6     | Complete | 2026-04-02 |
 | v1.23 Self-Optimizing Controller     | 117-120 | 8     | Complete | 2026-03-27 |
 | v1.22 Full System Audit              | 112-116 | 16+   | Complete | 2026-03-26 |
 | v1.21 CAKE Offload                   | 104-110 | 14    | Complete | 2026-03-25 |

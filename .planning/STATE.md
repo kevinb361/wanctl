@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.24
 milestone_name: EWMA Boundary Hysteresis
-status: planning
-stopped_at: Phase 125 context gathered
-last_updated: "2026-04-02T14:33:13.326Z"
-last_activity: 2026-04-02 -- Roadmap created (2 phases, 6 requirements mapped)
+status: executing
+stopped_at: "Completed 125-01-PLAN.md"
+last_updated: "2026-04-02T14:49:16Z"
+last_activity: 2026-04-02 -- Plan 125-01 executed (NIC tuning script + systemd service)
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 25
 ---
 
 # Session State
@@ -27,25 +27,25 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Milestone:** v1.25 Reboot Resilience
 **Phase:** 125 of 126 (Boot Resilience)
-**Plan:** --
-**Status:** Ready to plan
-**Last activity:** 2026-04-02 -- Roadmap created (2 phases, 6 requirements mapped)
+**Plan:** 1 of 2 complete
+**Status:** Executing phase 125
+**Last activity:** 2026-04-02 -- Plan 125-01 executed (NIC tuning script + systemd service)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: --
-- Total execution time: 0h
+- Total plans completed: 1
+- Average duration: 2min
+- Total execution time: 2min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
+| ----- | ----- | ----- | -------- |
+| 125   | 1     | 2min  | 2min     |
 
 ## Accumulated Context
 
@@ -56,6 +56,8 @@ Progress: [░░░░░░░░░░] 0%
 - wanctl-recovery.timer handles post-outage restarts (every 5min)
 - CAKE qdiscs already applied by wanctl's initialize_cake on startup -- no duplication needed
 - systemd-networkd already manages bridges persistently -- only NIC ethtool tuning is missing
+- 125-01: NIC tuning script always exits 0 -- availability over correctness (D-01)
+- 125-01: Ring buffers, GRO forwarding, IRQ affinity in idempotent script with journal logging (D-02)
 
 ### Known Issues
 
@@ -73,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T14:33:13.320Z
-Stopped at: Phase 125 context gathered
-Resume file: .planning/phases/125-boot-resilience/125-CONTEXT.md
+Last session: 2026-04-02T14:49:16Z
+Stopped at: Completed 125-01-PLAN.md
+Resume file: .planning/phases/125-boot-resilience/125-01-SUMMARY.md
