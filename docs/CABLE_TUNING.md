@@ -139,6 +139,38 @@ short to filter this noise — the controller commits to YELLOW on jitter, trigg
 unnecessary rate decay. Dwell=5 waits long enough to distinguish jitter from sustained
 congestion. DSL/fiber links with near-zero idle jitter may work fine with dwell=3.
 
+### Note on factor_down (RED)
+
+The cable tuning guide's `factor_down: 0.90` (10% RED decay) was validated over the
+production value of 0.85 (15%) via RRUL A/B testing (2026-04-02):
+
+| Metric              | 0.85 (15%) | 0.90 (10%) |
+| ------------------- | ---------- | ---------- |
+| ICMP median latency | 35.9ms     | 33.7ms     |
+| ICMP max            | 241ms      | 148ms      |
+| SOFT_RED/RED cycles | 2.5%       | 1.9%       |
+
+Narrow win — RED is only entered 1-2% of cycles with proper dwell/green_required tuning.
+The gentler 10% decay avoids overshooting the floor during severe congestion spikes.
+
+### Note on deadband_ms
+
+The default `deadband_ms: 3.0` was validated over 5.0 via RRUL A/B testing (2026-04-02).
+**Wider is NOT better** for cable:
+
+| Metric              | DB=3.0 (default) | DB=5.0 (wider) |
+| ------------------- | ---------------- | -------------- |
+| ICMP median latency | 31.4ms           | 32.5ms         |
+| ICMP 99th pct       | 96.5ms           | 105.6ms        |
+| GREEN cycles        | 67%              | 54%            |
+| YELLOW cycles       | 29%              | 43%            |
+
+Wider deadband requires delta to drop further below threshold to exit YELLOW (delta < 7ms
+vs < 9ms). This traps the system in YELLOW during load fluctuations, keeping rates
+depressed. With `dwell_cycles=5` already filtering jitter, a wider deadband is redundant
+and counterproductive. Don't stack both — dwell handles entry filtering, deadband handles
+exit hysteresis, and 3.0ms is sufficient for the exit side.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
