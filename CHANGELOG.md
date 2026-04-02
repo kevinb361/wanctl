@@ -31,6 +31,29 @@ Phase 125: 2 plans, 4/4 requirements addressed (reboot test deferred to Phase 12
 - Old `systemd/` directory removed (was diverged/unhardened duplicate)
 - `wanctl-nic-tuning.service` calls shell script instead of 10 inline ExecStart lines
 
+### Tuned (RRUL A/B Validated)
+
+14 back-to-back 5-minute RRUL soaks on Spectrum cable link (2026-04-02). Each parameter
+tested independently, one variable at a time.
+
+- `green_required`: 3 → **5** (DL and UL, tested independently) — p99 latency -40% (DL),
+  UL throughput +14% (UL). Conservative recovery prevents premature ramp-up oscillation.
+- `dwell_cycles`: 3 (default) → **5** — median latency -13%, UL throughput +19%. DOCSIS
+  scheduling jitter needs 250ms filter, not 150ms.
+- `factor_down` (RED): 0.85 → **0.90** — max latency -39%. Gentler RED decay avoids
+  overshooting the floor during severe spikes.
+- `factor_down_yellow`: **0.92** confirmed — 0.97 (cable guide default) doubled median
+  latency with zero throughput gain.
+- `step_up_mbps`: **15** confirmed — 10 tripled max latency. Faster ramp exploits brief
+  TCP congestion avoidance dips.
+- `deadband_ms`: **3.0** confirmed — 5.0 trapped system in YELLOW 43% vs 29%, worsening
+  latency. Dwell_cycles=5 already handles jitter filtering.
+- `fusion.enabled`: set to **false** in YAML — was accidentally re-enabling on SIGUSR1
+  reload with Pearson correlation at 0.61 (unsafe).
+
+Net result: median latency -7% (33.7 → 31.4ms), YELLOW time -32% (37% → 29% of cycles),
+UL throughput +7% (26.3 → 28.1 Mbps). See `docs/CABLE_TUNING.md` for full data tables.
+
 ## [1.24.0] - 2026-03-31
 
 **EWMA Boundary Hysteresis** - Eliminates GREEN/YELLOW flapping at the EWMA threshold boundary

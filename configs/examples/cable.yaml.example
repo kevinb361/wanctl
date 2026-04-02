@@ -43,8 +43,10 @@ continuous_monitoring:
     floor_soft_red_mbps: 275    # SOFT_RED handles RTT spikes without steering
     floor_red_mbps: 200         # Emergency floor
     ceiling_mbps: 940           # Near plan speed (1 Gbps nominal)
-    step_up_mbps: 10            # Moderate recovery
-    factor_down: 0.85           # 15% backoff for DOCSIS tail spikes
+    step_up_mbps: 15            # Fast ramp (validated over 10 via RRUL A/B)
+    factor_down: 0.90           # 10% RED backoff (validated over 0.85)
+    factor_down_yellow: 0.92    # 8% YELLOW decay (validated: 0.97 doubles latency)
+    green_required: 5           # Conservative recovery (validated over 3)
 
   # Upload - cable upload is typically 1:10 or 1:20 of download
   upload:
@@ -52,12 +54,15 @@ continuous_monitoring:
     ceiling_mbps: 38            # Typical 40 Mbps plan with overhead
     step_up_mbps: 1             # Gentle climb
     factor_down: 0.90           # Less aggressive backoff
+    green_required: 5           # Match download (validated independently)
 
   # Thresholds - tuned for DOCSIS latency characteristics
   thresholds:
     target_bloat_ms: 12         # GREEN -> YELLOW (earlier detection)
     warn_bloat_ms: 45           # YELLOW -> SOFT_RED
     hard_red_bloat_ms: 80       # SOFT_RED -> RED
+    dwell_cycles: 5             # Hysteresis: 250ms gate filters DOCSIS jitter (validated over 3)
+    deadband_ms: 3.0            # Hysteresis: 3ms split threshold (validated: 5.0 is worse)
     # EWMA time constants (interval-independent)
     baseline_time_constant_sec: 50   # Slow EWMA for stable baseline
     load_time_constant_sec: 0.10     # Fast EWMA for load RTT (100ms)

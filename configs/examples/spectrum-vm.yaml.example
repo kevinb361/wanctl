@@ -52,22 +52,24 @@ continuous_monitoring:
     floor_soft_red_mbps: 275
     floor_red_mbps: 200
     ceiling_mbps: 940
-    step_up_mbps: 15
-    factor_down: 0.85
-    factor_down_yellow: 0.92
-    green_required: 3
+    step_up_mbps: 15           # Validated via RRUL A/B (2026-04-02)
+    factor_down: 0.90           # 10% RED decay (validated over 0.85)
+    factor_down_yellow: 0.92    # 8% YELLOW decay (validated over 0.97)
+    green_required: 5           # Conservative recovery (validated over 3)
 
   upload:
     floor_mbps: 8
     ceiling_mbps: 38
     step_up_mbps: 1
     factor_down: 0.85
-    green_required: 3
+    green_required: 5           # Match download (validated independently)
 
   thresholds:
     target_bloat_ms: 12
     warn_bloat_ms: 45
     hard_red_bloat_ms: 80
+    dwell_cycles: 5             # Hysteresis dwell (validated over default 3)
+    deadband_ms: 3.0            # Hysteresis deadband (validated over 5.0)
     baseline_time_constant_sec: 50
     load_time_constant_sec: 0.10
     accel_threshold_ms: 12
