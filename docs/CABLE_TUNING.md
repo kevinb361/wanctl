@@ -195,6 +195,30 @@ detection, not loose enough to avoid YELLOW, resulting in the worst latency of a
 **CRITICAL:** `target_bloat_ms=9` is ONLY safe because `dwell_cycles=5` filters jitter.
 If dwell is reverted to 3, target_bloat MUST go back to 12. These parameters are coupled.
 
+### Note on warn_bloat_ms
+
+The YELLOW->SOFT_RED threshold was tested at 30ms, 45ms, and 60ms (2026-04-02). **45ms
+confirmed** — test data was noisy (suspected CMTS congestion) but 45ms had the best
+median (36.8ms). 30ms escalated too aggressively (21% SOFT_RED). 60ms allowed queue
+buildup (2,454ms max latency). Unlike target_bloat_ms, tighter is not better here —
+the YELLOW->SOFT_RED boundary manages transitions between active congestion states.
+
+### Note on hard_red_bloat_ms
+
+The SOFT_RED->RED threshold was tested at 60ms, 80ms, and 100ms (2026-04-02).
+`hard_red_bloat_ms: 60` validated over original 80ms:
+
+| Metric              | 60ms (tight) | 80ms (original) | 100ms (loose) |
+| ------------------- | ------------ | --------------- | ------------- |
+| ICMP median latency | 40.1ms       | 41.1ms          | 42.2ms        |
+| SOFT_RED cycles     | 3.8%         | 8.4%            | 9.0%          |
+| RED cycles          | 0%           | 0%              | 0%            |
+
+**Key finding:** RED never fires at any threshold with the current tuning. YELLOW's 8%
+per-cycle decay (factor_down_yellow=0.92) prevents delta from ever reaching the RED
+boundary. hard_red_bloat_ms effectively controls how quickly the controller escapes
+YELLOW by clamping to SOFT_RED's floor. Lower = faster SOFT_RED = faster stabilization.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
