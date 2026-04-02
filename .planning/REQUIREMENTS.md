@@ -42,21 +42,21 @@ None identified.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 | TBD | Pending |
-| GATE-02 | TBD | Pending |
-| GATE-03 | TBD | Pending |
-| TUNE-01 | TBD | Pending |
-| TUNE-02 | TBD | Pending |
-| TUNE-03 | TBD | Pending |
-| TUNE-04 | TBD | Pending |
-| RSLT-01 | TBD | Pending |
-| RSLT-02 | TBD | Pending |
+| GATE-01 | Phase 126 | Pending |
+| GATE-02 | Phase 126 | Pending |
+| GATE-03 | Phase 126 | Pending |
+| TUNE-01 | Phase 127 | Pending |
+| TUNE-02 | Phase 128 | Pending |
+| TUNE-03 | Phase 129 | Pending |
+| TUNE-04 | Phase 129 | Pending |
+| RSLT-01 | Phase 127 | Pending |
+| RSLT-02 | Phase 130 | Pending |
 
 **Coverage:**
 - v1.26 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9
+- Mapped to phases: 9/9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Last updated: 2026-04-02 after roadmap creation*
