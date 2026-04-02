@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-04-02
+
+**Reboot Resilience** - Ensures cake-shaper VM fully self-configures after reboot.
+NIC tuning (ring buffers, GRO forwarding, IRQ affinity) applied automatically before
+wanctl starts via idempotent shell script and systemd dependency ordering.
+Phase 125: 2 plans, 4/4 requirements addressed (reboot test deferred to Phase 126).
+
+### Added
+
+- **NIC tuning shell script** (Phase 125-01) - Idempotent optimization of 4 bridge NICs
+  - Ring buffers rx/tx 4096, rx-udp-gro-forwarding, IRQ affinity (Spectrum->CPU0, ATT->CPU1)
+  - Journal logging via `logger -t wanctl-nic-tuning`, graceful missing-NIC handling
+  - Always exits 0 (availability over strictness)
+- **Ordered boot chain** (Phase 125-02) - Explicit systemd dependencies
+  - `wanctl@.service` includes `After=` and `Wants=wanctl-nic-tuning.service`
+  - Boot sequence: bridges -> NIC tuning -> wanctl (CAKE) -> recovery timer
+- **deploy.sh NIC tuning support** (Phase 125-02) - Deploys script to `/usr/local/bin/`
+
+### Changed
+
+- `deploy/systemd/` established as canonical systemd unit location
+- Old `systemd/` directory removed (was diverged/unhardened duplicate)
+- `wanctl-nic-tuning.service` calls shell script instead of 10 inline ExecStart lines
+
 ## [1.24.0] - 2026-03-31
 
 **EWMA Boundary Hysteresis** - Eliminates GREEN/YELLOW flapping at the EWMA threshold boundary

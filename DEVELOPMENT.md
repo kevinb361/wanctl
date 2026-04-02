@@ -95,8 +95,10 @@ wanctl/
 │       └── congestion_assessment.py
 ├── tests/                    # Unit tests
 ├── configs/examples/         # Example configurations
-├── scripts/                  # Deployment scripts
-├── systemd/                  # Service templates
+├── scripts/                  # Deployment and utility scripts
+├── deploy/                   # Deployment artifacts
+│   ├── systemd/              # Service templates (canonical)
+│   └── scripts/              # Boot-time scripts (NIC tuning)
 └── docs/                     # Documentation
 ```
 
