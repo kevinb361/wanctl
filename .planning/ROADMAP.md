@@ -40,7 +40,11 @@ None
   2. The NIC tuning oneshot is idempotent (safe to re-run), logs each optimization it applies, and exits cleanly if a NIC is missing rather than failing the boot chain
   3. wanctl@spectrum and wanctl@att do not start until the NIC tuning oneshot reports success (systemd After/Requires dependency)
   4. A full VM reboot produces the complete chain -- bridges up, NIC tuning applied, wanctl starts with CAKE qdiscs initialized, recovery timer active -- all verified via systemctl status
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 125-01-PLAN.md -- NIC tuning shell script with logging, idempotency, and graceful error handling
+- [ ] 125-02-PLAN.md -- systemd dependency wiring, deploy.sh update, directory reconciliation, dry-run validation
 
 ### Phase 126: Boot Validation
 
@@ -60,7 +64,7 @@ Phases execute in numeric order: 125 -> 126
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 125. Boot Resilience | 0/? | Not started | - |
+| 125. Boot Resilience | 0/2 | Planned | - |
 | 126. Boot Validation | 0/? | Not started | - |
 
 <details>
