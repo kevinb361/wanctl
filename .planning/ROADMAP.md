@@ -94,7 +94,11 @@ Plans:
 1. Each of the 3 UL parameters has been tested with at least 2 values using RRUL flent against Dallas netperf server
 2. Each test has a documented winner with metrics delta and test conditions
 3. All 3 UL results recorded alongside DL results in the findings doc
-   **Plans**: TBD
+   **Plans**: 1 plan
+
+Plans:
+
+- [ ] 128-01-PLAN.md -- Sequential A/B test of 3 UL parameters with RRUL flent
 
 ### Phase 129: CAKE RTT + Confirmation Pass
 
@@ -128,7 +132,7 @@ Plans:
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 126. Pre-Test Gate                | 1/1            | Complete    | 2026-04-02 |
 | 127. DL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
-| 128. UL Parameter Sweep           | 0/TBD          | Not started | -          |
+| 128. UL Parameter Sweep           | 0/1            | Not started | -          |
 | 129. CAKE RTT + Confirmation Pass | 0/TBD          | Not started | -          |
 | 130. Production Config Commit     | 0/TBD          | Not started | -          |
 
