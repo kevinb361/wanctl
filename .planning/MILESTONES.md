@@ -1,5 +1,26 @@
 # Project Milestones: wanctl
 
+## v1.24 EWMA Boundary Hysteresis (Shipped: 2026-04-02)
+
+**Phases completed:** 8 phases, 14 plans, 20 tasks
+
+**Key accomplishments:**
+
+- NetlinkCakeBackend with pyroute2 netlink for CAKE bandwidth control, singleton IPRoute lifecycle, and per-call subprocess fallback
+- Netlink-based per-tin CAKE stats via pyroute2 TCA_STATS2 decoder with factory dispatch for linux-cake-netlink transport
+- Per-granularity retention thresholds in YAML config with cross-section tuner validation and prometheus_compensated mode
+- Per-granularity retention wired into both daemons with SIGUSR1 reload, cross-section validation at startup, and config-driven downsample thresholds
+- Standalone FusionHealer with incremental rolling Pearson correlation, 3-state machine (ACTIVE/SUSPENDED/RECOVERING), AlertEngine alerts, parameter locking, and SIGUSR1 grace period
+- FusionHealer wired into WANController with per-cycle delta feeding, state-transition-driven fusion toggling, SIGUSR1 grace period, and heal state in health endpoint
+- 3 pure-function response tuning strategies (step_up, factor_down, green_required) with episode detection infrastructure analyzing wanctl_state 1m time series for congestion-recovery patterns
+- RESPONSE_LAYER wired as 5th rotation layer with oscillation lockout, 6-param controller mapping, and RTUN-05 default-exclude graduation pattern
+- Dwell timer (3-cycle gate) and deadband margin (3ms hysteresis band) on QueueController GREEN/YELLOW boundary for both upload and download state machines
+- YAML config wiring for dwell_cycles and deadband_ms with schema validation, sensible defaults (3/3.0), and QueueController pass-through
+- SIGUSR1 hot-reload for dwell_cycles and deadband_ms with bounds validation, old->new logging, and E2E chain integration
+- Per-direction suppression counter and health endpoint hysteresis sub-dict with dwell_counter, dwell_cycles, deadband_ms, transitions_suppressed; DEBUG/INFO logging on suppressed and confirmed transitions
+
+---
+
 ## v1.23 Self-Optimizing Controller (Shipped: 2026-03-27)
 
 **Phases completed:** 4 phases, 8 plans, 12 tasks

@@ -10,23 +10,17 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.23.0 (Self-Optimizing Controller) — shipped 2026-03-27
-**Tests:** ~3,928 passing, 91%+ coverage
-**LOC:** ~31,714 Python (src/)
-**Milestones:** 24 shipped (v1.0-v1.23), 121 phases, 243 plans
+**Version:** v1.24.0 (EWMA Boundary Hysteresis) — shipped 2026-04-02
+**Tests:** ~4,100+ passing, 91%+ coverage
+**LOC:** ~32,000 Python (src/)
+**Milestones:** 25 shipped (v1.0-v1.24), 125 phases, 249 plans
 
-**Latest:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
-**Previous:** v1.22 Full System Audit — 5 phases, 16 plans, 87 findings, systemd 2.1 OK
+**Latest:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband on state transitions, YAML config + SIGUSR1 reload, health endpoint observability, production validated (zero flapping, 4,226 suppressions/24h)
+**Previous:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
 
-## Current Milestone: v1.24 EWMA Boundary Hysteresis
+## Next Milestone
 
-**Goal:** Eliminate GREEN/YELLOW flapping at the EWMA threshold boundary during peak DOCSIS load by adding state transition hysteresis.
-
-**Target features:**
-
-- State machine hysteresis on GREEN->YELLOW transition (dwell time / confirmation counter)
-- Deadband / split thresholds (different values for entering vs exiting YELLOW)
-- Flapping rate reduction from 3+ alert pairs/evening to zero
+Planning next milestone. Run `/gsd:new-milestone` to start.
 
 ## Requirements
 
@@ -275,9 +269,12 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 **v1.24 EWMA Boundary Hysteresis:**
 
-- [ ] State transition hysteresis (dwell time on GREEN->YELLOW)
-- [ ] Deadband thresholds (separate enter/exit values)
-- [ ] Flapping elimination during peak DOCSIS load
+- ✓ State transition hysteresis (dwell_cycles=3, 150ms gate on GREEN->YELLOW) — v1.24
+- ✓ Deadband thresholds (deadband_ms=3.0, split enter/exit for YELLOW->GREEN recovery) — v1.24
+- ✓ Flapping elimination: zero alert pairs during prime-time (4,226 suppressions/24h) — v1.24
+- ✓ YAML config + SIGUSR1 hot-reload for hysteresis params — v1.24
+- ✓ Health endpoint hysteresis section (dwell_counter, deadband_ms, transitions_suppressed) — v1.24
+- ✓ Spike detector confirmation counter (accel_confirm_cycles=3) — v1.24
 
 **Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
 
@@ -597,4 +594,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-03-30 after v1.24 EWMA Boundary Hysteresis milestone started_
+_Last updated: 2026-04-02 after v1.24 EWMA Boundary Hysteresis milestone completed_
