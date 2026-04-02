@@ -100,6 +100,27 @@ oscillation (premature ramp-up, queue spike, slam back down) that hurts both lat
 AND throughput. GR=5 lets each step-up stick, resulting in higher sustained throughput
 with less variance.
 
+### Note on step_up_mbps
+
+The production value of `step_up_mbps: 15` (DL) was validated over the original `10` via
+RRUL A/B testing (2026-04-02):
+
+| Metric              | Step=10 (slow) | Step=15 (fast) |
+| ------------------- | -------------- | -------------- |
+| ICMP median latency | 55.3ms         | 41.8ms         |
+| ICMP 99th pct       | 190ms          | 136ms          |
+| ICMP max            | 654ms          | 219ms          |
+| SOFT_RED/RED cycles | 19%            | 8%             |
+| UL throughput       | 17.9 Mbps      | 23.6 Mbps      |
+
+During heavy bidirectional load, TCP congestion avoidance creates brief dips. Faster
+step-up (15 Mbps/cycle) exploits these dips to recover bandwidth before the next burst.
+Slower step-up (10) can't keep up, leaving rates depressed and queues fuller.
+
+**Key interaction:** `green_required=5` + `step_up=15` work as a pair — wait for genuine
+clearance (5 cycles), then ramp aggressively (15 Mbps/step). Changing one without the
+other may produce worse results than either alone.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
