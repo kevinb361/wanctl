@@ -35,7 +35,7 @@ With gentle YELLOW decay:
 
 ## Recommended Cable Parameters
 
-All values below validated via RRUL A/B testing (2026-04-02, 23 soaks).
+All values below validated via RRUL A/B testing (2026-04-02, 30 soaks).
 See "Note on" sections below for test data and rationale for each.
 
 ```yaml
@@ -47,8 +47,8 @@ continuous_monitoring:
     green_required: 5 # Conservative recovery (validated over 3)
 
   upload:
-    step_up_mbps: 1 # Gentle climb
-    factor_down: 0.85 # 15% backoff (UL not independently tested for this param)
+    step_up_mbps: 1 # Gentle climb (validated: 2 overshoots on constrained upstream)
+    factor_down: 0.85 # 15% backoff (validated: UL needs MORE aggressive than DL's 0.90)
     green_required: 5 # Match download (validated independently)
 
   thresholds:
@@ -226,6 +226,32 @@ The SOFT_RED->RED threshold was tested at 60ms, 80ms, and 100ms (2026-04-02).
 per-cycle decay (factor_down_yellow=0.92) prevents delta from ever reaching the RED
 boundary. hard_red_bloat_ms effectively controls how quickly the controller escapes
 YELLOW by clamping to SOFT_RED's floor. Lower = faster SOFT_RED = faster stabilization.
+
+### Note on UL vs DL parameter differences
+
+Upload and download have DIFFERENT optimal values on DOCSIS cable. Do not assume DL
+findings apply to UL. Tested independently via RRUL A/B (2026-04-02):
+
+**UL factor_down: 0.85** (DL uses 0.90):
+
+| Metric              | UL 0.85 (aggressive) | UL 0.90 (gentler) |
+| ------------------- | -------------------- | ----------------- |
+| ICMP median latency | 40.3ms               | 43.0ms            |
+| ICMP 99th pct       | 162ms                | 223ms             |
+| UL throughput       | 23.8 Mbps            | 23.0 Mbps         |
+
+**UL step_up_mbps: 1** (DL uses 15):
+
+| Metric              | UL step=1 (gentle) | UL step=2 (faster) |
+| ------------------- | ------------------ | ------------------ |
+| ICMP median latency | 49.5ms             | 64.1ms             |
+| UL throughput       | 20.0 Mbps          | 15.7 Mbps          |
+| SOFT_RED/RED cycles | 16%                | 27%                |
+
+The asymmetry is fundamental to DOCSIS: downstream bandwidth is dedicated per-subscriber,
+upstream is shared across the node with less headroom. UL needs more aggressive RED decay
+(0.85 vs 0.90) and gentler recovery (1 Mbps/step vs 15) to avoid overshooting the
+constrained upstream channel.
 
 ### Autotuner Bounds for Cable
 
