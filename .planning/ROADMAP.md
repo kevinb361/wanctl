@@ -46,7 +46,7 @@ None
 Plans:
 
 - [x] 125-01-PLAN.md -- NIC tuning shell script with logging, idempotency, and graceful error handling
-- [ ] 125-02-PLAN.md -- systemd dependency wiring, deploy.sh update, directory reconciliation, dry-run validation
+- [x] 125-02-PLAN.md -- systemd dependency wiring, deploy.sh update, directory reconciliation, dry-run validation
 
 ### Phase 126: Boot Validation
 
@@ -67,7 +67,7 @@ Phases execute in numeric order: 125 -> 126
 
 | Phase                | Plans Complete | Status      | Completed |
 | -------------------- | -------------- | ----------- | --------- |
-| 125. Boot Resilience | 1/2            | Executing   | -         |
+| 125. Boot Resilience | 2/2 | Complete   | 2026-04-02 |
 | 126. Boot Validation | 0/?            | Not started | -         |
 
 <details>
