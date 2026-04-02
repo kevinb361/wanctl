@@ -1,8 +1,8 @@
 [Unit]
 Description=wanctl Adaptive CAKE Autorate Daemon - %i
 Documentation=https://github.com/kevinb361/wanctl
-After=network-online.target systemd-networkd-wait-online.service
-Wants=network-online.target
+After=network-online.target systemd-networkd-wait-online.service wanctl-nic-tuning.service
+Wants=network-online.target wanctl-nic-tuning.service
 StartLimitBurst=5
 StartLimitIntervalSec=300
 
