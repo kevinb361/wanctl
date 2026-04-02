@@ -48,11 +48,13 @@ tested independently, one variable at a time.
   TCP congestion avoidance dips.
 - `deadband_ms`: **3.0** confirmed — 5.0 trapped system in YELLOW 43% vs 29%, worsening
   latency. Dwell_cycles=5 already handles jitter filtering.
+- `target_bloat_ms`: 12 → **9** — p99 latency -33% (174 → 116ms). Tighter detection is
+  safe with dwell_cycles=5 filtering DOCSIS jitter. CRITICAL: coupled with dwell_cycles.
 - `fusion.enabled`: set to **false** in YAML — was accidentally re-enabling on SIGUSR1
   reload with Pearson correlation at 0.61 (unsafe).
 
-Net result: median latency -7% (33.7 → 31.4ms), YELLOW time -32% (37% → 29% of cycles),
-UL throughput +7% (26.3 → 28.1 Mbps). See `docs/CABLE_TUNING.md` for full data tables.
+Net result (17 RRUL soaks): median latency -7%, p99 latency -33%, YELLOW time -32%,
+UL throughput +7%. See `docs/CABLE_TUNING.md` for full data tables.
 
 ## [1.24.0] - 2026-03-31
 
