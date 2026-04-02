@@ -171,6 +171,30 @@ depressed. With `dwell_cycles=5` already filtering jitter, a wider deadband is r
 and counterproductive. Don't stack both — dwell handles entry filtering, deadband handles
 exit hysteresis, and 3.0ms is sufficient for the exit side.
 
+### Note on target_bloat_ms
+
+The GREEN->YELLOW threshold was originally locked at 12ms because DOCSIS jitter (5-15ms)
+caused false YELLOWs with the default `dwell_cycles=3`. With `dwell_cycles=5` now
+filtering jitter, a tighter threshold is safe and produces better results.
+
+Three-way RRUL A/B testing (2026-04-02) at 9ms, 12ms, and 15ms:
+
+| Metric              | 9ms (tight) | 12ms (original) | 15ms (loose) |
+| ------------------- | ----------- | --------------- | ------------ |
+| ICMP median latency | 33.8ms      | 38.3ms          | 34.0ms       |
+| ICMP 99th pct       | 116ms       | 174ms           | 182ms        |
+| ICMP max            | 214ms       | 284ms           | 460ms        |
+| SOFT_RED/RED cycles | 2.5%        | 6.6%            | 2.9%         |
+| UL throughput       | 27.3 Mbps   | 24.4 Mbps       | 26.7 Mbps    |
+
+9ms wins on every latency metric. It enters YELLOW more often (66% vs 56%), but with
+dwell=5 filtering, each YELLOW entry represents real congestion caught 3ms earlier —
+before queues build up. The 12ms threshold sat in a dead zone: not tight enough for early
+detection, not loose enough to avoid YELLOW, resulting in the worst latency of all three.
+
+**CRITICAL:** `target_bloat_ms=9` is ONLY safe because `dwell_cycles=5` filters jitter.
+If dwell is reverted to 3, target_bloat MUST go back to 12. These parameters are coupled.
+
 ### Autotuner Bounds for Cable
 
 ```yaml

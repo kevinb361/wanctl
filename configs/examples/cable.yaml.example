@@ -58,7 +58,7 @@ continuous_monitoring:
 
   # Thresholds - tuned for DOCSIS latency characteristics
   thresholds:
-    target_bloat_ms: 12         # GREEN -> YELLOW (earlier detection)
+    target_bloat_ms: 9          # GREEN -> YELLOW (validated: safe with dwell_cycles=5)
     warn_bloat_ms: 45           # YELLOW -> SOFT_RED
     hard_red_bloat_ms: 80       # SOFT_RED -> RED
     dwell_cycles: 5             # Hysteresis: 250ms gate filters DOCSIS jitter (validated over 3)

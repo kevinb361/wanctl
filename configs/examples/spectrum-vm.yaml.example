@@ -65,7 +65,7 @@ continuous_monitoring:
     green_required: 5           # Match download (validated independently)
 
   thresholds:
-    target_bloat_ms: 12
+    target_bloat_ms: 9              # Tighter detection (validated: safe with dwell_cycles=5)
     warn_bloat_ms: 45
     hard_red_bloat_ms: 80
     dwell_cycles: 5             # Hysteresis dwell (validated over default 3)
