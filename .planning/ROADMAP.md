@@ -110,7 +110,11 @@ Plans:
 1. CAKE rtt tested (50ms vs 100ms) with RRUL flent and winner documented
 2. Response group (factor_down_yellow, factor_down, step_up_mbps) re-tested with full winner set to confirm no interaction regressions
 3. Confirmation results match or improve upon Phase 127 individual winners -- any regressions investigated and resolved
-   **Plans**: TBD
+   **Plans**: 1 plan
+
+Plans:
+
+- [ ] 129-01-PLAN.md -- CAKE rtt test + confirmation re-test of 7 changed params
 
 ### Phase 130: Production Config Commit
 
@@ -133,7 +137,7 @@ Plans:
 | 126. Pre-Test Gate                | 1/1            | Complete    | 2026-04-02 |
 | 127. DL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
 | 128. UL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
-| 129. CAKE RTT + Confirmation Pass | 0/TBD          | Not started | -          |
+| 129. CAKE RTT + Confirmation Pass | 0/1            | Not started | -          |
 | 130. Production Config Commit     | 0/TBD          | Not started | -          |
 
 <details>
