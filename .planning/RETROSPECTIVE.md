@@ -474,6 +474,50 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.25 — Reboot Resilience
+
+**Shipped:** 2026-04-02
+**Phases:** 1 | **Plans:** 2
+
+### What Was Built
+
+- Idempotent NIC tuning shell script: ring buffers (4096), rx-udp-gro-forwarding, IRQ affinity for 4 bridge NICs
+- systemd dependency wiring: After= + Wants= ensures wanctl waits for NIC tuning
+- deploy.sh integration for NIC tuning script and service artifacts
+- Dry-run validated on production (cake-shaper VM 206)
+
+### What Worked
+
+- Small, focused milestone: 1 phase, 2 plans — shipped in a single session with zero rework
+- Availability-first design: exit 0 unconditionally, Wants= not Requires= — prevents NIC tuning failures from blocking wanctl startup
+- deploy.sh as canonical artifact: script deployment, systemd units, and directory reconciliation all in one place
+- Dry-run before reboot: validated everything except the actual reboot, reducing risk of the physical test
+
+### What Was Inefficient
+
+- Phase 126 (Boot Validation CLI) was scoped but never started — deferred to v1.26 because it requires physical access for meaningful testing
+- REQUIREMENTS.md traceability wasn't updated when BOOT-03 was completed in Plan 125-02 — caught during milestone completion
+- v1.25 was a small milestone (1 phase) — could have been combined with v1.24, but the domain separation (hysteresis vs boot resilience) justified the split
+
+### Patterns Established
+
+- Boot-critical scripts: always exit 0, logger -t for journal tagging, per-NIC error isolation
+- Milestone can defer validation phases when physical access is required — record as known gaps
+
+### Key Lessons
+
+1. Keep milestone scope honest — Phase 126 was blocked, so defer rather than pretend it's in progress
+2. Update requirements traceability in real-time, not at milestone boundary — BOOT-03 was done but not checked off
+3. Shell scripts for boot-critical work are simpler and more debuggable than inline systemd ExecStart chains
+
+### Cost Observations
+
+- Model mix: Opus for planning/execution
+- Sessions: 1 (entire milestone in a single session)
+- Notable: Smallest milestone shipped — 1 phase, 2 plans, 4 tasks. Infrastructure work, not code.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -492,6 +536,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.18     | 5      | 10    | Lock-free threading, observation mode, report-only closure     |
 | v1.19     | 5      | 9     | Dual-signal fusion, multi-gate fallback, SIGUSR1 in autorate   |
 | v1.20     | 6      | 13    | Adaptive tuning, StrategyFn pattern, 4-layer rotation, bug fix |
+| v1.25     | 1      | 2     | Boot infra (shell script, systemd wiring, deploy.sh)           |
 
 ### Cumulative Quality
 
@@ -509,6 +554,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.18     | 3,256  | 91%+     | 363       |
 | v1.19     | ~3,458 | 91%+     | ~202      |
 | v1.20     | ~3,723 | 91%+     | ~265      |
+| v1.25     | ~4,100 | 91%+     | 0 (infra) |
 
 ### Top Lessons (Verified Across Milestones)
 

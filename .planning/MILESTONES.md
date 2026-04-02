@@ -1,5 +1,23 @@
 # Project Milestones: wanctl
 
+## v1.25 Reboot Resilience (Shipped: 2026-04-02)
+
+**Phases completed:** 1 phase (125), 2 plans, 4 tasks
+
+**Key accomplishments:**
+
+- Idempotent NIC tuning shell script with ring buffers (4096), rx-udp-gro-forwarding, and IRQ affinity for 4 bridge NICs with journal logging
+- systemd dependency wiring (After= + Wants=) ensuring wanctl waits for NIC tuning completion
+- deploy.sh updated to deploy NIC tuning script and service alongside wanctl code
+- Dry-run validated on production: script idempotent, dependencies verified, services unaffected
+
+**Known gaps (deferred to v1.26):**
+
+- BOOT-04: Full reboot E2E test (requires physical access)
+- VALN-01/VALN-02: Boot validation CLI tool (Phase 126 scope)
+
+---
+
 ## v1.24 EWMA Boundary Hysteresis (Shipped: 2026-04-02)
 
 **Phases completed:** 8 phases, 14 plans, 20 tasks

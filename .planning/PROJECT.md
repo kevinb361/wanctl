@@ -10,21 +10,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.24.0 (EWMA Boundary Hysteresis) — shipped 2026-04-02
+**Version:** v1.25.0 (Reboot Resilience) — shipped 2026-04-02
 **Tests:** ~4,100+ passing, 91%+ coverage
 **LOC:** ~32,000 Python (src/)
-**Milestones:** 25 shipped (v1.0-v1.24), 125 phases, 249 plans
+**Milestones:** 26 shipped (v1.0-v1.25), 126 phases, 251 plans
 
-**Latest:** v1.25 Reboot Resilience — Phase 125 complete: NIC tuning script, systemd wiring, deploy.sh, dry-run validated
+**Latest:** v1.25 Reboot Resilience — NIC tuning script, systemd dependency wiring, deploy.sh, dry-run validated
 **Previous:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband, health observability, zero flapping
 
-## Current Milestone: v1.25 Reboot Resilience
-
-**Goal:** Ensure cake-shaper VM fully self-heals after reboot — NIC tuning, CAKE qdiscs, and wanctl services come up correctly without manual intervention.
-
-**Phase 125 complete:** NIC tuning script, systemd dependency wiring, deploy.sh, dry-run validated
-**Phase 126 pending:** Boot validation CLI tool (wanctl-check-boot)
-**Pending:** VM reboot test (deferred to low-traffic window)
+**Next:** v1.26 planned — boot validation CLI (deferred from v1.25) + full tuning re-test on linux-cake transport
 
 ## Requirements
 
@@ -269,8 +263,6 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Adaptive rate step tuning: 5-layer rotation, episode detection, oscillation lockout — v1.23
 - ✓ 18/22 requirements satisfied (4 OBSV deferred to v1.24) — v1.23
 
-### Active
-
 **v1.24 EWMA Boundary Hysteresis:**
 
 - ✓ State transition hysteresis (dwell_cycles=3, 150ms gate on GREEN->YELLOW) — v1.24
@@ -279,6 +271,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ YAML config + SIGUSR1 hot-reload for hysteresis params — v1.24
 - ✓ Health endpoint hysteresis section (dwell_counter, deadband_ms, transitions_suppressed) — v1.24
 - ✓ Spike detector confirmation counter (accel_confirm_cycles=3) — v1.24
+
+**v1.25 Reboot Resilience:**
+
+- ✓ Idempotent NIC tuning script (ring buffers, GRO forwarding, IRQ affinity) with journal logging — v1.25
+- ✓ systemd dependency wiring (After= + Wants= on wanctl@.service) — v1.25
+- ✓ deploy.sh updated to deploy NIC tuning artifacts — v1.25
+- ✓ Dry-run validated on production (script idempotent, dependencies correct) — v1.25
+
+### Active
 
 **Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
 
@@ -576,6 +577,9 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | SIGUSR1 reloads both enabled + icmp_weight | Atomic config snapshot prevents inconsistent state | ✓ Single reload updates both | 2026-03-18 |
 | No SQLite for fusion state | Input signals already persisted, fused_rtt derivable | ✓ No additional persistence needed | 2026-03-18 |
 | fused_rtt + load_ewma persisted to SQLite metrics | Operators need trend analysis of fusion behavior | ✓ 2 new metrics | 2026-03-18 |
+| Boot scripts always exit 0 | Availability over correctness — wanctl with suboptimal NICs better than no wanctl | ✓ Missing NIC warns, doesn't block | 2026-04-02 |
+| NIC tuning as shell script, not systemd ExecStart | Script is testable, loggable, and reusable vs inline ethtool lines | ✓ 9 logger calls, idempotent | 2026-04-02 |
+| Wants= not Requires= for NIC tuning dep | wanctl should start even if NIC tuning fails | ✓ Availability-first design | 2026-04-02 |
 
 ## Evolution
 
@@ -598,4 +602,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-02 after v1.24 EWMA Boundary Hysteresis milestone completed_
+_Last updated: 2026-04-02 after v1.25 Reboot Resilience milestone completed_
