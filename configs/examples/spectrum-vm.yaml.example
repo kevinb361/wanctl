@@ -67,7 +67,7 @@ continuous_monitoring:
   thresholds:
     target_bloat_ms: 9              # Tighter detection (validated: safe with dwell_cycles=5)
     warn_bloat_ms: 45
-    hard_red_bloat_ms: 80
+    hard_red_bloat_ms: 60              # Validated: faster SOFT_RED clamp (RED never fires)
     dwell_cycles: 5             # Hysteresis dwell (validated over default 3)
     deadband_ms: 3.0            # Hysteresis deadband (validated over 5.0)
     baseline_time_constant_sec: 50

@@ -60,7 +60,7 @@ continuous_monitoring:
   thresholds:
     target_bloat_ms: 9          # GREEN -> YELLOW (validated: safe with dwell_cycles=5)
     warn_bloat_ms: 45           # YELLOW -> SOFT_RED
-    hard_red_bloat_ms: 80       # SOFT_RED -> RED
+    hard_red_bloat_ms: 60       # SOFT_RED -> RED (validated: faster floor clamp)
     dwell_cycles: 5             # Hysteresis: 250ms gate filters DOCSIS jitter (validated over 3)
     deadband_ms: 3.0            # Hysteresis: 3ms split threshold (validated: 5.0 is worse)
     # EWMA time constants (interval-independent)

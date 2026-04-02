@@ -50,11 +50,15 @@ tested independently, one variable at a time.
   latency. Dwell_cycles=5 already handles jitter filtering.
 - `target_bloat_ms`: 12 → **9** — p99 latency -33% (174 → 116ms). Tighter detection is
   safe with dwell_cycles=5 filtering DOCSIS jitter. CRITICAL: coupled with dwell_cycles.
+- `warn_bloat_ms`: **45** confirmed — 30 too aggressive (21% SOFT_RED), 60 allows queue
+  buildup (2.4s max latency).
+- `hard_red_bloat_ms`: 80 → **60** — faster SOFT_RED floor clamp. RED state never fires
+  with current tuning (YELLOW decay handles everything).
 - `fusion.enabled`: set to **false** in YAML — was accidentally re-enabling on SIGUSR1
   reload with Pearson correlation at 0.61 (unsafe).
 
-Net result (17 RRUL soaks): median latency -7%, p99 latency -33%, YELLOW time -32%,
-UL throughput +7%. See `docs/CABLE_TUNING.md` for full data tables.
+Net result (23 RRUL soaks, all parameters tested): every tunable A/B validated for this
+Spectrum DOCSIS cable link. See `docs/CABLE_TUNING.md` for full data tables.
 
 ## [1.24.0] - 2026-03-31
 
