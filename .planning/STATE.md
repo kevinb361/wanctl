@@ -1,10 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.25
-milestone_name: Reboot Resilience
-status: roadmap
-last_updated: "2026-04-02T14:00:00.000Z"
-last_activity: 2026-04-02
+milestone: v1.24
+milestone_name: EWMA Boundary Hysteresis
+status: planning
+stopped_at: Phase 125 context gathered
+last_updated: "2026-04-02T14:33:13.326Z"
+last_activity: 2026-04-02 -- Roadmap created (2 phases, 6 requirements mapped)
 progress:
   total_phases: 2
   completed_phases: 0
@@ -35,6 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: --
 - Total execution time: 0h
@@ -71,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02
-Stopped at: Roadmap created for v1.25 Reboot Resilience
-Resume file: None
+Last session: 2026-04-02T14:33:13.320Z
+Stopped at: Phase 125 context gathered
+Resume file: .planning/phases/125-boot-resilience/125-CONTEXT.md
