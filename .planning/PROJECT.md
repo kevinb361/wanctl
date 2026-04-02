@@ -18,9 +18,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband on state transitions, YAML config + SIGUSR1 reload, health endpoint observability, production validated (zero flapping, 4,226 suppressions/24h)
 **Previous:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
 
-## Next Milestone
+## Current Milestone: v1.25 Reboot Resilience
 
-Planning next milestone. Run `/gsd:new-milestone` to start.
+**Goal:** Ensure cake-shaper VM fully self-heals after reboot — NIC tuning, CAKE qdiscs, and wanctl services come up correctly without manual intervention.
+
+**Target features:**
+
+- systemd oneshot that applies NIC optimizations (rx-udp-gro-forwarding) before wanctl starts
+- CAKE qdisc verification/reapplication on boot
+- Ordered startup dependencies (NIC tuning → CAKE qdiscs → wanctl services)
 
 ## Requirements
 
