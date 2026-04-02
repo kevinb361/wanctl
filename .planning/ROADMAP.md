@@ -72,7 +72,10 @@ Plans:
   2. Each test has a documented winner with metrics delta (throughput, latency percentiles) and test conditions (time of day, cable plant load)
   3. Winners are applied cumulatively -- each new test runs with all prior winners in place
   4. All 9 DL results recorded in a findings doc under `.planning/`
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 127-01-PLAN.md -- Sequential A/B test of 9 DL parameters with RRUL flent
 
 ### Phase 128: UL Parameter Sweep
 **Goal**: Determine optimal upload parameters on linux-cake transport by A/B testing each of the 3 UL tunables one at a time
@@ -111,7 +114,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 126. Pre-Test Gate | 1/1 | Complete   | 2026-04-02 |
-| 127. DL Parameter Sweep | 0/TBD | Not started | - |
+| 127. DL Parameter Sweep | 0/1 | Planned | - |
 | 128. UL Parameter Sweep | 0/TBD | Not started | - |
 | 129. CAKE RTT + Confirmation Pass | 0/TBD | Not started | - |
 | 130. Production Config Commit | 0/TBD | Not started | - |
