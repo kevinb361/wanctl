@@ -9,9 +9,9 @@ Requirements for Tuning Validation milestone. Re-test all tuning parameters on l
 
 ### Pre-Test Validation
 
-- [ ] **GATE-01**: Spectrum transport confirmed as linux-cake with CAKE qdiscs active on all 4 bridge NICs (ens16, ens17, ens27, ens28)
-- [ ] **GATE-02**: MikroTik router has no active CAKE queues that could cause double-shaping
-- [ ] **GATE-03**: A wanctl rate change produces visible bandwidth change in `tc -s qdisc show`
+- [x] **GATE-01**: Spectrum transport confirmed as linux-cake with CAKE qdiscs active on all 4 bridge NICs (ens16, ens17, ens27, ens28)
+- [x] **GATE-02**: MikroTik router has no active CAKE queues that could cause double-shaping
+- [x] **GATE-03**: A wanctl rate change produces visible bandwidth change in `tc -s qdisc show`
 
 ### Tuning
 
@@ -42,9 +42,9 @@ None identified.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 | Phase 126 | Pending |
-| GATE-02 | Phase 126 | Pending |
-| GATE-03 | Phase 126 | Pending |
+| GATE-01 | Phase 126 | Complete |
+| GATE-02 | Phase 126 | Complete |
+| GATE-03 | Phase 126 | Complete |
 | TUNE-01 | Phase 127 | Pending |
 | TUNE-02 | Phase 128 | Pending |
 | TUNE-03 | Phase 129 | Pending |

@@ -61,7 +61,7 @@ None
 **Plans**: 1 plan
 
 Plans:
-- [ ] 126-01-PLAN.md -- Gate script + production validation
+- [x] 126-01-PLAN.md -- Gate script + production validation
 
 ### Phase 127: DL Parameter Sweep
 **Goal**: Determine optimal download parameters on linux-cake transport by A/B testing each of the 9 DL tunables one at a time
@@ -110,7 +110,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 126. Pre-Test Gate | 0/1 | Planning | - |
+| 126. Pre-Test Gate | 1/1 | Complete   | 2026-04-02 |
 | 127. DL Parameter Sweep | 0/TBD | Not started | - |
 | 128. UL Parameter Sweep | 0/TBD | Not started | - |
 | 129. CAKE RTT + Confirmation Pass | 0/TBD | Not started | - |
