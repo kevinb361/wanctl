@@ -67,7 +67,7 @@ Phases execute in numeric order: 125 -> 126
 
 | Phase                | Plans Complete | Status      | Completed |
 | -------------------- | -------------- | ----------- | --------- |
-| 125. Boot Resilience | 2/2 | Complete   | 2026-04-02 |
+| 125. Boot Resilience | 2/2 | Complete    | 2026-04-02 |
 | 126. Boot Validation | 0/?            | Not started | -         |
 
 <details>

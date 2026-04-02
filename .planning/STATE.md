@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.24
 milestone_name: EWMA Boundary Hysteresis
-status: executing
+status: completed
 stopped_at: Phase 125 context gathered
-last_updated: "2026-04-02T14:45:53.769Z"
+last_updated: "2026-04-02T15:03:43.285Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 10
   percent: 0
 ---
 
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Milestone:** v1.25 Reboot Resilience
 **Phase:** 125 of 126 (Boot Resilience)
-**Plan:** --
-**Status:** Executing Phase 125
+**Plan:** Not started
+**Status:** Milestone complete
 **Last activity:** 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
