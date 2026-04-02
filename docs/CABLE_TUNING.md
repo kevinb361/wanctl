@@ -255,6 +255,10 @@ upstream is shared across the node with less headroom. UL needs more aggressive 
 (0.85 vs 0.90) and gentler recovery (1 Mbps/step vs 15) to avoid overshooting the
 constrained upstream channel.
 
+**linux-cake update (Phase 128):** On linux-cake transport, UL step_up=2 now wins over 1 --
+the faster feedback loop allows the larger step without oscillation. UL factor_down=0.85
+confirmed. UL green_required=3 confirmed (matching DL). See [UL Parameters (linux-cake)](#ul-parameters-linux-cake) for full results.
+
 ### Autotuner Bounds for Cable
 
 ```yaml
@@ -300,9 +304,9 @@ continuous_monitoring:
     green_required: 3 # Faster recovery safe with direct tc (REST used 5)
 
   upload:
-    step_up_mbps: 1 # Gentle climb (not retested -- UL sweep in Phase 128)
-    factor_down: 0.85 # 15% backoff (not retested)
-    green_required: 5 # Not retested
+    step_up_mbps: 2 # Moderate climb (REST used 1 -- linux-cake faster feedback allows larger step)
+    factor_down: 0.85 # 15% backoff (confirmed same as REST)
+    green_required: 3 # Fast recovery safe with direct tc (REST used 5)
 
   thresholds:
     target_bloat_ms: 15.0 # GREEN->YELLOW (REST used 9 -- too tight for linux-cake)
@@ -335,6 +339,37 @@ DOCSIS-intrinsic -- they filter cable plant jitter regardless of transport speed
 long, ramp fast). On linux-cake, `green_required=3 + step_up=10` replaces it (recover
 sooner, ramp gently). The pairing principle still applies -- don't mix REST and linux-cake
 values.
+
+### UL Parameters (linux-cake)
+
+All 3 upload parameters re-tested via RRUL A/B testing on linux-cake transport (2026-04-02,
+17:53-18:01 CDT). **1 of 3 parameters changed.** Full results in
+`.planning/phases/127-dl-parameter-sweep/127-DL-RESULTS.md` (UL section).
+
+| Parameter      | REST Winner | linux-cake Winner | Changed? | Key Finding                                            |
+| -------------- | ----------- | ----------------- | -------- | ------------------------------------------------------ |
+| factor_down    | 0.85        | 0.85              | No       | UL still needs aggressive RED decay on constrained UL  |
+| step_up_mbps   | 1           | 2                 | YES      | Faster feedback allows larger step without oscillation |
+| green_required | 5           | 3                 | No       | Matches DL finding: 3 cycles sufficient on linux-cake  |
+
+**UL factor_down: 0.85 confirmed** -- 0.85 wins on all metrics vs 0.90: median -17%, p99
+-12%, UL throughput +40%. The constrained ~38 Mbps upstream still needs aggressive RED decay
+regardless of transport speed.
+
+**UL step_up_mbps: 2 (changed from 1)** -- Wins on latency: median -12%, p99 -58%. On REST,
+step_up=1 was necessary because the slow API roundtrip made each step's effect stale by the
+time the next measurement arrived. On linux-cake, near-instant tc feedback means step_up=2
+recovers from congestion faster without oscillation. This mirrors the DL pattern where step
+sizes shifted toward moderate values (15->10 for DL, 1->2 for UL).
+
+**UL green_required: 3 confirmed** -- Wins on all metrics vs 5: median -20%, p99 -31%, UL
+throughput +178%. Reinforces the DL finding that linux-cake's faster feedback makes 3 GREEN
+cycles sufficient for both directions.
+
+**UL vs DL asymmetry on linux-cake:** UL factor_down (0.85) matches DL factor_down (0.85) on
+linux-cake -- the transport-level convergence makes sense because both directions now get
+equally fast feedback. On REST, UL needed 0.85 while DL used 0.90 because the slower feedback
+affected DL (high-bandwidth, 4-state) differently than UL (low-bandwidth, 3-state).
 
 ## DSL Comparison
 
