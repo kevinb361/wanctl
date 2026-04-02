@@ -35,18 +35,18 @@ None identified.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOOT-01 | — | Pending |
-| BOOT-02 | — | Pending |
-| BOOT-03 | — | Pending |
-| BOOT-04 | — | Pending |
-| VALN-01 | — | Pending |
-| VALN-02 | — | Pending |
+| BOOT-01 | Phase 125 | Pending |
+| BOOT-02 | Phase 125 | Pending |
+| BOOT-03 | Phase 125 | Pending |
+| BOOT-04 | Phase 125 | Pending |
+| VALN-01 | Phase 126 | Pending |
+| VALN-02 | Phase 126 | Pending |
 
 **Coverage:**
 - v1.25 requirements: 6 total
-- Mapped to phases: 0
-- Unmapped: 6
+- Mapped to phases: 6
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after milestone v1.25 definition*
+*Last updated: 2026-04-02 after roadmap creation*
