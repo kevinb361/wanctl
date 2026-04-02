@@ -15,18 +15,16 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **LOC:** ~32,000 Python (src/)
 **Milestones:** 25 shipped (v1.0-v1.24), 125 phases, 249 plans
 
-**Latest:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband on state transitions, YAML config + SIGUSR1 reload, health endpoint observability, production validated (zero flapping, 4,226 suppressions/24h)
-**Previous:** v1.23 Self-Optimizing Controller — pyroute2 netlink, configurable retention, auto-fusion healing, adaptive rate step tuning
+**Latest:** v1.25 Reboot Resilience — Phase 125 complete: NIC tuning script, systemd wiring, deploy.sh, dry-run validated
+**Previous:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband, health observability, zero flapping
 
 ## Current Milestone: v1.25 Reboot Resilience
 
 **Goal:** Ensure cake-shaper VM fully self-heals after reboot — NIC tuning, CAKE qdiscs, and wanctl services come up correctly without manual intervention.
 
-**Target features:**
-
-- systemd oneshot that applies NIC optimizations (rx-udp-gro-forwarding) before wanctl starts
-- CAKE qdisc verification/reapplication on boot
-- Ordered startup dependencies (NIC tuning → CAKE qdiscs → wanctl services)
+**Phase 125 complete:** NIC tuning script, systemd dependency wiring, deploy.sh, dry-run validated
+**Phase 126 pending:** Boot validation CLI tool (wanctl-check-boot)
+**Pending:** VM reboot test (deferred to low-traffic window)
 
 ## Requirements
 
