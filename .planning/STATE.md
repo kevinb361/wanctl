@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.25
-milestone_name: Reboot Resilience
-status: completed
-stopped_at: Milestone v1.25 archived
-last_updated: "2026-04-02T20:50:00.000Z"
+milestone: v1.26
+milestone_name: Tuning Validation
+status: defining_requirements
+stopped_at: Milestone v1.26 started
+last_updated: "2026-04-02T21:00:00.000Z"
 last_activity: 2026-04-02
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -21,29 +21,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Planning v1.26 milestone
+**Current focus:** Defining requirements for v1.26 Tuning Validation
 
 ## Position
 
-**Milestone:** v1.25 Reboot Resilience (SHIPPED)
-**Status:** Milestone complete, archived
-**Last activity:** 2026-04-02
+**Milestone:** v1.26 Tuning Validation
+**Phase:** Not started (defining requirements)
+**Plan:** --
+**Status:** Defining requirements
+**Last activity:** 2026-04-02 -- Milestone v1.26 started
 
-Progress: [##########] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- v1.25 shipped with Phase 125 only — Phase 126 (Boot Validation CLI) deferred to v1.26
-- BOOT-04 (full reboot E2E) requires physical access — deferred to v1.26
+- All 30 prior A/B tests invalidated -- ran on REST transport, not linux-cake
+- Current production values may not be optimal on linux-cake transport
+- CAKE must be disabled on MikroTik router before testing (prevent double-shaping)
+- Methodology: RRUL flent tests against Dallas netperf server (104.200.21.31)
 
 ### Known Issues
 
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure
 - ATT fusion disabled -- protocol correlation 0.74 causes permanent delta offset
-- All 30 A/B tuning tests were on REST transport — must re-test on linux-cake
 
 ### Blockers
 
@@ -56,4 +59,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-02
-Stopped at: Milestone v1.25 archived, ready for /gsd:new-milestone
+Stopped at: Milestone v1.26 started, defining requirements
