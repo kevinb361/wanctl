@@ -72,8 +72,11 @@ to find the right value for your link.
 
 ### Note on green_required
 
-The recommended `green_required: 5` was validated via RRUL A/B testing (2026-04-02).
-Compared against `green_required: 3` (which was briefly deployed for faster recovery):
+The recommended `green_required: 5` was validated for both download AND upload via
+independent RRUL A/B testing (2026-04-02). Each direction tested separately against
+`green_required: 3` (which was briefly deployed for faster recovery).
+
+**Download** (UL=3 held constant):
 
 | Metric              | GR=3 (fast) | GR=5 (conservative) |
 | ------------------- | ----------- | ------------------- |
@@ -83,10 +86,19 @@ Compared against `green_required: 3` (which was briefly deployed for faster reco
 | Recovery to ceiling | ~2s         | ~3s                 |
 | DL throughput       | 853 Mbps    | 854 Mbps            |
 
-GR=3 recovers 1 second faster but overshoots during brief lulls in heavy load, causing
-tail latency spikes and more time in severe congestion states. GR=5 prevents premature
-ramp-up. For latency-sensitive traffic (gaming, video calls), the 40% tail improvement
-far outweighs 1 extra second of recovery.
+**Upload** (DL=5 held constant):
+
+| Metric              | GR=3 (fast) | GR=5 (conservative) |
+| ------------------- | ----------- | ------------------- |
+| ICMP 99th pct       | 264ms       | 117ms               |
+| ICMP max            | 529ms       | 207ms               |
+| SOFT_RED/RED cycles | 18%         | 7%                  |
+| UL throughput       | 19.5 Mbps   | 22.2 Mbps (+14%)    |
+
+Upload improvement was even stronger than download. On DOCSIS upstream, GR=3 causes
+oscillation (premature ramp-up, queue spike, slam back down) that hurts both latency
+AND throughput. GR=5 lets each step-up stick, resulting in higher sustained throughput
+with less variance.
 
 ### Autotuner Bounds for Cable
 
