@@ -65,7 +65,10 @@ None
   1. Operator can run profiling under RRUL load and see per-subsystem timing breakdown
   2. The top 3 cycle-time consumers are identified with measured durations
   3. A clear recommendation exists: optimize specific subsystem(s) or adjust cycle interval
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 131-01-PLAN.md -- Sub-timer instrumentation + health endpoint subsystem breakdown
+- [ ] 131-02-PLAN.md -- Production profiling runs, py-spy flamegraph, analysis document
 
 ### Phase 132: Cycle Budget Optimization
 **Goal**: Controller runs within target cycle budget under sustained RRUL load with regression detection
@@ -123,7 +126,7 @@ None
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 131. Cycle Budget Profiling | 0/TBD | Not started | - |
+| 131. Cycle Budget Profiling | 0/2 | Not started | - |
 | 132. Cycle Budget Optimization | 0/TBD | Not started | - |
 | 133. Diffserv Bridge Audit | 0/TBD | Not started | - |
 | 134. Diffserv Tin Separation | 0/TBD | Not started | - |
