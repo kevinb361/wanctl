@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.27
 milestone_name: Performance & QoS
-status: planning
-stopped_at: Phase 136 context gathered
-last_updated: "2026-04-03T18:46:33.046Z"
+status: executing
+stopped_at: Completed 136-01-PLAN.md (windowed suppression counters)
+last_updated: "2026-04-03T19:22:09.184Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 11
+  completed_plans: 10
+  percent: 91
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 135 — upload-recovery-tuning
+**Current focus:** Phase 136 — hysteresis-observability
 
 ## Position
 
-**Milestone:** v1.26 Tuning Validation
-**Phase:** 136
-**Plan:** Not started
-**Status:** Ready to plan
+**Milestone:** v1.27 Performance & QoS
+**Phase:** 136 of 136 (Hysteresis Observability)
+**Plan:** 1/2 complete
+**Status:** Executing phase 136
 **Last activity:** 2026-04-03
 
-Progress: [██████████] 100%
+Progress: [█████████░] 91%
 
 ## Accumulated Context
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 - Production config verified and committed -- configs/spectrum-vm.yaml gitignored (real IPs), example config committed with validation dates
 - check_tin_distribution() uses raw subprocess tc instead of LinuxCakeBackend (per D-05, avoids backend coupling)
 - Tin check conditional on cake_params presence in config (linux-cake transport only)
+- Windowed suppression counter: 60s fixed window, congestion flag before reset, DL window_start as canonical
 
 ### Known Issues
 
@@ -74,5 +75,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T18:46:33.040Z
-Stopped at: Phase 136 context gathered
+Last session: 2026-04-03T19:22:09.178Z
+Stopped at: Completed 136-01-PLAN.md (windowed suppression counters)

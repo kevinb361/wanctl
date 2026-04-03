@@ -26,8 +26,8 @@ Requirements for v1.27 Performance & QoS milestone. Each maps to roadmap phases.
 
 ### Hysteresis Monitoring (HYST)
 
-- [ ] **HYST-01**: Health endpoint exposes per-minute suppression rate with windowed counters
-- [ ] **HYST-02**: Controller logs periodic suppression rate at INFO level during active congestion events
+- [x] **HYST-01**: Health endpoint exposes per-minute suppression rate with windowed counters
+- [x] **HYST-02**: Controller logs periodic suppression rate at INFO level during active congestion events
 - [ ] **HYST-03**: AlertEngine fires Discord alert when suppression rate exceeds configurable threshold (potential false negative detection)
 
 ## Future Requirements
@@ -69,8 +69,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QOS-03 | Phase 134 | Pending |
 | TUNE-01 | Phase 135 | Pending |
 | TUNE-02 | Phase 135 | Pending |
-| HYST-01 | Phase 136 | Pending |
-| HYST-02 | Phase 136 | Pending |
+| HYST-01 | Phase 136 | Complete |
+| HYST-02 | Phase 136 | Complete |
 | HYST-03 | Phase 136 | Pending |
 
 **Coverage:**
