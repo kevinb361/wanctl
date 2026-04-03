@@ -83,7 +83,11 @@ None
 1. Controller completes cycles within 50ms budget under RRUL load (or interval is adjusted with documented rationale)
 2. Health endpoint shows cycle utilization percentage with configurable warning threshold
 3. Operator is alerted (via health endpoint or logs) when utilization exceeds the configured threshold
-   **Plans**: TBD
+   **Plans:** 2 plans
+   Plans:
+
+- [ ] 132-01-PLAN.md -- Background RTT thread + persistent ThreadPoolExecutor + non-blocking measure_rtt()
+- [ ] 132-02-PLAN.md -- Health endpoint status field + cycle_budget_warning alert + SIGUSR1 reload
 
 ### Phase 133: Diffserv Bridge Audit
 
@@ -140,7 +144,7 @@ None
 | Phase                          | Plans Complete | Status      | Completed  |
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 131. Cycle Budget Profiling    | 2/2            | Complete    | 2026-04-03 |
-| 132. Cycle Budget Optimization | 0/TBD          | Not started | -          |
+| 132. Cycle Budget Optimization | 0/2            | In progress | -          |
 | 133. Diffserv Bridge Audit     | 0/TBD          | Not started | -          |
 | 134. Diffserv Tin Separation   | 0/TBD          | Not started | -          |
 | 135. Upload Recovery Tuning    | 0/TBD          | Not started | -          |
