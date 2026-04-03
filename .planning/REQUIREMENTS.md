@@ -11,7 +11,7 @@ Requirements for v1.27 Performance & QoS milestone. Each maps to roadmap phases.
 
 - [x] **PERF-01**: Operator can identify which subsystems consume the most cycle time under RRUL load via profiling instrumentation
 - [x] **PERF-02**: Controller maintains cycle budget within target interval under sustained RRUL load (optimize hot path or adjust interval)
-- [ ] **PERF-03**: Health endpoint exposes cycle budget regression indicator that warns when utilization exceeds configurable threshold
+- [x] **PERF-03**: Health endpoint exposes cycle budget regression indicator that warns when utilization exceeds configurable threshold
 
 ### QoS / Diffserv (QOS)
 
@@ -63,7 +63,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | PERF-01 | Phase 131 | Complete |
 | PERF-02 | Phase 132 | Complete |
-| PERF-03 | Phase 132 | Pending |
+| PERF-03 | Phase 132 | Complete |
 | QOS-01 | Phase 133 | Pending |
 | QOS-02 | Phase 134 | Pending |
 | QOS-03 | Phase 134 | Pending |

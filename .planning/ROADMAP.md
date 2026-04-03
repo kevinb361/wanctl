@@ -87,7 +87,7 @@ None
    Plans:
 
 - [x] 132-01-PLAN.md -- Background RTT thread + persistent ThreadPoolExecutor + non-blocking measure_rtt()
-- [ ] 132-02-PLAN.md -- Health endpoint status field + cycle_budget_warning alert + SIGUSR1 reload
+- [x] 132-02-PLAN.md -- Health endpoint status field + cycle_budget_warning alert + SIGUSR1 reload
 
 ### Phase 133: Diffserv Bridge Audit
 
@@ -144,7 +144,7 @@ None
 | Phase                          | Plans Complete | Status      | Completed  |
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 131. Cycle Budget Profiling    | 2/2            | Complete    | 2026-04-03 |
-| 132. Cycle Budget Optimization | 1/2 | In Progress|  |
+| 132. Cycle Budget Optimization | 2/2 | Complete   | 2026-04-03 |
 | 133. Diffserv Bridge Audit     | 0/TBD          | Not started | -          |
 | 134. Diffserv Tin Separation   | 0/TBD          | Not started | -          |
 | 135. Upload Recovery Tuning    | 0/TBD          | Not started | -          |
