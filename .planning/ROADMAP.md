@@ -118,7 +118,7 @@ Plans:
 
 ### Phase 130: Production Config Commit
 
-**Goal**: Update production spectrum.yaml with the complete validated parameter set from all testing phases
+**Goal**: Verify and document production spectrum.yaml with the complete validated parameter set from all testing phases
 **Depends on**: Phase 129
 **Requirements**: RSLT-02
 **Success Criteria** (what must be TRUE):
@@ -126,7 +126,11 @@ Plans:
 1. spectrum.yaml on cake-shaper updated with all validated winners from Phases 127-129
 2. Config diff reviewed -- every changed value traceable to a specific A/B test result
 3. wanctl service restarted and confirmed healthy with new config (health endpoint returns 200, no error logs)
-   **Plans**: TBD
+   **Plans**: 1 plan
+
+Plans:
+
+- [ ] 130-01-PLAN.md -- Verify production config, update repo configs + CHANGELOG
 
 ## Progress
 
@@ -138,7 +142,7 @@ Plans:
 | 127. DL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
 | 128. UL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
 | 129. CAKE RTT + Confirmation Pass | 1/1            | Complete    | 2026-04-02 |
-| 130. Production Config Commit     | 0/TBD          | Not started | -          |
+| 130. Production Config Commit     | 0/1            | Not started | -          |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.25)</summary>
