@@ -9,7 +9,7 @@ import logging
 import socket
 import time
 import urllib.request
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -473,6 +473,8 @@ class TestPeriodicHysteresisLogging:
         wc = MagicMock(spec=WANController)
         wc.wan_name = "spectrum"
         wc.logger = logging.getLogger("wanctl.autorate_continuous")
+        wc._suppression_alert_threshold = 20
+        wc.alert_engine = MagicMock()
 
         # Use real QueueControllers for accurate behavior
         wc.download = _make_download_qc()

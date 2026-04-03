@@ -3126,6 +3126,50 @@ class WANController:
         self.logger.warning("[CYCLE_BUDGET] Config reload: %s", threshold_str)
         self._warning_threshold_pct = new_threshold
 
+    def _reload_suppression_alert_config(self) -> None:
+        """Re-read suppression alert threshold from YAML (triggered by SIGUSR1).
+
+        Reads continuous_monitoring.thresholds.suppression_alert_threshold from YAML.
+        Per D-03: Default 20 suppressions/min, SIGUSR1 hot-reloadable.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[HYSTERESIS] Suppression alert config reload failed: {e}")
+            return
+
+        cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
+        if not isinstance(cm, dict):
+            cm = {}
+        thresh = cm.get("thresholds", {})
+        if not isinstance(thresh, dict):
+            thresh = {}
+
+        new_threshold = thresh.get("suppression_alert_threshold", 20)
+        if (
+            not isinstance(new_threshold, int)
+            or isinstance(new_threshold, bool)
+            or new_threshold < 0
+            or new_threshold > 1000
+        ):
+            self.logger.warning(
+                "[HYSTERESIS] Reload: suppression_alert_threshold invalid (%r); keeping current value",
+                new_threshold,
+            )
+            return
+
+        old_threshold = self._suppression_alert_threshold
+        threshold_str = (
+            f"suppression_alert_threshold={old_threshold}->{new_threshold}"
+            if old_threshold != new_threshold
+            else f"suppression_alert_threshold={new_threshold} (unchanged)"
+        )
+        self.logger.warning("[HYSTERESIS] Config reload: %s", threshold_str)
+        self._suppression_alert_threshold = new_threshold
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -3200,11 +3244,12 @@ class WANController:
             self._budget_warning_streak = 0
 
     def _check_hysteresis_window(self) -> tuple[int, int]:
-        """Check if 60s hysteresis window has elapsed. Reset and log if so.
+        """Check if 60s hysteresis window has elapsed. Reset, log, and alert if so.
 
         Returns (dl_count, ul_count) from completed window, or (0, 0) if window not elapsed.
         Per D-06: Only logs at INFO when congestion occurred during the window.
-        Phase 136: HYST-01/HYST-02.
+        Per D-04/D-05: Fires hysteresis_suppression alert when count > threshold during congestion.
+        Phase 136: HYST-01/HYST-02/HYST-03.
         """
         now = time.time()
         # Use download's window_start_time as canonical (both reset together)
@@ -3216,12 +3261,27 @@ class WANController:
         had_congestion = self.download._window_had_congestion or self.upload._window_had_congestion
         dl_count = self.download.reset_window()
         ul_count = self.upload.reset_window()
+        total = dl_count + ul_count
 
         if had_congestion:
             self.logger.info(
                 "[HYSTERESIS] %s window: %d suppressions in 60s (DL: %d, UL: %d)",
-                self.wan_name, dl_count + ul_count, dl_count, ul_count,
+                self.wan_name, total, dl_count, ul_count,
             )
+            # Alert if suppression rate exceeds threshold (Phase 136: HYST-03, per D-04/D-05)
+            if total > self._suppression_alert_threshold:
+                self.alert_engine.fire(
+                    alert_type="hysteresis_suppression",
+                    severity="warning",
+                    wan_name=self.wan_name,
+                    details={
+                        "dl_suppressions": dl_count,
+                        "ul_suppressions": ul_count,
+                        "total_suppressions": total,
+                        "threshold": self._suppression_alert_threshold,
+                        "window_seconds": 60,
+                    },
+                )
 
         return dl_count, ul_count
 
@@ -4962,6 +5022,7 @@ def main() -> int | None:
                     wan_info["controller"]._reload_tuning_config()
                     wan_info["controller"]._reload_hysteresis_config()
                     wan_info["controller"]._reload_cycle_budget_config()
+                    wan_info["controller"]._reload_suppression_alert_config()
 
                 # Reload retention config
                 try:
