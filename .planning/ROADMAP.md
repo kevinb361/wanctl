@@ -14,6 +14,7 @@ None
 - v1.24 EWMA Boundary Hysteresis: Phases 121-124 (shipped 2026-04-02)
 - v1.25 Reboot Resilience: Phase 125 (shipped 2026-04-02)
 - v1.26 Tuning Validation: Phases 126-130 (shipped 2026-04-02)
+- v1.27 Performance & QoS: Phases 131-136 (in progress)
 
 ## Phases
 
@@ -45,12 +46,92 @@ None
 
 </details>
 
+### v1.27 Performance & QoS (Phases 131-136)
+
+- [ ] **Phase 131: Cycle Budget Profiling** - Profile hot path under RRUL to identify subsystem bottlenecks
+- [ ] **Phase 132: Cycle Budget Optimization** - Optimize hot path or adjust interval + regression indicator
+- [ ] **Phase 133: Diffserv Bridge Audit** - Trace DSCP marks through L2 bridge path to diagnose tin separation failure
+- [ ] **Phase 134: Diffserv Tin Separation** - Fix DSCP survival and automate bridge path validation
+- [ ] **Phase 135: Upload Recovery Tuning** - A/B test UL step_up/factor_down on linux-cake and deploy winners
+- [ ] **Phase 136: Hysteresis Observability** - Suppression rate monitoring, logging, and alerting for real congestion
+
+## Phase Details
+
+### Phase 131: Cycle Budget Profiling
+**Goal**: Operator can pinpoint which subsystems cause 138% cycle budget overruns under RRUL load
+**Depends on**: Nothing (first phase of v1.27)
+**Requirements**: PERF-01
+**Success Criteria** (what must be TRUE):
+  1. Operator can run profiling under RRUL load and see per-subsystem timing breakdown
+  2. The top 3 cycle-time consumers are identified with measured durations
+  3. A clear recommendation exists: optimize specific subsystem(s) or adjust cycle interval
+**Plans**: TBD
+
+### Phase 132: Cycle Budget Optimization
+**Goal**: Controller runs within target cycle budget under sustained RRUL load with regression detection
+**Depends on**: Phase 131
+**Requirements**: PERF-02, PERF-03
+**Success Criteria** (what must be TRUE):
+  1. Controller completes cycles within 50ms budget under RRUL load (or interval is adjusted with documented rationale)
+  2. Health endpoint shows cycle utilization percentage with configurable warning threshold
+  3. Operator is alerted (via health endpoint or logs) when utilization exceeds the configured threshold
+**Plans**: TBD
+
+### Phase 133: Diffserv Bridge Audit
+**Goal**: Operator knows exactly where DSCP marks are lost or preserved in the MikroTik-to-CAKE bridge path
+**Depends on**: Nothing (independent of PERF work)
+**Requirements**: QOS-01
+**Success Criteria** (what must be TRUE):
+  1. Each hop in the DSCP path (MikroTik mangle -> bridge interface -> CAKE qdisc) has been tested with marked packets
+  2. The exact point where DSCP marks are lost or preserved is documented
+  3. A fix strategy is identified (bridge config, ethtool, tc filter, or other)
+**Plans**: TBD
+
+### Phase 134: Diffserv Tin Separation
+**Goal**: CAKE tins correctly separate traffic by DSCP class and wanctl-check-cake validates it automatically
+**Depends on**: Phase 133
+**Requirements**: QOS-02, QOS-03
+**Success Criteria** (what must be TRUE):
+  1. Running RRUL with EF/CS5 traffic shows it landing in the Voice/Video tin, not Bulk
+  2. Per-tin CAKE stats (via health endpoint or wanctl-history --tins) show differentiated traffic distribution
+  3. `wanctl-check-cake` includes a DSCP bridge survival check that passes on a correctly configured system
+**Plans**: TBD
+
+### Phase 135: Upload Recovery Tuning
+**Goal**: UL parameters are A/B validated on linux-cake transport for faster recovery under bidirectional load
+**Depends on**: Nothing (independent, but uses same flent methodology as v1.26)
+**Requirements**: TUNE-01, TUNE-02
+**Success Criteria** (what must be TRUE):
+  1. UL step_up and factor_down have been A/B tested via RRUL flent with documented per-test metrics
+  2. Winning UL parameters are deployed to production config with validation dates
+  3. UL throughput under RRUL is improved relative to v1.26 baseline (10% of ceiling target exceeded)
+**Plans**: TBD
+
+### Phase 136: Hysteresis Observability
+**Goal**: Operator can monitor dwell/deadband suppression rates during real congestion to detect potential false negatives
+**Depends on**: Nothing (builds on v1.24 hysteresis infrastructure)
+**Requirements**: HYST-01, HYST-02, HYST-03
+**Success Criteria** (what must be TRUE):
+  1. Health endpoint exposes per-minute suppression rate with windowed counters (not just cumulative total)
+  2. Controller logs periodic suppression rate at INFO level during active congestion events
+  3. Discord alert fires when suppression rate exceeds configurable threshold
+  4. Operator can distinguish healthy suppression (jitter filtering) from excessive suppression (missed congestion)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
-All milestones shipped.
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 131. Cycle Budget Profiling | 0/TBD | Not started | - |
+| 132. Cycle Budget Optimization | 0/TBD | Not started | - |
+| 133. Diffserv Bridge Audit | 0/TBD | Not started | - |
+| 134. Diffserv Tin Separation | 0/TBD | Not started | - |
+| 135. Upload Recovery Tuning | 0/TBD | Not started | - |
+| 136. Hysteresis Observability | 0/TBD | Not started | - |
 
 <details>
-<summary>Previous Milestones (v1.0-v1.25)</summary>
+<summary>Previous Milestones (v1.0-v1.26)</summary>
 
 | Milestone                            | Phases  | Plans | Status   | Completed  |
 | ------------------------------------ | ------- | ----- | -------- | ---------- |

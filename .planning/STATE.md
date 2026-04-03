@@ -7,7 +7,7 @@ stopped_at: null
 last_updated: "2026-04-02"
 last_activity: 2026-04-02
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining requirements for v1.27
+**Current focus:** v1.27 Phase 131 - Cycle Budget Profiling
 
 ## Position
 
 **Milestone:** v1.27 Performance & QoS
-**Phase:** Not started (defining requirements)
+**Phase:** 131 of 136 (Cycle Budget Profiling)
 **Plan:** --
-**Status:** Defining requirements
-**Last activity:** 2026-04-02 -- Milestone v1.27 started
+**Status:** Ready to plan
+**Last activity:** 2026-04-02 -- Roadmap created for v1.27 (6 phases, 11 requirements)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -38,13 +38,11 @@ Progress: [░░░░░░░░░░] 0%
 ### Key Decisions
 
 - All 30 prior A/B tests invalidated -- ran on REST transport, not linux-cake
-- Current production values may not be optimal on linux-cake transport
-- CAKE must be disabled on MikroTik router before testing (prevent double-shaping)
-- Methodology: RRUL flent tests against Dallas netperf server (104.200.21.31)
-- sudo required for tc and kill on cake-shaper VM (non-root kevin user)
 - linux-cake faster feedback shifts tuning: less aggressive response + wider thresholds
 - CAKE rtt=40ms optimal (~2x baseline RTT of 22-25ms), tested 25-100ms range
 - Production config verified and committed -- configs/spectrum-vm.yaml gitignored
+- Cycle budget 138% under RRUL = profiling before optimization (Phase 131 -> 132)
+- QOS audit before fix -- need to trace DSCP loss point before attempting repair
 
 ### Known Issues
 
@@ -66,4 +64,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-02
-Stopped at: Milestone v1.27 started, defining requirements
+Stopped at: Roadmap created for v1.27, ready to plan Phase 131

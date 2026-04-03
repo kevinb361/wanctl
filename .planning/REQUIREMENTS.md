@@ -61,23 +61,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PERF-01 | -- | Pending |
-| PERF-02 | -- | Pending |
-| PERF-03 | -- | Pending |
-| QOS-01 | -- | Pending |
-| QOS-02 | -- | Pending |
-| QOS-03 | -- | Pending |
-| TUNE-01 | -- | Pending |
-| TUNE-02 | -- | Pending |
-| HYST-01 | -- | Pending |
-| HYST-02 | -- | Pending |
-| HYST-03 | -- | Pending |
+| PERF-01 | Phase 131 | Pending |
+| PERF-02 | Phase 132 | Pending |
+| PERF-03 | Phase 132 | Pending |
+| QOS-01 | Phase 133 | Pending |
+| QOS-02 | Phase 134 | Pending |
+| QOS-03 | Phase 134 | Pending |
+| TUNE-01 | Phase 135 | Pending |
+| TUNE-02 | Phase 135 | Pending |
+| HYST-01 | Phase 136 | Pending |
+| HYST-02 | Phase 136 | Pending |
+| HYST-03 | Phase 136 | Pending |
 
 **Coverage:**
 - v1.27 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Last updated: 2026-04-02 after roadmap creation*
