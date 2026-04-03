@@ -140,8 +140,8 @@ None
    **Plans:** 2 plans
    Plans:
 
-- [ ] 135-01-PLAN.md -- Gate check, baseline, and full matrix testing (3 step_up x 2 factor_down = 18 flent runs)
-- [ ] 135-02-PLAN.md -- Analysis, winner selection, production deploy, and documentation
+- [x] 135-01-PLAN.md -- Gate check, baseline, and full matrix testing (3 step_up x 2 factor_down = 18 flent runs)
+- [x] 135-02-PLAN.md -- Analysis, winner selection, production deploy, and documentation
 
 ### Phase 136: Hysteresis Observability
 
@@ -165,7 +165,7 @@ None
 | 132. Cycle Budget Optimization | 2/2            | Complete    | 2026-04-03 |
 | 133. Diffserv Bridge Audit     | 1/1            | Complete    | 2026-04-03 |
 | 134. Diffserv Tin Separation   | 0/2            | Complete    | 2026-04-03 |
-| 135. Upload Recovery Tuning    | 0/2            | Not started | -          |
+| 135. Upload Recovery Tuning    | 2/2 | Complete   | 2026-04-03 |
 | 136. Hysteresis Observability  | 0/TBD          | Not started | -          |
 
 <details>
