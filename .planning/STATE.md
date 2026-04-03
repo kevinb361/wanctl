@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.26
-milestone_name: Tuning Validation
-status: completed
-stopped_at: v1.26 milestone complete -- all 5 phases, 5 plans, 9/9 requirements
-last_updated: "2026-04-03T00:23:31.462Z"
-last_activity: 2026-04-03
+milestone: v1.27
+milestone_name: Performance & QoS
+status: active
+stopped_at: null
+last_updated: "2026-04-02"
+last_activity: 2026-04-02
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 130 — production-config-commit
+**Current focus:** Defining requirements for v1.27
 
 ## Position
 
-**Milestone:** v1.26 Tuning Validation
-**Phase:** 130 of 130 (Production Config Commit) -- 5 of 5 in milestone -- COMPLETE
-**Plan:** 1/1 complete
-**Status:** v1.26 milestone complete
-**Last activity:** 2026-04-03
+**Milestone:** v1.27 Performance & QoS
+**Phase:** Not started (defining requirements)
+**Plan:** --
+**Status:** Defining requirements
+**Last activity:** 2026-04-02 -- Milestone v1.27 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
@@ -41,26 +41,19 @@ Progress: [██████████] 100%
 - Current production values may not be optimal on linux-cake transport
 - CAKE must be disabled on MikroTik router before testing (prevent double-shaping)
 - Methodology: RRUL flent tests against Dallas netperf server (104.200.21.31)
-- RSLT-01 (documentation) inline with tuning phases, not separate final phase
 - sudo required for tc and kill on cake-shaper VM (non-root kevin user)
-- Mangle rule filtering by action type (mark-connection/mark-packet), not comment text
-- Gate script uses set -uo pipefail without set -e -- checks must run independently
-- 6 of 9 DL params changed: green_required=3, step_up=10, factor_down=0.85, target_bloat=15, warn_bloat=60, hard_red=100
-- 3 DL params confirmed DOCSIS-intrinsic (transport-independent): factor_down_yellow=0.92, dwell=5, deadband=3.0
 - linux-cake faster feedback shifts tuning: less aggressive response + wider thresholds
-- UL step_up_mbps=2 wins over 1 on linux-cake -- faster feedback allows larger step without oscillation
-- UL factor_down=0.85 confirmed -- constrained upstream still needs aggressive RED decay
-- UL green_required=3 confirmed -- matches DL finding that linux-cake feedback makes 3 cycles sufficient
 - CAKE rtt=40ms optimal (~2x baseline RTT of 22-25ms), tested 25-100ms range
-- target_bloat_ms reverted from 15 to 9 after confirmation pass -- CAKE rtt=40ms restored tight threshold viability
-- Confirmation pass: 6/7 params confirmed, 1 flipped (target_bloat), methodology validated
-- Production config verified and committed -- configs/spectrum-vm.yaml gitignored (real IPs), example config committed with validation dates
+- Production config verified and committed -- configs/spectrum-vm.yaml gitignored
 
 ### Known Issues
 
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure
 - ATT fusion disabled -- protocol correlation 0.74 causes permanent delta offset
+- Cycle budget 138% under RRUL load (14Hz instead of 20Hz)
+- Diffserv CAKE tins not separating traffic (DSCP marks not surviving bridge)
+- UL throughput over-constrained during bidirectional load (10% of ceiling)
 
 ### Blockers
 
@@ -72,5 +65,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T00:25:00.000Z
-Stopped at: v1.26 milestone complete -- all 5 phases, 5 plans, 9/9 requirements
+Last session: 2026-04-02
+Stopped at: Milestone v1.27 started, defining requirements

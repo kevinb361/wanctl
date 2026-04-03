@@ -10,13 +10,24 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.26.0 (Tuning Validation) — shipped 2026-04-02
+**Version:** v1.27.0 (Performance & QoS) — in progress
 **Tests:** ~4,100+ passing, 91%+ coverage
 **LOC:** ~32,000 Python (src/)
 **Milestones:** 27 shipped (v1.0-v1.26), 130 phases, 256 plans
 
 **Latest:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
 **Previous:** v1.25 Reboot Resilience — NIC tuning script, systemd dependency wiring, deploy.sh
+
+## Current Milestone: v1.27 Performance & QoS
+
+**Goal:** Resolve cycle budget overruns, restore diffserv QoS separation through the bridge, tune UL recovery, and add hysteresis monitoring for real congestion events.
+
+**Target features:**
+
+- Cycle budget profiling + optimization — profile hot path under RRUL load, identify bottlenecks, decide: optimize code or adjust interval
+- Diffserv DSCP bridge audit + fix — trace DSCP marks through L2 bridge, fix CAKE tin separation
+- Upload throughput tuning — A/B test UL step_up and factor_down for faster recovery under bidirectional load
+- Hysteresis monitoring — observability for dwell/deadband suppression rates during real congestion
 
 ## Requirements
 
@@ -278,6 +289,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ Dry-run validated on production (script idempotent, dependencies correct) — v1.25
 
 ### Active
+
+**v1.27 Performance & QoS:**
+
+- [ ] Cycle budget profiling under RRUL load with bottleneck identification
+- [ ] Cycle budget optimization (code fix or interval adjustment based on profiling)
+- [ ] DSCP mark audit through L2 bridge path
+- [ ] Diffserv CAKE tin separation fix
+- [ ] Upload throughput A/B tuning (step_up, factor_down)
+- [ ] Hysteresis suppression monitoring during real congestion events
 
 **Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
 
@@ -600,4 +620,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-02 after v1.26 Tuning Validation milestone completed_
+_Last updated: 2026-04-02 after v1.27 Performance & QoS milestone started_
