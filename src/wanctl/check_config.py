@@ -493,6 +493,33 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
         except ConfigValidationError as e:
             results.append(CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e)))
 
+    # --- Transport / cake_params consistency ---
+    transport = _get_nested(data, "router.transport", "rest")
+    has_cake_params = isinstance(data.get("cake_params"), dict)
+
+    if has_cake_params and transport != "linux-cake":
+        results.append(
+            CheckResult(
+                "Cross-field Checks",
+                "transport_mismatch",
+                Severity.ERROR,
+                f"cake_params section present but transport is '{transport}' (not 'linux-cake'). "
+                "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake'.",
+                suggestion="Change router.transport to 'linux-cake' in YAML config",
+            )
+        )
+    elif transport == "linux-cake" and not has_cake_params:
+        results.append(
+            CheckResult(
+                "Cross-field Checks",
+                "transport_mismatch",
+                Severity.ERROR,
+                "transport is 'linux-cake' but cake_params section is missing. "
+                "CAKE qdiscs cannot be initialized without interface names.",
+                suggestion="Add cake_params with download_interface and upload_interface",
+            )
+        )
+
     return results
 
 
