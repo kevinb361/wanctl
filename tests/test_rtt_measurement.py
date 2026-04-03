@@ -860,3 +860,91 @@ class TestBackgroundRTTThread:
 
         # Should have used the provided pool
         mock_pool.submit.assert_called_once()
+
+
+class TestMeasureRTTNonBlocking:
+    """Integration tests for WANController.measure_rtt() with BackgroundRTTThread."""
+
+    @pytest.fixture
+    def mock_wan_controller(self):
+        """Create a minimal mock WANController with the fields measure_rtt needs."""
+        wc = MagicMock()
+        wc.wan_name = "spectrum"
+        wc.logger = MagicMock()
+        wc._reflector_scorer = MagicMock()
+        wc._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        wc._persist_reflector_events = MagicMock()
+        return wc
+
+    def test_measure_rtt_reads_from_background_thread(self, mock_wan_controller):
+        """measure_rtt() reads from background thread and returns rtt_ms."""
+        from wanctl.autorate_continuous import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic(),
+            measurement_ms=30.0,
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+
+        result = WANController.measure_rtt(mock_wan_controller)
+        assert result == 11.0
+        # Should record per-host results for quality scoring
+        assert mock_wan_controller._reflector_scorer.record_result.call_count == 3
+
+    def test_measure_rtt_stale_hard_fail(self, mock_wan_controller):
+        """RTT data >5s old returns None (hard fail per D-04)."""
+        from wanctl.autorate_continuous import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0},
+            timestamp=time.monotonic() - 6.0,
+            measurement_ms=30.0,
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+
+        result = WANController.measure_rtt(mock_wan_controller)
+        assert result is None
+        mock_wan_controller.logger.warning.assert_called()
+        assert "stale" in mock_wan_controller.logger.warning.call_args[0][0].lower()
+
+    def test_measure_rtt_stale_soft_warning(self, mock_wan_controller):
+        """RTT data 0.5-5s old returns value but logs warning."""
+        from wanctl.autorate_continuous import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0},
+            timestamp=time.monotonic() - 1.0,
+            measurement_ms=30.0,
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+
+        result = WANController.measure_rtt(mock_wan_controller)
+        assert result == 11.0
+        mock_wan_controller.logger.debug.assert_called()
+        debug_calls = [str(c) for c in mock_wan_controller.logger.debug.call_args_list]
+        assert any("aging" in c.lower() for c in debug_calls)
+
+    def test_measure_rtt_no_snapshot_returns_none(self, mock_wan_controller):
+        """No snapshot yet (thread starting) returns None."""
+        from wanctl.autorate_continuous import WANController
+
+        mock_wan_controller._rtt_thread.get_latest.return_value = None
+
+        result = WANController.measure_rtt(mock_wan_controller)
+        assert result is None
+        mock_wan_controller.logger.warning.assert_called()
+
+    def test_measure_rtt_fallback_blocking_when_no_thread(self, mock_wan_controller):
+        """When _rtt_thread is None, falls back to _measure_rtt_blocking."""
+        from wanctl.autorate_continuous import WANController
+
+        mock_wan_controller._rtt_thread = None
+        mock_wan_controller._measure_rtt_blocking = MagicMock(return_value=15.0)
+
+        result = WANController.measure_rtt(mock_wan_controller)
+        assert result == 15.0
+        mock_wan_controller._measure_rtt_blocking.assert_called_once()
