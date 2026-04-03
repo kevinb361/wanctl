@@ -2668,3 +2668,310 @@ class TestFixJson:
         ):
             result = main()
         assert result == 1
+
+
+# =============================================================================
+# TIN DISTRIBUTION CHECK TESTS
+# =============================================================================
+
+
+def _tc_json_output(tins: list[dict]) -> str:
+    """Create mock tc -s -j qdisc output with CAKE entry."""
+    return json.dumps([{"kind": "cake", "tins": tins}])
+
+
+class TestTinDistribution:
+    """Tests for check_tin_distribution() function."""
+
+    def test_happy_path_all_tins_have_traffic(self):
+        """4 tins with packets in all tins returns 4 PASS results."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 10000},  # Bulk
+            {"sent_packets": 500000},  # BestEffort
+            {"sent_packets": 80000},  # Video
+            {"sent_packets": 60000},  # Voice
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 4
+        assert all(r.severity == Severity.PASS for r in results)
+        assert all(r.category == "Tin Distribution (download)" for r in results)
+
+    def test_zero_packet_voice_tin_returns_warn(self):
+        """Zero-packet Voice tin returns WARN with suggestion about DSCP marks."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 10000},  # Bulk
+            {"sent_packets": 500000},  # BestEffort
+            {"sent_packets": 80000},  # Video
+            {"sent_packets": 0},  # Voice
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens16", "upload")
+
+        voice_results = [r for r in results if "Voice" in r.message]
+        assert len(voice_results) == 1
+        assert voice_results[0].severity == Severity.WARN
+        assert "DSCP" in voice_results[0].suggestion
+
+    def test_zero_packet_bulk_tin_returns_warn(self):
+        """Zero-packet Bulk tin returns WARN (non-BestEffort tin with 0 packets)."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 0},  # Bulk
+            {"sent_packets": 500000},  # BestEffort
+            {"sent_packets": 80000},  # Video
+            {"sent_packets": 60000},  # Voice
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens16", "upload")
+
+        bulk_results = [r for r in results if "Bulk" in r.message]
+        assert len(bulk_results) == 1
+        assert bulk_results[0].severity == Severity.WARN
+        assert "DSCP" in bulk_results[0].suggestion
+
+    def test_all_tins_zero_packets_returns_single_warn(self):
+        """All tins zero packets returns single WARN 'No packets processed'."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 0},
+            {"sent_packets": 0},
+            {"sent_packets": 0},
+            {"sent_packets": 0},
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.WARN
+        assert "No packets processed" in results[0].message
+
+    def test_no_cake_qdisc_found_returns_error(self):
+        """No CAKE qdisc found returns ERROR."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tc_output = json.dumps([{"kind": "htb", "tins": []}])
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "No CAKE qdisc" in results[0].message
+
+    def test_tc_command_fails_returns_error(self):
+        """tc command fails (non-zero returncode) returns ERROR."""
+        from wanctl.check_cake import check_tin_distribution
+
+        mock_proc = MagicMock(returncode=1, stdout="", stderr="Error: device not found")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "tc failed" in results[0].message
+
+    def test_tc_command_timeout_returns_error(self):
+        """tc command timeout returns ERROR."""
+        import subprocess
+
+        from wanctl.check_cake import check_tin_distribution
+
+        with patch(
+            "wanctl.check_cake.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="tc", timeout=5),
+        ):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "Failed to run tc" in results[0].message
+
+    def test_wrong_tin_count_returns_error(self):
+        """Wrong tin count (not 4) returns ERROR."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 10000},
+            {"sent_packets": 500000},
+            {"sent_packets": 80000},
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "Expected 4 tins" in results[0].message
+
+    def test_below_threshold_tin_returns_warn(self):
+        """Below-threshold tin (e.g., 0.05% when threshold is 0.1%) returns WARN."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 50},  # Bulk: 0.005% -- below 0.1%
+            {"sent_packets": 999850},  # BestEffort
+            {"sent_packets": 80000},  # Video
+            {"sent_packets": 60000},  # Voice
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens16", "upload")
+
+        bulk_results = [r for r in results if "Bulk" in r.message]
+        assert len(bulk_results) == 1
+        assert bulk_results[0].severity == Severity.WARN
+        assert "threshold" in bulk_results[0].message
+
+    def test_besteffort_always_pass_regardless_of_percentage(self):
+        """BestEffort always PASS regardless of percentage."""
+        from wanctl.check_cake import check_tin_distribution
+
+        tins = [
+            {"sent_packets": 900000},  # Bulk
+            {"sent_packets": 10},  # BestEffort: tiny
+            {"sent_packets": 80000},  # Video
+            {"sent_packets": 60000},  # Voice
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens16", "upload")
+
+        be_results = [r for r in results if "BestEffort" in r.message]
+        assert len(be_results) == 1
+        assert be_results[0].severity == Severity.PASS
+
+    def test_tc_file_not_found_returns_error(self):
+        """FileNotFoundError when tc binary not found returns ERROR."""
+        from wanctl.check_cake import check_tin_distribution
+
+        with patch(
+            "wanctl.check_cake.subprocess.run",
+            side_effect=FileNotFoundError("tc not found"),
+        ):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "Failed to run tc" in results[0].message
+
+    def test_invalid_json_returns_error(self):
+        """Invalid JSON from tc returns ERROR."""
+        from wanctl.check_cake import check_tin_distribution
+
+        mock_proc = MagicMock(returncode=0, stdout="not json at all", stderr="")
+
+        with patch("wanctl.check_cake.subprocess.run", return_value=mock_proc):
+            results = check_tin_distribution("ens17", "download")
+
+        assert len(results) == 1
+        assert results[0].severity == Severity.ERROR
+        assert "parse" in results[0].message.lower()
+
+
+class TestTinDistributionRunAuditIntegration:
+    """Tests for check_tin_distribution integration into run_audit()."""
+
+    def test_run_audit_calls_tin_check_when_cake_params_present(self):
+        """run_audit calls check_tin_distribution when cake_params present in data."""
+        from wanctl.check_cake import run_audit
+
+        data = _autorate_config_data()
+        data["cake_params"] = {
+            "download_interface": "ens17",
+            "upload_interface": "ens16",
+        }
+
+        mock_client = MagicMock()
+        mock_client.test_connection.return_value = True
+        mock_client.get_queue_stats.return_value = None
+
+        tins = [
+            {"sent_packets": 10000},
+            {"sent_packets": 500000},
+            {"sent_packets": 80000},
+            {"sent_packets": 60000},
+        ]
+        tc_output = _tc_json_output(tins)
+        mock_proc = MagicMock(returncode=0, stdout=tc_output, stderr="")
+
+        with (
+            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
+            patch("wanctl.check_cake.subprocess.run", return_value=mock_proc),
+        ):
+            results = run_audit(data, "autorate", mock_client)
+
+        tin_results = [r for r in results if "Tin Distribution" in r.category]
+        assert len(tin_results) > 0
+        # Should have results for both download and upload
+        dl_results = [r for r in tin_results if "download" in r.category]
+        ul_results = [r for r in tin_results if "upload" in r.category]
+        assert len(dl_results) > 0
+        assert len(ul_results) > 0
+
+    def test_run_audit_skips_tin_check_when_cake_params_absent(self):
+        """run_audit skips check_tin_distribution when cake_params absent."""
+        from wanctl.check_cake import run_audit
+
+        data = _autorate_config_data()
+        # No cake_params key
+
+        mock_client = MagicMock()
+        mock_client.test_connection.return_value = True
+        mock_client.get_queue_stats.return_value = None
+
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", mock_client)
+
+        tin_results = [r for r in results if "Tin Distribution" in r.category]
+        assert len(tin_results) == 0
+
+    def test_run_audit_skips_tin_check_when_connectivity_fails(self):
+        """run_audit skips check_tin_distribution when router connectivity fails.
+
+        Note: tin check runs locally via tc, but run_audit returns early
+        when connectivity fails so the tin check section is never reached.
+        """
+        from wanctl.check_cake import run_audit
+
+        data = _autorate_config_data()
+        data["cake_params"] = {
+            "download_interface": "ens17",
+            "upload_interface": "ens16",
+        }
+
+        mock_client = MagicMock()
+        mock_client.test_connection.return_value = False
+
+        with patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}):
+            results = run_audit(data, "autorate", mock_client)
+
+        tin_results = [r for r in results if "Tin Distribution" in r.category]
+        assert len(tin_results) == 0
