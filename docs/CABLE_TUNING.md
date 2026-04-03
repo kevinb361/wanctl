@@ -255,9 +255,9 @@ upstream is shared across the node with less headroom. UL needs more aggressive 
 (0.85 vs 0.90) and gentler recovery (1 Mbps/step vs 15) to avoid overshooting the
 constrained upstream channel.
 
-**linux-cake update (Phase 128):** On linux-cake transport, UL step_up=2 now wins over 1 --
-the faster feedback loop allows the larger step without oscillation. UL factor_down=0.85
-confirmed. UL green_required=3 confirmed (matching DL). See [UL Parameters (linux-cake)](#ul-parameters-linux-cake) for full results.
+**linux-cake update (Phase 128):** On linux-cake transport, UL step_up=2 won over 1. UL green_required=3 confirmed (matching DL). See [UL Parameters (linux-cake)](#ul-parameters-linux-cake) for full results.
+
+**Phase 135 update (2026-04-03):** Full 6-config matrix (step_up 3/4/5 x factor_down 0.80/0.90) with 21 RRUL runs reversed the Phase 128 finding on factor_down. **UL factor_down=0.90 now wins** (+17.6% UL throughput), and **step_up=5** is optimal. The earlier 0.85 vs 0.90 test on REST transport was correct for that transport; linux-cake's faster feedback makes gentler decay (0.90) superior.
 
 ### Autotuner Bounds for Cable
 
@@ -392,7 +392,7 @@ combined.
 | DL target_bloat_ms   | 15                   | **9** (reverted)    | FLIPPED   |
 | DL warn_bloat_ms     | 60                   | 60                  | CONFIRMED |
 | DL hard_red_bloat_ms | 100                  | 100                 | CONFIRMED |
-| UL step_up_mbps      | 2                    | 2                   | CONFIRMED |
+| UL step_up_mbps      | 2                    | **5** (Phase 135)   | CHANGED   |
 
 **6 of 7 confirmed, 1 flipped.** The target_bloat_ms flip is the most significant finding:
 CAKE rtt=40ms (vs 100ms during Phase 127 testing) makes the AQM aggressive enough that the
@@ -404,34 +404,32 @@ Full confirmation results in `.planning/phases/129-cake-rtt-confirmation-pass/12
 
 ### UL Parameters (linux-cake)
 
-All 3 upload parameters re-tested via RRUL A/B testing on linux-cake transport (2026-04-02,
-17:53-18:01 CDT). **1 of 3 parameters changed.** Full results in
-`.planning/phases/127-dl-parameter-sweep/127-DL-RESULTS.md` (UL section).
+Upload parameters tested across 3 rounds: REST (v1.26), linux-cake confirmation (Phase 128), and full matrix (Phase 135).
 
-| Parameter      | REST Winner | linux-cake Winner | Changed? | Key Finding                                            |
-| -------------- | ----------- | ----------------- | -------- | ------------------------------------------------------ |
-| factor_down    | 0.85        | 0.85              | No       | UL still needs aggressive RED decay on constrained UL  |
-| step_up_mbps   | 1           | 2                 | YES      | Faster feedback allows larger step without oscillation |
-| green_required | 5           | 3                 | No       | Matches DL finding: 3 cycles sufficient on linux-cake  |
+| Parameter      | REST Winner | linux-cake (P128) | linux-cake (P135) | Current  | Key Finding                                                  |
+| -------------- | ----------- | ----------------- | ----------------- | -------- | ------------------------------------------------------------ |
+| factor_down    | 0.85        | 0.85              | **0.90**          | **0.90** | Phase 135 reversed P128: gentler decay wins with faster step |
+| step_up_mbps   | 1           | 2                 | **5**             | **5**    | Larger step + gentler decay = +17.6% UL throughput           |
+| green_required | 5           | 3                 | (not tested)      | 3        | Confirmed sufficient on linux-cake                           |
 
-**UL factor_down: 0.85 confirmed** -- 0.85 wins on all metrics vs 0.90: median -17%, p99
--12%, UL throughput +40%. The constrained ~38 Mbps upstream still needs aggressive RED decay
-regardless of transport speed.
+**Phase 135: UL factor_down=0.90 wins** (reversed Phase 128 finding of 0.85). Full 6-config
+matrix (21 RRUL runs): factor_down=0.90 consistently beat 0.80 across all step_up values.
+The Phase 128 test was a 2-value comparison (0.85 vs 0.90) with step_up=1-2. Phase 135's
+broader matrix revealed that factor_down and step_up interact: gentler decay (0.90) + faster
+recovery (step_up=5) produces the best UL throughput (18.34 Mbps avg vs 15.59 baseline, +17.6%).
 
-**UL step_up_mbps: 2 (changed from 1)** -- Wins on latency: median -12%, p99 -58%. On REST,
-step_up=1 was necessary because the slow API roundtrip made each step's effect stale by the
-time the next measurement arrived. On linux-cake, near-instant tc feedback means step_up=2
-recovers from congestion faster without oscillation. This mirrors the DL pattern where step
-sizes shifted toward moderate values (15->10 for DL, 1->2 for UL).
+**Phase 135: UL step_up_mbps=5** (changed from 2). At 13% of ceiling, no oscillation observed.
+factor_down=0.90 prevents over-decay, and step_up=5 allows fast ramp-back. The combination
+breaks the v1.26 pattern where UL only achieved 10% of ceiling during RRUL.
 
-**UL green_required: 3 confirmed** -- Wins on all metrics vs 5: median -20%, p99 -31%, UL
-throughput +178%. Reinforces the DL finding that linux-cake's faster feedback makes 3 GREEN
-cycles sufficient for both directions.
+**UL green_required: 3** -- Not re-tested in Phase 135 (per D-01, not suspected as bottleneck).
+Remains at 3 from Phase 128.
 
-**UL vs DL asymmetry on linux-cake:** UL factor_down (0.85) matches DL factor_down (0.85) on
-linux-cake -- the transport-level convergence makes sense because both directions now get
-equally fast feedback. On REST, UL needed 0.85 while DL used 0.90 because the slower feedback
-affected DL (high-bandwidth, 4-state) differently than UL (low-bandwidth, 3-state).
+**UL vs DL asymmetry on linux-cake:** UL now uses factor_down=0.90 (matching DL), but
+step_up=5 (vs DL step_up=15). As a percentage of ceiling: UL step=13.2%, DL step=1.6%.
+UL needs proportionally larger steps because the 38 Mbps link has less absolute headroom.
+
+Full Phase 135 results: `.planning/phases/135-upload-recovery-tuning/135-UL-RESULTS.md`
 
 ## DSL Comparison
 
