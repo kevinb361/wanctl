@@ -805,6 +805,7 @@ class TestCycleBudgetInHealthEndpoint:
         wan._profiler = OperationProfiler(max_samples=1200)
         wan._overrun_count = overrun_count
         wan._cycle_interval_ms = 50.0
+        wan._warning_threshold_pct = 80.0
 
         if with_profiler_data:
             for val in [37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0]:
