@@ -9,11 +9,13 @@ Runs as a persistent daemon with internal 50ms control loop.
 
 import argparse
 import atexit
+import concurrent.futures
 import logging
 import os
 import socket
 import statistics
 import sys
+import threading
 import time
 import traceback
 from collections import deque
@@ -55,7 +57,11 @@ from wanctl.rate_utils import RateLimiter, enforce_rate_bounds
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.router_client import clear_router_password, get_router_client_with_failover
 from wanctl.router_connectivity import RouterConnectivityState
-from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from wanctl.rtt_measurement import (
+    BackgroundRTTThread,
+    RTTAggregationStrategy,
+    RTTMeasurement,
+)
 from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
@@ -2092,6 +2098,16 @@ class WANController:
         self._cycle_interval_ms = CYCLE_INTERVAL_SECONDS * 1000.0
 
         # =====================================================================
+        # BACKGROUND RTT MEASUREMENT (Phase 132: PERF-02, per D-01)
+        # =====================================================================
+        # Dedicated background thread runs ICMP pings continuously.
+        # Control loop reads latest RTT from GIL-protected shared variable.
+        # Eliminates 42ms blocking I/O from hot path.
+        # =====================================================================
+        self._rtt_thread: BackgroundRTTThread | None = None
+        self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
+
+        # =====================================================================
         # ADAPTIVE TUNING STATE
         # =====================================================================
         # Runtime-only parameter tuning driven by metrics analysis.
@@ -2190,9 +2206,66 @@ class WANController:
                 f"{self.wan_name}: Failed to restore tuning params (using defaults): {e}"
             )
 
-    def measure_rtt(self) -> float | None:
+    def start_background_rtt(self, shutdown_event: threading.Event) -> None:
+        """Start background RTT measurement thread (Phase 132: D-01, D-05).
+
+        Creates a persistent ThreadPoolExecutor and BackgroundRTTThread that
+        runs ICMP pings continuously. The control loop reads from the shared
+        variable via measure_rtt() instead of blocking on ICMP I/O.
         """
-        Measure RTT and return value in milliseconds.
+        self._rtt_pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=3,
+            thread_name_prefix="wanctl-rtt-ping",
+        )
+        self._rtt_thread = BackgroundRTTThread(
+            rtt_measurement=self.rtt_measurement,
+            hosts_fn=self._reflector_scorer.get_active_hosts,
+            shutdown_event=shutdown_event,
+            logger=self.logger,
+            pool=self._rtt_pool,
+        )
+        self._rtt_thread.start()
+
+    def measure_rtt(self) -> float | None:
+        """Read latest RTT from background thread (non-blocking).
+
+        Per D-01: Reads GIL-protected shared variable instead of blocking on ICMP.
+        Per D-04: Staleness detection -- warn at 500ms, fail at 5s.
+        ReflectorScorer integration preserved -- per-host results from snapshot.
+
+        Falls back to blocking measurement if background thread not started
+        (e.g., during tests or startup race).
+        """
+        if self._rtt_thread is None:
+            # Fallback: no background thread (e.g., tests or startup race)
+            return self._measure_rtt_blocking()
+
+        snapshot = self._rtt_thread.get_latest()
+        if snapshot is None:
+            self.logger.warning(
+                f"{self.wan_name}: No RTT data available (background thread starting)"
+            )
+            return None
+
+        age = time.monotonic() - snapshot.timestamp
+        if age > 5.0:  # Hard limit per D-04
+            self.logger.warning(
+                f"{self.wan_name}: RTT data stale ({age:.1f}s), treating as failure"
+            )
+            return None
+        if age > 0.5:  # Soft warning per D-04
+            self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
+
+        # Record per-host results for quality scoring (same as before)
+        for host, rtt_val in snapshot.per_host_results.items():
+            self._reflector_scorer.record_result(host, rtt_val is not None)
+        self._persist_reflector_events()
+
+        return snapshot.rtt_ms
+
+    def _measure_rtt_blocking(self) -> float | None:
+        """
+        Measure RTT via blocking ICMP (fallback when background thread unavailable).
 
         Uses ReflectorScorer to select active (non-deprioritized) hosts, then
         pings them concurrently with per-host attribution for quality tracking.
@@ -4371,6 +4444,11 @@ def main() -> int | None:
         wan_info["controller"]._irtt_thread = irtt_thread
         wan_info["controller"]._init_fusion_healer()
 
+    # Start background RTT measurement threads (Phase 132: PERF-02)
+    rtt_shutdown = get_shutdown_event()
+    for wan_info in controller.wan_controllers:
+        wan_info["controller"].start_background_rtt(rtt_shutdown)
+
     # Log startup
     for wan_info in controller.wan_controllers:
         wan_info["logger"].info(
@@ -4790,6 +4868,29 @@ def main() -> int | None:
                 _cleanup_log.debug(f"Error stopping IRTT thread: {e}")
         check_cleanup_deadline(
             "irtt_thread",
+            t0,
+            deadline,
+            SHUTDOWN_TIMEOUT_SECONDS,
+            _cleanup_log,
+            now=time.monotonic(),
+        )
+
+        # 0.6. Stop background RTT threads and persistent pools (Phase 132)
+        t0 = time.monotonic()
+        for wan_info in controller.wan_controllers:
+            wc = wan_info["controller"]
+            try:
+                if wc._rtt_thread is not None:
+                    wc._rtt_thread.stop()
+            except Exception as e:
+                _cleanup_log.debug(f"Error stopping RTT thread: {e}")
+            try:
+                if wc._rtt_pool is not None:
+                    wc._rtt_pool.shutdown(wait=True, cancel_futures=True)
+            except Exception as e:
+                _cleanup_log.debug(f"Error shutting down RTT pool: {e}")
+        check_cleanup_deadline(
+            "rtt_thread",
             t0,
             deadline,
             SHUTDOWN_TIMEOUT_SECONDS,
