@@ -15,8 +15,8 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **LOC:** ~32,000 Python (src/)
 **Milestones:** 27 shipped (v1.0-v1.26), 130 phases, 256 plans
 
-**Latest:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
-**Previous:** v1.25 Reboot Resilience — NIC tuning script, systemd dependency wiring, deploy.sh
+**Latest:** Phase 132 complete — RTT measurement decoupled to background thread, cycle budget regression indicator added
+**Previous:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
 
 ## Current Milestone: v1.27 Performance & QoS
 
