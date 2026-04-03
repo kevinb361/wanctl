@@ -496,3 +496,74 @@ class TestRecordCycleProfiling:
             )
         # After 1200 it resets to 0, then 1 more = 1
         assert cycle_count == 1
+
+    def test_records_sub_timer_keys_to_profiler(self, profiler, logger) -> None:
+        """All 8 timing keys (3 original + 5 sub-timers) should be recorded to profiler."""
+        timings = {
+            "autorate_rtt_measurement": 10.0,
+            "autorate_state_management": 25.0,
+            "autorate_router_communication": 3.0,
+            "autorate_signal_processing": 5.0,
+            "autorate_ewma_spike": 0.5,
+            "autorate_congestion_assess": 2.0,
+            "autorate_irtt_observation": 1.5,
+            "autorate_logging_metrics": 16.0,
+        }
+        cycle_start = time.perf_counter()
+        record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+
+        for key in timings:
+            assert key in profiler.samples, f"Expected {key} in profiler samples"
+        # Also verify cycle_total is recorded
+        assert "autorate_cycle_total" in profiler.samples
+
+    def test_structured_debug_log_includes_sub_timer_fields(self, profiler, logger) -> None:
+        """Structured DEBUG log extra dict should include sub-timer fields as *_ms keys."""
+        timings = {
+            "autorate_rtt_measurement": 10.0,
+            "autorate_state_management": 25.0,
+            "autorate_router_communication": 3.0,
+            "autorate_signal_processing": 5.0,
+            "autorate_ewma_spike": 0.5,
+            "autorate_congestion_assess": 2.0,
+            "autorate_irtt_observation": 1.5,
+            "autorate_logging_metrics": 16.0,
+        }
+        cycle_start = time.perf_counter()
+        record_cycle_profiling(
+            profiler=profiler,
+            timings=timings,
+            cycle_start=cycle_start,
+            cycle_interval_ms=50.0,
+            logger=logger,
+            daemon_name="TestWAN: Cycle",
+            label_prefix="autorate",
+            overrun_count=0,
+            profiling_enabled=False,
+            profile_cycle_count=0,
+        )
+
+        logger.debug.assert_called_once()
+        _args, kwargs = logger.debug.call_args
+        extra = kwargs["extra"]
+        # Sub-timer fields should appear as suffix_ms keys
+        assert "signal_processing_ms" in extra
+        assert "ewma_spike_ms" in extra
+        assert "congestion_assess_ms" in extra
+        assert "irtt_observation_ms" in extra
+        assert "logging_metrics_ms" in extra
+        # Original keys should still be present
+        assert "rtt_measurement_ms" in extra
+        assert "state_management_ms" in extra
+        assert "router_communication_ms" in extra
