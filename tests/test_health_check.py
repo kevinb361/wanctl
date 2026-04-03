@@ -634,6 +634,114 @@ class TestBuildCycleBudget:
             # Multiply by 10 -- should be an integer (i.e., 1 decimal place)
             assert value == round(value, 1), f"{key} not rounded to 1 decimal: {value}"
 
+    def test_subsystems_dict_present_when_sub_timer_data_exists(self):
+        """subsystems dict should be present when profiler has sub-timer data."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+        profiler.record("autorate_signal_processing", 5.0)
+        profiler.record("autorate_logging_metrics", 30.0)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" in result
+        assert "signal_processing" in result["subsystems"]
+        assert "logging_metrics" in result["subsystems"]
+        # Each subsystem entry should have avg, p95, p99
+        for name in ("signal_processing", "logging_metrics"):
+            sub = result["subsystems"][name]
+            assert "avg" in sub
+            assert "p95" in sub
+            assert "p99" in sub
+
+    def test_subsystems_uses_short_names(self):
+        """subsystems keys should use short names (without autorate_ prefix)."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+        profiler.record("autorate_signal_processing", 5.0)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" in result
+        assert "signal_processing" in result["subsystems"]
+        assert "autorate_signal_processing" not in result["subsystems"]
+
+    def test_subsystems_omits_labels_without_data(self):
+        """subsystems should only include labels that have profiler data."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+        profiler.record("autorate_signal_processing", 5.0)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" in result
+        assert "ewma_spike" not in result["subsystems"]
+
+    def test_subsystems_absent_when_no_sub_timer_data(self):
+        """subsystems should not be in result when profiler has no sub-timer data."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" not in result
+
+    def test_subsystems_values_rounded_to_1_decimal(self):
+        """subsystem values should be rounded to 1 decimal place."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+        profiler.record("autorate_signal_processing", 1.234)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" in result
+        assert result["subsystems"]["signal_processing"]["avg"] == 1.2
+
+    def test_subsystems_all_eight_labels(self):
+        """All 8 sub-timer labels should appear in subsystems when data exists."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", 40.0)
+        # Record all 8 sub-timer labels
+        labels = [
+            "autorate_rtt_measurement",
+            "autorate_signal_processing",
+            "autorate_ewma_spike",
+            "autorate_congestion_assess",
+            "autorate_irtt_observation",
+            "autorate_logging_metrics",
+            "autorate_router_communication",
+            "autorate_post_cycle",
+        ]
+        for label in labels:
+            profiler.record(label, 5.0)
+
+        result = _build_cycle_budget(
+            profiler, overrun_count=0, cycle_interval_ms=50.0, total_label="autorate_cycle_total"
+        )
+        assert result is not None
+        assert "subsystems" in result
+        expected_short_names = [
+            "rtt_measurement",
+            "signal_processing",
+            "ewma_spike",
+            "congestion_assess",
+            "irtt_observation",
+            "logging_metrics",
+            "router_communication",
+            "post_cycle",
+        ]
+        for name in expected_short_names:
+            assert name in result["subsystems"], f"Expected {name} in subsystems"
+
 
 class TestCycleBudgetInHealthEndpoint:
     """Integration tests for cycle_budget in autorate health endpoint."""
