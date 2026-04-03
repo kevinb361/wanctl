@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.27
 milestone_name: Performance & QoS
-status: executing
-stopped_at: Completed 136-01-PLAN.md (windowed suppression counters)
-last_updated: "2026-04-03T19:22:09.184Z"
+status: completed
+stopped_at: Completed 136-02-PLAN.md (hysteresis suppression alert)
+last_updated: "2026-04-03T19:31:06.845Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Milestone:** v1.27 Performance & QoS
 **Phase:** 136 of 136 (Hysteresis Observability)
-**Plan:** 1/2 complete
-**Status:** Executing phase 136
+**Plan:** 2/2 complete
+**Status:** Phase 136 complete
 **Last activity:** 2026-04-03
 
-Progress: [█████████░] 91%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -58,6 +58,8 @@ Progress: [█████████░] 91%
 - check_tin_distribution() uses raw subprocess tc instead of LinuxCakeBackend (per D-05, avoids backend coupling)
 - Tin check conditional on cake_params presence in config (linux-cake transport only)
 - Windowed suppression counter: 60s fixed window, congestion flag before reset, DL window_start as canonical
+- hysteresis_suppression alert gated by had_congestion flag -- silent during GREEN-only windows
+- Suppression alert threshold strict greater-than (total > threshold), default 20, SIGUSR1 hot-reloadable
 
 ### Known Issues
 
@@ -75,5 +77,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T19:22:09.178Z
-Stopped at: Completed 136-01-PLAN.md (windowed suppression counters)
+Last session: 2026-04-03T19:31:06.838Z
+Stopped at: Completed 136-02-PLAN.md (hysteresis suppression alert)
