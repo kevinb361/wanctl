@@ -524,3 +524,32 @@ flent rrul -H 104.200.21.31 -l 60 -t "cable-RRUL"
 ```
 
 Target: A+ bufferbloat grade, < 10ms ping increase under download load.
+
+## Comprehensive Test Results (v1.26, 2026-04-02)
+
+Tests run from dev machine (real LAN path: dev → MikroTik → cake-shaper bridge → internet).
+Config: linux-cake rtt=40ms, all v1.26 validated params active. Afternoon cable plant.
+
+### Results
+
+| Test          | Duration | ICMP Median | ICMP p99    | DL Sum   | UL Sum   | Grade |
+| ------------- | -------- | ----------- | ----------- | -------- | -------- | ----- |
+| RRUL BE       | 5 min    | 63.00ms     | 269ms       | 420 Mbps | 4.0 Mbps | A-    |
+| VoIP          | 60s      | RTT 21.56ms | RTT 39.90ms | —        | —        | A+    |
+| tcp_12down    | 60s      | 42.25ms     | 185ms       | 320 Mbps | —        | A     |
+| RRUL diffserv | 60s      | 78.90ms     | 844ms       | 602 Mbps | 8.2 Mbps | C-    |
+
+### Analysis
+
+**Strengths:**
+
+- VoIP: zero loss, 2.15ms jitter median, 22ms RTT — flawless
+- Download latency under 12-stream load: 42ms median, 185ms p99
+- RRUL BE stream fairness: all 4 DL streams within 104-106 Mbps
+
+**Known Issues (future work):**
+
+1. **Cycle budget overrun:** 138% utilization (avg 69ms on 50ms cycle), 51k overruns under RRUL load
+2. **UL over-constrained:** 3.9 Mbps under RRUL (10% of 38 Mbps ceiling) — recovery too slow
+3. **Diffserv tins not separating:** EF/BE/BK all show same ~78ms latency under diffserv RRUL
+4. **Hysteresis suppression:** 9,776 transitions suppressed (~37/min) — monitoring for false negatives
