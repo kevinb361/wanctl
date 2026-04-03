@@ -25,6 +25,7 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -544,6 +545,170 @@ def check_link_params(
 
 
 # =============================================================================
+# TIN DISTRIBUTION CHECK (QOS-03, D-05)
+# =============================================================================
+
+
+def check_tin_distribution(
+    interface: str,
+    direction: str,
+    min_percent: float = 0.1,
+) -> list[CheckResult]:
+    """Check CAKE tin distribution on a local interface.
+
+    Reads per-tin sent_packets from tc JSON stats. Flags non-BestEffort
+    tins with 0 packets as WARN (expected traffic not reaching that tin).
+
+    Per D-05: threshold-based PASS/WARN with per-tin packet counts.
+    Per D-06: CLI check only, no AlertEngine integration.
+
+    Args:
+        interface: Network interface (e.g., "ens17" for download).
+        direction: "download" or "upload" for labeling.
+        min_percent: Minimum % of total packets for non-BE tins (0.1% default).
+
+    Returns:
+        List of CheckResult with PASS/WARN/ERROR verdicts.
+    """
+    from wanctl.backends.linux_cake import TIN_NAMES
+
+    results: list[CheckResult] = []
+    category = f"Tin Distribution ({direction})"
+
+    try:
+        proc = subprocess.run(
+            ["tc", "-s", "-j", "qdisc", "show", "dev", interface],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        results.append(
+            CheckResult(
+                category,
+                "tc_command",
+                Severity.ERROR,
+                f"Failed to run tc on {interface}: {e}",
+            )
+        )
+        return results
+
+    if proc.returncode != 0:
+        results.append(
+            CheckResult(
+                category,
+                "tc_command",
+                Severity.ERROR,
+                f"tc failed on {interface}: {proc.stderr.strip()}",
+            )
+        )
+        return results
+
+    # Parse JSON and find CAKE entry
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        results.append(
+            CheckResult(
+                category,
+                "tc_parse",
+                Severity.ERROR,
+                f"Failed to parse tc JSON output for {interface}",
+            )
+        )
+        return results
+
+    cake_entry = None
+    for entry in data:
+        if entry.get("kind") == "cake":
+            cake_entry = entry
+            break
+
+    if cake_entry is None:
+        results.append(
+            CheckResult(
+                category,
+                "cake_qdisc",
+                Severity.ERROR,
+                f"No CAKE qdisc found on {interface}",
+            )
+        )
+        return results
+
+    tins = cake_entry.get("tins", [])
+    if len(tins) != 4:
+        results.append(
+            CheckResult(
+                category,
+                "tin_count",
+                Severity.ERROR,
+                f"Expected 4 tins (diffserv4), found {len(tins)} on {interface}",
+            )
+        )
+        return results
+
+    # Calculate total and per-tin percentages
+    total_packets = sum(t.get("sent_packets", 0) for t in tins)
+    if total_packets == 0:
+        results.append(
+            CheckResult(
+                category,
+                "total_packets",
+                Severity.WARN,
+                f"No packets processed on {interface} -- run traffic first",
+            )
+        )
+        return results
+
+    for i, tin in enumerate(tins):
+        name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"Tin{i}"
+        packets = tin.get("sent_packets", 0)
+        pct = (packets / total_packets) * 100
+
+        if name == "BestEffort":
+            # BestEffort always has traffic -- just report
+            results.append(
+                CheckResult(
+                    category,
+                    f"tin_{name.lower()}",
+                    Severity.PASS,
+                    f"{name}: {packets:,} packets ({pct:.1f}%)",
+                )
+            )
+        else:
+            if packets == 0:
+                results.append(
+                    CheckResult(
+                        category,
+                        f"tin_{name.lower()}",
+                        Severity.WARN,
+                        f"{name}: 0 packets (0%) -- no {name} traffic reaching CAKE",
+                        suggestion=f"Verify DSCP marks for {name} tin survive the bridge path",
+                    )
+                )
+            elif pct < min_percent:
+                results.append(
+                    CheckResult(
+                        category,
+                        f"tin_{name.lower()}",
+                        Severity.WARN,
+                        f"{name}: {packets:,} packets ({pct:.2f}%) -- below {min_percent}% threshold",
+                    )
+                )
+            else:
+                results.append(
+                    CheckResult(
+                        category,
+                        f"tin_{name.lower()}",
+                        Severity.PASS,
+                        f"{name}: {packets:,} packets ({pct:.1f}%)",
+                    )
+                )
+
+    return results
+
+
+# =============================================================================
 # MANGLE RULE (CAKE-05)
 # =============================================================================
 
@@ -732,6 +897,15 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
                     suggestion="Add mangle_rule.comment to steering config",
                 )
             )
+
+    # 5. Tin distribution check (linux-cake transport only, per D-05)
+    cake_params = data.get("cake_params")
+    if cake_params and isinstance(cake_params, dict):
+        for direction in ("download", "upload"):
+            iface_key = f"{direction}_interface"
+            iface = cake_params.get(iface_key, "")
+            if iface:
+                results.extend(check_tin_distribution(iface, direction))
 
     return results
 

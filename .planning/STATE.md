@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.27
-milestone_name: Performance & QoS
-status: planning
-stopped_at: Phase 134 context gathered
-last_updated: "2026-04-03T16:14:57.580Z"
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: v1.26 milestone complete -- all 5 phases, 5 plans, 9/9 requirements
+last_updated: "2026-04-03T16:55:58.774Z"
 last_activity: 2026-04-03
 progress:
-  total_phases: 6
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 133 — diffserv-bridge-audit
+**Current focus:** Phase 134 — diffserv-tin-separation
 
 ## Position
 
-**Milestone:** v1.27 Performance & QoS
-**Phase:** 134 of 136 (diffserv tin separation)
-**Plan:** Not started
-**Status:** Ready to plan
+**Milestone:** v1.26 Tuning Validation
+**Phase:** 134 (Diffserv Tin Separation)
+**Plan:** 134-02 complete (tin distribution check)
+**Status:** Phase 134 plan 02 complete
 **Last activity:** 2026-04-03
 
 Progress: [██████████] 100%
@@ -38,24 +38,31 @@ Progress: [██████████] 100%
 ### Key Decisions
 
 - All 30 prior A/B tests invalidated -- ran on REST transport, not linux-cake
+- Current production values may not be optimal on linux-cake transport
+- CAKE must be disabled on MikroTik router before testing (prevent double-shaping)
+- Methodology: RRUL flent tests against Dallas netperf server (104.200.21.31)
+- RSLT-01 (documentation) inline with tuning phases, not separate final phase
+- sudo required for tc and kill on cake-shaper VM (non-root kevin user)
+- Mangle rule filtering by action type (mark-connection/mark-packet), not comment text
+- Gate script uses set -uo pipefail without set -e -- checks must run independently
+- 6 of 9 DL params changed: green_required=3, step_up=10, factor_down=0.85, target_bloat=15, warn_bloat=60, hard_red=100
+- 3 DL params confirmed DOCSIS-intrinsic (transport-independent): factor_down_yellow=0.92, dwell=5, deadband=3.0
 - linux-cake faster feedback shifts tuning: less aggressive response + wider thresholds
+- UL step_up_mbps=2 wins over 1 on linux-cake -- faster feedback allows larger step without oscillation
+- UL factor_down=0.85 confirmed -- constrained upstream still needs aggressive RED decay
+- UL green_required=3 confirmed -- matches DL finding that linux-cake feedback makes 3 cycles sufficient
 - CAKE rtt=40ms optimal (~2x baseline RTT of 22-25ms), tested 25-100ms range
-- Production config verified and committed -- configs/spectrum-vm.yaml gitignored
-- Cycle budget 138% under RRUL = profiling before optimization (Phase 131 -> 132)
-- QOS audit before fix -- need to trace DSCP loss point before attempting repair
-- RTT measurement is the cycle budget bottleneck (84.6% of 50ms budget), not SQLite metrics (6.6%)
-- Phase 132 to optimize RTT path (Option A) + non-blocking I/O architecture (Option D)
-- Health endpoint cycle_budget.status: ok/warning/critical based on utilization vs configurable threshold (80% default)
-- cycle_budget_warning alert fires after 60 consecutive overrun cycles (3s at 50ms), SIGUSR1 hot-reloadable
+- target_bloat_ms reverted from 15 to 9 after confirmation pass -- CAKE rtt=40ms restored tight threshold viability
+- Confirmation pass: 6/7 params confirmed, 1 flipped (target_bloat), methodology validated
+- Production config verified and committed -- configs/spectrum-vm.yaml gitignored (real IPs), example config committed with validation dates
+- check_tin_distribution() uses raw subprocess tc instead of LinuxCakeBackend (per D-05, avoids backend coupling)
+- Tin check conditional on cake_params presence in config (linux-cake transport only)
 
 ### Known Issues
 
 - IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
 - VM inline on both WAN paths = single point of failure
 - ATT fusion disabled -- protocol correlation 0.74 causes permanent delta offset
-- Cycle budget 138% under RRUL load (14Hz instead of 20Hz)
-- Diffserv CAKE tins not separating traffic (DSCP marks not surviving bridge)
-- UL throughput over-constrained during bidirectional load (10% of ceiling)
 
 ### Blockers
 
@@ -67,5 +74,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T16:14:57.572Z
-Stopped at: Phase 134 context gathered
+Last session: 2026-04-03T16:55:11Z
+Stopped at: Completed 134-02-PLAN.md (tin distribution check)
