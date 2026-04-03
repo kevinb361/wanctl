@@ -13,7 +13,7 @@ None
 - v1.0 through v1.23: See MILESTONES.md (shipped)
 - v1.24 EWMA Boundary Hysteresis: Phases 121-124 (shipped 2026-04-02)
 - v1.25 Reboot Resilience: Phase 125 (shipped 2026-04-02)
-- v1.26 Tuning Validation: Phases 126-130 (in progress)
+- v1.26 Tuning Validation: Phases 126-130 (shipped 2026-04-02)
 
 ## Phases
 
@@ -43,11 +43,11 @@ None
 
 **Milestone Goal:** Re-test all tuning parameters on linux-cake transport to validate or re-tune production values after REST-to-linux-cake backend switch.
 
-- [ ] **Phase 126: Pre-Test Gate** - Verify linux-cake transport active, CAKE qdiscs on VM, no double-shaping from MikroTik
+- [x] **Phase 126: Pre-Test Gate** - Verify linux-cake transport active, CAKE qdiscs on VM, no double-shaping from MikroTik
 - [x] **Phase 127: DL Parameter Sweep** - A/B test 9 download parameters sequentially with RRUL methodology
 - [x] **Phase 128: UL Parameter Sweep** - A/B test 3 upload parameters sequentially with RRUL methodology
 - [x] **Phase 129: CAKE RTT + Confirmation Pass** - Test CAKE rtt parameter, then re-test response group for interaction effects
-- [ ] **Phase 130: Production Config Commit** - Update spectrum.yaml with full validated parameter set
+- [x] **Phase 130: Production Config Commit** - Update spectrum.yaml with full validated parameter set
 
 ## Phase Details
 
@@ -130,19 +130,19 @@ Plans:
 
 Plans:
 
-- [ ] 130-01-PLAN.md -- Verify production config, update repo configs + CHANGELOG
+- [x] 130-01-PLAN.md -- Verify production config, update repo configs + CHANGELOG
 
 ## Progress
 
 **Execution Order:** Phases 126 -> 127 -> 128 -> 129 -> 130
 
-| Phase                             | Plans Complete | Status      | Completed  |
-| --------------------------------- | -------------- | ----------- | ---------- |
-| 126. Pre-Test Gate                | 1/1            | Complete    | 2026-04-02 |
-| 127. DL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
-| 128. UL Parameter Sweep           | 1/1            | Complete    | 2026-04-02 |
-| 129. CAKE RTT + Confirmation Pass | 1/1            | Complete    | 2026-04-02 |
-| 130. Production Config Commit     | 0/1            | Not started | -          |
+| Phase                             | Plans Complete | Status   | Completed  |
+| --------------------------------- | -------------- | -------- | ---------- |
+| 126. Pre-Test Gate                | 1/1            | Complete | 2026-04-02 |
+| 127. DL Parameter Sweep           | 1/1            | Complete | 2026-04-02 |
+| 128. UL Parameter Sweep           | 1/1            | Complete | 2026-04-02 |
+| 129. CAKE RTT + Confirmation Pass | 1/1            | Complete | 2026-04-02 |
+| 130. Production Config Commit     | 1/1            | Complete | 2026-04-02 |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.25)</summary>
