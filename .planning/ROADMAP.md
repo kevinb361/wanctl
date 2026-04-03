@@ -114,7 +114,11 @@ None
 1. Download traffic shows differentiated tin distribution (not 100% BestEffort) via MikroTik prerouting DSCP marking or documented acceptance of current architecture
 2. Per-tin CAKE stats (via health endpoint or wanctl-history --tins) show differentiated traffic distribution for upload direction
 3. `wanctl-check-cake` includes a DSCP tin distribution check that validates non-trivial tin usage
-   **Plans**: TBD
+   **Plans:** 2 plans
+   Plans:
+
+- [ ] 134-01-PLAN.md -- MikroTik prerouting DSCP SET DL rules via REST API + tin separation validation
+- [ ] 134-02-PLAN.md -- wanctl-check-cake tin distribution check (TDD, unit tests)
 
 **Phase 133 findings (scope input):**
 
@@ -156,7 +160,7 @@ None
 | 131. Cycle Budget Profiling    | 2/2            | Complete    | 2026-04-03 |
 | 132. Cycle Budget Optimization | 2/2            | Complete    | 2026-04-03 |
 | 133. Diffserv Bridge Audit     | 1/1            | Complete    | 2026-04-03 |
-| 134. Diffserv Tin Separation   | 0/TBD          | Not started | -          |
+| 134. Diffserv Tin Separation   | 0/2            | Not started | -          |
 | 135. Upload Recovery Tuning    | 0/TBD          | Not started | -          |
 | 136. Hysteresis Observability  | 0/TBD          | Not started | -          |
 
