@@ -1393,6 +1393,11 @@ class QueueController:
         self._yellow_dwell = 0
         self._transitions_suppressed = 0  # Cumulative count of absorbed dwell cycles
 
+        # Windowed suppression counter (Phase 136: HYST-01, per D-01/D-02)
+        self._window_suppressions: int = 0
+        self._window_start_time: float = time.time()
+        self._window_had_congestion: bool = False
+
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
 
@@ -1444,6 +1449,7 @@ class QueueController:
                 else:
                     zone = "GREEN"  # Hold GREEN during dwell, rates hold steady (D-01)
                     self._transitions_suppressed += 1
+                    self._window_suppressions += 1
                     _dir = "DL" if self.name == "download" else "UL"
                     self._logger.debug(
                         "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
@@ -1464,6 +1470,10 @@ class QueueController:
             self.red_streak = 0
             self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
             zone = "GREEN"
+
+        # Track congestion during window (Phase 136: HYST-01)
+        if zone in ("YELLOW", "RED"):
+            self._window_had_congestion = True
 
         # Apply rate adjustments with hysteresis
         new_rate = self.current_rate
@@ -1581,6 +1591,7 @@ class QueueController:
                 else:
                     zone = "GREEN"  # Hold during dwell (D-01)
                     self._transitions_suppressed += 1
+                    self._window_suppressions += 1
                     _dir = "DL" if self.name == "download" else "UL"
                     self._logger.debug(
                         "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
@@ -1603,6 +1614,10 @@ class QueueController:
             self.red_streak = 0
             self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
             zone = "GREEN"
+
+        # Track congestion during window (Phase 136: HYST-01)
+        if zone in ("YELLOW", "SOFT_RED", "RED"):
+            self._window_had_congestion = True
 
         # Apply rate adjustments with state-appropriate floors
         new_rate = self.current_rate
@@ -1655,6 +1670,18 @@ class QueueController:
             self._last_zone = zone
 
         return zone, new_rate, transition_reason
+
+    def reset_window(self) -> int:
+        """Reset windowed suppression counter. Returns previous window's count.
+
+        Called at 60s window boundary by WANController._check_hysteresis_window().
+        Phase 136: HYST-01, per D-01/D-02.
+        """
+        count = self._window_suppressions
+        self._window_suppressions = 0
+        self._window_start_time = time.time()
+        self._window_had_congestion = False
+        return count
 
 
 # =============================================================================
@@ -2109,6 +2136,16 @@ class WANController:
         self._warning_threshold_pct: float = float(cm_config.get("warning_threshold_pct", 80.0))
         self._budget_warning_streak: int = 0
         self._budget_warning_consecutive: int = 60  # 60 cycles = 3 seconds at 50ms
+
+        # =====================================================================
+        # HYSTERESIS OBSERVABILITY (Phase 136: HYST-01/HYST-02)
+        # =====================================================================
+        # Configurable suppression alert threshold for windowed rate monitoring.
+        # =====================================================================
+        self._suppression_alert_threshold: int = int(
+            cm_config.get("thresholds", {}).get("suppression_alert_threshold", 20)
+            if isinstance(cm_config.get("thresholds"), dict) else 20
+        )
 
         # =====================================================================
         # BACKGROUND RTT MEASUREMENT (Phase 132: PERF-02, per D-01)
@@ -3135,6 +3172,9 @@ class WANController:
         total_ms = sum(timings.values())
         self._check_cycle_budget_alert(total_ms)
 
+        # Check hysteresis window boundary (Phase 136: HYST-01/HYST-02)
+        self._check_hysteresis_window()
+
     def _check_cycle_budget_alert(self, total_ms: float) -> None:
         """Fire cycle_budget_warning if utilization exceeds threshold for N consecutive cycles.
 
@@ -3158,6 +3198,32 @@ class WANController:
                 )
         else:
             self._budget_warning_streak = 0
+
+    def _check_hysteresis_window(self) -> tuple[int, int]:
+        """Check if 60s hysteresis window has elapsed. Reset and log if so.
+
+        Returns (dl_count, ul_count) from completed window, or (0, 0) if window not elapsed.
+        Per D-06: Only logs at INFO when congestion occurred during the window.
+        Phase 136: HYST-01/HYST-02.
+        """
+        now = time.time()
+        # Use download's window_start_time as canonical (both reset together)
+        elapsed = now - self.download._window_start_time
+        if elapsed < 60.0:
+            return 0, 0
+
+        # Read congestion flags BEFORE reset clears them
+        had_congestion = self.download._window_had_congestion or self.upload._window_had_congestion
+        dl_count = self.download.reset_window()
+        ul_count = self.upload.reset_window()
+
+        if had_congestion:
+            self.logger.info(
+                "[HYSTERESIS] %s window: %d suppressions in 60s (DL: %d, UL: %d)",
+                self.wan_name, dl_count + ul_count, dl_count, ul_count,
+            )
+
+        return dl_count, ul_count
 
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
