@@ -160,7 +160,7 @@ None
 | 131. Cycle Budget Profiling    | 2/2            | Complete    | 2026-04-03 |
 | 132. Cycle Budget Optimization | 2/2            | Complete    | 2026-04-03 |
 | 133. Diffserv Bridge Audit     | 1/1            | Complete    | 2026-04-03 |
-| 134. Diffserv Tin Separation   | 0/2            | Not started | -          |
+| 134. Diffserv Tin Separation   | 0/2            | Complete    | 2026-04-03 |
 | 135. Upload Recovery Tuning    | 0/TBD          | Not started | -          |
 | 136. Hysteresis Observability  | 0/TBD          | Not started | -          |
 
