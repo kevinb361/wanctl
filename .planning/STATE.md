@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.27
 milestone_name: Performance & QoS
-status: planning
-stopped_at: Phase 132 context gathered
-last_updated: "2026-04-03T13:51:23.234Z"
+status: executing
+stopped_at: Completed 132-01-PLAN.md (background RTT measurement)
+last_updated: "2026-04-03T14:40:12.756Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Milestone:** v1.27 Performance & QoS
 **Phase:** 132 of 136 (cycle budget optimization)
-**Plan:** Not started
-**Status:** Ready to plan
+**Plan:** 1/2 complete
+**Status:** Executing
 **Last activity:** 2026-04-03
 
-Progress: [██████████] 100%
+Progress: [████████░░] 75%
 
 ## Accumulated Context
 
@@ -45,6 +45,9 @@ Progress: [██████████] 100%
 - QOS audit before fix -- need to trace DSCP loss point before attempting repair
 - RTT measurement is the cycle budget bottleneck (84.6% of 50ms budget), not SQLite metrics (6.6%)
 - Phase 132 to optimize RTT path (Option A) + non-blocking I/O architecture (Option D)
+- RTTSnapshot frozen dataclass with GIL-protected atomic swap (no locks needed)
+- Persistent ThreadPoolExecutor(max_workers=3) created once, reused across cycles
+- Old blocking measure_rtt() preserved as \_measure_rtt_blocking() fallback for tests
 
 ### Known Issues
 
@@ -65,5 +68,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T13:51:23.228Z
-Stopped at: Phase 132 context gathered
+Last session: 2026-04-03T14:40:12.750Z
+Stopped at: Completed 132-01-PLAN.md (background RTT measurement)
