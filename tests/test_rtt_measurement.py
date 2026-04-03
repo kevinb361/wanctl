@@ -732,13 +732,23 @@ class TestBackgroundRTTThread:
             pool=mock_pool,
         )
 
-        # Mock as_completed to return our futures
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed") as mock_ac:
-            mock_ac.return_value = iter([future_a, future_b, future_c])
+        # Mock as_completed to return our futures, then set shutdown
+        # so loop exits after first iteration
+        def fake_as_completed(fs, timeout=None):
+            yield future_a
+            yield future_b
+            yield future_c
 
-            # Set shutdown after one iteration
+        original_wait = shutdown_event.wait
+
+        def wait_then_stop(timeout=None):
+            """Allow one iteration then signal shutdown."""
             shutdown_event.set()
-            thread._run()
+            return True
+
+        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
 
         snap = thread.get_latest()
         assert snap is not None
@@ -773,10 +783,17 @@ class TestBackgroundRTTThread:
         future_b.result.return_value = None
         mock_pool.submit.side_effect = [future_a, future_b]
 
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed") as mock_ac:
-            mock_ac.return_value = iter([future_a, future_b])
+        def fake_as_completed(fs, timeout=None):
+            yield future_a
+            yield future_b
+
+        def wait_then_stop(timeout=None):
             shutdown_event.set()
-            thread._run()
+            return True
+
+        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
 
         # Should still be the same object
         assert thread._cached is known_snap
@@ -798,26 +815,28 @@ class TestBackgroundRTTThread:
         future.result.return_value = 10.0
         mock_pool.submit.return_value = future
 
-        # Mock perf_counter to simulate 30ms measurement
-        call_count = [0]
-        perf_values = [0.0, 0.030]  # start=0, end=30ms
+        # Track the wait timeout values
+        wait_timeouts: list[float] = []
 
-        def mock_perf():
-            idx = min(call_count[0], len(perf_values) - 1)
-            val = perf_values[idx]
-            call_count[0] += 1
-            return val
+        def wait_then_stop(timeout=None):
+            """Capture timeout and signal shutdown."""
+            if timeout is not None:
+                wait_timeouts.append(timeout)
+            shutdown_event.set()
+            return True
 
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed") as mock_ac:
-            mock_ac.return_value = iter([future])
-            with patch("wanctl.rtt_measurement.time.perf_counter", side_effect=mock_perf):
-                shutdown_event.set()  # Stop after one iteration
-                thread._run()
+        def fake_as_completed(fs, timeout=None):
+            yield future
 
-        # shutdown_event.wait should have been called with timeout ~0.02 (50ms - 30ms)
-        # Since shutdown is already set, it returns immediately, but we can check the call
-        # We verify the thread tried to wait
-        # (shutdown_event.wait called in _run loop)
+        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+            # Mock perf_counter to simulate 30ms measurement
+            with patch("wanctl.rtt_measurement.time.perf_counter", side_effect=[0.0, 0.030]):
+                with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                    thread._run()
+
+        # Should have computed sleep = max(0, 0.05 - 0.030) = 0.02
+        assert len(wait_timeouts) == 1
+        assert wait_timeouts[0] == pytest.approx(0.02, abs=0.005)
 
     def test_persistent_pool_not_recreated(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool

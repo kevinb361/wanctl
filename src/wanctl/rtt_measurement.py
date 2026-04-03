@@ -7,9 +7,13 @@ strategies (average vs median) and timeout behaviors.
 """
 
 import concurrent.futures
+import dataclasses
 import logging
 import re
 import statistics
+import threading
+import time
+from collections.abc import Callable
 from enum import Enum
 
 import icmplib
@@ -81,6 +85,21 @@ class RTTAggregationStrategy(Enum):
     MEDIAN = "median"  # Median of all samples
     MIN = "min"  # Minimum (best RTT)
     MAX = "max"  # Maximum (worst RTT)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class RTTSnapshot:
+    """Immutable RTT measurement result for GIL-protected atomic swap.
+
+    Produced by BackgroundRTTThread, consumed by WANController.measure_rtt()
+    via lock-free read of a shared variable (Python GIL guarantees atomic
+    pointer assignment).
+    """
+
+    rtt_ms: float
+    per_host_results: dict[str, float | None]
+    timestamp: float  # time.monotonic() when measured
+    measurement_ms: float  # How long measurement took (ms)
 
 
 class RTTMeasurement:
@@ -321,3 +340,151 @@ class RTTMeasurement:
                 self.logger.debug(f"Concurrent ping timeout after {timeout}s")
 
         return rtts
+
+
+class BackgroundRTTThread:
+    """Dedicated background thread for continuous RTT measurement.
+
+    Follows the IRTTThread pattern: daemon thread, GIL-protected pointer swap
+    of a frozen dataclass, start/stop lifecycle. The control loop reads the
+    latest RTT from ``get_latest()`` (lock-free) instead of blocking on ICMP I/O.
+
+    Uses a persistent :class:`concurrent.futures.ThreadPoolExecutor` for
+    concurrent per-host pings (no per-cycle pool creation/teardown).
+
+    Args:
+        rtt_measurement: Configured :class:`RTTMeasurement` instance.
+        hosts_fn: Callable returning current list of reflector hosts.
+        shutdown_event: :class:`threading.Event` that signals graceful shutdown.
+        logger: Logger for lifecycle and error messages.
+        pool: Persistent :class:`ThreadPoolExecutor` for concurrent pings.
+        cadence_sec: Minimum seconds between measurement cycles (default 0.0 =
+            measure as fast as ICMP allows).
+    """
+
+    def __init__(
+        self,
+        rtt_measurement: RTTMeasurement,
+        hosts_fn: Callable[[], list[str]],
+        shutdown_event: threading.Event,
+        logger: logging.Logger,
+        pool: concurrent.futures.ThreadPoolExecutor,
+        cadence_sec: float = 0.0,
+    ) -> None:
+        self._rtt_measurement = rtt_measurement
+        self._hosts_fn = hosts_fn
+        self._shutdown_event = shutdown_event
+        self._logger = logger
+        self._pool = pool
+        self._cadence_sec = cadence_sec
+        self._cached: RTTSnapshot | None = None
+        self._thread: threading.Thread | None = None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def get_latest(self) -> RTTSnapshot | None:
+        """Return the most recent successful measurement, or ``None``."""
+        return self._cached
+
+    def start(self) -> None:
+        """Create and start the background daemon thread."""
+        self._thread = threading.Thread(
+            target=self._run,
+            name="wanctl-rtt-bg",
+            daemon=True,
+        )
+        self._thread.start()
+        self._logger.info("Background RTT thread started")
+
+    def stop(self) -> None:
+        """Join the background thread (up to 5 s timeout)."""
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+            self._logger.info("Background RTT thread stopped")
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _run(self) -> None:
+        """Measurement loop -- runs until *shutdown_event* is set."""
+        while not self._shutdown_event.is_set():
+            elapsed_s = 0.0
+            try:
+                hosts = self._hosts_fn()
+                if not hosts:
+                    self._shutdown_event.wait(timeout=self._cadence_sec or 0.1)
+                    continue
+
+                t0 = time.perf_counter()
+                per_host = self._ping_with_persistent_pool(hosts)
+                elapsed_s = time.perf_counter() - t0
+                elapsed_ms = elapsed_s * 1000.0
+
+                # Extract successful RTTs for aggregation
+                successful = [v for v in per_host.values() if v is not None]
+
+                if successful:
+                    # Same aggregation as WANController.measure_rtt():
+                    # median-of-3+, average-of-2, single pass-through
+                    if len(successful) >= 3:
+                        rtt_ms = statistics.median(successful)
+                    elif len(successful) == 2:
+                        rtt_ms = statistics.mean(successful)
+                    else:
+                        rtt_ms = successful[0]
+
+                    self._cached = RTTSnapshot(
+                        rtt_ms=rtt_ms,
+                        per_host_results=per_host,
+                        timestamp=time.monotonic(),
+                        measurement_ms=elapsed_ms,
+                    )
+                # else: stale data preferred over no data -- do NOT overwrite _cached
+
+            except Exception:
+                self._logger.debug("Background RTT measurement error", exc_info=True)
+
+            # Adjust sleep to account for measurement duration
+            if self._cadence_sec > 0:
+                sleep_s = max(0.0, self._cadence_sec - elapsed_s)
+            else:
+                sleep_s = 0.0
+            self._shutdown_event.wait(timeout=sleep_s)
+
+    def _ping_with_persistent_pool(
+        self, hosts: list[str], timeout: float = 3.0
+    ) -> dict[str, float | None]:
+        """Ping hosts concurrently using the persistent ThreadPoolExecutor.
+
+        Same logic as :meth:`RTTMeasurement.ping_hosts_with_results` but uses
+        ``self._pool`` instead of creating a new context-manager pool each cycle.
+
+        Args:
+            hosts: List of hostnames/IPs to ping.
+            timeout: Total timeout for all concurrent pings in seconds.
+
+        Returns:
+            Dict mapping host -> RTT in ms (or None if ping failed/timed out).
+        """
+        results: dict[str, float | None] = {}
+        future_to_host = {
+            self._pool.submit(self._rtt_measurement.ping_host, host, 1): host
+            for host in hosts
+        }
+        try:
+            for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+                host = future_to_host[future]
+                try:
+                    results[host] = future.result()
+                except Exception:
+                    self._logger.debug("Concurrent ping to %s failed", host, exc_info=True)
+                    results[host] = None
+        except concurrent.futures.TimeoutError:
+            for host in future_to_host.values():
+                if host not in results:
+                    results[host] = None
+
+        return results
