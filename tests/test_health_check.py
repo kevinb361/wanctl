@@ -2245,3 +2245,120 @@ class TestCycleBudgetStatus:
             warning_threshold_pct=80.0,
         )
         assert result is None
+
+
+class TestCycleBudgetAlert:
+    """Tests for cycle budget warning alert firing (Phase 132: PERF-03, D-07)."""
+
+    @staticmethod
+    def _make_controller_stub(
+        threshold: float = 80.0,
+        consecutive: int = 3,
+        interval_ms: float = 50.0,
+    ):
+        """Build a minimal stub with the attributes _check_cycle_budget_alert needs."""
+        from wanctl.autorate_continuous import WANController
+
+        stub = MagicMock(spec=[])  # No auto-attributes
+        stub._warning_threshold_pct = threshold
+        stub._budget_warning_streak = 0
+        stub._budget_warning_consecutive = consecutive
+        stub._cycle_interval_ms = interval_ms
+        stub.alert_engine = MagicMock()
+        stub.wan_name = "spectrum"
+        # Bind the real method to our stub
+        stub._check_cycle_budget_alert = WANController._check_cycle_budget_alert.__get__(
+            stub, type(stub)
+        )
+        return stub
+
+    def test_alert_fires_after_consecutive_overruns(self):
+        """Alert fires on Nth consecutive overrun cycle."""
+        stub = self._make_controller_stub(threshold=80.0, consecutive=3)
+        # 90% utilization: 45ms / 50ms
+        stub._check_cycle_budget_alert(45.0)
+        assert stub._budget_warning_streak == 1
+        assert stub.alert_engine.fire.call_count == 0
+
+        stub._check_cycle_budget_alert(45.0)
+        assert stub._budget_warning_streak == 2
+        assert stub.alert_engine.fire.call_count == 0
+
+        stub._check_cycle_budget_alert(45.0)
+        assert stub._budget_warning_streak == 3
+        assert stub.alert_engine.fire.call_count == 1
+        call_kwargs = stub.alert_engine.fire.call_args
+        assert call_kwargs[1]["alert_type"] == "cycle_budget_warning"
+
+    def test_alert_streak_resets_on_normal(self):
+        """Streak resets to 0 when utilization drops below threshold."""
+        stub = self._make_controller_stub(threshold=80.0, consecutive=3)
+        # Build up streak
+        stub._check_cycle_budget_alert(45.0)
+        stub._check_cycle_budget_alert(45.0)
+        assert stub._budget_warning_streak == 2
+
+        # Drop below threshold: 60% utilization
+        stub._check_cycle_budget_alert(30.0)
+        assert stub._budget_warning_streak == 0
+
+    def test_alert_not_fired_below_threshold(self):
+        """No alert when utilization stays below threshold for many cycles."""
+        stub = self._make_controller_stub(threshold=80.0, consecutive=3)
+        # 70% utilization: 35ms / 50ms -- below 80% threshold
+        for _ in range(100):
+            stub._check_cycle_budget_alert(35.0)
+        assert stub.alert_engine.fire.call_count == 0
+        assert stub._budget_warning_streak == 0
+
+
+class TestReloadCycleBudgetConfig:
+    """Tests for SIGUSR1 cycle budget config reload (Phase 132: PERF-03)."""
+
+    @staticmethod
+    def _make_controller_stub(threshold: float = 80.0):
+        """Build a minimal stub with attributes _reload_cycle_budget_config needs."""
+        from wanctl.autorate_continuous import WANController
+
+        stub = MagicMock(spec=[])
+        stub._warning_threshold_pct = threshold
+        stub.config = MagicMock()
+        stub.config.config_file_path = "/tmp/test_wanctl_config.yaml"
+        stub.logger = MagicMock()
+        stub._reload_cycle_budget_config = (
+            WANController._reload_cycle_budget_config.__get__(stub, type(stub))
+        )
+        return stub
+
+    def test_reload_updates_threshold(self):
+        """Reload picks up new warning_threshold_pct from YAML."""
+        stub = self._make_controller_stub(threshold=80.0)
+
+        yaml_data = {"continuous_monitoring": {"warning_threshold_pct": 90.0}}
+        with patch("builtins.open", MagicMock()):
+            with patch("yaml.safe_load", return_value=yaml_data):
+                stub._reload_cycle_budget_config()
+
+        assert stub._warning_threshold_pct == 90.0
+
+    def test_reload_rejects_invalid(self):
+        """Invalid (non-numeric) value keeps current threshold."""
+        stub = self._make_controller_stub(threshold=80.0)
+
+        yaml_data = {"continuous_monitoring": {"warning_threshold_pct": "invalid"}}
+        with patch("builtins.open", MagicMock()):
+            with patch("yaml.safe_load", return_value=yaml_data):
+                stub._reload_cycle_budget_config()
+
+        assert stub._warning_threshold_pct == 80.0
+
+    def test_reload_rejects_out_of_range(self):
+        """Out-of-range value (>200) keeps current threshold."""
+        stub = self._make_controller_stub(threshold=80.0)
+
+        yaml_data = {"continuous_monitoring": {"warning_threshold_pct": 300.0}}
+        with patch("builtins.open", MagicMock()):
+            with patch("yaml.safe_load", return_value=yaml_data):
+                stub._reload_cycle_budget_config()
+
+        assert stub._warning_threshold_pct == 80.0
