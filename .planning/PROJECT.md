@@ -10,23 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.25.0 (Reboot Resilience) — shipped 2026-04-02
+**Version:** v1.26.0 (Tuning Validation) — shipped 2026-04-02
 **Tests:** ~4,100+ passing, 91%+ coverage
 **LOC:** ~32,000 Python (src/)
-**Milestones:** 26 shipped (v1.0-v1.25), 126 phases, 251 plans
+**Milestones:** 27 shipped (v1.0-v1.26), 130 phases, 256 plans
 
-**Latest:** v1.25 Reboot Resilience — NIC tuning script, systemd dependency wiring, deploy.sh, dry-run validated
-**Previous:** v1.24 EWMA Boundary Hysteresis — dwell timer + deadband, health observability, zero flapping
-
-## Current Milestone: v1.26 Tuning Validation
-
-**Goal:** Re-test all tuning parameters on linux-cake transport to validate or re-tune production values after REST→linux-cake backend switch.
-
-**Target features:**
-
-- A/B test all 13 parameters (9 DL, 3 UL, 1 CAKE rtt) on correct transport
-- Pre-test validation gate: verify linux-cake transport active, CAKE qdiscs on VM, CAKE disabled on MikroTik
-- Document validated values and update production config
+**Latest:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
+**Previous:** v1.25 Reboot Resilience — NIC tuning script, systemd dependency wiring, deploy.sh
 
 ## Requirements
 
@@ -610,4 +600,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-02 after v1.26 Tuning Validation milestone started_
+_Last updated: 2026-04-02 after v1.26 Tuning Validation milestone completed_

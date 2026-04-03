@@ -1,5 +1,19 @@
 # Project Milestones: wanctl
 
+## v1.26 Tuning Validation (Shipped: 2026-04-03)
+
+**Phases completed:** 5 phases, 5 plans, 31 tasks
+
+**Key accomplishments:**
+
+- Reusable bash gate script validates 5 pre-tuning conditions on production cake-shaper VM -- all 5/5 pass, environment confirmed ready for linux-cake A/B testing
+- 9 DL parameters A/B tested on linux-cake transport via RRUL flent -- 6 of 9 changed from REST-validated values, revealing transport-dependent tuning shift toward gentler response and wider thresholds
+- 3 UL parameters A/B tested on linux-cake transport -- step_up_mbps changed from 1 to 2, factor_down=0.85 and green_required=3 confirmed
+- CAKE rtt=40ms validated (5-way test), confirmation pass caught target_bloat_ms interaction flip from 15 back to 9 -- final linux-cake config has 7 total changes from REST baseline
+- Verified all 13 tuning parameters on production cake-shaper match linux-cake A/B winners, updated example config and CHANGELOG v1.26.0 with per-parameter metrics
+
+---
+
 ## v1.25 Reboot Resilience (Shipped: 2026-04-02)
 
 **Phases completed:** 1 phase (125), 2 plans, 4 tasks
