@@ -72,6 +72,8 @@ def _build_cycle_budget(
     overrun_count: int,
     cycle_interval_ms: float,
     total_label: str,
+    *,
+    warning_threshold_pct: float = 80.0,
 ) -> dict[str, Any] | None:
     """Build cycle budget telemetry dict from profiler stats.
 
@@ -82,13 +84,24 @@ def _build_cycle_budget(
         overrun_count: Cumulative overrun counter since startup
         cycle_interval_ms: Configured cycle interval in milliseconds
         total_label: Profiler label for total cycle time (e.g. "autorate_cycle_total")
+        warning_threshold_pct: Utilization threshold for warning status (default 80.0)
 
     Returns:
-        Dict with cycle_time_ms, utilization_pct, overrun_count or None if no data
+        Dict with cycle_time_ms, utilization_pct, overrun_count, status, warning_threshold_pct
+        or None if no data
     """
     stats = profiler.stats(total_label)
     if not isinstance(stats, dict) or "avg_ms" not in stats:
         return None
+
+    utilization = round((stats["avg_ms"] / cycle_interval_ms) * 100, 1)
+
+    if utilization >= 100.0:
+        status = "critical"
+    elif utilization >= warning_threshold_pct:
+        status = "warning"
+    else:
+        status = "ok"
 
     result: dict[str, Any] = {
         "cycle_time_ms": {
@@ -96,8 +109,10 @@ def _build_cycle_budget(
             "p95": round(stats["p95_ms"], 1),
             "p99": round(stats["p99_ms"], 1),
         },
-        "utilization_pct": round((stats["avg_ms"] / cycle_interval_ms) * 100, 1),
+        "utilization_pct": utilization,
         "overrun_count": overrun_count,
+        "status": status,
+        "warning_threshold_pct": warning_threshold_pct,
     }
 
     # Per-subsystem breakdown (Phase 131: PERF-01, per D-08)
@@ -223,6 +238,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     wan_controller._overrun_count,
                     wan_controller._cycle_interval_ms,
                     "autorate_cycle_total",
+                    warning_threshold_pct=getattr(
+                        wan_controller, '_warning_threshold_pct', 80.0
+                    ),
                 )
                 if cycle_budget is not None:
                     wan_health["cycle_budget"] = cycle_budget
