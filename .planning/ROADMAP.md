@@ -111,10 +111,17 @@ None
 **Requirements**: QOS-02, QOS-03
 **Success Criteria** (what must be TRUE):
 
-1. Running RRUL with EF/CS5 traffic shows it landing in the Voice/Video tin, not Bulk
-2. Per-tin CAKE stats (via health endpoint or wanctl-history --tins) show differentiated traffic distribution
-3. `wanctl-check-cake` includes a DSCP bridge survival check that passes on a correctly configured system
+1. Download traffic shows differentiated tin distribution (not 100% BestEffort) via MikroTik prerouting DSCP marking or documented acceptance of current architecture
+2. Per-tin CAKE stats (via health endpoint or wanctl-history --tins) show differentiated traffic distribution for upload direction
+3. `wanctl-check-cake` includes a DSCP tin distribution check that validates non-trivial tin usage
    **Plans**: TBD
+
+**Phase 133 findings (scope input):**
+
+- Upload DSCP path works correctly (tins separate). Download has architectural gap: CAKE on ens17 sees packets BEFORE MikroTik marks them.
+- Key options: MikroTik prerouting DSCP for download (medium), accept download BestEffort (low), wanctl-check-cake extension (low, QOS-03).
+- iperf3 --dscp works on data stream (not control); use Python sockets or filter data stream for testing.
+- Full analysis: `.planning/phases/133-diffserv-bridge-audit/133-ANALYSIS.md`
 
 ### Phase 135: Upload Recovery Tuning
 
@@ -147,8 +154,8 @@ None
 | Phase                          | Plans Complete | Status      | Completed  |
 | ------------------------------ | -------------- | ----------- | ---------- |
 | 131. Cycle Budget Profiling    | 2/2            | Complete    | 2026-04-03 |
-| 132. Cycle Budget Optimization | 2/2 | Complete    | 2026-04-03 |
-| 133. Diffserv Bridge Audit     | 1/1 | Complete    | 2026-04-03 |
+| 132. Cycle Budget Optimization | 2/2            | Complete    | 2026-04-03 |
+| 133. Diffserv Bridge Audit     | 1/1            | Complete    | 2026-04-03 |
 | 134. Diffserv Tin Separation   | 0/TBD          | Not started | -          |
 | 135. Upload Recovery Tuning    | 0/TBD          | Not started | -          |
 | 136. Hysteresis Observability  | 0/TBD          | Not started | -          |
