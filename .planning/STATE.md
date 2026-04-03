@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.26
-milestone_name: Tuning Validation
-status: completed
-stopped_at: v1.26 milestone complete -- all 5 phases, 5 plans, 9/9 requirements
-last_updated: "2026-04-03T00:23:31.462Z"
+milestone: v1.27
+milestone_name: Cycle Budget Profiling
+status: in-progress
+stopped_at: Completed 131-01-PLAN.md
+last_updated: "2026-04-03T08:22:00.000Z"
 last_activity: 2026-04-03
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 130 — production-config-commit
+**Current focus:** Phase 131 — cycle-budget-profiling
 
 ## Position
 
-**Milestone:** v1.26 Tuning Validation
-**Phase:** 130 of 130 (Production Config Commit) -- 5 of 5 in milestone -- COMPLETE
-**Plan:** 1/1 complete
-**Status:** v1.26 milestone complete
+**Milestone:** v1.27 Cycle Budget Profiling
+**Phase:** 131 of 131 (Cycle Budget Profiling) -- 1 of 1 in milestone
+**Plan:** 1/2 complete
+**Status:** in-progress
 **Last activity:** 2026-04-03
 
-Progress: [██████████] 100%
+Progress: [█████-----] 50%
 
 ## Accumulated Context
 
@@ -55,6 +55,8 @@ Progress: [██████████] 100%
 - target_bloat_ms reverted from 15 to 9 after confirmation pass -- CAKE rtt=40ms restored tight threshold viability
 - Confirmation pass: 6/7 params confirmed, 1 flipped (target_bloat), methodology validated
 - Production config verified and committed -- configs/spectrum-vm.yaml gitignored (real IPs), example config committed with validation dates
+- 6 sub-timers added to run_cycle: signal_processing, ewma_spike, congestion_assess, irtt_observation, logging_metrics, post_cycle
+- Health endpoint /health now returns subsystems dict with per-timer avg/p95/p99 when sub-timer data exists
 
 ### Known Issues
 
@@ -70,7 +72,13 @@ None.
 
 5 todos in `.planning/todos/pending/`
 
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+| ----- | ---- | -------- | ----- | ----- |
+| 131   | 01   | 7min     | 2     | 4     |
+
 ## Session Continuity
 
-Last session: 2026-04-03T00:25:00.000Z
-Stopped at: v1.26 milestone complete -- all 5 phases, 5 plans, 9/9 requirements
+Last session: 2026-04-03T08:22:00.000Z
+Stopped at: Completed 131-01-PLAN.md
