@@ -90,7 +90,7 @@ def _build_cycle_budget(
     if not isinstance(stats, dict) or "avg_ms" not in stats:
         return None
 
-    return {
+    result: dict[str, Any] = {
         "cycle_time_ms": {
             "avg": round(stats["avg_ms"], 1),
             "p95": round(stats["p95_ms"], 1),
@@ -99,6 +99,32 @@ def _build_cycle_budget(
         "utilization_pct": round((stats["avg_ms"] / cycle_interval_ms) * 100, 1),
         "overrun_count": overrun_count,
     }
+
+    # Per-subsystem breakdown (Phase 131: PERF-01, per D-08)
+    subsystem_labels = [
+        "autorate_rtt_measurement",
+        "autorate_signal_processing",
+        "autorate_ewma_spike",
+        "autorate_congestion_assess",
+        "autorate_irtt_observation",
+        "autorate_logging_metrics",
+        "autorate_router_communication",
+        "autorate_post_cycle",
+    ]
+    subsystems: dict[str, dict[str, float]] = {}
+    for label in subsystem_labels:
+        sub_stats = profiler.stats(label)
+        if isinstance(sub_stats, dict) and "avg_ms" in sub_stats:
+            short_name = label.replace("autorate_", "")
+            subsystems[short_name] = {
+                "avg": round(sub_stats["avg_ms"], 1),
+                "p95": round(sub_stats["p95_ms"], 1),
+                "p99": round(sub_stats["p99_ms"], 1),
+            }
+    if subsystems:
+        result["subsystems"] = subsystems
+
+    return result
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):

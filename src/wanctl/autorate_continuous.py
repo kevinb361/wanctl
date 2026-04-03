@@ -2966,19 +2966,32 @@ class WANController:
         state_ms: float,
         router_ms: float,
         cycle_start: float,
+        *,
+        signal_processing_ms: float = 0.0,
+        ewma_spike_ms: float = 0.0,
+        congestion_assess_ms: float = 0.0,
+        irtt_observation_ms: float = 0.0,
+        logging_metrics_ms: float = 0.0,
     ) -> None:
         """Record subsystem timing to profiler, emit structured log, and detect overruns.
 
         Thin wrapper around shared record_cycle_profiling() -- preserves method
-        signature for test compatibility.
+        signature for test compatibility. Extended with sub-timer keyword args
+        for fine-grained profiling (Phase 131: PERF-01).
         """
+        timings: dict[str, float] = {
+            "autorate_rtt_measurement": rtt_ms,
+            "autorate_state_management": state_ms,
+            "autorate_router_communication": router_ms,
+            "autorate_signal_processing": signal_processing_ms,
+            "autorate_ewma_spike": ewma_spike_ms,
+            "autorate_congestion_assess": congestion_assess_ms,
+            "autorate_irtt_observation": irtt_observation_ms,
+            "autorate_logging_metrics": logging_metrics_ms,
+        }
         self._overrun_count, self._profile_cycle_count = record_cycle_profiling(
             profiler=self._profiler,
-            timings={
-                "autorate_rtt_measurement": rtt_ms,
-                "autorate_state_management": state_ms,
-                "autorate_router_communication": router_ms,
-            },
+            timings=timings,
             cycle_start=cycle_start,
             cycle_interval_ms=self._cycle_interval_ms,
             logger=self.logger,
@@ -3030,315 +3043,325 @@ class WANController:
         with PerfTimer("autorate_state_management", self.logger) as state_timer:
             # At this point, measured_rtt is valid (either from ICMP or last known value)
 
-            # Signal processing: filter RTT, compute jitter/variance/confidence
-            signal_result = self.signal_processor.process(
-                raw_rtt=measured_rtt,
-                load_rtt=self.load_rtt,
-                baseline_rtt=self.baseline_rtt,
-            )
-            self._last_signal_result = signal_result
-            fused_rtt = self._compute_fused_rtt(signal_result.filtered_rtt)
-            # Split EWMA: fused for load (congestion sensitivity), ICMP for baseline (idle reference)
-            # Fixes fusion baseline deadlock where IRTT path divergence freezes/corrupts baseline.
-            # See Phase 103 research: baseline is an ICMP-derived concept.
-            self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * fused_rtt
-            self._update_baseline_if_idle(signal_result.filtered_rtt)
-
-            # Rate-of-change (acceleration) detection for sudden RTT spikes
-            # Requires accel_confirm consecutive spike cycles to filter DOCSIS jitter
-            delta_accel = self.load_rtt - self.previous_load_rtt
-            if delta_accel > self.accel_threshold:
-                self._spike_streak += 1
-                if self._spike_streak >= self.accel_confirm:
-                    self.logger.warning(
-                        f"{self.wan_name}: RTT spike confirmed! delta_accel={delta_accel:.1f}ms "
-                        f"(threshold={self.accel_threshold}ms, {self._spike_streak} consecutive) "
-                        f"- forcing RED"
-                    )
-                    # Force RED by setting streak counter (bypasses hysteresis)
-                    self.download.red_streak = 1
-                    self.download.green_streak = 0
-                    self.download.soft_red_streak = 0
-            else:
-                self._spike_streak = 0
-            self.previous_load_rtt = self.load_rtt
-
-            # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
-            dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
-                self.baseline_rtt,
-                self.load_rtt,
-                self.green_threshold,
-                self.soft_red_threshold,
-                self.hard_red_threshold,
-            )
-            self._dl_zone = dl_zone
-
-            # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
-            ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
-                self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
-            )
-            self._ul_zone = ul_zone
-
-            # Sustained congestion detection (ALRT-01)
-            delta = self.load_rtt - self.baseline_rtt
-            self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
-
-            # Baseline RTT drift detection (ALRT-06)
-            self._check_baseline_drift()
-
-            # Congestion zone flapping detection (ALRT-07)
-            self._check_flapping_alerts(dl_zone, ul_zone)
-
-            # IRTT observation mode: read cached result + protocol correlation (IRTT-03, IRTT-07)
-            irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
-            if irtt_result is not None:
-                age = time.monotonic() - irtt_result.timestamp
-                cadence = self._irtt_thread._cadence_sec if self._irtt_thread else 10.0
-                self.logger.debug(
-                    f"{self.wan_name}: IRTT RTT={irtt_result.rtt_mean_ms:.1f}ms, "
-                    f"IPDV={irtt_result.ipdv_mean_ms:.1f}ms, "
-                    f"loss_up={irtt_result.send_loss:.1f}%, "
-                    f"loss_down={irtt_result.receive_loss:.1f}%, "
-                    f"age={age:.1f}s"
+            # === Sub-timer 1: Signal processing (Phase 131: PERF-01) ===
+            with PerfTimer("autorate_signal_processing", self.logger) as signal_timer:
+                # Signal processing: filter RTT, compute jitter/variance/confidence
+                signal_result = self.signal_processor.process(
+                    raw_rtt=measured_rtt,
+                    load_rtt=self.load_rtt,
+                    baseline_rtt=self.baseline_rtt,
                 )
-                # Protocol correlation (IRTT-07) -- skip stale results (>3x cadence)
-                if age <= cadence * 3 and irtt_result.rtt_mean_ms > 0 and self.load_rtt > 0:
-                    ratio = self.load_rtt / irtt_result.rtt_mean_ms
-                    self._check_protocol_correlation(ratio)
+                self._last_signal_result = signal_result
+                fused_rtt = self._compute_fused_rtt(signal_result.filtered_rtt)
+                # Split EWMA: fused for load (congestion sensitivity), ICMP for baseline (idle reference)
+                # Fixes fusion baseline deadlock where IRTT path divergence freezes/corrupts baseline.
+                # See Phase 103 research: baseline is an ICMP-derived concept.
+                self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * fused_rtt
+                self._update_baseline_if_idle(signal_result.filtered_rtt)
 
-                    # Feed deltas to fusion healer (Phase 119: FUSE-01)
-                    # Only tick on NEW IRTT measurements (timestamp changes).
-                    # IRTT updates every cadence_sec (~10s), but this code runs
-                    # every 50ms. Feeding stale IRTT values produces (varying, 0.0)
-                    # delta pairs that drive Pearson to zero at idle.
-                    if self._fusion_healer is not None and irtt_result.timestamp != self._prev_irtt_ts:
-                        self._prev_irtt_ts = irtt_result.timestamp
-                        icmp_rtt = signal_result.filtered_rtt
-                        irtt_rtt = irtt_result.rtt_mean_ms
-                        icmp_delta = (
-                            icmp_rtt - self._prev_healer_icmp_rtt
-                            if self._prev_healer_icmp_rtt is not None
-                            else 0.0
+            # === Sub-timer 2: EWMA spike detection (Phase 131: PERF-01) ===
+            with PerfTimer("autorate_ewma_spike", self.logger) as ewma_timer:
+                # Rate-of-change (acceleration) detection for sudden RTT spikes
+                # Requires accel_confirm consecutive spike cycles to filter DOCSIS jitter
+                delta_accel = self.load_rtt - self.previous_load_rtt
+                if delta_accel > self.accel_threshold:
+                    self._spike_streak += 1
+                    if self._spike_streak >= self.accel_confirm:
+                        self.logger.warning(
+                            f"{self.wan_name}: RTT spike confirmed! delta_accel={delta_accel:.1f}ms "
+                            f"(threshold={self.accel_threshold}ms, {self._spike_streak} consecutive) "
+                            f"- forcing RED"
                         )
-                        irtt_delta = (
-                            irtt_rtt - self._prev_healer_irtt_rtt
-                            if self._prev_healer_irtt_rtt is not None
-                            else 0.0
+                        # Force RED by setting streak counter (bypasses hysteresis)
+                        self.download.red_streak = 1
+                        self.download.green_streak = 0
+                        self.download.soft_red_streak = 0
+                else:
+                    self._spike_streak = 0
+                self.previous_load_rtt = self.load_rtt
+
+            # === Sub-timer 3: Congestion assessment (Phase 131: PERF-01) ===
+            with PerfTimer("autorate_congestion_assess", self.logger) as congestion_timer:
+                # Download: 4-state logic (GREEN/YELLOW/SOFT_RED/RED) - Phase 2A
+                dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
+                    self.baseline_rtt,
+                    self.load_rtt,
+                    self.green_threshold,
+                    self.soft_red_threshold,
+                    self.hard_red_threshold,
+                )
+                self._dl_zone = dl_zone
+
+                # Upload: 3-state logic (GREEN/YELLOW/RED) - unchanged for Phase 2A
+                ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
+                    self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
+                )
+                self._ul_zone = ul_zone
+
+                # Sustained congestion detection (ALRT-01)
+                delta = self.load_rtt - self.baseline_rtt
+                self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
+
+                # Baseline RTT drift detection (ALRT-06)
+                self._check_baseline_drift()
+
+                # Congestion zone flapping detection (ALRT-07)
+                self._check_flapping_alerts(dl_zone, ul_zone)
+
+            # === Sub-timer 4: IRTT observation (Phase 131: PERF-01) ===
+            with PerfTimer("autorate_irtt_observation", self.logger) as irtt_timer:
+                # IRTT observation mode: read cached result + protocol correlation (IRTT-03, IRTT-07)
+                irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
+                if irtt_result is not None:
+                    age = time.monotonic() - irtt_result.timestamp
+                    cadence = self._irtt_thread._cadence_sec if self._irtt_thread else 10.0
+                    self.logger.debug(
+                        f"{self.wan_name}: IRTT RTT={irtt_result.rtt_mean_ms:.1f}ms, "
+                        f"IPDV={irtt_result.ipdv_mean_ms:.1f}ms, "
+                        f"loss_up={irtt_result.send_loss:.1f}%, "
+                        f"loss_down={irtt_result.receive_loss:.1f}%, "
+                        f"age={age:.1f}s"
+                    )
+                    # Protocol correlation (IRTT-07) -- skip stale results (>3x cadence)
+                    if age <= cadence * 3 and irtt_result.rtt_mean_ms > 0 and self.load_rtt > 0:
+                        ratio = self.load_rtt / irtt_result.rtt_mean_ms
+                        self._check_protocol_correlation(ratio)
+
+                        # Feed deltas to fusion healer (Phase 119: FUSE-01)
+                        # Only tick on NEW IRTT measurements (timestamp changes).
+                        # IRTT updates every cadence_sec (~10s), but this code runs
+                        # every 50ms. Feeding stale IRTT values produces (varying, 0.0)
+                        # delta pairs that drive Pearson to zero at idle.
+                        if self._fusion_healer is not None and irtt_result.timestamp != self._prev_irtt_ts:
+                            self._prev_irtt_ts = irtt_result.timestamp
+                            icmp_rtt = signal_result.filtered_rtt
+                            irtt_rtt = irtt_result.rtt_mean_ms
+                            icmp_delta = (
+                                icmp_rtt - self._prev_healer_icmp_rtt
+                                if self._prev_healer_icmp_rtt is not None
+                                else 0.0
+                            )
+                            irtt_delta = (
+                                irtt_rtt - self._prev_healer_irtt_rtt
+                                if self._prev_healer_irtt_rtt is not None
+                                else 0.0
+                            )
+                            self._prev_healer_icmp_rtt = icmp_rtt
+                            self._prev_healer_irtt_rtt = irtt_rtt
+
+                            old_state = self._fusion_healer.state
+                            new_state = self._fusion_healer.tick(icmp_delta, irtt_delta)
+
+                            # Act on state transitions
+                            if new_state != old_state:
+                                if new_state == HealState.SUSPENDED:
+                                    self._fusion_enabled = False
+                                    self.logger.warning(
+                                        f"{self.wan_name}: [FUSION HEALER] Suspended fusion "
+                                        f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                    )
+                                elif new_state == HealState.ACTIVE:
+                                    self._fusion_enabled = True
+                                    self.logger.warning(
+                                        f"{self.wan_name}: [FUSION HEALER] Recovered to ACTIVE "
+                                        f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                    )
+                                elif new_state == HealState.RECOVERING:
+                                    self.logger.info(
+                                        f"{self.wan_name}: [FUSION HEALER] Entering RECOVERING "
+                                        f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
+                                    )
+                    elif age > cadence * 3:
+                        self._irtt_correlation = None
+                        self._prev_healer_irtt_rtt = None  # Reset stale IRTT tracking
+                        self.logger.debug(
+                            f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
+                            f"skipping correlation"
                         )
-                        self._prev_healer_icmp_rtt = icmp_rtt
-                        self._prev_healer_irtt_rtt = irtt_rtt
 
-                        old_state = self._fusion_healer.state
-                        new_state = self._fusion_healer.tick(icmp_delta, irtt_delta)
+                    # OWD asymmetry analysis (ASYM-01) -- only on fresh IRTT result
+                    if self._asymmetry_analyzer is not None:
+                        asym = self._asymmetry_analyzer.analyze(irtt_result)
+                        self._last_asymmetry_result = asym
 
-                        # Act on state transitions
-                        if new_state != old_state:
-                            if new_state == HealState.SUSPENDED:
-                                self._fusion_enabled = False
-                                self.logger.warning(
-                                    f"{self.wan_name}: [FUSION HEALER] Suspended fusion "
-                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
-                                )
-                            elif new_state == HealState.ACTIVE:
-                                self._fusion_enabled = True
-                                self.logger.warning(
-                                    f"{self.wan_name}: [FUSION HEALER] Recovered to ACTIVE "
-                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
-                                )
-                            elif new_state == HealState.RECOVERING:
-                                self.logger.info(
-                                    f"{self.wan_name}: [FUSION HEALER] Entering RECOVERING "
-                                    f"(pearson_r={self._fusion_healer.pearson_r:.3f})"
-                                )
-                elif age > cadence * 3:
-                    self._irtt_correlation = None
-                    self._prev_healer_irtt_rtt = None  # Reset stale IRTT tracking
-                    self.logger.debug(
-                        f"{self.wan_name}: IRTT result stale ({age:.0f}s > {cadence * 3:.0f}s), "
-                        f"skipping correlation"
-                    )
+                    # IRTT loss alerts (ALRT-01, ALRT-02, ALRT-03)
+                    if isinstance(self.alert_engine, AlertEngine):
+                        if age <= cadence * 3:
+                            self._check_irtt_loss_alerts(irtt_result)
+                        else:
+                            self._irtt_loss_up_start = None
+                            self._irtt_loss_up_fired = False
+                            self._irtt_loss_down_start = None
+                            self._irtt_loss_down_fired = False
 
-                # OWD asymmetry analysis (ASYM-01) -- only on fresh IRTT result
-                if self._asymmetry_analyzer is not None:
-                    asym = self._asymmetry_analyzer.analyze(irtt_result)
-                    self._last_asymmetry_result = asym
+                # Reflector quality probing (REFL-03) -- probe deprioritized hosts
+                # Probes run at their own cadence (default 30s), one host per cycle
+                now = time.monotonic()
+                probed = self._reflector_scorer.maybe_probe(now, self.rtt_measurement)
+                if probed:
+                    self._persist_reflector_events()
+                    for probe_host, probe_success in probed:
+                        self.logger.debug(
+                            f"{self.wan_name}: Reflector probe {probe_host}: "
+                            f"{'success' if probe_success else 'failed'}"
+                        )
 
-                # IRTT loss alerts (ALRT-01, ALRT-02, ALRT-03)
-                if isinstance(self.alert_engine, AlertEngine):
-                    if age <= cadence * 3:
-                        self._check_irtt_loss_alerts(irtt_result)
-                    else:
-                        self._irtt_loss_up_start = None
-                        self._irtt_loss_up_fired = False
-                        self._irtt_loss_down_start = None
-                        self._irtt_loss_down_fired = False
+            # === Sub-timer 5: Logging and metrics (Phase 131: PERF-01) ===
+            with PerfTimer("autorate_logging_metrics", self.logger) as metrics_timer:
+                # Log decision
+                self.logger.info(
+                    f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
+                    f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
+                    f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
+                    f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
+                )
 
-            # Reflector quality probing (REFL-03) -- probe deprioritized hosts
-            # Probes run at their own cadence (default 30s), one host per cycle
-            now = time.monotonic()
-            probed = self._reflector_scorer.maybe_probe(now, self.rtt_measurement)
-            if probed:
-                self._persist_reflector_events()
-                for probe_host, probe_success in probed:
-                    self.logger.debug(
-                        f"{self.wan_name}: Reflector probe {probe_host}: "
-                        f"{'success' if probe_success else 'failed'}"
-                    )
+                # Record metrics to SQLite history (if enabled)
+                if self._metrics_writer is not None:
+                    ts = int(time.time())
+                    metrics_batch = [
+                        (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
+                        (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_state",
+                            float(self._encode_state(dl_zone)),
+                            {"direction": "download"},
+                            "raw",
+                        ),
+                    ]
 
-            # Log decision
-            self.logger.info(
-                f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
-                f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
-                f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-                f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
-            )
-
-            # Record metrics to SQLite history (if enabled)
-            if self._metrics_writer is not None:
-                ts = int(time.time())
-                metrics_batch = [
-                    (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
-                    (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_state",
-                        float(self._encode_state(dl_zone)),
-                        {"direction": "download"},
-                        "raw",
-                    ),
-                ]
-
-                # Signal quality metrics -- every cycle (OBSV-03)
-                if self._last_signal_result is not None:
-                    sr = self._last_signal_result
-                    metrics_batch.extend(
-                        [
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_signal_jitter_ms",
-                                sr.jitter_ms,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_signal_variance_ms2",
-                                sr.variance_ms2,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_signal_confidence",
-                                sr.confidence,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_signal_outlier_count",
-                                float(sr.total_outliers),
-                                None,
-                                "raw",
-                            ),
-                        ]
-                    )
-
-                # IRTT metrics -- only on new measurement (OBSV-04)
-                if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
-                    metrics_batch.extend(
-                        [
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_irtt_rtt_ms",
-                                irtt_result.rtt_mean_ms,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_irtt_ipdv_ms",
-                                irtt_result.ipdv_mean_ms,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_irtt_loss_up_pct",
-                                irtt_result.send_loss,
-                                None,
-                                "raw",
-                            ),
-                            (
-                                ts,
-                                self.wan_name,
-                                "wanctl_irtt_loss_down_pct",
-                                irtt_result.receive_loss,
-                                None,
-                                "raw",
-                            ),
-                        ]
-                    )
-                    # OWD asymmetry metrics (ASYM-03) -- same dedup guard as IRTT metrics
-                    if self._last_asymmetry_result is not None:
+                    # Signal quality metrics -- every cycle (OBSV-03)
+                    if self._last_signal_result is not None:
+                        sr = self._last_signal_result
                         metrics_batch.extend(
                             [
                                 (
                                     ts,
                                     self.wan_name,
-                                    "wanctl_irtt_asymmetry_ratio",
-                                    self._last_asymmetry_result.ratio,
+                                    "wanctl_signal_jitter_ms",
+                                    sr.jitter_ms,
                                     None,
                                     "raw",
                                 ),
                                 (
                                     ts,
                                     self.wan_name,
-                                    "wanctl_irtt_asymmetry_direction",
-                                    DIRECTION_ENCODING.get(
-                                        self._last_asymmetry_result.direction, 0.0
-                                    ),
+                                    "wanctl_signal_variance_ms2",
+                                    sr.variance_ms2,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_signal_confidence",
+                                    sr.confidence,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_signal_outlier_count",
+                                    float(sr.total_outliers),
                                     None,
                                     "raw",
                                 ),
                             ]
                         )
-                    self._last_irtt_write_ts = irtt_result.timestamp
 
-                self._metrics_writer.write_metrics_batch(metrics_batch)
+                    # IRTT metrics -- only on new measurement (OBSV-04)
+                    if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
+                        metrics_batch.extend(
+                            [
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_rtt_ms",
+                                    irtt_result.rtt_mean_ms,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_ipdv_ms",
+                                    irtt_result.ipdv_mean_ms,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_loss_up_pct",
+                                    irtt_result.send_loss,
+                                    None,
+                                    "raw",
+                                ),
+                                (
+                                    ts,
+                                    self.wan_name,
+                                    "wanctl_irtt_loss_down_pct",
+                                    irtt_result.receive_loss,
+                                    None,
+                                    "raw",
+                                ),
+                            ]
+                        )
+                        # OWD asymmetry metrics (ASYM-03) -- same dedup guard as IRTT metrics
+                        if self._last_asymmetry_result is not None:
+                            metrics_batch.extend(
+                                [
+                                    (
+                                        ts,
+                                        self.wan_name,
+                                        "wanctl_irtt_asymmetry_ratio",
+                                        self._last_asymmetry_result.ratio,
+                                        None,
+                                        "raw",
+                                    ),
+                                    (
+                                        ts,
+                                        self.wan_name,
+                                        "wanctl_irtt_asymmetry_direction",
+                                        DIRECTION_ENCODING.get(
+                                            self._last_asymmetry_result.direction, 0.0
+                                        ),
+                                        None,
+                                        "raw",
+                                    ),
+                                ]
+                            )
+                        self._last_irtt_write_ts = irtt_result.timestamp
 
-                # Record state transition if occurred (with reason in labels)
-                if dl_transition_reason:
-                    self._metrics_writer.write_metric(
-                        timestamp=ts,
-                        wan_name=self.wan_name,
-                        metric_name="wanctl_state",
-                        value=float(self._encode_state(dl_zone)),
-                        labels={"direction": "download", "reason": dl_transition_reason},
-                        granularity="raw",
-                    )
-                if ul_transition_reason:
-                    self._metrics_writer.write_metric(
-                        timestamp=ts,
-                        wan_name=self.wan_name,
-                        metric_name="wanctl_state",
-                        value=float(self._encode_state(ul_zone)),
-                        labels={"direction": "upload", "reason": ul_transition_reason},
-                        granularity="raw",
-                    )
+                    self._metrics_writer.write_metrics_batch(metrics_batch)
+
+                    # Record state transition if occurred (with reason in labels)
+                    if dl_transition_reason:
+                        self._metrics_writer.write_metric(
+                            timestamp=ts,
+                            wan_name=self.wan_name,
+                            metric_name="wanctl_state",
+                            value=float(self._encode_state(dl_zone)),
+                            labels={"direction": "download", "reason": dl_transition_reason},
+                            granularity="raw",
+                        )
+                    if ul_transition_reason:
+                        self._metrics_writer.write_metric(
+                            timestamp=ts,
+                            wan_name=self.wan_name,
+                            metric_name="wanctl_state",
+                            value=float(self._encode_state(ul_zone)),
+                            labels={"direction": "upload", "reason": ul_transition_reason},
+                            granularity="raw",
+                        )
 
         # === Router Communication (subsystem 3) ===
         router_failed = False
@@ -3388,33 +3411,43 @@ class WANController:
                 router_failed = True
 
         self._record_profiling(
-            rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start
+            rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start,
+            signal_processing_ms=signal_timer.elapsed_ms,
+            ewma_spike_ms=ewma_timer.elapsed_ms,
+            congestion_assess_ms=congestion_timer.elapsed_ms,
+            irtt_observation_ms=irtt_timer.elapsed_ms,
+            logging_metrics_ms=metrics_timer.elapsed_ms,
         )
         if router_failed:
             return False
 
-        # Save state with periodic force save (safety net against crashes)
-        # Only after successful router communication
-        self._cycles_since_forced_save += 1
-        if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
-            self.save_state(force=True)
-            self._cycles_since_forced_save = 0
-        else:
-            self.save_state()
+        # === Post-cycle timer (Phase 131: PERF-01) ===
+        # Captures save_state + record_autorate_cycle that were previously un-profiled
+        with PerfTimer("autorate_post_cycle", self.logger) as post_timer:
+            # Save state with periodic force save (safety net against crashes)
+            # Only after successful router communication
+            self._cycles_since_forced_save += 1
+            if self._cycles_since_forced_save >= FORCE_SAVE_INTERVAL_CYCLES:
+                self.save_state(force=True)
+                self._cycles_since_forced_save = 0
+            else:
+                self.save_state()
 
-        # Record metrics if enabled
-        if self.config.metrics_enabled:
-            cycle_duration = time.perf_counter() - cycle_start
-            record_autorate_cycle(
-                wan_name=self.wan_name,
-                dl_rate_mbps=dl_rate / 1e6,
-                ul_rate_mbps=ul_rate / 1e6,
-                baseline_rtt=self.baseline_rtt,
-                load_rtt=self.load_rtt,
-                dl_state=dl_zone,
-                ul_state=ul_zone,
-                cycle_duration=cycle_duration,
-            )
+            # Record metrics if enabled
+            if self.config.metrics_enabled:
+                cycle_duration = time.perf_counter() - cycle_start
+                record_autorate_cycle(
+                    wan_name=self.wan_name,
+                    dl_rate_mbps=dl_rate / 1e6,
+                    ul_rate_mbps=ul_rate / 1e6,
+                    baseline_rtt=self.baseline_rtt,
+                    load_rtt=self.load_rtt,
+                    dl_state=dl_zone,
+                    ul_state=ul_zone,
+                    cycle_duration=cycle_duration,
+                )
+        # Record post_cycle directly since _record_profiling already ran
+        self._profiler.record("autorate_post_cycle", post_timer.elapsed_ms)
 
         return True
 
