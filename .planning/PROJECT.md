@@ -10,24 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.27.0 (Performance & QoS) — in progress
-**Tests:** ~4,100+ passing, 91%+ coverage
-**LOC:** ~32,000 Python (src/)
-**Milestones:** 27 shipped (v1.0-v1.26), 130 phases, 256 plans
+**Version:** v1.27.0 (Performance & QoS) — shipped 2026-04-03
+**Tests:** ~4,200+ passing (4,208 collected)
+**LOC:** ~32,700 Python (src/)
+**Milestones:** 28 shipped (v1.0-v1.27), 136 phases, 267 plans
 
-**Latest:** Phase 132 complete — RTT measurement decoupled to background thread, cycle budget regression indicator added
+**Latest:** v1.27 Performance & QoS — BackgroundRTTThread (cycle util 102%→27%), DSCP bridge audit, UL tuning (+17.6%), hysteresis monitoring
 **Previous:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
-
-## Current Milestone: v1.27 Performance & QoS
-
-**Goal:** Resolve cycle budget overruns, restore diffserv QoS separation through the bridge, tune UL recovery, and add hysteresis monitoring for real congestion events.
-
-**Target features:**
-
-- Cycle budget profiling + optimization — profile hot path under RRUL load, identify bottlenecks, decide: optimize code or adjust interval
-- Diffserv DSCP bridge audit + fix — trace DSCP marks through L2 bridge, fix CAKE tin separation
-- Upload throughput tuning — A/B test UL step_up and factor_down for faster recovery under bidirectional load
-- Hysteresis monitoring — observability for dwell/deadband suppression rates during real congestion
 
 ## Requirements
 

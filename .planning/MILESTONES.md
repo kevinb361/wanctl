@@ -1,5 +1,21 @@
 # Project Milestones: wanctl
 
+## v1.27 Performance & QoS (Shipped: 2026-04-03)
+
+**Phases completed:** 6 phases, 11 plans, 12 tasks
+
+**Key accomplishments:**
+
+- 6 sub-timers added to run_cycle hot path + health endpoint subsystems breakdown for identifying 138% cycle budget overrun sources
+- RTT measurement consumes 84.6% of 50ms cycle budget under RRUL load (42ms avg, p99=116ms); SQLite hypothesis disproven at 6.6%; Phase 132 to optimize ICMP path + non-blocking I/O
+- Decoupled RTT measurement from control loop via BackgroundRTTThread with persistent ThreadPoolExecutor and GIL-protected atomic swap, eliminating 42ms blocking I/O from hot path
+- Health endpoint gains ok/warning/critical status field from rolling utilization vs configurable threshold (80%), with AlertEngine cycle_budget_warning after 60 consecutive overruns and SIGUSR1 hot-reload
+- check_tin_distribution() validates per-tin CAKE packet counts via local tc subprocess with PASS/WARN verdicts for DSCP mark survival
+- 60s windowed suppression counter in QueueController with health endpoint exposure and periodic INFO logging during congestion
+- Discord alert fires via AlertEngine when windowed suppression rate exceeds configurable threshold during congestion, with SIGUSR1 hot-reload for threshold
+
+---
+
 ## v1.26 Tuning Validation (Shipped: 2026-04-03)
 
 **Phases completed:** 5 phases, 5 plans, 31 tasks
