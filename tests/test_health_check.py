@@ -2123,3 +2123,124 @@ class TestHysteresisHealth:
             assert dl["deadband_ms"] == 3.0
         finally:
             server.shutdown()
+
+
+class TestCycleBudgetStatus:
+    """Tests for cycle budget status field computation (Phase 132: PERF-03, D-06)."""
+
+    @staticmethod
+    def _make_profiler(avg_ms: float) -> OperationProfiler:
+        """Build a profiler with a single total-cycle sample at the given avg_ms."""
+        profiler = OperationProfiler(max_samples=1200)
+        profiler.record("autorate_cycle_total", avg_ms)
+        return profiler
+
+    def test_status_ok(self):
+        """utilization=50% (25ms/50ms) with threshold=80 -> status='ok'."""
+        profiler = self._make_profiler(25.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is not None
+        assert result["status"] == "ok"
+        assert result["utilization_pct"] == 50.0
+
+    def test_status_warning(self):
+        """utilization=84% (42ms/50ms) with threshold=80 -> status='warning'."""
+        profiler = self._make_profiler(42.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is not None
+        assert result["status"] == "warning"
+        assert result["utilization_pct"] == 84.0
+
+    def test_status_critical(self):
+        """utilization=110% (55ms/50ms) with threshold=80 -> status='critical'."""
+        profiler = self._make_profiler(55.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is not None
+        assert result["status"] == "critical"
+        assert result["utilization_pct"] == 110.0
+
+    def test_status_boundary_warning(self):
+        """utilization=80.0% exactly with threshold=80.0 -> status='warning' (>= comparison)."""
+        profiler = self._make_profiler(40.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is not None
+        assert result["status"] == "warning"
+        assert result["utilization_pct"] == 80.0
+
+    def test_status_boundary_critical(self):
+        """utilization=100.0% exactly -> status='critical' (>= comparison)."""
+        profiler = self._make_profiler(50.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is not None
+        assert result["status"] == "critical"
+        assert result["utilization_pct"] == 100.0
+
+    def test_custom_threshold(self):
+        """utilization=70% (35ms/50ms) with threshold=60 -> status='warning'."""
+        profiler = self._make_profiler(35.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=60.0,
+        )
+        assert result is not None
+        assert result["status"] == "warning"
+        assert result["utilization_pct"] == 70.0
+
+    def test_warning_threshold_in_result(self):
+        """Result dict contains 'warning_threshold_pct' key matching input."""
+        profiler = self._make_profiler(25.0)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=75.0,
+        )
+        assert result is not None
+        assert "warning_threshold_pct" in result
+        assert result["warning_threshold_pct"] == 75.0
+
+    def test_none_when_no_data(self):
+        """Profiler with no data still returns None (existing behavior preserved)."""
+        profiler = OperationProfiler(max_samples=1200)
+        result = _build_cycle_budget(
+            profiler,
+            overrun_count=0,
+            cycle_interval_ms=50.0,
+            total_label="autorate_cycle_total",
+            warning_threshold_pct=80.0,
+        )
+        assert result is None
