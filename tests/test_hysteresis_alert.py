@@ -12,11 +12,9 @@ import tempfile
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 
 from wanctl.autorate_continuous import QueueController, WANController
-
 
 # =============================================================================
 # TEST HELPERS
