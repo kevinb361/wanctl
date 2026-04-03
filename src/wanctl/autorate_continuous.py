@@ -4243,6 +4243,16 @@ class ContinuousAutoRate:
             )
 
             # Create shared instances -- select backend based on transport config
+            # Safety check: detect cake_params + non-linux-cake transport mismatch
+            has_cake_params = isinstance(config.data.get("cake_params"), dict)
+            if has_cake_params and config.router_transport != "linux-cake":
+                logger.error(
+                    "FATAL: cake_params section present but transport is '%s' (not 'linux-cake'). "
+                    "CAKE qdiscs will NOT be created. Fix router.transport in YAML config.",
+                    config.router_transport,
+                )
+                raise SystemExit(1)
+
             if config.router_transport == "linux-cake":
                 from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
