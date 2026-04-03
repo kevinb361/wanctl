@@ -310,8 +310,9 @@ continuous_monitoring:
     green_required: 3 # Faster recovery safe with direct tc (REST used 5)
 
   upload:
-    step_up_mbps: 2 # Moderate climb (REST used 1 -- linux-cake faster feedback allows larger step)
-    factor_down: 0.85 # 15% backoff (confirmed same as REST)
+    ceiling_mbps: 32 # 80% of 40Mbps plan — prevents ISP buffer bloat (was 38, production investigation 2026-04-03)
+    step_up_mbps: 5 # Phase 135 validated (was 2, +17.6% UL throughput with factor_down=0.90)
+    factor_down: 0.90 # Phase 135 validated (was 0.85, gentler decay wins with faster step)
     green_required: 3 # Fast recovery safe with direct tc (REST used 5)
 
   thresholds:
@@ -430,6 +431,32 @@ step_up=5 (vs DL step_up=15). As a percentage of ceiling: UL step=13.2%, DL step
 UL needs proportionally larger steps because the 38 Mbps link has less absolute headroom.
 
 Full Phase 135 results: `.planning/phases/135-upload-recovery-tuning/135-UL-RESULTS.md`
+
+### UL Ceiling Discovery (Post-v1.27 Production Investigation)
+
+**Critical finding:** UL ceiling_mbps has a massive impact on RRUL latency — bigger than any
+other parameter change in v1.27.
+
+| Ceiling            | RRUL Median   | vs Baseline | Notes                               |
+| ------------------ | ------------- | ----------- | ----------------------------------- |
+| 38 Mbps (original) | 173ms         | baseline    | Only 5% ISP headroom — buffer fills |
+| 35 Mbps            | 89ms          | -49%        |                                     |
+| **32 Mbps**        | **47-95ms**   | **-60%**    | **Winner: 80% of ISP plan**         |
+| 30 Mbps            | 70ms + spikes | oscillation | Too low — wanctl fights to maintain |
+
+**Why:** On a 40 Mbps DOCSIS upload plan, ceiling=38 leaves only 2 Mbps before the ISP's CMTS
+buffer fills. Once the CMTS buffers, no amount of CAKE tuning can help — the latency is in the
+ISP's equipment. At ceiling=32 (80% of plan), the CMTS buffer never fills during sustained upload.
+
+**Rule of thumb:** Set UL ceiling to ~80% of ISP upload speed. The "lost" 20% of capacity is
+headroom that prevents ISP-side bufferbloat. CAKE + wanctl can only control what happens BEFORE
+the modem — ISP-side buffers are outside their control.
+
+**Also confirmed:** wanctl UL rate management IS valuable. Disabling it (floor=ceiling=32, letting
+CAKE handle everything) produced 126ms median vs 47ms with wanctl active. The dynamic rate
+shedding during congestion prevents sustained ISP buffer fill that static CAKE can't handle.
+
+Full investigation: `.planning/phases/135-upload-recovery-tuning/135-PRODUCTION-INVESTIGATION.md`
 
 ## DSL Comparison
 
