@@ -4,7 +4,7 @@ milestone: v1.27
 milestone_name: Performance & QoS
 status: completed
 stopped_at: Completed 136-02-PLAN.md (hysteresis suppression alert)
-last_updated: "2026-04-03T19:31:06.845Z"
+last_updated: "2026-04-03T19:41:54.813Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 6
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Milestone:** v1.27 Performance & QoS
 **Phase:** 136 of 136 (Hysteresis Observability)
-**Plan:** 2/2 complete
-**Status:** Phase 136 complete
+**Plan:** Not started
+**Status:** Milestone complete
 **Last activity:** 2026-04-03
 
 Progress: [██████████] 100%

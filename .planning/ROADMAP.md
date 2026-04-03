@@ -169,7 +169,7 @@ None
 | 133. Diffserv Bridge Audit     | 1/1            | Complete    | 2026-04-03 |
 | 134. Diffserv Tin Separation   | 0/2            | Complete    | 2026-04-03 |
 | 135. Upload Recovery Tuning    | 2/2 | Complete    | 2026-04-03 |
-| 136. Hysteresis Observability  | 2/2 | Complete   | 2026-04-03 |
+| 136. Hysteresis Observability  | 2/2 | Complete    | 2026-04-03 |
 
 <details>
 <summary>Previous Milestones (v1.0-v1.26)</summary>
