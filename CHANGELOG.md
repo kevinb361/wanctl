@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-04-02
+
+**Tuning Validation** - Re-tested all tuning parameters on linux-cake transport after
+REST-to-linux-cake backend switch. 49 RRUL flent runs across 5 phases. Confirmation pass
+caught 1 interaction effect (target_bloat flipped due to CAKE rtt change).
+
+### Changed
+
+- **CAKE rtt** from 50ms to 40ms (tested 25/35/40/50/100ms, 40ms dominated all metrics)
+- **DL green_required** from 5 to 3 (faster feedback loop needs fewer confirmation cycles)
+- **DL step_up_mbps** from 15 to 10 (smaller steps recover more smoothly on linux-cake)
+- **DL factor_down** from 0.90 to 0.85 (more aggressive RED backoff works with faster loop)
+- **DL warn_bloat_ms** from 45 to 60 (wider YELLOW-SOFT_RED band with faster reaction)
+- **DL hard_red_bloat_ms** from 60 to 100 (wider SOFT_RED band, healthy 60-100ms range)
+- **UL step_up_mbps** from 1 to 2 (linux-cake loop fast enough for larger UL steps)
+
+### Confirmed (unchanged from REST transport)
+
+- DL factor_down_yellow=0.92, dwell_cycles=5, deadband_ms=3.0, target_bloat_ms=9
+- UL factor_down=0.85, green_required=3
+
+### Added
+
+- **Pre-tuning gate check script** (`scripts/check-tuning-gate.sh`) - Reusable 5-point
+  verification: CAKE qdiscs, no router CAKE, rate change visibility, transport, health
+
 ## [1.25.0] - 2026-04-02
 
 **Reboot Resilience** - Ensures cake-shaper VM fully self-configures after reboot.

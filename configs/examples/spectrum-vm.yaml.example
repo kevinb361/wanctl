@@ -39,7 +39,7 @@ cake_params:
   upload_interface: "ens17"      # Same NIC
   overhead: "docsis"             # DOCSIS cable encapsulation (CAKE-05)
   memlimit: "32mb"              # Memory limit per qdisc (CAKE-06)
-  rtt: "100ms"                  # Conservative default, tunable (CAKE-10)
+  rtt: "40ms"                   # linux-cake validated 2026-04-02 (tested 25/35/40/50/100ms)
 
 # Continuous monitoring - tune these for your cable connection
 continuous_monitoring:
@@ -52,24 +52,24 @@ continuous_monitoring:
     floor_soft_red_mbps: 275
     floor_red_mbps: 200
     ceiling_mbps: 940
-    step_up_mbps: 15           # Validated via RRUL A/B (2026-04-02)
-    factor_down: 0.90           # 10% RED decay (validated over 0.85)
-    factor_down_yellow: 0.92    # 8% YELLOW decay (validated over 0.97)
-    green_required: 5           # Conservative recovery (validated over 3)
+    step_up_mbps: 10           # linux-cake validated 2026-04-02 (was 15)
+    factor_down: 0.85           # linux-cake validated 2026-04-02 (was 0.90)
+    factor_down_yellow: 0.92    # linux-cake confirmed 2026-04-02 (unchanged)
+    green_required: 3           # linux-cake validated 2026-04-02 (was 5)
 
   upload:
     floor_mbps: 8
     ceiling_mbps: 38
-    step_up_mbps: 1
-    factor_down: 0.85
-    green_required: 5           # Match download (validated independently)
+    step_up_mbps: 2             # linux-cake validated 2026-04-02 (was 1)
+    factor_down: 0.85           # linux-cake confirmed 2026-04-02
+    green_required: 3           # linux-cake confirmed 2026-04-02
 
   thresholds:
-    target_bloat_ms: 9              # Tighter detection (validated: safe with dwell_cycles=5)
-    warn_bloat_ms: 45
-    hard_red_bloat_ms: 60              # Validated: faster SOFT_RED clamp (RED never fires)
-    dwell_cycles: 5             # Hysteresis dwell (validated over default 3)
-    deadband_ms: 3.0            # Hysteresis deadband (validated over 5.0)
+    target_bloat_ms: 9              # linux-cake confirmed 2026-04-02 (flipped 15->9 in confirmation pass)
+    warn_bloat_ms: 60               # linux-cake validated 2026-04-02 (was 45)
+    hard_red_bloat_ms: 100           # linux-cake validated 2026-04-02 (was 60)
+    dwell_cycles: 5             # linux-cake confirmed 2026-04-02 (unchanged)
+    deadband_ms: 3.0            # linux-cake confirmed 2026-04-02 (unchanged)
     baseline_time_constant_sec: 50
     load_time_constant_sec: 0.10
     accel_threshold_ms: 12
