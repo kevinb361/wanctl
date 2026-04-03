@@ -292,7 +292,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 **v1.27 Performance & QoS:**
 
-- [ ] Cycle budget profiling under RRUL load with bottleneck identification
+- [x] Cycle budget profiling under RRUL load with bottleneck identification — Phase 131
 - [ ] Cycle budget optimization (code fix or interval adjustment based on profiling)
 - [ ] DSCP mark audit through L2 bridge path
 - [ ] Diffserv CAKE tin separation fix
@@ -620,4 +620,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-02 after v1.27 Performance & QoS milestone started_
+_Last updated: 2026-04-03 after Phase 131 Cycle Budget Profiling complete_
