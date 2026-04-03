@@ -2098,6 +2098,19 @@ class WANController:
         self._cycle_interval_ms = CYCLE_INTERVAL_SECONDS * 1000.0
 
         # =====================================================================
+        # CYCLE BUDGET REGRESSION INDICATOR (Phase 132: PERF-03, per D-06/D-07)
+        # =====================================================================
+        # Warning threshold configurable via YAML, hot-reloadable via SIGUSR1.
+        # AlertEngine fires cycle_budget_warning after sustained overruns.
+        # =====================================================================
+        cm_config = config.data.get("continuous_monitoring", {}) if config.data else {}
+        if not isinstance(cm_config, dict):
+            cm_config = {}
+        self._warning_threshold_pct: float = float(cm_config.get("warning_threshold_pct", 80.0))
+        self._budget_warning_streak: int = 0
+        self._budget_warning_consecutive: int = 60  # 60 cycles = 3 seconds at 50ms
+
+        # =====================================================================
         # BACKGROUND RTT MEASUREMENT (Phase 132: PERF-02, per D-01)
         # =====================================================================
         # Dedicated background thread runs ICMP pings continuously.
@@ -3033,6 +3046,49 @@ class WANController:
         self.upload.dwell_cycles = new_dwell
         self.upload.deadband_ms = new_deadband
 
+    def _reload_cycle_budget_config(self) -> None:
+        """Re-read cycle budget warning threshold from YAML (triggered by SIGUSR1).
+
+        Reads continuous_monitoring.warning_threshold_pct from YAML.
+        Validates range [1.0, 200.0]. Logs old->new transitions.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[CYCLE_BUDGET] Config reload failed: {e}")
+            return
+
+        cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
+        if not isinstance(cm, dict):
+            cm = {}
+
+        new_threshold = cm.get("warning_threshold_pct", 80.0)
+        if (
+            not isinstance(new_threshold, (int, float))
+            or isinstance(new_threshold, bool)
+            or new_threshold < 1.0
+            or new_threshold > 200.0
+        ):
+            self.logger.warning(
+                "[CYCLE_BUDGET] Reload: warning_threshold_pct invalid (%r); keeping current value",
+                new_threshold,
+            )
+            return
+
+        new_threshold = float(new_threshold)
+        old_threshold = self._warning_threshold_pct
+
+        threshold_str = (
+            f"warning_threshold_pct={old_threshold}->{new_threshold}"
+            if old_threshold != new_threshold
+            else f"warning_threshold_pct={new_threshold} (unchanged)"
+        )
+        self.logger.warning("[CYCLE_BUDGET] Config reload: %s", threshold_str)
+        self._warning_threshold_pct = new_threshold
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -3074,6 +3130,34 @@ class WANController:
             profiling_enabled=self._profiling_enabled,
             profile_cycle_count=self._profile_cycle_count,
         )
+
+        # Check cycle budget alert after recording profiling
+        total_ms = sum(timings.values())
+        self._check_cycle_budget_alert(total_ms)
+
+    def _check_cycle_budget_alert(self, total_ms: float) -> None:
+        """Fire cycle_budget_warning if utilization exceeds threshold for N consecutive cycles.
+
+        Per D-07: Reuses AlertEngine with rate limiting. Configurable consecutive threshold.
+        """
+        utilization = (total_ms / self._cycle_interval_ms) * 100.0
+        if utilization >= self._warning_threshold_pct:
+            self._budget_warning_streak += 1
+            if self._budget_warning_streak >= self._budget_warning_consecutive:
+                self.alert_engine.fire(
+                    alert_type="cycle_budget_warning",
+                    severity="warning",
+                    wan_name=self.wan_name,
+                    details={
+                        "utilization_pct": round(utilization, 1),
+                        "threshold_pct": self._warning_threshold_pct,
+                        "cycle_time_ms": round(total_ms, 1),
+                        "interval_ms": self._cycle_interval_ms,
+                        "consecutive_cycles": self._budget_warning_streak,
+                    },
+                )
+        else:
+            self._budget_warning_streak = 0
 
     def run_cycle(self) -> bool:
         """Main 5-second cycle for this WAN"""
@@ -4811,6 +4895,7 @@ def main() -> int | None:
                     wan_info["controller"]._reload_fusion_config()
                     wan_info["controller"]._reload_tuning_config()
                     wan_info["controller"]._reload_hysteresis_config()
+                    wan_info["controller"]._reload_cycle_budget_config()
 
                 # Reload retention config
                 try:
