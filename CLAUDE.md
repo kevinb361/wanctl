@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.25.0
+**Version:** 1.27.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -127,14 +127,14 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Version
 
-**Current:** v1.25.0 (Reboot Resilience)
+**Current:** v1.27.0 (Performance & QoS)
 
-- Dwell timer (dwell_cycles=3 default) absorbs transient EWMA threshold crossings
-- Deadband margin (deadband_ms=3.0 default) prevents oscillation at exact boundary
-- YAML-configurable under continuous_monitoring.thresholds with SIGUSR1 hot-reload
-- Health endpoint hysteresis section (dwell_counter, deadband_ms, transitions_suppressed)
-- Spike detector confirmation counter (accel_confirm_cycles) eliminates single-sample jitter
-- 4,100+ unit tests passing, 91%+ coverage
+- BackgroundRTTThread offloads RTT measurement (cycle util 102%->27%)
+- Windowed suppression counters + hysteresis_suppression alert
+- Validated UL tuning: ceiling=32, step_up=5, factor_down=0.90
+- CAKE parameter sweep script (scripts/cake_param_sweep.py)
+- Config promoted: linux-cake transport + all v1.26 A/B-tested params
+- 4,200+ unit tests passing, 91%+ coverage
 
 ## Circuit Breaker Policy
 
