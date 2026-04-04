@@ -37,9 +37,9 @@ DL_IFACE="ens17"
 # Current production values (restored after sweep)
 PROD_UL_BW="32Mbit"
 PROD_DL_BW="940Mbit"
-PROD_RTT="40ms"
-PROD_OVERHEAD="38"
-PROD_MPU=""  # empty = not set
+PROD_RTT="25ms"
+PROD_OVERHEAD="18"
+PROD_MPU="64"
 
 # Base CAKE params that don't change during sweep
 UL_BASE="diffserv4 triple-isolate nonat nowash ack-filter split-gso noatm memlimit 32Mb"
@@ -56,29 +56,23 @@ RESULTS_FILE="$PROJECT_ROOT/.planning/cake-sweep-results-$(date '+%Y-%m-%d').md"
 # ============================================================================
 # Parameter Matrix
 # ============================================================================
-# Format: "label:rtt:overhead:mpu"
+# Format: "label:rtt:overhead:mpu:ul_bw:dl_bw"
+# ul_bw/dl_bw optional — defaults to PROD_UL_BW/PROD_DL_BW if empty
 # Each combo tested with $RUNS_PER_CONFIG flent runs
 
 CONFIGS=(
-    # RTT sweep (overhead=38, no mpu — current baseline for comparison)
-    "rtt25-oh38:25ms:38:"
-    "rtt30-oh38:30ms:38:"
-    "rtt35-oh38:35ms:38:"
-    "rtt40-oh38:40ms:38:"
+    # UL ceiling sweep (rtt=25ms, overhead=18, mpu=64 locked — sweep winners)
+    "ul28:25ms:18:64:28Mbit:"
+    "ul30:25ms:18:64:30Mbit:"
+    "ul32:25ms:18:64:32Mbit:"
+    "ul34:25ms:18:64:34Mbit:"
+    "ul36:25ms:18:64:36Mbit:"
 
-    # Overhead sweep at rtt=25ms (MikroTik's tuned rtt)
-    "rtt25-oh18-mpu64:25ms:18:64"
-    "rtt25-oh22-mpu64:25ms:22:64"
-    "rtt25-oh38-mpu64:25ms:38:64"
-
-    # Overhead sweep at rtt=40ms (v1.26 validated rtt)
-    "rtt40-oh18-mpu64:40ms:18:64"
-    "rtt40-oh22-mpu64:40ms:22:64"
-
-    # DL ceiling sweep (with best rtt/overhead from above — tested last)
-    # These are added manually after initial results, or uncomment:
-    # "rtt25-oh18-mpu64-dlceil900:25ms:18:64:900"
-    # "rtt25-oh18-mpu64-dlceil850:25ms:18:64:850"
+    # DL ceiling sweep (UL stays at 32Mbit)
+    "dl800:25ms:18:64::800Mbit"
+    "dl850:25ms:18:64::850Mbit"
+    "dl900:25ms:18:64::900Mbit"
+    "dl940:25ms:18:64::940Mbit"
 )
 
 DRY_RUN=false
@@ -118,13 +112,15 @@ set_cake() {
 
 restore_production() {
     log "RESTORING production CAKE config..."
-    local mpu_arg=""
-    if [[ -n "$PROD_MPU" ]]; then
-        mpu_arg="mpu $PROD_MPU"
-    fi
     set_cake "$UL_IFACE" "$PROD_UL_BW" "$PROD_RTT" "$PROD_OVERHEAD" "$PROD_MPU" "$UL_BASE"
     set_cake "$DL_IFACE" "$PROD_DL_BW" "$PROD_RTT" "$PROD_OVERHEAD" "$PROD_MPU" "$DL_BASE"
-    log "Production config restored: rtt=$PROD_RTT overhead=$PROD_OVERHEAD"
+    # Restore YAML ceilings
+    local prod_ul_mbps="${PROD_UL_BW%Mbit}"
+    local prod_dl_mbps="${PROD_DL_BW%Mbit}"
+    ssh "$CAKE_SHAPER" "sudo sed -i '/^\s*upload:/,/^\s*thresholds:/ s/ceiling_mbps: [0-9]*/ceiling_mbps: $prod_ul_mbps/' /etc/wanctl/spectrum.yaml" 2>&1
+    ssh "$CAKE_SHAPER" "sudo sed -i '/^\s*download:/,/^\s*upload:/ s/ceiling_mbps: [0-9]*/ceiling_mbps: $prod_dl_mbps/' /etc/wanctl/spectrum.yaml" 2>&1
+    ssh "$CAKE_SHAPER" "sudo systemctl kill -s SIGUSR1 wanctl@spectrum" 2>&1
+    log "Production config restored: rtt=$PROD_RTT overhead=$PROD_OVERHEAD UL=$PROD_UL_BW DL=$PROD_DL_BW"
 }
 
 verify_connectivity() {
@@ -190,11 +186,11 @@ if $DRY_RUN; then
     log "DRY RUN — showing test matrix without executing"
     echo ""
     echo "Test Matrix:"
-    echo "| # | Label | RTT | Overhead | MPU | Runs |"
-    echo "|---|-------|-----|----------|-----|------|"
+    echo "| # | Label | RTT | Overhead | MPU | UL BW | DL BW | Runs |"
+    echo "|---|-------|-----|----------|-----|-------|-------|------|"
     for i in "${!CONFIGS[@]}"; do
-        IFS=':' read -r label rtt overhead mpu <<< "${CONFIGS[$i]}"
-        echo "| $((i+1)) | $label | $rtt | $overhead | ${mpu:-default} | $RUNS_PER_CONFIG |"
+        IFS=':' read -r label rtt overhead mpu ul_bw dl_bw <<< "${CONFIGS[$i]}"
+        echo "| $((i+1)) | $label | $rtt | $overhead | ${mpu:-def} | ${ul_bw:-$PROD_UL_BW} | ${dl_bw:-$PROD_DL_BW} | $RUNS_PER_CONFIG |"
     done
     echo ""
     echo "Total: ${#CONFIGS[@]} configs × $RUNS_PER_CONFIG runs = $(( ${#CONFIGS[@]} * RUNS_PER_CONFIG )) flent runs"
@@ -222,32 +218,46 @@ sed -i "s/RUNS_PER/$RUNS_PER_CONFIG/" "$RESULTS_FILE"
 
 # Run each config
 for config_idx in "${!CONFIGS[@]}"; do
-    IFS=':' read -r label rtt overhead mpu <<< "${CONFIGS[$config_idx]}"
+    IFS=':' read -r label rtt overhead mpu ul_bw dl_bw <<< "${CONFIGS[$config_idx]}"
+    ul_bw="${ul_bw:-$PROD_UL_BW}"
+    dl_bw="${dl_bw:-$PROD_DL_BW}"
 
     log ""
-    log "--- Config $((config_idx+1))/${#CONFIGS[@]}: $label (rtt=$rtt, overhead=$overhead, mpu=${mpu:-default}) ---"
+    log "--- Config $((config_idx+1))/${#CONFIGS[@]}: $label (rtt=$rtt, oh=$overhead, mpu=${mpu:-default}, UL=$ul_bw, DL=$dl_bw) ---"
 
     # Apply CAKE params to both interfaces
-    set_cake "$UL_IFACE" "$PROD_UL_BW" "$rtt" "$overhead" "$mpu" "$UL_BASE"
-    set_cake "$DL_IFACE" "$PROD_DL_BW" "$rtt" "$overhead" "$mpu" "$DL_BASE"
+    set_cake "$UL_IFACE" "$ul_bw" "$rtt" "$overhead" "$mpu" "$UL_BASE"
+    set_cake "$DL_IFACE" "$dl_bw" "$rtt" "$overhead" "$mpu" "$DL_BASE"
+
+    # If UL/DL ceiling differs from production, update YAML + SIGUSR1 so wanctl
+    # doesn't overwrite our CAKE bandwidth on the next rate adjustment
+    if [[ "$ul_bw" != "$PROD_UL_BW" ]]; then
+        ul_mbps="${ul_bw%Mbit}"
+        ssh "$CAKE_SHAPER" "sudo sed -i '/^\s*upload:/,/^\s*thresholds:/ s/ceiling_mbps: [0-9]*/ceiling_mbps: $ul_mbps/' /etc/wanctl/spectrum.yaml" 2>&1
+        ssh "$CAKE_SHAPER" "sudo systemctl kill -s SIGUSR1 wanctl@spectrum" 2>&1
+        log "  YAML UL ceiling updated to ${ul_mbps} + SIGUSR1 reload"
+    fi
+    if [[ "$dl_bw" != "$PROD_DL_BW" ]]; then
+        dl_mbps="${dl_bw%Mbit}"
+        ssh "$CAKE_SHAPER" "sudo sed -i '/^\s*download:/,/^\s*upload:/ s/ceiling_mbps: [0-9]*/ceiling_mbps: $dl_mbps/' /etc/wanctl/spectrum.yaml" 2>&1
+        ssh "$CAKE_SHAPER" "sudo systemctl kill -s SIGUSR1 wanctl@spectrum" 2>&1
+        log "  YAML DL ceiling updated to ${dl_mbps} + SIGUSR1 reload"
+    fi
 
     # Verify applied
-    local actual
     actual=$(ssh "$CAKE_SHAPER" "$TC qdisc show dev $UL_IFACE | head -1" 2>&1)
     log "Applied UL: $actual"
 
-    # Wait for CAKE to settle
+    # Wait for CAKE to settle + wanctl to apply new ceiling
     sleep 5
 
     # Run N flent tests
-    local median_sum=0
+    median_sum=0
     for run in $(seq 1 $RUNS_PER_CONFIG); do
         log "  Run $run/$RUNS_PER_CONFIG..."
-        local median
         median=$(run_flent "$label" "$run")
 
         # Append to results file
-        local last_line
         last_line=$(tail -1 "$LOG_FILE")
         if echo "$last_line" | grep -q "^RESULT|"; then
             IFS='|' read -r _ _ _ med p99 dl ul time <<< "$last_line"
