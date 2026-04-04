@@ -140,7 +140,7 @@ apply_sysctl() {
 }
 
 apply_sysctl net.core.netdev_budget 600
-apply_sysctl net.core.netdev_budget_usecs 4000
+apply_sysctl net.core.netdev_budget_usecs 8000   # kernel min=8000, keep explicit
 apply_sysctl net.core.netdev_max_backlog 10000
 
 logger -t "$TAG" "NIC tuning complete (${#ALL_NICS[@]} NICs configured, $errors errors)"
