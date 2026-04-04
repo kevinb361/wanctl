@@ -12,6 +12,7 @@ Requirements for v1.28 Infrastructure Optimization milestone. Each maps to roadm
 - [ ] **VMOPT-01**: cake-shaper VM runs with 3 vCPUs, verified operational with balanced load across cores
 - [ ] **VMOPT-02**: NIC IRQ affinity configured so Spectrum and ATT bridge interrupts are distributed across available cores (eliminating 4.3x imbalance)
 - [ ] **VMOPT-03**: Kernel network sysctls tuned for bridge+CAKE workload (netdev_budget, netdev_max_backlog) with persistence across reboots
+- [ ] **VMOPT-04**: Download traffic classified into CAKE diffserv4 tins via nftables bridge forward rules, closing the bridge-before-router DSCP gap with persistence across reboots
 
 ### Router Optimization (RTOPT)
 
@@ -22,13 +23,14 @@ Requirements for v1.28 Infrastructure Optimization milestone. Each maps to roadm
 ## Traceability
 
 | Requirement | Phase |
-|-------------|-------|
-| VMOPT-01 | 137 |
-| VMOPT-02 | 138 |
-| VMOPT-03 | 138 |
-| RTOPT-01 | 139 |
-| RTOPT-02 | 139 |
-| RTOPT-04 | 140 |
+| ----------- | ----- |
+| VMOPT-01    | 137   |
+| VMOPT-02    | 138   |
+| VMOPT-03    | 138   |
+| RTOPT-01    | 139   |
+| RTOPT-02    | 139   |
+| RTOPT-04    | 140   |
+| VMOPT-04    | 141   |
 
 ## Future Requirements
 
@@ -48,13 +50,13 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Replace RB5009 with MikroTik CHR | SPOF risk, breaks wanctl linux-cake transport, loses DSCP pipeline |
-| Mangle rule pruning | Rules are functional infrastructure (gaming, IoT DSCP wash, adaptive steering) |
-| FastTrack/FastPath re-enable | Breaks CAKE QoS pipeline — DSCP marks must traverse full mangle chain |
-| Conntrack timeout tuning | Only 1,796 entries of 968K max — no pressure |
-| Firewall rule reordering | Established/related rule handles 99.99% of forwarded traffic — ordering below it is irrelevant |
+| Feature                          | Reason                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Replace RB5009 with MikroTik CHR | SPOF risk, breaks wanctl linux-cake transport, loses DSCP pipeline                             |
+| Mangle rule pruning              | Rules are functional infrastructure (gaming, IoT DSCP wash, adaptive steering)                 |
+| FastTrack/FastPath re-enable     | Breaks CAKE QoS pipeline — DSCP marks must traverse full mangle chain                          |
+| Conntrack timeout tuning         | Only 1,796 entries of 968K max — no pressure                                                   |
+| Firewall rule reordering         | Established/related rule handles 99.99% of forwarded traffic — ordering below it is irrelevant |
 
 ## Evidence Base
 

@@ -24,8 +24,10 @@
 #   0x00000000 = unclassified (Best Effort, default)
 #
 
-# Flush and recreate for idempotent reload
-flush table bridge qos
+# Idempotent reload: create table if absent, delete to clear stale
+# rules/chains, then recreate with current ruleset
+table bridge qos
+delete table bridge qos
 
 table bridge qos {
 

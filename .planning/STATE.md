@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.28
 milestone_name: Infrastructure Optimization
-status: in_progress
-stopped_at: "Completed 141-01-PLAN.md (bridge download DSCP classification artifacts)"
-last_updated: "2026-04-04T20:37:00.000Z"
+status: executing
+stopped_at: Phase 141 planned — 2 plans in 2 waves
+last_updated: "2026-04-04T20:33:01.749Z"
 last_activity: 2026-04-04
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 2
   completed_plans: 0
   percent: 0
 ---
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** v1.28 Infrastructure Optimization — not yet started
+**Current focus:** Phase 141 — bridge-download-dscp-classification
 
 ## Position
 
 **Milestone:** v1.28 Infrastructure Optimization
-**Phase:** 141 (bridge-download-dscp-classification)
-**Plan:** 1 of 2 complete
-**Status:** Plan 01 complete, Plan 02 (deployment) pending
+**Phase:** 137 of 140 (cake-shaper vCPU Expansion)
+**Plan:** Not started
+**Status:** Executing Phase 141
 **Last activity:** 2026-04-04
 
-Progress: [#####-----] 50%
+Progress: [----------] 0%
 
 ## Accumulated Context
 
@@ -43,8 +43,6 @@ Progress: [#####-----] 50%
 - CHR replacement rejected — SPOF risk, breaks linux-cake transport, no benefit over current architecture
 - Data collected during active RRUL testing session — normal load is lower than observed baseline
 - RB5009 CAKE queue trees are all disabled — CAKE offloaded to cake-shaper VM via linux-cake transport
-- Bridge QoS: separate per-WAN nftables chains with ct mark for stateful flow classification
-- Bridge QoS: priority -10 forward chain, ProtectKernelModules=no for modprobe
 
 ### Evidence Snapshot (2026-04-04)
 
@@ -76,5 +74,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-04T20:37:00.000Z
-Stopped at: Completed 141-01-PLAN.md (bridge download DSCP classification artifacts)
+Last session: 2026-04-04T20:30:48.808Z
+Stopped at: Phase 141 planned — 2 plans in 2 waves
