@@ -69,9 +69,10 @@ CONFIGS=(
     "ul36:25ms:18:64:36Mbit:"
 
     # DL ceiling sweep (UL stays at 32Mbit)
-    # 1000 Mbps plan: test 70-94% range
+    # 1000 Mbps plan: test 50-94% range (500 is an ISP tier boundary)
+    "dl500:25ms:18:64::500Mbit"
+    "dl600:25ms:18:64::600Mbit"
     "dl700:25ms:18:64::700Mbit"
-    "dl750:25ms:18:64::750Mbit"
     "dl800:25ms:18:64::800Mbit"
     "dl850:25ms:18:64::850Mbit"
     "dl900:25ms:18:64::900Mbit"
