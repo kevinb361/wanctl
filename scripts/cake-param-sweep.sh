@@ -27,6 +27,9 @@ FLENT_HOST="104.200.21.31"
 FLENT_DURATION=60
 RUNS_PER_CONFIG=10
 
+# tc binary path — /sbin/tc not in non-interactive SSH PATH
+TC="/sbin/tc"
+
 # Interfaces on cake-shaper VM
 UL_IFACE="ens16"
 DL_IFACE="ens17"
@@ -105,7 +108,7 @@ set_cake() {
     local mpu="$5"
     local base="$6"
 
-    local cmd="sudo tc qdisc change dev $iface root cake bandwidth $bw $base rtt $rtt overhead $overhead"
+    local cmd="sudo $TC qdisc change dev $iface root cake bandwidth $bw $base rtt $rtt overhead $overhead"
     if [[ -n "$mpu" ]]; then
         cmd="$cmd mpu $mpu"
     fi
@@ -139,7 +142,7 @@ verify_connectivity() {
 
     # Verify CAKE is running
     local ul_qdisc
-    ul_qdisc=$(ssh "$CAKE_SHAPER" "tc qdisc show dev $UL_IFACE | head -1" 2>&1)
+    ul_qdisc=$(ssh "$CAKE_SHAPER" "$TC qdisc show dev $UL_IFACE | head -1" 2>&1)
     if ! echo "$ul_qdisc" | grep -q "cake"; then
         log "FATAL: CAKE not running on $UL_IFACE: $ul_qdisc"
         exit 1
@@ -230,7 +233,7 @@ for config_idx in "${!CONFIGS[@]}"; do
 
     # Verify applied
     local actual
-    actual=$(ssh "$CAKE_SHAPER" "tc qdisc show dev $UL_IFACE | head -1" 2>&1)
+    actual=$(ssh "$CAKE_SHAPER" "$TC qdisc show dev $UL_IFACE | head -1" 2>&1)
     log "Applied UL: $actual"
 
     # Wait for CAKE to settle
