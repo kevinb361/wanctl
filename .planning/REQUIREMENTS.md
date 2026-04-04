@@ -12,7 +12,7 @@ Requirements for v1.28 Infrastructure Optimization milestone. Each maps to roadm
 - [ ] **VMOPT-01**: cake-shaper VM runs with 3 vCPUs, verified operational with balanced load across cores
 - [ ] **VMOPT-02**: NIC IRQ affinity configured so Spectrum and ATT bridge interrupts are distributed across available cores (eliminating 4.3x imbalance)
 - [ ] **VMOPT-03**: Kernel network sysctls tuned for bridge+CAKE workload (netdev_budget, netdev_max_backlog) with persistence across reboots
-- [ ] **VMOPT-04**: Download traffic classified into CAKE diffserv4 tins via nftables bridge forward rules, closing the bridge-before-router DSCP gap with persistence across reboots
+- [x] **VMOPT-04**: Download traffic classified into CAKE diffserv4 tins via nftables bridge forward rules, closing the bridge-before-router DSCP gap with persistence across reboots
 
 ### Router Optimization (RTOPT)
 

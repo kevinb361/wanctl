@@ -65,7 +65,7 @@ None
 - [ ] **Phase 138: cake-shaper IRQ & Kernel Tuning** - NIC IRQ affinity balancing + kernel network sysctl optimization
 - [ ] **Phase 139: RB5009 Queue & IRQ Optimization** - SFP+ multi-queue + switch IRQ redistribution
 - [ ] **Phase 140: WireGuard Error Investigation** - Diagnose 821K tx-errors, identify root cause, apply fix
-- [ ] **Phase 141: Bridge Download DSCP Classification** - nftables bridge rules to classify download traffic into CAKE tins
+- [x] **Phase 141: Bridge Download DSCP Classification** - nftables bridge rules to classify download traffic into CAKE tins (completed 2026-04-04)
 
 ## Phase Details
 
@@ -134,8 +134,8 @@ None
 4. nftables rules persist across reboot (systemd unit or /etc/nftables.conf)
 5. Rules are direction-specific (iif modem-side, oif router-side) — upload path unaffected
 6. RRUL test confirms download tin separation with Voice latency < Best Effort latency under load
-   **Plans:** 2 plans
+   **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 141-01-PLAN.md — Create nftables rules, loader script, systemd service, deploy.sh integration
-- [ ] 141-02-PLAN.md — Deploy to both bridges, verify tin separation, RRUL validation, reboot persistence
+- [x] 141-01-PLAN.md — Create nftables rules, loader script, systemd service, deploy.sh integration
+- [x] 141-02-PLAN.md — Deploy to both bridges, verify tin separation, RRUL validation, reboot persistence

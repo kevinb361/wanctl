@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.28
 milestone_name: Infrastructure Optimization
-status: executing
-stopped_at: Phase 141 planned — 2 plans in 2 waves
-last_updated: "2026-04-04T20:33:01.749Z"
+status: completed
+stopped_at: Completed 141-02-PLAN.md — Phase 141 complete
+last_updated: "2026-04-04T20:46:28.084Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 2
+  percent: 100
 ---
 
 # Session State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Position
 
 **Milestone:** v1.28 Infrastructure Optimization
-**Phase:** 137 of 140 (cake-shaper vCPU Expansion)
-**Plan:** Not started
-**Status:** Executing Phase 141
+**Phase:** 141 (bridge-download-dscp-classification) -- COMPLETE
+**Plan:** 2 of 2 complete
+**Status:** Phase 141 complete
 **Last activity:** 2026-04-04
 
-Progress: [----------] 0%
+Progress: [##########] 100%
 
 ## Accumulated Context
 
@@ -43,6 +43,8 @@ Progress: [----------] 0%
 - CHR replacement rejected — SPOF risk, breaks linux-cake transport, no benefit over current architecture
 - Data collected during active RRUL testing session — normal load is lower than observed baseline
 - RB5009 CAKE queue trees are all disabled — CAKE offloaded to cake-shaper VM via linux-cake transport
+- Bridge QoS deployed: nftables DSCP classification active on both bridges, ATT verified, Spectrum RRUL pending after ceiling sweep
+- nftables idempotent reload: create-then-delete pattern (flush fails on first boot)
 
 ### Evidence Snapshot (2026-04-04)
 
@@ -74,5 +76,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-04T20:30:48.808Z
-Stopped at: Phase 141 planned — 2 plans in 2 waves
+Last session: 2026-04-04T20:46:28.078Z
+Stopped at: Completed 141-02-PLAN.md — Phase 141 complete
