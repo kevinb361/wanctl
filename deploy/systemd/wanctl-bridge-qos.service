@@ -1,0 +1,25 @@
+[Unit]
+Description=wanctl bridge QoS (nftables DSCP classification for CAKE tins)
+Documentation=https://github.com/kevinb361/wanctl
+After=systemd-networkd-wait-online.service wanctl-nic-tuning.service
+Before=wanctl@spectrum.service wanctl@att.service steering.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/wanctl-bridge-qos.sh
+
+# Hardening (limited for root oneshot needing hardware access)
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=no
+ProtectKernelLogs=yes
+ProtectClock=yes
+NoNewPrivileges=no
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
