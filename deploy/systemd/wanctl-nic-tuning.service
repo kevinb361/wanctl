@@ -1,8 +1,8 @@
 [Unit]
-Description=wanctl NIC tuning (ring buffers + GRO forwarding + IRQ affinity)
+Description=wanctl NIC tuning (ring buffers + GRO forwarding + IRQ affinity + sysctl)
 Documentation=https://github.com/kevinb361/wanctl
 After=systemd-networkd-wait-online.service
-Before=wanctl@spectrum.service wanctl@att.service steering.service
+Before=wanctl@spectrum.service wanctl@att.service steering.service wanctl-bridge-qos.service
 
 [Service]
 Type=oneshot
@@ -14,6 +14,7 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 ProtectKernelModules=yes
+ProtectKernelTunables=no
 ProtectKernelLogs=yes
 ProtectClock=yes
 NoNewPrivileges=no

@@ -1,8 +1,13 @@
 #!/bin/bash
-# wanctl NIC tuning -- ring buffers, rx-udp-gro-forwarding, IRQ affinity
+# wanctl NIC tuning -- ring buffers, GRO forwarding, 3-core IRQ affinity, sysctl
 #
 # Deployed to: /usr/local/bin/wanctl-nic-tuning.sh
 # Called by:   wanctl-nic-tuning.service (systemd oneshot, runs before wanctl)
+#
+# IRQ affinity distribution (3-core):
+#   CPU0: ens16 (Spectrum DL) -- heaviest single-NIC IRQ load
+#   CPU1: ens27+ens28 (ATT bridge pair) -- light traffic
+#   CPU2: ens17 (Spectrum UL) -- moved from CPU0 to balance Spectrum load
 #
 # Idempotent: safe to re-run at any time. Already-applied settings are
 # re-applied without error. Missing NICs are warned and skipped.
@@ -23,8 +28,12 @@ ATT_NICS=(ens27 ens28)
 # Combined list
 ALL_NICS=("${SPECTRUM_NICS[@]}" "${ATT_NICS[@]}")
 
-# IRQ affinity targets
-SPECTRUM_CPU=0
+# IRQ affinity targets (3-core distribution per D-01)
+# Spectrum DL NIC (ens16) -- heaviest single-NIC IRQ load
+SPECTRUM_DL_CPU=0
+# Spectrum UL NIC (ens17) -- MOVED from CPU0 to CPU2 (eliminates 4.3x imbalance)
+SPECTRUM_UL_CPU=2
+# ATT bridge pair (ens27+ens28) -- light traffic, single core sufficient
 ATT_CPU=1
 
 # Ring buffer sizes (max for both i210 and i350)
@@ -98,12 +107,15 @@ for nic in "${ALL_NICS[@]}"; do
     fi
 done
 
-# Pin IRQ affinity -- Spectrum NICs to CPU 0
-for nic in "${SPECTRUM_NICS[@]}"; do
-    if ! set_irq_affinity "$nic" "$SPECTRUM_CPU"; then
-        errors=$((errors + 1))
-    fi
-done
+# Pin IRQ affinity -- Spectrum DL (ens16) to CPU 0
+if ! set_irq_affinity "ens16" "$SPECTRUM_DL_CPU"; then
+    errors=$((errors + 1))
+fi
+
+# Pin IRQ affinity -- Spectrum UL (ens17) to CPU 2 (MOVED from CPU0)
+if ! set_irq_affinity "ens17" "$SPECTRUM_UL_CPU"; then
+    errors=$((errors + 1))
+fi
 
 # Pin IRQ affinity -- ATT NICs to CPU 1
 for nic in "${ATT_NICS[@]}"; do
@@ -111,6 +123,25 @@ for nic in "${ATT_NICS[@]}"; do
         errors=$((errors + 1))
     fi
 done
+
+# ---------------------------------------------------------------------------
+# Kernel network stack tuning (per D-04, D-05, D-06)
+# These complement the sysctl.d drop-in for immediate effect on service restart
+# ---------------------------------------------------------------------------
+
+apply_sysctl() {
+    local key="$1"
+    local value="$2"
+    if sysctl -w "${key}=${value}" &>/dev/null; then
+        logger -t "$TAG" "sysctl: ${key}=${value}"
+    else
+        logger -t "$TAG" "WARNING: sysctl ${key}=${value} failed"
+    fi
+}
+
+apply_sysctl net.core.netdev_budget 600
+apply_sysctl net.core.netdev_budget_usecs 4000
+apply_sysctl net.core.netdev_max_backlog 10000
 
 logger -t "$TAG" "NIC tuning complete (${#ALL_NICS[@]} NICs configured, $errors errors)"
 

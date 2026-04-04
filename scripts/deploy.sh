@@ -248,6 +248,18 @@ deploy_nic_tuning_script() {
     fi
 }
 
+deploy_sysctl_tuning() {
+    print_step "Deploying sysctl tuning..."
+
+    if [[ -f "$PROJECT_ROOT/deploy/sysctl/99-wanctl-network.conf" ]]; then
+        scp "$PROJECT_ROOT/deploy/sysctl/99-wanctl-network.conf" "$TARGET_HOST:/tmp/99-wanctl-network.conf"
+        ssh "$TARGET_HOST" "sudo mv /tmp/99-wanctl-network.conf /etc/sysctl.d/99-wanctl-network.conf && sudo chown root:root /etc/sysctl.d/99-wanctl-network.conf && sudo chmod 644 /etc/sysctl.d/99-wanctl-network.conf"
+        print_success "Sysctl tuning deployed to /etc/sysctl.d/99-wanctl-network.conf"
+    else
+        print_warning "Sysctl tuning file not found: deploy/sysctl/99-wanctl-network.conf"
+    fi
+}
+
 deploy_bridge_qos() {
     print_step "Deploying bridge QoS rules and loader..."
 
@@ -545,6 +557,7 @@ deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_docs
 deploy_nic_tuning_script
+deploy_sysctl_tuning
 deploy_bridge_qos
 deploy_systemd
 
