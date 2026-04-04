@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.28
 milestone_name: Infrastructure Optimization
-status: Milestone initialized, phases 137-140 defined
-stopped_at: Phase 141 planned — 2 plans in 2 waves
-last_updated: "2026-04-04T20:30:48.814Z"
+status: in_progress
+stopped_at: "Completed 141-01-PLAN.md (bridge download DSCP classification artifacts)"
+last_updated: "2026-04-04T20:37:00.000Z"
 last_activity: 2026-04-04
 progress:
-  total_phases: 5
+  total_phases: 4
   completed_phases: 0
-  total_plans: 2
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Position
 
 **Milestone:** v1.28 Infrastructure Optimization
-**Phase:** 137 of 140 (cake-shaper vCPU Expansion)
-**Plan:** Not started
-**Status:** Milestone initialized, phases 137-140 defined
+**Phase:** 141 (bridge-download-dscp-classification)
+**Plan:** 1 of 2 complete
+**Status:** Plan 01 complete, Plan 02 (deployment) pending
 **Last activity:** 2026-04-04
 
-Progress: [----------] 0%
+Progress: [#####-----] 50%
 
 ## Accumulated Context
 
@@ -43,6 +43,8 @@ Progress: [----------] 0%
 - CHR replacement rejected — SPOF risk, breaks linux-cake transport, no benefit over current architecture
 - Data collected during active RRUL testing session — normal load is lower than observed baseline
 - RB5009 CAKE queue trees are all disabled — CAKE offloaded to cake-shaper VM via linux-cake transport
+- Bridge QoS: separate per-WAN nftables chains with ct mark for stateful flow classification
+- Bridge QoS: priority -10 forward chain, ProtectKernelModules=no for modprobe
 
 ### Evidence Snapshot (2026-04-04)
 
@@ -74,5 +76,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-04T20:30:48.808Z
-Stopped at: Phase 141 planned — 2 plans in 2 waves
+Last session: 2026-04-04T20:37:00.000Z
+Stopped at: Completed 141-01-PLAN.md (bridge download DSCP classification artifacts)

@@ -47,6 +47,7 @@ DOCS_FILES=(
 SYSTEMD_FILES=(
     "deploy/systemd/wanctl@.service"
     "deploy/systemd/wanctl-nic-tuning.service"
+    "deploy/systemd/wanctl-bridge-qos.service"
 )
 
 STEERING_SYSTEMD=(
@@ -244,6 +245,28 @@ deploy_nic_tuning_script() {
         print_success "NIC tuning script deployed to /usr/local/bin/wanctl-nic-tuning.sh"
     else
         print_warning "NIC tuning script not found: deploy/scripts/wanctl-nic-tuning.sh"
+    fi
+}
+
+deploy_bridge_qos() {
+    print_step "Deploying bridge QoS rules and loader..."
+
+    # Deploy nftables rule file
+    if [[ -f "$PROJECT_ROOT/deploy/nftables/bridge-qos.nft" ]]; then
+        scp "$PROJECT_ROOT/deploy/nftables/bridge-qos.nft" "$TARGET_HOST:/tmp/bridge-qos.nft"
+        ssh "$TARGET_HOST" "sudo mv /tmp/bridge-qos.nft $TARGET_CONFIG_DIR/bridge-qos.nft && sudo chown root:root $TARGET_CONFIG_DIR/bridge-qos.nft && sudo chmod 644 $TARGET_CONFIG_DIR/bridge-qos.nft"
+        print_success "Bridge QoS nftables rules deployed to $TARGET_CONFIG_DIR/bridge-qos.nft"
+    else
+        print_warning "Bridge QoS nftables rules not found: deploy/nftables/bridge-qos.nft"
+    fi
+
+    # Deploy loader script
+    if [[ -f "$PROJECT_ROOT/deploy/scripts/wanctl-bridge-qos.sh" ]]; then
+        scp "$PROJECT_ROOT/deploy/scripts/wanctl-bridge-qos.sh" "$TARGET_HOST:/tmp/wanctl-bridge-qos.sh"
+        ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-bridge-qos.sh /usr/local/bin/wanctl-bridge-qos.sh && sudo chown root:root /usr/local/bin/wanctl-bridge-qos.sh && sudo chmod 755 /usr/local/bin/wanctl-bridge-qos.sh"
+        print_success "Bridge QoS loader script deployed to /usr/local/bin/wanctl-bridge-qos.sh"
+    else
+        print_warning "Bridge QoS loader script not found: deploy/scripts/wanctl-bridge-qos.sh"
     fi
 }
 
@@ -522,6 +545,7 @@ deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_docs
 deploy_nic_tuning_script
+deploy_bridge_qos
 deploy_systemd
 
 if [[ "$WITH_STEERING" == "true" ]]; then
