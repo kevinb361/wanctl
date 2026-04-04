@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.27.0 (Performance & QoS) — shipped 2026-04-03
+**Version:** v1.28.0 (Infrastructure Optimization) — in progress
 **Tests:** ~4,200+ passing (4,208 collected)
 **LOC:** ~32,700 Python (src/)
 **Milestones:** 28 shipped (v1.0-v1.27), 136 phases, 267 plans
 
-**Latest:** v1.27 Performance & QoS — BackgroundRTTThread (cycle util 102%→27%), DSCP bridge audit, UL tuning (+17.6%), hysteresis monitoring
-**Previous:** v1.26 Tuning Validation — 13 params A/B tested on linux-cake, 7 changed, CAKE rtt=40ms, 49 flent runs
+**Latest:** v1.28 Infrastructure Optimization — cake-shaper VM vCPU/IRQ/sysctl tuning, RB5009 queue & IRQ optimization, WireGuard error investigation
+**Previous:** v1.27 Performance & QoS — BackgroundRTTThread (cycle util 102%→27%), DSCP bridge audit, UL tuning (+17.6%), hysteresis monitoring
 
 ## Requirements
 
@@ -279,14 +279,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-**v1.27 Performance & QoS:**
+**v1.28 Infrastructure Optimization:**
 
-- [x] Cycle budget profiling under RRUL load with bottleneck identification — Phase 131
-- [ ] Cycle budget optimization (code fix or interval adjustment based on profiling)
-- [ ] DSCP mark audit through L2 bridge path
-- [ ] Diffserv CAKE tin separation fix
-- [ ] Upload throughput A/B tuning (step_up, factor_down)
-- [ ] Hysteresis suppression monitoring during real congestion events
+- [ ] cake-shaper VM expanded to 3 vCPUs — Phase 137
+- [ ] NIC IRQ affinity balanced across cores — Phase 138
+- [ ] Kernel network sysctls tuned for bridge+CAKE — Phase 138
+- [ ] SFP+ multi-queue-ethernet-default queue type — Phase 139
+- [ ] RB5009 switch IRQ redistribution — Phase 139
+- [ ] WireGuard TX errors diagnosed and fixed — Phase 140
 
 **Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
 
