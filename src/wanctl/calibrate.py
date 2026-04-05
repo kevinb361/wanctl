@@ -68,7 +68,6 @@ class Colors:
     Uses standard ANSI escape sequences for terminal color rendering.
 
     Attributes:
-        HEADER: Magenta color for headers
         BLUE: Blue color for section dividers
         CYAN: Cyan color for informational text
         GREEN: Green color for success messages
@@ -78,7 +77,6 @@ class Colors:
         END: Reset to default terminal colors
     """
 
-    HEADER = "\033[95m"
     BLUE = "\033[94m"
     CYAN = "\033[96m"
     GREEN = "\033[92m"

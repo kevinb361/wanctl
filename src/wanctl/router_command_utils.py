@@ -42,14 +42,12 @@ class CommandResult[T]:
         >>> result = CommandResult.ok(42)
         >>> result.success
         True
-        >>> result.unwrap()
+        >>> result.value
         42
 
         >>> result = CommandResult.err("Connection failed")
         >>> result.success
         False
-        >>> result.unwrap_or(0)
-        0
     """
 
     success: bool
@@ -80,66 +78,6 @@ class CommandResult[T]:
             CommandResult with success=False and the error
         """
         return cls(success=False, value=value, error=error)
-
-    def is_ok(self) -> bool:
-        """Check if result is successful."""
-        return self.success
-
-    def is_err(self) -> bool:
-        """Check if result is a failure."""
-        return not self.success
-
-    def unwrap(self) -> T:
-        """Get the value, raising if result is an error.
-
-        Returns:
-            The success value
-
-        Raises:
-            ValueError: If result is an error
-        """
-        if not self.success:
-            raise ValueError(f"Called unwrap() on error result: {self.error}")
-        return self.value  # type: ignore[return-value]
-
-    def unwrap_or(self, default: T) -> T:
-        """Get the value or a default if result is an error.
-
-        Args:
-            default: Value to return if result is an error
-
-        Returns:
-            The success value or the default
-        """
-        if self.success:
-            return self.value  # type: ignore[return-value]
-        return default
-
-    def unwrap_or_else(self, func: Callable[[], T]) -> T:
-        """Get the value or compute a default if result is an error.
-
-        Args:
-            func: Function to call to get default value
-
-        Returns:
-            The success value or the computed default
-        """
-        if self.success:
-            return self.value  # type: ignore[return-value]
-        return func()
-
-    def map(self, func: Callable[[T], Any]) -> CommandResult[Any]:
-        """Transform the success value with a function.
-
-        Args:
-            func: Function to apply to the value
-
-        Returns:
-            New CommandResult with transformed value (or same error)
-        """
-        if self.success:
-            return CommandResult.ok(func(self.value))  # type: ignore[arg-type]
-        return CommandResult.err(self.error or "Unknown error")
 
     def __bool__(self) -> bool:
         """Allow using result in boolean context (if result: ...)."""

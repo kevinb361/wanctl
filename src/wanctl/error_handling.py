@@ -35,14 +35,6 @@ from typing import Any, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-# Log level constants
-LOG_DEBUG = logging.DEBUG
-LOG_INFO = logging.INFO
-LOG_WARNING = logging.WARNING
-LOG_ERROR = logging.ERROR
-LOG_CRITICAL = logging.CRITICAL
-
-
 def handle_errors(
     default_return: Any = None,
     log_level: int = logging.WARNING,

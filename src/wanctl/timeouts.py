@@ -89,9 +89,6 @@ TIMEOUT_STANDARD = 10
 # Long-running command execution (netperf, iperf3)
 TIMEOUT_LONG = 30
 
-# Throughput measurement timeout (aggressive measurement)
-TIMEOUT_THROUGHPUT_MEASUREMENT = 30
-
 # =============================================================================
 # File Lock Timeouts
 # =============================================================================

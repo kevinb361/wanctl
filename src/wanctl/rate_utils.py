@@ -71,60 +71,6 @@ def enforce_rate_bounds(
     return int(result)
 
 
-def enforce_floor(rate: float, floor: float | None = None) -> int:
-    """
-    Enforce minimum floor constraint on a bandwidth rate.
-
-    Ensures rate >= floor when floor is specified.
-    Convenience function when only floor constraint is needed.
-
-    Args:
-        rate: The current rate to constrain (in bps)
-        floor: Minimum allowed rate (None = no constraint)
-
-    Returns:
-        Rate as integer, at least floor if specified.
-
-    Examples:
-        >>> enforce_floor(50_000_000, floor=20_000_000)
-        50000000
-
-        >>> enforce_floor(10_000_000, floor=20_000_000)
-        20000000
-
-        >>> enforce_floor(50_000_000, floor=None)
-        50000000
-    """
-    return enforce_rate_bounds(rate, floor=floor, ceiling=None)
-
-
-def enforce_ceiling(rate: float, ceiling: float | None = None) -> int:
-    """
-    Enforce maximum ceiling constraint on a bandwidth rate.
-
-    Ensures rate <= ceiling when ceiling is specified.
-    Convenience function when only ceiling constraint is needed.
-
-    Args:
-        rate: The current rate to constrain (in bps)
-        ceiling: Maximum allowed rate (None = no constraint)
-
-    Returns:
-        Rate as integer, at most ceiling if specified.
-
-    Examples:
-        >>> enforce_ceiling(150_000_000, ceiling=100_000_000)
-        100000000
-
-        >>> enforce_ceiling(50_000_000, ceiling=100_000_000)
-        50000000
-
-        >>> enforce_ceiling(50_000_000, ceiling=None)
-        50000000
-    """
-    return enforce_rate_bounds(rate, floor=None, ceiling=ceiling)
-
-
 class RateLimiter:
     """Limit rate of configuration changes using sliding window.
 

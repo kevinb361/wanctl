@@ -2069,7 +2069,6 @@ class WANController:
         self._dl_sustained_fired: bool = False
         self._ul_sustained_fired: bool = False
         self._dl_last_congested_zone: str = "RED"
-        self._ul_last_congested_zone: str = "RED"
         self._sustained_sec: int = ac.get("default_sustained_sec", 60) if ac else 60
 
         # =====================================================================

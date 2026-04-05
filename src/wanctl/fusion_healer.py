@@ -97,7 +97,6 @@ class FusionHealer:
         # State
         self._state = HealState.ACTIVE
         self._grace_until: float = 0.0
-        self._last_transition_ts: float | None = None
 
         # Rolling Pearson buffers (maxlen = suspend_window_samples for correlation window)
         self._x_buf: deque[float] = deque(maxlen=self._suspend_window_samples)
@@ -221,7 +220,6 @@ class FusionHealer:
         """Execute a state transition with alerts and parameter locking."""
         old_state = self._state
         self._state = new_state
-        self._last_transition_ts = time.monotonic()
 
         # Reset counters
         self._sustained_below_count = 0
@@ -288,7 +286,6 @@ class FusionHealer:
         if self._parameter_locks is not None:
             self._parameter_locks.pop("fusion_icmp_weight", None)
         self._state = HealState.ACTIVE
-        self._last_transition_ts = time.monotonic()
 
     @property
     def state(self) -> HealState:

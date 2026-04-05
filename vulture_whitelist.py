@@ -116,3 +116,35 @@ _extract_green_deltas  # noqa
 
 # autorate_continuous.py
 _.update_ewma
+_._last_tuning_ts  # test-only attribute (D-04) -- tests verify init value
+
+# config_base.py
+STORAGE_SCHEMA  # noqa  # test-only (D-04) -- imported and validated in test_config_base.py
+
+# dashboard/widgets/cycle_gauge.py -- optional-dep Textual widget (D-03, D-04)
+_._utilization_pct  # set in update_utilization, read in tests
+
+# dashboard/widgets/sparkline_panel.py -- optional-dep Textual widget (D-03, D-04)
+_._maxlen  # sparkline panel maxlen stored for test access
+
+# steering/daemon.py -- config attributes loaded from YAML (D-04)
+_.primary_upload_queue  # config attribute, tested in test_steering_daemon.py
+_.enable_yellow_state  # config attribute, tested in test_steering_daemon.py
+_.log_cake_stats  # config attribute, validated in check_config.py
+
+# steering/steering_confidence.py -- dataclass fields (Pitfall 3)
+_.last_decision  # SteeringState dataclass field
+_.last_decision_time  # SteeringState dataclass field
+
+# routeros_rest.py -- session attribute assignments (D-05)
+# These are self._session.auth and self._session.verify (requests.Session attrs)
+_.auth  # requests.Session.auth assignment
+_.verify  # requests.Session.verify assignment
+
+# timeouts.py -- test-only constants (D-04)
+TIMEOUT_QUICK  # noqa  # tested in test_timeouts.py
+DEFAULT_LOCK_TIMEOUT  # noqa  # tested in test_timeouts.py
+
+# tuning/strategies/response.py -- dataclass fields (Pitfall 3, D-04)
+_.pre_rate_mbps  # RecoveryEpisode dataclass field, tested
+_.post_rate_mbps  # RecoveryEpisode dataclass field, tested
