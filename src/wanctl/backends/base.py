@@ -11,7 +11,7 @@ Design principles:
 4. Logging is the backend's responsibility
 
 To add a new backend:
-1. Create a new module in cake/backends/ (e.g., openwrt.py)
+1. Create a new module in wanctl/backends/ (e.g., openwrt.py)
 2. Implement the RouterBackend abstract class
 3. Add the backend to __init__.py get_backend() factory
 4. Document config schema for the new router type

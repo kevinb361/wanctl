@@ -331,14 +331,14 @@ def handle_command_error[T](
 
     Example:
         >>> result = handle_command_error(0, "", "get queue")
-        >>> result.is_ok()
+        >>> result.success
         True
         >>> result.value is None
         True
 
         >>> result = handle_command_error(1, "timeout", "set limit", return_value=-1)
-        >>> result.is_err()
-        True
+        >>> result.success
+        False
         >>> result.value
         -1
         >>> result.error
