@@ -361,13 +361,14 @@ class TestSteeringAlertingConfig:
 class TestAlertEngineWiringAutorate:
     """Tests that WANController instantiates AlertEngine from config."""
 
-    @patch("wanctl.autorate_continuous.get_router_client_with_failover")
+    @patch("wanctl.routeros_interface.get_router_client_with_failover")
     def test_wancontroller_has_alert_engine_when_enabled(
         self, mock_router_factory, tmp_path, autorate_config_dict
     ):
         """WANController has alert_engine attribute when alerting is enabled."""
         from wanctl.alert_engine import AlertEngine
-        from wanctl.autorate_continuous import RouterOS, WANController
+        from wanctl.autorate_continuous import WANController
+        from wanctl.routeros_interface import RouterOS
         from wanctl.rtt_measurement import RTTMeasurement
 
         autorate_config_dict["alerting"] = VALID_ALERTING.copy()
@@ -388,13 +389,14 @@ class TestAlertEngineWiringAutorate:
         assert hasattr(controller, "alert_engine")
         assert isinstance(controller.alert_engine, AlertEngine)
 
-    @patch("wanctl.autorate_continuous.get_router_client_with_failover")
+    @patch("wanctl.routeros_interface.get_router_client_with_failover")
     def test_wancontroller_has_alert_engine_when_disabled(
         self, mock_router_factory, tmp_path, autorate_config_dict
     ):
         """WANController has alert_engine (disabled) when alerting not configured."""
         from wanctl.alert_engine import AlertEngine
-        from wanctl.autorate_continuous import RouterOS, WANController
+        from wanctl.autorate_continuous import WANController
+        from wanctl.routeros_interface import RouterOS
         from wanctl.rtt_measurement import RTTMeasurement
 
         # No alerting section

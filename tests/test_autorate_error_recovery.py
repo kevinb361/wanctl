@@ -13,10 +13,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.autorate_continuous import (
-    RouterOS,
-    WANController,
-)
+from wanctl.autorate_continuous import WANController
+from wanctl.routeros_interface import RouterOS
 from wanctl.lock_utils import LockAcquisitionError
 
 # =============================================================================
@@ -88,7 +86,7 @@ class TestRouterOS:
 
     def test_routeros_init_calls_get_client_with_failover(self, mock_config, mock_logger):
         """Verifies get_router_client_with_failover is called during init."""
-        with patch("wanctl.autorate_continuous.get_router_client_with_failover") as mock_get_client:
+        with patch("wanctl.routeros_interface.get_router_client_with_failover") as mock_get_client:
             mock_get_client.return_value = MagicMock()
             router = RouterOS(mock_config, mock_logger)
 
@@ -97,7 +95,7 @@ class TestRouterOS:
 
     def test_routeros_init_stores_config_and_logger(self, mock_config, mock_logger):
         """Config and logger attributes should be set during init."""
-        with patch("wanctl.autorate_continuous.get_router_client_with_failover"):
+        with patch("wanctl.routeros_interface.get_router_client_with_failover"):
             router = RouterOS(mock_config, mock_logger)
 
             assert router.config is mock_config
@@ -109,7 +107,7 @@ class TestRouterOS:
         mock_ssh.run_cmd.return_value = (0, "", "")
 
         with patch(
-            "wanctl.autorate_continuous.get_router_client_with_failover",
+            "wanctl.routeros_interface.get_router_client_with_failover",
             return_value=mock_ssh,
         ):
             router = RouterOS(mock_config, mock_logger)
@@ -129,7 +127,7 @@ class TestRouterOS:
         mock_ssh.run_cmd.return_value = (1, "", "error")  # rc=1 indicates failure
 
         with patch(
-            "wanctl.autorate_continuous.get_router_client_with_failover",
+            "wanctl.routeros_interface.get_router_client_with_failover",
             return_value=mock_ssh,
         ):
             router = RouterOS(mock_config, mock_logger)
@@ -143,7 +141,7 @@ class TestRouterOS:
         mock_ssh.run_cmd.return_value = (1, "", "error")
 
         with patch(
-            "wanctl.autorate_continuous.get_router_client_with_failover",
+            "wanctl.routeros_interface.get_router_client_with_failover",
             return_value=mock_ssh,
         ):
             router = RouterOS(mock_config, mock_logger)

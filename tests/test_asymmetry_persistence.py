@@ -101,7 +101,7 @@ class TestWANControllerAsymmetryAttributes:
     def test_has_asymmetry_analyzer_attribute(self) -> None:
         """WANController.__init__ creates _asymmetry_analyzer."""
         _mock_config = self._make_config()
-        with patch("wanctl.autorate_continuous.get_router_client_with_failover"):
+        with patch("wanctl.routeros_interface.get_router_client_with_failover"):
             from wanctl.autorate_continuous import WANController
 
             _controller = WANController.__new__(WANController)

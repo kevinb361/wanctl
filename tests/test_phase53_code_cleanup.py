@@ -35,7 +35,7 @@ class TestClean01SelfSshRenamedToClient:
 
     def test_routeros_class_uses_client_attribute(self):
         """RouterOS.__init__ assigns self.client from get_router_client_with_failover."""
-        source = (SRC_ROOT / "autorate_continuous.py").read_text()
+        source = (SRC_ROOT / "routeros_interface.py").read_text()
         tree = ast.parse(source)
 
         # Find the RouterOS class and check __init__ assigns self.client
@@ -68,7 +68,7 @@ class TestClean01SelfSshRenamedToClient:
                 assert len(ssh_assigns) == 0, "self.ssh still assigned in RouterOS.__init__"
                 break
         else:
-            pytest.fail("RouterOS class not found in autorate_continuous.py")
+            pytest.fail("RouterOS class not found in routeros_interface.py")
 
     def test_routeros_backend_uses_client_attribute(self):
         """RouterOSBackend.__init__ assigns self.client, not self.ssh."""
