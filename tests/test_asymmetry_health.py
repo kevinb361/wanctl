@@ -49,6 +49,20 @@ def _make_wan_controller() -> MagicMock:
         "last_failure_type": None,
         "last_failure_time": None,
     }
+    # Phase 121-124: hysteresis attributes
+    wan.download._yellow_dwell = 0
+    wan.download.dwell_cycles = 5
+    wan.download.deadband_ms = 3.0
+    wan.download._transitions_suppressed = 0
+    wan.download._window_suppressions = 0
+    wan.download._window_start_time = 0.0
+    wan.upload._yellow_dwell = 0
+    wan.upload.dwell_cycles = 5
+    wan.upload.deadband_ms = 3.0
+    wan.upload._transitions_suppressed = 0
+    wan.upload._window_suppressions = 0
+    wan.upload._window_start_time = 0.0
+    wan._suppression_alert_threshold = 20
     # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
     wan._last_signal_result = None
     wan._irtt_thread = None

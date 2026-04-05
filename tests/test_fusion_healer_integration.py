@@ -204,8 +204,13 @@ class TestHealerTick:
 class TestGraceWiring:
     """Tests for SIGUSR1 grace period wiring through _reload_fusion_config."""
 
-    def test_grace_period_called_when_re_enabling_while_suspended(self, tmp_path, mock_autorate_config):
-        """start_grace_period() called when fusion re-enabled while healer is SUSPENDED."""
+    def test_grace_period_not_called_when_healer_suspended_blocks_reenable(self, tmp_path, mock_autorate_config):
+        """start_grace_period() NOT called when healer SUSPENDED blocks re-enable.
+
+        When healer is SUSPENDED, _reload_fusion_config refuses to set
+        _fusion_enabled=True (respects healer authority), so the grace
+        period condition (_fusion_enabled and not old_enabled) is never met.
+        """
         config_file = tmp_path / "autorate.yaml"
         config_file.write_text(yaml.dump({"fusion": {"enabled": True, "icmp_weight": 0.7}}))
 
@@ -219,7 +224,9 @@ class TestGraceWiring:
 
         ctrl._reload_fusion_config()
 
-        ctrl._fusion_healer.start_grace_period.assert_called_once()
+        # Fusion stays disabled because healer is authoritative
+        assert ctrl._fusion_enabled is False
+        ctrl._fusion_healer.start_grace_period.assert_not_called()
 
     def test_grace_period_not_called_when_healer_active(self, tmp_path, mock_autorate_config):
         """start_grace_period() NOT called when healer.state is ACTIVE."""
@@ -411,15 +418,38 @@ class TestHealthEndpoint:
             "last_failure_type": None,
             "last_failure_time": None,
         }
+        # Phase 121-124: hysteresis attributes
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 5
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
+        wan.download._window_suppressions = 0
+        wan.download._window_start_time = 0.0
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 5
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
+        wan.upload._window_suppressions = 0
+        wan.upload._window_start_time = 0.0
+        wan._suppression_alert_threshold = 20
+        # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
         wan._last_signal_result = None
         wan._irtt_thread = None
         wan._irtt_correlation = None
         wan._last_asymmetry_result = None
+        wan._reflector_scorer = None
+        wan.alert_engine = None
         wan._fusion_enabled = fusion_enabled
         wan._fusion_icmp_weight = 0.7
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = 25.0
         wan._fusion_healer = healer
+        wan._tuning_enabled = False
+        wan._tuning_state = None
+        wan._parameter_locks = None
+        wan._overrun_count = 0
+        wan._cycle_interval_ms = 50.0
+        wan._profiler.stats.return_value = None
         return wan
 
     def _make_controller(self, wan):

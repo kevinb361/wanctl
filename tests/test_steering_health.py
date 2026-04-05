@@ -945,7 +945,7 @@ class TestSteeringCycleBudget:
 
             cb = data["cycle_budget"]
             # Exact same top-level keys as autorate format
-            assert set(cb.keys()) == {"cycle_time_ms", "utilization_pct", "overrun_count"}
+            assert set(cb.keys()) == {"cycle_time_ms", "utilization_pct", "overrun_count", "status", "warning_threshold_pct"}
             # cycle_time_ms has avg, p95, p99
             assert set(cb["cycle_time_ms"].keys()) == {"avg", "p95", "p99"}
         finally:

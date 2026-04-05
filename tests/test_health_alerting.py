@@ -132,6 +132,20 @@ class TestAutorateHealthAlerting:
         wan_controller.upload.soft_red_required = 3
         wan_controller.upload.green_streak = 5
         wan_controller.upload.green_required = 5
+        # Phase 121-124: hysteresis attributes
+        wan_controller.download._yellow_dwell = 0
+        wan_controller.download.dwell_cycles = 5
+        wan_controller.download.deadband_ms = 3.0
+        wan_controller.download._transitions_suppressed = 0
+        wan_controller.download._window_suppressions = 0
+        wan_controller.download._window_start_time = 0.0
+        wan_controller.upload._yellow_dwell = 0
+        wan_controller.upload.dwell_cycles = 5
+        wan_controller.upload.deadband_ms = 3.0
+        wan_controller.upload._transitions_suppressed = 0
+        wan_controller.upload._window_suppressions = 0
+        wan_controller.upload._window_start_time = 0.0
+        wan_controller._suppression_alert_threshold = 20
         # Phase 92+: signal quality, IRTT, fusion, tuning attributes (prevent MagicMock truthy trap)
         wan_controller._last_signal_result = None
         wan_controller._irtt_thread = None
