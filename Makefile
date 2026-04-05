@@ -1,4 +1,4 @@
-.PHONY: test coverage lint type format ci dead-code clean security security-deps security-code security-secrets security-licenses
+.PHONY: test coverage lint type format ci dead-code check-deps clean security security-deps security-code security-secrets security-licenses
 
 # Run tests without coverage
 test:
@@ -26,13 +26,35 @@ type:
 format:
 	.venv/bin/ruff format src/ tests/
 
-# All CI checks (lint, type, coverage, dead-code)
-ci: lint type coverage-check dead-code
+# All CI checks (lint, type, coverage, dead-code, check-deps)
+ci: lint type coverage-check dead-code check-deps
 
 # Dead code detection (vulture + ruff F401)
 dead-code:
 	.venv/bin/vulture src/wanctl/ vulture_whitelist.py
 	.venv/bin/ruff check src/ tests/ --select F401
+
+# Dependency audit (unused pip packages in [dependencies] and [optional-dependencies])
+# Pip name -> import name mapping (update when adding/removing deps):
+#   requests -> requests | pyyaml -> yaml | paramiko -> paramiko
+#   tabulate -> tabulate | icmplib -> icmplib
+#   textual -> textual | httpx -> httpx | pyroute2 -> pyroute2
+check-deps:
+	@echo "Checking for unused pip dependencies..."
+	@UNUSED=""; \
+	for pair in "requests:requests" "pyyaml:yaml" "paramiko:paramiko" \
+	            "tabulate:tabulate" "icmplib:icmplib" \
+	            "textual:textual" "httpx:httpx" "pyroute2:pyroute2"; do \
+	    pkg=$${pair%%:*}; imp=$${pair##*:}; \
+	    if ! grep -rq "import $${imp}\b\|from $${imp}" src/wanctl/; then \
+	        UNUSED="$${UNUSED} $${pkg}"; \
+	    fi; \
+	done; \
+	if [ -n "$${UNUSED}" ]; then \
+	    echo "FAIL: Unused dependencies:$${UNUSED}"; exit 1; \
+	else \
+	    echo "All runtime dependencies are imported"; \
+	fi
 
 # Clean build artifacts
 clean:
