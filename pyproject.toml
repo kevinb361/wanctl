@@ -149,3 +149,21 @@ exclude_dirs = [".venv", "build", "dist"]
 # B311: random used for retry jitter timing, not cryptographic purposes
 # B601: paramiko exec_command receives RouterOS API commands from internal code, not user input
 skips = ["B101", "B311", "B601"]
+
+[tool.vulture]
+paths = ["src/wanctl/"]
+ignore_decorators = ["@abstractmethod"]
+ignore_names = [
+    "do_GET",
+    "log_message",
+    "compose",
+    "on_mount",
+    "on_unmount",
+    "on_resize",
+    "on_select_changed",
+    "action_*",
+    "DEFAULT_CSS",
+    "CSS_PATH",
+    "BINDINGS",
+]
+min_confidence = 60
