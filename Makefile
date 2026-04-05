@@ -1,4 +1,4 @@
-.PHONY: test coverage lint type format ci clean security security-deps security-code security-secrets security-licenses
+.PHONY: test coverage lint type format ci dead-code clean security security-deps security-code security-secrets security-licenses
 
 # Run tests without coverage
 test:
@@ -26,8 +26,13 @@ type:
 format:
 	.venv/bin/ruff format src/ tests/
 
-# All CI checks (lint, type, coverage)
-ci: lint type coverage-check
+# All CI checks (lint, type, coverage, dead-code)
+ci: lint type coverage-check dead-code
+
+# Dead code detection (vulture + ruff F401)
+dead-code:
+	.venv/bin/vulture src/wanctl/ vulture_whitelist.py
+	.venv/bin/ruff check src/ tests/ --select F401
 
 # Clean build artifacts
 clean:

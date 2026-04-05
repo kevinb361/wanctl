@@ -1148,7 +1148,7 @@ class TestStatsContractParity:
             assert netlink_result[key] == subprocess_result[key], f"Mismatch on {key}"
         # Compare per-tin values
         for i, (nl_tin, sp_tin) in enumerate(
-            zip(netlink_result["tins"], subprocess_result["tins"])
+            zip(netlink_result["tins"], subprocess_result["tins"], strict=True)
         ):
             for key in nl_tin:
                 assert nl_tin[key] == sp_tin[key], f"Mismatch on tin[{i}].{key}"

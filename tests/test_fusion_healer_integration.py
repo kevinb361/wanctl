@@ -136,8 +136,8 @@ class TestHealerTick:
         icmp_delta = icmp_rtt - ctrl._prev_filtered_rtt
         irtt_delta = irtt_rtt - ctrl._prev_irtt_rtt
 
-        old_state = ctrl._fusion_healer.state
-        new_state = ctrl._fusion_healer.tick(icmp_delta, irtt_delta)
+        _old_state = ctrl._fusion_healer.state  # noqa: F841
+        _new_state = ctrl._fusion_healer.tick(icmp_delta, irtt_delta)  # noqa: F841
 
         ctrl._fusion_healer.tick.assert_called_once_with(2.0, 1.5)
 

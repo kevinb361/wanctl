@@ -4,7 +4,7 @@ import dataclasses
 import statistics
 import threading
 import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import icmplib
 import pytest
@@ -467,7 +467,7 @@ class TestPingHostEdgeCases:
 
         # Find the debug call that contains sample stats
         debug_calls = mock_logger.debug.call_args_list
-        stats_logged = any("min=" in str(call) and "max=" in str(call) for call in debug_calls)
+        stats_logged = any("min=" in str(c) and "max=" in str(c) for c in debug_calls)
         assert stats_logged, "Sample stats (min/max) not logged"
 
     def test_generic_exception_logged(self, mock_logger, mock_icmplib_ping):
@@ -594,8 +594,8 @@ class TestPingHostsConcurrentEdgeCases:
         # Should return empty (timeout before any result)
         assert result == []
         # Debug message about timeout should be logged
-        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
-        assert any("timeout" in call.lower() for call in debug_calls)
+        debug_calls = [str(c) for c in mock_logger.debug.call_args_list]
+        assert any("timeout" in c.lower() for c in debug_calls)
 
     def test_none_results_filtered(self, mock_logger):
         """ping_host returning None excluded from results (line 271)."""
@@ -739,7 +739,7 @@ class TestBackgroundRTTThread:
             yield future_b
             yield future_c
 
-        original_wait = shutdown_event.wait
+        _original_wait = shutdown_event.wait  # noqa: F841
 
         def wait_then_stop(timeout=None):
             """Allow one iteration then signal shutdown."""
