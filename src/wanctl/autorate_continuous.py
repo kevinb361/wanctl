@@ -4803,7 +4803,7 @@ def main() -> int | None:
 
             # Adaptive tuning (runs after maintenance, on its own cadence)
             tuning_config = getattr(
-                controller.wan_controllers[0]["controller"].config,
+                controller.wan_controllers[0]["controller"],
                 "tuning_config",
                 None,
             )
