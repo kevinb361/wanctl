@@ -127,14 +127,14 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Version
 
-**Current:** v1.27.0 (Performance & QoS)
+**Current:** v1.27.0 (Performance & QoS) + v1.28 infrastructure deployed
 
+- v1.28: cake-shaper 3 vCPUs, IRQ rebalancing (load avg -23%), SFP+ multi-queue (0 drops)
+- v1.28: Bridge download DSCP classification via nftables (closes bridge-before-router gap)
+- v1.28: WireGuard TX error fix (ZeroTier interface binding)
 - BackgroundRTTThread offloads RTT measurement (cycle util 102%->27%)
-- Windowed suppression counters + hysteresis_suppression alert
-- Validated UL tuning: ceiling=32, step_up=5, factor_down=0.90
-- CAKE parameter sweep script (scripts/cake_param_sweep.py)
-- Config promoted: linux-cake transport + all v1.26 A/B-tested params
-- 4,200+ unit tests passing, 91%+ coverage
+- CAKE parameter sweep script (scripts/cake-param-sweep.sh)
+- 4,239 unit tests passing, 0 failures
 
 ## Circuit Breaker Policy
 
@@ -144,7 +144,7 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 **Cycle Interval:** 50ms (production standard, deployed 2026-01-13)
 **Congestion Response:** 50-100ms detection time (sub-second)
-**Router Impact:** 0% CPU at idle, 45% peak under load (MikroTik RB5009)
+**Router Impact:** 0% CPU at idle, 20% peak under load (MikroTik RB5009, post-v1.28 IRQ+queue tuning)
 **Utilization:** 60-80% (30-40ms execution per 50ms cycle)
 **Startup Maintenance:** <20s (watchdog-safe, time-budgeted cleanup + downsampling)
 **Periodic Maintenance:** Hourly (cleanup + downsample + VACUUM), respects watchdog
