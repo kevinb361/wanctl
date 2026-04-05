@@ -182,6 +182,62 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "cake_params.overhead",
     "cake_params.memlimit",
     "cake_params.rtt",
+    # Signal processing (_load_signal_processing_config)
+    "signal_processing",
+    "signal_processing.hampel",
+    "signal_processing.hampel.window_size",
+    "signal_processing.hampel.sigma_threshold",
+    "signal_processing.jitter_time_constant_sec",
+    "signal_processing.variance_time_constant_sec",
+    # IRTT measurement (_load_irtt_config)
+    "irtt",
+    "irtt.enabled",
+    "irtt.server",
+    "irtt.port",
+    "irtt.duration_sec",
+    "irtt.interval_ms",
+    "irtt.cadence_sec",
+    # Reflector quality scoring (_load_reflector_quality_config)
+    "reflector_quality",
+    "reflector_quality.min_score",
+    "reflector_quality.window_size",
+    "reflector_quality.probe_interval_sec",
+    "reflector_quality.recovery_count",
+    # OWD asymmetry detection (_load_owd_asymmetry_config)
+    "owd_asymmetry",
+    "owd_asymmetry.ratio_threshold",
+    # Fusion (_load_fusion_config)
+    "fusion",
+    "fusion.enabled",
+    "fusion.icmp_weight",
+    "fusion.healing",
+    "fusion.healing.suspend_threshold",
+    "fusion.healing.recover_threshold",
+    "fusion.healing.suspend_window_sec",
+    "fusion.healing.recover_window_sec",
+    "fusion.healing.grace_period_sec",
+    # Adaptive tuning (_load_tuning_config)
+    "tuning",
+    "tuning.enabled",
+    "tuning.cadence_sec",
+    "tuning.lookback_hours",
+    "tuning.warmup_hours",
+    "tuning.max_step_pct",
+    "tuning.exclude_params",
+    "tuning.bounds",
+    "tuning.oscillation_threshold",
+    # Ping source IP (_load_timeout_config)
+    "ping_source_ip",
+    # Storage retention (get_storage_config in config_base.py)
+    "storage.retention",
+    "storage.retention.raw_age_seconds",
+    "storage.retention.aggregate_1m_age_seconds",
+    "storage.retention.aggregate_5m_age_seconds",
+    "storage.retention.prometheus_compensated",
+    # Cycle budget warning (WANController.__init__)
+    "continuous_monitoring.warning_threshold_pct",
+    # Hysteresis suppression alert (WANController.__init__)
+    "continuous_monitoring.thresholds.suppression_alert_threshold",
 }
 
 # Comprehensive set of valid steering config paths.
