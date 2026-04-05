@@ -57,20 +57,22 @@ continuous_monitoring:
     target_bloat_ms: 5          # Tighter threshold for low-latency fiber
     warn_bloat_ms: 15
     hard_red_bloat_ms: 30
-    alpha_baseline: 0.01        # Very slow baseline tracking (fiber is stable)
-    alpha_load: 0.15            # Moderate response
+    baseline_time_constant_sec: 5.0   # Very slow baseline tracking (fiber is stable)
+    load_time_constant_sec: 0.33      # Moderate response
 
   # Single reflector is fine for stable fiber
   ping_hosts: ["1.1.1.1"]
   use_median_of_three: false    # Single ping OK for stable connections
+
+# Ping source IP (optional, default: OS routing table decides)
+# ping_source_ip: ""
 
 # IRTT UDP RTT measurement (optional, disabled by default)
 # irtt:
 #   enabled: false
 #   server: "your-irtt-server-ip"
 #   port: 2112
-#   duration_ms: 1000
-#   packet_size: 48
+#   duration_sec: 1.0
 #   cadence_sec: 10
 
 # Reflector quality scoring (optional)
@@ -79,10 +81,20 @@ continuous_monitoring:
 #   probe_interval_sec: 30
 #   recovery_count: 3
 
+# OWD asymmetry detection (optional, active when IRTT provides OWD data)
+# owd_asymmetry:
+#   ratio_threshold: 2.0
+
 # Dual-signal fusion (optional, requires irtt.enabled: true)
 # fusion:
 #   enabled: false
 #   icmp_weight: 0.7
+#   healing:
+#     suspend_threshold: 0.3
+#     recover_threshold: 0.5
+#     suspend_window_sec: 60.0
+#     recover_window_sec: 300.0
+#     grace_period_sec: 1800.0
 
 # Adaptive tuning (optional, disabled by default)
 # Analyzes metrics history to automatically optimize control parameters.
@@ -97,13 +109,21 @@ continuous_monitoring:
 #     target_bloat_ms: {min: 3, max: 30}
 #     warn_bloat_ms: {min: 10, max: 100}
 #     hard_red_bloat_ms: {min: 30, max: 200}
-#     alpha_load: {min: 0.005, max: 0.5}
-#     alpha_baseline: {min: 0.0001, max: 0.01}
+#     load_time_constant_sec: {min: 0.1, max: 10.0}
+#     baseline_time_constant_sec: {min: 5.0, max: 500.0}
 
 # Alerting (optional)
 # alerting:
 #   enabled: false
 #   webhook_url: "${DISCORD_WEBHOOK_URL}"
+
+# Storage retention (optional, defaults shown)
+# storage:
+#   retention:
+#     raw_age_seconds: 3600
+#     aggregate_1m_age_seconds: 86400
+#     aggregate_5m_age_seconds: 604800
+#     prometheus_compensated: false
 
 logging:
   main_log: "/var/log/wanctl/fiber.log"

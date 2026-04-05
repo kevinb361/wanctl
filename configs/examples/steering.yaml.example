@@ -145,7 +145,6 @@ lock_timeout: 300               # 5 minutes
 timeouts:
   ssh_command: 30               # SSH command timeout (seconds)
   ping: 2                       # Per-ping timeout (seconds)
-  ping_total: 10                # Total ping timeout (seconds)
 
 # =============================================================================
 # RouterOS Mangle Rule Example
