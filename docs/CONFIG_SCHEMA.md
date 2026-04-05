@@ -289,19 +289,45 @@ Operation timeout configuration.
 - **Type:** string
 - **Description:** Path to EWMA state persistence file
 
+### `ping_source_ip` (optional)
+
+- **Type:** string (IP address) or null
+- **Default:** `null` (OS selects source)
+- **Description:** Source IP address for ICMP pings. Useful for multi-homed hosts to force pings out a specific network interface.
+
+```yaml
+ping_source_ip: "10.10.110.223"
+```
+
 ### `storage` (optional)
 
 Metrics database storage configuration.
 
-| Field            | Type   | Default                      | Description                               |
-| ---------------- | ------ | ---------------------------- | ----------------------------------------- |
-| `retention_days` | int    | `7`                          | Days of metrics history to retain (1-365) |
-| `db_path`        | string | `/var/lib/wanctl/metrics.db` | Path to SQLite metrics database           |
+| Field     | Type   | Default                      | Description                     |
+| --------- | ------ | ---------------------------- | ------------------------------- |
+| `db_path` | string | `/var/lib/wanctl/metrics.db` | Path to SQLite metrics database |
+
+#### `storage.retention` (optional)
+
+Per-granularity data retention thresholds. Controls how long metrics data is kept at each aggregation level.
+
+| Field                      | Type | Default  | Description                                                               |
+| -------------------------- | ---- | -------- | ------------------------------------------------------------------------- |
+| `raw_age_seconds`          | int  | `3600`   | Raw samples kept for this many seconds (1 hour)                           |
+| `aggregate_1m_age_seconds` | int  | `86400`  | 1-minute aggregates kept for this many seconds (24h)                      |
+| `aggregate_5m_age_seconds` | int  | `604800` | 5-minute aggregates kept for this many seconds (7d)                       |
+| `prometheus_compensated`   | bool | `false`  | When true, uses shorter retention (Prometheus scrapes metrics externally) |
+
+When `prometheus_compensated` is `true`, `aggregate_5m_age_seconds` defaults to `172800` (48h) instead of `604800` (7d), since Prometheus retains its own long-term history.
 
 ```yaml
 storage:
-  retention_days: 7
   db_path: "/var/lib/wanctl/metrics.db"
+  retention:
+    raw_age_seconds: 3600
+    aggregate_1m_age_seconds: 86400
+    aggregate_5m_age_seconds: 604800
+    prometheus_compensated: false
 ```
 
 ---
@@ -631,6 +657,24 @@ reflector_quality:
 
 ---
 
+## OWD Asymmetry Detection
+
+### `owd_asymmetry` (optional)
+
+One-way delay (OWD) asymmetry detection configuration. Active when IRTT provides directional OWD data. Detects asymmetric congestion (upload-only or download-only bloat) by comparing send vs receive OWD ratios.
+
+| Field             | Type  | Default | Description                                              |
+| ----------------- | ----- | ------- | -------------------------------------------------------- |
+| `ratio_threshold` | float | `2.0`   | OWD ratio above this flags asymmetric congestion (>=1.0) |
+
+```yaml
+# Example: detect asymmetry when one direction is 3x the other
+owd_asymmetry:
+  ratio_threshold: 3.0
+```
+
+---
+
 ## Dual-Signal Fusion
 
 ### `fusion` (optional)
@@ -644,6 +688,18 @@ When enabled, the controller blends 20Hz ICMP measurements with periodic IRTT UD
 | `enabled`     | bool  | `false` | Enable dual-signal fusion                                       |
 | `icmp_weight` | float | `0.7`   | Weight for ICMP signal (0.0-1.0). IRTT weight = 1 - icmp_weight |
 
+#### `fusion.healing` (optional)
+
+Automatic fusion suspension and recovery based on ICMP-IRTT correlation quality. When correlation drops below `suspend_threshold`, fusion is temporarily disabled to prevent bad IRTT data from corrupting congestion decisions.
+
+| Field                | Type  | Default  | Description                                                      |
+| -------------------- | ----- | -------- | ---------------------------------------------------------------- |
+| `suspend_threshold`  | float | `0.3`    | Correlation below this suspends fusion (0.0-1.0)                 |
+| `recover_threshold`  | float | `0.5`    | Correlation above this re-enables fusion (must be > suspend)     |
+| `suspend_window_sec` | float | `60.0`   | Seconds to evaluate suspend condition (minimum 10.0)             |
+| `recover_window_sec` | float | `300.0`  | Seconds to evaluate recovery condition (minimum 30.0)            |
+| `grace_period_sec`   | float | `1800.0` | Cooldown after suspension before re-evaluation (0 = no cooldown) |
+
 **Runtime toggle:** Send `SIGUSR1` to the daemon process to enable/disable fusion without restart:
 
 ```bash
@@ -655,7 +711,12 @@ kill -USR1 $(pidof wanctl)  # Toggle fusion on/off
 fusion:
   enabled: true
   icmp_weight: 0.7 # 70% ICMP, 30% IRTT
-
+  healing:
+    suspend_threshold: 0.3
+    recover_threshold: 0.5
+    suspend_window_sec: 60.0
+    recover_window_sec: 300.0
+    grace_period_sec: 1800.0
 
 # Example: disabled (default -- no section needed)
 # fusion:
@@ -793,16 +854,17 @@ tuning:
 
 The following config parameters are deprecated. They are auto-translated with a warning on load (or silently ignored where noted). Update your configs to use the modern replacements.
 
-| Deprecated                      | Replacement                    | Notes                                   |
-| ------------------------------- | ------------------------------ | --------------------------------------- |
-| `alpha_baseline`                | `baseline_time_constant_sec`   | Auto-translated: tc = interval / alpha  |
-| `alpha_load`                    | `load_time_constant_sec`       | Auto-translated: tc = interval / alpha  |
-| `cake_state_sources.spectrum`   | `cake_state_sources.primary`   | Identity rename                         |
-| `cake_queues.spectrum_download` | `cake_queues.primary_download` | Identity rename                         |
-| `cake_queues.spectrum_upload`   | `cake_queues.primary_upload`   | Identity rename                         |
-| `bad_samples`                   | _(removed)_                    | Use `red_samples_required`              |
-| `good_samples`                  | _(removed)_                    | Use `green_samples_required`            |
-| `mode.cake_aware`               | _(removed)_                    | CAKE three-state model is always active |
+| Deprecated                      | Replacement                    | Notes                                        |
+| ------------------------------- | ------------------------------ | -------------------------------------------- |
+| `alpha_baseline`                | `baseline_time_constant_sec`   | Auto-translated: tc = interval / alpha       |
+| `alpha_load`                    | `load_time_constant_sec`       | Auto-translated: tc = interval / alpha       |
+| `cake_state_sources.spectrum`   | `cake_state_sources.primary`   | Identity rename                              |
+| `cake_queues.spectrum_download` | `cake_queues.primary_download` | Identity rename                              |
+| `cake_queues.spectrum_upload`   | `cake_queues.primary_upload`   | Identity rename                              |
+| `bad_samples`                   | _(removed)_                    | Use `red_samples_required`                   |
+| `good_samples`                  | _(removed)_                    | Use `green_samples_required`                 |
+| `mode.cake_aware`               | _(removed)_                    | CAKE three-state model is always active      |
+| `storage.retention_days`        | `storage.retention.*`          | Auto-translated to per-granularity retention |
 
 **Behavior:** When a deprecated key is present and its modern replacement is absent, the value is auto-translated and injected so existing config chains work. When both are present, the modern key wins silently.
 

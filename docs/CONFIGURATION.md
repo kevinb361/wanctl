@@ -61,8 +61,8 @@ continuous_monitoring:
     target_bloat_ms: 15 # GREEN -> YELLOW (delta threshold)
     warn_bloat_ms: 45 # YELLOW -> SOFT_RED (delta threshold)
     hard_red_bloat_ms: 80 # SOFT_RED -> RED (delta threshold)
-    alpha_baseline: 0.02 # Baseline EWMA smoothing (lower = slower)
-    alpha_load: 0.20 # Load RTT EWMA smoothing (higher = faster)
+    baseline_time_constant_sec: 2.5 # Baseline EWMA time constant (higher = slower)
+    load_time_constant_sec: 0.25 # Load RTT EWMA time constant (lower = faster)
 
   # Ping configuration
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
@@ -155,10 +155,10 @@ Tune based on your baseline RTT:
 
 Lower values = more aggressive response.
 
-### EWMA Alphas
+### EWMA Time Constants
 
-- alpha_baseline (0.01-0.03): Lower = slower baseline tracking
-- alpha_load (0.15-0.25): Higher = faster response to load changes
+- baseline_time_constant_sec (2.5-5.0): Higher = slower baseline tracking
+- load_time_constant_sec (0.2-0.35): Lower = faster response to load changes
 
 ### Backoff Factors
 
@@ -176,7 +176,7 @@ thresholds:
   target_bloat_ms: 5
   warn_bloat_ms: 15
   hard_red_bloat_ms: 30
-  alpha_baseline: 0.01 # Very slow (fiber is stable)
+  baseline_time_constant_sec: 5.0 # Very slow (fiber is stable)
 ```
 
 ### Cable (DOCSIS)
@@ -198,7 +198,7 @@ baseline_rtt_initial: 31
 thresholds:
   target_bloat_ms: 3 # Tighter for lower baseline
   warn_bloat_ms: 10
-  alpha_baseline: 0.015 # Slower (DSL is noisy)
+  baseline_time_constant_sec: 3.3 # Slower (DSL is noisy)
 upload:
   factor_down: 0.95 # Very conservative (DSL upload sensitive)
 ```

@@ -149,7 +149,7 @@ Every deployment requires a configuration that answers:
 4. **What is the measurement environment?**
    - `ping_hosts`: Reflectors for RTT measurement
    - `use_median_of_three`: Handle reflector variance
-   - `alpha_baseline`, `alpha_load`: EWMA smoothing factors
+   - `baseline_time_constant_sec`, `load_time_constant_sec`: EWMA smoothing time constants
 
 **The controller interprets this configuration universally.**
 
@@ -189,17 +189,17 @@ floor_*_mbps ≤ ceiling_mbps (for all states)
 
 **Meaning:** Floors never exceed ceiling.
 
-### 5. EWMA Alpha Range
+### 5. EWMA Time Constants
 
 ```
-0 < alpha_baseline < 1
-0 < alpha_load < 1
+baseline_time_constant_sec > 0
+load_time_constant_sec > 0
 ```
 
 **Typical values:**
 
-- `alpha_baseline`: 0.015-0.02 (slow tracking)
-- `alpha_load`: 0.20 (fast response)
+- `baseline_time_constant_sec`: 2.5-5.0 (slow tracking, higher = slower)
+- `load_time_constant_sec`: 0.25 (fast response, lower = faster)
 
 ### 6. Upload Independence (Phase 2A)
 
