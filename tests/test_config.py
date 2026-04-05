@@ -6,7 +6,7 @@ when present, and falls back to lock_file-derived path for backward compat.
 
 from pathlib import Path
 
-from wanctl.autorate_continuous import Config
+from wanctl.autorate_config import Config
 
 
 class TestStateFileConfig:

@@ -26,7 +26,7 @@ from pathlib import Path
 
 import yaml
 
-from wanctl.autorate_continuous import Config
+from wanctl.autorate_config import Config
 from wanctl.config_base import BaseConfig, ConfigValidationError, _get_nested, validate_field
 from wanctl.config_validation_utils import validate_bandwidth_order, validate_threshold_order
 from wanctl.steering.daemon import SteeringConfig

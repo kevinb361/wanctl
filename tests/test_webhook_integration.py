@@ -266,7 +266,7 @@ def _steering_config_dict(alerting_config):
 
 def _make_autorate_config(tmp_path, alerting_config):
     """Write YAML and create autorate Config from it."""
-    from wanctl.autorate_continuous import Config
+    from wanctl.autorate_config import Config
 
     config_file = tmp_path / "autorate.yaml"
     config_file.write_text(yaml.dump(_autorate_config_dict(alerting_config)))
@@ -411,7 +411,8 @@ class TestDaemonWebhookWiring:
 
     def test_webhook_delivery_constructed_in_wancontroller(self, tmp_path):
         """WANController constructs WebhookDelivery when alerting enabled with webhook_url."""
-        from wanctl.autorate_continuous import Config, WANController
+        from wanctl.autorate_config import Config
+        from wanctl.autorate_continuous import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -446,7 +447,8 @@ class TestDaemonWebhookWiring:
 
     def test_empty_webhook_url_still_constructs(self, tmp_path, caplog):
         """Empty webhook_url still constructs WebhookDelivery (deliver silently skips)."""
-        from wanctl.autorate_continuous import Config, WANController
+        from wanctl.autorate_config import Config
+        from wanctl.autorate_continuous import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -483,7 +485,8 @@ class TestDaemonWebhookWiring:
 
     def test_http_url_rejected_with_warning(self, tmp_path, caplog):
         """http:// webhook_url is rejected with warning and treated as empty."""
-        from wanctl.autorate_continuous import Config, WANController
+        from wanctl.autorate_config import Config
+        from wanctl.autorate_continuous import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -520,7 +523,8 @@ class TestDaemonWebhookWiring:
 
     def test_no_alerting_config_sets_webhook_none(self, tmp_path):
         """No alerting config sets _webhook_delivery to None."""
-        from wanctl.autorate_continuous import Config, WANController
+        from wanctl.autorate_config import Config
+        from wanctl.autorate_continuous import WANController
 
         MetricsWriter._reset_instance()
         try:

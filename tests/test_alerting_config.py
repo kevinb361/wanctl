@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from wanctl.autorate_continuous import Config
+from wanctl.autorate_config import Config
 from wanctl.steering.daemon import SteeringConfig
 
 # =============================================================================

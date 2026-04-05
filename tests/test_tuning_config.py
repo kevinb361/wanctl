@@ -19,7 +19,7 @@ class TestLoadTuningConfigDisabled:
 
     def test_absent_section(self):
         """No tuning: section sets tuning_config = None."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({})
         Config._load_tuning_config(config)
@@ -27,7 +27,7 @@ class TestLoadTuningConfigDisabled:
 
     def test_empty_section(self):
         """Empty tuning: {} sets tuning_config = None."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({"tuning": {}})
         Config._load_tuning_config(config)
@@ -35,7 +35,7 @@ class TestLoadTuningConfigDisabled:
 
     def test_enabled_false(self):
         """tuning.enabled: false sets tuning_config = None."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({"tuning": {"enabled": False}})
         Config._load_tuning_config(config)
@@ -43,7 +43,7 @@ class TestLoadTuningConfigDisabled:
 
     def test_enabled_non_bool(self, caplog):
         """tuning.enabled: 'yes' (non-bool) warns and disables."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({"tuning": {"enabled": "yes"}})
         with caplog.at_level(logging.WARNING):
@@ -62,7 +62,7 @@ class TestLoadTuningConfigEnabled:
 
     def test_valid_minimal(self):
         """Enabled with defaults and no bounds creates TuningConfig."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({"tuning": {"enabled": True}})
         Config._load_tuning_config(config)
@@ -77,7 +77,7 @@ class TestLoadTuningConfigEnabled:
 
     def test_valid_with_bounds(self):
         """Parses bounds dict into SafetyBounds objects."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -95,7 +95,7 @@ class TestLoadTuningConfigEnabled:
 
     def test_valid_custom_values(self):
         """Custom cadence, lookback, warmup, max_step_pct."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -125,7 +125,7 @@ class TestLoadTuningConfigValidation:
 
     def test_bounds_scalar_not_dict(self, caplog):
         """bounds.target_bloat_ms: 15 (scalar) warns and disables."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -141,7 +141,7 @@ class TestLoadTuningConfigValidation:
 
     def test_bounds_min_greater_than_max(self, caplog):
         """bounds.target_bloat_ms: {min: 30, max: 3} warns and disables."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -157,7 +157,7 @@ class TestLoadTuningConfigValidation:
 
     def test_negative_max_step_pct(self, caplog):
         """max_step_pct: -5 warns and disables."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -172,7 +172,7 @@ class TestLoadTuningConfigValidation:
 
     def test_cadence_too_low(self, caplog):
         """cadence_sec: 60 (below 600 minimum) warns and disables."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -197,7 +197,7 @@ class TestExcludeParams:
 
     def test_default_excludes_response_params(self):
         """No exclude_params defaults to RESPONSE_PARAMS frozenset (RTUN-05)."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
         from wanctl.tuning.strategies.response import RESPONSE_PARAMS
 
         config = self._make_config_obj({"tuning": {"enabled": True}})
@@ -208,7 +208,7 @@ class TestExcludeParams:
 
     def test_valid_list(self):
         """exclude_params list is parsed into frozenset."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -223,7 +223,7 @@ class TestExcludeParams:
 
     def test_non_list_disables(self, caplog):
         """exclude_params: 'foo' (non-list) warns and disables tuning."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {"tuning": {"enabled": True, "exclude_params": "target_bloat_ms"}}
         config = self._make_config_obj(data)
@@ -234,7 +234,7 @@ class TestExcludeParams:
 
     def test_empty_list(self):
         """exclude_params: [] is valid and results in empty frozenset."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {"tuning": {"enabled": True, "exclude_params": []}}
         config = self._make_config_obj(data)
@@ -243,7 +243,7 @@ class TestExcludeParams:
 
     def test_logged_at_startup(self, caplog):
         """Excluded params are logged in startup message."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         data = {
             "tuning": {
@@ -323,7 +323,7 @@ class TestLoadSpecificFieldsIntegration:
         # Verify the method exists and is called in _load_specific_fields
         import inspect
 
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         source = inspect.getsource(Config._load_specific_fields)
         assert "_load_tuning_config" in source

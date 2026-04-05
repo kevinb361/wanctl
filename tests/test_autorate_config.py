@@ -10,7 +10,7 @@ Coverage target: lines 274-343 (_load_download_config, _load_upload_config).
 
 import pytest
 
-from wanctl.autorate_continuous import Config
+from wanctl.autorate_config import Config
 
 # =============================================================================
 # FIXTURES

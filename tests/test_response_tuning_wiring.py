@@ -359,7 +359,7 @@ class TestExcludeParamsDefault:
 
     def test_default_excludes_response_params(self):
         """When no exclude_params in YAML, response params are excluded."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({"tuning": {"enabled": True}})
         Config._load_tuning_config(config)
@@ -369,7 +369,7 @@ class TestExcludeParamsDefault:
 
     def test_explicit_empty_enables_all(self):
         """When exclude_params: [] is set, nothing is excluded."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({
             "tuning": {"enabled": True, "exclude_params": []}
@@ -380,7 +380,7 @@ class TestExcludeParamsDefault:
 
     def test_explicit_list_overrides_default(self):
         """When user provides explicit list, only those are excluded."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = self._make_config_obj({
             "tuning": {"enabled": True, "exclude_params": ["fusion_icmp_weight"]}

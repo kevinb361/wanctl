@@ -240,7 +240,7 @@ class TestOWDAsymmetryConfig:
 
     def _make_config(self, data: dict) -> object:
         """Construct a minimal Config-like object with the owd_asymmetry section."""
-        from wanctl.autorate_continuous import Config
+        from wanctl.autorate_config import Config
 
         config = object.__new__(Config)
         config.data = data
@@ -261,7 +261,7 @@ class TestOWDAsymmetryConfig:
     def test_non_dict_warns_and_defaults(self) -> None:
         """Non-dict owd_asymmetry warns and uses defaults."""
         config = self._make_config({"owd_asymmetry": "invalid"})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()
@@ -271,7 +271,7 @@ class TestOWDAsymmetryConfig:
     def test_ratio_threshold_below_one_warns_and_defaults(self) -> None:
         """ratio_threshold < 1.0 warns and defaults to 2.0."""
         config = self._make_config({"owd_asymmetry": {"ratio_threshold": 0.5}})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()
@@ -281,7 +281,7 @@ class TestOWDAsymmetryConfig:
     def test_ratio_threshold_zero_warns_and_defaults(self) -> None:
         """ratio_threshold=0 warns and defaults to 2.0."""
         config = self._make_config({"owd_asymmetry": {"ratio_threshold": 0}})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()
@@ -291,7 +291,7 @@ class TestOWDAsymmetryConfig:
     def test_ratio_threshold_string_warns_and_defaults(self) -> None:
         """ratio_threshold as string warns and defaults to 2.0."""
         config = self._make_config({"owd_asymmetry": {"ratio_threshold": "high"}})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()
@@ -301,7 +301,7 @@ class TestOWDAsymmetryConfig:
     def test_ratio_threshold_bool_warns_and_defaults(self) -> None:
         """ratio_threshold as bool warns and defaults to 2.0."""
         config = self._make_config({"owd_asymmetry": {"ratio_threshold": True}})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()
@@ -311,7 +311,7 @@ class TestOWDAsymmetryConfig:
     def test_ratio_threshold_negative_warns_and_defaults(self) -> None:
         """Negative ratio_threshold warns and defaults to 2.0."""
         config = self._make_config({"owd_asymmetry": {"ratio_threshold": -1.5}})
-        with patch("wanctl.autorate_continuous.logging") as mock_logging:
+        with patch("wanctl.autorate_config.logging") as mock_logging:
             mock_logger = MagicMock()
             mock_logging.getLogger.return_value = mock_logger
             config._load_owd_asymmetry_config()

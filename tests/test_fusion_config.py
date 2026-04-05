@@ -14,7 +14,7 @@ import logging
 import pytest
 import yaml
 
-from wanctl.autorate_continuous import Config
+from wanctl.autorate_config import Config
 
 # =============================================================================
 # FIXTURES
