@@ -72,14 +72,17 @@ continuous_monitoring:
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
   use_median_of_three: true     # Essential for cable's variable latency
 
+# Ping source IP (optional, default: OS routing table decides)
+# Useful for multi-homed hosts to force pings out a specific interface.
+# ping_source_ip: ""
+
 # IRTT UDP RTT measurement (optional, disabled by default)
 # Provides secondary RTT signal via UDP for dual-signal fusion
 # irtt:
 #   enabled: false
 #   server: "your-irtt-server-ip"
 #   port: 2112
-#   duration_ms: 1000
-#   packet_size: 48
+#   duration_sec: 1.0
 #   cadence_sec: 10
 
 # Reflector quality scoring (optional, active when ping_hosts configured)
@@ -89,12 +92,23 @@ continuous_monitoring:
 #   probe_interval_sec: 30
 #   recovery_count: 3
 
+# OWD asymmetry detection (optional, active when IRTT provides OWD data)
+# Detects asymmetric congestion (upload-only or download-only bloat)
+# owd_asymmetry:
+#   ratio_threshold: 2.0          # OWD ratio above this flags asymmetry
+
 # Dual-signal fusion (optional, disabled by default)
 # Blends ICMP + IRTT RTT for more robust congestion detection
 # Requires irtt.enabled: true to produce fused signal
 # fusion:
 #   enabled: false
-#   icmp_weight: 0.7  # IRTT weight = 1.0 - icmp_weight
+#   icmp_weight: 0.7              # IRTT weight = 1.0 - icmp_weight
+#   healing:
+#     suspend_threshold: 0.3      # Correlation below this suspends fusion
+#     recover_threshold: 0.5      # Correlation above this re-enables fusion
+#     suspend_window_sec: 60.0    # Window to evaluate suspend condition
+#     recover_window_sec: 300.0   # Window to evaluate recovery condition
+#     grace_period_sec: 1800.0    # Cooldown after suspension before re-evaluation
 
 # Adaptive tuning (optional, disabled by default)
 # Analyzes metrics history to automatically optimize control parameters.
@@ -109,13 +123,22 @@ continuous_monitoring:
 #     target_bloat_ms: {min: 3, max: 30}
 #     warn_bloat_ms: {min: 10, max: 100}
 #     hard_red_bloat_ms: {min: 30, max: 200}
-#     alpha_load: {min: 0.005, max: 0.5}
-#     alpha_baseline: {min: 0.0001, max: 0.01}
+#     load_time_constant_sec: {min: 0.1, max: 10.0}
+#     baseline_time_constant_sec: {min: 5.0, max: 500.0}
 
 # Alerting (optional, requires Discord webhook)
 # alerting:
 #   enabled: false
 #   webhook_url: "${DISCORD_WEBHOOK_URL}"  # From /etc/wanctl/secrets
+
+# Storage retention (optional, defaults shown)
+# Controls how long metrics data is kept at each granularity.
+# storage:
+#   retention:
+#     raw_age_seconds: 3600              # Raw samples kept for 1 hour
+#     aggregate_1m_age_seconds: 86400    # 1-minute aggregates kept for 24 hours
+#     aggregate_5m_age_seconds: 604800   # 5-minute aggregates kept for 7 days
+#     prometheus_compensated: false      # Set true if Prometheus scrapes metrics
 
 logging:
   main_log: "/var/log/wanctl/cable.log"
