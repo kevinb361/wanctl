@@ -4,6 +4,9 @@ __pycache__/
 .env
 *.egg-info/
 
+# Planning directory (contains site-specific data, credentials in investigation notes)
+.planning/
+
 # Coverage artifacts
 .coverage
 .coverage.*
