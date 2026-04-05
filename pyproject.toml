@@ -109,6 +109,7 @@ max-complexity = 20  # permissive for audit baseline; functions >15 documented f
 "tests/*" = ["SIM102"]  # collapsible-if in tests -- readability over compactness
 # C901: complex functions documented for Phase 114 reduction (CQUAL-05)
 "src/wanctl/autorate_continuous.py" = ["C901"]  # run_cycle(30), main(68)
+"src/wanctl/queue_controller.py" = ["C901"]     # adjust_4state(21) -- extracted from autorate_continuous
 "src/wanctl/health_check.py" = ["C901"]         # _get_health_status(24)
 "src/wanctl/steering/daemon.py" = ["C901"]      # main(23)
 

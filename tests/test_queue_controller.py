@@ -10,7 +10,7 @@ import logging
 
 import pytest
 
-from wanctl.autorate_continuous import QueueController
+from wanctl.queue_controller import QueueController
 
 # =============================================================================
 # FIXTURES
@@ -1916,7 +1916,7 @@ class TestHysteresisObservability:
     def test_adjust_suppression_debug_log(self, caplog):
         """adjust() emits DEBUG log on suppressed cycle."""
         qc = self._make_upload_controller(dwell_cycles=3)
-        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+        with caplog.at_level(logging.DEBUG, logger="wanctl.queue_controller"):
             qc.adjust(
                 baseline_rtt=self.BASELINE,
                 load_rtt=self.LOAD_RTT,
@@ -1931,7 +1931,7 @@ class TestHysteresisObservability:
     def test_adjust_expiry_info_log(self, caplog):
         """adjust() emits INFO log when dwell expires."""
         qc = self._make_upload_controller(dwell_cycles=3)
-        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+        with caplog.at_level(logging.DEBUG, logger="wanctl.queue_controller"):
             for _ in range(3):
                 qc.adjust(
                     baseline_rtt=self.BASELINE,
@@ -1948,7 +1948,7 @@ class TestHysteresisObservability:
     def test_adjust_4state_suppression_debug_log(self, caplog):
         """adjust_4state() emits DEBUG log with DL direction on suppressed cycle."""
         qc = self._make_download_controller(dwell_cycles=3)
-        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+        with caplog.at_level(logging.DEBUG, logger="wanctl.queue_controller"):
             qc.adjust_4state(
                 baseline_rtt=self.BASELINE,
                 load_rtt=self.LOAD_RTT,
@@ -1964,7 +1964,7 @@ class TestHysteresisObservability:
     def test_adjust_4state_expiry_info_log(self, caplog):
         """adjust_4state() emits INFO log with DL direction when dwell expires."""
         qc = self._make_download_controller(dwell_cycles=3)
-        with caplog.at_level(logging.DEBUG, logger="wanctl.autorate_continuous"):
+        with caplog.at_level(logging.DEBUG, logger="wanctl.queue_controller"):
             for _ in range(3):
                 qc.adjust_4state(
                     baseline_rtt=self.BASELINE,

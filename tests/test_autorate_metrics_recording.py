@@ -356,7 +356,7 @@ class TestQueueControllerTransitionTracking:
 
     def test_adjust_returns_transition_reason_on_change(self) -> None:
         """Verify adjust() returns reason when state changes."""
-        from wanctl.autorate_continuous import QueueController
+        from wanctl.queue_controller import QueueController
 
         controller = QueueController(
             name="test-dl",
@@ -386,7 +386,7 @@ class TestQueueControllerTransitionTracking:
 
     def test_adjust_returns_none_when_state_unchanged(self) -> None:
         """Verify adjust() returns None reason when state unchanged."""
-        from wanctl.autorate_continuous import QueueController
+        from wanctl.queue_controller import QueueController
 
         controller = QueueController(
             name="test-dl",
@@ -419,7 +419,7 @@ class TestQueueControllerTransitionTracking:
 
     def test_adjust_4state_returns_transition_reason(self) -> None:
         """Verify adjust_4state() returns reason on state change."""
-        from wanctl.autorate_continuous import QueueController
+        from wanctl.queue_controller import QueueController
 
         controller = QueueController(
             name="test-dl",

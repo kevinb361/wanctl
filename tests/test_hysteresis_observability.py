@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wanctl.autorate_continuous import QueueController
+from wanctl.queue_controller import QueueController
 from wanctl.health_check import (
     HealthCheckHandler,
     start_health_server,
