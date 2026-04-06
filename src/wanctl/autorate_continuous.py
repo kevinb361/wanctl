@@ -67,6 +67,77 @@ MAINTENANCE_INTERVAL = 3600
 # =============================================================================
 
 
+def _log_startup_config(config: "Config", logger: logging.Logger) -> None:
+    """Log startup configuration summary for a WAN."""
+    logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
+    dl_green = config.download_floor_green / 1e6
+    dl_yellow = config.download_floor_yellow / 1e6
+    dl_soft_red = config.download_floor_soft_red / 1e6
+    dl_red = config.download_floor_red / 1e6
+    dl_ceil = config.download_ceiling / 1e6
+    dl_step = config.download_step_up / 1e6
+    logger.info(
+        f"Download: GREEN={dl_green:.0f}M, YELLOW={dl_yellow:.0f}M, "
+        f"SOFT_RED={dl_soft_red:.0f}M, RED={dl_red:.0f}M, "
+        f"ceiling={dl_ceil:.0f}M, step={dl_step:.1f}M, "
+        f"factor={config.download_factor_down}"
+    )
+    ul_green = config.upload_floor_green / 1e6
+    ul_yellow = config.upload_floor_yellow / 1e6
+    ul_red = config.upload_floor_red / 1e6
+    ul_ceil = config.upload_ceiling / 1e6
+    ul_step = config.upload_step_up / 1e6
+    logger.info(
+        f"Upload: GREEN={ul_green:.0f}M, YELLOW={ul_yellow:.0f}M, "
+        f"RED={ul_red:.0f}M, ceiling={ul_ceil:.0f}M, "
+        f"step={ul_step:.1f}M, factor={config.upload_factor_down}"
+    )
+    logger.info(
+        f"Download Thresholds: GREEN\u2192YELLOW={config.target_bloat_ms}ms, "
+        f"YELLOW\u2192SOFT_RED={config.warn_bloat_ms}ms, "
+        f"SOFT_RED\u2192RED={config.hard_red_bloat_ms}ms"
+    )
+    logger.info(
+        f"Upload Thresholds: GREEN\u2192YELLOW={config.target_bloat_ms}ms, "
+        f"YELLOW\u2192RED={config.warn_bloat_ms}ms"
+    )
+    logger.info(f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}")
+    logger.info(f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}")
+
+
+def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[Any, RTTMeasurement]:
+    """Create router backend and RTT measurement for a WAN.
+
+    Validates transport/cake_params compatibility and selects the appropriate
+    router backend (LinuxCakeAdapter or RouterOS).
+    """
+    has_cake_params = isinstance(config.data.get("cake_params"), dict)
+    if has_cake_params and config.router_transport != "linux-cake":
+        logger.error(
+            "FATAL: cake_params section present but transport is '%s' (not 'linux-cake'). "
+            "CAKE qdiscs will NOT be created. Fix router.transport in YAML config.",
+            config.router_transport,
+        )
+        raise SystemExit(1)
+
+    if config.router_transport == "linux-cake":
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        router = LinuxCakeAdapter.from_config(config, logger)
+    else:
+        router = RouterOS(config, logger)
+    clear_router_password(config)
+
+    rtt_measurement = RTTMeasurement(
+        logger,
+        timeout_ping=config.timeout_ping,
+        aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+        log_sample_stats=True,
+        source_ip=config.ping_source_ip,
+    )
+    return router, rtt_measurement
+
+
 class ContinuousAutoRate:
     """Main controller managing one or more WANs"""
 
@@ -74,80 +145,12 @@ class ContinuousAutoRate:
         self.wan_controllers: list[dict[str, Any]] = []
         self.debug = debug
 
-        # Load each WAN config and create controller
         for config_file in config_files:
             config = Config(config_file)
             logger = setup_logging(config, "cake_continuous", debug)
-
-            logger.info(f"=== Continuous CAKE Controller - {config.wan_name} ===")
-            dl_green = config.download_floor_green / 1e6
-            dl_yellow = config.download_floor_yellow / 1e6
-            dl_soft_red = config.download_floor_soft_red / 1e6
-            dl_red = config.download_floor_red / 1e6
-            dl_ceil = config.download_ceiling / 1e6
-            dl_step = config.download_step_up / 1e6
-            logger.info(
-                f"Download: GREEN={dl_green:.0f}M, YELLOW={dl_yellow:.0f}M, "
-                f"SOFT_RED={dl_soft_red:.0f}M, RED={dl_red:.0f}M, "
-                f"ceiling={dl_ceil:.0f}M, step={dl_step:.1f}M, "
-                f"factor={config.download_factor_down}"
-            )
-            ul_green = config.upload_floor_green / 1e6
-            ul_yellow = config.upload_floor_yellow / 1e6
-            ul_red = config.upload_floor_red / 1e6
-            ul_ceil = config.upload_ceiling / 1e6
-            ul_step = config.upload_step_up / 1e6
-            logger.info(
-                f"Upload: GREEN={ul_green:.0f}M, YELLOW={ul_yellow:.0f}M, "
-                f"RED={ul_red:.0f}M, ceiling={ul_ceil:.0f}M, "
-                f"step={ul_step:.1f}M, factor={config.upload_factor_down}"
-            )
-            logger.info(
-                f"Download Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, "
-                f"YELLOW→SOFT_RED={config.warn_bloat_ms}ms, "
-                f"SOFT_RED→RED={config.hard_red_bloat_ms}ms"
-            )
-            logger.info(
-                f"Upload Thresholds: GREEN→YELLOW={config.target_bloat_ms}ms, "
-                f"YELLOW→RED={config.warn_bloat_ms}ms"
-            )
-            logger.info(
-                f"EWMA: baseline_alpha={config.alpha_baseline}, load_alpha={config.alpha_load}"
-            )
-            logger.info(
-                f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}"
-            )
-
-            # Create shared instances -- select backend based on transport config
-            # Safety check: detect cake_params + non-linux-cake transport mismatch
-            has_cake_params = isinstance(config.data.get("cake_params"), dict)
-            if has_cake_params and config.router_transport != "linux-cake":
-                logger.error(
-                    "FATAL: cake_params section present but transport is '%s' (not 'linux-cake'). "
-                    "CAKE qdiscs will NOT be created. Fix router.transport in YAML config.",
-                    config.router_transport,
-                )
-                raise SystemExit(1)
-
-            if config.router_transport == "linux-cake":
-                from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
-
-                router = LinuxCakeAdapter.from_config(config, logger)
-            else:
-                router = RouterOS(config, logger)
-            clear_router_password(config)
-            # Use unified RTTMeasurement with AVERAGE aggregation and sample stats logging
-            rtt_measurement = RTTMeasurement(
-                logger,
-                timeout_ping=config.timeout_ping,
-                aggregation_strategy=RTTAggregationStrategy.AVERAGE,
-                log_sample_stats=True,  # Log min/max for debugging
-                source_ip=config.ping_source_ip,
-            )
-
-            # Create WAN controller
+            _log_startup_config(config, logger)
+            router, rtt_measurement = _create_wan_components(config, logger)
             wan_controller = WANController(config.wan_name, config, router, rtt_measurement, logger)
-
             self.wan_controllers.append(
                 {"controller": wan_controller, "config": config, "logger": logger}
             )
