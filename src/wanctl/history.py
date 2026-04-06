@@ -539,32 +539,21 @@ Examples:
 # =============================================================================
 
 
-def main() -> int:
-    """Main entry point for wanctl-history CLI.
-
-    Returns:
-        Exit code (0=success, 1=error)
-    """
-    parser = create_parser()
-    args = parser.parse_args()
-
-    # Determine time range
+def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
+    """Resolve start/end timestamps from CLI arguments."""
     now = int(datetime.now().timestamp())
 
     if args.last:
-        # Relative time range
-        start_ts = now - int(args.last.total_seconds())
-        end_ts = now
-    elif args.from_ts:
-        # Absolute time range
-        start_ts = args.from_ts
-        end_ts = args.to_ts if args.to_ts else now
-    else:
-        # Default: last 1 hour
-        start_ts = now - 3600
-        end_ts = now
+        return now - int(args.last.total_seconds()), now
+    if args.from_ts:
+        return args.from_ts, args.to_ts if args.to_ts else now
+    return now - 3600, now
 
-    # Per-tin CAKE statistics query mode (CAKE-07)
+
+def _handle_special_query(
+    args: argparse.Namespace, start_ts: int, end_ts: int
+) -> int | None:
+    """Handle special query modes (tins, tuning, alerts). Returns exit code or None."""
     if args.tins:
         granularity = select_granularity(start_ts, end_ts)
         results = query_metrics(
@@ -578,49 +567,55 @@ def main() -> int:
         if not results:
             print("No per-tin data found for the specified time range.")
             return 0
-        if args.json_output:
-            print(format_tins_json(results))
-        else:
-            print(format_tins_table(results))
+        print(format_tins_json(results) if args.json_output else format_tins_table(results))
         return 0
 
-    # Tuning history query mode
     if args.tuning:
         from wanctl.storage.reader import query_tuning_params
 
         results = query_tuning_params(
-            db_path=args.db,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            wan=args.wan,
+            db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=args.wan
         )
         if not results:
             print("No tuning adjustments found for the specified time range.")
             return 0
-        if args.json_output:
-            print(format_tuning_json(results))
-        else:
-            print(format_tuning_table(results))
+        print(
+            format_tuning_json(results) if args.json_output else format_tuning_table(results)
+        )
         return 0
 
-    # Alert query mode
     if args.alerts:
         from wanctl.storage.reader import query_alerts
 
         results = query_alerts(
-            db_path=args.db,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            wan=args.wan,
+            db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=args.wan
         )
         if not results:
             print("No alerts found for the specified time range.")
             return 0
-        if args.json_output:
-            print(format_alerts_json(results))
-        else:
-            print(format_alerts_table(results))
+        print(
+            format_alerts_json(results) if args.json_output else format_alerts_table(results)
+        )
         return 0
+
+    return None
+
+
+def main() -> int:
+    """Main entry point for wanctl-history CLI.
+
+    Returns:
+        Exit code (0=success, 1=error)
+    """
+    parser = create_parser()
+    args = parser.parse_args()
+
+    start_ts, end_ts = _resolve_time_range(args)
+
+    # Handle special query modes (tins, tuning, alerts)
+    special_result = _handle_special_query(args, start_ts, end_ts)
+    if special_result is not None:
+        return special_result
 
     # Parse metrics filter
     metrics_list = None

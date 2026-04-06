@@ -35,6 +35,49 @@ from typing import Any, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+
+def _discover_logger(args: tuple[Any, ...]) -> logging.Logger:
+    """Discover a logger from the first argument (self for methods).
+
+    Checks for common logger attribute names on the first argument.
+    Falls back to the module logger if none found.
+    """
+    if args and hasattr(args[0], "logger"):
+        return args[0].logger
+    if args and hasattr(args[0], "__dict__"):
+        for attr in ["logger", "_logger", "log"]:
+            if hasattr(args[0], attr):
+                potential_logger = getattr(args[0], attr)
+                if isinstance(potential_logger, logging.Logger):
+                    return potential_logger
+    return logging.getLogger(__name__)
+
+
+def _format_error_message(
+    error_msg: str | None, exception: Exception, func_name: str, args: tuple[Any, ...]
+) -> str:
+    """Format an error message with template substitution.
+
+    Supports {exception} and {self.attr} placeholders in error_msg.
+    Falls back to a default message on any formatting error.
+    """
+    if not error_msg:
+        return f"{func_name} failed: {exception}"
+
+    try:
+        msg = error_msg
+        if "{self." in msg and args:
+            obj = args[0]
+            msg = re.sub(
+                r"\{self\.(\w+)\}",
+                lambda m: str(getattr(obj, m.group(1), m.group(0))),
+                msg,
+            )
+        return msg.format(exception=str(exception), func=func_name)
+    except (KeyError, ValueError, AttributeError, TypeError):
+        return f"{func_name} failed: {exception}"
+
+
 def handle_errors(
     default_return: Any = None,
     log_level: int = logging.WARNING,
@@ -103,60 +146,23 @@ def handle_errors(
             try:
                 return func(*args, **kwargs)
             except exception_types as e:
-                # Get logger from self (for methods)
-                logger = None
-                if args and hasattr(args[0], "logger"):
-                    logger = args[0].logger
-                elif args and hasattr(args[0], "__dict__"):
-                    # Try to find a logger in the object
-                    for attr in ["logger", "_logger", "log"]:
-                        if hasattr(args[0], attr):
-                            potential_logger = getattr(args[0], attr)
-                            if isinstance(potential_logger, logging.Logger):
-                                logger = potential_logger
-                                break
+                logger = _discover_logger(args)
+                message = _format_error_message(error_msg, e, func.__name__, args)
 
-                # Fall back to module logger
-                if logger is None:
-                    logger = logging.getLogger(__name__)
-
-                # Format error message
-                if error_msg:
-                    try:
-                        msg = error_msg
-                        # Replace {self.attr} patterns with actual values from first arg
-                        if "{self." in msg and args:
-                            obj = args[0]
-                            msg = re.sub(
-                                r"\{self\.(\w+)\}",
-                                lambda m: str(getattr(obj, m.group(1), m.group(0))),
-                                msg,
-                            )
-                        message = msg.format(exception=str(e), func=func.__name__)
-                    except (KeyError, ValueError, AttributeError, TypeError):
-                        message = f"{func.__name__} failed: {e}"
-                else:
-                    message = f"{func.__name__} failed: {e}"
-
-                # Log the error
                 logger.log(log_level, message)
 
-                # Log traceback if requested
                 if log_traceback:
                     logger.debug(traceback.format_exc())
 
-                # Invoke callback if provided
                 if on_error:
                     try:
                         on_error(e)
                     except Exception as callback_err:
                         logger.debug(f"Error in error callback: {callback_err}")
 
-                # Re-raise if requested
                 if reraise:
                     raise
 
-                # Return default value
                 if callable(default_return):
                     return default_return()
                 return default_return

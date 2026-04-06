@@ -14,6 +14,56 @@ import subprocess  # nosec B404 - used for type checking TimeoutExpired
 import time
 
 
+def _classify_by_type(exception: Exception) -> str | None:
+    """Classify exception by its Python type (stdlib types)."""
+    if isinstance(exception, (TimeoutError, socket.timeout)):
+        return "timeout"
+    if isinstance(exception, subprocess.TimeoutExpired):
+        return "timeout"
+    if isinstance(exception, ConnectionRefusedError):
+        return "connection_refused"
+    if isinstance(exception, socket.gaierror):
+        return "dns_failure"
+    return None
+
+
+def _classify_by_library(exception: Exception, exc_str: str) -> str | None:
+    """Classify exception using optional library types (requests, paramiko)."""
+    try:
+        import requests.exceptions
+
+        if isinstance(
+            exception, (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)
+        ):
+            return "timeout"
+        if isinstance(exception, requests.exceptions.ConnectionError):
+            if "refused" in exc_str:
+                return "connection_refused"
+            return "network_unreachable"
+    except ImportError:
+        pass
+
+    try:
+        from paramiko import AuthenticationException
+
+        if isinstance(exception, AuthenticationException):
+            return "auth_failure"
+    except ImportError:
+        pass
+
+    return None
+
+
+# String patterns for fallback classification of OSError and generic exceptions
+_STRING_CLASSIFICATIONS: list[tuple[str, str]] = [
+    ("connection refused", "connection_refused"),
+    ("network is unreachable", "network_unreachable"),
+    ("no route to host", "network_unreachable"),
+    ("name or service not known", "dns_failure"),
+    ("authentication failed", "auth_failure"),
+]
+
+
 def classify_failure_type(exception: Exception) -> str:
     """
     Classify an exception into a failure type category.
@@ -37,55 +87,18 @@ def classify_failure_type(exception: Exception) -> str:
     """
     exc_str = str(exception).lower()
 
-    # Timeout exceptions
-    if isinstance(exception, (TimeoutError, socket.timeout)):
-        return "timeout"
-    if isinstance(exception, subprocess.TimeoutExpired):
-        return "timeout"
+    result = _classify_by_type(exception)
+    if result is not None:
+        return result
 
-    # Connection refused - specific exception type
-    if isinstance(exception, ConnectionRefusedError):
-        return "connection_refused"
+    result = _classify_by_library(exception, exc_str)
+    if result is not None:
+        return result
 
-    # DNS failure - socket.gaierror
-    if isinstance(exception, socket.gaierror):
-        return "dns_failure"
-
-    # Handle requests library exceptions (if available)
-    try:
-        import requests.exceptions
-
-        if isinstance(
-            exception, (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)
-        ):
-            return "timeout"
-        if isinstance(exception, requests.exceptions.ConnectionError):
-            if "refused" in exc_str:
-                return "connection_refused"
-            return "network_unreachable"
-    except ImportError:
-        pass
-
-    # Handle paramiko exceptions (if available)
-    try:
-        from paramiko import AuthenticationException
-
-        if isinstance(exception, AuthenticationException):
-            return "auth_failure"
-    except ImportError:
-        pass
-
-    # String-based classification for OSError and generic exceptions
-    if "connection refused" in exc_str:
-        return "connection_refused"
-    if "network is unreachable" in exc_str:
-        return "network_unreachable"
-    if "no route to host" in exc_str:
-        return "network_unreachable"
-    if "name or service not known" in exc_str:
-        return "dns_failure"
-    if "authentication failed" in exc_str:
-        return "auth_failure"
+    # String-based fallback classification
+    for pattern, category in _STRING_CLASSIFICATIONS:
+        if pattern in exc_str:
+            return category
 
     return "unknown"
 

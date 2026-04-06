@@ -81,6 +81,108 @@ FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 # =============================================================================
 
 
+def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
+    """Apply threshold and EWMA tuning parameters. Returns True if handled."""
+    if param == "target_bloat_ms":
+        wc.green_threshold = val
+        wc.target_delta = val
+    elif param == "warn_bloat_ms":
+        wc.soft_red_threshold = val
+        wc.warn_delta = val
+    elif param == "hard_red_bloat_ms":
+        wc.hard_red_threshold = val
+    elif param == "alpha_load":
+        wc.alpha_load = val
+    elif param == "alpha_baseline":
+        wc.alpha_baseline = val
+    elif param == "baseline_rtt_min":
+        wc.baseline_rtt_min = val
+    elif param == "baseline_rtt_max":
+        wc.baseline_rtt_max = val
+    else:
+        return False
+    return True
+
+
+def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
+    """Apply signal processing and fusion tuning parameters. Returns True if handled."""
+    if param == "hampel_sigma_threshold":
+        wc.signal_processor._sigma_threshold = val
+    elif param == "hampel_window_size":
+        new_size = round(val)
+        wc.signal_processor._window_size = new_size
+        wc.signal_processor._window = deque(wc.signal_processor._window, maxlen=new_size)
+        wc.signal_processor._outlier_window = deque(
+            wc.signal_processor._outlier_window, maxlen=new_size
+        )
+    elif param == "load_time_constant_sec":
+        # Convert time constant to alpha: alpha = cycle_interval / tc
+        # Using 0.05 (50ms) as the cycle interval constant.
+        # Tuning operates in tc domain (0.5-10s range) where
+        # clamp_to_step's round(1) and trivial filter work correctly;
+        # we convert to alpha only at apply time (Pitfall 3 fix).
+        wc.alpha_load = 0.05 / val
+    elif param == "fusion_icmp_weight":
+        wc._fusion_icmp_weight = val
+    elif param == "reflector_min_score":
+        wc._reflector_scorer._min_score = val
+    else:
+        return False
+    return True
+
+
+def _apply_queue_param(wc: "WANController", param: str, val: float) -> bool:
+    """Apply per-direction queue tuning parameters. Returns True if handled."""
+    if param == "dl_step_up_mbps":
+        wc.download.step_up_bps = int(val * 1_000_000)
+    elif param == "ul_step_up_mbps":
+        wc.upload.step_up_bps = int(val * 1_000_000)
+    elif param == "dl_factor_down":
+        wc.download.factor_down = val
+    elif param == "ul_factor_down":
+        wc.upload.factor_down = val
+    elif param == "dl_green_required":
+        wc.download.green_required = round(val)
+    elif param == "ul_green_required":
+        wc.upload.green_required = round(val)
+    else:
+        return False
+    return True
+
+
+def _apply_single_tuning_param(wc: "WANController", r: TuningResult) -> None:
+    """Apply a single tuning result to the controller.
+
+    Dispatches to category-specific handlers for thresholds, signal
+    processing, and per-direction queue parameters.
+    """
+    param = r.parameter
+    val = r.new_value
+
+    if _apply_threshold_param(wc, param, val):
+        return
+    if _apply_signal_param(wc, param, val):
+        return
+    _apply_queue_param(wc, param, val)
+
+
+def _update_tuning_state(wc: "WANController", results: list[TuningResult]) -> None:
+    """Update TuningState with recent adjustments (capped at 10)."""
+    if not results or wc._tuning_state is None:
+        return
+    params = dict(wc._tuning_state.parameters)
+    for r in results:
+        params[r.parameter] = r.new_value
+    recent = list(wc._tuning_state.recent_adjustments) + list(results)
+    recent = recent[-10:]
+    wc._tuning_state = TuningState(
+        enabled=True,
+        last_run_ts=time.monotonic(),
+        recent_adjustments=recent,
+        parameters=params,
+    )
+
+
 def _apply_tuning_to_controller(
     wc: "WANController",
     results: list[TuningResult],
@@ -110,69 +212,9 @@ def _apply_tuning_to_controller(
     Also updates TuningState with recent adjustments (capped at 10).
     """
     for r in results:
-        if r.parameter == "target_bloat_ms":
-            wc.green_threshold = r.new_value
-            wc.target_delta = r.new_value  # Legacy alias
-        elif r.parameter == "warn_bloat_ms":
-            wc.soft_red_threshold = r.new_value
-            wc.warn_delta = r.new_value  # Legacy alias
-        elif r.parameter == "hard_red_bloat_ms":
-            wc.hard_red_threshold = r.new_value
-        elif r.parameter == "alpha_load":
-            wc.alpha_load = r.new_value
-        elif r.parameter == "alpha_baseline":
-            wc.alpha_baseline = r.new_value
-        elif r.parameter == "hampel_sigma_threshold":
-            wc.signal_processor._sigma_threshold = r.new_value
-        elif r.parameter == "hampel_window_size":
-            new_size = round(r.new_value)
-            wc.signal_processor._window_size = new_size
-            wc.signal_processor._window = deque(wc.signal_processor._window, maxlen=new_size)
-            wc.signal_processor._outlier_window = deque(
-                wc.signal_processor._outlier_window, maxlen=new_size
-            )
-        elif r.parameter == "load_time_constant_sec":
-            # Convert time constant to alpha: alpha = cycle_interval / tc
-            # Using 0.05 (50ms) as the cycle interval constant.
-            # Tuning operates in tc domain (0.5-10s range) where
-            # clamp_to_step's round(1) and trivial filter work correctly;
-            # we convert to alpha only at apply time (Pitfall 3 fix).
-            wc.alpha_load = 0.05 / r.new_value
-        elif r.parameter == "fusion_icmp_weight":
-            wc._fusion_icmp_weight = r.new_value
-        elif r.parameter == "reflector_min_score":
-            wc._reflector_scorer._min_score = r.new_value
-        elif r.parameter == "baseline_rtt_min":
-            wc.baseline_rtt_min = r.new_value
-        elif r.parameter == "baseline_rtt_max":
-            wc.baseline_rtt_max = r.new_value
-        elif r.parameter == "dl_step_up_mbps":
-            wc.download.step_up_bps = int(r.new_value * 1_000_000)
-        elif r.parameter == "ul_step_up_mbps":
-            wc.upload.step_up_bps = int(r.new_value * 1_000_000)
-        elif r.parameter == "dl_factor_down":
-            wc.download.factor_down = r.new_value
-        elif r.parameter == "ul_factor_down":
-            wc.upload.factor_down = r.new_value
-        elif r.parameter == "dl_green_required":
-            wc.download.green_required = round(r.new_value)
-        elif r.parameter == "ul_green_required":
-            wc.upload.green_required = round(r.new_value)
+        _apply_single_tuning_param(wc, r)
 
-    # Update TuningState with recent adjustments
-    if results and wc._tuning_state is not None:
-        params = dict(wc._tuning_state.parameters)
-        for r in results:
-            params[r.parameter] = r.new_value
-        # Keep only last 10 adjustments
-        recent = list(wc._tuning_state.recent_adjustments) + list(results)
-        recent = recent[-10:]
-        wc._tuning_state = TuningState(
-            enabled=True,
-            last_run_ts=time.monotonic(),
-            recent_adjustments=recent,
-            parameters=params,
-        )
+    _update_tuning_state(wc, results)
 
 
 
