@@ -77,7 +77,7 @@ None
 
 - [x] **Phase 142: Dead Code Removal** - Remove unused imports, dead functions/methods, and orphaned modules (completed 2026-04-05)
 - [x] **Phase 143: Dependency & Cruft Cleanup** - Remove unused pip deps, stale TODOs, dead config references (completed 2026-04-05)
-- [ ] **Phase 144: Module Splitting** - Break up files over 500 LOC into focused single-responsibility modules (gap closure in progress)
+- [x] **Phase 144: Module Splitting** - Break up files over 500 LOC into focused single-responsibility modules (gap closure in progress) (completed 2026-04-06)
 - [ ] **Phase 145: Method Extraction & Simplification** - Extract long methods and flatten high cyclomatic complexity
 - [ ] **Phase 146: Test Cleanup & Organization** - Remove redundant tests, restructure directories, consolidate fixtures
 - [ ] **Phase 147: Interface Decoupling** - Reduce tight coupling between modules with cleaner interfaces
@@ -124,12 +124,12 @@ Plans:
   2. Each new module created during splitting has a docstring stating its single responsibility
   3. All imports across the codebase resolve correctly after splits (no circular imports)
   4. All existing tests pass unchanged (no behavioral regression)
-**Plans:** 4 plans (3 complete, 1 gap closure)
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 144-01-PLAN.md -- Extract QueueController, Config, and RouterOS from autorate_continuous.py into own modules
 - [x] 144-02-PLAN.md -- Extract WANController + constants, finalize autorate_continuous.py as thin orchestrator
 - [x] 144-03-PLAN.md -- Split 4 CLI tools (check_config, check_cake, calibrate, benchmark) into focused modules
-- [ ] 144-04-PLAN.md -- Gap closure: split check_config_validators.py into autorate and steering validator modules
+- [x] 144-04-PLAN.md -- Gap closure: split check_config_validators.py into autorate and steering validator modules
 
 ### Phase 145: Method Extraction & Simplification
 **Goal**: No function exceeds ~50 lines and no function has excessive branching depth, making every function readable in a single screen
@@ -208,7 +208,7 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 |-------|-----------|----------------|--------|-----------|
 | 142. Dead Code Removal | v1.29 | 2/2 | Complete    | 2026-04-05 |
 | 143. Dependency & Cruft Cleanup | v1.29 | 3/3 | Complete    | 2026-04-05 |
-| 144. Module Splitting | v1.29 | 3/4 | Gap closure | - |
+| 144. Module Splitting | v1.29 | 4/4 | Complete    | 2026-04-06 |
 | 145. Method Extraction & Simplification | v1.29 | 0/? | Not started | - |
 | 146. Test Cleanup & Organization | v1.29 | 0/? | Not started | - |
 | 147. Interface Decoupling | v1.29 | 0/? | Not started | - |
