@@ -1,4 +1,4 @@
-.PHONY: test coverage lint type format ci dead-code check-deps clean security security-deps security-code security-secrets security-licenses
+.PHONY: test coverage lint type format ci dead-code check-deps check-lines clean security security-deps security-code security-secrets security-licenses
 
 # Run tests without coverage
 test:
@@ -55,6 +55,10 @@ check-deps:
 	else \
 	    echo "All runtime dependencies are imported"; \
 	fi
+
+# Check function line counts (AST-based, excluding docstrings)
+check-lines:
+	.venv/bin/python scripts/check_function_lines.py src/wanctl/ --threshold 50
 
 # Clean build artifacts
 clean:
