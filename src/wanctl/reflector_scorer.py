@@ -103,6 +103,19 @@ class ReflectorScorer:
         # Buffered transition events for persistence
         self._pending_events: list[dict] = []
 
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    @property
+    def min_score(self) -> float:
+        """Minimum score threshold for reflector selection."""
+        return self._min_score
+
+    @min_score.setter
+    def min_score(self, value: float) -> None:
+        self._min_score = value
+
     def record_result(self, host: str, success: bool) -> None:
         """Record a ping result and check for state transitions.
 

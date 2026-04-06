@@ -43,6 +43,11 @@ class IRTTThread:
     # Public API
     # ------------------------------------------------------------------
 
+    @property
+    def cadence_sec(self) -> float:
+        """IRTT measurement cadence in seconds."""
+        return self._cadence_sec
+
     def get_latest(self) -> IRTTResult | None:
         """Return the most recent successful measurement, or ``None``."""
         return self._cached_result

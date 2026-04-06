@@ -69,6 +69,20 @@ class MetricsWriter:
         self._write_lock = threading.Lock()
         self._initialized = True
 
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    @property
+    def db_path(self) -> Path:
+        """Database file path."""
+        return self._db_path
+
+    @classmethod
+    def get_instance(cls) -> "MetricsWriter | None":
+        """Get the singleton instance, or None if not initialized."""
+        return cls._instance
+
     @property
     def connection(self) -> sqlite3.Connection:
         """Public access to database connection.

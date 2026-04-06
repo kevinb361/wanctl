@@ -13,6 +13,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
+from typing import Any
 
 from wanctl.alert_engine import AlertEngine
 from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
@@ -107,14 +108,10 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
 def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
     """Apply signal processing and fusion tuning parameters. Returns True if handled."""
     if param == "hampel_sigma_threshold":
-        wc.signal_processor._sigma_threshold = val
+        wc.signal_processor.sigma_threshold = val
     elif param == "hampel_window_size":
         new_size = round(val)
-        wc.signal_processor._window_size = new_size
-        wc.signal_processor._window = deque(wc.signal_processor._window, maxlen=new_size)
-        wc.signal_processor._outlier_window = deque(
-            wc.signal_processor._outlier_window, maxlen=new_size
-        )
+        wc.signal_processor.resize_window(new_size)
     elif param == "load_time_constant_sec":
         # Convert time constant to alpha: alpha = cycle_interval / tc
         # Using 0.05 (50ms) as the cycle interval constant.
@@ -125,7 +122,7 @@ def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
     elif param == "fusion_icmp_weight":
         wc._fusion_icmp_weight = val
     elif param == "reflector_min_score":
-        wc._reflector_scorer._min_score = val
+        wc._reflector_scorer.min_score = val
     else:
         return False
     return True
@@ -560,7 +557,7 @@ class WANController:
         try:
             if self._metrics_writer is None:
                 return
-            db_path = self._metrics_writer._db_path
+            db_path = self._metrics_writer.db_path
             rows = query_tuning_params(db_path=db_path, wan=self.wan_name)
             if not rows:
                 self.logger.info(f"{self.wan_name}: No prior tuning params to restore")
@@ -1187,7 +1184,7 @@ class WANController:
             return filtered_rtt
 
         age = time.monotonic() - irtt_result.timestamp
-        cadence = self._irtt_thread._cadence_sec
+        cadence = self._irtt_thread.cadence_sec
         if age > cadence * 3:
             return filtered_rtt
 
@@ -1768,7 +1765,7 @@ class WANController:
         irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
         if irtt_result is not None:
             age = time.monotonic() - irtt_result.timestamp
-            cadence = self._irtt_thread._cadence_sec if self._irtt_thread else 10.0
+            cadence = self._irtt_thread.cadence_sec if self._irtt_thread else 10.0
             self.logger.debug(
                 f"{self.wan_name}: IRTT RTT={irtt_result.rtt_mean_ms:.1f}ms, "
                 f"IPDV={irtt_result.ipdv_mean_ms:.1f}ms, "
@@ -2378,6 +2375,86 @@ class WANController:
                 rule_key="congestion_flapping",
             )
             self._ul_zone_transitions.clear()
+
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    def reload(self) -> None:
+        """Reload all hot-reloadable config sections (SIGUSR1 handler)."""
+        self._reload_fusion_config()
+        self._reload_tuning_config()
+        self._reload_hysteresis_config()
+        self._reload_cycle_budget_config()
+        self._reload_suppression_alert_config()
+
+    def shutdown_threads(self) -> None:
+        """Stop background threads (RTT thread and thread pool)."""
+        if self._rtt_thread is not None:
+            self._rtt_thread.stop()
+        if self._rtt_pool is not None:
+            self._rtt_pool.shutdown(wait=True, cancel_futures=True)
+
+    def set_irtt_thread(self, thread: "IRTTThread") -> None:
+        """Set the IRTT measurement thread reference."""
+        self._irtt_thread = thread
+
+    def enable_profiling(self, enabled: bool = True) -> None:
+        """Enable or disable cycle profiling."""
+        self._profiling_enabled = enabled
+
+    def init_fusion_healer(self) -> None:
+        """Initialize fusion healer (public wrapper for _init_fusion_healer)."""
+        self._init_fusion_healer()
+
+    def get_pending_observation(self) -> Any:
+        """Get the current pending tuning observation."""
+        return self._pending_observation
+
+    def set_pending_observation(self, observation: Any) -> None:
+        """Set a pending tuning observation."""
+        self._pending_observation = observation
+
+    def clear_pending_observation(self) -> None:
+        """Clear the pending tuning observation."""
+        self._pending_observation = None
+
+    def get_parameter_locks(self) -> dict[str, float]:
+        """Get the current parameter locks dict (reference, not copy)."""
+        return self._parameter_locks
+
+    @property
+    def tuning_layer_index(self) -> int:
+        """Current tuning layer rotation index."""
+        return self._tuning_layer_index
+
+    @tuning_layer_index.setter
+    def tuning_layer_index(self, value: int) -> None:
+        self._tuning_layer_index = value
+
+    @property
+    def is_tuning_enabled(self) -> bool:
+        """Whether adaptive tuning is enabled."""
+        return self._tuning_enabled
+
+    def get_current_params(self) -> dict[str, float]:
+        """Return current tunable parameter values.
+
+        Eliminates two-level deep private access like
+        wc.signal_processor._sigma_threshold.
+        """
+        params: dict[str, float] = {
+            "hampel_sigma_threshold": self.signal_processor.sigma_threshold,
+            "hampel_window_size": float(self.signal_processor.window_size),
+        }
+        if self._reflector_scorer is not None:
+            params["reflector_min_score"] = self._reflector_scorer.min_score
+        params["fusion_icmp_weight"] = self._fusion_icmp_weight
+        return params
+
+    def get_metrics_writer(self) -> MetricsWriter | None:
+        """Get the metrics writer instance."""
+        return self._metrics_writer
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:

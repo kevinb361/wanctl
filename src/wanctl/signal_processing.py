@@ -308,3 +308,27 @@ class SignalProcessor:
             return 1.0
 
         return 1.0 / (1.0 + variance_ms2 / (baseline_rtt**2))
+
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    @property
+    def sigma_threshold(self) -> float:
+        """Hampel filter sigma threshold."""
+        return self._sigma_threshold
+
+    @sigma_threshold.setter
+    def sigma_threshold(self, value: float) -> None:
+        self._sigma_threshold = value
+
+    @property
+    def window_size(self) -> int:
+        """Hampel filter window size."""
+        return self._window_size
+
+    def resize_window(self, new_size: int) -> None:
+        """Resize Hampel window, preserving existing data."""
+        self._window_size = new_size
+        self._window = deque(self._window, maxlen=new_size)
+        self._outlier_window = deque(self._outlier_window, maxlen=new_size)
