@@ -5,11 +5,11 @@ and that basic validation works without triggering daemon code.
 """
 
 from wanctl.check_config import (
-    KNOWN_AUTORATE_PATHS,
     CheckResult,
     Severity,
     create_parser,
 )
+from wanctl.check_config_validators import KNOWN_AUTORATE_PATHS
 
 
 class TestExports:

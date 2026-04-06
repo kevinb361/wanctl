@@ -23,6 +23,13 @@ import yaml
 from wanctl.check_config import (
     CheckResult,
     Severity,
+    create_parser,
+    detect_config_type,
+    format_results,
+    format_results_json,
+    main,
+)
+from wanctl.check_config_validators import (
     check_deprecated_params,
     check_env_vars,
     check_paths,
@@ -30,11 +37,6 @@ from wanctl.check_config import (
     check_steering_deprecated_params,
     check_steering_unknown_keys,
     check_unknown_keys,
-    create_parser,
-    detect_config_type,
-    format_results,
-    format_results_json,
-    main,
     validate_cross_fields,
     validate_linux_cake,
     validate_schema_fields,
