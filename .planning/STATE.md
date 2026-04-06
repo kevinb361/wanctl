@@ -4,13 +4,13 @@ milestone: v1.29
 milestone_name: Code Health & Cleanup
 status: planning
 stopped_at: Phase 145 context gathered (discuss mode)
-last_updated: "2026-04-06T04:02:48.495Z"
+last_updated: "2026-04-06T12:30:52.615Z"
 last_activity: 2026-04-06
 progress:
   total_phases: 9
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  completed_phases: 4
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-05)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 144 — module-splitting
+**Current focus:** Phase 145 — method-extraction-simplification
 
 ## Position
 
 **Milestone:** v1.29 Code Health & Cleanup
-**Phase:** 145 of 150 (method extraction & simplification)
+**Phase:** 146 of 150 (test cleanup & organization)
 **Plan:** Not started
 **Status:** Ready to plan
 **Last activity:** 2026-04-06
@@ -37,7 +37,7 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 9
+- Total plans completed: 15
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -48,6 +48,7 @@ Progress: [..........] 0%
 | 142 | 2 | - | - |
 | 143 | 3 | - | - |
 | 144 | 4 | - | - |
+| 145 | 6 | - | - |
 
 ## Accumulated Context
 
