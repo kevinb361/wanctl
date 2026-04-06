@@ -159,7 +159,11 @@ Plans:
   3. Shared fixtures live in conftest.py files at appropriate scope levels, not duplicated across test files
   4. All test file names follow a consistent pattern (test_{module}.py)
   5. Total test count may decrease but coverage percentage stays at 90%+
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 146-01-PLAN.md -- Baseline + stale removal + helpers.py + move steering/ and backends/ tests
+- [ ] 146-02-PLAN.md -- Move storage/ and tuning/ tests into subdirectories
+- [ ] 146-03-PLAN.md -- Merge feature-specific tests into parent modules + redundancy audit
 
 ### Phase 147: Interface Decoupling
 **Goal**: Modules communicate through well-defined interfaces, reducing the number of direct cross-module attribute accesses
@@ -217,7 +221,7 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 | 143. Dependency & Cruft Cleanup | v1.29 | 3/3 | Complete    | 2026-04-05 |
 | 144. Module Splitting | v1.29 | 4/4 | Complete    | 2026-04-06 |
 | 145. Method Extraction & Simplification | v1.29 | 6/6 | Complete    | 2026-04-06 |
-| 146. Test Cleanup & Organization | v1.29 | 0/? | Not started | - |
+| 146. Test Cleanup & Organization | v1.29 | 0/3 | Not started | - |
 | 147. Interface Decoupling | v1.29 | 0/? | Not started | - |
 | 148. Test Robustness & Performance | v1.29 | 0/? | Not started | - |
 | 149. Type Annotations & Protocols | v1.29 | 0/? | Not started | - |
