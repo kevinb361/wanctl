@@ -177,7 +177,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Not found"}).encode())
 
     def _get_health_status(self) -> dict[str, Any]:
-        """Build health status response."""
+        """Build health status response.
+
+        Assembles response from section builders. Each builder returns a dict
+        for its section of the health response.
+        """
         uptime = time.monotonic() - self.start_time if self.start_time else 0
 
         # Default: assume all routers reachable (startup or no controller)
@@ -191,309 +195,361 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }
 
         if self.controller:
-            # Add controller-specific health info
             health["wan_count"] = len(self.controller.wan_controllers)
             health["wans"] = []
 
-            # Check router connectivity across all WANs
             all_routers_reachable = all(
                 wan_info["controller"].router_connectivity.is_reachable
                 for wan_info in self.controller.wan_controllers
             )
 
             for wan_info in self.controller.wan_controllers:
-                wan_controller = wan_info["controller"]
-                config = wan_info["config"]
-
-                wan_health: dict[str, Any] = {
-                    "name": config.wan_name,
-                    "baseline_rtt_ms": round(wan_controller.baseline_rtt, 2),
-                    "load_rtt_ms": round(wan_controller.load_rtt, 2),
-                    "download": {
-                        "current_rate_mbps": round(wan_controller.download.current_rate / 1e6, 1),
-                        "state": _get_current_state(wan_controller.download),
-                        "hysteresis": {
-                            "dwell_counter": wan_controller.download._yellow_dwell,
-                            "dwell_cycles": wan_controller.download.dwell_cycles,
-                            "deadband_ms": wan_controller.download.deadband_ms,
-                            "transitions_suppressed": wan_controller.download._transitions_suppressed,
-                            "suppressions_per_min": wan_controller.download._window_suppressions,
-                            "window_start_epoch": wan_controller.download._window_start_time,
-                            "alert_threshold_per_min": getattr(wan_controller, '_suppression_alert_threshold', 20),
-                        },
-                    },
-                    "upload": {
-                        "current_rate_mbps": round(wan_controller.upload.current_rate / 1e6, 1),
-                        "state": _get_current_state(wan_controller.upload),
-                        "hysteresis": {
-                            "dwell_counter": wan_controller.upload._yellow_dwell,
-                            "dwell_cycles": wan_controller.upload.dwell_cycles,
-                            "deadband_ms": wan_controller.upload.deadband_ms,
-                            "transitions_suppressed": wan_controller.upload._transitions_suppressed,
-                            "suppressions_per_min": wan_controller.upload._window_suppressions,
-                            "window_start_epoch": wan_controller.upload._window_start_time,
-                            "alert_threshold_per_min": getattr(wan_controller, '_suppression_alert_threshold', 20),
-                        },
-                    },
-                    "router_connectivity": wan_controller.router_connectivity.to_dict(),
-                }
-
-                # Add cycle budget telemetry if profiler has data
-                cycle_budget = _build_cycle_budget(
-                    wan_controller._profiler,
-                    wan_controller._overrun_count,
-                    wan_controller._cycle_interval_ms,
-                    "autorate_cycle_total",
-                    warning_threshold_pct=getattr(
-                        wan_controller, '_warning_threshold_pct', 80.0
-                    ),
-                )
-                if cycle_budget is not None:
-                    wan_health["cycle_budget"] = cycle_budget
-
-                # Signal quality section (OBSV-01)
-                signal_result = wan_controller._last_signal_result
-                if signal_result is not None:
-                    wan_health["signal_quality"] = {
-                        "jitter_ms": round(signal_result.jitter_ms, 3),
-                        "variance_ms2": round(signal_result.variance_ms2, 3),
-                        "confidence": round(signal_result.confidence, 3),
-                        "outlier_rate": round(signal_result.outlier_rate, 3),
-                        "total_outliers": signal_result.total_outliers,
-                        "warming_up": signal_result.warming_up,
-                    }
-
-                # IRTT section (OBSV-02) -- always present with available flag
-                irtt_thread = wan_controller._irtt_thread
-                if irtt_thread is None:
-                    irtt_enabled = config.irtt_config.get("enabled", False)
-                    if not irtt_enabled:
-                        reason = "disabled"
-                    else:
-                        reason = "binary_not_found"
-                    wan_health["irtt"] = {"available": False, "reason": reason}
-                else:
-                    irtt_result = irtt_thread.get_latest()
-                    if irtt_result is None:
-                        wan_health["irtt"] = {
-                            "available": True,
-                            "reason": "awaiting_first_measurement",
-                            "rtt_mean_ms": None,
-                            "ipdv_ms": None,
-                            "loss_up_pct": None,
-                            "loss_down_pct": None,
-                            "server": None,
-                            "staleness_sec": None,
-                            "protocol_correlation": None,
-                            "asymmetry_direction": "unknown",
-                            "asymmetry_ratio": None,
-                        }
-                    else:
-                        staleness = round(time.monotonic() - irtt_result.timestamp, 1)
-                        wan_health["irtt"] = {
-                            "available": True,
-                            "rtt_mean_ms": round(irtt_result.rtt_mean_ms, 2),
-                            "ipdv_ms": round(irtt_result.ipdv_mean_ms, 2),
-                            "loss_up_pct": round(irtt_result.send_loss, 1),
-                            "loss_down_pct": round(irtt_result.receive_loss, 1),
-                            "server": f"{irtt_result.server}:{irtt_result.port}",
-                            "staleness_sec": staleness,
-                            "protocol_correlation": (
-                                round(wan_controller._irtt_correlation, 2)
-                                if wan_controller._irtt_correlation is not None
-                                else None
-                            ),
-                            "asymmetry_direction": (
-                                wan_controller._last_asymmetry_result.direction
-                                if wan_controller._last_asymmetry_result is not None
-                                else "unknown"
-                            ),
-                            "asymmetry_ratio": (
-                                round(wan_controller._last_asymmetry_result.ratio, 2)
-                                if wan_controller._last_asymmetry_result is not None
-                                else None
-                            ),
-                        }
-
-                # Reflector quality section (REFL-04) -- always present
-                scorer = wan_controller._reflector_scorer
-                if scorer is not None:
-                    statuses = scorer.get_all_statuses()
-                    wan_health["reflector_quality"] = {
-                        "available": True,
-                        "hosts": {
-                            s.host: {
-                                "score": round(s.score, 3),
-                                "status": s.status,
-                                "measurements": s.measurements,
-                            }
-                            for s in statuses
-                        },
-                    }
-                else:
-                    wan_health["reflector_quality"] = {
-                        "available": True,
-                        "hosts": {},
-                    }
-
-                # Fusion section (FUSE-05) -- always present
-                if not getattr(wan_controller, "_fusion_enabled", False):
-                    healer = getattr(wan_controller, "_fusion_healer", None)
-                    wan_health["fusion"] = {
-                        "enabled": False,
-                        "reason": "disabled",
-                        "heal_state": healer.state.value if healer is not None else "no_healer",
-                        "heal_grace_active": healer.is_grace_active if healer is not None else False,
-                    }
-                else:
-                    irtt_rtt_val: float | None = None
-                    active_source = "icmp_only"
-
-                    _irtt_thread = wan_controller._irtt_thread
-                    if _irtt_thread is not None:
-                        _irtt_result = _irtt_thread.get_latest()
-                        if _irtt_result is not None:
-                            _age = time.monotonic() - _irtt_result.timestamp
-                            _cadence = _irtt_thread._cadence_sec
-                            if _age <= _cadence * 3 and _irtt_result.rtt_mean_ms > 0:
-                                irtt_rtt_val = round(_irtt_result.rtt_mean_ms, 2)
-                                active_source = "fused"
-
-                    icmp_rtt_val = (
-                        round(wan_controller._last_icmp_filtered_rtt, 2)
-                        if wan_controller._last_icmp_filtered_rtt is not None
-                        else None
-                    )
-
-                    fused_rtt_val = (
-                        round(wan_controller._last_fused_rtt, 2)
-                        if wan_controller._last_fused_rtt is not None
-                        else None
-                    )
-
-                    # If IRTT went stale between _compute_fused_rtt and health
-                    # check, active_source may say icmp_only while
-                    # _last_fused_rtt has a value. Trust active_source.
-                    if active_source == "icmp_only":
-                        fused_rtt_val = None
-
-                    wan_health["fusion"] = {
-                        "enabled": True,
-                        "icmp_weight": wan_controller._fusion_icmp_weight,
-                        "irtt_weight": round(1.0 - wan_controller._fusion_icmp_weight, 2),
-                        "active_source": active_source,
-                        "fused_rtt_ms": fused_rtt_val,
-                        "icmp_rtt_ms": icmp_rtt_val,
-                        "irtt_rtt_ms": irtt_rtt_val,
-                    }
-
-                    # Fusion healer state (Phase 119: FUSE-05)
-                    healer = getattr(wan_controller, "_fusion_healer", None)
-                    if healer is not None:
-                        wan_health["fusion"]["heal_state"] = healer.state.value
-                        wan_health["fusion"]["pearson_correlation"] = (
-                            round(healer.pearson_r, 4)
-                            if healer.pearson_r is not None
-                            else None
-                        )
-                        wan_health["fusion"]["correlation_window_avg"] = (
-                            round(healer.window_avg, 4)
-                            if healer.window_avg is not None
-                            else None
-                        )
-                        wan_health["fusion"]["heal_grace_active"] = healer.is_grace_active
-                    else:
-                        wan_health["fusion"]["heal_state"] = "no_healer"
-                        wan_health["fusion"]["pearson_correlation"] = None
-                        wan_health["fusion"]["correlation_window_avg"] = None
-                        wan_health["fusion"]["heal_grace_active"] = False
-
-                # Tuning section -- always present (MagicMock safe: check is True)
-                if getattr(wan_controller, "_tuning_enabled", False) is not True:
-                    wan_health["tuning"] = {"enabled": False, "reason": "disabled"}
-                else:
-                    tuning_state = getattr(wan_controller, "_tuning_state", None)
-                    if tuning_state is None or tuning_state.last_run_ts is None:
-                        wan_health["tuning"] = {
-                            "enabled": True,
-                            "last_run_ago_sec": None,
-                            "parameters": {},
-                            "recent_adjustments": [],
-                            "reason": "awaiting_data",
-                        }
-                    else:
-                        # Compute seconds since last run
-                        last_run_ago = round(time.monotonic() - tuning_state.last_run_ts, 1)
-
-                        # Build parameters dict with current tuned values
-                        params_dict: dict[str, Any] = {}
-                        for param_name, current_val in tuning_state.parameters.items():
-                            config = getattr(wan_controller, "config", None)
-                            if config is not None:
-                                tc = getattr(config, "tuning_config", None)
-                                if tc is not None and hasattr(tc, "bounds"):
-                                    bounds = tc.bounds.get(param_name)
-                                    if bounds is not None:
-                                        params_dict[param_name] = {
-                                            "current_value": current_val,
-                                            "bounds": {
-                                                "min": bounds.min_value,
-                                                "max": bounds.max_value,
-                                            },
-                                        }
-                                        continue
-                            params_dict[param_name] = {"current_value": current_val}
-
-                        # Build recent adjustments list (last 5 for health)
-                        recent = []
-                        for adj in tuning_state.recent_adjustments[-5:]:
-                            recent.append(
-                                {
-                                    "parameter": adj.parameter,
-                                    "old_value": adj.old_value,
-                                    "new_value": adj.new_value,
-                                    "confidence": adj.confidence,
-                                    "rationale": adj.rationale,
-                                }
-                            )
-
-                        wan_health["tuning"] = {
-                            "enabled": True,
-                            "last_run_ago_sec": last_run_ago,
-                            "parameters": params_dict,
-                            "recent_adjustments": recent,
-                        }
-
-                        # Safety section (SAFE-01/02/03 visibility)
-                        revert_count = sum(
-                            1
-                            for adj in tuning_state.recent_adjustments
-                            if adj.rationale and adj.rationale.startswith("REVERT:")
-                        )
-                        locks_dict = getattr(wan_controller, "_parameter_locks", None)
-                        if isinstance(locks_dict, dict):
-                            now_mono = time.monotonic()
-                            locked_params = [p for p, exp in locks_dict.items() if now_mono < exp]
-                        else:
-                            locked_params = []
-                        pending = (
-                            getattr(
-                                wan_controller,
-                                "_pending_observation",
-                                None,
-                            )
-                            is not None
-                        )
-                        wan_health["tuning"]["safety"] = {
-                            "revert_count": revert_count,
-                            "locked_parameters": locked_params,
-                            "pending_observation": pending,
-                        }
-
+                wan_health = self._build_wan_status(wan_info)
                 health["wans"].append(wan_health)
 
-        # Alerting state
-        alerting: dict[str, Any] = {"enabled": False, "fire_count": 0, "active_cooldowns": []}
+        health["alerting"] = self._build_alerting_section()
+
+        # Top-level router reachability aggregate
+        health["router_reachable"] = all_routers_reachable
+
+        # Disk space status
+        health["disk_space"] = _get_disk_space_status()
+
+        # Determine overall health status
+        disk_warning = health["disk_space"]["status"] == "warning"
+        is_healthy = self.consecutive_failures < 3 and all_routers_reachable and not disk_warning
+        health["status"] = "healthy" if is_healthy else "degraded"
+
+        return health
+
+    def _build_wan_status(self, wan_info: dict[str, Any]) -> dict[str, Any]:
+        """Build per-WAN status dict with all subsections."""
+        wan_controller = wan_info["controller"]
+        config = wan_info["config"]
+
+        wan_health: dict[str, Any] = {
+            "name": config.wan_name,
+            "baseline_rtt_ms": round(wan_controller.baseline_rtt, 2),
+            "load_rtt_ms": round(wan_controller.load_rtt, 2),
+            "download": self._build_rate_hysteresis_section(
+                wan_controller.download, wan_controller
+            ),
+            "upload": self._build_rate_hysteresis_section(
+                wan_controller.upload, wan_controller
+            ),
+            "router_connectivity": wan_controller.router_connectivity.to_dict(),
+        }
+
+        # Add cycle budget telemetry if profiler has data
+        cycle_budget = _build_cycle_budget(
+            wan_controller._profiler,
+            wan_controller._overrun_count,
+            wan_controller._cycle_interval_ms,
+            "autorate_cycle_total",
+            warning_threshold_pct=getattr(
+                wan_controller, '_warning_threshold_pct', 80.0
+            ),
+        )
+        if cycle_budget is not None:
+            wan_health["cycle_budget"] = cycle_budget
+
+        # Signal quality section (OBSV-01)
+        signal_quality = self._build_signal_quality_section(wan_controller)
+        if signal_quality is not None:
+            wan_health["signal_quality"] = signal_quality
+
+        wan_health["irtt"] = self._build_irtt_section(wan_controller, config)
+        wan_health["reflector_quality"] = self._build_reflector_section(wan_controller)
+        wan_health["fusion"] = self._build_fusion_section(wan_controller)
+        wan_health["tuning"] = self._build_tuning_section(wan_controller)
+
+        return wan_health
+
+    def _build_rate_hysteresis_section(
+        self, qc: Any, wan_controller: Any
+    ) -> dict[str, Any]:
+        """Build rate and hysteresis status for a queue controller."""
+        return {
+            "current_rate_mbps": round(qc.current_rate / 1e6, 1),
+            "state": _get_current_state(qc),
+            "hysteresis": {
+                "dwell_counter": qc._yellow_dwell,
+                "dwell_cycles": qc.dwell_cycles,
+                "deadband_ms": qc.deadband_ms,
+                "transitions_suppressed": qc._transitions_suppressed,
+                "suppressions_per_min": qc._window_suppressions,
+                "window_start_epoch": qc._window_start_time,
+                "alert_threshold_per_min": getattr(
+                    wan_controller, '_suppression_alert_threshold', 20
+                ),
+            },
+        }
+
+    def _build_signal_quality_section(
+        self, wan_controller: Any
+    ) -> dict[str, Any] | None:
+        """Build signal quality status. Returns None if no signal data."""
+        signal_result = wan_controller._last_signal_result
+        if signal_result is None:
+            return None
+        return {
+            "jitter_ms": round(signal_result.jitter_ms, 3),
+            "variance_ms2": round(signal_result.variance_ms2, 3),
+            "confidence": round(signal_result.confidence, 3),
+            "outlier_rate": round(signal_result.outlier_rate, 3),
+            "total_outliers": signal_result.total_outliers,
+            "warming_up": signal_result.warming_up,
+        }
+
+    def _build_irtt_section(
+        self, wan_controller: Any, config: Any
+    ) -> dict[str, Any]:
+        """Build IRTT measurement status (OBSV-02). Always present."""
+        irtt_thread = wan_controller._irtt_thread
+        if irtt_thread is None:
+            irtt_enabled = config.irtt_config.get("enabled", False)
+            reason = "disabled" if not irtt_enabled else "binary_not_found"
+            return {"available": False, "reason": reason}
+
+        irtt_result = irtt_thread.get_latest()
+        if irtt_result is None:
+            return {
+                "available": True,
+                "reason": "awaiting_first_measurement",
+                "rtt_mean_ms": None,
+                "ipdv_ms": None,
+                "loss_up_pct": None,
+                "loss_down_pct": None,
+                "server": None,
+                "staleness_sec": None,
+                "protocol_correlation": None,
+                "asymmetry_direction": "unknown",
+                "asymmetry_ratio": None,
+            }
+
+        staleness = round(time.monotonic() - irtt_result.timestamp, 1)
+        return {
+            "available": True,
+            "rtt_mean_ms": round(irtt_result.rtt_mean_ms, 2),
+            "ipdv_ms": round(irtt_result.ipdv_mean_ms, 2),
+            "loss_up_pct": round(irtt_result.send_loss, 1),
+            "loss_down_pct": round(irtt_result.receive_loss, 1),
+            "server": f"{irtt_result.server}:{irtt_result.port}",
+            "staleness_sec": staleness,
+            "protocol_correlation": (
+                round(wan_controller._irtt_correlation, 2)
+                if wan_controller._irtt_correlation is not None
+                else None
+            ),
+            "asymmetry_direction": (
+                wan_controller._last_asymmetry_result.direction
+                if wan_controller._last_asymmetry_result is not None
+                else "unknown"
+            ),
+            "asymmetry_ratio": (
+                round(wan_controller._last_asymmetry_result.ratio, 2)
+                if wan_controller._last_asymmetry_result is not None
+                else None
+            ),
+        }
+
+    def _build_reflector_section(self, wan_controller: Any) -> dict[str, Any]:
+        """Build reflector quality status (REFL-04). Always present."""
+        scorer = wan_controller._reflector_scorer
+        if scorer is not None:
+            statuses = scorer.get_all_statuses()
+            return {
+                "available": True,
+                "hosts": {
+                    s.host: {
+                        "score": round(s.score, 3),
+                        "status": s.status,
+                        "measurements": s.measurements,
+                    }
+                    for s in statuses
+                },
+            }
+        return {"available": True, "hosts": {}}
+
+    def _build_fusion_section(self, wan_controller: Any) -> dict[str, Any]:
+        """Build fusion state status (FUSE-05). Always present."""
+        if not getattr(wan_controller, "_fusion_enabled", False):
+            healer = getattr(wan_controller, "_fusion_healer", None)
+            return {
+                "enabled": False,
+                "reason": "disabled",
+                "heal_state": healer.state.value if healer is not None else "no_healer",
+                "heal_grace_active": healer.is_grace_active if healer is not None else False,
+            }
+
+        irtt_rtt_val, active_source = self._resolve_fusion_rtt_sources(wan_controller)
+
+        icmp_rtt_val = (
+            round(wan_controller._last_icmp_filtered_rtt, 2)
+            if wan_controller._last_icmp_filtered_rtt is not None
+            else None
+        )
+        fused_rtt_val = (
+            round(wan_controller._last_fused_rtt, 2)
+            if wan_controller._last_fused_rtt is not None
+            else None
+        )
+        # If IRTT went stale, trust active_source over cached fused value
+        if active_source == "icmp_only":
+            fused_rtt_val = None
+
+        fusion: dict[str, Any] = {
+            "enabled": True,
+            "icmp_weight": wan_controller._fusion_icmp_weight,
+            "irtt_weight": round(1.0 - wan_controller._fusion_icmp_weight, 2),
+            "active_source": active_source,
+            "fused_rtt_ms": fused_rtt_val,
+            "icmp_rtt_ms": icmp_rtt_val,
+            "irtt_rtt_ms": irtt_rtt_val,
+        }
+
+        self._add_fusion_healer_state(fusion, wan_controller)
+        return fusion
+
+    def _resolve_fusion_rtt_sources(
+        self, wan_controller: Any
+    ) -> tuple[float | None, str]:
+        """Resolve IRTT RTT value and active source for fusion status."""
+        irtt_rtt_val: float | None = None
+        active_source = "icmp_only"
+
+        _irtt_thread = wan_controller._irtt_thread
+        if _irtt_thread is not None:
+            _irtt_result = _irtt_thread.get_latest()
+            if _irtt_result is not None:
+                _age = time.monotonic() - _irtt_result.timestamp
+                _cadence = _irtt_thread._cadence_sec
+                if _age <= _cadence * 3 and _irtt_result.rtt_mean_ms > 0:
+                    irtt_rtt_val = round(_irtt_result.rtt_mean_ms, 2)
+                    active_source = "fused"
+
+        return irtt_rtt_val, active_source
+
+    def _add_fusion_healer_state(
+        self, fusion: dict[str, Any], wan_controller: Any
+    ) -> None:
+        """Add fusion healer state to fusion dict (Phase 119: FUSE-05)."""
+        healer = getattr(wan_controller, "_fusion_healer", None)
+        if healer is not None:
+            fusion["heal_state"] = healer.state.value
+            fusion["pearson_correlation"] = (
+                round(healer.pearson_r, 4)
+                if healer.pearson_r is not None
+                else None
+            )
+            fusion["correlation_window_avg"] = (
+                round(healer.window_avg, 4)
+                if healer.window_avg is not None
+                else None
+            )
+            fusion["heal_grace_active"] = healer.is_grace_active
+        else:
+            fusion["heal_state"] = "no_healer"
+            fusion["pearson_correlation"] = None
+            fusion["correlation_window_avg"] = None
+            fusion["heal_grace_active"] = False
+
+    def _build_tuning_section(self, wan_controller: Any) -> dict[str, Any]:
+        """Build tuning state status. Always present (MagicMock safe)."""
+        if getattr(wan_controller, "_tuning_enabled", False) is not True:
+            return {"enabled": False, "reason": "disabled"}
+
+        tuning_state = getattr(wan_controller, "_tuning_state", None)
+        if tuning_state is None or tuning_state.last_run_ts is None:
+            return {
+                "enabled": True,
+                "last_run_ago_sec": None,
+                "parameters": {},
+                "recent_adjustments": [],
+                "reason": "awaiting_data",
+            }
+
+        last_run_ago = round(time.monotonic() - tuning_state.last_run_ts, 1)
+        params_dict = self._build_tuning_params_dict(wan_controller, tuning_state)
+
+        recent = [
+            {
+                "parameter": adj.parameter,
+                "old_value": adj.old_value,
+                "new_value": adj.new_value,
+                "confidence": adj.confidence,
+                "rationale": adj.rationale,
+            }
+            for adj in tuning_state.recent_adjustments[-5:]
+        ]
+
+        tuning: dict[str, Any] = {
+            "enabled": True,
+            "last_run_ago_sec": last_run_ago,
+            "parameters": params_dict,
+            "recent_adjustments": recent,
+        }
+
+        tuning["safety"] = self._build_tuning_safety_section(
+            wan_controller, tuning_state
+        )
+
+        return tuning
+
+    def _build_tuning_params_dict(
+        self, wan_controller: Any, tuning_state: Any
+    ) -> dict[str, Any]:
+        """Build parameters dict with current tuned values and bounds."""
+        params_dict: dict[str, Any] = {}
+        for param_name, current_val in tuning_state.parameters.items():
+            config = getattr(wan_controller, "config", None)
+            if config is not None:
+                tc = getattr(config, "tuning_config", None)
+                if tc is not None and hasattr(tc, "bounds"):
+                    bounds = tc.bounds.get(param_name)
+                    if bounds is not None:
+                        params_dict[param_name] = {
+                            "current_value": current_val,
+                            "bounds": {
+                                "min": bounds.min_value,
+                                "max": bounds.max_value,
+                            },
+                        }
+                        continue
+            params_dict[param_name] = {"current_value": current_val}
+        return params_dict
+
+    def _build_tuning_safety_section(
+        self, wan_controller: Any, tuning_state: Any
+    ) -> dict[str, Any]:
+        """Build tuning safety subsection (SAFE-01/02/03 visibility)."""
+        revert_count = sum(
+            1
+            for adj in tuning_state.recent_adjustments
+            if adj.rationale and adj.rationale.startswith("REVERT:")
+        )
+        locks_dict = getattr(wan_controller, "_parameter_locks", None)
+        if isinstance(locks_dict, dict):
+            now_mono = time.monotonic()
+            locked_params = [p for p, exp in locks_dict.items() if now_mono < exp]
+        else:
+            locked_params = []
+        pending = (
+            getattr(wan_controller, "_pending_observation", None) is not None
+        )
+        return {
+            "revert_count": revert_count,
+            "locked_parameters": locked_params,
+            "pending_observation": pending,
+        }
+
+    def _build_alerting_section(self) -> dict[str, Any]:
+        """Build alerting state section."""
+        alerting: dict[str, Any] = {
+            "enabled": False,
+            "fire_count": 0,
+            "active_cooldowns": [],
+        }
         if self.controller and self.controller.wan_controllers:
             from wanctl.alert_engine import AlertEngine
 
@@ -508,22 +564,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         for k, v in cooldowns.items()
                     ],
                 }
-        health["alerting"] = alerting
-
-        # Top-level router reachability aggregate
-        health["router_reachable"] = all_routers_reachable
-
-        # Disk space status
-        health["disk_space"] = _get_disk_space_status()
-
-        # Determine overall health status
-        # Healthy if consecutive failures < threshold AND all routers reachable
-        # AND disk space is not in warning state
-        disk_warning = health["disk_space"]["status"] == "warning"
-        is_healthy = self.consecutive_failures < 3 and all_routers_reachable and not disk_warning
-        health["status"] = "healthy" if is_healthy else "degraded"
-
-        return health
+        return alerting
 
     def _handle_metrics_history(self) -> None:
         """Handle /metrics/history requests.
