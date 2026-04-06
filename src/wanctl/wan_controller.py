@@ -197,12 +197,36 @@ class WANController:
         self.router = router
         self.rtt_measurement = rtt_measurement
         self.logger = logger
-
-        # Router connectivity tracking for cycle-level failure detection
         self.router_connectivity = RouterConnectivityState(self.logger)
-
-        # Pending rate changes for router outage resilience (ERRR-03)
         self.pending_rates = PendingRateChange()
+
+        self._init_baseline_and_thresholds()
+        self._init_flash_wear_protection()
+        self._init_state_persistence()
+        self._init_metrics_storage()
+        self._init_alerting()
+        self._init_signal_processing()
+        self._init_irtt_and_fusion()
+        self._init_reflector_scoring()
+        self._init_alert_timers()
+        self._init_profiling()
+        self._init_tuning()
+
+        # Load persisted state (hysteresis counters, current rates, EWMA)
+        self.load_state()
+
+        # Restore tuning parameters from SQLite (survives daemon restart)
+        if self._tuning_enabled and self._metrics_writer is not None:
+            self._restore_tuning_params()
+
+    # =========================================================================
+    # __init__ concern-grouped helpers (Phase 145-01)
+    # =========================================================================
+
+    def _init_baseline_and_thresholds(self) -> None:
+        """Initialize baseline RTT, acceleration detection, queue controllers, and thresholds."""
+        config = self.config
+        wan_name = self.wan_name
 
         # Initialize baseline from config (will be measured and updated)
         self.baseline_rtt = config.baseline_rtt_initial
@@ -246,9 +270,9 @@ class WANController:
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
-        self.green_threshold = config.target_bloat_ms  # 15ms: GREEN → YELLOW
-        self.soft_red_threshold = config.warn_bloat_ms  # 45ms: YELLOW → SOFT_RED
-        self.hard_red_threshold = config.hard_red_bloat_ms  # 80ms: SOFT_RED → RED
+        self.green_threshold = config.target_bloat_ms  # 15ms: GREEN -> YELLOW
+        self.soft_red_threshold = config.warn_bloat_ms  # 45ms: YELLOW -> SOFT_RED
+        self.hard_red_threshold = config.hard_red_bloat_ms  # 80ms: SOFT_RED -> RED
         # Legacy 3-state thresholds (for upload)
         self.target_delta = config.target_bloat_ms
         self.warn_delta = config.warn_bloat_ms
@@ -262,71 +286,42 @@ class WANController:
         self.ping_hosts = config.ping_hosts
         self.use_median_of_three = config.use_median_of_three
 
-        # =====================================================================
-        # FLASH WEAR PROTECTION - Track last applied rates
-        # =====================================================================
-        # RouterOS writes queue changes to NAND flash. To prevent excessive
-        # flash wear, we only send updates when rates actually change.
-        # DO NOT REMOVE THIS - it protects the router's flash memory.
-        # =====================================================================
+    def _init_flash_wear_protection(self) -> None:
+        """Initialize flash wear protection, rate limiter, and fallback tracking."""
+        # Flash wear protection: only send updates when rates change
         self.last_applied_dl_rate: int | None = None
         self.last_applied_ul_rate: int | None = None
 
-        # =====================================================================
-        # RATE LIMITER - Protect router API during instability
-        # =====================================================================
-        # Limits configuration changes to prevent API overload during rapid
-        # state oscillations. Default: 10 changes per 60 seconds.
-        # =====================================================================
+        # Rate limiter: protect router API during instability
         self.rate_limiter = RateLimiter(
             max_changes=DEFAULT_RATE_LIMIT_MAX_CHANGES,
             window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
         )
-        # Track if we've logged about rate limiting (log once per throttle window)
         self._rate_limit_logged = False
 
-        # =====================================================================
-        # FALLBACK CONNECTIVITY TRACKING
-        # =====================================================================
-        # Track consecutive cycles where ICMP failed but other connectivity exists.
-        # Used for graceful degradation when ICMP is filtered but WAN works.
-        # =====================================================================
+        # Fallback connectivity tracking (ICMP filtered but WAN works)
         self.icmp_unavailable_cycles = 0
 
-        # =====================================================================
-        # STATE PERSISTENCE MANAGER
-        # =====================================================================
-        # Separates persistence concerns from business logic
-        # =====================================================================
+    def _init_state_persistence(self) -> None:
+        """Initialize state persistence manager and zone tracking."""
         self.state_manager = WANControllerState(
-            state_file=config.state_file, logger=logger, wan_name=wan_name
+            state_file=self.config.state_file, logger=self.logger, wan_name=self.wan_name
         )
-        # Congestion zone for state file export (read by steering daemon)
         self._dl_zone: str = "GREEN"
         self._ul_zone: str = "GREEN"
-        # Periodic force save counter (safety net against crashes)
         self._cycles_since_forced_save = 0
 
-        # =====================================================================
-        # METRICS HISTORY STORAGE (optional)
-        # =====================================================================
-        # SQLite-based storage for historical metrics analysis.
-        # Disabled if storage.db_path not configured in YAML.
-        # =====================================================================
-        storage_config = get_storage_config(config.data)
+    def _init_metrics_storage(self) -> None:
+        """Initialize optional SQLite metrics history storage."""
+        storage_config = get_storage_config(self.config.data)
         self._metrics_writer: MetricsWriter | None = None
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
             self._metrics_writer = MetricsWriter(Path(db_path))
-            self.logger.info(f"{wan_name}: Metrics history enabled, db={db_path}")
+            self.logger.info(f"{self.wan_name}: Metrics history enabled, db={db_path}")
 
-        # =====================================================================
-        # ALERT ENGINE + WEBHOOK DELIVERY
-        # =====================================================================
-        # AlertEngine for per-event cooldown suppression and persistence.
-        # WebhookDelivery for Discord notification dispatch (non-blocking).
-        # Instantiated from alerting_config (disabled by default).
-        # =====================================================================
+    def _init_alerting(self) -> None:
+        """Initialize alert engine and webhook delivery from alerting config."""
         ac = self.config.alerting_config
         if ac:
             # Validate webhook_url
@@ -344,7 +339,7 @@ class WANController:
             from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
-            formatter = DiscordFormatter(version=__version__, container_id=wan_name)
+            formatter = DiscordFormatter(version=__version__, container_id=self.wan_name)
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
                 webhook_url=url,
@@ -364,99 +359,64 @@ class WANController:
             self._webhook_delivery = None
             self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
 
-        # =====================================================================
-        # SIGNAL PROCESSING (Phase 88: observation mode)
-        # =====================================================================
-        # Pre-EWMA filter: Hampel outlier detection, jitter/variance tracking,
-        # confidence scoring. Always active. Filtered RTT feeds EWMA; other
-        # metrics are observational only (no control decisions).
-        # =====================================================================
+    def _init_signal_processing(self) -> None:
+        """Initialize Hampel filter signal processor."""
         self.signal_processor = SignalProcessor(
-            wan_name=wan_name,
-            config=config.signal_processing_config,
-            logger=logger,
+            wan_name=self.wan_name,
+            config=self.config.signal_processing_config,
+            logger=self.logger,
         )
-        # Store last signal result for future Phase 92 metrics/health endpoint
         self._last_signal_result: SignalResult | None = None
 
-        # =====================================================================
-        # IRTT OBSERVATION MODE (Phase 90)
-        # =====================================================================
-        # Background IRTT thread reference (set by main() if IRTT active).
-        # Protocol correlation tracks ICMP/UDP RTT ratio for deprioritization
-        # detection.  First detection logs at INFO, repeat at DEBUG, recovery
-        # at INFO.
-        # =====================================================================
-        self._irtt_thread: IRTTThread | None = None  # Set by main() if IRTT active
+    def _init_irtt_and_fusion(self) -> None:
+        """Initialize IRTT observation, OWD asymmetry, and dual-signal fusion."""
+        config = self.config
+
+        # IRTT observation mode (set by main() if IRTT active)
+        self._irtt_thread: IRTTThread | None = None
         self._irtt_correlation: float | None = None
         self._irtt_deprioritization_logged: bool = False
         self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
-        # =====================================================================
-        # OWD ASYMMETRY DETECTION (Phase 94: ASYM-01 through ASYM-03)
-        # =====================================================================
-        # Directional congestion detection from IRTT send_delay vs receive_delay.
-        # Computes ratio-based asymmetry (NTP-independent). Result stored for
-        # health endpoint and future Phase 96 fusion consumption.
-        # =====================================================================
+        # OWD asymmetry detection (ASYM-01 through ASYM-03)
         owd_config = config.owd_asymmetry_config
         self._asymmetry_analyzer: AsymmetryAnalyzer | None = AsymmetryAnalyzer(
             ratio_threshold=owd_config["ratio_threshold"],
-            logger=logger,
-            wan_name=wan_name,
+            logger=self.logger,
+            wan_name=self.wan_name,
         )
         self._last_asymmetry_result: AsymmetryResult | None = None
 
-        # =====================================================================
-        # DUAL-SIGNAL FUSION (Phase 96: FUSE-01, FUSE-03, FUSE-04)
-        # =====================================================================
-        # Weighted combination of ICMP filtered_rtt and IRTT rtt_mean_ms.
-        # When IRTT is unavailable, stale, or disabled, fusion is a pure
-        # pass-through (filtered_rtt goes to update_ewma unchanged).
-        # =====================================================================
+        # Dual-signal fusion (FUSE-01, FUSE-03, FUSE-04)
         self._fusion_icmp_weight: float = config.fusion_config["icmp_weight"]
         self._fusion_enabled: bool = config.fusion_config["enabled"]
         self._last_fused_rtt: float | None = None
         self._last_icmp_filtered_rtt: float | None = None
 
-        # =====================================================================
-        # FUSION HEALING (Phase 119: FUSE-01 through FUSE-05)
-        # =====================================================================
-        # Automatic fusion state management based on rolling Pearson correlation.
-        # When ICMP/IRTT path divergence is detected, healer suspends fusion
-        # and locks fusion_icmp_weight. Only instantiated when both fusion AND
-        # IRTT are enabled (healer needs both signals).
-        # =====================================================================
+        # Fusion healing (Phase 119: FUSE-01 through FUSE-05)
         self._fusion_healer: FusionHealer | None = None
         self._prev_healer_icmp_rtt: float | None = None
         self._prev_healer_irtt_rtt: float | None = None
         self._prev_irtt_ts: float | None = None
 
-        # =====================================================================
-        # REFLECTOR QUALITY SCORING (Phase 93: REFL-01 through REFL-03)
-        # =====================================================================
-        # Per-reflector rolling quality scoring with automatic deprioritization
-        # and periodic recovery probing. Low-quality reflectors are excluded
-        # from measure_rtt() to improve RTT signal quality.
-        # =====================================================================
-        rq_config = config.reflector_quality_config
+    def _init_reflector_scoring(self) -> None:
+        """Initialize per-reflector rolling quality scoring."""
+        rq_config = self.config.reflector_quality_config
         self._reflector_scorer = ReflectorScorer(
-            hosts=config.ping_hosts,
+            hosts=self.config.ping_hosts,
             min_score=rq_config["min_score"],
             window_size=rq_config["window_size"],
             probe_interval_sec=rq_config["probe_interval_sec"],
             recovery_count=rq_config["recovery_count"],
-            logger=logger,
-            wan_name=wan_name,
+            logger=self.logger,
+            wan_name=self.wan_name,
         )
 
-        # =====================================================================
-        # SUSTAINED CONGESTION TIMERS (ALRT-01)
-        # =====================================================================
-        # Monotonic timestamps tracking when DL/UL entered RED/SOFT_RED.
-        # Fires congestion_sustained_dl/ul after sustained_sec threshold.
-        # Fires congestion_recovered_dl/ul when zone clears IF sustained fired.
-        # =====================================================================
+    def _init_alert_timers(self) -> None:
+        """Initialize sustained congestion, connectivity, IRTT loss, and flapping timers."""
+        ac = self.config.alerting_config
+
+        # Sustained congestion timers (ALRT-01)
         self._dl_congestion_start: float | None = None
         self._ul_congestion_start: float | None = None
         self._dl_sustained_fired: bool = False
@@ -464,37 +424,18 @@ class WANController:
         self._dl_last_congested_zone: str = "RED"
         self._sustained_sec: int = ac.get("default_sustained_sec", 60) if ac else 60
 
-        # =====================================================================
-        # CONNECTIVITY ALERT TIMERS (ALRT-04, ALRT-05)
-        # =====================================================================
-        # Monotonic timestamp tracking when all ICMP targets became unreachable.
-        # Fires wan_offline after sustained_sec threshold (default 30s).
-        # Fires wan_recovered when ICMP returns IF wan_offline had fired.
-        # =====================================================================
+        # Connectivity alert timers (ALRT-04, ALRT-05)
         self._connectivity_offline_start: float | None = None
         self._wan_offline_fired: bool = False
 
-        # =====================================================================
-        # IRTT LOSS ALERT TIMERS (ALRT-01, ALRT-02, ALRT-03)
-        # =====================================================================
-        # Monotonic timestamps tracking when upstream/downstream IRTT loss
-        # exceeded threshold. Fires irtt_loss_upstream/downstream after
-        # sustained_sec. Fires irtt_loss_recovered when loss clears IF
-        # sustained had fired.
-        # =====================================================================
+        # IRTT loss alert timers (ALRT-01, ALRT-02, ALRT-03)
         self._irtt_loss_up_start: float | None = None
         self._irtt_loss_down_start: float | None = None
         self._irtt_loss_up_fired: bool = False
         self._irtt_loss_down_fired: bool = False
         self._irtt_loss_threshold_pct: float = 5.0
 
-        # =====================================================================
-        # CONGESTION FLAPPING DETECTION (ALRT-07)
-        # =====================================================================
-        # Sliding window of zone transition timestamps per direction.
-        # Fires flapping_dl/flapping_ul when transitions exceed threshold
-        # within the configured window. DL and UL tracked independently.
-        # =====================================================================
+        # Congestion flapping detection (ALRT-07)
         self._dl_zone_transitions: deque[float] = deque()
         self._ul_zone_transitions: deque[float] = deque()
         self._dl_prev_zone: str | None = None
@@ -502,26 +443,18 @@ class WANController:
         self._dl_zone_hold: int = 0  # cycles current DL zone has been held
         self._ul_zone_hold: int = 0  # cycles current UL zone has been held
 
-        # =====================================================================
-        # PROFILING INSTRUMENTATION
-        # =====================================================================
-        # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
-        # PerfTimer always runs at DEBUG level (negligible overhead ~0.05ms).
-        # OperationProfiler always accumulates (deque append, negligible).
-        # Periodic report only emitted when --profile flag is set.
-        # =====================================================================
+    def _init_profiling(self) -> None:
+        """Initialize profiling instrumentation, cycle budget monitoring, and background RTT."""
+        config = self.config
+
+        # Profiling instrumentation (PROF-01, PROF-02)
         self._profiler = OperationProfiler(max_samples=1200)
         self._profile_cycle_count = 0
         self._profiling_enabled = False
         self._overrun_count = 0
         self._cycle_interval_ms = CYCLE_INTERVAL_SECONDS * 1000.0
 
-        # =====================================================================
-        # CYCLE BUDGET REGRESSION INDICATOR (Phase 132: PERF-03, per D-06/D-07)
-        # =====================================================================
-        # Warning threshold configurable via YAML, hot-reloadable via SIGUSR1.
-        # AlertEngine fires cycle_budget_warning after sustained overruns.
-        # =====================================================================
+        # Cycle budget regression indicator (Phase 132: PERF-03)
         cm_config = config.data.get("continuous_monitoring", {}) if config.data else {}
         if not isinstance(cm_config, dict):
             cm_config = {}
@@ -529,33 +462,20 @@ class WANController:
         self._budget_warning_streak: int = 0
         self._budget_warning_consecutive: int = 60  # 60 cycles = 3 seconds at 50ms
 
-        # =====================================================================
-        # HYSTERESIS OBSERVABILITY (Phase 136: HYST-01/HYST-02)
-        # =====================================================================
-        # Configurable suppression alert threshold for windowed rate monitoring.
-        # =====================================================================
+        # Hysteresis observability (Phase 136: HYST-01/HYST-02)
         self._suppression_alert_threshold: int = int(
             cm_config.get("thresholds", {}).get("suppression_alert_threshold", 20)
             if isinstance(cm_config.get("thresholds"), dict) else 20
         )
 
-        # =====================================================================
-        # BACKGROUND RTT MEASUREMENT (Phase 132: PERF-02, per D-01)
-        # =====================================================================
-        # Dedicated background thread runs ICMP pings continuously.
-        # Control loop reads latest RTT from GIL-protected shared variable.
-        # Eliminates 42ms blocking I/O from hot path.
-        # =====================================================================
+        # Background RTT measurement (Phase 132: PERF-02)
         self._rtt_thread: BackgroundRTTThread | None = None
         self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
 
-        # =====================================================================
-        # ADAPTIVE TUNING STATE
-        # =====================================================================
-        # Runtime-only parameter tuning driven by metrics analysis.
-        # Enabled via tuning.enabled in YAML. Runs during maintenance window.
-        # SIGUSR1 reloads enabled state via _reload_tuning_config().
-        # =====================================================================
+    def _init_tuning(self) -> None:
+        """Initialize adaptive tuning state and oscillation detection."""
+        config = self.config
+
         if config.tuning_config is not None and config.tuning_config.enabled:
             self._tuning_enabled = True
             self._tuning_state: TuningState | None = TuningState(
@@ -568,15 +488,14 @@ class WANController:
             self._tuning_enabled = False
             self._tuning_state = None
         self._last_tuning_ts: float | None = None
-        # Layer rotation for bottom-up tuning (SIGP-04)
         self._tuning_layer_index: int = 0
-        # Safety: revert detection and hysteresis lock state (Plan 100-02)
         self._parameter_locks: dict[str, float] = {}  # param -> monotonic lock expiry
         self._pending_observation = None  # PendingObservation | None (lazy import)
-        # Oscillation lockout threshold (RTUN-04) -- parsed from tuning config
+
+        # Oscillation lockout threshold (RTUN-04)
         from wanctl.tuning.strategies.response import DEFAULT_OSCILLATION_THRESHOLD
 
-        osc_raw = self.config.data.get("tuning", {}).get("oscillation_threshold")
+        osc_raw = config.data.get("tuning", {}).get("oscillation_threshold")
         if (
             osc_raw is not None
             and isinstance(osc_raw, (int, float))
@@ -585,13 +504,6 @@ class WANController:
             self._oscillation_threshold: float = float(osc_raw)
         else:
             self._oscillation_threshold = DEFAULT_OSCILLATION_THRESHOLD
-
-        # Load persisted state (hysteresis counters, current rates, EWMA)
-        self.load_state()
-
-        # Restore tuning parameters from SQLite (survives daemon restart)
-        if self._tuning_enabled and self._metrics_writer is not None:
-            self._restore_tuning_params()
 
     def _restore_tuning_params(self) -> None:
         """Restore latest tuning parameter values from SQLite.
