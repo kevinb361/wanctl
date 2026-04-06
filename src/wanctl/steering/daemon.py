@@ -337,55 +337,63 @@ class SteeringConfig(BaseConfig):
         logger = logging.getLogger(__name__)
         wan_state = self.data.get("wan_state", {})
 
-        # Known keys for typo detection
-        known_keys = {
-            "enabled",
-            "red_weight",
-            "staleness_threshold_sec",
-            "grace_period_sec",
-            "wan_override",
-        }
-
-        # Missing or empty wan_state section
-        if not wan_state:
+        validated = self._validate_wan_state_fields(wan_state, logger)
+        if validated is None:
             self.wan_state_config = None
-            logger.info("WAN awareness: disabled (enable via wan_state.enabled)")
             return
 
-        # Check for unknown keys (typo detection)
+        self.wan_state_config = self._build_wan_state_config(validated, logger)
+
+    def _validate_wan_state_fields(
+        self, wan_state: dict, logger: logging.Logger
+    ) -> dict | None:
+        """Validate wan_state YAML fields. Returns validated dict or None."""
+        known_keys = {
+            "enabled", "red_weight", "staleness_threshold_sec",
+            "grace_period_sec", "wan_override",
+        }
+
+        if not wan_state:
+            logger.info("WAN awareness: disabled (enable via wan_state.enabled)")
+            return None
+
         unknown = set(wan_state.keys()) - known_keys
         if unknown:
             logger.warning(f"wan_state: unrecognized keys {unknown} (possible typo)")
 
-        # Validate 'enabled' field type
         enabled = wan_state.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
                 f"wan_state.enabled must be bool, got {type(enabled).__name__}; "
                 "disabling WAN awareness"
             )
-            self.wan_state_config = None
-            return
+            return None
 
-        # Cross-field: wan_override with disabled
         wan_override = wan_state.get("wan_override", False)
         if not isinstance(wan_override, bool):
             logger.warning(
                 f"wan_state.wan_override must be bool, got {type(wan_override).__name__}; "
                 "disabling WAN awareness"
             )
-            self.wan_state_config = None
-            return
+            return None
 
         if wan_override and not enabled:
             logger.warning("wan_state: override has no effect when disabled")
 
         if not enabled:
-            self.wan_state_config = None
             logger.info("WAN awareness: disabled (enable via wan_state.enabled)")
-            return
+            return None
 
-        # Validate numeric fields
+        numerics = self._validate_wan_state_numerics(wan_state, logger)
+        if numerics is None:
+            return None
+
+        return {**numerics, "wan_override": wan_override}
+
+    def _validate_wan_state_numerics(
+        self, wan_state: dict, logger: logging.Logger
+    ) -> dict[str, int | float] | None:
+        """Validate numeric wan_state fields. Returns dict or None on error."""
         try:
             red_weight = wan_state.get("red_weight", 25)
             if not isinstance(red_weight, int) or isinstance(red_weight, bool):
@@ -403,21 +411,35 @@ class SteeringConfig(BaseConfig):
                 )
 
             grace_period_sec = wan_state.get("grace_period_sec", 30)
-            if not isinstance(grace_period_sec, (int, float)) or isinstance(grace_period_sec, bool):
+            if not isinstance(grace_period_sec, (int, float)) or isinstance(
+                grace_period_sec, bool
+            ):
                 raise TypeError(
                     f"wan_state.grace_period_sec must be numeric, "
                     f"got {type(grace_period_sec).__name__}"
                 )
         except TypeError as e:
             logger.warning(f"{e}; disabling WAN awareness")
-            self.wan_state_config = None
-            return
+            return None
 
-        # Enforce minimum
+        return {
+            "red_weight": red_weight,
+            "staleness_threshold_sec": staleness_threshold_sec,
+            "grace_period_sec": grace_period_sec,
+        }
+
+    def _build_wan_state_config(
+        self, validated: dict, logger: logging.Logger
+    ) -> dict:
+        """Build final wan_state config dict with clamping and logging."""
+        red_weight = validated["red_weight"]
+        wan_override = validated["wan_override"]
+        staleness_threshold_sec = validated["staleness_threshold_sec"]
+        grace_period_sec = validated["grace_period_sec"]
+
         if red_weight < 1:
             red_weight = 1
 
-        # Weight clamping: red_weight must be < steer_threshold unless wan_override
         steer_threshold = self.data.get("confidence", {}).get("steer_threshold", 55)
         if not wan_override and red_weight >= steer_threshold:
             clamped = steer_threshold - 1
@@ -426,20 +448,8 @@ class SteeringConfig(BaseConfig):
             )
             red_weight = clamped
 
-        # Derive soft_red_weight
         soft_red_weight = int(red_weight * 0.48)
 
-        # Build config dict
-        self.wan_state_config = {
-            "enabled": True,
-            "red_weight": red_weight,
-            "soft_red_weight": soft_red_weight,
-            "staleness_threshold_sec": staleness_threshold_sec,
-            "grace_period_sec": grace_period_sec,
-            "wan_override": wan_override,
-        }
-
-        # Startup logging
         if wan_override:
             logger.warning(
                 "WAN override active -- WAN RED can trigger failover independently of CAKE signals"
@@ -448,6 +458,15 @@ class SteeringConfig(BaseConfig):
             f"WAN awareness: enabled (grace period: {grace_period_sec}s, "
             f"red_weight: {red_weight}, wan_override: {wan_override})"
         )
+
+        return {
+            "enabled": True,
+            "red_weight": red_weight,
+            "soft_red_weight": soft_red_weight,
+            "staleness_threshold_sec": staleness_threshold_sec,
+            "grace_period_sec": grace_period_sec,
+            "wan_override": wan_override,
+        }
 
     def _load_alerting_config(self) -> None:
         """Load alerting configuration.
@@ -467,7 +486,6 @@ class SteeringConfig(BaseConfig):
             logger.info("Alerting: disabled (enable via alerting.enabled)")
             return
 
-        # Validate 'enabled' field type
         enabled = alerting.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
@@ -481,71 +499,91 @@ class SteeringConfig(BaseConfig):
             logger.info("Alerting: disabled (enable via alerting.enabled)")
             return
 
-        # Validate default_cooldown_sec
+        core = self._validate_alerting_core_fields(alerting, logger)
+        if core is None:
+            self.alerting_config = None
+            return
+
+        delivery = self._validate_alerting_delivery(alerting, logger)
+        self.alerting_config = {**core, **delivery}
+        logger.info(f"Alerting: enabled ({len(core['rules'])} rules configured)")
+
+    def _validate_alerting_core_fields(
+        self, alerting: dict, logger: logging.Logger
+    ) -> dict | None:
+        """Validate cooldown, sustained, and rules fields. Returns dict or None."""
         default_cooldown_sec = alerting.get("default_cooldown_sec", 300)
         if not isinstance(default_cooldown_sec, int) or isinstance(default_cooldown_sec, bool):
             logger.warning(
                 f"alerting.default_cooldown_sec must be int, got {type(default_cooldown_sec).__name__}; "
                 "disabling alerting"
             )
-            self.alerting_config = None
-            return
+            return None
         if default_cooldown_sec < 0:
             logger.warning(
                 f"alerting.default_cooldown_sec must be >= 0, got {default_cooldown_sec}; "
                 "disabling alerting"
             )
-            self.alerting_config = None
-            return
+            return None
 
-        # Validate rules
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
             logger.warning(
                 f"alerting.rules must be a map, got {type(rules).__name__}; disabling alerting"
             )
-            self.alerting_config = None
-            return
+            return None
 
-        # Validate each rule
-        valid_severities = {"info", "warning", "critical"}
-        for rule_name, rule in rules.items():
-            if not isinstance(rule, dict):
-                logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
-                self.alerting_config = None
-                return
-            severity = rule.get("severity")
-            if severity is None:
-                logger.warning(
-                    f"alerting.rules.{rule_name} missing required 'severity'; disabling alerting"
-                )
-                self.alerting_config = None
-                return
-            if severity not in valid_severities:
-                logger.warning(
-                    f"alerting.rules.{rule_name}.severity must be one of {valid_severities}, "
-                    f"got '{severity}'; disabling alerting"
-                )
-                self.alerting_config = None
-                return
+        if not self._validate_alerting_rules(rules, logger):
+            return None
 
-        # Validate default_sustained_sec (Phase 78: cross-daemon config symmetry)
         default_sustained_sec = alerting.get("default_sustained_sec", 60)
         if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
             logger.warning(
                 f"alerting.default_sustained_sec must be int, got {type(default_sustained_sec).__name__}; "
                 "disabling alerting"
             )
-            self.alerting_config = None
-            return
+            return None
         if default_sustained_sec < 0:
             logger.warning(
                 f"alerting.default_sustained_sec must be >= 0, got {default_sustained_sec}; "
                 "disabling alerting"
             )
-            self.alerting_config = None
-            return
+            return None
 
+        return {
+            "enabled": True,
+            "default_cooldown_sec": default_cooldown_sec,
+            "default_sustained_sec": default_sustained_sec,
+            "rules": rules,
+        }
+
+    def _validate_alerting_rules(
+        self, rules: dict, logger: logging.Logger
+    ) -> bool:
+        """Validate each alerting rule has valid severity. Returns True if valid."""
+        valid_severities = {"info", "warning", "critical"}
+        for rule_name, rule in rules.items():
+            if not isinstance(rule, dict):
+                logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
+                return False
+            severity = rule.get("severity")
+            if severity is None:
+                logger.warning(
+                    f"alerting.rules.{rule_name} missing required 'severity'; disabling alerting"
+                )
+                return False
+            if severity not in valid_severities:
+                logger.warning(
+                    f"alerting.rules.{rule_name}.severity must be one of {valid_severities}, "
+                    f"got '{severity}'; disabling alerting"
+                )
+                return False
+        return True
+
+    def _validate_alerting_delivery(
+        self, alerting: dict, logger: logging.Logger
+    ) -> dict:
+        """Validate and extract webhook delivery config fields."""
         webhook_url = alerting.get("webhook_url", "")
         # Expand ${ENV_VAR} references (same pattern as router password)
         if (
@@ -557,7 +595,6 @@ class SteeringConfig(BaseConfig):
             env_var = webhook_url[2:-1]
             webhook_url = os.environ.get(env_var, "")
 
-        # Delivery config fields (Plan 77-02)
         mention_role_id = alerting.get("mention_role_id")
         if mention_role_id is not None and not isinstance(mention_role_id, str):
             logger.warning("alerting.mention_role_id must be string; ignoring")
@@ -575,17 +612,12 @@ class SteeringConfig(BaseConfig):
             logger.warning("alerting.max_webhooks_per_minute invalid; defaulting to 20")
             max_webhooks_per_minute = 20
 
-        self.alerting_config = {
-            "enabled": True,
+        return {
             "webhook_url": webhook_url,
-            "default_cooldown_sec": default_cooldown_sec,
-            "default_sustained_sec": default_sustained_sec,
-            "rules": rules,
             "mention_role_id": mention_role_id,
             "mention_severity": mention_severity,
             "max_webhooks_per_minute": max_webhooks_per_minute,
         }
-        logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
 
     def _load_thresholds(self) -> None:
         """Load state machine thresholds with EWMA alpha validation (C5 fix)."""
@@ -979,8 +1011,20 @@ class SteeringDaemon:
         # Router connectivity tracking for cycle-level failure detection
         self.router_connectivity = RouterConnectivityState(self.logger)
 
-        # CAKE congestion detection components
-        self.cake_reader = CakeStatsReader(config, logger)
+        self._init_cake_reader(config)
+        self._init_steering_metrics(config)
+        self._init_steering_alerting()
+        self._init_confidence_controller()
+        self._init_steering_profiling(config)
+        self._init_wan_awareness()
+
+        # STEER-01: Track which legacy state names have already been warned about
+        # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
+        self._legacy_state_warned: set[str] = set()
+
+    def _init_cake_reader(self, config: SteeringConfig) -> None:
+        """Initialize CAKE congestion detection components."""
+        self.cake_reader = CakeStatsReader(config, self.logger)
         self.thresholds = StateThresholds(
             green_rtt=config.green_rtt_ms,
             yellow_rtt=config.yellow_rtt_ms,
@@ -993,7 +1037,8 @@ class SteeringDaemon:
         )
         self.logger.info("CAKE three-state congestion model initialized")
 
-        # Metrics history storage (optional)
+    def _init_steering_metrics(self, config: SteeringConfig) -> None:
+        """Initialize metrics history storage (optional)."""
         storage_config = get_storage_config(config.data)
         self._metrics_writer: MetricsWriter | None = None
         db_path = storage_config.get("db_path")
@@ -1001,13 +1046,8 @@ class SteeringDaemon:
             self._metrics_writer = MetricsWriter(Path(db_path))
             self.logger.info(f"Metrics storage enabled: {db_path}")
 
-        # =====================================================================
-        # ALERT ENGINE + WEBHOOK DELIVERY
-        # =====================================================================
-        # AlertEngine for per-event cooldown suppression and persistence.
-        # WebhookDelivery for Discord notification dispatch (non-blocking).
-        # Instantiated from alerting_config (disabled by default).
-        # =====================================================================
+    def _init_steering_alerting(self) -> None:
+        """Initialize alert engine and webhook delivery."""
         ac = self.config.alerting_config
         if ac:
             # Validate webhook_url
@@ -1025,7 +1065,7 @@ class SteeringDaemon:
             from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
-            formatter = DiscordFormatter(version=__version__, container_id=config.wan_name)
+            formatter = DiscordFormatter(version=__version__, container_id=self.config.wan_name)
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
                 webhook_url=url,
@@ -1048,7 +1088,8 @@ class SteeringDaemon:
         # Steering activation timestamp for duration tracking (ALRT-02/ALRT-03)
         self._steering_activated_time: float | None = None
 
-        # Confidence-based steering controller (if enabled)
+    def _init_confidence_controller(self) -> None:
+        """Initialize confidence-based steering controller (if enabled)."""
         self.confidence_controller: ConfidenceController | None = None
         if self.config.use_confidence_scoring and self.config.confidence_config:
             self.confidence_controller = ConfidenceController(
@@ -1061,20 +1102,16 @@ class SteeringDaemon:
             dry_run_status = self.config.confidence_config["dry_run"]["enabled"]
             self.logger.info(f"[CONFIDENCE] Confidence scoring enabled (dry_run={dry_run_status})")
 
-        # =====================================================================
-        # PROFILING INSTRUMENTATION
-        # =====================================================================
-        # Per-subsystem timing for cycle budget analysis (PROF-01, PROF-02).
-        # PerfTimer always runs at DEBUG level (negligible overhead ~0.05ms).
-        # OperationProfiler always accumulates (deque append, negligible).
-        # Periodic report only emitted when --profile flag is set.
-        # =====================================================================
+    def _init_steering_profiling(self, config: SteeringConfig) -> None:
+        """Initialize per-subsystem timing for cycle budget analysis."""
         self._profiler = OperationProfiler(max_samples=1200)
         self._profile_cycle_count = 0
         self._profiling_enabled = False
         self._overrun_count = 0
         self._cycle_interval_ms = config.measurement_interval * 1000.0
 
+    def _init_wan_awareness(self) -> None:
+        """Initialize WAN congestion zone tracking and awareness gating."""
         # WAN congestion zone from autorate state (FUSE-01)
         self._wan_zone: str | None = None
 
@@ -1092,10 +1129,6 @@ class SteeringDaemon:
         # Override BaselineLoader staleness threshold with config value
         if hasattr(self.baseline_loader, "_wan_staleness_threshold"):
             self.baseline_loader._wan_staleness_threshold = self._wan_staleness_sec
-
-        # STEER-01: Track which legacy state names have already been warned about
-        # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
-        self._legacy_state_warned: set[str] = set()
 
     def _reload_dry_run_config(self) -> None:
         """Re-read dry_run flag from config YAML file (triggered by SIGUSR1).
@@ -1801,10 +1834,7 @@ class SteeringDaemon:
         )
 
     def run_cycle(self) -> bool:
-        """
-        Execute one steering cycle
-        Returns True on success, False on failure
-        """
+        """Execute one steering cycle. Returns True on success, False on failure."""
         state = self.state_mgr.state
         cycle_start = time.perf_counter()
 
@@ -1821,7 +1851,6 @@ class SteeringDaemon:
 
         # === RTT Measurement (subsystem 2) ===
         with PerfTimer("steering_rtt_measurement", self.logger) as rtt_timer:
-            # W7 fix: Retry ping up to 3 times, with fallback to last known RTT
             current_rtt = self._measure_current_rtt_with_retry()
 
         if current_rtt is None:
@@ -1834,238 +1863,9 @@ class SteeringDaemon:
         # === State Management (subsystem 3) ===
         anomaly_detected = False
         with PerfTimer("steering_state_management", self.logger) as state_timer:
-            # Calculate delta
-            delta = self.calculate_delta(current_rtt)
-
-            # Pre-filter: reject extreme RTT deltas as network anomalies
-            # (routing hiccups, severe packet loss producing 1000-3000ms pings)
-            if delta > MAX_SANE_RTT_DELTA_MS:
-                self.logger.warning(
-                    f"RTT delta {delta:.1f}ms exceeds ceiling "
-                    f"{MAX_SANE_RTT_DELTA_MS:.0f}ms "
-                    f"(rtt={current_rtt:.1f}ms), treating as anomaly — skipping cycle"
-                )
-                anomaly_detected = True
-            else:
-                # === EWMA Smoothing ===
-                # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
-                rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
-
-                # Add to history
-                self.state_mgr.add_measurement(current_rtt, delta)
-
-                # === Build Congestion Signals ===
-                signals = CongestionSignals(
-                    rtt_delta=delta,
-                    rtt_delta_ewma=rtt_delta_ewma,
-                    cake_drops=cake_drops,
-                    queued_packets=queued_packets,
-                    baseline_rtt=baseline_rtt,
-                )
-
-                # === Log Measurement ===
-                wan_name = self.config.primary_wan.upper()
-                self.logger.info(
-                    f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
-                    f"{signals} | "
-                    f"congestion={state.get('congestion_state', 'N/A')}"
-                )
-
-                # === Update State Machine ===
-                state_changed = self.update_state_machine(signals)
-
-                # Track cake_state_history for confidence-based steering
-                if "congestion_state" in state:
-                    cake_state_history = state.get("cake_state_history", [])
-                    cake_state_history.append(state["congestion_state"])
-                    # Keep last 10 samples (sufficient for sustained detection)
-                    state["cake_state_history"] = cake_state_history[-10:]
-
-                if state_changed:
-                    self.logger.info(
-                        f"State transition: {state['current_state']} "
-                        f"(last transition: {state.get('last_transition_time', 'never')})"
-                    )
-
-                # Save state
-                self.state_mgr.save()
-
-                # Record steering metrics if enabled (Prometheus)
-                if self.config.metrics_enabled:
-                    steering_enabled = state["current_state"] == self.config.state_degraded
-                    congestion_state = state.get("congestion_state", "GREEN")
-                    record_steering_state(
-                        primary_wan=self.config.primary_wan,
-                        steering_enabled=steering_enabled,
-                        congestion_state=congestion_state,
-                    )
-
-                # Record to SQLite history (if storage enabled)
-                if self._metrics_writer is not None:
-                    ts = int(time.time())
-                    steering_enabled_val = (
-                        1.0 if state["current_state"] == self.config.state_degraded else 0.0
-                    )
-                    state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
-                        state.get("congestion_state", "GREEN"), 0
-                    )
-
-                    metrics_batch = [
-                        (
-                            ts,
-                            self.config.primary_wan,
-                            "wanctl_rtt_ms",
-                            current_rtt,
-                            None,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.config.primary_wan,
-                            "wanctl_rtt_baseline_ms",
-                            baseline_rtt,
-                            None,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.config.primary_wan,
-                            "wanctl_rtt_delta_ms",
-                            delta,
-                            None,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.config.primary_wan,
-                            "wanctl_steering_enabled",
-                            steering_enabled_val,
-                            None,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.config.primary_wan,
-                            "wanctl_state",
-                            float(state_val),
-                            {"source": "steering"},
-                            "raw",
-                        ),
-                    ]
-
-                    # WAN awareness metrics (OBSV-02)
-                    if self._wan_state_enabled:
-                        zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
-                        effective_zone = self._get_effective_wan_zone()
-                        zone_val = zone_map.get(effective_zone or "GREEN", 0)
-                        metrics_batch.append(
-                            (
-                                ts,
-                                self.config.primary_wan,
-                                "wanctl_wan_zone",
-                                float(zone_val),
-                                {"zone": effective_zone or "none"},
-                                "raw",
-                            )
-                        )
-
-                        # WAN weight applied this cycle (OBSV-02 gap closure)
-                        if effective_zone == "RED":
-                            from wanctl.steering.steering_confidence import (
-                                ConfidenceWeights,
-                            )
-
-                            weight_val = float(
-                                self._wan_red_weight
-                                if self._wan_red_weight is not None
-                                else ConfidenceWeights.WAN_RED
-                            )
-                        elif effective_zone == "SOFT_RED":
-                            from wanctl.steering.steering_confidence import (
-                                ConfidenceWeights,
-                            )
-
-                            weight_val = float(
-                                self._wan_soft_red_weight
-                                if self._wan_soft_red_weight is not None
-                                else ConfidenceWeights.WAN_SOFT_RED
-                            )
-                        else:
-                            weight_val = 0.0
-                        metrics_batch.append(
-                            (
-                                ts,
-                                self.config.primary_wan,
-                                "wanctl_wan_weight",
-                                weight_val,
-                                None,
-                                "raw",
-                            )
-                        )
-
-                        # WAN staleness age in seconds (OBSV-02 gap closure)
-                        staleness_age = self.baseline_loader._get_wan_zone_age()
-                        metrics_batch.append(
-                            (
-                                ts,
-                                self.config.primary_wan,
-                                "wanctl_wan_staleness_sec",
-                                float(staleness_age) if staleness_age is not None else -1.0,
-                                None,
-                                "raw",
-                            )
-                        )
-
-                    # Per-tin CAKE metrics (CAKE-07 observability)
-                    if (
-                        getattr(self.cake_reader, "_is_linux_cake", False)
-                        and self.cake_reader.last_tin_stats
-                    ):
-                        for i, tin in enumerate(self.cake_reader.last_tin_stats):
-                            tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
-                            tin_labels = {"tin": tin_name}
-                            metrics_batch.append(
-                                (
-                                    ts,
-                                    self.config.primary_wan,
-                                    "wanctl_cake_tin_dropped",
-                                    float(tin.get("dropped_packets", 0)),
-                                    tin_labels,
-                                    "raw",
-                                )
-                            )
-                            metrics_batch.append(
-                                (
-                                    ts,
-                                    self.config.primary_wan,
-                                    "wanctl_cake_tin_ecn_marked",
-                                    float(tin.get("ecn_marked_packets", 0)),
-                                    tin_labels,
-                                    "raw",
-                                )
-                            )
-                            metrics_batch.append(
-                                (
-                                    ts,
-                                    self.config.primary_wan,
-                                    "wanctl_cake_tin_delay_us",
-                                    float(tin.get("avg_delay_us", 0)),
-                                    tin_labels,
-                                    "raw",
-                                )
-                            )
-                            metrics_batch.append(
-                                (
-                                    ts,
-                                    self.config.primary_wan,
-                                    "wanctl_cake_tin_backlog_bytes",
-                                    float(tin.get("backlog_bytes", 0)),
-                                    tin_labels,
-                                    "raw",
-                                )
-                            )
-
-                    self._metrics_writer.write_metrics_batch(metrics_batch)
+            anomaly_detected = self._run_steering_state_subsystem(
+                current_rtt, baseline_rtt, cake_drops, queued_packets
+            )
 
         self._record_profiling(
             cake_timer.elapsed_ms, rtt_timer.elapsed_ms, state_timer.elapsed_ms, cycle_start
@@ -2073,6 +1873,187 @@ class SteeringDaemon:
         if anomaly_detected:
             return True  # STEER-02: cycle-skip (not failure) -- anomalies are transient
         return True
+
+    def _run_steering_state_subsystem(
+        self,
+        current_rtt: float,
+        baseline_rtt: float,
+        cake_drops: int,
+        queued_packets: int,
+    ) -> bool:
+        """Process state management for a steering cycle.
+
+        Returns True if anomaly detected (cycle should be skipped).
+        """
+        state = self.state_mgr.state
+        delta = self.calculate_delta(current_rtt)
+
+        # Pre-filter: reject extreme RTT deltas as network anomalies
+        if delta > MAX_SANE_RTT_DELTA_MS:
+            self.logger.warning(
+                f"RTT delta {delta:.1f}ms exceeds ceiling "
+                f"{MAX_SANE_RTT_DELTA_MS:.0f}ms "
+                f"(rtt={current_rtt:.1f}ms), treating as anomaly — skipping cycle"
+            )
+            return True
+
+        # === EWMA Smoothing ===
+        # PROTECTED: Numeric stability C5 - EWMA alphas validated at config load.
+        rtt_delta_ewma, _ = self.update_ewma_smoothing(delta, queued_packets)
+
+        # Add to history
+        self.state_mgr.add_measurement(current_rtt, delta)
+
+        # === Build Congestion Signals ===
+        signals = CongestionSignals(
+            rtt_delta=delta,
+            rtt_delta_ewma=rtt_delta_ewma,
+            cake_drops=cake_drops,
+            queued_packets=queued_packets,
+            baseline_rtt=baseline_rtt,
+        )
+
+        # === Log Measurement ===
+        wan_name = self.config.primary_wan.upper()
+        self.logger.info(
+            f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
+            f"{signals} | "
+            f"congestion={state.get('congestion_state', 'N/A')}"
+        )
+
+        # === Update State Machine ===
+        state_changed = self.update_state_machine(signals)
+
+        # Track cake_state_history for confidence-based steering
+        if "congestion_state" in state:
+            cake_state_history = state.get("cake_state_history", [])
+            cake_state_history.append(state["congestion_state"])
+            state["cake_state_history"] = cake_state_history[-10:]
+
+        if state_changed:
+            self.logger.info(
+                f"State transition: {state['current_state']} "
+                f"(last transition: {state.get('last_transition_time', 'never')})"
+            )
+
+        # Save state
+        self.state_mgr.save()
+
+        # Record metrics
+        self._record_steering_metrics(current_rtt, baseline_rtt, delta)
+        return False
+
+    def _record_steering_metrics(
+        self, current_rtt: float, baseline_rtt: float, delta: float
+    ) -> None:
+        """Record steering metrics to Prometheus and SQLite."""
+        state = self.state_mgr.state
+
+        # Record steering metrics if enabled (Prometheus)
+        if self.config.metrics_enabled:
+            steering_enabled = state["current_state"] == self.config.state_degraded
+            congestion_state = state.get("congestion_state", "GREEN")
+            record_steering_state(
+                primary_wan=self.config.primary_wan,
+                steering_enabled=steering_enabled,
+                congestion_state=congestion_state,
+            )
+
+        if self._metrics_writer is None:
+            return
+
+        ts = int(time.time())
+        steering_enabled_val = (
+            1.0 if state["current_state"] == self.config.state_degraded else 0.0
+        )
+        state_val = {"GREEN": 0, "YELLOW": 1, "RED": 2}.get(
+            state.get("congestion_state", "GREEN"), 0
+        )
+
+        metrics_batch = [
+            (ts, self.config.primary_wan, "wanctl_rtt_ms", current_rtt, None, "raw"),
+            (ts, self.config.primary_wan, "wanctl_rtt_baseline_ms", baseline_rtt, None, "raw"),
+            (ts, self.config.primary_wan, "wanctl_rtt_delta_ms", delta, None, "raw"),
+            (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw"),
+            (ts, self.config.primary_wan, "wanctl_state", float(state_val), {"source": "steering"}, "raw"),
+        ]
+
+        self._append_wan_awareness_metrics(metrics_batch, ts)
+        self._append_cake_tin_metrics(metrics_batch, ts)
+        self._metrics_writer.write_metrics_batch(metrics_batch)
+
+    def _append_wan_awareness_metrics(
+        self, metrics_batch: list, ts: int
+    ) -> None:
+        """Append WAN awareness metrics to batch (OBSV-02)."""
+        if not self._wan_state_enabled:
+            return
+
+        zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+        effective_zone = self._get_effective_wan_zone()
+        zone_val = zone_map.get(effective_zone or "GREEN", 0)
+        metrics_batch.append(
+            (ts, self.config.primary_wan, "wanctl_wan_zone", float(zone_val),
+             {"zone": effective_zone or "none"}, "raw")
+        )
+
+        # WAN weight applied this cycle (OBSV-02 gap closure)
+        if effective_zone == "RED":
+            from wanctl.steering.steering_confidence import ConfidenceWeights
+            weight_val = float(
+                self._wan_red_weight
+                if self._wan_red_weight is not None
+                else ConfidenceWeights.WAN_RED
+            )
+        elif effective_zone == "SOFT_RED":
+            from wanctl.steering.steering_confidence import ConfidenceWeights
+            weight_val = float(
+                self._wan_soft_red_weight
+                if self._wan_soft_red_weight is not None
+                else ConfidenceWeights.WAN_SOFT_RED
+            )
+        else:
+            weight_val = 0.0
+        metrics_batch.append(
+            (ts, self.config.primary_wan, "wanctl_wan_weight", weight_val, None, "raw")
+        )
+
+        # WAN staleness age in seconds (OBSV-02 gap closure)
+        staleness_age = self.baseline_loader._get_wan_zone_age()
+        metrics_batch.append(
+            (ts, self.config.primary_wan, "wanctl_wan_staleness_sec",
+             float(staleness_age) if staleness_age is not None else -1.0, None, "raw")
+        )
+
+    def _append_cake_tin_metrics(
+        self, metrics_batch: list, ts: int
+    ) -> None:
+        """Append per-tin CAKE metrics to batch (CAKE-07 observability)."""
+        if not (
+            getattr(self.cake_reader, "_is_linux_cake", False)
+            and self.cake_reader.last_tin_stats
+        ):
+            return
+
+        for i, tin in enumerate(self.cake_reader.last_tin_stats):
+            tin_name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"tin_{i}"
+            tin_labels = {"tin": tin_name}
+            metrics_batch.append(
+                (ts, self.config.primary_wan, "wanctl_cake_tin_dropped",
+                 float(tin.get("dropped_packets", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, self.config.primary_wan, "wanctl_cake_tin_ecn_marked",
+                 float(tin.get("ecn_marked_packets", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, self.config.primary_wan, "wanctl_cake_tin_delay_us",
+                 float(tin.get("avg_delay_us", 0)), tin_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, self.config.primary_wan, "wanctl_cake_tin_backlog_bytes",
+                 float(tin.get("backlog_bytes", 0)), tin_labels, "raw")
+            )
 
 
 # =============================================================================
@@ -2172,38 +2153,8 @@ def run_daemon_loop(
 # =============================================================================
 
 
-def main() -> int | None:
-    """Main entry point for adaptive multi-WAN steering daemon.
-
-    Runs continuous steering control loop that monitors congestion state from
-    autorate daemons and makes routing decisions to steer latency-sensitive
-    traffic between WANs. Uses hysteresis-based state machine to prevent
-    flapping while ensuring responsive failover.
-
-    The daemon performs these operations in each cycle:
-    - Checks congestion state from autorate state files
-    - Measures current RTT to detect network issues
-    - Updates baseline RTT from autorate measurements
-    - Applies hysteresis logic to determine steering state
-    - Enables/disables routing rule when state transitions occur
-    - Persists steering history and state to survive restarts
-
-    Operational modes:
-    - Normal: Continuous daemon mode with cycle-based control loop
-    - Reset: Clears state file and disables steering (--reset flag)
-
-    Signal handling:
-    - SIGTERM/SIGINT: Graceful shutdown with state save and lock cleanup
-    - Uses event-based sleep for immediate shutdown response
-
-    Optional systemd watchdog support:
-    - Notifies systemd on each successful cycle
-    - Stops watchdog after 3 consecutive failures (triggers restart)
-    - Reports degraded status when unhealthy
-
-    Returns:
-        int: Exit code - 0 for success, 1 for error, 130 for interrupt
-    """
+def _parse_steering_args() -> argparse.Namespace:
+    """Parse steering daemon CLI arguments."""
     parser = argparse.ArgumentParser(description="Adaptive Multi-WAN Steering Daemon")
     parser.add_argument("--config", required=True, help="Path to config YAML file")
     parser.add_argument("--reset", action="store_true", help="Reset state and disable steering")
@@ -2213,34 +2164,17 @@ def main() -> int | None:
         action="store_true",
         help="Enable periodic profiling reports (INFO level)",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # Register signal handlers early (W5: Graceful Shutdown)
-    # This must be done before any long-running operations
-    register_signal_handlers()
 
-    # Load config
-    try:
-        config = SteeringConfig(args.config)
-    except Exception as e:
-        print(f"ERROR: Failed to load config: {e}")
-        traceback.print_exc()
-        return 1
-
-    # Setup logging
-    logger = setup_logging(config, "steering", args.debug)
-    logger.info("=" * 60)
-    logger.info(
-        f"Steering Daemon - Primary: {config.primary_wan}, Alternate: {config.alternate_wan}"
-    )
-    logger.info("=" * 60)
-
-    # Record config snapshot on startup (if storage enabled)
+def _run_steering_startup_storage(
+    config: SteeringConfig, logger: logging.Logger
+) -> None:
+    """Record config snapshot and run startup maintenance if storage enabled."""
     storage_config = get_storage_config(config.data)
     db_path = storage_config.get("db_path")
     retention_config = storage_config.get("retention")
 
-    # Cross-section validation: retention vs tuner data availability
     validate_retention_tuner_compat(
         retention_config,
         config.data.get("tuning"),
@@ -2253,7 +2187,6 @@ def main() -> int | None:
         writer = MetricsWriter(Path(db_path))
         record_config_snapshot(writer, config.primary_wan, config.data, "startup")
 
-        # Run startup maintenance (cleanup + downsampling)
         maint_result = run_startup_maintenance(
             writer.connection,
             retention_config=retention_config,
@@ -2264,65 +2197,139 @@ def main() -> int | None:
 
         logger.info(f"Config snapshot recorded to {db_path}")
 
-    # Check for early shutdown (signal received during startup)
-    if is_shutdown_requested():
-        logger.info("Shutdown requested during startup, exiting gracefully")
-        return 0
 
-    # Initialize components
+def _create_steering_components(
+    config: SteeringConfig, logger: logging.Logger
+) -> tuple[SteeringStateManager, RouterOSController, RTTMeasurement, BaselineLoader]:
+    """Initialize steering daemon components."""
     schema = create_steering_state_schema(config)
     state_mgr = SteeringStateManager(
         config.state_file, schema, logger, history_maxlen=config.history_size
     )
     state_mgr.load()
     router = RouterOSController(config, logger)
-    # Use unified RTTMeasurement with MEDIAN aggregation
     rtt_measurement = RTTMeasurement(
         logger,
         timeout_ping=config.timeout_ping,
         aggregation_strategy=RTTAggregationStrategy.MEDIAN,
-        log_sample_stats=False,  # Steering only uses single sample (count=1)
+        log_sample_stats=False,
     )
     baseline_loader = BaselineLoader(config, logger)
+    return state_mgr, router, rtt_measurement, baseline_loader
 
-    # Handle reset
+
+def _cleanup_steering_daemon(
+    daemon: SteeringDaemon,
+    config: SteeringConfig,
+    health_server: object | None,
+    logger: logging.Logger,
+) -> None:
+    """Ordered shutdown: state > health > connections > metrics > locks."""
+    cleanup_start = time.monotonic()
+    deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
+    logger.info("Shutting down daemon...")
+
+    # 0. Force save state (preserve EWMA/counters on shutdown)
+    t0 = time.monotonic()
+    try:
+        daemon.state_mgr.save()
+        logger.debug("State saved on shutdown")
+    except Exception as e:
+        logger.warning(f"Error saving state on shutdown: {e}")
+    check_cleanup_deadline(
+        "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    # 1. Shutdown health server (INTG-02)
+    if health_server is not None:
+        t0 = time.monotonic()
+        try:
+            health_server.shutdown()
+            logger.debug("Health server stopped")
+        except Exception as e:
+            logger.warning(f"Error shutting down health server: {e}")
+        check_cleanup_deadline(
+            "health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS,
+            logger, now=time.monotonic(),
+        )
+
+    # 2. Close router connection
+    t0 = time.monotonic()
+    try:
+        daemon.router.client.close()
+        logger.debug("Router connection closed")
+    except Exception as e:
+        logger.warning(f"Error closing router connection: {e}")
+    check_cleanup_deadline(
+        "router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    # 3. Close MetricsWriter (SQLite connection)
+    t0 = time.monotonic()
+    try:
+        if MetricsWriter._instance is not None:
+            MetricsWriter._instance.close()
+            logger.debug("MetricsWriter connection closed")
+    except Exception as e:
+        logger.warning(f"Error closing MetricsWriter: {e}")
+    check_cleanup_deadline(
+        "metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    # 4. Release lock file
+    if config.lock_file.exists():
+        config.lock_file.unlink()
+        logger.debug(f"Lock released: {config.lock_file}")
+
+    total = time.monotonic() - cleanup_start
+    logger.info(f"Shutdown complete ({total:.1f}s)")
+
+
+def _setup_steering_daemon(
+    config: SteeringConfig,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+) -> tuple[SteeringDaemon, object | None]:
+    """Create daemon instance, acquire lock, start health server.
+
+    Returns:
+        (daemon, health_server) tuple
+    """
+    state_mgr, router, rtt_measurement, baseline_loader = _create_steering_components(
+        config, logger
+    )
+
     if args.reset:
         logger.info("RESET requested")
         state_mgr.reset()
         router.disable_steering()
         logger.info("Reset complete")
-        return 0
+        raise SystemExit(0)
 
-    # Acquire lock at startup (held for daemon lifetime)
     if not validate_and_acquire_lock(config.lock_file, config.lock_timeout, logger):
         logger.error("Another instance is running, refusing to start")
-        return 1
+        raise SystemExit(1)
 
-    # Register emergency cleanup handler for lock file
     def emergency_lock_cleanup() -> None:
         """Emergency cleanup - runs via atexit if finally block doesn't complete."""
         try:
             config.lock_file.unlink(missing_ok=True)
         except OSError:
-            pass  # Best effort - nothing we can do
+            pass
 
     atexit.register(emergency_lock_cleanup)
 
-    # Check for shutdown before starting daemon
     if is_shutdown_requested():
         logger.info("Shutdown requested before startup, exiting gracefully")
         config.lock_file.unlink(missing_ok=True)
-        return 0
+        raise SystemExit(0)
 
-    # Create daemon
     daemon = SteeringDaemon(config, state_mgr, router, rtt_measurement, baseline_loader, logger)
     clear_router_password(config)
 
-    # Enable profiling if --profile flag set
     if args.profile:
         daemon._profiling_enabled = True
 
-    # Start health server (INTG-01)
     health_server = None
     if config.health_check_enabled:
         try:
@@ -2332,22 +2339,53 @@ def main() -> int | None:
                 daemon=daemon,
             )
         except Exception as e:
-            # Log and continue - health endpoint is optional
             logger.warning(f"Failed to start health server: {e}")
 
-    # Get shutdown event for direct access in timed waits
-    shutdown_event = get_shutdown_event()
+    return daemon, health_server
+
+
+def main() -> int | None:
+    """Main entry point for adaptive multi-WAN steering daemon.
+
+    Orchestrates setup, daemon loop, and cleanup for the steering service.
+
+    Returns:
+        int: Exit code - 0 for success, 1 for error, 130 for interrupt
+    """
+    args = _parse_steering_args()
+    register_signal_handlers()
 
     try:
-        # Run the daemon loop (extracted for testability)
-        return run_daemon_loop(daemon, config, logger, shutdown_event)
+        config = SteeringConfig(args.config)
+    except Exception as e:
+        print(f"ERROR: Failed to load config: {e}")
+        traceback.print_exc()
+        return 1
 
+    logger = setup_logging(config, "steering", args.debug)
+    logger.info("=" * 60)
+    logger.info(
+        f"Steering Daemon - Primary: {config.primary_wan}, Alternate: {config.alternate_wan}"
+    )
+    logger.info("=" * 60)
+
+    _run_steering_startup_storage(config, logger)
+
+    if is_shutdown_requested():
+        logger.info("Shutdown requested during startup, exiting gracefully")
+        return 0
+
+    try:
+        daemon, health_server = _setup_steering_daemon(config, args, logger)
+    except SystemExit as e:
+        return e.code
+
+    try:
+        return run_daemon_loop(daemon, config, logger, get_shutdown_event())
     except KeyboardInterrupt:
-        # KeyboardInterrupt may bypass signal handler in some cases
         logger.info("Interrupted by user (KeyboardInterrupt)")
         return 130
     except Exception as e:
-        # Check if exception was due to shutdown
         if is_shutdown_requested():
             logger.info("Exception during shutdown, exiting gracefully")
             return 0
@@ -2355,69 +2393,7 @@ def main() -> int | None:
         logger.error(traceback.format_exc())
         return 1
     finally:
-        # CLEANUP PRIORITY: state > health > connections > metrics > locks
-        cleanup_start = time.monotonic()
-        deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
-        logger.info("Shutting down daemon...")
-
-        # 0. Force save state (preserve EWMA/counters on shutdown)
-        t0 = time.monotonic()
-        try:
-            daemon.state_mgr.save()
-            logger.debug("State saved on shutdown")
-        except Exception as e:
-            logger.warning(f"Error saving state on shutdown: {e}")
-        check_cleanup_deadline(
-            "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
-        )
-
-        # 1. Shutdown health server (INTG-02)
-        if health_server is not None:
-            t0 = time.monotonic()
-            try:
-                health_server.shutdown()
-                logger.debug("Health server stopped")
-            except Exception as e:
-                logger.warning(f"Error shutting down health server: {e}")
-            check_cleanup_deadline(
-                "health_server",
-                t0,
-                deadline,
-                SHUTDOWN_TIMEOUT_SECONDS,
-                logger,
-                now=time.monotonic(),
-            )
-
-        # 2. Close router connection
-        t0 = time.monotonic()
-        try:
-            daemon.router.client.close()
-            logger.debug("Router connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing router connection: {e}")
-        check_cleanup_deadline(
-            "router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
-        )
-
-        # 3. Close MetricsWriter (SQLite connection)
-        t0 = time.monotonic()
-        try:
-            if MetricsWriter._instance is not None:
-                MetricsWriter._instance.close()
-                logger.debug("MetricsWriter connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing MetricsWriter: {e}")
-        check_cleanup_deadline(
-            "metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
-        )
-
-        # 4. Release lock file
-        if config.lock_file.exists():
-            config.lock_file.unlink()
-            logger.debug(f"Lock released: {config.lock_file}")
-
-        total = time.monotonic() - cleanup_start
-        logger.info(f"Shutdown complete ({total:.1f}s)")
+        _cleanup_steering_daemon(daemon, config, health_server, logger)
 
 
 if __name__ == "__main__":
