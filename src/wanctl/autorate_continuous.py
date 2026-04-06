@@ -337,9 +337,7 @@ def _init_storage(
             max_seconds=20,
         )
         if maint_result.get("error"):
-            startup_logger.warning(
-                f"Startup maintenance error: {maint_result['error']}"
-            )
+            startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
 
     return maintenance_conn, maintenance_retention_config
 
@@ -439,6 +437,710 @@ def _start_irtt_thread(
     return thread
 
 
+def _configure_controller_flags(
+    controller: "ContinuousAutoRate",
+    args: argparse.Namespace,
+) -> None:
+    """Apply --profile and --dry-run CLI flags to all WAN controllers."""
+    if args.profile:
+        for wan_info in controller.wan_controllers:
+            wan_info["controller"]._profiling_enabled = True
+
+
+def _setup_daemon_state(
+    controller: "ContinuousAutoRate",
+    irtt_thread: IRTTThread | None,
+) -> None:
+    """Wire IRTT thread, start background RTT, and log startup info."""
+    for wan_info in controller.wan_controllers:
+        wan_info["controller"]._irtt_thread = irtt_thread
+        wan_info["controller"]._init_fusion_healer()
+
+    rtt_shutdown = get_shutdown_event()
+    for wan_info in controller.wan_controllers:
+        wan_info["controller"].start_background_rtt(rtt_shutdown)
+
+    for wan_info in controller.wan_controllers:
+        wan_info["logger"].info(
+            f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval"
+        )
+        if is_systemd_available():
+            wan_info["logger"].info("Systemd watchdog support enabled")
+
+
+def _track_cycle_failures(
+    controller: "ContinuousAutoRate",
+    cycle_success: bool,
+    consecutive_failures: int,
+    watchdog_enabled: bool,
+) -> tuple[int, bool]:
+    """Track consecutive cycle failures and manage watchdog state.
+
+    Returns updated (consecutive_failures, watchdog_enabled).
+    """
+    MAX_CONSECUTIVE_FAILURES = 3
+
+    if cycle_success:
+        if not watchdog_enabled:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].info(
+                    "Cycle recovered after watchdog surrender. Re-enabling watchdog notifications."
+                )
+        return 0, True
+
+    consecutive_failures += 1
+    for wan_info in controller.wan_controllers:
+        wan_info["logger"].warning(
+            f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})"
+        )
+
+    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+        watchdog_enabled = False
+        for wan_info in controller.wan_controllers:
+            wan_info["logger"].error(
+                f"Sustained failure: {consecutive_failures} consecutive "
+                f"failed cycles. Stopping watchdog - systemd will terminate us."
+            )
+        notify_degraded("consecutive failures exceeded threshold")
+
+    return consecutive_failures, watchdog_enabled
+
+
+def _notify_watchdog_with_distinction(
+    controller: "ContinuousAutoRate",
+    cycle_success: bool,
+    consecutive_failures: int,
+    watchdog_enabled: bool,
+) -> None:
+    """Notify systemd watchdog with router failure distinction (ERRR-04)."""
+    router_only_failure = False
+    if not cycle_success:
+        all_routers_unreachable = all(
+            not wan_info["controller"].router_connectivity.is_reachable
+            for wan_info in controller.wan_controllers
+        )
+        any_auth_failure = any(
+            wan_info["controller"].router_connectivity.last_failure_type == "auth_failure"
+            for wan_info in controller.wan_controllers
+        )
+        router_only_failure = all_routers_unreachable and not any_auth_failure
+
+    if watchdog_enabled and cycle_success:
+        notify_watchdog()
+    elif watchdog_enabled and router_only_failure:
+        notify_watchdog()
+        for wan_info in controller.wan_controllers:
+            wan_info["logger"].info(
+                f"Router unreachable ({consecutive_failures} cycles), watchdog continues"
+            )
+    elif not watchdog_enabled:
+        notify_degraded(f"{consecutive_failures} consecutive failures")
+
+
+def _run_maintenance(
+    controller: "ContinuousAutoRate",
+    maintenance_conn: Any,
+    maintenance_retention_config: dict,
+) -> None:
+    """Run periodic maintenance: cleanup, downsample, vacuum, WAL truncate."""
+    maint_logger = controller.wan_controllers[0]["logger"]
+    try:
+        from wanctl.storage.downsampler import (
+            downsample_metrics,
+            get_downsample_thresholds,
+        )
+        from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
+
+        deleted = cleanup_old_metrics(
+            maintenance_conn,
+            retention_config=maintenance_retention_config,
+            watchdog_fn=notify_watchdog,
+        )
+        notify_watchdog()
+
+        custom_thresholds = get_downsample_thresholds(
+            raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
+            aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
+            aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
+        )
+        downsampled = downsample_metrics(
+            maintenance_conn,
+            watchdog_fn=notify_watchdog,
+            thresholds=custom_thresholds,
+        )
+        notify_watchdog()
+
+        vacuumed = vacuum_if_needed(maintenance_conn, deleted)
+        notify_watchdog()
+
+        wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
+        notify_watchdog()
+
+        total_ds = sum(downsampled.values())
+        if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
+            maint_logger.info(
+                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
+                deleted,
+                total_ds,
+                vacuumed,
+                wal_truncated,
+            )
+    except Exception as e:
+        maint_logger.error("Periodic maintenance failed: %s", e)
+
+
+def _build_tuning_layers() -> list[list[tuple[str, Any]]]:
+    """Build layer definitions for bottom-up tuning (SIGP-04).
+
+    Lazy-imports tuning strategy modules.
+    """
+    from wanctl.tuning.strategies.advanced import (
+        tune_baseline_bounds_max,
+        tune_baseline_bounds_min,
+        tune_fusion_weight,
+        tune_reflector_min_score,
+    )
+    from wanctl.tuning.strategies.congestion_thresholds import (
+        calibrate_target_bloat,
+        calibrate_warn_bloat,
+    )
+    from wanctl.tuning.strategies.response import (
+        tune_dl_factor_down,
+        tune_dl_green_required,
+        tune_dl_step_up,
+        tune_ul_factor_down,
+        tune_ul_green_required,
+        tune_ul_step_up,
+    )
+    from wanctl.tuning.strategies.signal_processing import (
+        tune_alpha_load,
+        tune_hampel_sigma,
+        tune_hampel_window,
+    )
+
+    _Layer = list[tuple[str, Any]]
+    signal: _Layer = [
+        ("hampel_sigma_threshold", tune_hampel_sigma),
+        ("hampel_window_size", tune_hampel_window),
+    ]
+    ewma: _Layer = [("load_time_constant_sec", tune_alpha_load)]
+    threshold: _Layer = [
+        ("target_bloat_ms", calibrate_target_bloat),
+        ("warn_bloat_ms", calibrate_warn_bloat),
+    ]
+    advanced: _Layer = [
+        ("fusion_icmp_weight", tune_fusion_weight),
+        ("reflector_min_score", tune_reflector_min_score),
+        ("baseline_rtt_min", tune_baseline_bounds_min),
+        ("baseline_rtt_max", tune_baseline_bounds_max),
+    ]
+    response: _Layer = [
+        ("dl_step_up_mbps", tune_dl_step_up),
+        ("ul_step_up_mbps", tune_ul_step_up),
+        ("dl_factor_down", tune_dl_factor_down),
+        ("ul_factor_down", tune_ul_factor_down),
+        ("dl_green_required", tune_dl_green_required),
+        ("ul_green_required", tune_ul_green_required),
+    ]
+    return [signal, ewma, threshold, advanced, response]
+
+
+def _check_pending_reverts(
+    wc: Any,
+    wan_info: dict[str, Any],
+    db_path: str,
+    metrics_writer: Any,
+) -> None:
+    """Check and apply pending observation reverts for a WAN controller."""
+    from wanctl.tuning.applier import persist_revert_record
+    from wanctl.tuning.safety import (
+        DEFAULT_MIN_CONGESTION_RATE,
+        DEFAULT_REVERT_COOLDOWN_SEC,
+        DEFAULT_REVERT_THRESHOLD,
+        check_and_revert,
+        lock_parameter,
+    )
+
+    try:
+        reverts = check_and_revert(
+            wc._pending_observation,
+            db_path,
+            wc.wan_name,
+            revert_threshold=DEFAULT_REVERT_THRESHOLD,
+            min_congestion_rate=DEFAULT_MIN_CONGESTION_RATE,
+        )
+        if reverts:
+            _apply_tuning_to_controller(wc, reverts)
+            for rv in reverts:
+                persist_revert_record(rv, metrics_writer)
+                lock_parameter(
+                    wc._parameter_locks,
+                    rv.parameter,
+                    DEFAULT_REVERT_COOLDOWN_SEC,
+                )
+                wan_info["logger"].error(
+                    "[TUNING] %s: %s",
+                    wc.wan_name,
+                    rv.rationale,
+                )
+    except Exception as e:
+        wan_info["logger"].error(
+            "[TUNING] Revert check failed for %s: %s",
+            wc.wan_name,
+            e,
+        )
+    wc._pending_observation = None  # Clear regardless
+
+
+def _check_oscillation_lockout(
+    wc: Any,
+    wan_info: dict[str, Any],
+    tuning_config: TuningConfig,
+    db_path: str,
+) -> None:
+    """Check oscillation lockout for response layer (RTUN-04)."""
+    from wanctl.tuning.analyzer import _query_wan_metrics
+    from wanctl.tuning.strategies.response import check_oscillation_lockout
+
+    try:
+        osc_metrics = _query_wan_metrics(db_path, wc.wan_name, tuning_config.lookback_hours)
+        check_oscillation_lockout(
+            osc_metrics,
+            wc._parameter_locks,
+            getattr(wc, "_oscillation_threshold", 0.1),
+            getattr(wc, "_alert_engine", None),
+            wc.wan_name,
+        )
+    except Exception as e:
+        wan_info["logger"].debug(
+            "[TUNING] %s: oscillation check failed: %s",
+            wc.wan_name,
+            e,
+        )
+
+
+def _analyze_and_apply_tuning(
+    wc: Any,
+    wan_info: dict[str, Any],
+    tuning_config: TuningConfig,
+    db_path: str,
+    metrics_writer: Any,
+    active_strategies: list[tuple[str, Any]],
+) -> None:
+    """Run tuning analysis and apply results for a single WAN controller."""
+    from wanctl.tuning.analyzer import run_tuning_analysis
+    from wanctl.tuning.applier import apply_tuning_results
+    from wanctl.tuning.safety import PendingObservation, measure_congestion_rate
+
+    current_params = _build_current_params(wc)
+    try:
+        results = run_tuning_analysis(
+            wan_name=wc.wan_name,
+            db_path=db_path,
+            tuning_config=tuning_config,
+            current_params=current_params,
+            strategies=active_strategies,
+        )
+        if results:
+            applied = apply_tuning_results(results, tuning_config, metrics_writer)
+            if applied:
+                _apply_tuning_to_controller(wc, applied)
+                pre_rate = measure_congestion_rate(
+                    db_path,
+                    wc.wan_name,
+                    start_ts=int(time.time()) - tuning_config.cadence_sec,
+                    end_ts=int(time.time()),
+                )
+                if pre_rate is not None:
+                    wc._pending_observation = PendingObservation(
+                        applied_ts=int(time.time()),
+                        pre_congestion_rate=pre_rate,
+                        applied_results=tuple(applied),
+                    )
+    except Exception as e:
+        wan_info["logger"].error(
+            "[TUNING] Analysis failed for %s: %s",
+            wc.wan_name,
+            e,
+        )
+
+
+def _run_tuning_for_wan(
+    wc: Any,
+    wan_info: dict[str, Any],
+    tuning_config: TuningConfig,
+    db_path: str,
+    metrics_writer: Any,
+    all_layers: list[list[tuple[str, Any]]],
+) -> None:
+    """Run one adaptive tuning pass for a single WAN controller."""
+    from wanctl.tuning.safety import is_parameter_locked
+
+    _check_pending_reverts(wc, wan_info, db_path, metrics_writer)
+
+    # Select active layer via round-robin (SIGP-04)
+    active_layer = all_layers[wc._tuning_layer_index % len(all_layers)]
+    wc._tuning_layer_index += 1
+
+    # Oscillation lockout for response layer (RTUN-04)
+    if active_layer is all_layers[-1]:
+        _check_oscillation_lockout(wc, wan_info, tuning_config, db_path)
+
+    # Filter excluded and locked parameters
+    excluded = tuning_config.exclude_params
+    active_strategies = [
+        (pname, sfn)
+        for pname, sfn in active_layer
+        if pname not in excluded and not is_parameter_locked(wc._parameter_locks, pname)
+    ]
+    _log_excluded_params(wc, wan_info, active_layer, excluded)
+
+    _analyze_and_apply_tuning(
+        wc, wan_info, tuning_config, db_path, metrics_writer, active_strategies
+    )
+
+
+def _log_excluded_params(
+    wc: Any,
+    wan_info: dict[str, Any],
+    active_layer: list[tuple[str, Any]],
+    excluded: frozenset[str] | set[str],
+) -> None:
+    """Log parameter exclusion/lockout status for the active layer."""
+    from wanctl.tuning.safety import is_parameter_locked
+
+    for pname, _ in active_layer:
+        if pname in excluded:
+            wan_info["logger"].debug(
+                "[TUNING] %s: %s excluded via config",
+                wc.wan_name,
+                pname,
+            )
+        elif is_parameter_locked(wc._parameter_locks, pname):
+            wan_info["logger"].info(
+                "[TUNING] %s: %s locked until revert cooldown expires",
+                wc.wan_name,
+                pname,
+            )
+
+
+def _build_current_params(wc: Any) -> dict[str, float]:
+    """Build current parameter snapshot from a WAN controller."""
+    return {
+        "target_bloat_ms": wc.green_threshold,
+        "warn_bloat_ms": wc.soft_red_threshold,
+        "hard_red_bloat_ms": wc.hard_red_threshold,
+        "alpha_load": wc.alpha_load,
+        "alpha_baseline": wc.alpha_baseline,
+        "hampel_sigma_threshold": wc.signal_processor._sigma_threshold,
+        "hampel_window_size": float(wc.signal_processor._window_size),
+        "load_time_constant_sec": 0.05 / wc.alpha_load,
+        "fusion_icmp_weight": wc._fusion_icmp_weight,
+        "reflector_min_score": wc._reflector_scorer._min_score,
+        "baseline_rtt_min": wc.baseline_rtt_min,
+        "baseline_rtt_max": wc.baseline_rtt_max,
+        "dl_step_up_mbps": wc.download.step_up_bps / 1e6,
+        "ul_step_up_mbps": wc.upload.step_up_bps / 1e6,
+        "dl_factor_down": wc.download.factor_down,
+        "ul_factor_down": wc.upload.factor_down,
+        "dl_green_required": float(wc.download.green_required),
+        "ul_green_required": float(wc.upload.green_required),
+    }
+
+
+def _maybe_run_tuning(controller: "ContinuousAutoRate", last_tuning: float) -> float:
+    """Run adaptive tuning if cadence elapsed. Returns updated last_tuning."""
+    tuning_config = getattr(
+        controller.wan_controllers[0]["controller"],
+        "tuning_config",
+        None,
+    )
+    if isinstance(tuning_config, TuningConfig) and tuning_config.enabled:
+        now = time.monotonic()
+        if now - last_tuning >= tuning_config.cadence_sec:
+            _run_adaptive_tuning(controller)
+            return now
+    return last_tuning
+
+
+def _run_adaptive_tuning(controller: "ContinuousAutoRate") -> None:
+    """Execute one adaptive tuning pass across all WAN controllers."""
+    tuning_config = getattr(
+        controller.wan_controllers[0]["controller"],
+        "tuning_config",
+        None,
+    )
+    if not isinstance(tuning_config, TuningConfig) or not tuning_config.enabled:
+        return
+
+    all_layers = _build_tuning_layers()
+
+    first_config = controller.wan_controllers[0]["config"]
+    storage_config = get_storage_config(first_config.data)
+    db_path = storage_config.get("db_path", "")
+    metrics_writer = controller.wan_controllers[0]["controller"]._metrics_writer
+
+    for wan_info in controller.wan_controllers:
+        wc = wan_info["controller"]
+        if not wc._tuning_enabled:
+            continue
+        _run_tuning_for_wan(wc, wan_info, tuning_config, db_path, metrics_writer, all_layers)
+
+
+def _handle_sigusr1_reload(
+    controller: "ContinuousAutoRate",
+    maintenance_retention_config: dict,
+) -> dict:
+    """Handle SIGUSR1 config reload. Returns updated maintenance_retention_config."""
+    for wan_info in controller.wan_controllers:
+        wan_info["logger"].info("SIGUSR1 received, reloading config")
+        wan_info["controller"]._reload_fusion_config()
+        wan_info["controller"]._reload_tuning_config()
+        wan_info["controller"]._reload_hysteresis_config()
+        wan_info["controller"]._reload_cycle_budget_config()
+        wan_info["controller"]._reload_suppression_alert_config()
+
+    try:
+        reload_wan = controller.wan_controllers[0]
+        new_storage_config = get_storage_config(reload_wan["config"].data)
+        new_retention = new_storage_config.get("retention")
+        validate_retention_tuner_compat(
+            new_retention,
+            reload_wan["config"].data.get("tuning"),
+            logger=reload_wan["logger"],
+        )
+        maintenance_retention_config = new_retention
+        reload_wan["logger"].info("Retention config reloaded via SIGUSR1")
+    except ConfigValidationError as e:
+        controller.wan_controllers[0]["logger"].error(
+            "Retention config reload failed, keeping previous config: %s", e
+        )
+
+    reset_reload_state()
+    return maintenance_retention_config
+
+
+def _save_controller_state(
+    controller: "ContinuousAutoRate",
+    deadline: float,
+    logger: logging.Logger,
+) -> None:
+    """Force-save state for all WANs (preserve EWMA/counters on shutdown)."""
+    t0 = time.monotonic()
+    for wan_info in controller.wan_controllers:
+        try:
+            wan_info["controller"].save_state(force=True)
+        except Exception:
+            pass  # nosec B110 - Best effort shutdown cleanup
+    check_cleanup_deadline(
+        "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+
+def _stop_background_threads(
+    controller: "ContinuousAutoRate",
+    irtt_thread: IRTTThread | None,
+    deadline: float,
+    logger: logging.Logger,
+) -> None:
+    """Stop IRTT thread, background RTT threads, and persistent pools."""
+    t0 = time.monotonic()
+    if irtt_thread is not None:
+        try:
+            irtt_thread.stop()
+        except Exception as e:
+            logger.debug(f"Error stopping IRTT thread: {e}")
+    check_cleanup_deadline(
+        "irtt_thread", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    t0 = time.monotonic()
+    for wan_info in controller.wan_controllers:
+        wc = wan_info["controller"]
+        try:
+            if wc._rtt_thread is not None:
+                wc._rtt_thread.stop()
+        except Exception as e:
+            logger.debug(f"Error stopping RTT thread: {e}")
+        try:
+            if wc._rtt_pool is not None:
+                wc._rtt_pool.shutdown(wait=True, cancel_futures=True)
+        except Exception as e:
+            logger.debug(f"Error shutting down RTT pool: {e}")
+    check_cleanup_deadline(
+        "rtt_thread", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+
+def _release_daemon_locks(
+    controller: "ContinuousAutoRate",
+    lock_files: list[Path],
+    emergency_lock_cleanup: Any,
+) -> None:
+    """Release lock files and unregister atexit handler."""
+    for lock_path in lock_files:
+        try:
+            lock_path.unlink(missing_ok=True)
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].debug(f"Lock released: {lock_path}")
+        except OSError:
+            pass  # Best effort - may already be gone
+
+    try:
+        atexit.unregister(emergency_lock_cleanup)
+    except Exception:
+        pass  # nosec B110 - Not critical if this fails during shutdown
+
+
+def _close_router_connections(
+    controller: "ContinuousAutoRate",
+    deadline: float,
+    logger: logging.Logger,
+) -> None:
+    """Close SSH/REST router connections."""
+    t0 = time.monotonic()
+    for wan_info in controller.wan_controllers:
+        try:
+            router = wan_info["controller"].router
+            if hasattr(router, "client") and router.client:
+                router.client.close()
+            if hasattr(router, "close"):
+                router.close()
+        except Exception as e:
+            wan_info["logger"].debug(f"Error closing router connection: {e}")
+    check_cleanup_deadline(
+        "router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+
+def _stop_daemon_servers(
+    controller: "ContinuousAutoRate",
+    metrics_server: Any,
+    health_server: Any,
+    deadline: float,
+    logger: logging.Logger,
+) -> None:
+    """Stop metrics and health check servers."""
+    t0 = time.monotonic()
+    if metrics_server:
+        try:
+            metrics_server.stop()
+        except Exception as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
+    check_cleanup_deadline(
+        "metrics_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    t0 = time.monotonic()
+    if health_server:
+        try:
+            health_server.shutdown()
+        except Exception as e:
+            for wan_info in controller.wan_controllers:
+                wan_info["logger"].debug(f"Error shutting down health server: {e}")
+    check_cleanup_deadline(
+        "health_server", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+
+def _close_metrics_writer(
+    deadline: float,
+    logger: logging.Logger,
+) -> None:
+    """Close MetricsWriter SQLite connection."""
+    t0 = time.monotonic()
+    try:
+        if MetricsWriter._instance is not None:
+            MetricsWriter._instance.close()
+            logger.debug("MetricsWriter connection closed")
+    except Exception as e:
+        logger.debug(f"Error closing MetricsWriter: {e}")
+    check_cleanup_deadline(
+        "metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+
+def _cleanup_daemon(
+    controller: "ContinuousAutoRate",
+    lock_files: list[Path],
+    irtt_thread: IRTTThread | None,
+    metrics_server: Any,
+    health_server: Any,
+    emergency_lock_cleanup: Any,
+) -> None:
+    """Ordered daemon shutdown: state > threads > locks > connections > servers > metrics."""
+    cleanup_start = time.monotonic()
+    deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
+    _cleanup_log = logging.getLogger(__name__)
+    _cleanup_log.info("Shutting down daemon...")
+
+    _save_controller_state(controller, deadline, _cleanup_log)
+    _stop_background_threads(controller, irtt_thread, deadline, _cleanup_log)
+    _release_daemon_locks(controller, lock_files, emergency_lock_cleanup)
+    _close_router_connections(controller, deadline, _cleanup_log)
+    _stop_daemon_servers(controller, metrics_server, health_server, deadline, _cleanup_log)
+    _close_metrics_writer(deadline, _cleanup_log)
+
+    total = time.monotonic() - cleanup_start
+    for wan_info in controller.wan_controllers:
+        wan_info["logger"].info(f"Daemon shutdown complete ({total:.1f}s)")
+
+
+def _run_daemon_loop(
+    controller: "ContinuousAutoRate",
+    maintenance_conn: Any,
+    maintenance_retention_config: dict,
+) -> None:
+    """Main daemon control loop with cycle management, maintenance, and tuning."""
+    consecutive_failures = 0
+    watchdog_enabled = True
+    last_maintenance = time.monotonic()
+    last_tuning = time.monotonic()
+    shutdown_event = get_shutdown_event()
+
+    while not is_shutdown_requested():
+        cycle_start = time.monotonic()
+
+        cycle_success = controller.run_cycle(use_lock=False)  # Lock already held
+        elapsed = time.monotonic() - cycle_start
+
+        consecutive_failures, watchdog_enabled = _track_cycle_failures(
+            controller, cycle_success, consecutive_failures, watchdog_enabled
+        )
+        update_health_status(consecutive_failures)
+        _notify_watchdog_with_distinction(
+            controller, cycle_success, consecutive_failures, watchdog_enabled
+        )
+
+        # Periodic maintenance: cleanup + downsample + vacuum every hour
+        if maintenance_conn is not None:
+            now = time.monotonic()
+            if now - last_maintenance >= MAINTENANCE_INTERVAL:
+                _run_maintenance(controller, maintenance_conn, maintenance_retention_config)
+                last_maintenance = now
+
+        # Adaptive tuning (runs after maintenance, on its own cadence)
+        last_tuning = _maybe_run_tuning(controller, last_tuning)
+
+        # Check for config reload signal (SIGUSR1)
+        if is_reload_requested():
+            maintenance_retention_config = _handle_sigusr1_reload(
+                controller, maintenance_retention_config
+            )
+
+        # Sleep for remainder of cycle interval
+        sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
+        if sleep_time > 0 and not is_shutdown_requested():
+            shutdown_event.wait(timeout=sleep_time)
+
+    # Log shutdown when detected (safe - in main loop, not signal handler)
+    if is_shutdown_requested():
+        for wan_info in controller.wan_controllers:
+            wan_info["logger"].info("Shutdown requested, exiting gracefully...")
+
+
 def main() -> int | None:
     """Main entry point for continuous CAKE auto-tuning daemon.
 
@@ -480,613 +1182,48 @@ def main() -> int | None:
     """
     args = _parse_autorate_args()
 
-    # Validate-config mode: check configuration and exit
     if args.validate_config:
         return validate_config_mode(args.config)
 
-    # Create controller
     controller = ContinuousAutoRate(args.config, debug=args.debug)
-
-    # Enable profiling on all WAN controllers if --profile flag set
-    if args.profile:
-        for wan_info in controller.wan_controllers:
-            wan_info["controller"]._profiling_enabled = True
-
-    # Initialize storage, record config snapshot, and run startup maintenance
+    _configure_controller_flags(controller, args)
     maintenance_conn, maintenance_retention_config = _init_storage(controller)
 
-    # Oneshot mode for testing - use per-cycle locking
     if args.oneshot:
         controller.run_cycle(use_lock=True)
         return None
 
-    # Daemon mode: continuous loop with 50ms cycle time
-    # Acquire locks once at startup and hold for entire run
     lock_files, lock_error = _acquire_daemon_locks(controller)
     if lock_error is not None:
         return lock_error
 
-    # Register emergency cleanup handler for abnormal termination (e.g., SIGKILL)
-    # atexit handlers run on normal exit, sys.exit(), and unhandled exceptions
-    # but NOT on SIGKILL - that's unavoidable. However, this covers more cases
-    # than relying solely on the finally block.
+    # Register emergency cleanup handler for abnormal termination
     def emergency_lock_cleanup() -> None:
         """Emergency cleanup - runs via atexit if finally block doesn't complete."""
         for lock_path in lock_files:
             try:
                 lock_path.unlink(missing_ok=True)
             except OSError:
-                pass  # Best effort - nothing we can do
+                pass  # Best effort
 
     atexit.register(emergency_lock_cleanup)
-
-    # Register signal handlers for graceful shutdown
     register_signal_handlers()
 
-    consecutive_failures = 0
-    MAX_CONSECUTIVE_FAILURES = 3
-    watchdog_enabled = True
-    last_maintenance = time.monotonic()
-    last_tuning = time.monotonic()
-
-    # Start optional servers (metrics, health check)
     metrics_server, health_server = _start_servers(controller)
-
-    # Start IRTT background measurement thread (if configured)
     irtt_thread = _start_irtt_thread(controller)
-
-    # Pass irtt_thread reference to each WAN controller
-    for wan_info in controller.wan_controllers:
-        wan_info["controller"]._irtt_thread = irtt_thread
-        wan_info["controller"]._init_fusion_healer()
-
-    # Start background RTT measurement threads (Phase 132: PERF-02)
-    rtt_shutdown = get_shutdown_event()
-    for wan_info in controller.wan_controllers:
-        wan_info["controller"].start_background_rtt(rtt_shutdown)
-
-    # Log startup
-    for wan_info in controller.wan_controllers:
-        wan_info["logger"].info(
-            f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval"
-        )
-        if is_systemd_available():
-            wan_info["logger"].info("Systemd watchdog support enabled")
-
-    # Get shutdown event for interruptible sleep (instant signal responsiveness)
-    shutdown_event = get_shutdown_event()
+    _setup_daemon_state(controller, irtt_thread)
 
     try:
-        while not is_shutdown_requested():
-            cycle_start = time.monotonic()
-
-            # Run cycle - returns True if successful
-            cycle_success = controller.run_cycle(use_lock=False)  # Lock already held
-
-            elapsed = time.monotonic() - cycle_start
-
-            # Track consecutive failures
-            if cycle_success:
-                consecutive_failures = 0
-                # Re-enable watchdog if previously surrendered (recovery)
-                if not watchdog_enabled:
-                    watchdog_enabled = True
-                    for wan_info in controller.wan_controllers:
-                        wan_info["logger"].info(
-                            "Cycle recovered after watchdog surrender. "
-                            "Re-enabling watchdog notifications."
-                        )
-            else:
-                consecutive_failures += 1
-
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].warning(
-                        f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})"
-                    )
-
-                # Check if we've exceeded failure threshold
-                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
-                    watchdog_enabled = False
-                    for wan_info in controller.wan_controllers:
-                        wan_info["logger"].error(
-                            f"Sustained failure: {consecutive_failures} consecutive "
-                            f"failed cycles. Stopping watchdog - systemd will terminate us."
-                        )
-                    notify_degraded("consecutive failures exceeded threshold")
-
-            # Update health check endpoint with current failure count
-            update_health_status(consecutive_failures)
-
-            # Determine if failure is router-only (daemon healthy, router down)
-            router_only_failure = False
-            if not cycle_success:
-                all_routers_unreachable = all(
-                    not wan_info["controller"].router_connectivity.is_reachable
-                    for wan_info in controller.wan_controllers
-                )
-                any_auth_failure = any(
-                    wan_info["controller"].router_connectivity.last_failure_type == "auth_failure"
-                    for wan_info in controller.wan_controllers
-                )
-                router_only_failure = all_routers_unreachable and not any_auth_failure
-
-            # Notify systemd watchdog with router failure distinction (ERRR-04)
-            if watchdog_enabled and cycle_success:
-                notify_watchdog()
-            elif watchdog_enabled and router_only_failure:
-                notify_watchdog()
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].info(
-                        f"Router unreachable ({consecutive_failures} cycles), watchdog continues"
-                    )
-            elif not watchdog_enabled:
-                notify_degraded(f"{consecutive_failures} consecutive failures")
-
-            # Periodic maintenance: cleanup + downsample + vacuum every hour
-            if maintenance_conn is not None:
-                now = time.monotonic()
-                if now - last_maintenance >= MAINTENANCE_INTERVAL:
-                    maint_logger = controller.wan_controllers[0]["logger"]
-                    try:
-                        from wanctl.storage.downsampler import (
-                            downsample_metrics,
-                            get_downsample_thresholds,
-                        )
-                        from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
-
-                        deleted = cleanup_old_metrics(
-                            maintenance_conn,
-                            retention_config=maintenance_retention_config,
-                            watchdog_fn=notify_watchdog,
-                        )
-                        notify_watchdog()
-
-                        custom_thresholds = get_downsample_thresholds(
-                            raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
-                            aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
-                            aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
-                        )
-                        downsampled = downsample_metrics(
-                            maintenance_conn,
-                            watchdog_fn=notify_watchdog,
-                            thresholds=custom_thresholds,
-                        )
-                        notify_watchdog()
-
-                        vacuumed = vacuum_if_needed(maintenance_conn, deleted)
-                        notify_watchdog()
-
-                        # Truncate WAL file to reclaim disk/page-cache
-                        wal_result = maintenance_conn.execute(
-                            "PRAGMA wal_checkpoint(TRUNCATE)"
-                        ).fetchone()
-                        wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
-                        notify_watchdog()
-
-                        total_ds = sum(downsampled.values())
-                        if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
-                            maint_logger.info(
-                                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
-                                deleted,
-                                total_ds,
-                                vacuumed,
-                                wal_truncated,
-                            )
-                    except Exception as e:
-                        maint_logger.error("Periodic maintenance failed: %s", e)
-
-                    last_maintenance = now
-
-            # Adaptive tuning (runs after maintenance, on its own cadence)
-            tuning_config = getattr(
-                controller.wan_controllers[0]["controller"],
-                "tuning_config",
-                None,
-            )
-            if isinstance(tuning_config, TuningConfig) and tuning_config.enabled:
-                now = time.monotonic()
-                tuning_cadence = tuning_config.cadence_sec
-                if now - last_tuning >= tuning_cadence:
-                    from wanctl.tuning.analyzer import run_tuning_analysis
-                    from wanctl.tuning.applier import (
-                        apply_tuning_results,
-                        persist_revert_record,
-                    )
-                    from wanctl.tuning.safety import (
-                        DEFAULT_MIN_CONGESTION_RATE,
-                        DEFAULT_REVERT_COOLDOWN_SEC,
-                        DEFAULT_REVERT_THRESHOLD,
-                        PendingObservation,
-                        check_and_revert,
-                        is_parameter_locked,
-                        lock_parameter,
-                        measure_congestion_rate,
-                    )
-                    from wanctl.tuning.strategies.advanced import (
-                        tune_baseline_bounds_max,
-                        tune_baseline_bounds_min,
-                        tune_fusion_weight,
-                        tune_reflector_min_score,
-                    )
-                    from wanctl.tuning.strategies.congestion_thresholds import (
-                        calibrate_target_bloat,
-                        calibrate_warn_bloat,
-                    )
-                    from wanctl.tuning.strategies.response import (
-                        check_oscillation_lockout,
-                        tune_dl_factor_down,
-                        tune_dl_green_required,
-                        tune_dl_step_up,
-                        tune_ul_factor_down,
-                        tune_ul_green_required,
-                        tune_ul_step_up,
-                    )
-                    from wanctl.tuning.strategies.signal_processing import (
-                        tune_alpha_load,
-                        tune_hampel_sigma,
-                        tune_hampel_window,
-                    )
-
-                    first_config = controller.wan_controllers[0]["config"]
-                    storage_config = get_storage_config(first_config.data)
-                    db_path = storage_config.get("db_path", "")
-                    metrics_writer = controller.wan_controllers[0]["controller"]._metrics_writer
-
-                    # Layer definitions for bottom-up tuning (SIGP-04)
-                    SIGNAL_LAYER = [
-                        ("hampel_sigma_threshold", tune_hampel_sigma),
-                        ("hampel_window_size", tune_hampel_window),
-                    ]
-                    EWMA_LAYER = [
-                        ("load_time_constant_sec", tune_alpha_load),
-                    ]
-                    THRESHOLD_LAYER = [
-                        ("target_bloat_ms", calibrate_target_bloat),
-                        ("warn_bloat_ms", calibrate_warn_bloat),
-                    ]
-                    ADVANCED_LAYER = [
-                        ("fusion_icmp_weight", tune_fusion_weight),
-                        ("reflector_min_score", tune_reflector_min_score),
-                        ("baseline_rtt_min", tune_baseline_bounds_min),
-                        ("baseline_rtt_max", tune_baseline_bounds_max),
-                    ]
-                    RESPONSE_LAYER = [
-                        ("dl_step_up_mbps", tune_dl_step_up),
-                        ("ul_step_up_mbps", tune_ul_step_up),
-                        ("dl_factor_down", tune_dl_factor_down),
-                        ("ul_factor_down", tune_ul_factor_down),
-                        ("dl_green_required", tune_dl_green_required),
-                        ("ul_green_required", tune_ul_green_required),
-                    ]
-                    ALL_LAYERS = [SIGNAL_LAYER, EWMA_LAYER, THRESHOLD_LAYER, ADVANCED_LAYER, RESPONSE_LAYER]
-
-                    for wan_info in controller.wan_controllers:
-                        wc = wan_info["controller"]
-                        if not wc._tuning_enabled:
-                            continue
-
-                        # Step 1: Check pending observation from previous cycle
-                        try:
-                            reverts = check_and_revert(
-                                wc._pending_observation,
-                                db_path,
-                                wc.wan_name,
-                                revert_threshold=DEFAULT_REVERT_THRESHOLD,
-                                min_congestion_rate=DEFAULT_MIN_CONGESTION_RATE,
-                            )
-                            if reverts:
-                                _apply_tuning_to_controller(wc, reverts)
-                                for rv in reverts:
-                                    persist_revert_record(rv, metrics_writer)
-                                    lock_parameter(
-                                        wc._parameter_locks,
-                                        rv.parameter,
-                                        DEFAULT_REVERT_COOLDOWN_SEC,
-                                    )
-                                    wan_info["logger"].error(
-                                        "[TUNING] %s: %s",
-                                        wc.wan_name,
-                                        rv.rationale,
-                                    )
-                        except Exception as e:
-                            wan_info["logger"].error(
-                                "[TUNING] Revert check failed for %s: %s",
-                                wc.wan_name,
-                                e,
-                            )
-                        wc._pending_observation = None  # Clear regardless
-
-                        # Step 2: Select active layer via round-robin (SIGP-04)
-                        active_layer = ALL_LAYERS[wc._tuning_layer_index % len(ALL_LAYERS)]
-                        wc._tuning_layer_index += 1
-
-                        # Step 2.5: Oscillation lockout for response layer (RTUN-04)
-                        if active_layer is RESPONSE_LAYER:
-                            try:
-                                from wanctl.tuning.analyzer import _query_wan_metrics
-
-                                osc_metrics = _query_wan_metrics(
-                                    db_path, wc.wan_name, tuning_config.lookback_hours
-                                )
-                                check_oscillation_lockout(
-                                    osc_metrics,
-                                    wc._parameter_locks,
-                                    getattr(wc, "_oscillation_threshold", 0.1),
-                                    getattr(wc, "_alert_engine", None),
-                                    wc.wan_name,
-                                )
-                            except Exception as e:
-                                wan_info["logger"].debug(
-                                    "[TUNING] %s: oscillation check failed: %s",
-                                    wc.wan_name,
-                                    e,
-                                )
-
-                        # Step 3: Filter excluded and locked parameters from active layer
-                        excluded = tuning_config.exclude_params
-                        active_strategies = [
-                            (pname, sfn)
-                            for pname, sfn in active_layer
-                            if pname not in excluded
-                            and not is_parameter_locked(wc._parameter_locks, pname)
-                        ]
-                        for pname, _ in active_layer:
-                            if pname in excluded:
-                                wan_info["logger"].debug(
-                                    "[TUNING] %s: %s excluded via config",
-                                    wc.wan_name,
-                                    pname,
-                                )
-                            elif is_parameter_locked(wc._parameter_locks, pname):
-                                wan_info["logger"].info(
-                                    "[TUNING] %s: %s locked until revert cooldown expires",
-                                    wc.wan_name,
-                                    pname,
-                                )
-
-                        # Step 4: Run analysis with active (unlocked) strategies
-                        current_params = {
-                            "target_bloat_ms": wc.green_threshold,
-                            "warn_bloat_ms": wc.soft_red_threshold,
-                            "hard_red_bloat_ms": wc.hard_red_threshold,
-                            "alpha_load": wc.alpha_load,
-                            "alpha_baseline": wc.alpha_baseline,
-                            "hampel_sigma_threshold": wc.signal_processor._sigma_threshold,
-                            "hampel_window_size": float(wc.signal_processor._window_size),
-                            "load_time_constant_sec": 0.05 / wc.alpha_load,
-                            "fusion_icmp_weight": wc._fusion_icmp_weight,
-                            "reflector_min_score": wc._reflector_scorer._min_score,
-                            "baseline_rtt_min": wc.baseline_rtt_min,
-                            "baseline_rtt_max": wc.baseline_rtt_max,
-                            "dl_step_up_mbps": wc.download.step_up_bps / 1e6,
-                            "ul_step_up_mbps": wc.upload.step_up_bps / 1e6,
-                            "dl_factor_down": wc.download.factor_down,
-                            "ul_factor_down": wc.upload.factor_down,
-                            "dl_green_required": float(wc.download.green_required),
-                            "ul_green_required": float(wc.upload.green_required),
-                        }
-                        try:
-                            results = run_tuning_analysis(
-                                wan_name=wc.wan_name,
-                                db_path=db_path,
-                                tuning_config=tuning_config,
-                                current_params=current_params,
-                                strategies=active_strategies,
-                            )
-                            if results:
-                                applied = apply_tuning_results(
-                                    results, tuning_config, metrics_writer
-                                )
-                                if applied:
-                                    _apply_tuning_to_controller(wc, applied)
-                                    # Step 5: Snapshot pre-adjustment congestion rate
-                                    pre_rate = measure_congestion_rate(
-                                        db_path,
-                                        wc.wan_name,
-                                        start_ts=int(time.time()) - tuning_config.cadence_sec,
-                                        end_ts=int(time.time()),
-                                    )
-                                    if pre_rate is not None:
-                                        wc._pending_observation = PendingObservation(
-                                            applied_ts=int(time.time()),
-                                            pre_congestion_rate=pre_rate,
-                                            applied_results=tuple(applied),
-                                        )
-                        except Exception as e:
-                            wan_info["logger"].error(
-                                "[TUNING] Analysis failed for %s: %s",
-                                wc.wan_name,
-                                e,
-                            )
-                    last_tuning = now
-
-            # Check for config reload signal (SIGUSR1)
-            if is_reload_requested():
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].info("SIGUSR1 received, reloading config")
-                    wan_info["controller"]._reload_fusion_config()
-                    wan_info["controller"]._reload_tuning_config()
-                    wan_info["controller"]._reload_hysteresis_config()
-                    wan_info["controller"]._reload_cycle_budget_config()
-                    wan_info["controller"]._reload_suppression_alert_config()
-
-                # Reload retention config
-                try:
-                    reload_wan = controller.wan_controllers[0]
-                    new_storage_config = get_storage_config(reload_wan["config"].data)
-                    new_retention = new_storage_config.get("retention")
-                    validate_retention_tuner_compat(
-                        new_retention,
-                        reload_wan["config"].data.get("tuning"),
-                        logger=reload_wan["logger"],
-                    )
-                    maintenance_retention_config = new_retention
-                    reload_wan["logger"].info("Retention config reloaded via SIGUSR1")
-                except ConfigValidationError as e:
-                    controller.wan_controllers[0]["logger"].error(
-                        "Retention config reload failed, keeping previous config: %s", e
-                    )
-
-                reset_reload_state()
-
-            # Sleep for remainder of cycle interval
-            sleep_time = max(0, CYCLE_INTERVAL_SECONDS - elapsed)
-            if sleep_time > 0 and not is_shutdown_requested():
-                shutdown_event.wait(timeout=sleep_time)
-
-        # Log shutdown when detected (safe - in main loop, not signal handler)
-        if is_shutdown_requested():
-            for wan_info in controller.wan_controllers:
-                wan_info["logger"].info("Shutdown requested, exiting gracefully...")
-
+        _run_daemon_loop(controller, maintenance_conn, maintenance_retention_config)
     finally:
-        # CLEANUP PRIORITY: state > locks > connections > servers > metrics
-        cleanup_start = time.monotonic()
-        deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
-        _cleanup_log = logging.getLogger(__name__)
-        _cleanup_log.info("Shutting down daemon...")
-
-        # 0. Force save state for all WANs (preserve EWMA/counters on shutdown)
-        t0 = time.monotonic()
-        for wan_info in controller.wan_controllers:
-            try:
-                wan_info["controller"].save_state(force=True)
-            except Exception:
-                pass  # nosec B110 - Best effort shutdown cleanup, failure is acceptable
-        check_cleanup_deadline(
-            "state_save", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic()
+        _cleanup_daemon(
+            controller,
+            lock_files,
+            irtt_thread,
+            metrics_server,
+            health_server,
+            emergency_lock_cleanup,
         )
-
-        # 0.5. Stop IRTT background thread
-        t0 = time.monotonic()
-        if irtt_thread is not None:
-            try:
-                irtt_thread.stop()
-            except Exception as e:
-                _cleanup_log.debug(f"Error stopping IRTT thread: {e}")
-        check_cleanup_deadline(
-            "irtt_thread",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # 0.6. Stop background RTT threads and persistent pools (Phase 132)
-        t0 = time.monotonic()
-        for wan_info in controller.wan_controllers:
-            wc = wan_info["controller"]
-            try:
-                if wc._rtt_thread is not None:
-                    wc._rtt_thread.stop()
-            except Exception as e:
-                _cleanup_log.debug(f"Error stopping RTT thread: {e}")
-            try:
-                if wc._rtt_pool is not None:
-                    wc._rtt_pool.shutdown(wait=True, cancel_futures=True)
-            except Exception as e:
-                _cleanup_log.debug(f"Error shutting down RTT pool: {e}")
-        check_cleanup_deadline(
-            "rtt_thread",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # 1. Clean up lock files (highest priority for restart capability)
-        for lock_path in lock_files:
-            try:
-                lock_path.unlink(missing_ok=True)
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].debug(f"Lock released: {lock_path}")
-            except OSError:
-                pass  # Best effort - may already be gone
-
-        # Unregister atexit handler since we've cleaned up successfully
-        try:
-            atexit.unregister(emergency_lock_cleanup)
-        except Exception:
-            pass  # nosec B110 - Not critical if this fails during shutdown
-
-        # 2. Clean up SSH/REST connections
-        t0 = time.monotonic()
-        for wan_info in controller.wan_controllers:
-            try:
-                router = wan_info["controller"].router
-                # Handle both SSH and REST transports
-                if hasattr(router, "client") and router.client:
-                    router.client.close()
-                if hasattr(router, "close"):
-                    router.close()
-            except Exception as e:
-                wan_info["logger"].debug(f"Error closing router connection: {e}")
-        check_cleanup_deadline(
-            "router_close",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # 3. Shut down metrics server
-        t0 = time.monotonic()
-        if metrics_server:
-            try:
-                metrics_server.stop()
-            except Exception as e:
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].debug(f"Error shutting down metrics server: {e}")
-        check_cleanup_deadline(
-            "metrics_server",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # 4. Shut down health check server
-        t0 = time.monotonic()
-        if health_server:
-            try:
-                health_server.shutdown()
-            except Exception as e:
-                for wan_info in controller.wan_controllers:
-                    wan_info["logger"].debug(f"Error shutting down health server: {e}")
-        check_cleanup_deadline(
-            "health_server",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # 5. Close MetricsWriter (SQLite connection)
-        t0 = time.monotonic()
-        try:
-            if MetricsWriter._instance is not None:
-                MetricsWriter._instance.close()
-                _cleanup_log.debug("MetricsWriter connection closed")
-        except Exception as e:
-            _cleanup_log.debug(f"Error closing MetricsWriter: {e}")
-        check_cleanup_deadline(
-            "metrics_writer",
-            t0,
-            deadline,
-            SHUTDOWN_TIMEOUT_SECONDS,
-            _cleanup_log,
-            now=time.monotonic(),
-        )
-
-        # Log clean shutdown
-        total = time.monotonic() - cleanup_start
-        for wan_info in controller.wan_controllers:
-            wan_info["logger"].info(f"Daemon shutdown complete ({total:.1f}s)")
 
     return None
 
