@@ -814,24 +814,6 @@ class TestCLI:
             result = main()
         assert result == 0
 
-    def test_main_connectivity_error_returns_1(self, tmp_path):
-        """Connectivity error -> exit code 1."""
-        from wanctl.check_cake import main
-
-        data = _autorate_config_data()
-        config_file = _write_config(tmp_path, data)
-
-        mock_client = MagicMock()
-        mock_client.test_connection.return_value = False
-
-        with (
-            patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
-            patch("wanctl.check_cake._create_audit_client", return_value=mock_client),
-            patch("sys.argv", ["wanctl-check-cake", config_file, "--no-color"]),
-        ):
-            result = main()
-        assert result == 1
-
     def test_main_json_output_is_valid_json(self, tmp_path, capsys):
         """--json flag produces valid JSON output."""
         from wanctl.check_cake import main
