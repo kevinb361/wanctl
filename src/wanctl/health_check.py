@@ -227,69 +227,71 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_controller = wan_info["controller"]
         config = wan_info["config"]
 
+        # Get all health data via public facade (replaces ~25 private accesses)
+        health_data = wan_controller.get_health_data()
+
         wan_health: dict[str, Any] = {
             "name": config.wan_name,
             "baseline_rtt_ms": round(wan_controller.baseline_rtt, 2),
             "load_rtt_ms": round(wan_controller.load_rtt, 2),
             "download": self._build_rate_hysteresis_section(
-                wan_controller.download, wan_controller
+                wan_controller.download, health_data
             ),
             "upload": self._build_rate_hysteresis_section(
-                wan_controller.upload, wan_controller
+                wan_controller.upload, health_data
             ),
             "router_connectivity": wan_controller.router_connectivity.to_dict(),
         }
 
         # Add cycle budget telemetry if profiler has data
+        cb = health_data["cycle_budget"]
         cycle_budget = _build_cycle_budget(
-            wan_controller._profiler,
-            wan_controller._overrun_count,
-            wan_controller._cycle_interval_ms,
+            cb["profiler"],
+            cb["overrun_count"],
+            cb["cycle_interval_ms"],
             "autorate_cycle_total",
-            warning_threshold_pct=getattr(
-                wan_controller, '_warning_threshold_pct', 80.0
-            ),
+            warning_threshold_pct=cb["warning_threshold_pct"],
         )
         if cycle_budget is not None:
             wan_health["cycle_budget"] = cycle_budget
 
         # Signal quality section (OBSV-01)
-        signal_quality = self._build_signal_quality_section(wan_controller)
+        signal_quality = self._build_signal_quality_section(health_data)
         if signal_quality is not None:
             wan_health["signal_quality"] = signal_quality
 
-        wan_health["irtt"] = self._build_irtt_section(wan_controller, config)
-        wan_health["reflector_quality"] = self._build_reflector_section(wan_controller)
-        wan_health["fusion"] = self._build_fusion_section(wan_controller)
-        wan_health["tuning"] = self._build_tuning_section(wan_controller)
+        wan_health["irtt"] = self._build_irtt_section(health_data, config)
+        wan_health["reflector_quality"] = self._build_reflector_section(health_data)
+        wan_health["fusion"] = self._build_fusion_section(health_data)
+        wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
 
         return wan_health
 
     def _build_rate_hysteresis_section(
-        self, qc: Any, wan_controller: Any
+        self, qc: Any, health_data: dict[str, Any]
     ) -> dict[str, Any]:
         """Build rate and hysteresis status for a queue controller."""
+        qc_health = qc.get_health_data()
+        hyst = qc_health["hysteresis"]
         return {
             "current_rate_mbps": round(qc.current_rate / 1e6, 1),
             "state": _get_current_state(qc),
             "hysteresis": {
-                "dwell_counter": qc._yellow_dwell,
-                "dwell_cycles": qc.dwell_cycles,
-                "deadband_ms": qc.deadband_ms,
-                "transitions_suppressed": qc._transitions_suppressed,
-                "suppressions_per_min": qc._window_suppressions,
-                "window_start_epoch": qc._window_start_time,
-                "alert_threshold_per_min": getattr(
-                    wan_controller, '_suppression_alert_threshold', 20
-                ),
+                "dwell_counter": hyst["dwell_counter"],
+                "dwell_cycles": hyst["dwell_cycles"],
+                "deadband_ms": hyst["deadband_ms"],
+                "transitions_suppressed": hyst["transitions_suppressed"],
+                "suppressions_per_min": hyst["suppressions_per_min"],
+                "window_start_epoch": hyst["window_start_epoch"],
+                "alert_threshold_per_min": health_data["suppression_alert"]["threshold"],
             },
         }
 
     def _build_signal_quality_section(
-        self, wan_controller: Any
+        self, health_data: dict[str, Any]
     ) -> dict[str, Any] | None:
         """Build signal quality status. Returns None if no signal data."""
-        signal_result = wan_controller._last_signal_result
+        signal_result = health_data["signal_result"]
         if signal_result is None:
             return None
         return {
@@ -302,10 +304,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }
 
     def _build_irtt_section(
-        self, wan_controller: Any, config: Any
+        self, health_data: dict[str, Any], config: Any
     ) -> dict[str, Any]:
         """Build IRTT measurement status (OBSV-02). Always present."""
-        irtt_thread = wan_controller._irtt_thread
+        irtt_data = health_data["irtt"]
+        irtt_thread = irtt_data["thread"]
         if irtt_thread is None:
             irtt_enabled = config.irtt_config.get("enabled", False)
             reason = "disabled" if not irtt_enabled else "binary_not_found"
@@ -327,6 +330,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "asymmetry_ratio": None,
             }
 
+        irtt_correlation = irtt_data["correlation"]
+        last_asymmetry_result = irtt_data["last_asymmetry_result"]
         staleness = round(time.monotonic() - irtt_result.timestamp, 1)
         return {
             "available": True,
@@ -337,25 +342,25 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "server": f"{irtt_result.server}:{irtt_result.port}",
             "staleness_sec": staleness,
             "protocol_correlation": (
-                round(wan_controller._irtt_correlation, 2)
-                if wan_controller._irtt_correlation is not None
+                round(irtt_correlation, 2)
+                if irtt_correlation is not None
                 else None
             ),
             "asymmetry_direction": (
-                wan_controller._last_asymmetry_result.direction
-                if wan_controller._last_asymmetry_result is not None
+                last_asymmetry_result.direction
+                if last_asymmetry_result is not None
                 else "unknown"
             ),
             "asymmetry_ratio": (
-                round(wan_controller._last_asymmetry_result.ratio, 2)
-                if wan_controller._last_asymmetry_result is not None
+                round(last_asymmetry_result.ratio, 2)
+                if last_asymmetry_result is not None
                 else None
             ),
         }
 
-    def _build_reflector_section(self, wan_controller: Any) -> dict[str, Any]:
+    def _build_reflector_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build reflector quality status (REFL-04). Always present."""
-        scorer = wan_controller._reflector_scorer
+        scorer = health_data["reflector"]["scorer"]
         if scorer is not None:
             statuses = scorer.get_all_statuses()
             return {
@@ -371,10 +376,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             }
         return {"available": True, "hosts": {}}
 
-    def _build_fusion_section(self, wan_controller: Any) -> dict[str, Any]:
+    def _build_fusion_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build fusion state status (FUSE-05). Always present."""
-        if not getattr(wan_controller, "_fusion_enabled", False):
-            healer = getattr(wan_controller, "_fusion_healer", None)
+        fusion_data = health_data["fusion"]
+        if not fusion_data["enabled"]:
+            healer = fusion_data["healer"]
             return {
                 "enabled": False,
                 "reason": "disabled",
@@ -382,16 +388,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "heal_grace_active": healer.is_grace_active if healer is not None else False,
             }
 
-        irtt_rtt_val, active_source = self._resolve_fusion_rtt_sources(wan_controller)
+        irtt_rtt_val, active_source = self._resolve_fusion_rtt_sources(health_data)
 
         icmp_rtt_val = (
-            round(wan_controller._last_icmp_filtered_rtt, 2)
-            if wan_controller._last_icmp_filtered_rtt is not None
+            round(fusion_data["icmp_filtered_rtt"], 2)
+            if fusion_data["icmp_filtered_rtt"] is not None
             else None
         )
         fused_rtt_val = (
-            round(wan_controller._last_fused_rtt, 2)
-            if wan_controller._last_fused_rtt is not None
+            round(fusion_data["fused_rtt"], 2)
+            if fusion_data["fused_rtt"] is not None
             else None
         )
         # If IRTT went stale, trust active_source over cached fused value
@@ -400,30 +406,30 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         fusion: dict[str, Any] = {
             "enabled": True,
-            "icmp_weight": wan_controller._fusion_icmp_weight,
-            "irtt_weight": round(1.0 - wan_controller._fusion_icmp_weight, 2),
+            "icmp_weight": fusion_data["icmp_weight"],
+            "irtt_weight": round(1.0 - fusion_data["icmp_weight"], 2),
             "active_source": active_source,
             "fused_rtt_ms": fused_rtt_val,
             "icmp_rtt_ms": icmp_rtt_val,
             "irtt_rtt_ms": irtt_rtt_val,
         }
 
-        self._add_fusion_healer_state(fusion, wan_controller)
+        self._add_fusion_healer_state(fusion, health_data)
         return fusion
 
     def _resolve_fusion_rtt_sources(
-        self, wan_controller: Any
+        self, health_data: dict[str, Any]
     ) -> tuple[float | None, str]:
         """Resolve IRTT RTT value and active source for fusion status."""
         irtt_rtt_val: float | None = None
         active_source = "icmp_only"
 
-        _irtt_thread = wan_controller._irtt_thread
-        if _irtt_thread is not None:
-            _irtt_result = _irtt_thread.get_latest()
+        irtt_thread = health_data["irtt"]["thread"]
+        if irtt_thread is not None:
+            _irtt_result = irtt_thread.get_latest()
             if _irtt_result is not None:
                 _age = time.monotonic() - _irtt_result.timestamp
-                _cadence = _irtt_thread.cadence_sec
+                _cadence = irtt_thread.cadence_sec
                 if _age <= _cadence * 3 and _irtt_result.rtt_mean_ms > 0:
                     irtt_rtt_val = round(_irtt_result.rtt_mean_ms, 2)
                     active_source = "fused"
@@ -431,10 +437,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return irtt_rtt_val, active_source
 
     def _add_fusion_healer_state(
-        self, fusion: dict[str, Any], wan_controller: Any
+        self, fusion: dict[str, Any], health_data: dict[str, Any]
     ) -> None:
         """Add fusion healer state to fusion dict (Phase 119: FUSE-05)."""
-        healer = getattr(wan_controller, "_fusion_healer", None)
+        healer = health_data["fusion"]["healer"]
         if healer is not None:
             fusion["heal_state"] = healer.state.value
             fusion["pearson_correlation"] = (
@@ -454,12 +460,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             fusion["correlation_window_avg"] = None
             fusion["heal_grace_active"] = False
 
-    def _build_tuning_section(self, wan_controller: Any) -> dict[str, Any]:
+    def _build_tuning_section(
+        self, health_data: dict[str, Any], wan_controller: Any
+    ) -> dict[str, Any]:
         """Build tuning state status. Always present (MagicMock safe)."""
-        if getattr(wan_controller, "_tuning_enabled", False) is not True:
+        tuning_data = health_data["tuning"]
+        if tuning_data["enabled"] is not True:
             return {"enabled": False, "reason": "disabled"}
 
-        tuning_state = getattr(wan_controller, "_tuning_state", None)
+        tuning_state = tuning_data["state"]
         if tuning_state is None or tuning_state.last_run_ts is None:
             return {
                 "enabled": True,
@@ -491,7 +500,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }
 
         tuning["safety"] = self._build_tuning_safety_section(
-            wan_controller, tuning_state
+            health_data, tuning_state
         )
 
         return tuning
@@ -520,23 +529,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return params_dict
 
     def _build_tuning_safety_section(
-        self, wan_controller: Any, tuning_state: Any
+        self, health_data: dict[str, Any], tuning_state: Any
     ) -> dict[str, Any]:
         """Build tuning safety subsection (SAFE-01/02/03 visibility)."""
+        tuning_data = health_data["tuning"]
         revert_count = sum(
             1
             for adj in tuning_state.recent_adjustments
             if adj.rationale and adj.rationale.startswith("REVERT:")
         )
-        locks_dict = getattr(wan_controller, "_parameter_locks", None)
+        locks_dict = tuning_data["parameter_locks"]
         if isinstance(locks_dict, dict):
             now_mono = time.monotonic()
             locked_params = [p for p, exp in locks_dict.items() if now_mono < exp]
         else:
             locked_params = []
-        pending = (
-            getattr(wan_controller, "_pending_observation", None) is not None
-        )
+        pending = tuning_data["pending_observation"] is not None
         return {
             "revert_count": revert_count,
             "locked_parameters": locked_params,
@@ -557,7 +565,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             if isinstance(ae, AlertEngine):
                 cooldowns = ae.get_active_cooldowns()
                 alerting = {
-                    "enabled": ae._enabled,
+                    "enabled": ae.enabled,
                     "fire_count": ae.fire_count,
                     "active_cooldowns": [
                         {"type": k[0], "wan": k[1], "remaining_sec": round(v, 1)}

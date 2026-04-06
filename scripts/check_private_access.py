@@ -34,22 +34,7 @@ ALLOWLIST: set[tuple[str, str]] = {
     # --- Boundary 1: autorate_continuous.py -> WANController ---
     # RESOLVED by Plan 02: all 21 entries eliminated via public facade API
     # --- Boundary 2: health_check.py -> WANController + QueueController ---
-    ("health_check", "_cycle_interval_ms"),
-    ("health_check", "_enabled"),
-    ("health_check", "_fusion_icmp_weight"),
-    ("health_check", "_irtt_correlation"),
-    ("health_check", "_irtt_thread"),
-    ("health_check", "_last_asymmetry_result"),
-    ("health_check", "_last_fused_rtt"),
-    ("health_check", "_last_icmp_filtered_rtt"),
-    ("health_check", "_last_signal_result"),
-    ("health_check", "_overrun_count"),
-    ("health_check", "_profiler"),
-    ("health_check", "_reflector_scorer"),
-    ("health_check", "_transitions_suppressed"),
-    ("health_check", "_window_start_time"),
-    ("health_check", "_window_suppressions"),
-    ("health_check", "_yellow_dwell"),
+    # RESOLVED by Plan 03: all 16 entries eliminated via get_health_data() facade
     # --- Boundary 3: steering/health.py -> SteeringDaemon + BaselineLoader ---
     ("health", "_cycle_interval_ms"),
     ("health", "_enabled"),

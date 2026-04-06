@@ -26,6 +26,72 @@ from wanctl.signal_processing import SignalResult
 from wanctl.storage.writer import MetricsWriter
 
 
+def _configure_qc_health_data(qc_mock: MagicMock) -> None:
+    """Configure get_health_data() on a QueueController mock.
+
+    Uses side_effect so values are read dynamically at call time,
+    allowing tests to modify private attrs after fixture setup.
+    """
+    def _qc_health_data():
+        return {
+            "hysteresis": {
+                "dwell_counter": qc_mock._yellow_dwell,
+                "dwell_cycles": qc_mock.dwell_cycles,
+                "deadband_ms": qc_mock.deadband_ms,
+                "transitions_suppressed": qc_mock._transitions_suppressed,
+                "suppressions_per_min": qc_mock._window_suppressions,
+                "window_start_epoch": qc_mock._window_start_time,
+            },
+        }
+    qc_mock.get_health_data.side_effect = _qc_health_data
+
+
+def _configure_wan_health_data(wan_mock: MagicMock) -> None:
+    """Configure get_health_data() on a WANController mock.
+
+    Uses side_effect so values are read dynamically at call time,
+    allowing tests to modify private attrs after fixture setup.
+    Also configures get_health_data() on download and upload mocks.
+    """
+    def _wan_health_data():
+        return {
+            "cycle_budget": {
+                "profiler": getattr(wan_mock, "_profiler", MagicMock()),
+                "overrun_count": getattr(wan_mock, "_overrun_count", 0),
+                "cycle_interval_ms": getattr(wan_mock, "_cycle_interval_ms", 50.0),
+                "warning_threshold_pct": getattr(wan_mock, "_warning_threshold_pct", 80.0),
+            },
+            "signal_result": getattr(wan_mock, "_last_signal_result", None),
+            "irtt": {
+                "thread": getattr(wan_mock, "_irtt_thread", None),
+                "correlation": getattr(wan_mock, "_irtt_correlation", None),
+                "last_asymmetry_result": getattr(wan_mock, "_last_asymmetry_result", None),
+            },
+            "reflector": {
+                "scorer": getattr(wan_mock, "_reflector_scorer", None),
+            },
+            "fusion": {
+                "enabled": getattr(wan_mock, "_fusion_enabled", False),
+                "icmp_filtered_rtt": getattr(wan_mock, "_last_icmp_filtered_rtt", None),
+                "fused_rtt": getattr(wan_mock, "_last_fused_rtt", None),
+                "icmp_weight": getattr(wan_mock, "_fusion_icmp_weight", 0.7),
+                "healer": getattr(wan_mock, "_fusion_healer", None),
+            },
+            "tuning": {
+                "enabled": getattr(wan_mock, "_tuning_enabled", False),
+                "state": getattr(wan_mock, "_tuning_state", None),
+                "parameter_locks": getattr(wan_mock, "_parameter_locks", {}),
+                "pending_observation": getattr(wan_mock, "_pending_observation", None),
+            },
+            "suppression_alert": {
+                "threshold": getattr(wan_mock, "_suppression_alert_threshold", 20),
+            },
+        }
+    wan_mock.get_health_data.side_effect = _wan_health_data
+    _configure_qc_health_data(wan_mock.download)
+    _configure_qc_health_data(wan_mock.upload)
+
+
 class TestHealthCheckHandler:
     """Tests for HealthCheckHandler class."""
 
@@ -228,6 +294,7 @@ class TestHealthServer:
         mock_wan_controller._last_fused_rtt = None
         mock_wan_controller._last_icmp_filtered_rtt = None
         mock_wan_controller._fusion_healer = None
+        _configure_wan_health_data(mock_wan_controller)
 
         mock_config = MagicMock()
         mock_config.wan_name = "spectrum"
@@ -323,6 +390,7 @@ class TestRouterConnectivityReporting:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def test_health_includes_router_connectivity_per_wan(self, mock_wan_controller):
@@ -500,6 +568,7 @@ class TestRouterConnectivityReporting:
         wan1._last_fused_rtt = None
         wan1._last_icmp_filtered_rtt = None
         wan1._fusion_healer = None
+        _configure_wan_health_data(wan1)
 
         # WAN 2: unreachable
         wan2 = MagicMock()
@@ -547,6 +616,7 @@ class TestRouterConnectivityReporting:
         wan2._last_fused_rtt = None
         wan2._last_icmp_filtered_rtt = None
         wan2._fusion_healer = None
+        _configure_wan_health_data(wan2)
 
         mock_controller = MagicMock()
         config1 = MagicMock()
@@ -835,6 +905,7 @@ class TestCycleBudgetInHealthEndpoint:
             for val in [37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0]:
                 wan._profiler.record("autorate_cycle_total", val)
 
+        _configure_wan_health_data(wan)
         return wan
 
     def test_cycle_budget_present_when_profiler_has_data(self):
@@ -1106,6 +1177,7 @@ class TestSignalQualityHealth:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1316,6 +1388,7 @@ class TestIRTTHealth:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def _make_controller(self, wan, irtt_config=None):
@@ -1614,6 +1687,7 @@ class TestReflectorQualityHealth:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -1875,6 +1949,7 @@ class TestFusionHealth:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def _make_controller(self, wan, irtt_enabled=False):
@@ -2099,6 +2174,7 @@ class TestHysteresisHealth:
         wan._last_fused_rtt = None
         wan._last_icmp_filtered_rtt = None
         wan._fusion_healer = None
+        _configure_wan_health_data(wan)
         return wan
 
     def _make_controller(self, wan):
