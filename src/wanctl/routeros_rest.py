@@ -486,7 +486,7 @@ class RouterOSREST:
             return None
 
         # Find the rule ID
-        rule_id = self._find_mangle_rule_id(comment, timeout=timeout_val)
+        rule_id = self.find_mangle_rule_id(comment, timeout=timeout_val)
         if rule_id is None:
             self.logger.error(f"Mangle rule not found: {comment}")
             return None
@@ -582,7 +582,7 @@ class RouterOSREST:
             timeout=timeout,
         )
 
-    def _find_mangle_rule_id(
+    def find_mangle_rule_id(
         self, comment: str, use_cache: bool = True, timeout: int | None = None
     ) -> str | None:
         """Find mangle rule ID by comment.

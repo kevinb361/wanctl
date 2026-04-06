@@ -29,6 +29,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 from ..alert_engine import AlertEngine
 from ..backends.linux_cake import TIN_NAMES
@@ -916,7 +917,7 @@ class BaselineLoader:
         self._check_staleness()
 
         # FUSE-01: Extract WAN zone from same dict (zero additional I/O)
-        if self._is_wan_zone_stale():
+        if self.is_wan_zone_stale():
             wan_zone: str | None = "GREEN"  # SAFE-01: stale defaults to GREEN
         else:
             wan_zone = state.get("congestion", {}).get("dl_state", None)
@@ -943,7 +944,7 @@ class BaselineLoader:
         self.logger.warning("Baseline RTT not found in autorate state file")
         return None, wan_zone
 
-    def _get_wan_zone_age(self) -> float | None:
+    def get_wan_zone_age(self) -> float | None:
         """Get age of autorate state file in seconds.
 
         Returns:
@@ -954,7 +955,7 @@ class BaselineLoader:
         except OSError:
             return None
 
-    def _is_wan_zone_stale(self) -> bool:
+    def is_wan_zone_stale(self) -> bool:
         """Check if autorate state file is too old for WAN zone to be trusted."""
         try:
             file_age = time.time() - self.config.primary_state_file.stat().st_mtime
@@ -1234,6 +1235,40 @@ class SteeringDaemon:
         except Exception:
             self.logger.warning("Failed to reload webhook_url config", exc_info=True)
 
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    def get_health_data(self) -> dict[str, Any]:
+        """Return all health-relevant data for the steering health endpoint.
+
+        Mirrors WANController.get_health_data() pattern (D-10).
+        Replaces ~15 cross-module private attribute accesses from steering/health.py.
+        """
+        wan_awareness: dict[str, Any] = {
+            "enabled": self._wan_state_enabled,
+        }
+        if self._wan_state_enabled:
+            wan_awareness["zone"] = self._wan_zone
+            wan_awareness["effective_zone"] = self.get_effective_wan_zone()
+            wan_awareness["grace_period_active"] = self.is_wan_grace_period_active()
+            wan_awareness["zone_age"] = self.baseline_loader.get_wan_zone_age()
+            wan_awareness["stale"] = self.baseline_loader.is_wan_zone_stale()
+            wan_awareness["red_weight"] = self._wan_red_weight
+            wan_awareness["soft_red_weight"] = self._wan_soft_red_weight
+        else:
+            # Disabled mode: include raw zone for staged rollout verification
+            wan_awareness["zone"] = self._wan_zone
+
+        return {
+            "cycle_budget": {
+                "profiler": self._profiler,
+                "overrun_count": self._overrun_count,
+                "cycle_interval_ms": self._cycle_interval_ms,
+            },
+            "wan_awareness": wan_awareness,
+        }
+
     def _is_current_state_good(self, current_state: str) -> bool:
         """Check if current state represents 'good' (supports both legacy and config-driven names).
 
@@ -1259,11 +1294,11 @@ class SteeringDaemon:
 
         return False
 
-    def _is_wan_grace_period_active(self) -> bool:
+    def is_wan_grace_period_active(self) -> bool:
         """Check if startup grace period for WAN awareness is still active."""
         return (time.monotonic() - self._startup_time) < self._wan_grace_period_sec
 
-    def _get_effective_wan_zone(self) -> str | None:
+    def get_effective_wan_zone(self) -> str | None:
         """Get WAN zone for confidence scoring, applying enabled and grace gates.
 
         Returns None (no WAN contribution) when:
@@ -1274,7 +1309,7 @@ class SteeringDaemon:
         """
         if not self._wan_state_enabled:
             return None
-        if self._is_wan_grace_period_active():
+        if self.is_wan_grace_period_active():
             return None
         return self._wan_zone
 
@@ -1681,7 +1716,7 @@ class SteeringDaemon:
                 cake_state_history=list(state.get("cake_state_history", [])),
                 drops_history=list(state.get("cake_drops_history", [])),
                 queue_history=list(state.get("queue_depth_history", [])),
-                wan_zone=self._get_effective_wan_zone(),
+                wan_zone=self.get_effective_wan_zone(),
             )
 
             # Evaluate confidence (returns decision or None if dry-run)
@@ -1988,7 +2023,7 @@ class SteeringDaemon:
             return
 
         zone_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
-        effective_zone = self._get_effective_wan_zone()
+        effective_zone = self.get_effective_wan_zone()
         zone_val = zone_map.get(effective_zone or "GREEN", 0)
         metrics_batch.append(
             (ts, self.config.primary_wan, "wanctl_wan_zone", float(zone_val),
@@ -2017,7 +2052,7 @@ class SteeringDaemon:
         )
 
         # WAN staleness age in seconds (OBSV-02 gap closure)
-        staleness_age = self.baseline_loader._get_wan_zone_age()
+        staleness_age = self.baseline_loader.get_wan_zone_age()
         metrics_batch.append(
             (ts, self.config.primary_wan, "wanctl_wan_staleness_sec",
              float(staleness_age) if staleness_age is not None else -1.0, None, "raw")
