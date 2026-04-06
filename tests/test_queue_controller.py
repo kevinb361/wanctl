@@ -1,16 +1,21 @@
 """Tests for QueueController class in autorate_continuous module.
 
 Comprehensive state transition tests for QueueController.adjust() (3-state)
-and QueueController.adjust_4state() (4-state) methods.
+and QueueController.adjust_4state() (4-state) methods. Also includes hysteresis
+config parsing, schema validation, wiring, and SIGUSR1 reload.
 
 Coverage target: autorate_continuous.py lines 611-760 (QueueController class)
 """
 
 import logging
+from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
+from wanctl.autorate_config import Config
 from wanctl.queue_controller import QueueController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # FIXTURES
@@ -2097,3 +2102,448 @@ class TestDeadbandClamp:
             zone, _, _ = qc.adjust(baseline, baseline + 8.0, target_delta, warn_delta)
 
         assert zone == "GREEN", "Should recover when delta drops below deadband margin"
+
+
+# =============================================================================
+# MERGED FROM test_hysteresis_config.py
+# =============================================================================
+
+
+@pytest.fixture
+def hysteresis_autorate_config_dict():
+    """Minimal valid autorate config dict for hysteresis config tests."""
+    return {
+        "wan_name": "TestWAN",
+        "router": {
+            "host": "192.168.1.1",
+            "user": "admin",
+            "ssh_key": "/tmp/test_id_rsa",
+            "transport": "ssh",
+        },
+        "queues": {
+            "download": "cake-download",
+            "upload": "cake-upload",
+        },
+        "continuous_monitoring": {
+            "enabled": True,
+            "baseline_rtt_initial": 25.0,
+            "ping_hosts": ["1.1.1.1"],
+            "download": {
+                "floor_mbps": 400,
+                "ceiling_mbps": 920,
+                "step_up_mbps": 10,
+                "factor_down": 0.85,
+            },
+            "upload": {
+                "floor_mbps": 25,
+                "ceiling_mbps": 40,
+                "step_up_mbps": 1,
+                "factor_down": 0.85,
+            },
+            "thresholds": {
+                "target_bloat_ms": 15,
+                "warn_bloat_ms": 45,
+                "baseline_time_constant_sec": 60,
+                "load_time_constant_sec": 0.5,
+            },
+        },
+        "logging": {
+            "main_log": "/tmp/test_autorate.log",
+            "debug_log": "/tmp/test_autorate_debug.log",
+        },
+        "lock_file": "/tmp/test_autorate.lock",
+        "lock_timeout": 300,
+    }
+
+
+def _make_hysteresis_config(tmp_path, config_dict):
+    """Write YAML and create Config from it."""
+    config_file = tmp_path / "autorate.yaml"
+    config_file.write_text(yaml.dump(config_dict))
+    return Config(str(config_file))
+
+
+class TestHysteresisConfigParsing:
+    """Test Config._load_threshold_config parses hysteresis parameters."""
+
+    def test_explicit_values(self, tmp_path, hysteresis_autorate_config_dict):
+        """Config with dwell_cycles=5, deadband_ms=4.0 in YAML."""
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["dwell_cycles"] = 5
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["deadband_ms"] = 4.0
+        config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
+        assert config.dwell_cycles == 5
+        assert config.deadband_ms == 4.0
+
+    def test_defaults_when_absent(self, tmp_path, hysteresis_autorate_config_dict):
+        """Config with no dwell_cycles/deadband_ms uses defaults per CONF-03."""
+        assert "dwell_cycles" not in hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]
+        assert "deadband_ms" not in hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]
+        config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
+        assert config.dwell_cycles == 3
+        assert config.deadband_ms == 3.0
+
+    def test_zero_disables_hysteresis(self, tmp_path, hysteresis_autorate_config_dict):
+        """dwell_cycles=0, deadband_ms=0.0 accepted (backward compat escape hatch)."""
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["dwell_cycles"] = 0
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["deadband_ms"] = 0.0
+        config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
+        assert config.dwell_cycles == 0
+        assert config.deadband_ms == 0.0
+
+
+class TestHysteresisSchemaValidation:
+    """Test Config.SCHEMA entries for hysteresis parameters."""
+
+    def test_dwell_cycles_schema_entry(self):
+        """SCHEMA has dwell_cycles entry: int, optional, 0-20."""
+        entry = None
+        for item in Config.SCHEMA:
+            if item["path"] == "continuous_monitoring.thresholds.dwell_cycles":
+                entry = item
+                break
+        assert entry is not None, "dwell_cycles SCHEMA entry not found"
+        assert entry["type"] is int
+        assert entry["required"] is False
+        assert entry["min"] == 0
+        assert entry["max"] == 20
+
+    def test_deadband_ms_schema_entry(self):
+        """SCHEMA has deadband_ms entry: (int, float), optional, 0.0-20.0."""
+        entry = None
+        for item in Config.SCHEMA:
+            if item["path"] == "continuous_monitoring.thresholds.deadband_ms":
+                entry = item
+                break
+        assert entry is not None, "deadband_ms SCHEMA entry not found"
+        assert entry["type"] == (int, float)
+        assert entry["required"] is False
+        assert entry["min"] == 0.0
+        assert entry["max"] == 20.0
+
+
+class TestHysteresisWiring:
+    """Test WANController passes hysteresis config to QueueController."""
+
+    @pytest.fixture
+    def mock_config(self, mock_autorate_config):
+        """Extend shared fixture with hysteresis parameters."""
+        mock_autorate_config.dwell_cycles = 5
+        mock_autorate_config.deadband_ms = 4.0
+        return mock_autorate_config
+
+    def test_download_receives_config_dwell(self, mock_config):
+        """WANController.download gets dwell_cycles from config."""
+        router = MagicMock()
+        rtt = MagicMock()
+        logger = logging.getLogger("test")
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=rtt,
+                logger=logger,
+            )
+        assert controller.download.dwell_cycles == 5
+        assert controller.download.deadband_ms == 4.0
+
+    def test_upload_receives_config_dwell(self, mock_config):
+        """WANController.upload gets dwell_cycles from config."""
+        router = MagicMock()
+        rtt = MagicMock()
+        logger = logging.getLogger("test")
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=rtt,
+                logger=logger,
+            )
+        assert controller.upload.dwell_cycles == 5
+        assert controller.upload.deadband_ms == 4.0
+
+    def test_default_wiring(self, mock_autorate_config):
+        """Default values (3, 3.0) wire through to QueueControllers."""
+        mock_autorate_config.dwell_cycles = 3
+        mock_autorate_config.deadband_ms = 3.0
+        router = MagicMock()
+        rtt = MagicMock()
+        logger = logging.getLogger("test")
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=rtt,
+                logger=logger,
+            )
+        assert controller.download.dwell_cycles == 3
+        assert controller.download.deadband_ms == 3.0
+        assert controller.upload.dwell_cycles == 3
+        assert controller.upload.deadband_ms == 3.0
+
+
+# =============================================================================
+# MERGED FROM test_hysteresis_reload.py
+# =============================================================================
+
+
+def _make_hysteresis_reload_controller(tmp_path, yaml_content, initial_dwell=3, initial_deadband=3.0):
+    """Create a mock WANController with config_file_path pointing to YAML.
+
+    Args:
+        tmp_path: Pytest tmp_path fixture.
+        yaml_content: Dict to serialize as YAML (or None for empty file).
+        initial_dwell: Starting dwell_cycles value on both QueueControllers.
+        initial_deadband: Starting deadband_ms value on both QueueControllers.
+
+    Returns:
+        MagicMock WANController with real _reload_hysteresis_config bound.
+    """
+    config_file = tmp_path / "autorate.yaml"
+    if yaml_content is not None:
+        config_file.write_text(yaml.dump(yaml_content))
+    else:
+        config_file.write_text("")
+
+    controller = MagicMock(spec=WANController)
+    controller.wan_name = "spectrum"
+    controller.logger = logging.getLogger("test.hysteresis_reload")
+    controller.config = MagicMock()
+    controller.config.config_file_path = str(config_file)
+
+    controller.download = MagicMock()
+    controller.download.dwell_cycles = initial_dwell
+    controller.download.deadband_ms = initial_deadband
+
+    controller.upload = MagicMock()
+    controller.upload.dwell_cycles = initial_dwell
+    controller.upload.deadband_ms = initial_deadband
+
+    controller._reload_hysteresis_config = (
+        WANController._reload_hysteresis_config.__get__(controller, WANController)
+    )
+
+    return controller
+
+
+class TestReloadHysteresisConfig:
+    """Tests for WANController._reload_hysteresis_config()."""
+
+    def test_reload_updates_values(self, tmp_path):
+        """YAML has dwell_cycles=5, deadband_ms=4.0. After reload, both DL+UL updated."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}
+                }
+            },
+        )
+
+        ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 5
+        assert ctrl.upload.dwell_cycles == 5
+        assert ctrl.download.deadband_ms == pytest.approx(4.0)
+        assert ctrl.upload.deadband_ms == pytest.approx(4.0)
+
+    def test_reload_defaults_when_absent(self, tmp_path):
+        """YAML has thresholds section but no dwell/deadband keys. Defaults applied."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {"continuous_monitoring": {"thresholds": {"target_bloat_ms": 10}}},
+            initial_dwell=5,
+            initial_deadband=5.0,
+        )
+
+        ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 3
+        assert ctrl.upload.dwell_cycles == 3
+        assert ctrl.download.deadband_ms == pytest.approx(3.0)
+        assert ctrl.upload.deadband_ms == pytest.approx(3.0)
+
+    def test_reload_zero_accepted(self, tmp_path):
+        """dwell_cycles=0 and deadband_ms=0.0 are valid (disables hysteresis)."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 0, "deadband_ms": 0.0}
+                }
+            },
+        )
+
+        ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 0
+        assert ctrl.upload.dwell_cycles == 0
+        assert ctrl.download.deadband_ms == pytest.approx(0.0)
+        assert ctrl.upload.deadband_ms == pytest.approx(0.0)
+
+    def test_reload_invalid_dwell_negative(self, tmp_path, caplog):
+        """dwell_cycles=-1 is rejected. Current value preserved. Warning logged."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": -1, "deadband_ms": 3.0}
+                }
+            },
+            initial_dwell=5,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 5
+        assert ctrl.upload.dwell_cycles == 5
+        assert "dwell_cycles invalid" in caplog.text
+
+    def test_reload_invalid_dwell_type(self, tmp_path, caplog):
+        """dwell_cycles='bad' is rejected. Current value preserved. Warning logged."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": "bad", "deadband_ms": 3.0}
+                }
+            },
+            initial_dwell=5,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 5
+        assert ctrl.upload.dwell_cycles == 5
+        assert "dwell_cycles invalid" in caplog.text
+
+    def test_reload_invalid_dwell_over_max(self, tmp_path, caplog):
+        """dwell_cycles=25 exceeds max 20. Current value preserved. Warning logged."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 25, "deadband_ms": 3.0}
+                }
+            },
+            initial_dwell=5,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 5
+        assert ctrl.upload.dwell_cycles == 5
+        assert "dwell_cycles invalid" in caplog.text
+
+    def test_reload_invalid_deadband_negative(self, tmp_path, caplog):
+        """deadband_ms=-1.0 is rejected. Current value preserved. Warning logged."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 3, "deadband_ms": -1.0}
+                }
+            },
+            initial_deadband=5.0,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.deadband_ms == pytest.approx(5.0)
+        assert ctrl.upload.deadband_ms == pytest.approx(5.0)
+        assert "deadband_ms invalid" in caplog.text
+
+    def test_reload_invalid_deadband_bool(self, tmp_path, caplog):
+        """deadband_ms=True is rejected (bool excluded). Current value preserved."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 3, "deadband_ms": True}
+                }
+            },
+            initial_deadband=5.0,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.deadband_ms == pytest.approx(5.0)
+        assert ctrl.upload.deadband_ms == pytest.approx(5.0)
+        assert "deadband_ms invalid" in caplog.text
+
+    def test_reload_empty_yaml(self, tmp_path, caplog):
+        """Empty YAML (safe_load returns None). Error not raised, defaults used."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            None,
+            initial_dwell=5,
+            initial_deadband=5.0,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 3
+        assert ctrl.download.deadband_ms == pytest.approx(3.0)
+
+    def test_reload_missing_file(self, tmp_path, caplog):
+        """Config file does not exist. Error logged, values unchanged."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 10}}},
+            initial_dwell=5,
+            initial_deadband=5.0,
+        )
+        ctrl.config.config_file_path = str(tmp_path / "nonexistent.yaml")
+
+        with caplog.at_level(logging.ERROR, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert ctrl.download.dwell_cycles == 5
+        assert ctrl.download.deadband_ms == pytest.approx(5.0)
+        assert "Config reload failed" in caplog.text
+
+    def test_reload_logs_transition(self, tmp_path, caplog):
+        """When values change, WARNING log contains 'dwell_cycles=X->Y' format."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}
+                }
+            },
+            initial_dwell=3,
+            initial_deadband=3.0,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert "dwell_cycles=3->5" in caplog.text
+        assert "deadband_ms=3.0->4.0" in caplog.text
+
+    def test_reload_logs_unchanged(self, tmp_path, caplog):
+        """When values don't change, log contains '(unchanged)' marker."""
+        ctrl = _make_hysteresis_reload_controller(
+            tmp_path,
+            {
+                "continuous_monitoring": {
+                    "thresholds": {"dwell_cycles": 3, "deadband_ms": 3.0}
+                }
+            },
+            initial_dwell=3,
+            initial_deadband=3.0,
+        )
+
+        with caplog.at_level(logging.WARNING, logger="test.hysteresis_reload"):
+            ctrl._reload_hysteresis_config()
+
+        assert "dwell_cycles=3 (unchanged)" in caplog.text
+        assert "deadband_ms=3.0 (unchanged)" in caplog.text

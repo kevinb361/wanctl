@@ -1,18 +1,27 @@
-"""Unit tests for AsymmetryAnalyzer, AsymmetryResult, and OWD config loading."""
+"""Unit tests for AsymmetryAnalyzer, AsymmetryResult, OWD config loading,
+asymmetry fields in health endpoints, and WANController persistence wiring.
+"""
 
 from __future__ import annotations
 
+import json
 import logging
+import time
+import urllib.request
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.helpers import find_free_port
 from wanctl.asymmetry_analyzer import (
     DIRECTION_ENCODING,
     AsymmetryAnalyzer,
     AsymmetryResult,
 )
+from wanctl.health_check import start_health_server
 from wanctl.irtt_measurement import IRTTResult
+from wanctl.storage.schema import STORED_METRICS
+from wanctl.wan_controller import WANController
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -324,3 +333,489 @@ class TestOWDAsymmetryConfig:
         config._load_owd_asymmetry_config()
         assert config.owd_asymmetry_config["ratio_threshold"] == pytest.approx(3.0)
         assert isinstance(config.owd_asymmetry_config["ratio_threshold"], float)
+
+
+# =============================================================================
+# MERGED FROM test_asymmetry_health.py
+# =============================================================================
+
+
+def _make_health_wan_controller() -> MagicMock:
+    """Create a mock WAN controller with all required attributes."""
+    wan = MagicMock()
+    wan.baseline_rtt = 24.5
+    wan.load_rtt = 28.3
+    wan.download.current_rate = 800_000_000
+    wan.download.red_streak = 0
+    wan.download.soft_red_streak = 0
+    wan.download.soft_red_required = 3
+    wan.download.green_streak = 5
+    wan.download.green_required = 5
+    wan.upload.current_rate = 35_000_000
+    wan.upload.red_streak = 0
+    wan.upload.soft_red_streak = 0
+    wan.upload.soft_red_required = 3
+    wan.upload.green_streak = 5
+    wan.upload.green_required = 5
+    wan.router_connectivity.is_reachable = True
+    wan.router_connectivity.to_dict.return_value = {
+        "is_reachable": True,
+        "consecutive_failures": 0,
+        "last_failure_type": None,
+        "last_failure_time": None,
+    }
+    # Phase 121-124: hysteresis attributes
+    wan.download._yellow_dwell = 0
+    wan.download.dwell_cycles = 5
+    wan.download.deadband_ms = 3.0
+    wan.download._transitions_suppressed = 0
+    wan.download._window_suppressions = 0
+    wan.download._window_start_time = 0.0
+    wan.upload._yellow_dwell = 0
+    wan.upload.dwell_cycles = 5
+    wan.upload.deadband_ms = 3.0
+    wan.upload._transitions_suppressed = 0
+    wan.upload._window_suppressions = 0
+    wan.upload._window_start_time = 0.0
+    wan._suppression_alert_threshold = 20
+    # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
+    wan._last_signal_result = None
+    wan._irtt_thread = None
+    wan._irtt_correlation = None
+    wan._reflector_scorer = None
+    wan._last_asymmetry_result = None
+    wan._asymmetry_analyzer = None
+    wan.alert_engine = None
+    wan._fusion_enabled = False
+    wan._fusion_icmp_weight = 0.7
+    wan._last_fused_rtt = None
+    wan._last_icmp_filtered_rtt = None
+    wan._fusion_healer = None
+    wan._tuning_enabled = False
+    wan._tuning_state = None
+    wan._parameter_locks = None
+    wan._overrun_count = 0
+    wan._cycle_interval_ms = 50.0
+    wan._profiler.stats.return_value = None
+    return wan
+
+
+def _make_health_controller(wan: MagicMock, irtt_config: dict | None = None) -> MagicMock:
+    """Build a mock controller wrapping a single WAN."""
+    mock_controller = MagicMock()
+    mock_config = MagicMock()
+    mock_config.wan_name = "spectrum"
+    mock_config.irtt_config = irtt_config or {"enabled": False}
+    mock_controller.wan_controllers = [
+        {"controller": wan, "config": mock_config, "logger": MagicMock()}
+    ]
+    return mock_controller
+
+
+def _make_health_irtt_result(timestamp: float | None = None) -> IRTTResult:
+    """Create an IRTTResult for testing."""
+    return IRTTResult(
+        rtt_mean_ms=28.5,
+        rtt_median_ms=27.3,
+        ipdv_mean_ms=1.2,
+        send_loss=0.5,
+        receive_loss=1.0,
+        packets_sent=100,
+        packets_received=99,
+        server="104.200.21.31",
+        port=2112,
+        timestamp=timestamp or (time.monotonic() - 5.0),
+        success=True,
+        send_delay_median_ms=15.0,
+        receive_delay_median_ms=12.0,
+    )
+
+
+class TestAsymmetryHealthIRTTAvailable:
+    """Test asymmetry fields when IRTT is available with result."""
+
+    def test_asymmetry_direction_upstream(self) -> None:
+        """asymmetry_direction shows 'upstream' when result.direction == 'upstream'."""
+        wan = _make_health_wan_controller()
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = _make_health_irtt_result()
+        wan._irtt_thread = mock_irtt_thread
+        wan._irtt_correlation = 0.95
+        wan._last_asymmetry_result = AsymmetryResult(
+            direction="upstream", ratio=2.5, send_delay_ms=20.0, receive_delay_ms=8.0
+        )
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["asymmetry_direction"] == "upstream"
+            assert irtt["asymmetry_ratio"] == 2.5
+        finally:
+            server.shutdown()
+
+    def test_asymmetry_direction_downstream(self) -> None:
+        """asymmetry_direction shows 'downstream' when result.direction == 'downstream'."""
+        wan = _make_health_wan_controller()
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = _make_health_irtt_result()
+        wan._irtt_thread = mock_irtt_thread
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = AsymmetryResult(
+            direction="downstream", ratio=3.1, send_delay_ms=8.0, receive_delay_ms=24.8
+        )
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["asymmetry_direction"] == "downstream"
+            assert irtt["asymmetry_ratio"] == 3.1
+        finally:
+            server.shutdown()
+
+    def test_asymmetry_ratio_rounded_to_2_decimals(self) -> None:
+        """asymmetry_ratio is rounded to 2 decimal places."""
+        wan = _make_health_wan_controller()
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = _make_health_irtt_result()
+        wan._irtt_thread = mock_irtt_thread
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = AsymmetryResult(
+            direction="symmetric", ratio=1.23456789, send_delay_ms=10.0, receive_delay_ms=10.0
+        )
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["asymmetry_ratio"] == 1.23
+        finally:
+            server.shutdown()
+
+
+class TestAsymmetryHealthNoResult:
+    """Test asymmetry fields when IRTT available but no asymmetry result yet."""
+
+    def test_direction_unknown_when_no_result(self) -> None:
+        """asymmetry_direction is 'unknown' when _last_asymmetry_result is None."""
+        wan = _make_health_wan_controller()
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = _make_health_irtt_result()
+        wan._irtt_thread = mock_irtt_thread
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["asymmetry_direction"] == "unknown"
+            assert irtt["asymmetry_ratio"] is None
+        finally:
+            server.shutdown()
+
+
+class TestAsymmetryHealthIRTTDisabled:
+    """Test IRTT section when IRTT is disabled -- no asymmetry fields."""
+
+    def test_no_asymmetry_fields_when_irtt_disabled(self) -> None:
+        """IRTT section has available=False and does NOT contain 'asymmetry_direction' when disabled."""
+        wan = _make_health_wan_controller()
+        wan._irtt_thread = None
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": False})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is False
+            assert "asymmetry_direction" not in irtt
+            assert "asymmetry_ratio" not in irtt
+        finally:
+            server.shutdown()
+
+    def test_no_asymmetry_fields_when_binary_not_found(self) -> None:
+        """IRTT section has no asymmetry fields when enabled but binary not found."""
+        wan = _make_health_wan_controller()
+        wan._irtt_thread = None
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["available"] is False
+            assert "asymmetry_direction" not in irtt
+            assert "asymmetry_ratio" not in irtt
+        finally:
+            server.shutdown()
+
+
+class TestAsymmetryHealthAwaitingMeasurement:
+    """Test asymmetry fields when IRTT available but awaiting first measurement."""
+
+    def test_direction_unknown_awaiting_measurement(self) -> None:
+        """asymmetry_direction is 'unknown' when IRTT thread exists but no result yet."""
+        wan = _make_health_wan_controller()
+        mock_irtt_thread = MagicMock()
+        mock_irtt_thread.get_latest.return_value = None
+        wan._irtt_thread = mock_irtt_thread
+
+        controller = _make_health_controller(wan, irtt_config={"enabled": True})
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            irtt = data["wans"][0]["irtt"]
+            assert irtt["asymmetry_direction"] == "unknown"
+            assert irtt["asymmetry_ratio"] is None
+        finally:
+            server.shutdown()
+
+
+# =============================================================================
+# MERGED FROM test_asymmetry_persistence.py
+# =============================================================================
+
+
+def _make_persistence_irtt_result(
+    send_delay: float = 10.0,
+    receive_delay: float = 5.0,
+    timestamp: float = 1000.0,
+) -> IRTTResult:
+    """Create an IRTTResult with OWD fields for testing."""
+    return IRTTResult(
+        rtt_mean_ms=20.0,
+        rtt_median_ms=19.0,
+        ipdv_mean_ms=2.0,
+        send_loss=0.0,
+        receive_loss=0.0,
+        packets_sent=10,
+        packets_received=10,
+        server="104.200.21.31",
+        port=2112,
+        timestamp=timestamp,
+        success=True,
+        send_delay_median_ms=send_delay,
+        receive_delay_median_ms=receive_delay,
+    )
+
+
+class TestStoredMetrics:
+    """Verify STORED_METRICS dict contains asymmetry entries."""
+
+    def test_asymmetry_ratio_in_stored_metrics(self) -> None:
+        """STORED_METRICS contains wanctl_irtt_asymmetry_ratio."""
+        assert "wanctl_irtt_asymmetry_ratio" in STORED_METRICS
+
+    def test_asymmetry_direction_in_stored_metrics(self) -> None:
+        """STORED_METRICS contains wanctl_irtt_asymmetry_direction."""
+        assert "wanctl_irtt_asymmetry_direction" in STORED_METRICS
+
+    def test_asymmetry_ratio_description(self) -> None:
+        """wanctl_irtt_asymmetry_ratio has a meaningful description."""
+        desc = STORED_METRICS["wanctl_irtt_asymmetry_ratio"]
+        assert "ratio" in desc.lower()
+
+    def test_asymmetry_direction_description(self) -> None:
+        """wanctl_irtt_asymmetry_direction has a meaningful description."""
+        desc = STORED_METRICS["wanctl_irtt_asymmetry_direction"]
+        assert "direction" in desc.lower()
+
+
+class TestDirectionEncoding:
+    """Verify DIRECTION_ENCODING values match expected float encoding."""
+
+    def test_unknown_is_zero(self) -> None:
+        """unknown maps to 0.0."""
+        assert DIRECTION_ENCODING["unknown"] == 0.0
+
+    def test_symmetric_is_one(self) -> None:
+        """symmetric maps to 1.0."""
+        assert DIRECTION_ENCODING["symmetric"] == 1.0
+
+    def test_upstream_is_two(self) -> None:
+        """upstream maps to 2.0."""
+        assert DIRECTION_ENCODING["upstream"] == 2.0
+
+    def test_downstream_is_three(self) -> None:
+        """downstream maps to 3.0."""
+        assert DIRECTION_ENCODING["downstream"] == 3.0
+
+    def test_all_four_directions_present(self) -> None:
+        """All four direction keys present in encoding dict."""
+        assert set(DIRECTION_ENCODING.keys()) == {
+            "unknown",
+            "symmetric",
+            "upstream",
+            "downstream",
+        }
+
+
+class TestWANControllerAsymmetryAttributes:
+    """Verify WANController has _asymmetry_analyzer and _last_asymmetry_result."""
+
+    def test_has_asymmetry_analyzer_attribute(self) -> None:
+        """WANController initialization creates _asymmetry_analyzer."""
+        _mock_config = self._make_config()
+        with patch("wanctl.routeros_interface.get_router_client_with_failover"):
+            from wanctl.wan_controller import WANController
+
+            _controller = WANController.__new__(WANController)
+            # Check the attribute exists in the class (may be in __init__ or extracted helper)
+            import inspect
+
+            source = inspect.getsource(WANController)
+            assert "_asymmetry_analyzer" in source
+
+    def test_has_last_asymmetry_result_attribute(self) -> None:
+        """WANController initialization creates _last_asymmetry_result."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "_last_asymmetry_result" in source
+
+    def _make_config(self) -> MagicMock:
+        """Create a mock config for testing."""
+        config = MagicMock()
+        config.owd_asymmetry_config = {"ratio_threshold": 2.0}
+        return config
+
+
+class TestAsymmetryMetricsWrite:
+    """Verify asymmetry metrics included in metrics_batch during IRTT write."""
+
+    def test_metrics_batch_includes_asymmetry_ratio(self) -> None:
+        """metrics_batch includes wanctl_irtt_asymmetry_ratio when asymmetry result available."""
+        # Verify the code path in WANController contains the metric name
+        # (may be in run_cycle directly or in an extracted helper)
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "wanctl_irtt_asymmetry_ratio" in source
+
+    def test_metrics_batch_includes_asymmetry_direction(self) -> None:
+        """metrics_batch includes wanctl_irtt_asymmetry_direction when asymmetry result available."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "wanctl_irtt_asymmetry_direction" in source
+
+    def test_direction_uses_encoding_dict(self) -> None:
+        """Direction metric value uses DIRECTION_ENCODING.get() for float conversion."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "DIRECTION_ENCODING.get(" in source
+
+    def test_asymmetry_metrics_inside_irtt_dedup_guard(self) -> None:
+        """Asymmetry metrics only written when irtt_result.timestamp != _last_irtt_write_ts."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        # Verify both asymmetry metrics appear after the IRTT dedup guard
+        irtt_dedup_idx = source.index("_last_irtt_write_ts")
+        ratio_idx = source.index("wanctl_irtt_asymmetry_ratio")
+        assert ratio_idx > irtt_dedup_idx
+
+
+class TestAsymmetryDedup:
+    """Verify asymmetry metrics use same dedup guard as existing IRTT metrics."""
+
+    def test_asymmetry_analyze_called_for_fresh_irtt(self) -> None:
+        """analyze() is called in WANController when irtt_result is available."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "_asymmetry_analyzer.analyze(irtt_result)" in source
+
+    def test_last_asymmetry_result_updated(self) -> None:
+        """_last_asymmetry_result updated after analyze() call in WANController."""
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "_last_asymmetry_result = asym" in source or "_last_asymmetry_result" in source
+
+
+class TestLastAsymmetryResult:
+    """Verify _last_asymmetry_result behavior."""
+
+    def test_analyzer_produces_result(self) -> None:
+        """AsymmetryAnalyzer.analyze returns AsymmetryResult."""
+        analyzer = AsymmetryAnalyzer(ratio_threshold=2.0, wan_name="test")
+        irtt = _make_persistence_irtt_result(send_delay=20.0, receive_delay=8.0)
+        result = analyzer.analyze(irtt)
+        assert isinstance(result, AsymmetryResult)
+        assert result.direction == "upstream"
+        assert result.ratio == pytest.approx(2.5)
+
+    def test_result_stays_none_when_no_irtt(self) -> None:
+        """When IRTT unavailable, _last_asymmetry_result should remain None."""
+        # This tests the logical guarantee: no IRTT -> no analyze call -> no result
+        # The attribute starts as None in __init__ (or extracted helper) and only gets
+        # set in run_cycle when irtt_result is not None
+        import inspect
+
+
+        source = inspect.getsource(WANController)
+        assert "_last_asymmetry_result: AsymmetryResult | None = None" in source
+
+    def test_result_updated_after_analyze(self) -> None:
+        """After analyze() call, result reflects the analysis."""
+        analyzer = AsymmetryAnalyzer(ratio_threshold=2.0, wan_name="test")
+        irtt = _make_persistence_irtt_result(send_delay=5.0, receive_delay=5.0)
+        result = analyzer.analyze(irtt)
+        assert result.direction == "symmetric"
+        assert result.ratio == pytest.approx(1.0)
+
+    def test_direction_encoding_for_persistence(self) -> None:
+        """DIRECTION_ENCODING correctly maps result.direction to float."""
+        analyzer = AsymmetryAnalyzer(ratio_threshold=2.0, wan_name="test")
+
+        # upstream
+        irtt_up = _make_persistence_irtt_result(send_delay=20.0, receive_delay=8.0)
+        result = analyzer.analyze(irtt_up)
+        assert DIRECTION_ENCODING.get(result.direction, 0.0) == 2.0
+
+        # downstream
+        irtt_down = _make_persistence_irtt_result(send_delay=8.0, receive_delay=20.0)
+        result = analyzer.analyze(irtt_down)
+        assert DIRECTION_ENCODING.get(result.direction, 0.0) == 3.0
+
+        # symmetric
+        irtt_sym = _make_persistence_irtt_result(send_delay=10.0, receive_delay=10.0)
+        result = analyzer.analyze(irtt_sym)
+        assert DIRECTION_ENCODING.get(result.direction, 0.0) == 1.0
+
