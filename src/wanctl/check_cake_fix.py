@@ -244,13 +244,7 @@ def run_fix(
     Returns:
         List of all CheckResult from the fix flow.
     """
-    # Local imports to avoid circular dependency (check_cake imports from check_cake_fix)
-    from wanctl.check_cake import (
-        _extract_cake_optimization,
-        _extract_queue_names,
-        check_daemon_lock,
-        run_audit,
-    )
+    from wanctl.check_cake import check_daemon_lock, run_audit
 
     results: list[CheckResult] = []
 
@@ -260,7 +254,32 @@ def run_fix(
     if any(r.severity == Severity.ERROR for r in lock_results):
         return results
 
-    # 2. Gather changes by direction (same data-fetching as step 3.5 in run_audit)
+    # 2. Gather changes
+    changes_by_direction, queue_names, queue_type_data_by_direction = (
+        _gather_fix_changes(data, config_type, client)
+    )
+
+    # 3-5. Validate and confirm
+    early_exit = _validate_and_confirm_fix(
+        changes_by_direction, queue_names, yes, json_mode, results
+    )
+    if early_exit:
+        return results
+
+    # 6-8. Apply and verify
+    _apply_and_verify_fix(
+        data, config_type, client, changes_by_direction,
+        queue_names, queue_type_data_by_direction, wan_name, results, run_audit,
+    )
+    return results
+
+
+def _gather_fix_changes(
+    data: dict, config_type: str, client: object
+) -> tuple[dict, dict, dict]:
+    """Gather CAKE parameter changes by direction. Returns (changes, queue_names, queue_type_data)."""
+    from wanctl.check_cake import _extract_cake_optimization, _extract_queue_names
+
     queue_names = _extract_queue_names(data, config_type)
     cake_config = _extract_cake_optimization(data)
     changes_by_direction: dict[str, dict[str, tuple[str, str]]] = {}
@@ -280,7 +299,6 @@ def run_fix(
         if queue_type_data is None:
             continue
 
-        # Store queue type name in queue_names for PATCH targeting
         queue_names[direction] = queue_type_name
         queue_type_data_by_direction[queue_type_name] = queue_type_data
 
@@ -288,55 +306,46 @@ def run_fix(
         if changes:
             changes_by_direction[direction] = changes
 
-    # 3. Nothing to fix?
+    return changes_by_direction, queue_names, queue_type_data_by_direction
+
+
+def _validate_and_confirm_fix(
+    changes_by_direction: dict,
+    queue_names: dict,
+    yes: bool,
+    json_mode: bool,
+    results: list[CheckResult],
+) -> bool:
+    """Validate preconditions and get confirmation. Returns True if should exit early."""
     if not changes_by_direction:
-        results.append(
-            CheckResult(
-                "Fix",
-                "status",
-                Severity.PASS,
-                "All CAKE parameters are optimal -- nothing to fix.",
-            )
-        )
-        return results
+        results.append(CheckResult("Fix", "status", Severity.PASS, "All CAKE parameters are optimal -- nothing to fix."))
+        return True
 
-    # 4. JSON mode requires --yes
     if json_mode and not yes:
-        results.append(
-            CheckResult(
-                "Fix",
-                "mode",
-                Severity.ERROR,
-                "Fix in --json mode requires --yes flag",
-                suggestion="Add --yes flag: wanctl-check-cake config.yaml --fix --yes --json",
-            )
-        )
-        return results
+        results.append(CheckResult(
+            "Fix", "mode", Severity.ERROR, "Fix in --json mode requires --yes flag",
+            suggestion="Add --yes flag: wanctl-check-cake config.yaml --fix --yes --json",
+        ))
+        return True
 
-    # 5. Confirmation
     if not yes:
         _show_diff_table(changes_by_direction, queue_names)
         if not _confirm_apply(sum(len(c) for c in changes_by_direction.values())):
-            results.append(
-                CheckResult(
-                    "Fix",
-                    "status",
-                    Severity.PASS,
-                    "Fix cancelled by user.",
-                )
-            )
-            return results
+            results.append(CheckResult("Fix", "status", Severity.PASS, "Fix cancelled by user."))
+            return True
 
-    # 6. Save snapshot
+    return False
+
+
+def _apply_and_verify_fix(
+    data: dict, config_type: str, client: object,
+    changes_by_direction: dict, queue_names: dict,
+    queue_type_data_by_direction: dict, wan_name: str,
+    results: list[CheckResult], run_audit_fn: object,
+) -> None:
+    """Save snapshot, apply changes, and re-run audit for verification."""
     snapshot_path = _save_snapshot(queue_type_data_by_direction, wan_name or "unknown")
     print(f"Snapshot saved: {snapshot_path}", file=sys.stderr)
 
-    # 7. Apply changes
-    apply_results = _apply_changes(client, changes_by_direction, queue_names)
-    results.extend(apply_results)
-
-    # 8. Re-run audit for verification
-    verify_results = run_audit(data, config_type, client)
-    results.extend(verify_results)
-
-    return results
+    results.extend(_apply_changes(client, changes_by_direction, queue_names))
+    results.extend(run_audit_fn(data, config_type, client))

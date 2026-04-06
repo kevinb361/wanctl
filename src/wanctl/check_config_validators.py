@@ -255,151 +255,118 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
     results: list[CheckResult] = []
     cm = data.get("continuous_monitoring", {})
 
-    # --- Download floor ordering ---
+    results.extend(_validate_download_floors(cm))
+    results.extend(_validate_upload_floors(cm))
+    results.extend(_validate_threshold_ordering(cm))
+    results.extend(_validate_transport_consistency(data))
+
+    return results
+
+
+def _validate_download_floors(cm: dict) -> list[CheckResult]:
+    """Validate download floor ordering (4-state: red <= soft_red <= yellow <= green <= ceiling)."""
     dl = cm.get("download", {})
-    if dl:
-        ceiling = dl.get("ceiling_mbps")
-        if ceiling is not None:
-            if "floor_green_mbps" in dl:
-                # Modern multi-floor format
-                floor_green = dl.get("floor_green_mbps")
-                floor_yellow = dl.get("floor_yellow_mbps")
-                floor_soft_red = dl.get("floor_soft_red_mbps", floor_yellow)
-                floor_red = dl.get("floor_red_mbps")
-            elif "floor_mbps" in dl:
-                # Legacy single-floor format
-                floor = dl["floor_mbps"]
-                floor_green = floor
-                floor_yellow = floor
-                floor_soft_red = floor
-                floor_red = floor
-            else:
-                floor_green = floor_yellow = floor_soft_red = floor_red = None
+    if not dl:
+        return []
+    ceiling = dl.get("ceiling_mbps")
+    if ceiling is None:
+        return []
 
-            if floor_red is not None:
-                try:
-                    validate_bandwidth_order(
-                        name="download",
-                        floor_red=floor_red,
-                        floor_soft_red=floor_soft_red,
-                        floor_yellow=floor_yellow,
-                        floor_green=floor_green,
-                        ceiling=ceiling,
-                    )
-                    results.append(
-                        CheckResult(
-                            "Cross-field Checks",
-                            "download.floors",
-                            Severity.PASS,
-                            "Download floor ordering: valid",
-                        )
-                    )
-                except ConfigValidationError as e:
-                    results.append(
-                        CheckResult(
-                            "Cross-field Checks",
-                            "download.floors",
-                            Severity.ERROR,
-                            str(e),
-                        )
-                    )
+    if "floor_green_mbps" in dl:
+        floor_green = dl.get("floor_green_mbps")
+        floor_yellow = dl.get("floor_yellow_mbps")
+        floor_soft_red = dl.get("floor_soft_red_mbps", floor_yellow)
+        floor_red = dl.get("floor_red_mbps")
+    elif "floor_mbps" in dl:
+        floor = dl["floor_mbps"]
+        floor_green = floor_yellow = floor_soft_red = floor_red = floor
+    else:
+        return []
 
-    # --- Upload floor ordering ---
+    if floor_red is None:
+        return []
+
+    try:
+        validate_bandwidth_order(
+            name="download", floor_red=floor_red, floor_soft_red=floor_soft_red,
+            floor_yellow=floor_yellow, floor_green=floor_green, ceiling=ceiling,
+        )
+        return [CheckResult("Cross-field Checks", "download.floors", Severity.PASS, "Download floor ordering: valid")]
+    except ConfigValidationError as e:
+        return [CheckResult("Cross-field Checks", "download.floors", Severity.ERROR, str(e))]
+
+
+def _validate_upload_floors(cm: dict) -> list[CheckResult]:
+    """Validate upload floor ordering (3-state: red <= yellow <= green <= ceiling)."""
     ul = cm.get("upload", {})
-    if ul:
-        ceiling = ul.get("ceiling_mbps")
-        if ceiling is not None:
-            if "floor_green_mbps" in ul:
-                floor_green = ul.get("floor_green_mbps")
-                floor_yellow = ul.get("floor_yellow_mbps")
-                floor_red = ul.get("floor_red_mbps")
-            elif "floor_mbps" in ul:
-                floor = ul["floor_mbps"]
-                floor_green = floor
-                floor_yellow = floor
-                floor_red = floor
-            else:
-                floor_green = floor_yellow = floor_red = None
+    if not ul:
+        return []
+    ceiling = ul.get("ceiling_mbps")
+    if ceiling is None:
+        return []
 
-            if floor_red is not None:
-                try:
-                    validate_bandwidth_order(
-                        name="upload",
-                        floor_red=floor_red,
-                        floor_yellow=floor_yellow,
-                        floor_green=floor_green,
-                        ceiling=ceiling,
-                    )
-                    results.append(
-                        CheckResult(
-                            "Cross-field Checks",
-                            "upload.floors",
-                            Severity.PASS,
-                            "Upload floor ordering: valid",
-                        )
-                    )
-                except ConfigValidationError as e:
-                    results.append(
-                        CheckResult(
-                            "Cross-field Checks",
-                            "upload.floors",
-                            Severity.ERROR,
-                            str(e),
-                        )
-                    )
+    if "floor_green_mbps" in ul:
+        floor_green = ul.get("floor_green_mbps")
+        floor_yellow = ul.get("floor_yellow_mbps")
+        floor_red = ul.get("floor_red_mbps")
+    elif "floor_mbps" in ul:
+        floor = ul["floor_mbps"]
+        floor_green = floor_yellow = floor_red = floor
+    else:
+        return []
 
-    # --- Threshold ordering ---
+    if floor_red is None:
+        return []
+
+    try:
+        validate_bandwidth_order(
+            name="upload", floor_red=floor_red, floor_yellow=floor_yellow,
+            floor_green=floor_green, ceiling=ceiling,
+        )
+        return [CheckResult("Cross-field Checks", "upload.floors", Severity.PASS, "Upload floor ordering: valid")]
+    except ConfigValidationError as e:
+        return [CheckResult("Cross-field Checks", "upload.floors", Severity.ERROR, str(e))]
+
+
+def _validate_threshold_ordering(cm: dict) -> list[CheckResult]:
+    """Validate threshold ordering: target < warn < hard_red."""
     thresholds = cm.get("thresholds", {})
     target = thresholds.get("target_bloat_ms")
     warn = thresholds.get("warn_bloat_ms")
     hard_red = thresholds.get("hard_red_bloat_ms", _DEFAULT_HARD_RED_BLOAT_MS)
 
-    if target is not None and warn is not None:
-        try:
-            validate_threshold_order(
-                target_bloat_ms=float(target),
-                warn_bloat_ms=float(warn),
-                hard_red_bloat_ms=float(hard_red),
-            )
-            results.append(
-                CheckResult(
-                    "Cross-field Checks",
-                    "thresholds",
-                    Severity.PASS,
-                    "Threshold ordering: valid",
-                )
-            )
-        except ConfigValidationError as e:
-            results.append(CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e)))
+    if target is None or warn is None:
+        return []
 
-    # --- Transport / cake_params consistency ---
+    try:
+        validate_threshold_order(
+            target_bloat_ms=float(target), warn_bloat_ms=float(warn), hard_red_bloat_ms=float(hard_red),
+        )
+        return [CheckResult("Cross-field Checks", "thresholds", Severity.PASS, "Threshold ordering: valid")]
+    except ConfigValidationError as e:
+        return [CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e))]
+
+
+def _validate_transport_consistency(data: dict) -> list[CheckResult]:
+    """Validate transport/cake_params consistency."""
     transport = _get_nested(data, "router.transport", "rest")
     has_cake_params = isinstance(data.get("cake_params"), dict)
 
     if has_cake_params and transport != "linux-cake":
-        results.append(
-            CheckResult(
-                "Cross-field Checks",
-                "transport_mismatch",
-                Severity.ERROR,
-                f"cake_params section present but transport is '{transport}' (not 'linux-cake'). "
-                "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake'.",
-                suggestion="Change router.transport to 'linux-cake' in YAML config",
-            )
-        )
-    elif transport == "linux-cake" and not has_cake_params:
-        results.append(
-            CheckResult(
-                "Cross-field Checks",
-                "transport_mismatch",
-                Severity.ERROR,
-                "transport is 'linux-cake' but cake_params section is missing. "
-                "CAKE qdiscs cannot be initialized without interface names.",
-                suggestion="Add cake_params with download_interface and upload_interface",
-            )
-        )
-
-    return results
+        return [CheckResult(
+            "Cross-field Checks", "transport_mismatch", Severity.ERROR,
+            f"cake_params section present but transport is '{transport}' (not 'linux-cake'). "
+            "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake'.",
+            suggestion="Change router.transport to 'linux-cake' in YAML config",
+        )]
+    if transport == "linux-cake" and not has_cake_params:
+        return [CheckResult(
+            "Cross-field Checks", "transport_mismatch", Severity.ERROR,
+            "transport is 'linux-cake' but cake_params section is missing. "
+            "CAKE qdiscs cannot be initialized without interface names.",
+            suggestion="Add cake_params with download_interface and upload_interface",
+        )]
+    return []
 
 
 def _walk_leaf_paths(data: dict, prefix: str = "") -> list[str]:

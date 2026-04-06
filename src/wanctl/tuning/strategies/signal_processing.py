@@ -256,7 +256,32 @@ def tune_alpha_load(
     Matches StrategyFn signature:
         Callable[[list[dict], float, SafetyBounds, str], TuningResult | None]
     """
-    # 1. Extract metrics by timestamp into aligned dicts
+    rtt_by_ts, ewma_by_ts, jitter_values = _extract_alpha_load_metrics(metrics_data)
+
+    if len(rtt_by_ts) < MIN_SAMPLES:
+        logger.info(
+            "[TUNING] %s: alpha_load skipped, only %d RTT samples (need %d)",
+            wan_name, len(rtt_by_ts), MIN_SAMPLES,
+        )
+        return None
+
+    sorted_ts = sorted(rtt_by_ts.keys())
+    settling_times = _measure_settling_times(rtt_by_ts, ewma_by_ts, sorted_ts, jitter_values)
+
+    if len(settling_times) < MIN_STEPS:
+        logger.info(
+            "[TUNING] %s: alpha_load skipped, only %d steps detected (need %d)",
+            wan_name, len(settling_times), MIN_STEPS,
+        )
+        return None
+
+    return _compute_alpha_load_result(settling_times, current_value, wan_name)
+
+
+def _extract_alpha_load_metrics(
+    metrics_data: list[dict],
+) -> tuple[dict[int, float], dict[int, float], list[float]]:
+    """Extract RTT, EWMA, and jitter metrics by timestamp for alpha_load tuning."""
     rtt_by_ts: dict[int, float] = {}
     ewma_by_ts: dict[int, float] = {}
     jitter_values: list[float] = []
@@ -272,104 +297,93 @@ def tune_alpha_load(
         elif name == "wanctl_signal_jitter_ms":
             jitter_values.append(val)
 
-    # 2. Check minimum data
-    if len(rtt_by_ts) < MIN_SAMPLES:
-        logger.info(
-            "[TUNING] %s: alpha_load skipped, only %d RTT samples (need %d)",
-            wan_name,
-            len(rtt_by_ts),
-            MIN_SAMPLES,
-        )
-        return None
+    return rtt_by_ts, ewma_by_ts, jitter_values
 
-    # 3. Sort timestamps for sequential analysis
-    sorted_ts = sorted(rtt_by_ts.keys())
 
-    # 4. Compute median jitter for step detection threshold
+def _measure_settling_times(
+    rtt_by_ts: dict[int, float],
+    ewma_by_ts: dict[int, float],
+    sorted_ts: list[int],
+    jitter_values: list[float],
+) -> list[float]:
+    """Detect RTT steps and measure EWMA settling time for each."""
+    # Compute step detection threshold from jitter
     if jitter_values:
         median_jitter = median(jitter_values)
     else:
-        # Fallback: compute from consecutive RTT deltas
         consecutive_deltas = [
             abs(rtt_by_ts[sorted_ts[i]] - rtt_by_ts[sorted_ts[i - 1]])
             for i in range(1, len(sorted_ts))
         ]
-        if consecutive_deltas:
-            median_jitter = median(consecutive_deltas)
-        else:
-            return None
+        if not consecutive_deltas:
+            return []
+        median_jitter = median(consecutive_deltas)
 
-    # 5. Detect steps: consecutive raw RTT delta > multiplier * median_jitter
-    #    AND absolute delta >= MIN_STEP_MAGNITUDE
     step_threshold = max(STEP_DETECTION_MULTIPLIER * median_jitter, MIN_STEP_MAGNITUDE)
 
-    step_indices: list[int] = []
-    for i in range(1, len(sorted_ts)):
-        delta = abs(rtt_by_ts[sorted_ts[i]] - rtt_by_ts[sorted_ts[i - 1]])
-        if delta >= step_threshold:
-            step_indices.append(i)
+    # Find step indices
+    step_indices = [
+        i for i in range(1, len(sorted_ts))
+        if abs(rtt_by_ts[sorted_ts[i]] - rtt_by_ts[sorted_ts[i - 1]]) >= step_threshold
+    ]
 
-    # 6. For each step, measure settling time
+    # Measure settling for each step
     settling_times: list[float] = []
     for step_idx in step_indices:
-        step_ts = sorted_ts[step_idx]
-        step_rtt = rtt_by_ts[step_ts]
-        prev_rtt = rtt_by_ts[sorted_ts[step_idx - 1]]
-        step_magnitude = abs(step_rtt - prev_rtt)
-
-        if step_magnitude < MIN_STEP_MAGNITUDE:
-            continue
-
-        settle_threshold = SETTLING_THRESHOLD_PCT * step_magnitude
-
-        # Scan forward from step to find settling point
-        for j in range(step_idx, len(sorted_ts)):
-            scan_ts = sorted_ts[j]
-            if scan_ts not in ewma_by_ts:
-                continue
-
-            elapsed_sec = scan_ts - step_ts
-            if elapsed_sec > MAX_SETTLING_WINDOW:
-                break  # Too long, discard this step
-
-            ewma_val = ewma_by_ts[scan_ts]
-            if abs(ewma_val - step_rtt) <= settle_threshold:
-                settling_sec = float(elapsed_sec)
-                settling_times.append(settling_sec)
-                break
-
-        # If EWMA never settled within window, discard the step
-
-    # 7. Check minimum steps requirement
-    if len(settling_times) < MIN_STEPS:
-        logger.info(
-            "[TUNING] %s: alpha_load skipped, only %d steps detected (need %d)",
-            wan_name,
-            len(settling_times),
-            MIN_STEPS,
+        settling = _measure_single_step_settling(
+            rtt_by_ts, ewma_by_ts, sorted_ts, step_idx
         )
+        if settling is not None:
+            settling_times.append(settling)
+
+    return settling_times
+
+
+def _measure_single_step_settling(
+    rtt_by_ts: dict[int, float],
+    ewma_by_ts: dict[int, float],
+    sorted_ts: list[int],
+    step_idx: int,
+) -> float | None:
+    """Measure settling time for a single RTT step. Returns None if step is too small or unsettled."""
+    step_ts = sorted_ts[step_idx]
+    step_rtt = rtt_by_ts[step_ts]
+    prev_rtt = rtt_by_ts[sorted_ts[step_idx - 1]]
+    step_magnitude = abs(step_rtt - prev_rtt)
+
+    if step_magnitude < MIN_STEP_MAGNITUDE:
         return None
 
-    # 8. Compute average settling time
+    settle_threshold = SETTLING_THRESHOLD_PCT * step_magnitude
+
+    for j in range(step_idx, len(sorted_ts)):
+        scan_ts = sorted_ts[j]
+        if scan_ts not in ewma_by_ts:
+            continue
+        elapsed_sec = scan_ts - step_ts
+        if elapsed_sec > MAX_SETTLING_WINDOW:
+            break
+        if abs(ewma_by_ts[scan_ts] - step_rtt) <= settle_threshold:
+            return float(elapsed_sec)
+
+    return None
+
+
+def _compute_alpha_load_result(
+    settling_times: list[float], current_value: float, wan_name: str
+) -> TuningResult | None:
+    """Compute tuning result from settling times. Returns None if converged."""
     avg_settling_sec = mean(settling_times)
 
-    # 9. Check convergence
     if abs(avg_settling_sec - TARGET_SETTLING_SEC) <= SETTLING_TOLERANCE:
         logger.info(
             "[TUNING] %s: alpha_load converged, settling=%.1fs near target %.1fs",
-            wan_name,
-            avg_settling_sec,
-            TARGET_SETTLING_SEC,
+            wan_name, avg_settling_sec, TARGET_SETTLING_SEC,
         )
         return None
 
-    # 10. Derive target time constant: tc ≈ settling_time / 3 (95% settling)
     target_tc = TARGET_SETTLING_SEC / 3.0
-
-    # 11. Move current tc 20% toward target (conservative)
     candidate_tc = current_value + 0.2 * (target_tc - current_value)
-
-    # 12. Confidence scales with step count
     confidence = min(1.0, len(settling_times) / 10.0)
 
     return TuningResult(

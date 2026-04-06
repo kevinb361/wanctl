@@ -567,10 +567,20 @@ def check_tin_distribution(
     Returns:
         List of CheckResult with PASS/WARN/ERROR verdicts.
     """
-    from wanctl.backends.linux_cake import TIN_NAMES
-
-    results: list[CheckResult] = []
     category = f"Tin Distribution ({direction})"
+
+    tins, error_results = _fetch_tin_stats(interface, category)
+    if error_results:
+        return error_results
+
+    return _evaluate_tin_distribution(tins, category, min_percent)
+
+
+def _fetch_tin_stats(
+    interface: str, category: str
+) -> tuple[list[dict], list[CheckResult]]:
+    """Fetch CAKE tin stats via tc. Returns (tins, errors) -- errors non-empty on failure."""
+    results: list[CheckResult] = []
 
     try:
         proc = subprocess.run(
@@ -581,39 +591,23 @@ def check_tin_distribution(
         )
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         results.append(
-            CheckResult(
-                category,
-                "tc_command",
-                Severity.ERROR,
-                f"Failed to run tc on {interface}: {e}",
-            )
+            CheckResult(category, "tc_command", Severity.ERROR, f"Failed to run tc on {interface}: {e}")
         )
-        return results
+        return [], results
 
     if proc.returncode != 0:
         results.append(
-            CheckResult(
-                category,
-                "tc_command",
-                Severity.ERROR,
-                f"tc failed on {interface}: {proc.stderr.strip()}",
-            )
+            CheckResult(category, "tc_command", Severity.ERROR, f"tc failed on {interface}: {proc.stderr.strip()}")
         )
-        return results
+        return [], results
 
-    # Parse JSON and find CAKE entry
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError:
         results.append(
-            CheckResult(
-                category,
-                "tc_parse",
-                Severity.ERROR,
-                f"Failed to parse tc JSON output for {interface}",
-            )
+            CheckResult(category, "tc_parse", Severity.ERROR, f"Failed to parse tc JSON output for {interface}")
         )
-        return results
+        return [], results
 
     cake_entry = None
     for entry in data:
@@ -623,37 +617,35 @@ def check_tin_distribution(
 
     if cake_entry is None:
         results.append(
-            CheckResult(
-                category,
-                "cake_qdisc",
-                Severity.ERROR,
-                f"No CAKE qdisc found on {interface}",
-            )
+            CheckResult(category, "cake_qdisc", Severity.ERROR, f"No CAKE qdisc found on {interface}")
         )
-        return results
+        return [], results
 
     tins = cake_entry.get("tins", [])
     if len(tins) != 4:
         results.append(
             CheckResult(
-                category,
-                "tin_count",
-                Severity.ERROR,
+                category, "tin_count", Severity.ERROR,
                 f"Expected 4 tins (diffserv4), found {len(tins)} on {interface}",
             )
         )
-        return results
+        return [], results
 
-    # Calculate total and per-tin percentages
+    return tins, []
+
+
+def _evaluate_tin_distribution(
+    tins: list[dict], category: str, min_percent: float
+) -> list[CheckResult]:
+    """Evaluate per-tin packet distribution against thresholds."""
+    from wanctl.backends.linux_cake import TIN_NAMES
+
+    results: list[CheckResult] = []
     total_packets = sum(t.get("sent_packets", 0) for t in tins)
     if total_packets == 0:
+        iface = category.split("(")[-1].rstrip(")")
         results.append(
-            CheckResult(
-                category,
-                "total_packets",
-                Severity.WARN,
-                f"No packets processed on {interface} -- run traffic first",
-            )
+            CheckResult(category, "total_packets", Severity.WARN, f"No packets processed on {iface} -- run traffic first")
         )
         return results
 
@@ -661,48 +653,30 @@ def check_tin_distribution(
         name = TIN_NAMES[i] if i < len(TIN_NAMES) else f"Tin{i}"
         packets = tin.get("sent_packets", 0)
         pct = (packets / total_packets) * 100
-
-        if name == "BestEffort":
-            # BestEffort always has traffic -- just report
-            results.append(
-                CheckResult(
-                    category,
-                    f"tin_{name.lower()}",
-                    Severity.PASS,
-                    f"{name}: {packets:,} packets ({pct:.1f}%)",
-                )
-            )
-        else:
-            if packets == 0:
-                results.append(
-                    CheckResult(
-                        category,
-                        f"tin_{name.lower()}",
-                        Severity.WARN,
-                        f"{name}: 0 packets (0%) -- no {name} traffic reaching CAKE",
-                        suggestion=f"Verify DSCP marks for {name} tin survive the bridge path",
-                    )
-                )
-            elif pct < min_percent:
-                results.append(
-                    CheckResult(
-                        category,
-                        f"tin_{name.lower()}",
-                        Severity.WARN,
-                        f"{name}: {packets:,} packets ({pct:.2f}%) -- below {min_percent}% threshold",
-                    )
-                )
-            else:
-                results.append(
-                    CheckResult(
-                        category,
-                        f"tin_{name.lower()}",
-                        Severity.PASS,
-                        f"{name}: {packets:,} packets ({pct:.1f}%)",
-                    )
-                )
+        results.append(_evaluate_single_tin(category, name, packets, pct, min_percent))
 
     return results
+
+
+def _evaluate_single_tin(
+    category: str, name: str, packets: int, pct: float, min_percent: float
+) -> CheckResult:
+    """Evaluate a single tin's packet count against thresholds."""
+    key = f"tin_{name.lower()}"
+    if name == "BestEffort":
+        return CheckResult(category, key, Severity.PASS, f"{name}: {packets:,} packets ({pct:.1f}%)")
+    if packets == 0:
+        return CheckResult(
+            category, key, Severity.WARN,
+            f"{name}: 0 packets (0%) -- no {name} traffic reaching CAKE",
+            suggestion=f"Verify DSCP marks for {name} tin survive the bridge path",
+        )
+    if pct < min_percent:
+        return CheckResult(
+            category, key, Severity.WARN,
+            f"{name}: {packets:,} packets ({pct:.2f}%) -- below {min_percent}% threshold",
+        )
+    return CheckResult(category, key, Severity.PASS, f"{name}: {packets:,} packets ({pct:.1f}%)")
 
 
 # =============================================================================
@@ -804,107 +778,113 @@ def run_audit(data: dict, config_type: str, client: object | None) -> list[Check
         List of all CheckResult.
     """
     results: list[CheckResult] = []
-    router_cfg = _extract_router_config(data)
 
-    # 1. Environment variable check
+    # 1. Environment variable check -- abort early if failed
     env_results = check_env_vars(data)
     results.extend(env_results)
-
-    # If env var check has errors, skip connectivity (can't authenticate)
     if any(r.severity == Severity.ERROR for r in env_results) or client is None:
         if any(r.severity == Severity.ERROR for r in env_results):
-            for category in _skippable_categories(config_type):
-                results.append(
-                    CheckResult(
-                        category,
-                        "skipped",
-                        Severity.ERROR,
-                        "Skipped: router unreachable (environment variable not set)",
-                    )
-                )
+            results.extend(_skip_categories(config_type, "environment variable not set"))
         return results
 
-    # 2. Connectivity check
-    transport = router_cfg["router_transport"]
-    host = router_cfg["router_host"]
-    port = router_cfg["router_port"]
-    connectivity_results = check_connectivity(client, transport, host, port)
-    results.extend(connectivity_results)
-
-    # If connectivity failed, skip remaining checks
-    if any(r.severity == Severity.ERROR for r in connectivity_results):
-        for category in _skippable_categories(config_type):
-            results.append(
-                CheckResult(
-                    category,
-                    "skipped",
-                    Severity.ERROR,
-                    "Skipped: router unreachable",
-                )
-            )
+    # 2. Connectivity check -- abort early if failed
+    router_cfg = _extract_router_config(data)
+    conn_results = check_connectivity(
+        client, router_cfg["router_transport"], router_cfg["router_host"], router_cfg["router_port"]
+    )
+    results.extend(conn_results)
+    if any(r.severity == Severity.ERROR for r in conn_results):
+        results.extend(_skip_categories(config_type, "router unreachable"))
         return results
 
-    # 3. Queue tree audit (CAKE-02, CAKE-03, CAKE-04)
+    # 3-5. Queue, CAKE param, mangle, and tin distribution checks
+    results.extend(_run_queue_and_param_checks(data, config_type, client))
+
+    return results
+
+
+def _skip_categories(config_type: str, reason: str) -> list[CheckResult]:
+    """Generate skip results for all skippable categories."""
+    return [
+        CheckResult(cat, "skipped", Severity.ERROR, f"Skipped: {reason}")
+        for cat in _skippable_categories(config_type)
+    ]
+
+
+def _run_queue_and_param_checks(
+    data: dict, config_type: str, client: object
+) -> list[CheckResult]:
+    """Run queue tree, CAKE param, mangle, and tin distribution checks."""
+    results: list[CheckResult] = []
     queue_names = _extract_queue_names(data, config_type)
     ceilings = _extract_ceilings(data, config_type)
+
+    # 3. Queue tree audit (CAKE-02, CAKE-03, CAKE-04)
     results.extend(check_queue_tree(client, queue_names, ceilings, config_type))
 
     # 3.5 CAKE queue type parameter checks
+    results.extend(_run_cake_param_checks(data, client, queue_names))
+
+    # 4. Mangle rule check (CAKE-05, steering only)
+    if config_type == "steering":
+        results.extend(_run_mangle_check(data, client))
+
+    # 5. Tin distribution check (linux-cake transport only, per D-05)
+    cake_params = data.get("cake_params")
+    if cake_params and isinstance(cake_params, dict):
+        for direction in ("download", "upload"):
+            iface = cake_params.get(f"{direction}_interface", "")
+            if iface:
+                results.extend(check_tin_distribution(iface, direction))
+
+    return results
+
+
+def _run_cake_param_checks(
+    data: dict, client: object, queue_names: dict
+) -> list[CheckResult]:
+    """Run CAKE queue type parameter checks for each direction."""
+    results: list[CheckResult] = []
     cake_config = _extract_cake_optimization(data)
+
     for direction in ("download", "upload"):
         queue_name = queue_names.get(direction, "")
         if not queue_name:
             continue
-        # Get queue tree entry to extract queue type name
         stats = client.get_queue_stats(queue_name)
         if stats is None:
             continue
         queue_type_name = stats.get("queue", "")
         if not queue_type_name or not queue_type_name.startswith("cake"):
             continue
-        # Fetch queue type details
         queue_type_data = client.get_queue_types(queue_type_name)
         if queue_type_data is None:
             results.append(
                 CheckResult(
-                    f"CAKE Params ({direction})",
-                    "queue_type",
-                    Severity.ERROR,
+                    f"CAKE Params ({direction})", "queue_type", Severity.ERROR,
                     f"Queue type not found: {queue_type_name}",
                     suggestion="Verify queue type exists on router",
                 )
             )
             continue
-        # Run checks
         results.extend(check_cake_params(queue_type_data, direction))
         results.extend(check_link_params(queue_type_data, direction, cake_config))
 
-    # 4. Mangle rule check (CAKE-05, steering only)
-    if config_type == "steering":
-        mangle_comment = _extract_mangle_comment(data)
-        if mangle_comment:
-            results.extend(check_mangle_rule(client, mangle_comment))
-        else:
-            results.append(
-                CheckResult(
-                    "Mangle Rule",
-                    "mangle_comment",
-                    Severity.ERROR,
-                    "No mangle_rule.comment configured",
-                    suggestion="Add mangle_rule.comment to steering config",
-                )
-            )
-
-    # 5. Tin distribution check (linux-cake transport only, per D-05)
-    cake_params = data.get("cake_params")
-    if cake_params and isinstance(cake_params, dict):
-        for direction in ("download", "upload"):
-            iface_key = f"{direction}_interface"
-            iface = cake_params.get(iface_key, "")
-            if iface:
-                results.extend(check_tin_distribution(iface, direction))
-
     return results
+
+
+def _run_mangle_check(data: dict, client: object) -> list[CheckResult]:
+    """Run mangle rule check for steering config."""
+    mangle_comment = _extract_mangle_comment(data)
+    if mangle_comment:
+        return check_mangle_rule(client, mangle_comment)
+    return [
+        CheckResult(
+            "Mangle Rule", "mangle_comment", Severity.ERROR,
+            "No mangle_rule.comment configured",
+            suggestion="Add mangle_rule.comment to steering config",
+        )
+    ]
 
 
 # =============================================================================

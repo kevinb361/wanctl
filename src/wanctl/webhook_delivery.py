@@ -403,107 +403,86 @@ class WebhookDelivery:
             wan_name: WAN identifier.
             details: Alert details dict.
         """
+        payload = self._prepare_payload(alert_type, severity, wan_name, details)
+        if payload is None:
+            return
+        self._send_with_retry(payload, alert_id, alert_type)
+
+    def _prepare_payload(
+        self, alert_type: str, severity: str, wan_name: str, details: dict[str, Any]
+    ) -> dict | None:
+        """Format webhook payload. Returns None on failure."""
         try:
-            payload = self._formatter.format(
-                alert_type,
-                severity,
-                wan_name,
-                details,
+            return self._formatter.format(
+                alert_type, severity, wan_name, details,
                 mention_role_id=self._mention_role_id,
                 mention_severity=self._mention_severity,
             )
         except Exception:
             logger.warning("Failed to format webhook payload for %s", alert_type, exc_info=True)
-            with self._lock:
-                self._delivery_failures += 1
-            return
+            self._record_failure(None, None)
+            return None
 
+    def _send_with_retry(
+        self, payload: dict, alert_id: int | None, alert_type: str
+    ) -> None:
+        """Send webhook with exponential backoff retry."""
         delay = self._INITIAL_DELAY
 
         for attempt in range(1, self._MAX_ATTEMPTS + 1):
             try:
                 response = requests.post(self._webhook_url, json=payload, timeout=10)
                 response.raise_for_status()
-
-                # Success
                 if alert_id is not None:
                     self._update_delivery_status(alert_id, "delivered")
                 logger.debug("Webhook delivered: %s (attempt %d)", alert_type, attempt)
                 return
-
             except requests.exceptions.HTTPError as e:
                 status = e.response.status_code if e.response is not None else 0
                 if 400 <= status < 500 and status != 408:
-                    # 4xx (except 408) = permanent failure, no retry
-                    logger.warning(
-                        "Webhook delivery failed (HTTP %d), not retrying: %s",
-                        status,
-                        alert_type,
-                    )
-                    with self._lock:
-                        self._delivery_failures += 1
-                    if alert_id is not None:
-                        self._update_delivery_status(alert_id, "failed")
+                    logger.warning("Webhook delivery failed (HTTP %d), not retrying: %s", status, alert_type)
+                    self._record_failure(alert_id, "failed")
                     return
-
-                # 5xx or 408 = retryable
-                if attempt < self._MAX_ATTEMPTS:
-                    logger.warning(
-                        "Webhook delivery failed (HTTP %d), retrying in %.1fs: %s",
-                        status,
-                        delay,
-                        alert_type,
-                    )
-                    time.sleep(delay)
-                    delay *= self._BACKOFF_FACTOR
-                    continue
-
-                # Exhausted
-                logger.warning(
-                    "Webhook delivery failed after %d attempts: %s",
-                    self._MAX_ATTEMPTS,
-                    alert_type,
+                delay = self._handle_retryable_error(
+                    attempt, delay, alert_id, alert_type,
+                    f"HTTP {status}",
                 )
-                with self._lock:
-                    self._delivery_failures += 1
-                if alert_id is not None:
-                    self._update_delivery_status(alert_id, "failed")
-                return
-
+                if delay is None:
+                    return
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-                if attempt < self._MAX_ATTEMPTS:
-                    logger.warning(
-                        "Webhook delivery error (%s), retrying in %.1fs: %s",
-                        type(e).__name__,
-                        delay,
-                        alert_type,
-                    )
-                    time.sleep(delay)
-                    delay *= self._BACKOFF_FACTOR
-                    continue
-
-                logger.warning(
-                    "Webhook delivery failed after %d attempts: %s",
-                    self._MAX_ATTEMPTS,
-                    alert_type,
+                delay = self._handle_retryable_error(
+                    attempt, delay, alert_id, alert_type,
+                    type(e).__name__,
                 )
-                with self._lock:
-                    self._delivery_failures += 1
-                if alert_id is not None:
-                    self._update_delivery_status(alert_id, "failed")
-                return
-
+                if delay is None:
+                    return
             except Exception:
-                logger.warning(
-                    "Unexpected webhook delivery error for %s",
-                    alert_type,
-                    exc_info=True,
-                )
-                with self._lock:
-                    self._delivery_failures += 1
-                if alert_id is not None:
-                    self._update_delivery_status(alert_id, "failed")
+                logger.warning("Unexpected webhook delivery error for %s", alert_type, exc_info=True)
+                self._record_failure(alert_id, "failed")
                 return
+
+    def _handle_retryable_error(
+        self, attempt: int, delay: float, alert_id: int | None, alert_type: str, error_label: str
+    ) -> float | None:
+        """Handle a retryable error. Returns next delay, or None if exhausted."""
+        if attempt < self._MAX_ATTEMPTS:
+            logger.warning(
+                "Webhook delivery failed (%s), retrying in %.1fs: %s",
+                error_label, delay, alert_type,
+            )
+            time.sleep(delay)
+            return delay * self._BACKOFF_FACTOR
+
+        logger.warning("Webhook delivery failed after %d attempts: %s", self._MAX_ATTEMPTS, alert_type)
+        self._record_failure(alert_id, "failed")
+        return None
+
+    def _record_failure(self, alert_id: int | None, status: str | None) -> None:
+        """Record a delivery failure: increment counter and update DB status."""
+        with self._lock:
+            self._delivery_failures += 1
+        if alert_id is not None and status is not None:
+            self._update_delivery_status(alert_id, status)
 
     def update_webhook_url(self, url: str) -> None:
         """Update webhook URL (for SIGUSR1 config reload).
