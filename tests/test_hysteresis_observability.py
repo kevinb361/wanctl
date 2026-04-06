@@ -13,12 +13,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wanctl.queue_controller import QueueController
 from wanctl.health_check import (
     HealthCheckHandler,
     start_health_server,
 )
 from wanctl.perf_profiler import OperationProfiler
+from wanctl.queue_controller import QueueController
 
 
 def find_free_port() -> int:

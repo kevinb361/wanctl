@@ -13,9 +13,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.wan_controller import WANController
-from wanctl.routeros_interface import RouterOS
 from wanctl.lock_utils import LockAcquisitionError
+from wanctl.routeros_interface import RouterOS
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # SHARED FIXTURES

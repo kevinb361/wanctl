@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import yaml
 
-from wanctl.wan_controller import WANController
 from wanctl.queue_controller import QueueController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # TEST HELPERS

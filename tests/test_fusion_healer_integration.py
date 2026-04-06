@@ -17,8 +17,8 @@ import pytest
 import yaml
 
 from wanctl.autorate_config import Config
-from wanctl.wan_controller import WANController
 from wanctl.fusion_healer import FusionHealer, HealState
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # HELPERS

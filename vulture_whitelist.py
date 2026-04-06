@@ -114,7 +114,7 @@ _create_transport  # noqa
 # tuning/strategies
 _extract_green_deltas  # noqa
 
-# autorate_continuous.py
+# wan_controller.py (WANController)
 _.update_ewma
 _._last_tuning_ts  # test-only attribute (D-04) -- tests verify init value
 
