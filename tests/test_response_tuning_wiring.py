@@ -36,7 +36,7 @@ class TestApplyResponseParams:
 
     def test_apply_dl_step_up_mbps(self):
         """dl_step_up_mbps sets wc.download.step_up_bps = int(new_value * 1_000_000)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -51,7 +51,7 @@ class TestApplyResponseParams:
 
     def test_apply_ul_step_up_mbps(self):
         """ul_step_up_mbps sets wc.upload.step_up_bps = int(new_value * 1_000_000)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -66,7 +66,7 @@ class TestApplyResponseParams:
 
     def test_apply_dl_factor_down(self):
         """dl_factor_down sets wc.download.factor_down = new_value."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -81,7 +81,7 @@ class TestApplyResponseParams:
 
     def test_apply_ul_factor_down(self):
         """ul_factor_down sets wc.upload.factor_down = new_value."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -96,7 +96,7 @@ class TestApplyResponseParams:
 
     def test_apply_dl_green_required(self):
         """dl_green_required sets wc.download.green_required = round(new_value)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -111,7 +111,7 @@ class TestApplyResponseParams:
 
     def test_apply_ul_green_required(self):
         """ul_green_required sets wc.upload.green_required = round(new_value)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -126,7 +126,7 @@ class TestApplyResponseParams:
 
     def test_step_up_mbps_to_bps_conversion_fractional(self):
         """Verify int(new_value * 1_000_000) conversion for fractional Mbps."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -142,7 +142,7 @@ class TestApplyResponseParams:
 
     def test_green_required_rounds_float(self):
         """green_required uses round() to convert float to int."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(

@@ -258,7 +258,7 @@ class TestObservationMode:
 
     def test_signal_processor_instantiated_in_wan_controller(self, mock_autorate_config):
         """WANController.__init__ creates self.signal_processor."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         router = MagicMock()
         rtt = MagicMock()
@@ -278,7 +278,7 @@ class TestObservationMode:
 
     def test_signal_processor_has_correct_config(self, mock_autorate_config):
         """WANController passes config to SignalProcessor correctly."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         router = MagicMock()
         rtt = MagicMock()
@@ -297,7 +297,7 @@ class TestObservationMode:
 
     def test_last_signal_result_initially_none(self, mock_autorate_config):
         """WANController._last_signal_result starts as None."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         router = MagicMock()
         rtt = MagicMock()
@@ -314,7 +314,7 @@ class TestObservationMode:
 
     def test_run_cycle_uses_filtered_rtt(self, mock_autorate_config):
         """run_cycle passes signal_result.filtered_rtt to update_ewma."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         router = MagicMock()
         rtt = MagicMock()
@@ -360,7 +360,7 @@ class TestObservationMode:
 
     def test_run_cycle_stores_signal_result(self, mock_autorate_config):
         """run_cycle stores signal_result in _last_signal_result."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         router = MagicMock()
         rtt = MagicMock()

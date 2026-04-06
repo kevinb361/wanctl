@@ -42,7 +42,7 @@ class TestHandleIcmpFailure:
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
         # Import here to avoid circular imports during collection
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         # Patch load_state to avoid file I/O
         with patch.object(WANController, "load_state"):
@@ -328,7 +328,7 @@ class TestHandleIcmpFailure:
 
         with (
             patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
-            patch("wanctl.autorate_continuous.record_ping_failure") as mock_record,
+            patch("wanctl.wan_controller.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()
 
@@ -342,7 +342,7 @@ class TestHandleIcmpFailure:
 
         with (
             patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
-            patch("wanctl.autorate_continuous.record_ping_failure") as mock_record,
+            patch("wanctl.wan_controller.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()
 
@@ -377,7 +377,7 @@ class TestIcmpRecovery:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -470,7 +470,7 @@ class TestApplyRateChangesIfNeeded:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -576,7 +576,7 @@ class TestApplyRateChangesIfNeeded:
 
         with (
             patch.object(controller, "save_state"),
-            patch("wanctl.autorate_continuous.record_rate_limit_event") as mock_metric,
+            patch("wanctl.wan_controller.record_rate_limit_event") as mock_metric,
         ):
             result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
 
@@ -596,7 +596,7 @@ class TestApplyRateChangesIfNeeded:
 
         with (
             patch.object(controller, "save_state"),
-            patch("wanctl.autorate_continuous.record_rate_limit_event") as mock_metric,
+            patch("wanctl.wan_controller.record_rate_limit_event") as mock_metric,
         ):
             result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
 
@@ -664,7 +664,7 @@ class TestApplyRateChangesIfNeeded:
         controller.last_applied_dl_rate = 100_000_000
         controller.last_applied_ul_rate = 20_000_000
 
-        with patch("wanctl.autorate_continuous.record_router_update") as mock_metric:
+        with patch("wanctl.wan_controller.record_router_update") as mock_metric:
             controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
 
         mock_metric.assert_called_once_with("TestWAN")
@@ -675,7 +675,7 @@ class TestApplyRateChangesIfNeeded:
         controller.last_applied_dl_rate = 100_000_000
         controller.last_applied_ul_rate = 20_000_000
 
-        with patch("wanctl.autorate_continuous.record_router_update") as mock_metric:
+        with patch("wanctl.wan_controller.record_router_update") as mock_metric:
             controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
 
         mock_metric.assert_not_called()
@@ -714,7 +714,7 @@ class TestUpdateBaselineIfIdle:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -838,7 +838,7 @@ class TestDualFallbackFailure:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -952,7 +952,7 @@ class TestIcmpRecoveryExtended:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -1018,7 +1018,7 @@ class TestRunCycleMetrics:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -1035,7 +1035,7 @@ class TestRunCycleMetrics:
         with (
             patch.object(controller, "measure_rtt", return_value=25.0),
             patch.object(controller, "save_state"),
-            patch("wanctl.autorate_continuous.record_autorate_cycle") as mock_record,
+            patch("wanctl.wan_controller.record_autorate_cycle") as mock_record,
         ):
             result = controller.run_cycle()
 
@@ -1056,7 +1056,7 @@ class TestRunCycleMetrics:
         with (
             patch.object(controller, "measure_rtt", return_value=25.0),
             patch.object(controller, "save_state"),
-            patch("wanctl.autorate_continuous.record_autorate_cycle") as mock_record,
+            patch("wanctl.wan_controller.record_autorate_cycle") as mock_record,
         ):
             result = controller.run_cycle()
 
@@ -1076,7 +1076,7 @@ class TestVerifyLocalConnectivity:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"
@@ -1214,7 +1214,7 @@ class TestVerifyTcpConnectivity:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"
@@ -1385,7 +1385,7 @@ class TestVerifyConnectivityFallback:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"
@@ -1540,7 +1540,7 @@ class TestStateLoadSave:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"
@@ -1803,7 +1803,7 @@ class TestMeasureRttMedianOfThree:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"
@@ -1998,7 +1998,7 @@ class TestBaselineRttBoundsRejection:
     @pytest.fixture
     def controller_with_mocks(self):
         """Create a WANController with all dependencies accessible."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config = MagicMock()
         config.wan_name = "TestWAN"

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 import yaml
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 from wanctl.fusion_healer import HealState
 
 # =============================================================================

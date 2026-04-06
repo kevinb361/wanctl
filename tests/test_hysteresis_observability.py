@@ -468,7 +468,7 @@ class TestPeriodicHysteresisLogging:
 
     def _make_mock_wan_controller(self):
         """Create a mock WANController with download/upload QueueControllers."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         wc = MagicMock(spec=WANController)
         wc.wan_name = "spectrum"
@@ -484,7 +484,7 @@ class TestPeriodicHysteresisLogging:
 
     def test_logs_info_when_congestion_and_window_elapsed(self, caplog):
         """_check_hysteresis_window() logs INFO when 60s window elapsed AND congestion occurred."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         wc = self._make_mock_wan_controller()
 
@@ -507,7 +507,7 @@ class TestPeriodicHysteresisLogging:
 
     def test_no_log_when_no_congestion(self, caplog):
         """_check_hysteresis_window() does NOT log when window elapsed but no congestion (D-06)."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         wc = self._make_mock_wan_controller()
 
@@ -531,7 +531,7 @@ class TestPeriodicHysteresisLogging:
 
     def test_no_log_when_window_not_elapsed(self, caplog):
         """_check_hysteresis_window() returns (0,0) when <60s elapsed."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         wc = self._make_mock_wan_controller()
 
@@ -548,7 +548,7 @@ class TestPeriodicHysteresisLogging:
 
     def test_counters_reset_after_window_boundary(self):
         """After window boundary, counters are reset for next window."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         wc = self._make_mock_wan_controller()
 

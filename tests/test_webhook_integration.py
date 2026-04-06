@@ -412,7 +412,7 @@ class TestDaemonWebhookWiring:
     def test_webhook_delivery_constructed_in_wancontroller(self, tmp_path):
         """WANController constructs WebhookDelivery when alerting enabled with webhook_url."""
         from wanctl.autorate_config import Config
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -448,7 +448,7 @@ class TestDaemonWebhookWiring:
     def test_empty_webhook_url_still_constructs(self, tmp_path, caplog):
         """Empty webhook_url still constructs WebhookDelivery (deliver silently skips)."""
         from wanctl.autorate_config import Config
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -486,7 +486,7 @@ class TestDaemonWebhookWiring:
     def test_http_url_rejected_with_warning(self, tmp_path, caplog):
         """http:// webhook_url is rejected with warning and treated as empty."""
         from wanctl.autorate_config import Config
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
         from wanctl.webhook_delivery import WebhookDelivery
 
         MetricsWriter._reset_instance()
@@ -524,7 +524,7 @@ class TestDaemonWebhookWiring:
     def test_no_alerting_config_sets_webhook_none(self, tmp_path):
         """No alerting config sets _webhook_delivery to None."""
         from wanctl.autorate_config import Config
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         MetricsWriter._reset_instance()
         try:

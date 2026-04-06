@@ -60,7 +60,7 @@ def mock_controller():
     Uses MagicMock(spec=WANController) with specific attributes set for
     _compute_fused_rtt. The real method is bound to the mock.
     """
-    from wanctl.autorate_continuous import WANController
+    from wanctl.wan_controller import WANController
 
     controller = MagicMock(spec=WANController)
     controller.wan_name = "spectrum"

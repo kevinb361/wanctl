@@ -484,7 +484,7 @@ class TestWANControllerIRTTWriteTs:
 
     def test_last_irtt_write_ts_initialized_to_none(self, mock_config) -> None:
         """WANController._last_irtt_write_ts starts as None."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             controller = WANController(
@@ -508,7 +508,7 @@ class TestSignalQualityInRunCycle:
     @pytest.fixture
     def controller(self, mock_config):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             ctrl = WANController(
@@ -603,7 +603,7 @@ class TestIRTTInRunCycle:
     @pytest.fixture
     def controller(self, mock_config):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state"):
             ctrl = WANController(

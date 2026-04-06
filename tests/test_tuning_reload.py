@@ -18,7 +18,7 @@ class TestReloadTuningConfig:
         """Create a WANController with a real YAML config file."""
         from unittest.mock import MagicMock
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config_file = tmp_path / "config.yaml"
         if yaml_content is not None:

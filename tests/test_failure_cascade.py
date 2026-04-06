@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 
 
 @pytest.fixture

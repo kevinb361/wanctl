@@ -102,7 +102,7 @@ class TestWANControllerAsymmetryAttributes:
         """WANController.__init__ creates _asymmetry_analyzer."""
         _mock_config = self._make_config()
         with patch("wanctl.routeros_interface.get_router_client_with_failover"):
-            from wanctl.autorate_continuous import WANController
+            from wanctl.wan_controller import WANController
 
             _controller = WANController.__new__(WANController)
             # Check the attribute exists after __init__ by inspecting the real class
@@ -116,7 +116,7 @@ class TestWANControllerAsymmetryAttributes:
         """WANController.__init__ creates _last_asymmetry_result."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.__init__)
         assert "_last_asymmetry_result" in source
@@ -136,7 +136,7 @@ class TestAsymmetryMetricsWrite:
         # We test by verifying the code path in run_cycle contains the metric name
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         assert "wanctl_irtt_asymmetry_ratio" in source
@@ -145,7 +145,7 @@ class TestAsymmetryMetricsWrite:
         """metrics_batch includes wanctl_irtt_asymmetry_direction when asymmetry result available."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         assert "wanctl_irtt_asymmetry_direction" in source
@@ -154,7 +154,7 @@ class TestAsymmetryMetricsWrite:
         """Direction metric value uses DIRECTION_ENCODING.get() for float conversion."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         assert "DIRECTION_ENCODING.get(" in source
@@ -163,7 +163,7 @@ class TestAsymmetryMetricsWrite:
         """Asymmetry metrics only written when irtt_result.timestamp != _last_irtt_write_ts."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         # Verify both asymmetry metrics appear after the IRTT dedup guard
@@ -179,7 +179,7 @@ class TestAsymmetryDedup:
         """analyze() is called in run_cycle when irtt_result is available."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         assert "_asymmetry_analyzer.analyze(irtt_result)" in source
@@ -188,7 +188,7 @@ class TestAsymmetryDedup:
         """_last_asymmetry_result updated after analyze() call in run_cycle."""
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.run_cycle)
         assert "_last_asymmetry_result = asym" in source or "_last_asymmetry_result" in source
@@ -213,7 +213,7 @@ class TestLastAsymmetryResult:
         # when irtt_result is not None
         import inspect
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         source = inspect.getsource(WANController.__init__)
         assert "_last_asymmetry_result: AsymmetryResult | None = None" in source

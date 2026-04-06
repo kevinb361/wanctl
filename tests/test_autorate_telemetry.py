@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.autorate_continuous import CYCLE_INTERVAL_SECONDS, WANController
+from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS, WANController
 
 # =============================================================================
 # SHARED FIXTURES

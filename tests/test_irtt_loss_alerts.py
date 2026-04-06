@@ -59,7 +59,7 @@ def mock_controller():
     Instead of constructing a full WANController (heavy), we build a mock
     that has the exact attributes _check_irtt_loss_alerts needs.
     """
-    from wanctl.autorate_continuous import WANController
+    from wanctl.wan_controller import WANController
 
     controller = MagicMock(spec=WANController)
     controller.wan_name = "spectrum"

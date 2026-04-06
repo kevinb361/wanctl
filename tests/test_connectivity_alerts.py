@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.alert_engine import AlertEngine
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # FIXTURES

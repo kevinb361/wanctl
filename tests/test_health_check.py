@@ -2312,7 +2312,7 @@ class TestCycleBudgetAlert:
         interval_ms: float = 50.0,
     ):
         """Build a minimal stub with the attributes _check_cycle_budget_alert needs."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         stub = MagicMock(spec=[])  # No auto-attributes
         stub._warning_threshold_pct = threshold
@@ -2373,7 +2373,7 @@ class TestReloadCycleBudgetConfig:
     @staticmethod
     def _make_controller_stub(threshold: float = 80.0):
         """Build a minimal stub with attributes _reload_cycle_budget_config needs."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         stub = MagicMock(spec=[])
         stub._warning_threshold_pct = threshold

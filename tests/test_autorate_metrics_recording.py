@@ -130,7 +130,7 @@ class TestStateEncodingHelper:
 
     def test_encode_state_green(self) -> None:
         """Verify GREEN encodes to 0."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         # Create minimal mock for testing _encode_state
         with patch.object(WANController, "__init__", lambda self: None):
@@ -139,7 +139,7 @@ class TestStateEncodingHelper:
 
     def test_encode_state_yellow(self) -> None:
         """Verify YELLOW encodes to 1."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "__init__", lambda self: None):
             controller = WANController.__new__(WANController)
@@ -147,7 +147,7 @@ class TestStateEncodingHelper:
 
     def test_encode_state_soft_red(self) -> None:
         """Verify SOFT_RED encodes to 2."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "__init__", lambda self: None):
             controller = WANController.__new__(WANController)
@@ -155,7 +155,7 @@ class TestStateEncodingHelper:
 
     def test_encode_state_red(self) -> None:
         """Verify RED encodes to 3."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "__init__", lambda self: None):
             controller = WANController.__new__(WANController)
@@ -163,7 +163,7 @@ class TestStateEncodingHelper:
 
     def test_encode_state_unknown_defaults_to_green(self) -> None:
         """Verify unknown state defaults to 0 (GREEN)."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "__init__", lambda self: None):
             controller = WANController.__new__(WANController)

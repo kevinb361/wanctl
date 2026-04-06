@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 from wanctl.routeros_interface import RouterOS
 from wanctl.lock_utils import LockAcquisitionError
 
@@ -597,7 +597,7 @@ class TestRunCycleErrorPaths:
         ctrl, _, _, _ = controller_with_mocks
 
         # Import FORCE_SAVE_INTERVAL_CYCLES
-        from wanctl.autorate_continuous import FORCE_SAVE_INTERVAL_CYCLES
+        from wanctl.wan_controller import FORCE_SAVE_INTERVAL_CYCLES
 
         # Set cycles just below threshold
         ctrl._cycles_since_forced_save = FORCE_SAVE_INTERVAL_CYCLES - 1

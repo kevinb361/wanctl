@@ -1014,7 +1014,7 @@ class TestBaselineFreezeInvariant:
         """
         from unittest.mock import MagicMock, patch
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         # Create mock config with baseline_update_threshold_ms = 3.0
         mock_config = MagicMock()
@@ -1092,7 +1092,7 @@ class TestBaselineFreezeInvariant:
         """Low delta allows baseline EWMA update."""
         from unittest.mock import MagicMock, patch
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         # Create mock config
         mock_config = MagicMock()
@@ -1169,7 +1169,7 @@ class TestBaselineFreezeInvariant:
         """Exactly threshold value freezes (>= not >)."""
         from unittest.mock import MagicMock, patch
 
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_config = MagicMock()
         mock_config.wan_name = "TestWAN"

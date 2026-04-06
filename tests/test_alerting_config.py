@@ -367,7 +367,7 @@ class TestAlertEngineWiringAutorate:
     ):
         """WANController has alert_engine attribute when alerting is enabled."""
         from wanctl.alert_engine import AlertEngine
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
         from wanctl.routeros_interface import RouterOS
         from wanctl.rtt_measurement import RTTMeasurement
 
@@ -395,7 +395,7 @@ class TestAlertEngineWiringAutorate:
     ):
         """WANController has alert_engine (disabled) when alerting not configured."""
         from wanctl.alert_engine import AlertEngine
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
         from wanctl.routeros_interface import RouterOS
         from wanctl.rtt_measurement import RTTMeasurement
 

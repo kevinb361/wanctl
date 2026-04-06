@@ -17,7 +17,7 @@ import pytest
 import yaml
 
 from wanctl.autorate_config import Config
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # FIXTURES

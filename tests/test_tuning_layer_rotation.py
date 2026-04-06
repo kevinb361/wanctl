@@ -57,7 +57,7 @@ class TestApplySignalProcessingParams:
 
     def test_apply_hampel_sigma_threshold(self):
         """hampel_sigma_threshold sets signal_processor._sigma_threshold."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -73,7 +73,7 @@ class TestApplySignalProcessingParams:
 
     def test_apply_hampel_window_size_updates_window_size(self):
         """hampel_window_size sets signal_processor._window_size."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -91,7 +91,7 @@ class TestApplySignalProcessingParams:
 
     def test_apply_hampel_window_size_resizes_deques(self):
         """hampel_window_size resizes both _window and _outlier_window deques."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -110,7 +110,7 @@ class TestApplySignalProcessingParams:
 
     def test_deque_resize_preserves_recent_elements_when_shrinking(self):
         """Shrinking window preserves the most recent N elements."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -144,7 +144,7 @@ class TestApplyLoadTimeConstant:
 
     def test_tc_2s_gives_alpha_0_025(self):
         """load_time_constant_sec=2.0 -> alpha_load=0.025 (0.05/2.0)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -158,7 +158,7 @@ class TestApplyLoadTimeConstant:
 
     def test_tc_1s_gives_alpha_0_05(self):
         """load_time_constant_sec=1.0 -> alpha_load=0.05 (0.05/1.0)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -172,7 +172,7 @@ class TestApplyLoadTimeConstant:
 
     def test_tc_5s_gives_alpha_0_01(self):
         """load_time_constant_sec=5.0 -> alpha_load=0.01 (0.05/5.0)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -186,7 +186,7 @@ class TestApplyLoadTimeConstant:
 
     def test_tc_10s_gives_alpha_0_005(self):
         """load_time_constant_sec=10.0 -> alpha_load=0.005 (0.05/10.0)."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -361,7 +361,7 @@ class TestApplyAdvancedParams:
 
     def test_apply_fusion_icmp_weight(self):
         """fusion_icmp_weight sets wc._fusion_icmp_weight."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -375,7 +375,7 @@ class TestApplyAdvancedParams:
 
     def test_apply_reflector_min_score(self):
         """reflector_min_score sets wc._reflector_scorer._min_score."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -391,7 +391,7 @@ class TestApplyAdvancedParams:
 
     def test_apply_baseline_rtt_min(self):
         """baseline_rtt_min sets wc.baseline_rtt_min."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -405,7 +405,7 @@ class TestApplyAdvancedParams:
 
     def test_apply_baseline_rtt_max(self):
         """baseline_rtt_max sets wc.baseline_rtt_max."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(

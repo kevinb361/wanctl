@@ -49,7 +49,7 @@ class TestBaselineBoundsValidation:
     @pytest.fixture
     def controller(self, mock_config, mock_router, mock_logger):
         """Create a WANController with mocked dependencies."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         with patch.object(WANController, "load_state", return_value=None):
             controller = WANController(

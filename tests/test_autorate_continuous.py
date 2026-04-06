@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # SHARED FIXTURES
@@ -354,7 +354,7 @@ class TestProfilingInstrumentation:
 
     def test_profiling_report_emitted_when_enabled(self, profiled_controller, mock_logger):
         """Profiling report should be logged every PROFILE_REPORT_INTERVAL cycles."""
-        from wanctl.autorate_continuous import PROFILE_REPORT_INTERVAL
+        from wanctl.perf_profiler import PROFILE_REPORT_INTERVAL
 
         profiled_controller._profiling_enabled = True
         with patch.object(profiled_controller, "save_state"):

@@ -296,7 +296,7 @@ def _make_controller_harness(
     Imports _check_protocol_correlation from the actual WANController class
     and binds it to a mock with the required attributes.
     """
-    from wanctl.autorate_continuous import WANController
+    from wanctl.wan_controller import WANController
 
     ctrl = MagicMock()
     ctrl.wan_name = "TestWAN"
@@ -402,7 +402,7 @@ class TestProtocolCorrelation:
         directly.  We verify by checking that _irtt_correlation is set to None when
         the result is stale.
         """
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         ctrl = MagicMock(spec=WANController)
         ctrl.wan_name = "TestWAN"

@@ -64,7 +64,7 @@ class TestWANControllerSafetyInit:
 
     def test_parameter_locks_initialized_empty(self, mock_autorate_config):
         """WANController should initialize _parameter_locks as empty dict."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
         wc = WANController(
@@ -79,7 +79,7 @@ class TestWANControllerSafetyInit:
 
     def test_pending_observation_initialized_none(self, mock_autorate_config):
         """WANController should initialize _pending_observation as None."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
         wc = WANController(
@@ -93,7 +93,7 @@ class TestWANControllerSafetyInit:
 
     def test_disabled_tuning_still_has_locks_and_observation(self, mock_autorate_config):
         """Even with tuning disabled, safety attributes should be initialized."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = None
         wc = WANController(
@@ -125,7 +125,7 @@ class TestSafetyRevertWiring:
 
     def test_revert_results_applied_to_controller(self):
         """When check_and_revert returns reverts, _apply_tuning_to_controller applies them."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -255,7 +255,7 @@ class TestReloadClearsSafetyState:
 
     def test_sigusr1_disable_clears_parameter_locks(self, mock_autorate_config, tmp_path):
         """When tuning disabled via SIGUSR1, _parameter_locks should be cleared."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({"tuning": {"enabled": True}}))
@@ -281,7 +281,7 @@ class TestReloadClearsSafetyState:
 
     def test_sigusr1_disable_clears_pending_observation(self, mock_autorate_config, tmp_path):
         """When tuning disabled via SIGUSR1, _pending_observation should be cleared."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({"tuning": {"enabled": True}}))
@@ -311,7 +311,7 @@ class TestReloadClearsSafetyState:
 
     def test_sigusr1_enable_preserves_empty_locks(self, mock_autorate_config, tmp_path):
         """Enabling tuning via SIGUSR1 should start with clean state."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml.dump({"wan_name": "Test"}))

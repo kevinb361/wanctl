@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import yaml
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 from wanctl.queue_controller import QueueController
 
 # =============================================================================

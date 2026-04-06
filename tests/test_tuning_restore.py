@@ -29,7 +29,7 @@ def _make_wc(*, tuning_enabled: bool = True, metrics_writer=None):
 
     Bypasses WANController.__init__ to test _restore_tuning_params in isolation.
     """
-    from wanctl.autorate_continuous import WANController
+    from wanctl.wan_controller import WANController
 
     wc = object.__new__(WANController)
     wc.wan_name = "spectrum"

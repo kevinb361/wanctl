@@ -878,7 +878,7 @@ class TestMeasureRTTNonBlocking:
 
     def test_measure_rtt_reads_from_background_thread(self, mock_wan_controller):
         """measure_rtt() reads from background thread and returns rtt_ms."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         snap = RTTSnapshot(
             rtt_ms=11.0,
@@ -895,7 +895,7 @@ class TestMeasureRTTNonBlocking:
 
     def test_measure_rtt_stale_hard_fail(self, mock_wan_controller):
         """RTT data >5s old returns None (hard fail per D-04)."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         snap = RTTSnapshot(
             rtt_ms=11.0,
@@ -912,7 +912,7 @@ class TestMeasureRTTNonBlocking:
 
     def test_measure_rtt_stale_soft_warning(self, mock_wan_controller):
         """RTT data 0.5-5s old returns value but logs warning."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         snap = RTTSnapshot(
             rtt_ms=11.0,
@@ -930,7 +930,7 @@ class TestMeasureRTTNonBlocking:
 
     def test_measure_rtt_no_snapshot_returns_none(self, mock_wan_controller):
         """No snapshot yet (thread starting) returns None."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_wan_controller._rtt_thread.get_latest.return_value = None
 
@@ -940,7 +940,7 @@ class TestMeasureRTTNonBlocking:
 
     def test_measure_rtt_fallback_blocking_when_no_thread(self, mock_wan_controller):
         """When _rtt_thread is None, falls back to _measure_rtt_blocking."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_wan_controller._rtt_thread = None
         mock_wan_controller._measure_rtt_blocking = MagicMock(return_value=15.0)

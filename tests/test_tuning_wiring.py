@@ -47,7 +47,7 @@ class TestApplyTuningToController:
 
     def test_maps_target_bloat_ms_to_green_threshold(self):
         """target_bloat_ms should map to green_threshold and target_delta."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -60,7 +60,7 @@ class TestApplyTuningToController:
 
     def test_maps_warn_bloat_ms_to_soft_red_threshold(self):
         """warn_bloat_ms should map to soft_red_threshold and warn_delta."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -73,7 +73,7 @@ class TestApplyTuningToController:
 
     def test_maps_hard_red_bloat_ms(self):
         """hard_red_bloat_ms should map to hard_red_threshold."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -85,7 +85,7 @@ class TestApplyTuningToController:
 
     def test_maps_alpha_load(self):
         """alpha_load should map directly."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -97,7 +97,7 @@ class TestApplyTuningToController:
 
     def test_maps_alpha_baseline(self):
         """alpha_baseline should map directly."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -109,7 +109,7 @@ class TestApplyTuningToController:
 
     def test_updates_tuning_state_parameters(self):
         """TuningState.parameters should be updated with new values."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -121,7 +121,7 @@ class TestApplyTuningToController:
 
     def test_updates_tuning_state_recent_adjustments(self):
         """TuningState.recent_adjustments should contain applied results."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -134,7 +134,7 @@ class TestApplyTuningToController:
 
     def test_recent_adjustments_capped_at_10(self):
         """recent_adjustments should be capped at 10 entries."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         existing = [_make_result(f"param_{i}", old=1.0, new=2.0) for i in range(9)]
@@ -153,7 +153,7 @@ class TestApplyTuningToController:
 
     def test_updates_last_run_ts(self):
         """TuningState.last_run_ts should be updated to monotonic time."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = TuningState(
@@ -167,7 +167,7 @@ class TestApplyTuningToController:
 
     def test_no_results_skips_update(self):
         """Empty results list should not modify TuningState."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         state = TuningState(enabled=True, last_run_ts=None, recent_adjustments=[], parameters={})
         wc = MagicMock()
@@ -178,7 +178,7 @@ class TestApplyTuningToController:
 
     def test_none_tuning_state_skips_state_update(self):
         """If _tuning_state is None, attributes still get mapped but no state update."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
         wc._tuning_state = None
@@ -193,7 +193,7 @@ class TestWANControllerTuningInit:
 
     def test_no_tuning_config_sets_disabled(self, mock_autorate_config):
         """When config.tuning_config is None, tuning should be disabled."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = None
         wc = WANController(
@@ -209,7 +209,7 @@ class TestWANControllerTuningInit:
 
     def test_disabled_tuning_config_sets_disabled(self, mock_autorate_config):
         """When tuning_config.enabled is False, tuning should be disabled."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = _make_tuning_config(enabled=False)
         wc = WANController(
@@ -224,7 +224,7 @@ class TestWANControllerTuningInit:
 
     def test_enabled_tuning_config_sets_enabled(self, mock_autorate_config):
         """When tuning_config.enabled is True, tuning state should be initialized."""
-        from wanctl.autorate_continuous import WANController
+        from wanctl.wan_controller import WANController
 
         mock_autorate_config.tuning_config = _make_tuning_config(enabled=True)
         wc = WANController(
@@ -253,7 +253,7 @@ class TestTuningMaintenanceWiring:
 
     def test_tuning_exception_caught_and_logged(self):
         """Tuning exception in maintenance should be caught, not crash daemon."""
-        from wanctl.autorate_continuous import _apply_tuning_to_controller
+        from wanctl.wan_controller import _apply_tuning_to_controller
 
         # This tests the exception safety pattern -- the actual maintenance
         # loop wraps tuning in try/except. Here we verify the helper itself

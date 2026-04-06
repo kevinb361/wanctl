@@ -308,8 +308,8 @@ class Config(BaseConfig):
         # EWMA alpha calculation - prefer time constants (human-readable, interval-independent)
         # Formula: alpha = cycle_interval / time_constant
         logger = logging.getLogger(__name__)
-        # Local import to avoid circular dependency (autorate_continuous imports Config)
-        from wanctl.autorate_continuous import CYCLE_INTERVAL_SECONDS
+        # Local import to avoid circular dependency (wan_controller imports Config)
+        from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS
 
         cycle_interval = CYCLE_INTERVAL_SECONDS
 

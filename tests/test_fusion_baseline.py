@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wanctl.autorate_continuous import WANController
+from wanctl.wan_controller import WANController
 
 # =============================================================================
 # HELPERS
