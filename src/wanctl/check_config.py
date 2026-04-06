@@ -306,10 +306,8 @@ def main() -> int:
 
     # Dispatch validators based on config type
     # Local import to avoid circular dependency (validators import CheckResult/Severity from here)
-    from wanctl.check_config_validators import (
-        _run_autorate_validators,
-        _run_steering_validators,
-    )
+    from wanctl.check_config_validators import _run_autorate_validators
+    from wanctl.check_steering_validators import _run_steering_validators
 
     if config_type == "steering":
         results = _run_steering_validators(data)

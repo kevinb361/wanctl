@@ -33,13 +33,15 @@ from wanctl.check_config_validators import (
     check_deprecated_params,
     check_env_vars,
     check_paths,
+    check_unknown_keys,
+    validate_cross_fields,
+    validate_schema_fields,
+)
+from wanctl.check_steering_validators import (
     check_steering_cross_config,
     check_steering_deprecated_params,
     check_steering_unknown_keys,
-    check_unknown_keys,
-    validate_cross_fields,
     validate_linux_cake,
-    validate_schema_fields,
     validate_steering_cross_fields,
     validate_steering_schema_fields,
 )
