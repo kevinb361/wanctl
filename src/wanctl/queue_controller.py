@@ -6,6 +6,7 @@ congestion response with hysteresis counters and dwell timer.
 
 import logging
 import time
+from typing import Any
 
 from wanctl.rate_utils import enforce_rate_bounds
 
@@ -333,3 +334,20 @@ class QueueController:
         self._window_start_time = time.time()
         self._window_had_congestion = False
         return count
+
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    def get_health_data(self) -> dict[str, Any]:
+        """Return hysteresis state for the health endpoint."""
+        return {
+            "hysteresis": {
+                "dwell_counter": self._yellow_dwell,
+                "dwell_cycles": self.dwell_cycles,
+                "deadband_ms": self.deadband_ms,
+                "transitions_suppressed": self._transitions_suppressed,
+                "suppressions_per_min": self._window_suppressions,
+                "window_start_epoch": self._window_start_time,
+            },
+        }

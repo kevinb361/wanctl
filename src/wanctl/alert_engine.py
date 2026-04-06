@@ -68,6 +68,15 @@ class AlertEngine:
         self._fire_count: int = 0
         self._rule_key_map: dict[str, str] = {}
 
+    # =========================================================================
+    # PUBLIC FACADE API
+    # =========================================================================
+
+    @property
+    def enabled(self) -> bool:
+        """Whether alerting is enabled."""
+        return self._enabled
+
     @property
     def fire_count(self) -> int:
         """Total number of alerts fired (not suppressed) since startup."""

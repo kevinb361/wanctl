@@ -2456,6 +2456,46 @@ class WANController:
         """Get the metrics writer instance."""
         return self._metrics_writer
 
+    def get_health_data(self) -> dict[str, Any]:
+        """Return all health-relevant data for the health endpoint.
+
+        Provides raw values. health_check.py handles presentation formatting.
+        Replaces ~25 cross-module private attribute accesses.
+        """
+        return {
+            "cycle_budget": {
+                "profiler": self._profiler,
+                "overrun_count": self._overrun_count,
+                "cycle_interval_ms": self._cycle_interval_ms,
+                "warning_threshold_pct": self._warning_threshold_pct,
+            },
+            "signal_result": self._last_signal_result,
+            "irtt": {
+                "thread": self._irtt_thread,
+                "correlation": self._irtt_correlation,
+                "last_asymmetry_result": self._last_asymmetry_result,
+            },
+            "reflector": {
+                "scorer": self._reflector_scorer,
+            },
+            "fusion": {
+                "enabled": self._fusion_enabled,
+                "icmp_filtered_rtt": self._last_icmp_filtered_rtt,
+                "fused_rtt": self._last_fused_rtt,
+                "icmp_weight": self._fusion_icmp_weight,
+                "healer": self._fusion_healer,
+            },
+            "tuning": {
+                "enabled": self._tuning_enabled,
+                "state": self._tuning_state,
+                "parameter_locks": self._parameter_locks,
+                "pending_observation": self._pending_observation,
+            },
+            "suppression_alert": {
+                "threshold": self._suppression_alert_threshold,
+            },
+        }
+
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")
     def load_state(self) -> None:
         """Load persisted hysteresis state from disk."""
