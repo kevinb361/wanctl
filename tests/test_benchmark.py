@@ -1739,7 +1739,7 @@ class TestComputeDeltas:
 
     def test_basic_delta(self) -> None:
         """Delta computation returns after - before for all numeric fields."""
-        from wanctl.benchmark import compute_deltas
+        from wanctl.benchmark_compare import compute_deltas
 
         before = _make_benchmark_row(
             download_latency_avg=45.0,
@@ -1765,7 +1765,7 @@ class TestComputeDeltas:
 
     def test_all_numeric_fields_present(self) -> None:
         """Delta dict contains all expected numeric fields."""
-        from wanctl.benchmark import compute_deltas
+        from wanctl.benchmark_compare import compute_deltas
 
         before = _make_benchmark_row()
         after = _make_benchmark_row()
@@ -1788,7 +1788,7 @@ class TestComputeDeltas:
 
     def test_zero_delta_same_values(self) -> None:
         """Identical before/after yields zero deltas."""
-        from wanctl.benchmark import compute_deltas
+        from wanctl.benchmark_compare import compute_deltas
 
         row = _make_benchmark_row()
         deltas = compute_deltas(row, row)
@@ -1842,7 +1842,7 @@ class TestFormatComparison:
 
     def test_contains_grade_arrow(self) -> None:
         """Output shows grade transition like 'C -> A+'."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -1853,7 +1853,7 @@ class TestFormatComparison:
 
     def test_contains_latency_deltas(self) -> None:
         """Output contains latency delta values with sign."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -1863,7 +1863,7 @@ class TestFormatComparison:
 
     def test_contains_throughput(self) -> None:
         """Output contains throughput section."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -1873,7 +1873,7 @@ class TestFormatComparison:
 
     def test_contains_metadata(self) -> None:
         """Output contains baseline RTT, server, run IDs."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -1884,7 +1884,7 @@ class TestFormatComparison:
 
     def test_no_color_no_ansi(self) -> None:
         """No-color mode: output has no ANSI escape codes."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -1893,7 +1893,7 @@ class TestFormatComparison:
 
     def test_improved_latency_shows_negative_delta(self) -> None:
         """Improved latency (lower after) shows negative delta."""
-        from wanctl.benchmark import compute_deltas, format_comparison
+        from wanctl.benchmark_compare import compute_deltas, format_comparison
 
         before, after = self._get_before_after()
         deltas = compute_deltas(before, after)
@@ -2093,7 +2093,7 @@ class TestFormatHistory:
 
     def test_formats_table_with_all_columns(self) -> None:
         """Output table contains ID, Timestamp, WAN, Grade, Avg Latency, DL Mbps, Label."""
-        from wanctl.benchmark import format_history
+        from wanctl.benchmark_compare import format_history
 
         rows = [
             _make_benchmark_row(
@@ -2120,14 +2120,14 @@ class TestFormatHistory:
 
     def test_empty_list_returns_message(self) -> None:
         """Empty list returns 'No benchmark results found.'."""
-        from wanctl.benchmark import format_history
+        from wanctl.benchmark_compare import format_history
 
         output = format_history([], color=False)
         assert output == "No benchmark results found."
 
     def test_grade_colorized_when_color_true(self) -> None:
         """Grade column is colorized when color=True."""
-        from wanctl.benchmark import format_history
+        from wanctl.benchmark_compare import format_history
 
         rows = [_make_benchmark_row(download_grade="A+")]
         output = format_history(rows, color=True)
@@ -2135,7 +2135,7 @@ class TestFormatHistory:
 
     def test_label_column_shows_blank_for_none(self) -> None:
         """Label column shows empty string when label is None."""
-        from wanctl.benchmark import format_history
+        from wanctl.benchmark_compare import format_history
 
         rows = [_make_benchmark_row(label=None)]
         output = format_history(rows, color=False)
@@ -2144,7 +2144,7 @@ class TestFormatHistory:
 
     def test_timestamp_formatted_without_seconds(self) -> None:
         """Timestamp shows as YYYY-MM-DD HH:MM (no seconds)."""
-        from wanctl.benchmark import format_history
+        from wanctl.benchmark_compare import format_history
 
         rows = [_make_benchmark_row(timestamp="2026-03-15T14:30:45+00:00")]
         output = format_history(rows, color=False)

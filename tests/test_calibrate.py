@@ -8,16 +8,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.calibrate import (
+    generate_config,
+    main,
+    run_calibration,
+)
+from wanctl.calibrate_measurements import (
     CalibrationResult,
     binary_search_optimal_rate,
     check_netperf_server,
     check_ssh_connectivity,
-    generate_config,
-    main,
     measure_baseline_rtt,
     measure_throughput_download,
     measure_throughput_upload,
-    run_calibration,
     set_cake_limit,
 )
 
@@ -348,7 +350,7 @@ class TestCalibrationResult:
 class TestConnectivity:
     """Tests for SSH and netperf connectivity functions."""
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_ssh_connectivity_success(self, mock_run):
         """Test SSH connectivity returns True on success."""
         mock_run.return_value = MagicMock(returncode=0, stdout="ok\n", stderr="")
@@ -356,21 +358,21 @@ class TestConnectivity:
         assert result is True
         assert mock_run.called
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_ssh_connectivity_failure(self, mock_run):
         """Test SSH connectivity returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Connection refused")
         result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_ssh_connectivity_timeout(self, mock_run):
         """Test SSH connectivity returns False on timeout."""
         mock_run.side_effect = TimeoutExpired(cmd="ssh", timeout=5)
         result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_ssh_connectivity_with_ssh_key(self, mock_run):
         """Test SSH connectivity includes -i flag with SSH key."""
         mock_run.return_value = MagicMock(returncode=0, stdout="ok\n", stderr="")
@@ -381,42 +383,42 @@ class TestConnectivity:
         assert "-i" in call_args
         assert "/path/to/key" in call_args
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_ssh_connectivity_generic_exception(self, mock_run):
         """Test SSH connectivity returns False on generic exception."""
         mock_run.side_effect = OSError("Network unreachable")
         result = check_ssh_connectivity("192.168.1.1", "admin")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_netperf_server_success(self, mock_run):
         """Test netperf server returns True on success."""
         mock_run.return_value = MagicMock(returncode=0, stdout=NETPERF_OUTPUT_SUCCESS, stderr="")
         result = check_netperf_server("netperf.bufferbloat.net")
         assert result is True
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_netperf_server_failure(self, mock_run):
         """Test netperf server returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Connection refused")
         result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_netperf_server_not_installed(self, mock_run):
         """Test netperf server returns False when netperf not installed."""
         mock_run.side_effect = FileNotFoundError("netperf not found")
         result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_netperf_server_timeout(self, mock_run):
         """Test netperf server returns False on timeout."""
         mock_run.side_effect = TimeoutExpired(cmd="netperf", timeout=30)
         result = check_netperf_server("netperf.bufferbloat.net")
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def check_netperf_server_generic_exception(self, mock_run):
         """Test netperf server returns False on generic exception."""
         mock_run.side_effect = OSError("Network unreachable")
@@ -432,7 +434,7 @@ class TestConnectivity:
 class TestMeasurement:
     """Tests for RTT and throughput measurement functions."""
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_measure_baseline_rtt_success(self, mock_run):
         """Test baseline RTT measurement returns float on success."""
         mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_SUCCESS, stderr="")
@@ -442,37 +444,37 @@ class TestMeasurement:
         assert isinstance(result, float)
         assert result == pytest.approx(11.8, rel=0.01)
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_measure_baseline_rtt_failure(self, mock_run):
         """Test baseline RTT measurement returns None on ping failure."""
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="ping: unknown host")
         result = measure_baseline_rtt("invalid.host")
         assert result is None
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_measure_baseline_rtt_timeout(self, mock_run):
         """Test baseline RTT measurement returns None on timeout."""
         mock_run.side_effect = TimeoutExpired(cmd="ping", timeout=30)
         result = measure_baseline_rtt("1.1.1.1")
         assert result is None
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_measure_baseline_rtt_no_samples(self, mock_run):
         """Test baseline RTT measurement returns None when no RTT values parsed."""
         mock_run.return_value = MagicMock(returncode=0, stdout=PING_OUTPUT_NO_RTT, stderr="")
         result = measure_baseline_rtt("1.1.1.1")
         assert result is None
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_measure_baseline_rtt_generic_exception(self, mock_run):
         """Test baseline RTT measurement returns None on generic exception."""
         mock_run.side_effect = OSError("ping failed")
         result = measure_baseline_rtt("1.1.1.1")
         assert result is None
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.subprocess.run")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_download(self, mock_sleep, mock_run, mock_popen):
         """Test download throughput measurement returns tuple."""
         # Mock netperf process
@@ -494,9 +496,9 @@ class TestMeasurement:
         # Bloat should be median RTT (12.1) - baseline (10.0) = 2.1
         assert bloat >= 0
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.subprocess.run")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_upload(self, mock_sleep, mock_run, mock_popen):
         """Test upload throughput measurement returns tuple."""
         # Mock netperf process
@@ -516,8 +518,8 @@ class TestMeasurement:
         assert throughput == pytest.approx(245.73, rel=0.01)
         assert bloat >= 0
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_download_exception(self, mock_sleep, mock_popen):
         """Test download throughput measurement returns (0.0, 0.0) on exception."""
         mock_popen.side_effect = OSError("Failed to start netperf")
@@ -529,8 +531,8 @@ class TestMeasurement:
         assert throughput == 0.0
         assert bloat == 0.0
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_upload_exception(self, mock_sleep, mock_popen):
         """Test upload throughput measurement returns (0.0, 0.0) on exception."""
         mock_popen.side_effect = OSError("Failed to start netperf")
@@ -542,9 +544,9 @@ class TestMeasurement:
         assert throughput == 0.0
         assert bloat == 0.0
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.subprocess.run")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_download_no_ping_rtts(self, mock_sleep, mock_run, mock_popen):
         """Test download throughput with no ping RTT values returns zero bloat."""
         # Mock netperf process
@@ -562,9 +564,9 @@ class TestMeasurement:
         assert throughput == pytest.approx(245.73, rel=0.01)
         assert bloat == 0.0
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.subprocess.run")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_download_fallback_pattern(self, mock_sleep, mock_run, mock_popen):
         """Test download throughput parses fallback Mbps pattern."""
         # Mock netperf process with alternative output format
@@ -590,28 +592,28 @@ class TestMeasurement:
 class TestBinarySearch:
     """Tests for binary search algorithm for optimal rate discovery."""
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_set_cake_limit_success(self, mock_run):
         """Test set_cake_limit returns True on success."""
         mock_run.return_value = MagicMock(returncode=0)
         result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is True
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_set_cake_limit_failure(self, mock_run):
         """Test set_cake_limit returns False on failure."""
         mock_run.return_value = MagicMock(returncode=1)
         result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_set_cake_limit_exception(self, mock_run):
         """Test set_cake_limit returns False on exception."""
         mock_run.side_effect = OSError("SSH failed")
         result = set_cake_limit("192.168.1.1", "admin", "WAN-Download", 100_000_000)
         assert result is False
 
-    @patch("wanctl.calibrate.subprocess.run")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
     def test_set_cake_limit_with_ssh_key(self, mock_run):
         """Test set_cake_limit includes -i flag with SSH key."""
         mock_run.return_value = MagicMock(returncode=0)
@@ -623,9 +625,9 @@ class TestBinarySearch:
         assert "-i" in call_args
         assert "/path/to/key" in call_args
 
-    @patch("wanctl.calibrate.set_cake_limit")
-    @patch("wanctl.calibrate.measure_throughput_download")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.set_cake_limit")
+    @patch("wanctl.calibrate_measurements.measure_throughput_download")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_binary_search_converges(self, mock_sleep, mock_measure, mock_set_limit):
         """Test binary search converges to optimal rate."""
         mock_set_limit.return_value = True
@@ -651,9 +653,9 @@ class TestBinarySearch:
         # Since bloat (5.0) < target (10.0), rate should converge upward
         assert best_rate > 50.0
 
-    @patch("wanctl.calibrate.set_cake_limit")
-    @patch("wanctl.calibrate.measure_throughput_download")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.set_cake_limit")
+    @patch("wanctl.calibrate_measurements.measure_throughput_download")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_binary_search_skips_on_limit_failure(self, mock_sleep, mock_measure, mock_set_limit):
         """Test binary search skips iteration when set_cake_limit fails."""
         mock_set_limit.return_value = False  # Limit setting fails
@@ -678,9 +680,9 @@ class TestBinarySearch:
         # Measure should never be called since limit setting failed
         assert not mock_measure.called
 
-    @patch("wanctl.calibrate.set_cake_limit")
-    @patch("wanctl.calibrate.measure_throughput_upload")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.set_cake_limit")
+    @patch("wanctl.calibrate_measurements.measure_throughput_upload")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_binary_search_upload_direction(self, mock_sleep, mock_measure, mock_set_limit):
         """Test binary search works for upload direction."""
         mock_set_limit.return_value = True
@@ -703,9 +705,9 @@ class TestBinarySearch:
         assert isinstance(best_rate, float)
         assert mock_measure.called
 
-    @patch("wanctl.calibrate.set_cake_limit")
-    @patch("wanctl.calibrate.measure_throughput_download")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.set_cake_limit")
+    @patch("wanctl.calibrate_measurements.measure_throughput_download")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_binary_search_decreases_on_high_bloat(self, mock_sleep, mock_measure, mock_set_limit):
         """Test binary search decreases rate when bloat exceeds target."""
         mock_set_limit.return_value = True
@@ -1606,9 +1608,9 @@ class TestRawThroughputInterruptPaths:
 class TestUploadThroughputFallbackPattern:
     """Test upload throughput fallback pattern parsing."""
 
-    @patch("wanctl.calibrate.subprocess.Popen")
-    @patch("wanctl.calibrate.subprocess.run")
-    @patch("wanctl.calibrate.time.sleep")
+    @patch("wanctl.calibrate_measurements.subprocess.Popen")
+    @patch("wanctl.calibrate_measurements.subprocess.run")
+    @patch("wanctl.calibrate_measurements.time.sleep")
     def test_measure_throughput_upload_fallback_pattern(self, mock_sleep, mock_run, mock_popen):
         """Test upload throughput parses fallback Mbps pattern."""
         # Mock netperf process with alternative output format
