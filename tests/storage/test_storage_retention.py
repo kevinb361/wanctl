@@ -2,10 +2,7 @@
 
 import sqlite3
 import time
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from wanctl.storage.retention import (
     BATCH_SIZE,
@@ -13,16 +10,6 @@ from wanctl.storage.retention import (
     cleanup_old_metrics,
     vacuum_if_needed,
 )
-from wanctl.storage.schema import create_tables
-
-
-@pytest.fixture
-def test_db(tmp_path: Path) -> sqlite3.Connection:
-    """Create a test database with schema."""
-    db_path = tmp_path / "test_metrics.db"
-    conn = sqlite3.connect(db_path, isolation_level=None)
-    create_tables(conn)
-    return conn
 
 
 def insert_test_metrics(
