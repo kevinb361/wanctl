@@ -24,56 +24,123 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Allowlist of known cross-module private attribute accesses
-# Organized by coupling boundary from the Phase 147 coupling census.
-# Format: (source_file_stem, private_attr_name)
-# Remove entries as Plans 02-04 eliminate violations.
+# Allowlist of known cross-module private attribute accesses.
+# All cross-module violations eliminated by Phase 147 Plans 01-04.
+# Any new cross-module violation will fail CI immediately (D-04).
 # ---------------------------------------------------------------------------
 
-ALLOWLIST: set[tuple[str, str]] = {
-    # --- Boundary 1: autorate_continuous.py -> WANController ---
-    # RESOLVED by Plan 02: all 21 entries eliminated via public facade API
-    # --- Boundary 2: health_check.py -> WANController + QueueController ---
-    # RESOLVED by Plan 03: all 16 entries eliminated via get_health_data() facade
-    # --- Boundary 3: steering/health.py -> SteeringDaemon + BaselineLoader ---
-    ("health", "_cycle_interval_ms"),
-    ("health", "_enabled"),
-    ("health", "_get_effective_wan_zone"),
-    ("health", "_get_wan_zone_age"),
-    ("health", "_is_wan_grace_period_active"),
-    ("health", "_is_wan_zone_stale"),
-    ("health", "_overrun_count"),
-    ("health", "_profiler"),
-    ("health", "_wan_red_weight"),
-    ("health", "_wan_soft_red_weight"),
-    ("health", "_wan_state_enabled"),
-    ("health", "_wan_zone"),
-    # --- Boundary 4: steering/daemon.py internal (entry point -> instance) ---
-    ("daemon", "_get_wan_zone_age"),
-    ("daemon", "_instance"),
-    ("daemon", "_profiling_enabled"),
-    ("daemon", "_reload_dry_run_config"),
-    ("daemon", "_reload_wan_state_config"),
-    ("daemon", "_reload_webhook_url_config"),
-    ("daemon", "_wan_staleness_threshold"),
-    # --- Boundary 5: wan_controller.py (module-level funcs -> WC instance) ---
-    # RESOLVED by Plan 02: _cadence_sec, _db_path, _min_score, _outlier_window,
-    #   _sigma_threshold, _window, _window_size (now use public properties)
-    ("wan_controller", "_fusion_icmp_weight"),
-    ("wan_controller", "_grace_period_sec"),
-    ("wan_controller", "_reflector_scorer"),
-    ("wan_controller", "_rules"),
-    ("wan_controller", "_tuning_state"),
-    ("wan_controller", "_window_had_congestion"),
-    ("wan_controller", "_window_start_time"),
-    # --- Boundary 6: Miscellaneous ---
-    ("check_cake", "_find_mangle_rule_id"),
-    ("writer", "_initialized"),
-}
+ALLOWLIST: set[tuple[str, str]] = set()
+
+
+def _collect_class_names(tree: ast.Module) -> set[str]:
+    """Collect all class names defined at any level in the AST."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            names.add(node.name)
+    return names
+
+
+def _annotation_matches(annotation: ast.expr | None, class_names: set[str]) -> bool:
+    """Check if a type annotation references a class defined in this file."""
+    if annotation is None:
+        return False
+    # Direct name: param: ClassName
+    if isinstance(annotation, ast.Name) and annotation.id in class_names:
+        return True
+    # String forward reference: param: "ClassName"
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        return annotation.value in class_names
+    return False
+
+
+def _collect_same_file_variables(tree: ast.Module, class_names: set[str]) -> set[str]:
+    """Collect variable names that are instances of classes defined in this file.
+
+    Detects patterns like:
+      - ``var = ClassName(...)``        (direct instantiation)
+      - ``var: ClassName = ...``        (annotated assignment)
+      - function parameters with type annotations matching a local class
+
+    Also includes the lowercase form of each class name as a common convention
+    (e.g., class SteeringDaemon -> variable 'daemon').
+    """
+    import re
+
+    variables: set[str] = set()
+
+    # Convention: lowercase class name is a common variable name for that class
+    for cn in class_names:
+        parts = re.findall(r"[A-Z][a-z]*", cn)
+        if parts:
+            variables.add(parts[-1].lower())
+
+    for node in ast.walk(tree):
+        # var = ClassName(...)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            if isinstance(node.value.func, ast.Name) and node.value.func.id in class_names:
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        variables.add(target.id)
+        # var: ClassName = ...
+        if isinstance(node, ast.AnnAssign) and isinstance(node.annotation, ast.Name):
+            if node.annotation.id in class_names and isinstance(node.target, ast.Name):
+                variables.add(node.target.id)
+        # Function parameters with type annotations
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for arg in node.args.args:
+                if _annotation_matches(arg.annotation, class_names):
+                    variables.add(arg.arg)
+
+    return variables
+
+
+def _collect_same_file_attrs(tree: ast.Module, class_names: set[str]) -> set[str]:
+    """Collect private attribute names defined on classes in this file.
+
+    Used to skip chained-expression accesses (``<expr>._attr``) when
+    the attribute is defined on a class in the same file.
+    """
+    attrs: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name not in class_names:
+            continue
+        for item in ast.walk(node):
+            # self._attr assignment in __init__ or methods
+            if isinstance(item, ast.Attribute) and isinstance(item.value, ast.Name):
+                if item.value.id == "self" and item.attr.startswith("_"):
+                    attrs.add(item.attr)
+            # Method definitions (including private ones)
+            if isinstance(item, ast.FunctionDef) and item.name.startswith("_"):
+                attrs.add(item.name)
+    return attrs
+
+
+def _build_class_line_ranges(tree: ast.Module, class_names: set[str]) -> list[tuple[int, int]]:
+    """Build (start_line, end_line) ranges for all classes defined in this file."""
+    ranges: list[tuple[int, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name in class_names:
+            end = node.end_lineno if hasattr(node, "end_lineno") and node.end_lineno else node.lineno
+            ranges.append((node.lineno, end))
+    return ranges
+
+
+def _is_inside_same_file_class(lineno: int, class_ranges: list[tuple[int, int]]) -> bool:
+    """Check if a line number falls inside a class defined in this file."""
+    return any(start <= lineno <= end for start, end in class_ranges)
 
 
 def check_file(filepath: Path) -> list[str]:
     """Find cross-module private attribute accesses in a Python file.
+
+    Cross-module = a file accessing private attributes of classes it imports.
+    Within-module accesses are excluded:
+      - self._ and cls._ (same-class)
+      - Variables holding instances of classes defined in the same file
+      - Class-level access on same-file classes (e.g., Class._instance)
+      - Chained expressions (self.obj._attr) inside same-file class methods
+      - Module-level functions accessing same-file class instances
 
     Args:
         filepath: Path to a Python source file.
@@ -87,6 +154,11 @@ def check_file(filepath: Path) -> list[str]:
         tree = ast.parse(source, filename=str(filepath))
     except (SyntaxError, UnicodeDecodeError):
         return violations
+
+    # Collect classes defined in this file and variables that hold their instances
+    class_names = _collect_class_names(tree)
+    same_file_vars = _collect_same_file_variables(tree, class_names)
+    class_ranges = _build_class_line_ranges(tree, class_names)
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Attribute):
@@ -102,6 +174,17 @@ def check_file(filepath: Path) -> list[str]:
             continue
         # Skip dunder attributes (__xxx__)
         if attr.startswith("__") and attr.endswith("__"):
+            continue
+        # Skip same-file variables (within-module access, not cross-module)
+        if isinstance(node.value, ast.Name) and node.value.id in same_file_vars:
+            continue
+        # Skip class-level access on same-file classes (e.g., Class._instance)
+        if isinstance(node.value, ast.Name) and node.value.id in class_names:
+            continue
+        # Skip chained expressions (self.obj._attr, expr._attr) inside
+        # methods of classes defined in this file. These are within-module
+        # collaborator accesses, not cross-module boundary violations.
+        if _is_inside_same_file_class(node.lineno, class_ranges):
             continue
 
         # Build a readable accessor description

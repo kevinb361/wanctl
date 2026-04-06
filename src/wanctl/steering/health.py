@@ -158,16 +158,18 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         health["router_connectivity"] = self.daemon.router_connectivity.to_dict()
         health["pid"] = os.getpid()
 
+        health_data = self.daemon.get_health_data()
+        cb = health_data["cycle_budget"]
         cycle_budget = _build_cycle_budget(
-            self.daemon._profiler,
-            self.daemon._overrun_count,
-            self.daemon._cycle_interval_ms,
+            cb["profiler"],
+            cb["overrun_count"],
+            cb["cycle_interval_ms"],
             "steering_cycle_total",
         )
         if cycle_budget is not None:
             health["cycle_budget"] = cycle_budget
 
-        health["wan_awareness"] = self._build_wan_awareness_section()
+        health["wan_awareness"] = self._build_wan_awareness_section(health_data)
         self._add_alerting_section(health)
 
         return self.daemon.router_connectivity.is_reachable
@@ -265,24 +267,25 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "green_samples_required": self.daemon.config.green_samples_required,
         }
 
-    def _build_wan_awareness_section(self) -> dict[str, Any]:
-        """Build WAN awareness section (OBSV-01)."""
+    def _build_wan_awareness_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build WAN awareness section (OBSV-01) using get_health_data() facade."""
         assert self.daemon is not None
+        wa = health_data["wan_awareness"]
         wan_awareness: dict[str, Any] = {
-            "enabled": self.daemon._wan_state_enabled,
+            "enabled": wa["enabled"],
         }
-        if self.daemon._wan_state_enabled:
-            wan_awareness["zone"] = self.daemon._wan_zone
-            wan_awareness["effective_zone"] = self.daemon._get_effective_wan_zone()
-            wan_awareness["grace_period_active"] = self.daemon._is_wan_grace_period_active()
-            zone_age = self.daemon.baseline_loader._get_wan_zone_age()
+        if wa["enabled"]:
+            wan_awareness["zone"] = wa["zone"]
+            wan_awareness["effective_zone"] = wa["effective_zone"]
+            wan_awareness["grace_period_active"] = wa["grace_period_active"]
+            zone_age = wa["zone_age"]
             wan_awareness["staleness_age_sec"] = (
                 round(zone_age, 1) if zone_age is not None else None
             )
-            wan_awareness["stale"] = self.daemon.baseline_loader._is_wan_zone_stale()
+            wan_awareness["stale"] = wa["stale"]
 
             wan_awareness["confidence_contribution"] = (
-                self._resolve_confidence_contribution()
+                self._resolve_confidence_contribution(wa)
             )
 
             if self.daemon.confidence_controller:
@@ -294,27 +297,28 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 wan_awareness["degrade_timer_remaining"] = None
         else:
             # Disabled mode: show raw zone for staged rollout verification
-            wan_awareness["zone"] = self.daemon._wan_zone
+            wan_awareness["zone"] = wa["zone"]
         return wan_awareness
 
-    def _resolve_confidence_contribution(self) -> float:
+    def _resolve_confidence_contribution(self, wa: dict[str, Any]) -> float:
         """Resolve confidence weight for the current effective WAN zone."""
-        assert self.daemon is not None
-        effective = self.daemon._get_effective_wan_zone()
+        effective = wa.get("effective_zone")
         if effective == "RED":
             from wanctl.steering.steering_confidence import ConfidenceWeights
 
+            red_weight = wa.get("red_weight")
             return (
-                self.daemon._wan_red_weight
-                if self.daemon._wan_red_weight is not None
+                red_weight
+                if red_weight is not None
                 else ConfidenceWeights.WAN_RED
             )
         if effective == "SOFT_RED":
             from wanctl.steering.steering_confidence import ConfidenceWeights
 
+            soft_red_weight = wa.get("soft_red_weight")
             return (
-                self.daemon._wan_soft_red_weight
-                if self.daemon._wan_soft_red_weight is not None
+                soft_red_weight
+                if soft_red_weight is not None
                 else ConfidenceWeights.WAN_SOFT_RED
             )
         return 0
@@ -328,7 +332,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         if isinstance(ae, AlertEngine):
             cooldowns = ae.get_active_cooldowns()
             health["alerting"] = {
-                "enabled": ae._enabled,
+                "enabled": ae.enabled,
                 "fire_count": ae.fire_count,
                 "active_cooldowns": [
                     {"type": k[0], "wan": k[1], "remaining_sec": round(v, 1)}

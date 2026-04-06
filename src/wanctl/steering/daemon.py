@@ -2300,8 +2300,9 @@ def _cleanup_steering_daemon(
     # 3. Close MetricsWriter (SQLite connection)
     t0 = time.monotonic()
     try:
-        if MetricsWriter._instance is not None:
-            MetricsWriter._instance.close()
+        mw = MetricsWriter.get_instance()
+        if mw is not None:
+            mw.close()
             logger.debug("MetricsWriter connection closed")
     except Exception as e:
         logger.warning(f"Error closing MetricsWriter: {e}")
