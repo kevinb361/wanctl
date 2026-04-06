@@ -5,13 +5,13 @@ Covers thread safety, HTTP endpoints, and Prometheus exposition format.
 """
 
 import logging
-import socket
 import threading
 import time
 import urllib.request
 
 import pytest
 
+from tests.helpers import find_free_port
 from wanctl.metrics import (
     METRIC_BANDWIDTH_MBPS,
     METRIC_CONGESTION_STATE,
@@ -37,13 +37,6 @@ from wanctl.metrics import (
     record_steering_transition,
     start_metrics_server,
 )
-
-
-def find_free_port() -> int:
-    """Find a free port for testing."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 @pytest.fixture(autouse=True)

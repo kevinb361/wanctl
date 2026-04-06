@@ -8,21 +8,14 @@ Verifies:
 """
 
 import json
-import socket
 import time
 import urllib.request
 from unittest.mock import MagicMock
 
+from tests.helpers import find_free_port
 from wanctl.asymmetry_analyzer import AsymmetryResult
 from wanctl.health_check import start_health_server
 from wanctl.irtt_measurement import IRTTResult
-
-
-def find_free_port() -> int:
-    """Find an available port for the health server."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("", 0))
-        return s.getsockname()[1]
 
 
 def _make_wan_controller() -> MagicMock:

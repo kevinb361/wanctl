@@ -74,3 +74,4 @@ scripts/DEPLOYMENT.md
 configs/logrotate*.conf
 configs/logrotate-cake
 configs/steering.yaml
+.venv

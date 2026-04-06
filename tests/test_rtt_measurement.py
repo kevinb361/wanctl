@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import icmplib
 import pytest
 
+from tests.helpers import make_host_result
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTAggregationStrategy,
@@ -16,24 +17,6 @@ from wanctl.rtt_measurement import (
     RTTSnapshot,
     parse_ping_output,
 )
-
-
-def make_host_result(address="8.8.8.8", rtts=None, is_alive=True):
-    """Build a mock icmplib Host object for testing."""
-    host = MagicMock()
-    host.address = address
-    if rtts is None:
-        rtts = [12.3]
-    host.rtts = rtts
-    host.min_rtt = min(rtts) if rtts else 0.0
-    host.avg_rtt = sum(rtts) / len(rtts) if rtts else 0.0
-    host.max_rtt = max(rtts) if rtts else 0.0
-    host.packets_sent = len(rtts) if is_alive else 1
-    host.packets_received = len(rtts) if is_alive else 0
-    host.packet_loss = 0.0 if is_alive else 1.0
-    host.is_alive = is_alive
-    host.jitter = 0.0
-    return host
 
 
 class TestPingHostsWithResults:

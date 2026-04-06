@@ -1,25 +1,18 @@
 """Tests for alerting section in health endpoints and AlertEngine.fire_count property."""
 
 import json
-import socket
 import urllib.request
 from unittest.mock import MagicMock
 
 import pytest
 
+from tests.helpers import find_free_port
 from wanctl.alert_engine import AlertEngine
 from wanctl.health_check import HealthCheckHandler, start_health_server
 from wanctl.steering.health import (
     SteeringHealthHandler,
     start_steering_health_server,
 )
-
-
-def find_free_port() -> int:
-    """Find a free port for testing."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 @pytest.fixture

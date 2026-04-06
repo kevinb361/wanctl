@@ -6,27 +6,19 @@ rate tracking in QueueController, health endpoint extensions, and periodic loggi
 
 import json
 import logging
-import socket
 import time
 import urllib.request
 from unittest.mock import MagicMock
 
 import pytest
 
+from tests.helpers import find_free_port
 from wanctl.health_check import (
     HealthCheckHandler,
     start_health_server,
 )
 from wanctl.perf_profiler import OperationProfiler
 from wanctl.queue_controller import QueueController
-
-
-def find_free_port() -> int:
-    """Find a free port for testing."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
 
 # =============================================================================
 # TEST HELPERS

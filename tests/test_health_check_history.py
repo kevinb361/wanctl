@@ -1,7 +1,6 @@
 """Tests for /metrics/history endpoint in health check HTTP server."""
 
 import json
-import socket
 import time
 import urllib.error
 import urllib.request
@@ -11,18 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.helpers import find_free_port
 from wanctl.health_check import (
     HealthCheckHandler,
     start_health_server,
 )
 from wanctl.storage.writer import MetricsWriter
-
-
-def find_free_port() -> int:
-    """Find a free port for testing."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 @pytest.fixture(autouse=True)
