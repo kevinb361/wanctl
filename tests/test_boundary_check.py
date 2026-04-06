@@ -6,10 +6,16 @@ __dunder__).
 """
 
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
 import pytest
+
+# Resolve paths relative to the project root (where pyproject.toml lives)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_SCRIPT_PATH = _PROJECT_ROOT / "scripts" / "check_private_access.py"
+_SRC_DIR = _PROJECT_ROOT / "src" / "wanctl"
 
 
 def _write_snippet(tmp_path: Path, filename: str, code: str) -> Path:
@@ -27,7 +33,7 @@ def check_file():
 
     spec = importlib.util.spec_from_file_location(
         "check_private_access",
-        Path("scripts/check_private_access.py"),
+        _SCRIPT_PATH,
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -121,17 +127,13 @@ class TestExitCodes:
     def test_exit_zero_when_all_allowlisted(self):
         """Script returns exit code 0 when no violations beyond allowlist."""
         result = subprocess.run(
-            [
-                ".venv/bin/python",
-                "scripts/check_private_access.py",
-                "src/wanctl/",
-            ],
+            [sys.executable, str(_SCRIPT_PATH), str(_SRC_DIR)],
             capture_output=True,
             text=True,
         )
         assert result.returncode == 0, f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
 
-    def test_exit_one_when_new_violations(self, tmp_path, check_file):
+    def test_exit_one_when_new_violations(self, tmp_path):
         """Script returns exit code 1 when violations found outside allowlist.
 
         We test this by creating a temp dir with a file that has a violation
@@ -148,11 +150,7 @@ class TestExitCodes:
             """,
         )
         result = subprocess.run(
-            [
-                ".venv/bin/python",
-                "scripts/check_private_access.py",
-                str(subdir),
-            ],
+            [sys.executable, str(_SCRIPT_PATH), str(subdir)],
             capture_output=True,
             text=True,
         )
@@ -165,11 +163,7 @@ class TestSummaryOutput:
     def test_summary_shows_counts(self):
         """Script prints summary with violation counts."""
         result = subprocess.run(
-            [
-                ".venv/bin/python",
-                "scripts/check_private_access.py",
-                "src/wanctl/",
-            ],
+            [sys.executable, str(_SCRIPT_PATH), str(_SRC_DIR)],
             capture_output=True,
             text=True,
         )

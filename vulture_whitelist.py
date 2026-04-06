@@ -42,6 +42,16 @@ _.reset_queue_counters
 # --- ABC base class (inherited by concrete strategies -- alive) ---
 TuningStrategy  # noqa  -- base class for tuning strategies
 
+# --- Protocol definitions (interfaces.py -- structural subtyping, D-01/D-02) ---
+HealthDataProvider  # noqa  -- Protocol for health data providers
+Reloadable  # noqa  -- Protocol for SIGUSR1 reload support
+TunableController  # noqa  -- Protocol for tunable parameter access
+ThreadManager  # noqa  -- Protocol for thread lifecycle management
+_.get_health_data  # Protocol method
+_.reload  # Protocol method (Reloadable)
+_.get_current_params  # Protocol method
+_.shutdown_threads  # Protocol method
+
 # --- Test-only utilities (imported by tests/, alive per D-04) ---
 # config_validation_utils.py validators
 validate_baseline_rtt  # noqa

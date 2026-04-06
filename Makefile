@@ -1,4 +1,4 @@
-.PHONY: test coverage lint type format ci dead-code check-deps check-lines clean security security-deps security-code security-secrets security-licenses
+.PHONY: test coverage lint type format ci dead-code check-deps check-lines check-boundaries clean security security-deps security-code security-secrets security-licenses
 
 # Run tests without coverage
 test:
@@ -27,7 +27,7 @@ format:
 	.venv/bin/ruff format src/ tests/
 
 # All CI checks (lint, type, coverage, dead-code, check-deps)
-ci: lint type coverage-check dead-code check-deps
+ci: lint type coverage-check dead-code check-deps check-boundaries
 
 # Dead code detection (vulture + ruff F401)
 dead-code:
@@ -55,6 +55,10 @@ check-deps:
 	else \
 	    echo "All runtime dependencies are imported"; \
 	fi
+
+# Check cross-module private attribute access (AST-based boundary enforcement)
+check-boundaries:
+	.venv/bin/python scripts/check_private_access.py src/wanctl/
 
 # Check function line counts (AST-based, excluding docstrings)
 check-lines:
