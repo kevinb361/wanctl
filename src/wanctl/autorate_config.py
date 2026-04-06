@@ -476,7 +476,7 @@ class Config(BaseConfig):
             logger.info("Alerting: disabled (enable via alerting.enabled)")
             return
 
-        # Validate 'enabled' field type
+        # Validate enabled flag
         enabled = alerting.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
@@ -484,13 +484,36 @@ class Config(BaseConfig):
             )
             self.alerting_config = None
             return
-
         if not enabled:
             self.alerting_config = None
             logger.info("Alerting: disabled (enable via alerting.enabled)")
             return
 
-        # Validate default_cooldown_sec
+        # Validate core fields, rules, and delivery settings
+        defaults = self._validate_alerting_defaults(alerting, logger)
+        if defaults is None:
+            return
+        rules = self._validate_alerting_rules(alerting, logger)
+        if rules is None:
+            return
+        delivery = self._load_alerting_delivery_config(alerting, logger)
+
+        self.alerting_config = {
+            "enabled": True,
+            "webhook_url": delivery["webhook_url"],
+            "default_cooldown_sec": defaults["cooldown"],
+            "default_sustained_sec": defaults["sustained"],
+            "rules": rules,
+            "mention_role_id": delivery["mention_role_id"],
+            "mention_severity": delivery["mention_severity"],
+            "max_webhooks_per_minute": delivery["max_webhooks_per_minute"],
+        }
+        logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
+
+    def _validate_alerting_defaults(
+        self, alerting: dict, logger: logging.Logger
+    ) -> dict | None:
+        """Validate alerting cooldown and sustained duration. Returns None on failure."""
         default_cooldown_sec = alerting.get("default_cooldown_sec", 300)
         if not isinstance(default_cooldown_sec, int) or isinstance(default_cooldown_sec, bool):
             logger.warning(
@@ -498,16 +521,15 @@ class Config(BaseConfig):
                 "disabling alerting"
             )
             self.alerting_config = None
-            return
+            return None
         if default_cooldown_sec < 0:
             logger.warning(
                 f"alerting.default_cooldown_sec must be >= 0, got {default_cooldown_sec}; "
                 "disabling alerting"
             )
             self.alerting_config = None
-            return
+            return None
 
-        # Validate default_sustained_sec (congestion duration threshold)
         default_sustained_sec = alerting.get("default_sustained_sec", 60)
         if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
             logger.warning(
@@ -515,46 +537,55 @@ class Config(BaseConfig):
                 f"got {type(default_sustained_sec).__name__}; disabling alerting"
             )
             self.alerting_config = None
-            return
+            return None
         if default_sustained_sec < 0:
             logger.warning(
                 f"alerting.default_sustained_sec must be >= 0, "
                 f"got {default_sustained_sec}; disabling alerting"
             )
             self.alerting_config = None
-            return
+            return None
 
-        # Validate rules
+        return {"cooldown": default_cooldown_sec, "sustained": default_sustained_sec}
+
+    def _validate_alerting_rules(
+        self, alerting: dict, logger: logging.Logger
+    ) -> dict | None:
+        """Validate alerting rules map and per-rule severity. Returns None on failure."""
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
             logger.warning(
                 f"alerting.rules must be a map, got {type(rules).__name__}; disabling alerting"
             )
             self.alerting_config = None
-            return
+            return None
 
-        # Validate each rule
         valid_severities = {"info", "warning", "critical"}
         for rule_name, rule in rules.items():
             if not isinstance(rule, dict):
                 logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
                 self.alerting_config = None
-                return
+                return None
             severity = rule.get("severity")
             if severity is None:
                 logger.warning(
                     f"alerting.rules.{rule_name} missing required 'severity'; disabling alerting"
                 )
                 self.alerting_config = None
-                return
+                return None
             if severity not in valid_severities:
                 logger.warning(
                     f"alerting.rules.{rule_name}.severity must be one of {valid_severities}, "
                     f"got '{severity}'; disabling alerting"
                 )
                 self.alerting_config = None
-                return
+                return None
+        return rules
 
+    def _load_alerting_delivery_config(
+        self, alerting: dict, logger: logging.Logger
+    ) -> dict:
+        """Load webhook URL, mention settings, and rate limiting for alerting."""
         webhook_url = alerting.get("webhook_url", "")
         # Expand ${ENV_VAR} references (same pattern as router password)
         if (
@@ -566,7 +597,6 @@ class Config(BaseConfig):
             env_var = webhook_url[2:-1]
             webhook_url = os.environ.get(env_var, "")
 
-        # Delivery config fields (Plan 77-02)
         mention_role_id = alerting.get("mention_role_id")
         if mention_role_id is not None and not isinstance(mention_role_id, str):
             logger.warning("alerting.mention_role_id must be string; ignoring")
@@ -584,17 +614,12 @@ class Config(BaseConfig):
             logger.warning("alerting.max_webhooks_per_minute invalid; defaulting to 20")
             max_webhooks_per_minute = 20
 
-        self.alerting_config = {
-            "enabled": True,
+        return {
             "webhook_url": webhook_url,
-            "default_cooldown_sec": default_cooldown_sec,
-            "default_sustained_sec": default_sustained_sec,
-            "rules": rules,
             "mention_role_id": mention_role_id,
             "mention_severity": mention_severity,
             "max_webhooks_per_minute": max_webhooks_per_minute,
         }
-        logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
 
     def _load_signal_processing_config(self) -> None:
         """Load signal processing configuration.
@@ -851,6 +876,24 @@ class Config(BaseConfig):
             )
             fusion = {}
 
+        icmp_weight, enabled = self._validate_fusion_base(fusion, logger)
+        healing = self._load_fusion_healing_config(fusion, logger)
+
+        self.fusion_config = {
+            "icmp_weight": float(icmp_weight),
+            "enabled": enabled,
+            "healing": healing,
+        }
+        logger.info(
+            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, "
+            f"healing.suspend_threshold={healing['suspend_threshold']}, "
+            f"healing.recover_threshold={healing['recover_threshold']}"
+        )
+
+    def _validate_fusion_base(
+        self, fusion: dict, logger: logging.Logger
+    ) -> tuple[float, bool]:
+        """Validate fusion icmp_weight and enabled flag. Returns (icmp_weight, enabled)."""
         icmp_weight = fusion.get("icmp_weight", 0.7)
         if (
             not isinstance(icmp_weight, (int, float))
@@ -870,7 +913,12 @@ class Config(BaseConfig):
             )
             enabled = False
 
-        # Healing config (Phase 119: FUSE-01 through FUSE-05)
+        return float(icmp_weight), enabled
+
+    def _load_fusion_healing_config(
+        self, fusion: dict, logger: logging.Logger
+    ) -> dict:
+        """Load and validate fusion healing parameters (Phase 119: FUSE-01 through FUSE-05)."""
         healing = fusion.get("healing", {})
         if not isinstance(healing, dict):
             logger.warning(
@@ -878,28 +926,12 @@ class Config(BaseConfig):
             )
             healing = {}
 
-        suspend_threshold = healing.get("suspend_threshold", 0.3)
-        if (
-            not isinstance(suspend_threshold, (int, float))
-            or isinstance(suspend_threshold, bool)
-            or not (0.0 <= suspend_threshold <= 1.0)
-        ):
-            logger.warning(
-                f"fusion.healing.suspend_threshold invalid ({suspend_threshold!r}); defaulting to 0.3"
-            )
-            suspend_threshold = 0.3
-
-        recover_threshold = healing.get("recover_threshold", 0.5)
-        if (
-            not isinstance(recover_threshold, (int, float))
-            or isinstance(recover_threshold, bool)
-            or not (0.0 <= recover_threshold <= 1.0)
-        ):
-            logger.warning(
-                f"fusion.healing.recover_threshold invalid ({recover_threshold!r}); defaulting to 0.5"
-            )
-            recover_threshold = 0.5
-
+        suspend_threshold = self._validate_fusion_threshold(
+            healing, "suspend_threshold", 0.3, logger
+        )
+        recover_threshold = self._validate_fusion_threshold(
+            healing, "recover_threshold", 0.5, logger
+        )
         if recover_threshold <= suspend_threshold:
             logger.warning(
                 f"fusion.healing.recover_threshold ({recover_threshold}) must be > "
@@ -908,29 +940,12 @@ class Config(BaseConfig):
             )
             recover_threshold = min(suspend_threshold + 0.2, 1.0)
 
-        suspend_window_sec = healing.get("suspend_window_sec", 60.0)
-        if (
-            not isinstance(suspend_window_sec, (int, float))
-            or isinstance(suspend_window_sec, bool)
-            or suspend_window_sec < 10.0
-        ):
-            logger.warning(
-                f"fusion.healing.suspend_window_sec invalid ({suspend_window_sec!r}); "
-                f"defaulting to 60.0"
-            )
-            suspend_window_sec = 60.0
-
-        recover_window_sec = healing.get("recover_window_sec", 300.0)
-        if (
-            not isinstance(recover_window_sec, (int, float))
-            or isinstance(recover_window_sec, bool)
-            or recover_window_sec < 30.0
-        ):
-            logger.warning(
-                f"fusion.healing.recover_window_sec invalid ({recover_window_sec!r}); "
-                f"defaulting to 300.0"
-            )
-            recover_window_sec = 300.0
+        suspend_window_sec = self._validate_fusion_window(
+            healing, "suspend_window_sec", 60.0, 10.0, logger
+        )
+        recover_window_sec = self._validate_fusion_window(
+            healing, "recover_window_sec", 300.0, 30.0, logger
+        )
 
         grace_period_sec = healing.get("grace_period_sec", 1800.0)
         if (
@@ -944,22 +959,43 @@ class Config(BaseConfig):
             )
             grace_period_sec = 1800.0
 
-        self.fusion_config = {
-            "icmp_weight": float(icmp_weight),
-            "enabled": enabled,
-            "healing": {
-                "suspend_threshold": float(suspend_threshold),
-                "recover_threshold": float(recover_threshold),
-                "suspend_window_sec": float(suspend_window_sec),
-                "recover_window_sec": float(recover_window_sec),
-                "grace_period_sec": float(grace_period_sec),
-            },
+        return {
+            "suspend_threshold": float(suspend_threshold),
+            "recover_threshold": float(recover_threshold),
+            "suspend_window_sec": float(suspend_window_sec),
+            "recover_window_sec": float(recover_window_sec),
+            "grace_period_sec": float(grace_period_sec),
         }
-        logger.info(
-            f"Fusion: enabled={enabled}, icmp_weight={icmp_weight}, "
-            f"healing.suspend_threshold={suspend_threshold}, "
-            f"healing.recover_threshold={recover_threshold}"
-        )
+
+    def _validate_fusion_threshold(
+        self, healing: dict, key: str, default: float, logger: logging.Logger
+    ) -> float:
+        """Validate a fusion healing threshold (0.0-1.0 range)."""
+        value = healing.get(key, default)
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not (0.0 <= value <= 1.0)
+        ):
+            logger.warning(f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}")
+            return default
+        return float(value)
+
+    def _validate_fusion_window(
+        self, healing: dict, key: str, default: float, minimum: float, logger: logging.Logger
+    ) -> float:
+        """Validate a fusion healing window duration (must be >= minimum)."""
+        value = healing.get(key, default)
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or value < minimum
+        ):
+            logger.warning(
+                f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}"
+            )
+            return default
+        return float(value)
 
     def _load_tuning_config(self) -> None:
         """Load adaptive tuning configuration.
@@ -979,7 +1015,6 @@ class Config(BaseConfig):
             logger.info("Tuning: disabled (enable via tuning.enabled)")
             return
 
-        # Validate 'enabled' field type
         enabled = tuning.get("enabled", False)
         if not isinstance(enabled, bool):
             logger.warning(
@@ -987,62 +1022,56 @@ class Config(BaseConfig):
             )
             self.tuning_config = None
             return
-
         if not enabled:
             self.tuning_config = None
             logger.info("Tuning: disabled (enable via tuning.enabled)")
             return
 
-        # Validate cadence_sec (minimum 600 seconds = 10 minutes)
-        cadence_sec = tuning.get("cadence_sec", 3600)
-        if not isinstance(cadence_sec, int) or isinstance(cadence_sec, bool):
-            logger.warning(
-                f"tuning.cadence_sec must be int, got {type(cadence_sec).__name__}; "
-                "disabling tuning"
-            )
-            self.tuning_config = None
+        core = self._validate_tuning_core(tuning, logger)
+        if core is None:
             return
-        if cadence_sec < 600:
-            logger.warning(
-                f"tuning.cadence_sec must be >= 600 (10 minutes minimum), "
-                f"got {cadence_sec}; disabling tuning"
-            )
-            self.tuning_config = None
+        exclude_params = self._load_tuning_exclude_params(tuning, logger)
+        if exclude_params is None:
+            return
+        bounds = self._load_tuning_bounds(tuning, logger)
+        if bounds is None:
             return
 
-        # Validate lookback_hours (1-168)
-        lookback_hours = tuning.get("lookback_hours", 24)
-        if not isinstance(lookback_hours, int) or isinstance(lookback_hours, bool):
-            logger.warning(
-                f"tuning.lookback_hours must be int, got {type(lookback_hours).__name__}; "
-                "disabling tuning"
-            )
-            self.tuning_config = None
-            return
-        if lookback_hours < 1 or lookback_hours > 168:
-            logger.warning(
-                f"tuning.lookback_hours must be 1-168, got {lookback_hours}; disabling tuning"
-            )
-            self.tuning_config = None
-            return
+        self.tuning_config = TuningConfig(
+            enabled=True,
+            cadence_sec=core["cadence_sec"],
+            lookback_hours=core["lookback_hours"],
+            warmup_hours=core["warmup_hours"],
+            max_step_pct=core["max_step_pct"],
+            bounds=bounds,
+            exclude_params=exclude_params,
+        )
+        exclude_msg = f", exclude={sorted(exclude_params)}" if exclude_params else ""
+        logger.info(
+            f"Tuning: enabled (cadence={core['cadence_sec']}s, lookback={core['lookback_hours']}h, "
+            f"{len(bounds)} bounds{exclude_msg})"
+        )
 
-        # Validate warmup_hours (1-24)
-        warmup_hours = tuning.get("warmup_hours", 1)
-        if not isinstance(warmup_hours, int) or isinstance(warmup_hours, bool):
-            logger.warning(
-                f"tuning.warmup_hours must be int, got {type(warmup_hours).__name__}; "
-                "disabling tuning"
-            )
-            self.tuning_config = None
-            return
-        if warmup_hours < 1 or warmup_hours > 24:
-            logger.warning(
-                f"tuning.warmup_hours must be 1-24, got {warmup_hours}; disabling tuning"
-            )
-            self.tuning_config = None
-            return
+    def _validate_tuning_core(
+        self, tuning: dict, logger: logging.Logger
+    ) -> dict | None:
+        """Validate tuning cadence, lookback, warmup, and max_step_pct. Returns None on failure."""
+        cadence_sec = self._validate_tuning_int_param(
+            tuning, "cadence_sec", 3600, 600, None, logger
+        )
+        if cadence_sec is None:
+            return None
+        lookback_hours = self._validate_tuning_int_param(
+            tuning, "lookback_hours", 24, 1, 168, logger
+        )
+        if lookback_hours is None:
+            return None
+        warmup_hours = self._validate_tuning_int_param(
+            tuning, "warmup_hours", 1, 1, 24, logger
+        )
+        if warmup_hours is None:
+            return None
 
-        # Validate max_step_pct (1.0-50.0)
         max_step_pct = tuning.get("max_step_pct", 10.0)
         if not isinstance(max_step_pct, (int, float)) or isinstance(max_step_pct, bool):
             logger.warning(
@@ -1050,20 +1079,57 @@ class Config(BaseConfig):
                 "disabling tuning"
             )
             self.tuning_config = None
-            return
+            return None
         max_step_pct = float(max_step_pct)
         if max_step_pct < 1.0 or max_step_pct > 50.0:
             logger.warning(
                 f"tuning.max_step_pct must be 1.0-50.0, got {max_step_pct}; disabling tuning"
             )
             self.tuning_config = None
-            return
+            return None
 
-        # Parse exclude_params list (parameters to skip during autotuning)
-        # Default: response params excluded (RTUN-05 graduation pattern).
-        # No exclude_params in YAML -> response params excluded (safe default).
-        # Explicit exclude_params: [] -> nothing excluded (all params tunable).
-        # Explicit exclude_params: ["x"] -> only "x" excluded (user manages list).
+        return {
+            "cadence_sec": cadence_sec,
+            "lookback_hours": lookback_hours,
+            "warmup_hours": warmup_hours,
+            "max_step_pct": max_step_pct,
+        }
+
+    def _validate_tuning_int_param(
+        self,
+        tuning: dict,
+        key: str,
+        default: int,
+        min_val: int,
+        max_val: int | None,
+        logger: logging.Logger,
+    ) -> int | None:
+        """Validate a tuning integer parameter with range check. Returns None on failure."""
+        value = tuning.get(key, default)
+        if not isinstance(value, int) or isinstance(value, bool):
+            logger.warning(
+                f"tuning.{key} must be int, got {type(value).__name__}; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
+        if value < min_val or (max_val is not None and value > max_val):
+            range_str = f">= {min_val}" if max_val is None else f"{min_val}-{max_val}"
+            logger.warning(
+                f"tuning.{key} must be {range_str}, got {value}; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
+        return value
+
+    def _load_tuning_exclude_params(
+        self, tuning: dict, logger: logging.Logger
+    ) -> frozenset[str] | None:
+        """Parse tuning exclude_params list. Returns None on failure.
+
+        Default: response params excluded (RTUN-05 graduation pattern).
+        No exclude_params in YAML -> response params excluded (safe default).
+        Explicit exclude_params: [] -> nothing excluded (all params tunable).
+        """
         from wanctl.tuning.strategies.response import RESPONSE_PARAMS as _RESP_DEFAULTS
 
         _DEFAULT_EXCLUDE = list(_RESP_DEFAULTS)
@@ -1074,69 +1140,67 @@ class Config(BaseConfig):
                 "disabling tuning"
             )
             self.tuning_config = None
-            return
-        exclude_params = frozenset(str(p) for p in raw_exclude)
+            return None
+        return frozenset(str(p) for p in raw_exclude)
 
-        # Parse bounds dict
+    def _load_tuning_bounds(
+        self, tuning: dict, logger: logging.Logger
+    ) -> dict[str, SafetyBounds] | None:
+        """Parse and validate tuning bounds dict. Returns None on failure."""
         raw_bounds = tuning.get("bounds", {})
         if not isinstance(raw_bounds, dict):
             logger.warning(
                 f"tuning.bounds must be a dict, got {type(raw_bounds).__name__}; disabling tuning"
             )
             self.tuning_config = None
-            return
+            return None
 
         bounds: dict[str, SafetyBounds] = {}
         for param_name, bound_spec in raw_bounds.items():
-            if not isinstance(bound_spec, dict):
-                logger.warning(
-                    f"tuning.bounds.{param_name} must be a dict with min/max, "
-                    f"got {type(bound_spec).__name__}; disabling tuning"
-                )
-                self.tuning_config = None
-                return
+            result = self._validate_single_bound(param_name, bound_spec, logger)
+            if result is None:
+                return None
+            bounds[param_name] = result
+        return bounds
 
-            min_val = bound_spec.get("min")
-            max_val = bound_spec.get("max")
+    def _validate_single_bound(
+        self, param_name: str, bound_spec: object, logger: logging.Logger
+    ) -> SafetyBounds | None:
+        """Validate a single tuning bound entry. Returns None on failure."""
+        if not isinstance(bound_spec, dict):
+            logger.warning(
+                f"tuning.bounds.{param_name} must be a dict with min/max, "
+                f"got {type(bound_spec).__name__}; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
 
-            if min_val is None or max_val is None:
-                logger.warning(
-                    f"tuning.bounds.{param_name} must have 'min' and 'max' keys; disabling tuning"
-                )
-                self.tuning_config = None
-                return
+        min_val = bound_spec.get("min")
+        max_val = bound_spec.get("max")
 
-            if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
-                logger.warning(
-                    f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning"
-                )
-                self.tuning_config = None
-                return
+        if min_val is None or max_val is None:
+            logger.warning(
+                f"tuning.bounds.{param_name} must have 'min' and 'max' keys; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
 
-            if min_val > max_val:
-                logger.warning(
-                    f"tuning.bounds.{param_name} min ({min_val}) > max ({max_val}); "
-                    "disabling tuning"
-                )
-                self.tuning_config = None
-                return
+        if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
+            logger.warning(
+                f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
 
-            bounds[param_name] = SafetyBounds(min_value=float(min_val), max_value=float(max_val))
+        if min_val > max_val:
+            logger.warning(
+                f"tuning.bounds.{param_name} min ({min_val}) > max ({max_val}); "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return None
 
-        self.tuning_config = TuningConfig(
-            enabled=True,
-            cadence_sec=cadence_sec,
-            lookback_hours=lookback_hours,
-            warmup_hours=warmup_hours,
-            max_step_pct=max_step_pct,
-            bounds=bounds,
-            exclude_params=exclude_params,
-        )
-        exclude_msg = f", exclude={sorted(exclude_params)}" if exclude_params else ""
-        logger.info(
-            f"Tuning: enabled (cadence={cadence_sec}s, lookback={lookback_hours}h, "
-            f"{len(bounds)} bounds{exclude_msg})"
-        )
+        return SafetyBounds(min_value=float(min_val), max_value=float(max_val))
 
     def _load_specific_fields(self) -> None:
         """Load autorate-specific configuration fields (orchestration only)."""

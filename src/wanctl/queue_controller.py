@@ -84,97 +84,123 @@ class QueueController:
             transition_reason is None if no state change, otherwise explains why
         """
         delta = load_rtt - baseline_rtt
-
-        # State-dependent zone classification with dwell timer and deadband
-        if delta > warn_delta:
-            # RED: immediate, bypasses dwell (D-02)
-            self.red_streak += 1
-            self.green_streak = 0
-            self._yellow_dwell = 0
-            zone = "RED"
-        elif delta > target_delta:
-            # Above GREEN->YELLOW threshold
-            self.green_streak = 0
-            self.red_streak = 0
-            if self._last_zone == "YELLOW":
-                # Already in YELLOW, stay there
-                zone = "YELLOW"
-            else:
-                # In GREEN (or dwell-held GREEN), apply dwell timer (HYST-01)
-                self._yellow_dwell += 1
-                if self._yellow_dwell >= self.dwell_cycles:
-                    zone = "YELLOW"  # Dwell satisfied, transition
-                    _dir = "DL" if self.name == "download" else "UL"
-                    self._logger.info(
-                        "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed",
-                        _dir,
-                    )
-                else:
-                    zone = "GREEN"  # Hold GREEN during dwell, rates hold steady (D-01)
-                    self._transitions_suppressed += 1
-                    self._window_suppressions += 1
-                    _dir = "DL" if self.name == "download" else "UL"
-                    self._logger.debug(
-                        "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
-                        _dir,
-                        self._yellow_dwell,
-                        self.dwell_cycles,
-                    )
-        elif self._last_zone == "YELLOW" and delta >= (target_delta - min(self.deadband_ms, target_delta * 0.5)):
-            # Deadband: delta below target but within deadband margin -> stay YELLOW (HYST-02, D-03)
-            # Clamp deadband to 50% of target_delta to prevent impossible recovery when deadband >= target
-            self.green_streak = 0
-            self.red_streak = 0
-            self._yellow_dwell = 0
-            zone = "YELLOW"
-        else:
-            # GREEN: delta below threshold (and below deadband if was YELLOW)
-            self.green_streak += 1
-            self.red_streak = 0
-            self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
-            zone = "GREEN"
+        zone = self._classify_zone_3state(delta, target_delta, warn_delta)
 
         # Track congestion during window (Phase 136: HYST-01)
         if zone in ("YELLOW", "RED"):
             self._window_had_congestion = True
 
-        # Apply rate adjustments with hysteresis
-        new_rate = self.current_rate
-
-        if self.red_streak >= 1:
-            # RED: Gradual decay using factor_down
-            new_rate = int(self.current_rate * self.factor_down)
-        elif self.green_streak >= self.green_required:
-            # GREEN: Only step up after 5 consecutive green cycles
-            new_rate = self.current_rate + self.step_up_bps
-        elif zone == "YELLOW":
-            # YELLOW: Gentle decay to prevent congestion buildup
-            new_rate = int(self.current_rate * self.factor_down_yellow)
-        # else: GREEN but not sustained -> hold steady
-
-        # Enforce floor and ceiling constraints
+        new_rate = self._compute_rate_3state(zone)
         new_rate = enforce_rate_bounds(new_rate, floor=self.floor_red_bps, ceiling=self.ceiling_bps)
-
         self.current_rate = new_rate
 
-        # Track state transitions with reason
-        transition_reason: str | None = None
-        if zone != self._last_zone:
-            if zone == "RED":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms exceeded warn threshold {warn_delta}ms"
-                )
-            elif zone == "YELLOW":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms exceeded target threshold {target_delta}ms"
-                )
-            elif zone == "GREEN":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms fell below target threshold {target_delta}ms"
-                )
-            self._last_zone = zone
-
+        transition_reason = self._build_transition_reason(
+            zone, delta, target=target_delta, warn=warn_delta
+        )
         return zone, new_rate, transition_reason
+
+    def _classify_zone_3state(
+        self, delta: float, target_delta: float, warn_delta: float
+    ) -> str:
+        """Classify congestion zone for 3-state logic with dwell timer and deadband."""
+        if delta > warn_delta:
+            # RED: immediate, bypasses dwell (D-02)
+            self.red_streak += 1
+            self.green_streak = 0
+            self._yellow_dwell = 0
+            return "RED"
+
+        if delta > target_delta:
+            # Above GREEN->YELLOW threshold
+            self.green_streak = 0
+            self.red_streak = 0
+            return self._apply_dwell_logic()
+
+        if self._last_zone == "YELLOW" and delta >= (
+            target_delta - min(self.deadband_ms, target_delta * 0.5)
+        ):
+            # Deadband: delta below target but within margin -> stay YELLOW (HYST-02, D-03)
+            self.green_streak = 0
+            self.red_streak = 0
+            self._yellow_dwell = 0
+            return "YELLOW"
+
+        # GREEN: delta below threshold (and below deadband if was YELLOW)
+        self.green_streak += 1
+        self.red_streak = 0
+        self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
+        return "GREEN"
+
+    def _apply_dwell_logic(self) -> str:
+        """Apply dwell timer for GREEN->YELLOW transition (HYST-01).
+
+        Shared by both 3-state and 4-state zone classification.
+        """
+        if self._last_zone == "YELLOW":
+            return "YELLOW"  # Already in YELLOW, stay there
+
+        self._yellow_dwell += 1
+        _dir = "DL" if self.name == "download" else "UL"
+        if self._yellow_dwell >= self.dwell_cycles:
+            self._logger.info(
+                "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed", _dir
+            )
+            return "YELLOW"
+
+        # Hold GREEN during dwell, rates hold steady (D-01)
+        self._transitions_suppressed += 1
+        self._window_suppressions += 1
+        self._logger.debug(
+            "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
+            _dir,
+            self._yellow_dwell,
+            self.dwell_cycles,
+        )
+        return "GREEN"
+
+    def _compute_rate_3state(self, zone: str) -> int:
+        """Compute new rate for 3-state logic based on zone and streaks."""
+        if self.red_streak >= 1:
+            return int(self.current_rate * self.factor_down)
+        if self.green_streak >= self.green_required:
+            return self.current_rate + self.step_up_bps
+        if zone == "YELLOW":
+            return int(self.current_rate * self.factor_down_yellow)
+        return self.current_rate
+
+    def _build_transition_reason(
+        self,
+        zone: str,
+        delta: float,
+        *,
+        target: float = 0.0,
+        warn: float = 0.0,
+        soft_red: float = 0.0,
+        hard_red: float = 0.0,
+    ) -> str | None:
+        """Build transition reason string if zone changed, update _last_zone.
+
+        Shared by both 3-state and 4-state logic.
+        """
+        if zone == self._last_zone:
+            return None
+
+        self._last_zone = zone
+        if zone == "RED":
+            threshold = hard_red if hard_red else warn
+            label = "hard_red threshold" if hard_red else "warn threshold"
+            return f"RTT delta {delta:.1f}ms exceeded {label} {threshold}ms"
+        if zone == "SOFT_RED":
+            return f"RTT delta {delta:.1f}ms exceeded soft_red threshold {soft_red}ms"
+        if zone == "YELLOW":
+            threshold = target if target else 0.0
+            label = "green threshold" if hard_red else "target threshold"
+            return f"RTT delta {delta:.1f}ms exceeded {label} {threshold}ms"
+        if zone == "GREEN":
+            threshold = target if target else 0.0
+            label = "green threshold" if hard_red else "target threshold"
+            return f"RTT delta {delta:.1f}ms fell below {label} {threshold}ms"
+        return None
 
     def adjust_4state(
         self,
@@ -207,7 +233,29 @@ class QueueController:
             transition_reason is None if no state change, otherwise explains why
         """
         delta = load_rtt - baseline_rtt
+        zone = self._classify_zone_4state(delta, green_threshold, soft_red_threshold, hard_red_threshold)
 
+        # Track congestion during window (Phase 136: HYST-01)
+        if zone in ("YELLOW", "SOFT_RED", "RED"):
+            self._window_had_congestion = True
+
+        new_rate, state_floor = self._compute_rate_4state(zone)
+        new_rate = enforce_rate_bounds(new_rate, floor=state_floor, ceiling=self.ceiling_bps)
+        self.current_rate = new_rate
+
+        transition_reason = self._build_transition_reason(
+            zone, delta, target=green_threshold, soft_red=soft_red_threshold, hard_red=hard_red_threshold
+        )
+        return zone, new_rate, transition_reason
+
+    def _classify_zone_4state(
+        self,
+        delta: float,
+        green_threshold: float,
+        soft_red_threshold: float,
+        hard_red_threshold: float,
+    ) -> str:
+        """Classify congestion zone for 4-state logic with dwell timer and deadband."""
         # Determine raw state based on thresholds
         if delta > hard_red_threshold:
             raw_state = "RED"
@@ -218,121 +266,61 @@ class QueueController:
         else:
             raw_state = "GREEN"
 
-        # Apply sustain logic for SOFT_RED (unchanged, D-02)
         if raw_state == "SOFT_RED":
-            self.soft_red_streak += 1
-            self.green_streak = 0
-            self.red_streak = 0
-            self._yellow_dwell = 0
-            if self.soft_red_streak >= self.soft_red_required:
-                zone = "SOFT_RED"
-            else:
-                # Not sustained yet - stay in YELLOW
-                zone = "YELLOW"
-        elif raw_state == "RED":
+            return self._apply_soft_red_sustain()
+        if raw_state == "RED":
             self.red_streak += 1
             self.soft_red_streak = 0
             self.green_streak = 0
             self._yellow_dwell = 0
-            zone = "RED"
-        elif raw_state == "YELLOW":
-            # Above GREEN->YELLOW threshold: apply dwell timer (HYST-01)
+            return "RED"
+        if raw_state == "YELLOW":
             self.green_streak = 0
             self.soft_red_streak = 0
             self.red_streak = 0
-            if self._last_zone == "YELLOW":
-                zone = "YELLOW"  # Already YELLOW, stay
-            else:
-                self._yellow_dwell += 1
-                if self._yellow_dwell >= self.dwell_cycles:
-                    zone = "YELLOW"  # Dwell satisfied
-                    _dir = "DL" if self.name == "download" else "UL"
-                    self._logger.info(
-                        "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed",
-                        _dir,
-                    )
-                else:
-                    zone = "GREEN"  # Hold during dwell (D-01)
-                    self._transitions_suppressed += 1
-                    self._window_suppressions += 1
-                    _dir = "DL" if self.name == "download" else "UL"
-                    self._logger.debug(
-                        "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
-                        _dir,
-                        self._yellow_dwell,
-                        self.dwell_cycles,
-                    )
-        elif self._last_zone == "YELLOW" and delta >= (green_threshold - min(self.deadband_ms, green_threshold * 0.5)):
-            # Deadband: raw GREEN but within deadband margin -> stay YELLOW (HYST-02, D-03)
-            # Clamp deadband to 50% of green_threshold to prevent impossible recovery when deadband >= threshold
+            return self._apply_dwell_logic()
+
+        # raw_state == "GREEN" -- check deadband
+        if self._last_zone == "YELLOW" and delta >= (
+            green_threshold - min(self.deadband_ms, green_threshold * 0.5)
+        ):
+            # Deadband: raw GREEN but within margin -> stay YELLOW (HYST-02, D-03)
             self.green_streak = 0
             self.soft_red_streak = 0
             self.red_streak = 0
             self._yellow_dwell = 0
-            zone = "YELLOW"
-        else:
-            # GREEN: below threshold and below deadband
-            self.green_streak += 1
-            self.soft_red_streak = 0
-            self.red_streak = 0
-            self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
-            zone = "GREEN"
+            return "YELLOW"
 
-        # Track congestion during window (Phase 136: HYST-01)
-        if zone in ("YELLOW", "SOFT_RED", "RED"):
-            self._window_had_congestion = True
+        # GREEN: below threshold and below deadband
+        self.green_streak += 1
+        self.soft_red_streak = 0
+        self.red_streak = 0
+        self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
+        return "GREEN"
 
-        # Apply rate adjustments with state-appropriate floors
-        new_rate = self.current_rate
+    def _apply_soft_red_sustain(self) -> str:
+        """Apply SOFT_RED sustain logic -- require consecutive samples before confirming."""
+        self.soft_red_streak += 1
+        self.green_streak = 0
+        self.red_streak = 0
+        self._yellow_dwell = 0
+        if self.soft_red_streak >= self.soft_red_required:
+            return "SOFT_RED"
+        return "YELLOW"  # Not sustained yet
 
-        # Determine appropriate floor based on state
-        state_floor = self.floor_green_bps  # Default
+    def _compute_rate_4state(self, zone: str) -> tuple[int, int]:
+        """Compute new rate and floor for 4-state logic. Returns (rate, floor)."""
+        state_floor = self.floor_green_bps
 
         if self.red_streak >= 1:
-            # RED: Gradual decay using factor_down
-            new_rate = int(self.current_rate * self.factor_down)
-            state_floor = self.floor_red_bps
-        elif zone == "SOFT_RED":
-            # SOFT_RED: Clamp to soft_red floor and HOLD (no repeated decay)
-            # Keep current rate but enforce soft_red floor
-            state_floor = self.floor_soft_red_bps
-        elif self.green_streak >= self.green_required:
-            # GREEN: Only step up after 5 consecutive green cycles
-            new_rate = self.current_rate + self.step_up_bps
-        elif zone == "YELLOW":
-            # YELLOW: Gentle decay to prevent congestion buildup
-            # Uses factor_down_yellow (default 0.96 = 4% per cycle)
-            new_rate = int(self.current_rate * self.factor_down_yellow)
-            state_floor = self.floor_yellow_bps
-        # else: GREEN but not sustained -> use default floor_green_bps
-
-        # Enforce floor and ceiling constraints based on current state
-        new_rate = enforce_rate_bounds(new_rate, floor=state_floor, ceiling=self.ceiling_bps)
-
-        self.current_rate = new_rate
-
-        # Track state transitions with reason
-        transition_reason: str | None = None
-        if zone != self._last_zone:
-            if zone == "RED":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms exceeded hard_red threshold {hard_red_threshold}ms"
-                )
-            elif zone == "SOFT_RED":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms exceeded soft_red threshold {soft_red_threshold}ms"
-                )
-            elif zone == "YELLOW":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms exceeded green threshold {green_threshold}ms"
-                )
-            elif zone == "GREEN":
-                transition_reason = (
-                    f"RTT delta {delta:.1f}ms fell below green threshold {green_threshold}ms"
-                )
-            self._last_zone = zone
-
-        return zone, new_rate, transition_reason
+            return int(self.current_rate * self.factor_down), self.floor_red_bps
+        if zone == "SOFT_RED":
+            return self.current_rate, self.floor_soft_red_bps
+        if self.green_streak >= self.green_required:
+            return self.current_rate + self.step_up_bps, state_floor
+        if zone == "YELLOW":
+            return int(self.current_rate * self.factor_down_yellow), self.floor_yellow_bps
+        return self.current_rate, state_floor
 
     def reset_window(self) -> int:
         """Reset windowed suppression counter. Returns previous window's count.
