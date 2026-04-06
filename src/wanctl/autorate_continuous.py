@@ -447,7 +447,7 @@ def _configure_controller_flags(
     """Apply --profile and --dry-run CLI flags to all WAN controllers."""
     if args.profile:
         for wan_info in controller.wan_controllers:
-            wan_info["controller"]._profiling_enabled = True
+            wan_info["controller"].enable_profiling(True)
 
 
 def _setup_daemon_state(
@@ -456,8 +456,8 @@ def _setup_daemon_state(
 ) -> None:
     """Wire IRTT thread, start background RTT, and log startup info."""
     for wan_info in controller.wan_controllers:
-        wan_info["controller"]._irtt_thread = irtt_thread
-        wan_info["controller"]._init_fusion_healer()
+        wan_info["controller"].set_irtt_thread(irtt_thread)
+        wan_info["controller"].init_fusion_healer()
 
     rtt_shutdown = get_shutdown_event()
     for wan_info in controller.wan_controllers:
@@ -667,7 +667,7 @@ def _check_pending_reverts(
 
     try:
         reverts = check_and_revert(
-            wc._pending_observation,
+            wc.get_pending_observation(),
             db_path,
             wc.wan_name,
             revert_threshold=DEFAULT_REVERT_THRESHOLD,
@@ -678,7 +678,7 @@ def _check_pending_reverts(
             for rv in reverts:
                 persist_revert_record(rv, metrics_writer)
                 lock_parameter(
-                    wc._parameter_locks,
+                    wc.get_parameter_locks(),
                     rv.parameter,
                     DEFAULT_REVERT_COOLDOWN_SEC,
                 )
@@ -693,7 +693,7 @@ def _check_pending_reverts(
             wc.wan_name,
             e,
         )
-    wc._pending_observation = None  # Clear regardless
+    wc.clear_pending_observation()  # Clear regardless
 
 
 def _check_oscillation_lockout(
@@ -710,7 +710,7 @@ def _check_oscillation_lockout(
         osc_metrics = _query_wan_metrics(db_path, wc.wan_name, tuning_config.lookback_hours)
         check_oscillation_lockout(
             osc_metrics,
-            wc._parameter_locks,
+            wc.get_parameter_locks(),
             getattr(wc, "_oscillation_threshold", 0.1),
             getattr(wc, "_alert_engine", None),
             wc.wan_name,
@@ -756,11 +756,11 @@ def _analyze_and_apply_tuning(
                     end_ts=int(time.time()),
                 )
                 if pre_rate is not None:
-                    wc._pending_observation = PendingObservation(
+                    wc.set_pending_observation(PendingObservation(
                         applied_ts=int(time.time()),
                         pre_congestion_rate=pre_rate,
                         applied_results=tuple(applied),
-                    )
+                    ))
     except Exception as e:
         wan_info["logger"].error(
             "[TUNING] Analysis failed for %s: %s",
@@ -783,8 +783,8 @@ def _run_tuning_for_wan(
     _check_pending_reverts(wc, wan_info, db_path, metrics_writer)
 
     # Select active layer via round-robin (SIGP-04)
-    active_layer = all_layers[wc._tuning_layer_index % len(all_layers)]
-    wc._tuning_layer_index += 1
+    active_layer = all_layers[wc.tuning_layer_index % len(all_layers)]
+    wc.tuning_layer_index += 1
 
     # Oscillation lockout for response layer (RTUN-04)
     if active_layer is all_layers[-1]:
@@ -795,7 +795,7 @@ def _run_tuning_for_wan(
     active_strategies = [
         (pname, sfn)
         for pname, sfn in active_layer
-        if pname not in excluded and not is_parameter_locked(wc._parameter_locks, pname)
+        if pname not in excluded and not is_parameter_locked(wc.get_parameter_locks(), pname)
     ]
     _log_excluded_params(wc, wan_info, active_layer, excluded)
 
@@ -820,7 +820,7 @@ def _log_excluded_params(
                 wc.wan_name,
                 pname,
             )
-        elif is_parameter_locked(wc._parameter_locks, pname):
+        elif is_parameter_locked(wc.get_parameter_locks(), pname):
             wan_info["logger"].info(
                 "[TUNING] %s: %s locked until revert cooldown expires",
                 wc.wan_name,
@@ -830,17 +830,15 @@ def _log_excluded_params(
 
 def _build_current_params(wc: Any) -> dict[str, float]:
     """Build current parameter snapshot from a WAN controller."""
+    current = wc.get_current_params()
     return {
         "target_bloat_ms": wc.green_threshold,
         "warn_bloat_ms": wc.soft_red_threshold,
         "hard_red_bloat_ms": wc.hard_red_threshold,
         "alpha_load": wc.alpha_load,
         "alpha_baseline": wc.alpha_baseline,
-        "hampel_sigma_threshold": wc.signal_processor._sigma_threshold,
-        "hampel_window_size": float(wc.signal_processor._window_size),
+        **current,
         "load_time_constant_sec": 0.05 / wc.alpha_load,
-        "fusion_icmp_weight": wc._fusion_icmp_weight,
-        "reflector_min_score": wc._reflector_scorer._min_score,
         "baseline_rtt_min": wc.baseline_rtt_min,
         "baseline_rtt_max": wc.baseline_rtt_max,
         "dl_step_up_mbps": wc.download.step_up_bps / 1e6,
@@ -882,11 +880,11 @@ def _run_adaptive_tuning(controller: "ContinuousAutoRate") -> None:
     first_config = controller.wan_controllers[0]["config"]
     storage_config = get_storage_config(first_config.data)
     db_path = storage_config.get("db_path", "")
-    metrics_writer = controller.wan_controllers[0]["controller"]._metrics_writer
+    metrics_writer = controller.wan_controllers[0]["controller"].get_metrics_writer()
 
     for wan_info in controller.wan_controllers:
         wc = wan_info["controller"]
-        if not wc._tuning_enabled:
+        if not wc.is_tuning_enabled:
             continue
         _run_tuning_for_wan(wc, wan_info, tuning_config, db_path, metrics_writer, all_layers)
 
@@ -898,11 +896,7 @@ def _handle_sigusr1_reload(
     """Handle SIGUSR1 config reload. Returns updated maintenance_retention_config."""
     for wan_info in controller.wan_controllers:
         wan_info["logger"].info("SIGUSR1 received, reloading config")
-        wan_info["controller"]._reload_fusion_config()
-        wan_info["controller"]._reload_tuning_config()
-        wan_info["controller"]._reload_hysteresis_config()
-        wan_info["controller"]._reload_cycle_budget_config()
-        wan_info["controller"]._reload_suppression_alert_config()
+        wan_info["controller"].reload()
 
     try:
         reload_wan = controller.wan_controllers[0]
@@ -962,15 +956,9 @@ def _stop_background_threads(
     for wan_info in controller.wan_controllers:
         wc = wan_info["controller"]
         try:
-            if wc._rtt_thread is not None:
-                wc._rtt_thread.stop()
+            wc.shutdown_threads()
         except Exception as e:
-            logger.debug(f"Error stopping RTT thread: {e}")
-        try:
-            if wc._rtt_pool is not None:
-                wc._rtt_pool.shutdown(wait=True, cancel_futures=True)
-        except Exception as e:
-            logger.debug(f"Error shutting down RTT pool: {e}")
+            logger.debug(f"Error shutting down threads: {e}")
     check_cleanup_deadline(
         "rtt_thread", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
     )
@@ -1055,8 +1043,9 @@ def _close_metrics_writer(
     """Close MetricsWriter SQLite connection."""
     t0 = time.monotonic()
     try:
-        if MetricsWriter._instance is not None:
-            MetricsWriter._instance.close()
+        instance = MetricsWriter.get_instance()
+        if instance is not None:
+            instance.close()
             logger.debug("MetricsWriter connection closed")
     except Exception as e:
         logger.debug(f"Error closing MetricsWriter: {e}")

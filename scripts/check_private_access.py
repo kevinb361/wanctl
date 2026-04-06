@@ -32,29 +32,8 @@ from pathlib import Path
 
 ALLOWLIST: set[tuple[str, str]] = {
     # --- Boundary 1: autorate_continuous.py -> WANController ---
-    ("autorate_continuous", "_fusion_icmp_weight"),
-    ("autorate_continuous", "_init_fusion_healer"),
-    ("autorate_continuous", "_instance"),
-    ("autorate_continuous", "_irtt_thread"),
-    ("autorate_continuous", "_metrics_writer"),
-    ("autorate_continuous", "_min_score"),
-    ("autorate_continuous", "_parameter_locks"),
-    ("autorate_continuous", "_pending_observation"),
-    ("autorate_continuous", "_profiling_enabled"),
-    ("autorate_continuous", "_reflector_scorer"),
-    ("autorate_continuous", "_reload_cycle_budget_config"),
-    ("autorate_continuous", "_reload_fusion_config"),
-    ("autorate_continuous", "_reload_hysteresis_config"),
-    ("autorate_continuous", "_reload_suppression_alert_config"),
-    ("autorate_continuous", "_reload_tuning_config"),
-    ("autorate_continuous", "_rtt_pool"),
-    ("autorate_continuous", "_rtt_thread"),
-    ("autorate_continuous", "_sigma_threshold"),
-    ("autorate_continuous", "_tuning_enabled"),
-    ("autorate_continuous", "_tuning_layer_index"),
-    ("autorate_continuous", "_window_size"),
+    # RESOLVED by Plan 02: all 21 entries eliminated via public facade API
     # --- Boundary 2: health_check.py -> WANController + QueueController ---
-    ("health_check", "_cadence_sec"),
     ("health_check", "_cycle_interval_ms"),
     ("health_check", "_enabled"),
     ("health_check", "_fusion_icmp_weight"),
@@ -93,19 +72,14 @@ ALLOWLIST: set[tuple[str, str]] = {
     ("daemon", "_reload_webhook_url_config"),
     ("daemon", "_wan_staleness_threshold"),
     # --- Boundary 5: wan_controller.py (module-level funcs -> WC instance) ---
-    ("wan_controller", "_cadence_sec"),
-    ("wan_controller", "_db_path"),
+    # RESOLVED by Plan 02: _cadence_sec, _db_path, _min_score, _outlier_window,
+    #   _sigma_threshold, _window, _window_size (now use public properties)
     ("wan_controller", "_fusion_icmp_weight"),
     ("wan_controller", "_grace_period_sec"),
-    ("wan_controller", "_min_score"),
-    ("wan_controller", "_outlier_window"),
     ("wan_controller", "_reflector_scorer"),
     ("wan_controller", "_rules"),
-    ("wan_controller", "_sigma_threshold"),
     ("wan_controller", "_tuning_state"),
-    ("wan_controller", "_window"),
     ("wan_controller", "_window_had_congestion"),
-    ("wan_controller", "_window_size"),
     ("wan_controller", "_window_start_time"),
     # --- Boundary 6: Miscellaneous ---
     ("check_cake", "_find_mangle_rule_id"),

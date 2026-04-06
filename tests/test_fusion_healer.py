@@ -704,7 +704,7 @@ class TestFusionComputation:
         """0.7*30 + 0.3*20 = 27.0 with default weights."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -714,7 +714,7 @@ class TestFusionComputation:
         """0.5*30 + 0.5*20 = 25.0 with equal weights."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_icmp_weight = 0.5
 
@@ -725,7 +725,7 @@ class TestFusionComputation:
         """Weight 1.0 means fused = filtered_rtt (IRTT ignored)."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_icmp_weight = 1.0
 
@@ -736,7 +736,7 @@ class TestFusionComputation:
         """Weight 0.0 means fused = irtt_rtt (ICMP ignored)."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_icmp_weight = 0.0
 
@@ -747,7 +747,7 @@ class TestFusionComputation:
         """DEBUG log emitted with icmp, irtt, and fused values when fusion active."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         with caplog.at_level(logging.DEBUG, logger="test.fusion_core"):
@@ -787,7 +787,7 @@ class TestFusionFallback:
         irtt_thread = MagicMock()
         # age=35s, cadence=10s -> 35 > 30 threshold -> stale
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=35.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -797,7 +797,7 @@ class TestFusionFallback:
         """When IRTT rtt_mean_ms is 0.0 (total loss), filtered_rtt passes through."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=0.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -807,7 +807,7 @@ class TestFusionFallback:
         """When IRTT rtt_mean_ms is negative (invalid), filtered_rtt passes through."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=-1.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -817,7 +817,7 @@ class TestFusionFallback:
         """IRTT at exactly 3x cadence boundary (age=29.9, cadence=10) -> fused value."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=29.9)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -828,7 +828,7 @@ class TestFusionFallback:
         """IRTT just past 3x cadence boundary (age=30.1, cadence=10) -> filtered_rtt."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=30.1)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         result = mock_controller._compute_fused_rtt(30.0)
@@ -847,7 +847,7 @@ class TestFusionFallback:
         """No DEBUG log emitted when IRTT result is stale."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=35.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
 
         with caplog.at_level(logging.DEBUG, logger="test.fusion_core"):
@@ -890,7 +890,7 @@ class TestFusionEnabledGuard:
         """When _fusion_enabled=True and IRTT is valid, returns weighted average."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_enabled = True
 
@@ -930,7 +930,7 @@ class TestFusionRTTTracking:
         """When fusion active, stores both ICMP and fused RTT values."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=20.0, age_offset=1.0)
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_controller._irtt_thread = irtt_thread
         mock_controller._fusion_enabled = True
         mock_controller._fusion_icmp_weight = 0.7
@@ -1591,7 +1591,7 @@ def _make_integration_controller(mock_autorate_config, fusion_enabled=True, irtt
 
     if irtt_enabled:
         ctrl._irtt_thread = MagicMock()
-        ctrl._irtt_thread._cadence_sec = 10.0
+        ctrl._irtt_thread.cadence_sec = 10.0
     else:
         ctrl._irtt_thread = None
 

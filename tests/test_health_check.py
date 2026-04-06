@@ -1929,7 +1929,7 @@ class TestFusionHealth:
             success=True,
         )
         irtt_thread.get_latest.return_value = irtt_result
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_wan_with_fusion._irtt_thread = irtt_thread
 
         controller = self._make_controller(mock_wan_with_fusion, irtt_enabled=True)
@@ -1999,7 +1999,7 @@ class TestFusionHealth:
             success=True,
         )
         irtt_thread.get_latest.return_value = irtt_result
-        irtt_thread._cadence_sec = 10.0
+        irtt_thread.cadence_sec = 10.0
         mock_wan_with_fusion._irtt_thread = irtt_thread
 
         controller = self._make_controller(mock_wan_with_fusion, irtt_enabled=True)

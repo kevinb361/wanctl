@@ -306,9 +306,9 @@ def _make_controller_harness(
     ctrl._irtt_deprioritization_logged = False
     ctrl.logger = logging.getLogger("test_protocol_correlation")
 
-    # Wire up _irtt_thread mock with get_latest + _cadence_sec
+    # Wire up _irtt_thread mock with get_latest + cadence_sec
     irtt_thread_mock = MagicMock()
-    irtt_thread_mock._cadence_sec = irtt_cadence
+    irtt_thread_mock.cadence_sec = irtt_cadence
     irtt_thread_mock.get_latest.return_value = _make_result(
         rtt_mean_ms=irtt_rtt, timestamp=time.monotonic()
     )
@@ -418,14 +418,14 @@ class TestProtocolCorrelation:
         )
 
         irtt_thread_mock = MagicMock()
-        irtt_thread_mock._cadence_sec = 10.0
+        irtt_thread_mock.cadence_sec = 10.0
         irtt_thread_mock.get_latest.return_value = stale_result
         ctrl._irtt_thread = irtt_thread_mock
 
         # Simulate the run_cycle logic for stale detection
         irtt_result = ctrl._irtt_thread.get_latest()
         age = time.monotonic() - irtt_result.timestamp
-        cadence = ctrl._irtt_thread._cadence_sec
+        cadence = ctrl._irtt_thread.cadence_sec
 
         assert age > cadence * 3  # Confirm stale
         # In run_cycle, stale result sets _irtt_correlation = None

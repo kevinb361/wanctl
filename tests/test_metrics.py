@@ -1253,7 +1253,7 @@ class TestIRTTInRunCycle:
         """Verify run_cycle includes IRTT metrics when irtt_result has new timestamp."""
         # Set up IRTT thread with a result
         mock_irtt_thread = MagicMock()
-        mock_irtt_thread._cadence_sec = 10.0
+        mock_irtt_thread.cadence_sec = 10.0
         mock_irtt_thread.get_latest.return_value = IRTTResult(
             rtt_mean_ms=28.5,
             rtt_median_ms=27.2,
@@ -1297,7 +1297,7 @@ class TestIRTTInRunCycle:
         # Set up IRTT thread with a result
         irtt_ts = time.monotonic()
         mock_irtt_thread = MagicMock()
-        mock_irtt_thread._cadence_sec = 10.0
+        mock_irtt_thread.cadence_sec = 10.0
         mock_irtt_thread.get_latest.return_value = IRTTResult(
             rtt_mean_ms=28.5,
             rtt_median_ms=27.2,
@@ -1341,7 +1341,7 @@ class TestIRTTInRunCycle:
         """Verify _last_irtt_write_ts is updated after writing IRTT metrics in run_cycle."""
         irtt_ts = time.monotonic()
         mock_irtt_thread = MagicMock()
-        mock_irtt_thread._cadence_sec = 10.0
+        mock_irtt_thread.cadence_sec = 10.0
         mock_irtt_thread.get_latest.return_value = IRTTResult(
             rtt_mean_ms=28.5,
             rtt_median_ms=27.2,

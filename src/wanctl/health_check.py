@@ -423,7 +423,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             _irtt_result = _irtt_thread.get_latest()
             if _irtt_result is not None:
                 _age = time.monotonic() - _irtt_result.timestamp
-                _cadence = _irtt_thread._cadence_sec
+                _cadence = _irtt_thread.cadence_sec
                 if _age <= _cadence * 3 and _irtt_result.rtt_mean_ms > 0:
                     irtt_rtt_val = round(_irtt_result.rtt_mean_ms, 2)
                     active_source = "fused"
