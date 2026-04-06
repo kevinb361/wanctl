@@ -140,7 +140,14 @@ Plans:
   2. Ruff complexity checks (C901) pass at a threshold of 15 or lower
   3. Extracted helper functions each have a clear name describing their single purpose
   4. All existing tests pass unchanged (no behavioral regression)
-**Plans**: TBD
+**Plans:** 6 plans
+Plans:
+- [ ] 145-01-PLAN.md -- Verification script + WANController __init__/run_cycle/_check_congestion_alerts extraction
+- [ ] 145-02-PLAN.md -- autorate_continuous.py main() lifecycle decomposition
+- [ ] 145-03-PLAN.md -- steering/daemon.py run_cycle/main/__init__/config loader extraction
+- [ ] 145-04-PLAN.md -- health_check.py + steering/health.py section-builder extraction
+- [ ] 145-05-PLAN.md -- Remaining large functions across 8 files (autorate_config, check_cake, queue_controller, etc.)
+- [ ] 145-06-PLAN.md -- C901 violations cleanup, pyproject.toml threshold update to 15
 
 ### Phase 146: Test Cleanup & Organization
 **Goal**: The test suite contains no redundant tests and follows a consistent, navigable directory and naming structure
@@ -209,7 +216,7 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 | 142. Dead Code Removal | v1.29 | 2/2 | Complete    | 2026-04-05 |
 | 143. Dependency & Cruft Cleanup | v1.29 | 3/3 | Complete    | 2026-04-05 |
 | 144. Module Splitting | v1.29 | 4/4 | Complete    | 2026-04-06 |
-| 145. Method Extraction & Simplification | v1.29 | 0/? | Not started | - |
+| 145. Method Extraction & Simplification | v1.29 | 0/6 | Planned | - |
 | 146. Test Cleanup & Organization | v1.29 | 0/? | Not started | - |
 | 147. Interface Decoupling | v1.29 | 0/? | Not started | - |
 | 148. Test Robustness & Performance | v1.29 | 0/? | Not started | - |
