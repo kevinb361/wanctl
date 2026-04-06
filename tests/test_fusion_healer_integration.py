@@ -281,6 +281,22 @@ class TestGraceWiring:
 class TestConfigLoading:
     """Tests for Config._load_fusion_config() healing section parsing."""
 
+    @staticmethod
+    def _make_fusion_config_mock(yaml_data):
+        """Create a mock Config with all fusion config methods bound."""
+        config = MagicMock(spec=Config)
+        config.data = yaml_data
+        for method_name in (
+            "_load_fusion_config",
+            "_validate_fusion_base",
+            "_load_fusion_healing_config",
+            "_validate_fusion_threshold",
+            "_validate_fusion_window",
+        ):
+            method = getattr(Config, method_name)
+            setattr(config, method_name, method.__get__(config, Config))
+        return config
+
     def test_healing_config_loaded_from_yaml(self, tmp_path):
         """Config._load_fusion_config() reads fusion.healing section."""
         yaml_data = {
@@ -299,9 +315,7 @@ class TestConfigLoading:
         config_file = tmp_path / "test.yaml"
         config_file.write_text(yaml.dump(yaml_data))
 
-        config = MagicMock(spec=Config)
-        config.data = yaml_data
-        config._load_fusion_config = Config._load_fusion_config.__get__(config, Config)
+        config = self._make_fusion_config_mock(yaml_data)
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_threshold"] == 0.25
@@ -313,9 +327,7 @@ class TestConfigLoading:
     def test_healing_defaults_when_section_missing(self, tmp_path):
         """Uses defaults when fusion.healing section is absent."""
         yaml_data = {"fusion": {"enabled": True, "icmp_weight": 0.7}}
-        config = MagicMock(spec=Config)
-        config.data = yaml_data
-        config._load_fusion_config = Config._load_fusion_config.__get__(config, Config)
+        config = self._make_fusion_config_mock(yaml_data)
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_threshold"] == 0.3
@@ -330,9 +342,7 @@ class TestConfigLoading:
                 "healing": {"suspend_threshold": "invalid"},
             }
         }
-        config = MagicMock(spec=Config)
-        config.data = yaml_data
-        config._load_fusion_config = Config._load_fusion_config.__get__(config, Config)
+        config = self._make_fusion_config_mock(yaml_data)
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_threshold"] == 0.3
@@ -349,9 +359,7 @@ class TestConfigLoading:
                 },
             }
         }
-        config = MagicMock(spec=Config)
-        config.data = yaml_data
-        config._load_fusion_config = Config._load_fusion_config.__get__(config, Config)
+        config = self._make_fusion_config_mock(yaml_data)
         config._load_fusion_config()
 
         # Should be suspend_threshold + 0.2 = 0.7
@@ -366,9 +374,7 @@ class TestConfigLoading:
                 "healing": {"suspend_window_sec": 5.0},
             }
         }
-        config = MagicMock(spec=Config)
-        config.data = yaml_data
-        config._load_fusion_config = Config._load_fusion_config.__get__(config, Config)
+        config = self._make_fusion_config_mock(yaml_data)
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_window_sec"] == 60.0

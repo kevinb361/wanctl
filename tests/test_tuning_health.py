@@ -41,10 +41,22 @@ def _make_health_handler(wan_controller):
     ]
     handler.controller = controller
 
-    # Use the real method
-    handler._get_health_status = HealthCheckHandler._get_health_status.__get__(
-        handler, HealthCheckHandler
-    )
+    # Bind all health status methods (including extracted builders)
+    for method_name in (
+        "_get_health_status",
+        "_build_wan_status",
+        "_build_rate_hysteresis_section",
+        "_build_signal_quality_section",
+        "_build_irtt_section",
+        "_build_reflector_section",
+        "_build_fusion_section",
+        "_build_tuning_section",
+        "_build_tuning_params_dict",
+        "_build_tuning_safety_section",
+        "_build_alerting_section",
+    ):
+        method = getattr(HealthCheckHandler, method_name)
+        setattr(handler, method_name, method.__get__(handler, HealthCheckHandler))
     return handler
 
 

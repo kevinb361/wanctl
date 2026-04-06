@@ -353,8 +353,19 @@ class TestExcludeParamsDefault:
 
     def _make_config_obj(self, data: dict) -> MagicMock:
         """Create a mock Config with data dict for _load_tuning_config."""
+        from wanctl.autorate_config import Config
+
         config = MagicMock()
         config.data = data
+        for method_name in (
+            "_validate_tuning_core",
+            "_validate_tuning_int_param",
+            "_load_tuning_exclude_params",
+            "_load_tuning_bounds",
+            "_validate_single_bound",
+        ):
+            method = getattr(Config, method_name)
+            setattr(config, method_name, method.__get__(config, Config))
         return config
 
     def test_default_excludes_response_params(self):

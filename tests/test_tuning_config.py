@@ -4,8 +4,22 @@ import logging
 import sqlite3
 from unittest.mock import MagicMock
 
+from wanctl.autorate_config import Config
 from wanctl.storage.schema import TUNING_PARAMS_SCHEMA, create_tables
 from wanctl.tuning.models import TuningConfig
+
+
+def _bind_tuning_config_methods(config: MagicMock) -> None:
+    """Bind all extracted tuning config helper methods to a mock Config."""
+    for method_name in (
+        "_validate_tuning_core",
+        "_validate_tuning_int_param",
+        "_load_tuning_exclude_params",
+        "_load_tuning_bounds",
+        "_validate_single_bound",
+    ):
+        method = getattr(Config, method_name)
+        setattr(config, method_name, method.__get__(config, Config))
 
 
 class TestLoadTuningConfigDisabled:
@@ -58,6 +72,7 @@ class TestLoadTuningConfigEnabled:
     def _make_config_obj(self, data: dict) -> MagicMock:
         config = MagicMock()
         config.data = data
+        _bind_tuning_config_methods(config)
         return config
 
     def test_valid_minimal(self):
@@ -121,6 +136,7 @@ class TestLoadTuningConfigValidation:
     def _make_config_obj(self, data: dict) -> MagicMock:
         config = MagicMock()
         config.data = data
+        _bind_tuning_config_methods(config)
         return config
 
     def test_bounds_scalar_not_dict(self, caplog):
@@ -193,6 +209,7 @@ class TestExcludeParams:
     def _make_config_obj(self, data: dict) -> MagicMock:
         config = MagicMock()
         config.data = data
+        _bind_tuning_config_methods(config)
         return config
 
     def test_default_excludes_response_params(self):

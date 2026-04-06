@@ -126,12 +126,17 @@ def mock_controller():
     controller._ul_congestion_start = None
     controller._dl_sustained_fired = False
     controller._ul_sustained_fired = False
+    controller._dl_last_congested_zone = None
     controller._sustained_sec = 60
 
-    # Bind the real method
-    controller._check_congestion_alerts = WANController._check_congestion_alerts.__get__(
-        controller, WANController
-    )
+    # Bind the real methods (including extracted per-direction helpers)
+    for method_name in (
+        "_check_congestion_alerts",
+        "_check_dl_congestion_alert",
+        "_check_ul_congestion_alert",
+    ):
+        method = getattr(WANController, method_name)
+        setattr(controller, method_name, method.__get__(controller, WANController))
 
     return controller
 
