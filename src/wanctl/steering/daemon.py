@@ -76,7 +76,11 @@ from .congestion_assessment import (
     assess_congestion_state,
     ewma_update,
 )
-from .health import start_steering_health_server, update_steering_health_status
+from .health import (
+    SteeringHealthServer,
+    start_steering_health_server,
+    update_steering_health_status,
+)
 from .steering_confidence import (
     ConfidenceController,
     ConfidenceSignals,
@@ -2221,7 +2225,7 @@ def _create_steering_components(
 def _cleanup_steering_daemon(
     daemon: SteeringDaemon,
     config: SteeringConfig,
-    health_server: object | None,
+    health_server: "SteeringHealthServer | None",
     logger: logging.Logger,
 ) -> None:
     """Ordered shutdown: state > health > connections > metrics > locks."""
@@ -2289,7 +2293,7 @@ def _setup_steering_daemon(
     config: SteeringConfig,
     args: argparse.Namespace,
     logger: logging.Logger,
-) -> tuple[SteeringDaemon, object | None]:
+) -> tuple[SteeringDaemon, SteeringHealthServer | None]:
     """Create daemon instance, acquire lock, start health server.
 
     Returns:
@@ -2378,7 +2382,7 @@ def main() -> int | None:
     try:
         daemon, health_server = _setup_steering_daemon(config, args, logger)
     except SystemExit as e:
-        return e.code
+        return int(e.code) if e.code is not None else 0
 
     try:
         return run_daemon_loop(daemon, config, logger, get_shutdown_event())
