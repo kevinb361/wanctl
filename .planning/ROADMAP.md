@@ -79,7 +79,7 @@ None
 - [x] **Phase 143: Dependency & Cruft Cleanup** - Remove unused pip deps, stale TODOs, dead config references (completed 2026-04-05)
 - [x] **Phase 144: Module Splitting** - Break up files over 500 LOC into focused single-responsibility modules (gap closure in progress) (completed 2026-04-06)
 - [x] **Phase 145: Method Extraction & Simplification** - Extract long methods and flatten high cyclomatic complexity (completed 2026-04-06)
-- [ ] **Phase 146: Test Cleanup & Organization** - Remove redundant tests, restructure directories, consolidate fixtures
+- [x] **Phase 146: Test Cleanup & Organization** - Remove redundant tests, restructure directories, consolidate fixtures (completed 2026-04-06)
 - [ ] **Phase 147: Interface Decoupling** - Reduce tight coupling between modules with cleaner interfaces
 - [ ] **Phase 148: Test Robustness & Performance** - Replace brittle mocks, profile and speed up slow tests
 - [ ] **Phase 149: Type Annotations & Protocols** - Add missing type annotations, use Protocol/ABC patterns
@@ -159,11 +159,11 @@ Plans:
   3. Shared fixtures live in conftest.py files at appropriate scope levels, not duplicated across test files
   4. All test file names follow a consistent pattern (test_{module}.py)
   5. Total test count may decrease but coverage percentage stays at 90%+
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 146-01-PLAN.md -- Baseline + stale removal + helpers.py + move steering/ and backends/ tests
-- [ ] 146-02-PLAN.md -- Move storage/ and tuning/ tests into subdirectories
-- [ ] 146-03-PLAN.md -- Merge feature-specific tests into parent modules + redundancy audit
+- [x] 146-01-PLAN.md -- Baseline + stale removal + helpers.py + move steering/ and backends/ tests
+- [x] 146-02-PLAN.md -- Move storage/ and tuning/ tests into subdirectories
+- [x] 146-03-PLAN.md -- Merge feature-specific tests into parent modules + redundancy audit
 
 ### Phase 147: Interface Decoupling
 **Goal**: Modules communicate through well-defined interfaces, reducing the number of direct cross-module attribute accesses
@@ -174,7 +174,12 @@ Plans:
   2. Key integration boundaries (router transport, state persistence, metrics) have clear interface definitions
   3. Import graphs show reduced fan-in on formerly tightly-coupled modules
   4. All existing tests pass unchanged (no behavioral regression)
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 147-01-PLAN.md -- Create interfaces.py Protocol definitions + AST-based boundary check CI script
+- [ ] 147-02-PLAN.md -- WANController public facade + autorate_continuous.py call site updates (~35 accesses)
+- [ ] 147-03-PLAN.md -- WANController/QueueController/AlertEngine health facade + health_check.py updates (~30 accesses)
+- [ ] 147-04-PLAN.md -- SteeringDaemon facade + steering/health.py + check_cake.py + empty allowlist (~15 accesses)
 
 ### Phase 148: Test Robustness & Performance
 **Goal**: Tests are fast, reliable, and test behavior rather than implementation details
@@ -221,8 +226,8 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 | 143. Dependency & Cruft Cleanup | v1.29 | 3/3 | Complete    | 2026-04-05 |
 | 144. Module Splitting | v1.29 | 4/4 | Complete    | 2026-04-06 |
 | 145. Method Extraction & Simplification | v1.29 | 6/6 | Complete    | 2026-04-06 |
-| 146. Test Cleanup & Organization | v1.29 | 0/3 | Not started | - |
-| 147. Interface Decoupling | v1.29 | 0/? | Not started | - |
+| 146. Test Cleanup & Organization | v1.29 | 3/3 | Complete    | 2026-04-06 |
+| 147. Interface Decoupling | v1.29 | 0/4 | Not started | - |
 | 148. Test Robustness & Performance | v1.29 | 0/? | Not started | - |
 | 149. Type Annotations & Protocols | v1.29 | 0/? | Not started | - |
 | 150. Linting Strictness | v1.29 | 0/? | Not started | - |
