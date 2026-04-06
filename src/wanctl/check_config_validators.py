@@ -420,102 +420,65 @@ def check_paths(data: dict) -> list[CheckResult]:
     results: list[CheckResult] = []
     transport = _get_nested(data, "router.transport", "rest")
 
-    # Log directory checks
+    results.extend(_check_log_paths(data))
+    results.extend(_check_state_file_path(data))
+    results.extend(_check_ssh_key_path(data, transport))
+
+    return results
+
+
+def _check_parent_dir(key: str, path_str: str) -> CheckResult:
+    """Check if a path's parent directory exists."""
+    parent = Path(path_str).parent
+    if parent.exists():
+        return CheckResult("File Paths", key, Severity.PASS, f"{key}: parent directory exists ({parent})")
+    return CheckResult(
+        "File Paths", key, Severity.ERROR,
+        f"{key}: parent directory missing ({parent})", suggestion=f"mkdir -p {parent}",
+    )
+
+
+def _check_log_paths(data: dict) -> list[CheckResult]:
+    """Check log file parent directories exist."""
+    results: list[CheckResult] = []
     for log_path_key in ["logging.main_log", "logging.debug_log"]:
         log_path = _get_nested(data, log_path_key)
         if log_path and isinstance(log_path, str):
-            parent = Path(log_path).parent
-            if parent.exists():
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        log_path_key,
-                        Severity.PASS,
-                        f"{log_path_key}: parent directory exists ({parent})",
-                    )
-                )
-            else:
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        log_path_key,
-                        Severity.ERROR,
-                        f"{log_path_key}: parent directory missing ({parent})",
-                        suggestion=f"mkdir -p {parent}",
-                    )
-                )
+            results.append(_check_parent_dir(log_path_key, log_path))
+    return results
 
-    # State file parent check
+
+def _check_state_file_path(data: dict) -> list[CheckResult]:
+    """Check state file parent directory exists."""
     state_file = _get_nested(data, "state_file")
     if state_file and isinstance(state_file, str):
-        parent = Path(state_file).parent
-        if parent.exists():
-            results.append(
-                CheckResult(
-                    "File Paths",
-                    "state_file",
-                    Severity.PASS,
-                    f"state_file: parent directory exists ({parent})",
-                )
-            )
-        else:
-            results.append(
-                CheckResult(
-                    "File Paths",
-                    "state_file",
-                    Severity.ERROR,
-                    f"state_file: parent directory missing ({parent})",
-                    suggestion=f"mkdir -p {parent}",
-                )
-            )
+        return [_check_parent_dir("state_file", state_file)]
+    return []
 
-    # SSH key check
+
+def _check_ssh_key_path(data: dict, transport: str) -> list[CheckResult]:
+    """Check SSH key existence and permissions."""
     ssh_key = _get_nested(data, "router.ssh_key")
-    if ssh_key and isinstance(ssh_key, str):
-        key_path = Path(ssh_key)
-        if not key_path.exists():
-            # For REST transport, SSH key missing is informational (PASS)
-            if transport == "rest":
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        "router.ssh_key",
-                        Severity.PASS,
-                        f"router.ssh_key: not found ({ssh_key}) -- REST transport, SSH key optional",
-                    )
-                )
-            else:
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        "router.ssh_key",
-                        Severity.ERROR,
-                        f"router.ssh_key: file not found ({ssh_key})",
-                    )
-                )
-        else:
-            mode = key_path.stat().st_mode
-            if mode & (stat.S_IRWXG | stat.S_IRWXO):
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        "router.ssh_key",
-                        Severity.WARN,
-                        f"router.ssh_key: insecure permissions ({oct(mode & 0o777)})",
-                        suggestion=f"chmod 600 {ssh_key}",
-                    )
-                )
-            else:
-                results.append(
-                    CheckResult(
-                        "File Paths",
-                        "router.ssh_key",
-                        Severity.PASS,
-                        "router.ssh_key: exists with secure permissions",
-                    )
-                )
+    if not (ssh_key and isinstance(ssh_key, str)):
+        return []
 
-    return results
+    key_path = Path(ssh_key)
+    if not key_path.exists():
+        if transport == "rest":
+            return [CheckResult(
+                "File Paths", "router.ssh_key", Severity.PASS,
+                f"router.ssh_key: not found ({ssh_key}) -- REST transport, SSH key optional",
+            )]
+        return [CheckResult("File Paths", "router.ssh_key", Severity.ERROR, f"router.ssh_key: file not found ({ssh_key})")]
+
+    mode = key_path.stat().st_mode
+    if mode & (stat.S_IRWXG | stat.S_IRWXO):
+        return [CheckResult(
+            "File Paths", "router.ssh_key", Severity.WARN,
+            f"router.ssh_key: insecure permissions ({oct(mode & 0o777)})",
+            suggestion=f"chmod 600 {ssh_key}",
+        )]
+    return [CheckResult("File Paths", "router.ssh_key", Severity.PASS, "router.ssh_key: exists with secure permissions")]
 
 
 def _walk_string_values(data: dict, prefix: str = "") -> list[tuple[str, str]]:

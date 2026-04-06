@@ -94,74 +94,28 @@ def tune_hampel_sigma(
     Matches StrategyFn signature:
         Callable[[list[dict], float, SafetyBounds, str], TuningResult | None]
     """
-    # 1. Extract outlier_count values by timestamp
-    count_by_ts: dict[int, float] = {}
-    for row in metrics_data:
-        if row["metric_name"] == "wanctl_signal_outlier_count":
-            count_by_ts[row["timestamp"]] = row["value"]
-
-    if len(count_by_ts) < 2:
-        logger.info(
-            "[TUNING] %s: hampel_sigma skipped, only %d outlier_count samples",
-            wan_name,
-            len(count_by_ts),
-        )
+    rates = _compute_outlier_rates(metrics_data, wan_name)
+    if rates is None:
         return None
 
-    # 2. Sort timestamps, compute deltas between consecutive records
-    sorted_ts = sorted(count_by_ts.keys())
-    rates: list[float] = []
-    samples_per_sec = 1.0 / CYCLE_INTERVAL  # 20 at 50ms interval
-    for i in range(1, len(sorted_ts)):
-        delta = count_by_ts[sorted_ts[i]] - count_by_ts[sorted_ts[i - 1]]
-        # Discard negative deltas (counter reset on daemon restart)
-        if delta < 0:
-            continue
-        # Compute actual time gap between consecutive records
-        time_gap = sorted_ts[i] - sorted_ts[i - 1]
-        # Skip zero-gap records (duplicate timestamps)
-        if time_gap <= 0:
-            continue
-        # Convert delta to rate: outliers per sample
-        # Expected samples in this interval = time_gap * samples_per_sec
-        expected_samples = time_gap * samples_per_sec
-        rate = delta / max(expected_samples, 1.0)
-        # Clamp to [0.0, 1.0] guard
-        rate = max(0.0, min(1.0, rate))
-        rates.append(rate)
-
-    # 3. Check minimum data requirement
     if len(rates) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: hampel_sigma skipped, only %d rate deltas (need %d)",
-            wan_name,
-            len(rates),
-            MIN_SAMPLES,
+            wan_name, len(rates), MIN_SAMPLES,
         )
         return None
 
-    # 4. Compute mean outlier rate
     mean_outlier_rate = mean(rates)
 
-    # 5. Check convergence (within target range)
     if TARGET_OUTLIER_RATE_MIN <= mean_outlier_rate <= TARGET_OUTLIER_RATE_MAX:
         logger.info(
             "[TUNING] %s: hampel_sigma converged, outlier_rate=%.1f%% in target range",
-            wan_name,
-            mean_outlier_rate * 100,
+            wan_name, mean_outlier_rate * 100,
         )
         return None
 
-    # 6. Compute candidate
-    if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX:
-        candidate = current_value - SIGMA_STEP  # More filtering
-    else:
-        candidate = current_value + SIGMA_STEP  # Less filtering
-
-    # 7. Confidence scales with data count
+    candidate = current_value - SIGMA_STEP if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX else current_value + SIGMA_STEP
     confidence = min(1.0, len(rates) / 1440.0)
-
-    # 8. Direction label for rationale
     direction = "above" if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX else "below"
 
     return TuningResult(
@@ -176,6 +130,43 @@ def tune_hampel_sigma(
         data_points=len(rates),
         wan_name=wan_name,
     )
+
+
+def _compute_outlier_rates(
+    metrics_data: list[dict], wan_name: str
+) -> list[float] | None:
+    """Extract outlier count deltas and compute per-sample outlier rates.
+
+    Returns None if insufficient data (fewer than 2 outlier_count samples).
+    """
+    count_by_ts: dict[int, float] = {}
+    for row in metrics_data:
+        if row["metric_name"] == "wanctl_signal_outlier_count":
+            count_by_ts[row["timestamp"]] = row["value"]
+
+    if len(count_by_ts) < 2:
+        logger.info(
+            "[TUNING] %s: hampel_sigma skipped, only %d outlier_count samples",
+            wan_name, len(count_by_ts),
+        )
+        return None
+
+    sorted_ts = sorted(count_by_ts.keys())
+    rates: list[float] = []
+    samples_per_sec = 1.0 / CYCLE_INTERVAL
+
+    for i in range(1, len(sorted_ts)):
+        delta = count_by_ts[sorted_ts[i]] - count_by_ts[sorted_ts[i - 1]]
+        if delta < 0:
+            continue  # Counter reset on daemon restart
+        time_gap = sorted_ts[i] - sorted_ts[i - 1]
+        if time_gap <= 0:
+            continue  # Duplicate timestamps
+        expected_samples = time_gap * samples_per_sec
+        rate = max(0.0, min(1.0, delta / max(expected_samples, 1.0)))
+        rates.append(rate)
+
+    return rates
 
 
 def tune_hampel_window(

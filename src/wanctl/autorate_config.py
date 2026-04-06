@@ -301,78 +301,19 @@ class Config(BaseConfig):
     def _load_threshold_config(self, cm: dict) -> None:
         """Load threshold settings with ordering validation."""
         thresh = cm["thresholds"]
-        self.target_bloat_ms = thresh["target_bloat_ms"]  # GREEN → YELLOW (15ms)
-        self.warn_bloat_ms = thresh["warn_bloat_ms"]  # YELLOW → SOFT_RED (45ms)
+        self.target_bloat_ms = thresh["target_bloat_ms"]  # GREEN -> YELLOW (15ms)
+        self.warn_bloat_ms = thresh["warn_bloat_ms"]  # YELLOW -> SOFT_RED (45ms)
         self.hard_red_bloat_ms = thresh.get("hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS)
 
-        # EWMA alpha calculation - prefer time constants (human-readable, interval-independent)
-        # Formula: alpha = cycle_interval / time_constant
-        logger = logging.getLogger(__name__)
-        # Local import to avoid circular dependency (wan_controller imports Config)
-        from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS
+        # EWMA alpha from time constants (with legacy deprecation)
+        self._load_ewma_alpha_config(thresh)
 
-        cycle_interval = CYCLE_INTERVAL_SECONDS
-
-        # Deprecation: translate legacy alpha_baseline -> baseline_time_constant_sec
-        _tc_from_baseline = deprecate_param(
-            thresh,
-            "alpha_baseline",
-            "baseline_time_constant_sec",
-            logger,
-            transform_fn=lambda alpha: cycle_interval / alpha,
-        )
-        if _tc_from_baseline is not None:
-            thresh["baseline_time_constant_sec"] = _tc_from_baseline
-
-        # Deprecation: translate legacy alpha_load -> load_time_constant_sec
-        _tc_from_load = deprecate_param(
-            thresh,
-            "alpha_load",
-            "load_time_constant_sec",
-            logger,
-            transform_fn=lambda alpha: cycle_interval / alpha,
-        )
-        if _tc_from_load is not None:
-            thresh["load_time_constant_sec"] = _tc_from_load
-
-        # Baseline alpha: require either time_constant or raw alpha
-        if "baseline_time_constant_sec" in thresh:
-            tc = thresh["baseline_time_constant_sec"]
-            self.alpha_baseline = cycle_interval / tc
-            logger.info(
-                f"Calculated alpha_baseline={self.alpha_baseline:.6f} from time_constant={tc}s"
-            )
-        elif "alpha_baseline" in thresh:
-            self.alpha_baseline = thresh["alpha_baseline"]
-        else:
-            raise ValueError(
-                "Config must specify either baseline_time_constant_sec or alpha_baseline"
-            )
-
-        # Load alpha: require either time_constant or raw alpha
-        if "load_time_constant_sec" in thresh:
-            tc = thresh["load_time_constant_sec"]
-            self.alpha_load = cycle_interval / tc
-            logger.info(f"Calculated alpha_load={self.alpha_load:.4f} from time_constant={tc}s")
-        elif "alpha_load" in thresh:
-            self.alpha_load = thresh["alpha_load"]
-            # Warn if raw alpha seems miscalculated for current interval
-            expected_tc = cycle_interval / self.alpha_load
-            if expected_tc > 5.0:  # Time constant > 5 seconds is suspiciously slow
-                logger.warning(
-                    f"alpha_load={self.alpha_load} gives {expected_tc:.1f}s time constant - "
-                    f"consider using load_time_constant_sec for clarity"
-                )
-        else:
-            raise ValueError("Config must specify either load_time_constant_sec or alpha_load")
-        # Baseline update threshold - only update baseline when delta is below this value
-        # Prevents baseline drift under load (architectural invariant)
+        # Baseline update threshold (architectural invariant)
         self.baseline_update_threshold_ms = thresh.get(
             "baseline_update_threshold_ms", DEFAULT_BASELINE_UPDATE_THRESHOLD_MS
         )
 
         # Acceleration threshold for rate-of-change detection (Phase 3)
-        # Detects sudden RTT spikes and triggers immediate RED state
         self.accel_threshold_ms = thresh.get("accel_threshold_ms", 15.0)
         self.accel_confirm_cycles = thresh.get("accel_confirm_cycles", 3)
 
@@ -380,19 +321,72 @@ class Config(BaseConfig):
         self.dwell_cycles = thresh.get("dwell_cycles", 3)
         self.deadband_ms = thresh.get("deadband_ms", 3.0)
 
-        # Baseline RTT security bounds - reject values outside this range
+        # Baseline RTT security bounds
         bounds = thresh.get("baseline_rtt_bounds", {})
         self.baseline_rtt_min = bounds.get("min", MIN_SANE_BASELINE_RTT)
         self.baseline_rtt_max = bounds.get("max", MAX_SANE_BASELINE_RTT)
 
-        # Validate threshold ordering: target < warn < hard_red
-        # This ensures state transitions are logically correct
         validate_threshold_order(
             target_bloat_ms=self.target_bloat_ms,
             warn_bloat_ms=self.warn_bloat_ms,
             hard_red_bloat_ms=self.hard_red_bloat_ms,
             logger=logging.getLogger(__name__),
         )
+
+    def _load_ewma_alpha_config(self, thresh: dict) -> None:
+        """Resolve EWMA alpha values from time constants or legacy alpha params."""
+        logger = logging.getLogger(__name__)
+        from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS
+
+        cycle_interval = CYCLE_INTERVAL_SECONDS
+
+        # Deprecation: translate legacy alpha -> time_constant
+        _tc_from_baseline = deprecate_param(
+            thresh, "alpha_baseline", "baseline_time_constant_sec", logger,
+            transform_fn=lambda alpha: cycle_interval / alpha,
+        )
+        if _tc_from_baseline is not None:
+            thresh["baseline_time_constant_sec"] = _tc_from_baseline
+
+        _tc_from_load = deprecate_param(
+            thresh, "alpha_load", "load_time_constant_sec", logger,
+            transform_fn=lambda alpha: cycle_interval / alpha,
+        )
+        if _tc_from_load is not None:
+            thresh["load_time_constant_sec"] = _tc_from_load
+
+        # Resolve baseline alpha
+        self.alpha_baseline = self._resolve_alpha(
+            thresh, "baseline", cycle_interval, logger
+        )
+        # Resolve load alpha
+        self.alpha_load = self._resolve_alpha(
+            thresh, "load", cycle_interval, logger
+        )
+
+    def _resolve_alpha(
+        self, thresh: dict, prefix: str, cycle_interval: float, logger: logging.Logger
+    ) -> float:
+        """Resolve alpha from time_constant or raw alpha. Raises ValueError if neither present."""
+        tc_key = f"{prefix}_time_constant_sec"
+        alpha_key = f"alpha_{prefix}"
+
+        if tc_key in thresh:
+            tc = thresh[tc_key]
+            alpha = cycle_interval / tc
+            logger.info(f"Calculated {alpha_key}={alpha:.6f} from time_constant={tc}s")
+            return alpha
+        if alpha_key in thresh:
+            alpha = thresh[alpha_key]
+            if prefix == "load":
+                expected_tc = cycle_interval / alpha
+                if expected_tc > 5.0:
+                    logger.warning(
+                        f"{alpha_key}={alpha} gives {expected_tc:.1f}s time constant - "
+                        f"consider using {tc_key} for clarity"
+                    )
+            return alpha
+        raise ValueError(f"Config must specify either {tc_key} or {alpha_key}")
 
     def _load_ping_config(self, cm: dict) -> None:
         """Load ping hosts and median setting."""
