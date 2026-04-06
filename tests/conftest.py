@@ -35,12 +35,14 @@ def sample_config_data():
 # =============================================================================
 # SHARED MOCK CONFIG FIXTURES
 #
-# Canonical mock configs for autorate and steering test files.
-# These are the superset of attributes needed across all consumers.
+# Canonical mock configs for autorate test files.
+# The superset of attributes needed across all autorate consumers.
 #
-# Class-level mock_config fixtures in test_wan_controller.py,
-# test_steering_daemon.py, and test_autorate_baseline_bounds.py can
-# extend these shared fixtures for per-class overrides.
+# Class-level mock_config fixtures in test_wan_controller.py and
+# test_autorate_baseline_bounds.py can extend this shared fixture
+# for per-class overrides.
+#
+# Steering mock config lives in tests/steering/conftest.py.
 # =============================================================================
 
 
@@ -134,41 +136,4 @@ def mock_autorate_config():
     config.fusion_config = {"icmp_weight": 0.7, "enabled": False}
     # Tuning config (optional, disabled by default)
     config.tuning_config = None
-    return config
-
-
-@pytest.fixture
-def mock_steering_config():
-    """Shared mock config for steering daemon tests.
-
-    Contains the full superset of attributes used across all steering test
-    files. Individual tests may override specific attributes as needed.
-    """
-    config = MagicMock()
-    config.primary_wan = "spectrum"
-    config.alternate_wan = "att"
-    config.state_good = "SPECTRUM_GOOD"
-    config.state_degraded = "SPECTRUM_DEGRADED"
-    config.primary_download_queue = "WAN-Download-Spectrum"
-    # RTT thresholds
-    config.green_rtt_ms = 5.0
-    config.yellow_rtt_ms = 15.0
-    config.red_rtt_ms = 15.0
-    # CAKE signal thresholds
-    config.min_drops_red = 1
-    config.min_queue_yellow = 10
-    config.min_queue_red = 50
-    # Sample requirements
-    config.red_samples_required = 2
-    config.green_samples_required = 15
-    # Metrics and confidence
-    config.metrics_enabled = False
-    config.use_confidence_scoring = False
-    config.confidence_config = None
-    # WAN-aware steering (disabled by default, SAFE-04)
-    config.wan_state_config = None
-    # Alerting (disabled by default in tests)
-    config.alerting_config = None
-    # Cycle interval for utilization calculation
-    config.measurement_interval = 0.05
     return config
