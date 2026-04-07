@@ -377,7 +377,9 @@ def _make_health_wan_controller() -> MagicMock:
     wan.upload._transitions_suppressed = 0
     wan.upload._window_suppressions = 0
     wan.upload._window_start_time = 0.0
-    wan._suppression_alert_threshold = 20
+    wan._suppression_alert_threshold = 60
+
+    wan._suppression_alert_pct = 5.0
     # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
     wan._last_signal_result = None
     wan._irtt_thread = None
@@ -396,7 +398,58 @@ def _make_health_wan_controller() -> MagicMock:
     wan._parameter_locks = None
     wan._overrun_count = 0
     wan._cycle_interval_ms = 50.0
+    wan._warning_threshold_pct = 80.0
+    wan._pending_observation = False
     wan._profiler.stats.return_value = None
+
+    # get_health_data() facade must return a real dict (Phase 147 interface).
+    # Use side_effect so IRTT attrs set AFTER factory are reflected dynamically.
+    from wanctl.perf_profiler import OperationProfiler
+
+    _profiler = OperationProfiler(max_samples=1200)
+
+    def _dynamic_health_data() -> dict:
+        return {
+            "cycle_budget": {
+                "profiler": _profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": None,
+            "irtt": {
+                "thread": wan._irtt_thread,
+                "correlation": wan._irtt_correlation,
+                "last_asymmetry_result": wan._last_asymmetry_result,
+            },
+            "reflector": {"scorer": None},
+            "fusion": {
+                "enabled": wan._fusion_enabled,
+                "icmp_filtered_rtt": None,
+                "fused_rtt": None,
+                "icmp_weight": 0.7,
+                "healer": None,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": {},
+                "pending_observation": False,
+            },
+            "suppression_alert": {"threshold": 60, "pct": 5.0},
+        }
+
+    wan.get_health_data.side_effect = _dynamic_health_data
+    # QueueController facades
+    _qc_health = {
+        "hysteresis": {
+            "dwell_counter": 0, "dwell_cycles": 5, "deadband_ms": 3.0,
+            "transitions_suppressed": 0, "suppressions_per_min": 0,
+            "window_start_epoch": 0.0,
+        },
+    }
+    wan.download.get_health_data.return_value = _qc_health
+    wan.upload.get_health_data.return_value = _qc_health
     return wan
 
 

@@ -363,6 +363,16 @@ class TestHysteresisHealthEndpoint:
         wan.download._transitions_suppressed = 12
         wan.download._window_suppressions = 5
         wan.download._window_start_time = 1712345000.0
+        wan.download.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 3,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 12,
+                "suppressions_per_min": 5,
+                "window_start_epoch": 1712345000.0,
+            },
+        }
         wan.upload.current_rate = 35_000_000
         wan.upload.red_streak = 0
         wan.upload.soft_red_streak = 0
@@ -375,6 +385,16 @@ class TestHysteresisHealthEndpoint:
         wan.upload._transitions_suppressed = 8
         wan.upload._window_suppressions = 3
         wan.upload._window_start_time = 1712345000.0
+        wan.upload.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 3,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 8,
+                "suppressions_per_min": 3,
+                "window_start_epoch": 1712345000.0,
+            },
+        }
         wan.router_connectivity.is_reachable = True
         wan.router_connectivity.to_dict.return_value = {
             "is_reachable": True,
@@ -395,7 +415,36 @@ class TestHysteresisHealthEndpoint:
         wan._overrun_count = 0
         wan._cycle_interval_ms = 50.0
         wan._warning_threshold_pct = 80.0
-        wan._suppression_alert_threshold = 20
+        wan._suppression_alert_threshold = 60
+
+        wan._suppression_alert_pct = 5.0
+
+        # get_health_data() facade must return a real dict (Phase 147 interface)
+        wan.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": wan._profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": None,
+            "irtt": {"thread": None, "correlation": None, "last_asymmetry_result": None},
+            "reflector": {"scorer": None},
+            "fusion": {
+                "enabled": False,
+                "icmp_filtered_rtt": None,
+                "fused_rtt": None,
+                "icmp_weight": 0.7,
+                "healer": None,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": {},
+                "pending_observation": False,
+            },
+            "suppression_alert": {"threshold": 60, "pct": 5.0},
+        }
         return wan
 
     def test_hysteresis_has_windowed_fields_download(self):
@@ -423,7 +472,9 @@ class TestHysteresisHealthEndpoint:
             assert "window_start_epoch" in dl_hyst
             assert dl_hyst["window_start_epoch"] == 1712345000.0
             assert "alert_threshold_per_min" in dl_hyst
-            assert dl_hyst["alert_threshold_per_min"] == 20
+            assert dl_hyst["alert_threshold_per_min"] == 60
+            assert "alert_threshold_pct" in dl_hyst
+            assert dl_hyst["alert_threshold_pct"] == 5.0
             # Existing fields still present
             assert "dwell_counter" in dl_hyst
             assert "transitions_suppressed" in dl_hyst
@@ -456,7 +507,9 @@ class TestHysteresisHealthEndpoint:
             assert "window_start_epoch" in ul_hyst
             assert ul_hyst["window_start_epoch"] == 1712345000.0
             assert "alert_threshold_per_min" in ul_hyst
-            assert ul_hyst["alert_threshold_per_min"] == 20
+            assert ul_hyst["alert_threshold_per_min"] == 60
+            assert "alert_threshold_pct" in ul_hyst
+            assert ul_hyst["alert_threshold_pct"] == 5.0
         finally:
             server.shutdown()
 
@@ -476,7 +529,9 @@ class TestPeriodicHysteresisLogging:
         wc = MagicMock(spec=WANController)
         wc.wan_name = "spectrum"
         wc.logger = logging.getLogger("wanctl.autorate_continuous")
-        wc._suppression_alert_threshold = 20
+        wc._suppression_alert_threshold = 60
+
+        wc._suppression_alert_pct = 5.0
         wc.alert_engine = MagicMock()
 
         # Use real QueueControllers for accurate behavior
@@ -597,9 +652,6 @@ def _make_alert_wan_controller(**overrides) -> WANController:
             "thresholds": {
                 "dwell_cycles": 3,
                 "deadband_ms": 3.0,
-                "suppression_alert_threshold": overrides.get(
-                    "suppression_alert_threshold", 20
-                ),
             },
             "warning_threshold_pct": 80.0,
         },
@@ -652,9 +704,21 @@ def _make_alert_wan_controller(**overrides) -> WANController:
     wc.wan_name = overrides.get("wan_name", "spectrum")
     wc.download = download
     wc.upload = upload
-    wc._suppression_alert_threshold = overrides.get(
-        "suppression_alert_threshold", 20
-    )
+
+    # Support both new pct-based and legacy absolute threshold
+    if "suppression_alert_pct" in overrides:
+        wc._suppression_alert_pct = overrides["suppression_alert_pct"]
+        wc._suppression_alert_threshold = WANController._compute_suppression_threshold(
+            wc._suppression_alert_pct
+        )
+    elif "suppression_alert_threshold" in overrides:
+        wc._suppression_alert_threshold = overrides["suppression_alert_threshold"]
+        from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS
+        cycles = int(60.0 / CYCLE_INTERVAL_SECONDS)
+        wc._suppression_alert_pct = (overrides["suppression_alert_threshold"] / cycles) * 100.0
+    else:
+        wc._suppression_alert_pct = 5.0
+        wc._suppression_alert_threshold = WANController._compute_suppression_threshold(5.0)
 
     return wc
 
@@ -799,10 +863,22 @@ class TestHysteresisSuppressionAlert:
 
 
 class TestSuppressionAlertReload:
-    """_reload_suppression_alert_config() hot-reloads threshold from YAML."""
+    """_reload_suppression_alert_config() hot-reloads pct-based threshold from YAML."""
 
-    def _write_yaml(self, path: str, threshold_value) -> None:
-        """Write a YAML config with the given threshold value."""
+    def _write_yaml_pct(self, path: str, pct_value) -> None:
+        """Write a YAML config with the given suppression_alert_pct value."""
+        data = {
+            "continuous_monitoring": {
+                "thresholds": {
+                    "suppression_alert_pct": pct_value,
+                }
+            }
+        }
+        with open(path, "w") as f:
+            yaml.dump(data, f)
+
+    def _write_yaml_legacy(self, path: str, threshold_value) -> None:
+        """Write a YAML config with the legacy suppression_alert_threshold value."""
         data = {
             "continuous_monitoring": {
                 "thresholds": {
@@ -814,7 +890,7 @@ class TestSuppressionAlertReload:
             yaml.dump(data, f)
 
     def _write_yaml_no_threshold(self, path: str) -> None:
-        """Write a YAML config without suppression_alert_threshold key."""
+        """Write a YAML config without any suppression alert key."""
         data = {
             "continuous_monitoring": {
                 "thresholds": {
@@ -825,134 +901,186 @@ class TestSuppressionAlertReload:
         with open(path, "w") as f:
             yaml.dump(data, f)
 
-    def test_reload_updates_threshold(self):
-        """Valid threshold value updates _suppression_alert_threshold."""
+    def test_reload_updates_pct(self):
+        """Valid pct value updates both _suppression_alert_pct and derived threshold."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, 30)
+            self._write_yaml_pct(tmp_path, 10.0)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=5.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
-            assert wc._suppression_alert_threshold == 20
+            assert wc._suppression_alert_pct == 5.0
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 30
+            assert wc._suppression_alert_pct == 10.0
+            # 10% of 1200 cycles = 120
+            assert wc._suppression_alert_threshold == 120
         finally:
             os.unlink(tmp_path)
 
-    def test_reload_invalid_negative_keeps_current(self):
-        """Negative threshold keeps current value."""
+    def test_reload_legacy_threshold_converts_to_pct(self):
+        """Legacy suppression_alert_threshold is converted to pct on reload."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, -1)
+            self._write_yaml_legacy(tmp_path, 120)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=5.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 20
+            # 120 / 1200 cycles = 10%
+            assert wc._suppression_alert_pct == 10.0
+            assert wc._suppression_alert_threshold == 120
         finally:
             os.unlink(tmp_path)
 
-    def test_reload_invalid_too_high_keeps_current(self):
-        """Threshold > 1000 keeps current value."""
+    def test_reload_invalid_negative_pct_keeps_default(self):
+        """Negative pct falls back to default 5%."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, 1001)
+            self._write_yaml_pct(tmp_path, -1.0)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=10.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 20
+            assert wc._suppression_alert_pct == 5.0
         finally:
             os.unlink(tmp_path)
 
-    def test_reload_boolean_keeps_current(self):
-        """Boolean value (True) keeps current value."""
+    def test_reload_invalid_too_high_pct_keeps_default(self):
+        """Pct > 100 falls back to default 5%."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, True)
+            self._write_yaml_pct(tmp_path, 101.0)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=10.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 20
+            assert wc._suppression_alert_pct == 5.0
+        finally:
+            os.unlink(tmp_path)
+
+    def test_reload_boolean_keeps_default(self):
+        """Boolean value (True) falls back to default 5%."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            tmp_path = f.name
+        try:
+            self._write_yaml_pct(tmp_path, True)
+            wc = _make_alert_wan_controller(
+                suppression_alert_pct=10.0, config_file_path=tmp_path
+            )
+            wc.config.config_file_path = tmp_path
+
+            wc._reload_suppression_alert_config()
+
+            assert wc._suppression_alert_pct == 5.0
         finally:
             os.unlink(tmp_path)
 
     def test_reload_missing_key_uses_default(self):
-        """Missing suppression_alert_threshold key defaults to 20."""
+        """Missing suppression keys default to 5% pct."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
             self._write_yaml_no_threshold(tmp_path)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=50, config_file_path=tmp_path
+                suppression_alert_pct=10.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 20  # Default
+            assert wc._suppression_alert_pct == 5.0
+            assert wc._suppression_alert_threshold == 60  # 5% of 1200
         finally:
             os.unlink(tmp_path)
 
-    def test_reload_zero_is_valid(self):
-        """Threshold of 0 is valid (always alert when congestion + any suppression)."""
+    def test_reload_zero_pct_is_valid(self):
+        """Pct of 0 is valid (alert on any suppression during congestion)."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, 0)
+            self._write_yaml_pct(tmp_path, 0.0)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=5.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 0
+            assert wc._suppression_alert_pct == 0.0
+            assert wc._suppression_alert_threshold == 1  # max(1, 0) = 1
         finally:
             os.unlink(tmp_path)
 
-    def test_reload_1000_is_valid(self):
-        """Threshold of 1000 is valid (upper bound)."""
+    def test_reload_100_pct_is_valid(self):
+        """Pct of 100 is valid (upper bound, effectively disables alerting)."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             tmp_path = f.name
         try:
-            self._write_yaml(tmp_path, 1000)
+            self._write_yaml_pct(tmp_path, 100.0)
             wc = _make_alert_wan_controller(
-                suppression_alert_threshold=20, config_file_path=tmp_path
+                suppression_alert_pct=5.0, config_file_path=tmp_path
             )
             wc.config.config_file_path = tmp_path
 
             wc._reload_suppression_alert_config()
 
-            assert wc._suppression_alert_threshold == 1000
+            assert wc._suppression_alert_pct == 100.0
+            assert wc._suppression_alert_threshold == 1200  # 100% of 1200
         finally:
             os.unlink(tmp_path)
 
     def test_reload_file_not_found_keeps_current(self):
         """Missing config file keeps current value."""
-        wc = _make_alert_wan_controller(suppression_alert_threshold=25)
+        wc = _make_alert_wan_controller(suppression_alert_pct=10.0)
         wc.config.config_file_path = "/nonexistent/path.yaml"
 
         wc._reload_suppression_alert_config()
 
-        assert wc._suppression_alert_threshold == 25
+        assert wc._suppression_alert_pct == 10.0
+
+    def test_reload_pct_takes_priority_over_legacy(self):
+        """When both keys present, suppression_alert_pct wins."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            tmp_path = f.name
+        try:
+            data = {
+                "continuous_monitoring": {
+                    "thresholds": {
+                        "suppression_alert_pct": 8.0,
+                        "suppression_alert_threshold": 999,
+                    }
+                }
+            }
+            with open(tmp_path, "w") as f:
+                yaml.dump(data, f)
+
+            wc = _make_alert_wan_controller(
+                suppression_alert_pct=5.0, config_file_path=tmp_path
+            )
+            wc.config.config_file_path = tmp_path
+
+            wc._reload_suppression_alert_config()
+
+            assert wc._suppression_alert_pct == 8.0
+            assert wc._suppression_alert_threshold == 96  # 8% of 1200
+        finally:
+            os.unlink(tmp_path)
 
 
 # =============================================================================
@@ -964,19 +1092,24 @@ class TestSIGUSR1ChainIncludesSuppressionReload:
     """Verify _reload_suppression_alert_config is in the SIGUSR1 handler chain."""
 
     def test_sigusr1_handler_calls_reload(self):
-        """The SIGUSR1 handler chain includes _reload_suppression_alert_config."""
-        # Read the source and verify the call is present in the handler
+        """The SIGUSR1 handler chain includes _reload_suppression_alert_config.
 
-        import wanctl.autorate_continuous as module
+        Chain: autorate_continuous._handle_sigusr1_reload() calls controller.reload(),
+        which calls _reload_suppression_alert_config().
+        """
+        # Verify autorate_continuous calls controller.reload() on SIGUSR1
+        import wanctl.autorate_continuous as ac_module
 
-        source = inspect.getsource(module)
-        # The handler iterates wan_controllers and calls _reload_* methods
-        assert "_reload_suppression_alert_config" in source, (
-            "_reload_suppression_alert_config not found in autorate_continuous.py"
+        ac_source = inspect.getsource(ac_module)
+        assert ".reload()" in ac_source, (
+            "controller.reload() not called in autorate_continuous.py SIGUSR1 handler"
         )
-        # Verify it's called on the controller (not just defined)
-        # Pattern: wan_info["controller"]._reload_suppression_alert_config()
-        assert 'wan_info["controller"]._reload_suppression_alert_config()' in source, (
-            '_reload_suppression_alert_config() not called on controller in SIGUSR1 handler'
+
+        # Verify WANController.reload() includes _reload_suppression_alert_config
+        from wanctl.wan_controller import WANController
+
+        reload_source = inspect.getsource(WANController.reload)
+        assert "_reload_suppression_alert_config" in reload_source, (
+            "_reload_suppression_alert_config not called in WANController.reload()"
         )
 
