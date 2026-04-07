@@ -26,6 +26,23 @@ class RouterOS:
         # Use factory function to get appropriate client (SSH or REST) with failover
         self.client = get_router_client_with_failover(config, logger)
 
+    @property
+    def needs_rate_limiting(self) -> bool:
+        """RouterOS needs rate limiting unless YAML explicitly disables it."""
+        rl_config = self.config.rate_limiter_config
+        if rl_config.get("enabled") is False:
+            return False
+        return True
+
+    @property
+    def rate_limit_params(self) -> dict[str, int]:
+        """Rate limiter params: backend defaults merged with YAML overrides."""
+        rl_config = self.config.rate_limiter_config
+        return {
+            "max_changes": rl_config.get("max_changes", 5),
+            "window_seconds": rl_config.get("window_seconds", 10),
+        }
+
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
         """Set CAKE limits for one WAN using a single batched router command"""
         self.logger.debug(f"{wan}: Setting limits DOWN={down_bps} UP={up_bps}")

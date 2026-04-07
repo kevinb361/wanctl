@@ -74,6 +74,11 @@ class LinuxCakeBackend(RouterBackend):
         self.interface = interface
         self.tc_timeout = tc_timeout
 
+    @property
+    def needs_rate_limiting(self) -> bool:
+        """linux-cake writes to kernel memory -- no rate limiting needed."""
+        return False
+
     def _run_tc(self, args: list[str], timeout: float | None = None) -> tuple[int, str, str]:
         """Execute a tc command and return (returncode, stdout, stderr).
 

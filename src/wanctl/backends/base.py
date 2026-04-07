@@ -131,6 +131,22 @@ class RouterBackend(ABC):
         """
         pass
 
+    @property
+    def needs_rate_limiting(self) -> bool:
+        """Whether this transport needs rate limiting for API/flash protection.
+
+        Override in subclasses. Default True (safe default for unknown backends).
+        """
+        return True
+
+    @property
+    def rate_limit_params(self) -> dict[str, int]:
+        """Rate limiter parameters: {"max_changes": int, "window_seconds": int}.
+
+        Only meaningful when needs_rate_limiting is True. Override in subclasses.
+        """
+        return {}
+
     def reset_queue_counters(self, queue: str) -> bool:
         """Reset statistics counters for a queue.
 

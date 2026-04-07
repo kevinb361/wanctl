@@ -43,6 +43,16 @@ class LinuxCakeAdapter:
         self.ul_backend = ul_backend
         self.logger = logger
 
+    @property
+    def needs_rate_limiting(self) -> bool:
+        """linux-cake adapter always wraps kernel backends -- no rate limiting."""
+        return False
+
+    @property
+    def rate_limit_params(self) -> dict[str, int]:
+        """No rate limit params needed for linux-cake."""
+        return {}
+
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
         """Set CAKE bandwidth on both download and upload interfaces.
 

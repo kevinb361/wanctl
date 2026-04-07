@@ -59,6 +59,16 @@ class RouterOSBackend(RouterBackend):
             host=host, user=user, ssh_key=ssh_key, timeout=timeout, logger=self.logger
         )
 
+    @property
+    def needs_rate_limiting(self) -> bool:
+        """RouterOS API needs rate limiting to protect responsiveness."""
+        return True
+
+    @property
+    def rate_limit_params(self) -> dict[str, int]:
+        """Default rate limit: 5 changes per 10s window."""
+        return {"max_changes": 5, "window_seconds": 10}
+
     @classmethod
     def from_config(cls, config: Any) -> "RouterOSBackend":
         """Create RouterOSBackend from config object.
