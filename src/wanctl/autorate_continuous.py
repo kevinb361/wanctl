@@ -876,7 +876,7 @@ def _build_current_params(wc: Any) -> dict[str, float]:
 def _maybe_run_tuning(controller: "ContinuousAutoRate", last_tuning: float) -> float:
     """Run adaptive tuning if cadence elapsed. Returns updated last_tuning."""
     tuning_config = getattr(
-        controller.wan_controllers[0]["controller"],
+        controller.wan_controllers[0]["controller"].config,
         "tuning_config",
         None,
     )
@@ -891,7 +891,7 @@ def _maybe_run_tuning(controller: "ContinuousAutoRate", last_tuning: float) -> f
 def _run_adaptive_tuning(controller: "ContinuousAutoRate") -> None:
     """Execute one adaptive tuning pass across all WAN controllers."""
     tuning_config = getattr(
-        controller.wan_controllers[0]["controller"],
+        controller.wan_controllers[0]["controller"].config,
         "tuning_config",
         None,
     )
