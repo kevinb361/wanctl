@@ -50,6 +50,8 @@ def _make_health_handler(wan_controller):
         "_build_irtt_section",
         "_build_reflector_section",
         "_build_fusion_section",
+        "_resolve_fusion_rtt_sources",
+        "_add_fusion_healer_state",
         "_build_tuning_section",
         "_build_tuning_params_dict",
         "_build_tuning_safety_section",
@@ -115,6 +117,41 @@ def _make_wan_controller(
         wc.config.tuning_config = tuning_config
     else:
         wc.config.tuning_config = None
+
+    # Wire up get_health_data() to return proper dict (not MagicMock)
+    wc.get_health_data.return_value = {
+        "cycle_budget": {
+            "profiler": wc._profiler,
+            "overrun_count": wc._overrun_count,
+            "cycle_interval_ms": wc._cycle_interval_ms,
+            "warning_threshold_pct": 80.0,
+        },
+        "signal_result": wc._last_signal_result,
+        "irtt": {
+            "thread": None,
+            "correlation": None,
+            "last_asymmetry_result": None,
+        },
+        "reflector": {
+            "scorer": wc._reflector_scorer,
+        },
+        "fusion": {
+            "enabled": wc._fusion_enabled,
+            "icmp_filtered_rtt": None,
+            "fused_rtt": None,
+            "icmp_weight": 0.7,
+            "healer": None,
+        },
+        "tuning": {
+            "enabled": tuning_enabled,
+            "state": tuning_state,
+            "parameter_locks": {},
+            "pending_observation": None,
+        },
+        "suppression_alert": {
+            "threshold": 5.0,
+        },
+    }
 
     return wc
 

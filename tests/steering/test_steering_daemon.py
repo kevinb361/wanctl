@@ -2368,7 +2368,7 @@ class TestBaselineLoader:
         os.utime(state_file, (old_time, old_time))
 
         loader = BaselineLoader(mock_config, mock_logger)
-        assert loader._is_wan_zone_stale() is True
+        assert loader.is_wan_zone_stale() is True
 
     def test_is_wan_zone_stale_true_for_oserror(self, tmp_path, mock_config, mock_logger):
         """_is_wan_zone_stale returns True when stat() raises OSError."""
@@ -2378,7 +2378,7 @@ class TestBaselineLoader:
         mock_config.primary_state_file = tmp_path / "nonexistent.json"
 
         loader = BaselineLoader(mock_config, mock_logger)
-        assert loader._is_wan_zone_stale() is True
+        assert loader.is_wan_zone_stale() is True
 
     def test_is_wan_zone_stale_false_for_fresh_file(self, tmp_path, mock_config, mock_logger):
         """_is_wan_zone_stale returns False when file age < 5s."""
@@ -2390,7 +2390,7 @@ class TestBaselineLoader:
         # File was just written, mtime is current
 
         loader = BaselineLoader(mock_config, mock_logger)
-        assert loader._is_wan_zone_stale() is False
+        assert loader.is_wan_zone_stale() is False
 
     def test_stale_wan_zone_threshold_constant_exists(self):
         """STALE_WAN_ZONE_THRESHOLD_SECONDS = 5 constant must exist."""
