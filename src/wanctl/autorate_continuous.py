@@ -52,6 +52,7 @@ from wanctl.wan_controller import (
     CYCLE_INTERVAL_SECONDS,
     WANController,
     _apply_tuning_to_controller,
+    _mark_tuning_executed,
 )
 
 # =============================================================================
@@ -748,6 +749,12 @@ def _analyze_and_apply_tuning(
         if results:
             applied = apply_tuning_results(results, tuning_config, metrics_writer)
             if applied:
+                wan_info["logger"].info(
+                    "[TUNING] %s: applied %d adjustment(s): %s",
+                    wc.wan_name,
+                    len(applied),
+                    ", ".join(f"{r.parameter}={r.new_value}" for r in applied),
+                )
                 _apply_tuning_to_controller(wc, applied)
                 pre_rate = measure_congestion_rate(
                     db_path,
@@ -761,6 +768,11 @@ def _analyze_and_apply_tuning(
                         pre_congestion_rate=pre_rate,
                         applied_results=tuple(applied),
                     ))
+        else:
+            wan_info["logger"].info(
+                "[TUNING] %s: no adjustments needed",
+                wc.wan_name,
+            )
     except Exception as e:
         wan_info["logger"].error(
             "[TUNING] Analysis failed for %s: %s",
@@ -799,9 +811,20 @@ def _run_tuning_for_wan(
     ]
     _log_excluded_params(wc, wan_info, active_layer, excluded)
 
+    layer_idx = (wc.tuning_layer_index - 1) % len(all_layers)
+    wan_info["logger"].info(
+        "[TUNING] %s: executing layer %d/%d (%d strategies)",
+        wc.wan_name,
+        layer_idx + 1,
+        len(all_layers),
+        len(active_strategies),
+    )
+
     _analyze_and_apply_tuning(
         wc, wan_info, tuning_config, db_path, metrics_writer, active_strategies
     )
+
+    _mark_tuning_executed(wc)
 
 
 def _log_excluded_params(

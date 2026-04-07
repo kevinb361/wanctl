@@ -163,6 +163,18 @@ def _apply_single_tuning_param(wc: "WANController", r: TuningResult) -> None:
     _apply_queue_param(wc, param, val)
 
 
+def _mark_tuning_executed(wc: "WANController") -> None:
+    """Update last_run_ts to reflect that tuning executed (even with no changes)."""
+    if wc._tuning_state is None:
+        return
+    wc._tuning_state = TuningState(
+        enabled=wc._tuning_state.enabled,
+        last_run_ts=time.monotonic(),
+        recent_adjustments=wc._tuning_state.recent_adjustments,
+        parameters=wc._tuning_state.parameters,
+    )
+
+
 def _update_tuning_state(wc: "WANController", results: list[TuningResult]) -> None:
     """Update TuningState with recent adjustments (capped at 10)."""
     if not results or wc._tuning_state is None:
