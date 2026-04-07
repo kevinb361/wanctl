@@ -461,11 +461,11 @@ class TestProtocolCorrelation:
 
 
 class TestStartIRTTThread:
-    """_start_irtt_thread() helper function."""
+    """start_irtt_thread() helper function."""
 
     def test_returns_none_when_irtt_unavailable(self) -> None:
         """Returns None if IRTT is disabled or binary missing."""
-        from wanctl.autorate_continuous import _start_irtt_thread
+        from wanctl.autorate_continuous import start_irtt_thread
 
         controller = MagicMock()
         config = MagicMock()
@@ -482,7 +482,7 @@ class TestStartIRTTThread:
             {"config": config, "logger": logger, "controller": MagicMock()}
         ]
 
-        result = _start_irtt_thread(controller)
+        result = start_irtt_thread(controller)
         assert result is None
 
     @patch("wanctl.autorate_continuous.IRTTMeasurement")
@@ -495,7 +495,7 @@ class TestStartIRTTThread:
         mock_irtt_measurement_cls: MagicMock,
     ) -> None:
         """Returns started IRTTThread when IRTT is available."""
-        from wanctl.autorate_continuous import _start_irtt_thread
+        from wanctl.autorate_continuous import start_irtt_thread
 
         controller = MagicMock()
         config = MagicMock()
@@ -522,7 +522,7 @@ class TestStartIRTTThread:
         mock_thread = MagicMock()
         mock_irtt_thread_cls.return_value = mock_thread
 
-        result = _start_irtt_thread(controller)
+        result = start_irtt_thread(controller)
 
         assert result is mock_thread
         mock_irtt_thread_cls.assert_called_once_with(

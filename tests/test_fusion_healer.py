@@ -1532,20 +1532,31 @@ class TestAutorateSIGUSR1Loop:
         #           wan_info["controller"]._reload_fusion_config()
         #       reset_reload_state()
 
-        with patch("wanctl.signal_utils._reload_event") as mock_event:
-            mock_event.is_set.return_value = True
+        import os
+        import signal as sig_mod
 
+        from wanctl.signal_utils import register_signal_handlers
+
+        # Register SIGUSR1 handler, then send signal to trigger reload event
+        register_signal_handlers(include_sigterm=False, include_sigusr1=True)
+        os.kill(os.getpid(), sig_mod.SIGUSR1)
+
+        try:
             if is_reload_requested():
                 for wan_info in wan_controllers:
                     wan_info["logger"].info("SIGUSR1 received, reloading fusion config")
                     wan_info["controller"]._reload_fusion_config()
                 reset_reload_state()
 
-        ctrl1._reload_fusion_config.assert_called_once()
-        ctrl2._reload_fusion_config.assert_called_once()
-        ctrl1_logger.info.assert_called_once()
-        ctrl2_logger.info.assert_called_once()
-        mock_event.clear.assert_called_once()
+            ctrl1._reload_fusion_config.assert_called_once()
+            ctrl2._reload_fusion_config.assert_called_once()
+            ctrl1_logger.info.assert_called_once()
+            ctrl2_logger.info.assert_called_once()
+            # Verify reload state was cleared
+            assert not is_reload_requested()
+        finally:
+            # Ensure cleanup even on test failure
+            reset_reload_state()
 
 
 # =============================================================================
