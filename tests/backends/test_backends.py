@@ -695,3 +695,80 @@ class TestRouterOSRateLimiting:
         """RouterOS wrapper disables rate limiting when YAML says enabled: false."""
         ros = self._make_routeros({"enabled": False})
         assert ros.needs_rate_limiting is False
+
+
+# =============================================================================
+# TestRateLimiterConfig - Config._load_rate_limiter_config() YAML parsing
+# =============================================================================
+
+
+class TestRateLimiterConfig:
+    """Tests for Config._load_rate_limiter_config() YAML parsing."""
+
+    def _make_config_with_data(self, data: dict) -> MagicMock:
+        """Create a mock Config object with .data and call _load_rate_limiter_config."""
+        from wanctl.autorate_config import Config
+
+        config = MagicMock(spec=Config)
+        config.data = data
+        Config._load_rate_limiter_config(config)
+        return config
+
+    def test_no_rate_limiter_section(self) -> None:
+        """Config with no router.rate_limiter section yields empty dict."""
+        config = self._make_config_with_data({"router": {}})
+        assert config.rate_limiter_config == {}
+
+    def test_no_router_section(self) -> None:
+        """Config with no router section at all yields empty dict."""
+        config = self._make_config_with_data({})
+        assert config.rate_limiter_config == {}
+
+    def test_rate_limiter_overrides(self) -> None:
+        """Config with max_changes and window_seconds yields matching dict."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"max_changes": 3, "window_seconds": 5}}}
+        )
+        assert config.rate_limiter_config == {"max_changes": 3, "window_seconds": 5}
+
+    def test_rate_limiter_enabled_false(self) -> None:
+        """Config with enabled: false yields {"enabled": False}."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"enabled": False}}}
+        )
+        assert config.rate_limiter_config == {"enabled": False}
+
+    def test_rate_limiter_invalid_max_changes_negative(self) -> None:
+        """Negative max_changes is excluded from result."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"max_changes": -1}}}
+        )
+        assert "max_changes" not in config.rate_limiter_config
+
+    def test_rate_limiter_invalid_window_seconds_zero(self) -> None:
+        """Zero window_seconds is excluded from result."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"window_seconds": 0}}}
+        )
+        assert "window_seconds" not in config.rate_limiter_config
+
+    def test_rate_limiter_string_values_ignored(self) -> None:
+        """String values for max_changes are excluded from result."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"max_changes": "fast"}}}
+        )
+        assert "max_changes" not in config.rate_limiter_config
+
+    def test_rate_limiter_bool_max_changes_ignored(self) -> None:
+        """Boolean values for max_changes are excluded (bool is subclass of int)."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"max_changes": True}}}
+        )
+        assert "max_changes" not in config.rate_limiter_config
+
+    def test_rate_limiter_non_bool_enabled_ignored(self) -> None:
+        """Non-bool enabled value is excluded from result."""
+        config = self._make_config_with_data(
+            {"router": {"rate_limiter": {"enabled": "yes"}}}
+        )
+        assert "enabled" not in config.rate_limiter_config
