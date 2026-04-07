@@ -108,7 +108,7 @@ Requirements: TEST-02 (brittle mocks replaced with better patterns), TEST-03 (sl
 ### Current Test Landscape (baseline)
 - 4,169 tests collected, 90%+ coverage
 - Collection time: ~8.26s
-- Execution time: TBD (measure with `pytest --durations=50` during planning)
+- Execution time: ~647s (10m47s) serial on dev machine (measured 2026-04-07, 59 failures from uncommitted Phase 147 changes — clean run expected similar)
 - Largest files: test_steering_daemon.py (5741 LOC), test_check_cake.py (2977), test_wan_controller.py (2115)
 - 79 cross-module private attribute patches to retarget
 - No xfail/skip/retry/flaky markers (clean slate)
