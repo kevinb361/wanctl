@@ -4,6 +4,11 @@ import sqlite3
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
+# Retention tests do heavy SQLite operations, needing > 2s timeout
+pytestmark = pytest.mark.timeout(10)
+
 from wanctl.storage.retention import (
     BATCH_SIZE,
     DEFAULT_RETENTION_DAYS,

@@ -29,6 +29,9 @@ from pathlib import Path
 
 import pytest
 
+# Integration tests run real network load tests (30s-120s)
+pytestmark = pytest.mark.timeout(180)
+
 from tests.integration.framework import (
     ControllerMonitor,
     LatencyCollector,

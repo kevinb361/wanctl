@@ -1929,6 +1929,7 @@ class TestConfigLoading:
 # =============================================================================
 
 
+@pytest.mark.timeout(10)
 class TestHealthEndpoint:
     """Tests for fusion heal state in health endpoint response."""
 

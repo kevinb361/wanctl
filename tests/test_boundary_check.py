@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+# Boundary check tests spawn subprocess AST analysis, needing > 2s under xdist
+pytestmark = pytest.mark.timeout(10)
+
 # Resolve paths relative to the project root (where pyproject.toml lives)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _SCRIPT_PATH = _PROJECT_ROOT / "scripts" / "check_private_access.py"

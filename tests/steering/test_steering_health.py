@@ -8,6 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Most tests in this module start a real HTTP server, needing > 2s timeout
+pytestmark = pytest.mark.timeout(10)
+
 from tests.helpers import find_free_port
 from wanctl import __version__
 from wanctl.perf_profiler import OperationProfiler

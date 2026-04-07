@@ -4,6 +4,11 @@ import asyncio
 import os
 from unittest.mock import patch
 
+import pytest
+
+# Dashboard tests use async app runners with real event loops
+pytestmark = pytest.mark.timeout(10)
+
 from wanctl.dashboard.app import parse_args
 from wanctl.dashboard.config import DashboardConfig
 

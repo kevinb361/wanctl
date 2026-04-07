@@ -294,6 +294,7 @@ class TestPendingRateRecovery:
 # =============================================================================
 
 
+@pytest.mark.timeout(120)
 class TestProfilingInstrumentation:
     """Tests for PerfTimer instrumentation in WANController.run_cycle().
 

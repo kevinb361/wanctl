@@ -140,6 +140,9 @@ show_contexts = true
 
 [tool.pytest.ini_options]
 addopts = "--cov-config=pyproject.toml -n auto --timeout=2"
+markers = [
+    "timeout: override default timeout for slow tests (pytest-timeout)",
+]
 
 [tool.bandit]
 exclude_dirs = [".venv", "build", "dist"]

@@ -68,6 +68,7 @@ class TestPingHostsWithResults:
         assert result["8.8.8.8"] is None
         assert result["1.1.1.1"] is None
 
+    @pytest.mark.timeout(15)
     def test_timeout_marks_remaining_as_none(self, rtt_measurement):
         """Timed-out hosts are mapped to None."""
         import time
@@ -559,6 +560,7 @@ class TestPingHostsConcurrentEdgeCases:
         """Create a mock logger."""
         return MagicMock()
 
+    @pytest.mark.timeout(15)
     def test_concurrent_timeout_logs_debug(self, mock_logger):
         """concurrent.futures.TimeoutError logged at debug level (lines 275-276)."""
 

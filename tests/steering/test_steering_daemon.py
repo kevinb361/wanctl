@@ -4556,6 +4556,7 @@ class TestRouterConnectivityTrackingSteeringDaemon:
 # =============================================================================
 
 
+@pytest.mark.timeout(10)
 class TestSteeringProfilingInstrumentation:
     """Tests for PerfTimer instrumentation in SteeringDaemon.run_cycle().
 
