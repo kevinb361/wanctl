@@ -59,6 +59,7 @@ check-deps:
 # Check cross-module private attribute access (AST-based boundary enforcement)
 check-boundaries:
 	.venv/bin/python scripts/check_private_access.py src/wanctl/
+	.venv/bin/python scripts/check_test_brittleness.py tests/ --threshold 3
 
 # Check function line counts (AST-based, excluding docstrings)
 check-lines:
