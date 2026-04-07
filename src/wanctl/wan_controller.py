@@ -75,7 +75,6 @@ CYCLE_INTERVAL_SECONDS = 0.05
 DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
-_DEFAULT_SUPPRESSION_ALERT_PCT = 5.0  # Default: alert when >5% of cycles/min suppressed
 
 
 # =============================================================================
@@ -235,15 +234,6 @@ def _apply_tuning_to_controller(
 
 class WANController:
     """Controls both download and upload for one WAN"""
-
-    @staticmethod
-    def _compute_suppression_threshold(pct: float) -> int:
-        """Convert suppression alert percentage to absolute cycle threshold.
-
-        At 50ms cycle interval: 1200 cycles/min. 5% = 60 threshold.
-        """
-        cycles_per_min = int(60.0 / CYCLE_INTERVAL_SECONDS)
-        return max(1, int((pct / 100.0) * cycles_per_min))
 
     def __init__(
         self,
@@ -524,33 +514,9 @@ class WANController:
         self._budget_warning_consecutive: int = 60  # 60 cycles = 3 seconds at 50ms
 
         # Hysteresis observability (Phase 136: HYST-01/HYST-02)
-        thresholds = (
-            cm_config.get("thresholds", {})
-            if isinstance(cm_config.get("thresholds"), dict) else {}
-        )
-        pct_raw = thresholds.get("suppression_alert_pct")
-        legacy_raw = thresholds.get("suppression_alert_threshold")
-        if (
-            pct_raw is not None
-            and isinstance(pct_raw, (int, float))
-            and not isinstance(pct_raw, bool)
-            and 0.0 <= float(pct_raw) <= 100.0
-        ):
-            self._suppression_alert_pct: float = float(pct_raw)
-        elif (
-            legacy_raw is not None
-            and isinstance(legacy_raw, (int, float))
-            and not isinstance(legacy_raw, bool)
-            and legacy_raw > 0
-        ):
-            cycles_per_min = int(60.0 / CYCLE_INTERVAL_SECONDS)
-            self._suppression_alert_pct = min(
-                100.0, (float(legacy_raw) / cycles_per_min) * 100.0
-            )
-        else:
-            self._suppression_alert_pct = _DEFAULT_SUPPRESSION_ALERT_PCT
-        self._suppression_alert_threshold: int = self._compute_suppression_threshold(
-            self._suppression_alert_pct
+        self._suppression_alert_threshold: int = int(
+            cm_config.get("thresholds", {}).get("suppression_alert_threshold", 20)
+            if isinstance(cm_config.get("thresholds"), dict) else 20
         )
 
         # Background RTT measurement (Phase 132: PERF-02)
@@ -1516,10 +1482,10 @@ class WANController:
         self._warning_threshold_pct = new_threshold
 
     def _reload_suppression_alert_config(self) -> None:
-        """Re-read suppression alert config from YAML (triggered by SIGUSR1).
+        """Re-read suppression alert threshold from YAML (triggered by SIGUSR1).
 
-        Reads suppression_alert_pct (preferred) or legacy suppression_alert_threshold.
-        Converts between pct and absolute threshold using cycle interval.
+        Reads continuous_monitoring.thresholds.suppression_alert_threshold from YAML.
+        Per D-03: Default 20 suppressions/min, SIGUSR1 hot-reloadable.
         """
         try:
             import yaml
@@ -1537,41 +1503,26 @@ class WANController:
         if not isinstance(thresh, dict):
             thresh = {}
 
-        pct_raw = thresh.get("suppression_alert_pct")
-        legacy_raw = thresh.get("suppression_alert_threshold")
-
+        new_threshold = thresh.get("suppression_alert_threshold", 20)
         if (
-            pct_raw is not None
-            and isinstance(pct_raw, (int, float))
-            and not isinstance(pct_raw, bool)
-            and 0.0 <= float(pct_raw) <= 100.0
+            not isinstance(new_threshold, int)
+            or isinstance(new_threshold, bool)
+            or new_threshold < 0
+            or new_threshold > 1000
         ):
-            new_pct = float(pct_raw)
-        elif (
-            legacy_raw is not None
-            and isinstance(legacy_raw, (int, float))
-            and not isinstance(legacy_raw, bool)
-            and legacy_raw > 0
-        ):
-            cycles_per_min = int(60.0 / CYCLE_INTERVAL_SECONDS)
-            new_pct = min(100.0, (float(legacy_raw) / cycles_per_min) * 100.0)
-        else:
-            new_pct = _DEFAULT_SUPPRESSION_ALERT_PCT
-
-        new_threshold = self._compute_suppression_threshold(new_pct)
-        old_pct = self._suppression_alert_pct
-
-        if old_pct != new_pct:
             self.logger.warning(
-                "[HYSTERESIS] Config reload: suppression_alert_pct=%.1f->%.1f (threshold=%d)",
-                old_pct, new_pct, new_threshold,
+                "[HYSTERESIS] Reload: suppression_alert_threshold invalid (%r); keeping current value",
+                new_threshold,
             )
-        else:
-            self.logger.warning(
-                "[HYSTERESIS] Config reload: suppression_alert_pct=%.1f (unchanged)",
-                new_pct,
-            )
-        self._suppression_alert_pct = new_pct
+            return
+
+        old_threshold = self._suppression_alert_threshold
+        threshold_str = (
+            f"suppression_alert_threshold={old_threshold}->{new_threshold}"
+            if old_threshold != new_threshold
+            else f"suppression_alert_threshold={new_threshold} (unchanged)"
+        )
+        self.logger.warning("[HYSTERESIS] Config reload: %s", threshold_str)
         self._suppression_alert_threshold = new_threshold
 
     def _record_profiling(
@@ -2554,7 +2505,6 @@ class WANController:
             },
             "suppression_alert": {
                 "threshold": self._suppression_alert_threshold,
-                "pct": self._suppression_alert_pct,
             },
         }
 

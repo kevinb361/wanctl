@@ -420,7 +420,7 @@ def _start_servers(
     return metrics_server, health_server
 
 
-def start_irtt_thread(
+def _start_irtt_thread(
     controller: "ContinuousAutoRate",
 ) -> IRTTThread | None:
     """Start IRTT background measurement thread if IRTT is available.
@@ -1225,7 +1225,7 @@ def main() -> int | None:
     register_signal_handlers()
 
     metrics_server, health_server = _start_servers(controller)
-    irtt_thread = start_irtt_thread(controller)
+    irtt_thread = _start_irtt_thread(controller)
     _setup_daemon_state(controller, irtt_thread)
 
     try:

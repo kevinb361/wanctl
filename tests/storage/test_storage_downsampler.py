@@ -4,11 +4,6 @@ import sqlite3
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
-# Downsampler tests do heavy SQLite operations, needing > 2s timeout
-pytestmark = pytest.mark.timeout(10)
-
 from wanctl.storage.downsampler import (
     DOWNSAMPLE_THRESHOLDS,
     MODE_AGGREGATION_METRICS,

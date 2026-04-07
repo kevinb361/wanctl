@@ -294,7 +294,6 @@ class TestPendingRateRecovery:
 # =============================================================================
 
 
-@pytest.mark.timeout(120)
 class TestProfilingInstrumentation:
     """Tests for PerfTimer instrumentation in WANController.run_cycle().
 
@@ -669,14 +668,12 @@ class TestTransientFailureBlockingTime:
         # Create a mock client whose exec_command raises ConnectionError
         mock_client = MagicMock()
         mock_client.exec_command.side_effect = ConnectionError("Transient failure")
-        # Make _is_connected() return True so _ensure_connected() skips reconnection
-        mock_client.get_transport.return_value.is_active.return_value = True
-        ssh._client = mock_client
 
-        start = time.monotonic()
-        with pytest.raises(ConnectionError):
-            ssh.run_cmd("/test")
-        elapsed = time.monotonic() - start
+        with patch.object(ssh, "_ensure_connected"), patch.object(ssh, "_client", mock_client):
+            start = time.monotonic()
+            with pytest.raises(ConnectionError):
+                ssh.run_cmd("/test")
+            elapsed = time.monotonic() - start
 
         # With max_attempts=2, initial_delay=0.05: worst case ~75ms (50ms + jitter)
         # Allow generous 200ms for test environment variance

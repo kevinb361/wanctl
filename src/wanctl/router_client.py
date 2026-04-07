@@ -127,7 +127,7 @@ def clear_router_password(config: Any) -> None:
         config.router_password = ""
 
 
-def create_transport_with_password(
+def _create_transport_with_password(
     transport: str, config: Any, password: str, logger: logging.Logger
 ) -> RouterClient:
     """Create transport client using an explicit password.
@@ -247,7 +247,7 @@ class FailoverRouterClient:
     def _get_primary(self) -> RouterClient:
         """Get or create primary transport client."""
         if self._primary_client is None:
-            self._primary_client = create_transport_with_password(
+            self._primary_client = _create_transport_with_password(
                 self.primary_transport, self.config, self._resolved_password, self.logger
             )
         return self._primary_client
@@ -259,7 +259,7 @@ class FailoverRouterClient:
                 f"Creating fallback {self.fallback_transport} transport "
                 f"(primary {self.primary_transport} failed)"
             )
-            self._fallback_client = create_transport_with_password(
+            self._fallback_client = _create_transport_with_password(
                 self.fallback_transport, self.config, self._resolved_password, self.logger
             )
         return self._fallback_client

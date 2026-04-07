@@ -2537,9 +2537,7 @@ class TestAutorateHealthAlerting:
         wan_controller.upload._transitions_suppressed = 0
         wan_controller.upload._window_suppressions = 0
         wan_controller.upload._window_start_time = 0.0
-        wan_controller._suppression_alert_threshold = 60
-
-        wan_controller._suppression_alert_pct = 5.0
+        wan_controller._suppression_alert_threshold = 20
         # Phase 92+: signal quality, IRTT, fusion, tuning attributes (prevent MagicMock truthy trap)
         wan_controller._last_signal_result = None
         wan_controller._irtt_thread = None
@@ -2553,52 +2551,7 @@ class TestAutorateHealthAlerting:
         wan_controller._tuning_enabled = False
         wan_controller._tuning_state = None
         wan_controller._parameter_locks = None
-        wan_controller._pending_observation = False
         wan_controller._reflector_scorer = None
-
-        # get_health_data() facade must return a real dict (Phase 147 interface)
-        from wanctl.perf_profiler import OperationProfiler
-
-        wan_controller.get_health_data.return_value = {
-            "cycle_budget": {
-                "profiler": OperationProfiler(max_samples=1200),
-                "overrun_count": 0,
-                "cycle_interval_ms": 50.0,
-                "warning_threshold_pct": 80.0,
-            },
-            "signal_result": None,
-            "irtt": {"thread": None, "correlation": None, "last_asymmetry_result": None},
-            "reflector": {"scorer": None},
-            "fusion": {
-                "enabled": False,
-                "icmp_filtered_rtt": None,
-                "fused_rtt": None,
-                "icmp_weight": 0.7,
-                "healer": None,
-            },
-            "tuning": {
-                "enabled": False,
-                "state": None,
-                "parameter_locks": {},
-                "pending_observation": False,
-            },
-            "suppression_alert": {"threshold": 60, "pct": 5.0},
-        }
-        # QueueController facades
-        wan_controller.download.get_health_data.return_value = {
-            "hysteresis": {
-                "dwell_counter": 0, "dwell_cycles": 5, "deadband_ms": 3.0,
-                "transitions_suppressed": 0, "suppressions_per_min": 0,
-                "window_start_epoch": 0.0,
-            },
-        }
-        wan_controller.upload.get_health_data.return_value = {
-            "hysteresis": {
-                "dwell_counter": 0, "dwell_cycles": 5, "deadband_ms": 3.0,
-                "transitions_suppressed": 0, "suppressions_per_min": 0,
-                "window_start_epoch": 0.0,
-            },
-        }
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, health_engine):
@@ -2743,18 +2696,6 @@ class TestSteeringHealthAlerting:
         daemon._cycle_interval_ms = 50.0
         daemon._wan_state_enabled = False
         daemon._wan_zone = None
-        # get_health_data() facade (Phase 147 interface)
-        daemon.get_health_data.return_value = {
-            "cycle_budget": {
-                "profiler": daemon._profiler,
-                "overrun_count": 0,
-                "cycle_interval_ms": 50.0,
-            },
-            "wan_awareness": {
-                "enabled": False,
-                "zone": None,
-            },
-        }
         return daemon
 
     def test_steering_health_includes_alerting_key(self, health_engine):

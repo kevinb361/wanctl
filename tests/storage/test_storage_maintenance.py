@@ -5,11 +5,6 @@ import sqlite3
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-# Maintenance tests do heavy SQLite operations, needing > 2s timeout
-pytestmark = pytest.mark.timeout(10)
-
 from wanctl.storage.maintenance import run_startup_maintenance
 
 

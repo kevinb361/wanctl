@@ -200,7 +200,6 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "continuous_monitoring.warning_threshold_pct",
     # Hysteresis suppression alert (WANController.__init__)
     "continuous_monitoring.thresholds.suppression_alert_threshold",
-    "continuous_monitoring.thresholds.suppression_alert_pct",
 }
 
 # Regex for detecting environment variable references in string values

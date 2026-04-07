@@ -64,12 +64,12 @@ class TestApplySignalProcessingParams:
             enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
         )
         sp = MagicMock()
-        sp.sigma_threshold = 3.0
+        sp._sigma_threshold = 3.0
         wc.signal_processor = sp
 
         result = _make_result("hampel_sigma_threshold", old=3.0, new=2.5)
         _apply_tuning_to_controller(wc, [result])
-        assert wc.signal_processor.sigma_threshold == 2.5
+        assert wc.signal_processor._sigma_threshold == 2.5
 
     def test_apply_hampel_window_size_updates_window_size(self):
         """hampel_window_size sets signal_processor._window_size."""
@@ -80,14 +80,17 @@ class TestApplySignalProcessingParams:
             enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
         )
         sp = MagicMock()
+        sp._window_size = 7
+        sp._window = deque([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], maxlen=7)
+        sp._outlier_window = deque([False] * 7, maxlen=7)
         wc.signal_processor = sp
 
         result = _make_result("hampel_window_size", old=7.0, new=10.0)
         _apply_tuning_to_controller(wc, [result])
-        wc.signal_processor.resize_window.assert_called_once_with(10)
+        assert wc.signal_processor._window_size == 10
 
     def test_apply_hampel_window_size_resizes_deques(self):
-        """hampel_window_size calls resize_window which handles deque resize."""
+        """hampel_window_size resizes both _window and _outlier_window deques."""
         from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
@@ -95,15 +98,18 @@ class TestApplySignalProcessingParams:
             enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
         )
         sp = MagicMock()
+        sp._window_size = 7
+        sp._window = deque([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], maxlen=7)
+        sp._outlier_window = deque([False] * 7, maxlen=7)
         wc.signal_processor = sp
 
         result = _make_result("hampel_window_size", old=7.0, new=10.0)
         _apply_tuning_to_controller(wc, [result])
-        # resize_window handles deque resize internally
-        wc.signal_processor.resize_window.assert_called_once_with(10)
+        assert wc.signal_processor._window.maxlen == 10
+        assert wc.signal_processor._outlier_window.maxlen == 10
 
     def test_deque_resize_preserves_recent_elements_when_shrinking(self):
-        """Shrinking window calls resize_window with smaller size."""
+        """Shrinking window preserves the most recent N elements."""
         from wanctl.wan_controller import _apply_tuning_to_controller
 
         wc = MagicMock()
@@ -111,12 +117,22 @@ class TestApplySignalProcessingParams:
             enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
         )
         sp = MagicMock()
+        sp._window_size = 7
+        sp._window = deque([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], maxlen=7)
+        sp._outlier_window = deque([True, False, True, False, True, False, True], maxlen=7)
         wc.signal_processor = sp
 
         result = _make_result("hampel_window_size", old=7.0, new=5.0)
         _apply_tuning_to_controller(wc, [result])
-        # resize_window preserves recent elements internally
-        wc.signal_processor.resize_window.assert_called_once_with(5)
+        # deque(existing, maxlen=5) keeps last 5 elements
+        assert list(wc.signal_processor._window) == [3.0, 4.0, 5.0, 6.0, 7.0]
+        assert list(wc.signal_processor._outlier_window) == [
+            True,
+            False,
+            True,
+            False,
+            True,
+        ]
 
 
 class TestApplyLoadTimeConstant:
@@ -366,12 +382,12 @@ class TestApplyAdvancedParams:
             enabled=True, last_run_ts=None, recent_adjustments=[], parameters={}
         )
         scorer = MagicMock()
-        scorer.min_score = 0.7
+        scorer._min_score = 0.7
         wc._reflector_scorer = scorer
 
         result = _make_result("reflector_min_score", old=0.7, new=0.8)
         _apply_tuning_to_controller(wc, [result])
-        assert wc._reflector_scorer.min_score == 0.8
+        assert wc._reflector_scorer._min_score == 0.8
 
     def test_apply_baseline_rtt_min(self):
         """baseline_rtt_min sets wc.baseline_rtt_min."""

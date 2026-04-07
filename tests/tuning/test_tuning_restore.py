@@ -63,7 +63,7 @@ class TestRestoreTuningParams:
     def test_restores_latest_non_reverted_params(self):
         """When tuning enabled + SQLite has prior adjustments, latest values are applied."""
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=True, metrics_writer=mock_writer)
 
         # Simulate query_tuning_params returning DESC-ordered rows
@@ -104,7 +104,7 @@ class TestRestoreTuningParams:
     def test_empty_db_proceeds_normally(self):
         """When tuning enabled + no prior adjustments, startup proceeds with defaults."""
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=True, metrics_writer=mock_writer)
 
         with patch(
@@ -124,7 +124,7 @@ class TestRestoreTuningParams:
         _restore_tuning_params is never invoked.
         """
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=False, metrics_writer=mock_writer)
 
         # The method itself doesn't check _tuning_enabled; the guard is in __init__.
@@ -143,7 +143,7 @@ class TestRestoreTuningParams:
     def test_sqlite_error_caught_and_logged(self):
         """SQLite error during restore is caught and logged, not crash startup."""
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=True, metrics_writer=mock_writer)
 
         with patch(
@@ -160,7 +160,7 @@ class TestRestoreTuningParams:
     def test_skips_reverted_rows(self):
         """Reverted adjustments are skipped, non-reverted values applied."""
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=True, metrics_writer=mock_writer)
 
         fake_rows = [
@@ -199,7 +199,7 @@ class TestRestoreTuningParams:
     def test_all_reverted_no_restore(self):
         """When all rows are reverted, no parameters are restored."""
         mock_writer = MagicMock()
-        mock_writer.db_path = "/tmp/test.db"
+        mock_writer._db_path = "/tmp/test.db"
         wc = _make_wc(tuning_enabled=True, metrics_writer=mock_writer)
 
         fake_rows = [

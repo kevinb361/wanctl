@@ -284,7 +284,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "suppressions_per_min": hyst["suppressions_per_min"],
                 "window_start_epoch": hyst["window_start_epoch"],
                 "alert_threshold_per_min": health_data["suppression_alert"]["threshold"],
-                "alert_threshold_pct": health_data["suppression_alert"]["pct"],
             },
         }
 

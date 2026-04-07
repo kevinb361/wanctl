@@ -596,3 +596,102 @@ class TestNetlinkCakeBackendImportable:
         import wanctl.backends
 
         assert "NetlinkCakeBackend" in wanctl.backends.__all__
+
+
+# =============================================================================
+# TestNeedsRateLimiting - Backend rate-limiting capability properties
+# =============================================================================
+
+
+class TestNeedsRateLimiting:
+    """Tests for needs_rate_limiting and rate_limit_params on all backends."""
+
+    def test_linux_cake_needs_rate_limiting_false(self) -> None:
+        """LinuxCakeBackend writes to kernel memory -- no rate limiting."""
+        backend = LinuxCakeBackend("eth0")
+        assert backend.needs_rate_limiting is False
+
+    def test_netlink_cake_needs_rate_limiting_false(self) -> None:
+        """NetlinkCakeBackend inherits False from LinuxCakeBackend."""
+        backend = NetlinkCakeBackend("eth0")
+        assert backend.needs_rate_limiting is False
+
+    def test_routeros_backend_needs_rate_limiting_true(self, backend) -> None:
+        """RouterOSBackend needs rate limiting for API protection."""
+        assert backend.needs_rate_limiting is True
+
+    def test_routeros_backend_rate_limit_params(self, backend) -> None:
+        """RouterOSBackend returns 5 changes per 10s window."""
+        params = backend.rate_limit_params
+        assert params == {"max_changes": 5, "window_seconds": 10}
+
+    def test_linux_cake_adapter_needs_rate_limiting_false(self) -> None:
+        """LinuxCakeAdapter wraps kernel backends -- no rate limiting."""
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        adapter = LinuxCakeAdapter(
+            dl_backend=MagicMock(),
+            ul_backend=MagicMock(),
+            logger=MagicMock(),
+        )
+        assert adapter.needs_rate_limiting is False
+
+    def test_concrete_backend_default_needs_rate_limiting_true(self) -> None:
+        """ConcreteBackend inherits default True from RouterBackend ABC."""
+        backend = ConcreteBackend()
+        assert backend.needs_rate_limiting is True
+
+    def test_linux_cake_rate_limit_params_empty(self) -> None:
+        """LinuxCakeBackend returns empty dict for rate_limit_params."""
+        backend = LinuxCakeBackend("eth0")
+        assert backend.rate_limit_params == {}
+
+    def test_linux_cake_adapter_rate_limit_params_empty(self) -> None:
+        """LinuxCakeAdapter returns empty dict for rate_limit_params."""
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        adapter = LinuxCakeAdapter(
+            dl_backend=MagicMock(),
+            ul_backend=MagicMock(),
+            logger=MagicMock(),
+        )
+        assert adapter.rate_limit_params == {}
+
+
+# =============================================================================
+# TestRouterOSRateLimiting - RouterOS wrapper rate-limiting properties
+# =============================================================================
+
+
+class TestRouterOSRateLimiting:
+    """Tests for needs_rate_limiting and rate_limit_params on RouterOS wrapper."""
+
+    def _make_routeros(self, rate_limiter_config: dict) -> "RouterOS":
+        """Create RouterOS instance with mocked config."""
+        from wanctl.routeros_interface import RouterOS
+
+        config = MagicMock()
+        config.rate_limiter_config = rate_limiter_config
+        with patch("wanctl.routeros_interface.get_router_client_with_failover"):
+            ros = RouterOS(config=config, logger=MagicMock())
+        return ros
+
+    def test_routeros_wrapper_needs_rate_limiting_true(self) -> None:
+        """RouterOS wrapper defaults to needing rate limiting."""
+        ros = self._make_routeros({})
+        assert ros.needs_rate_limiting is True
+
+    def test_routeros_wrapper_rate_limit_params_defaults(self) -> None:
+        """RouterOS wrapper returns 5/10 defaults when no YAML override."""
+        ros = self._make_routeros({})
+        assert ros.rate_limit_params == {"max_changes": 5, "window_seconds": 10}
+
+    def test_routeros_wrapper_yaml_override(self) -> None:
+        """RouterOS wrapper respects YAML overrides for rate limit params."""
+        ros = self._make_routeros({"max_changes": 3, "window_seconds": 5})
+        assert ros.rate_limit_params == {"max_changes": 3, "window_seconds": 5}
+
+    def test_routeros_wrapper_enabled_false(self) -> None:
+        """RouterOS wrapper disables rate limiting when YAML says enabled: false."""
+        ros = self._make_routeros({"enabled": False})
+        assert ros.needs_rate_limiting is False

@@ -857,7 +857,7 @@ class TestResourceIdLookup:
         response.json.return_value = [{"comment": "steering", ".id": "*5"}]
         mock_session.get.return_value = response
 
-        rest_client.find_mangle_rule_id("steering")
+        rest_client._find_mangle_rule_id("steering")
 
         assert "steering" in rest_client._mangle_id_cache
         assert rest_client._mangle_id_cache["steering"] == "*5"

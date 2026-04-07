@@ -605,7 +605,7 @@ class TestMangleCheck:
         from wanctl.check_cake import check_mangle_rule
 
         client = MagicMock()
-        client.find_mangle_rule_id.return_value = "*5"
+        client._find_mangle_rule_id.return_value = "*5"
 
         results = check_mangle_rule(client, "ADAPTIVE: Steer latency-sensitive to ATT")
         assert len(results) == 1
@@ -617,7 +617,7 @@ class TestMangleCheck:
         from wanctl.check_cake import check_mangle_rule
 
         client = MagicMock()
-        client.find_mangle_rule_id.return_value = None
+        client._find_mangle_rule_id.return_value = None
 
         results = check_mangle_rule(client, "ADAPTIVE: Steer latency-sensitive to ATT")
         assert len(results) == 1
@@ -630,7 +630,7 @@ class TestMangleCheck:
         client = MagicMock()
         client.test_connection.return_value = True
         client.get_queue_stats.return_value = _queue_response()
-        client.find_mangle_rule_id.return_value = "*5"
+        client._find_mangle_rule_id.return_value = "*5"
 
         data = _autorate_config_data()
         results = run_audit(data, "autorate", client)
@@ -865,7 +865,7 @@ class TestCLI:
             _queue_type_response("cake-down-spectrum", wash="no"),
             _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
-        mock_client.find_mangle_rule_id.return_value = None
+        mock_client._find_mangle_rule_id.return_value = None
 
         with (
             patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),
@@ -1793,16 +1793,16 @@ class TestDaemonLock:
 
 
 # =============================================================================
-# TestSnapshot -- save_snapshot() and _prune_snapshots()
+# TestSnapshot -- _save_snapshot() and _prune_snapshots()
 # =============================================================================
 
 
 class TestSnapshot:
-    """Test save_snapshot() and _prune_snapshots()."""
+    """Test _save_snapshot() and _prune_snapshots()."""
 
-    def testsave_snapshot_writes_json_file(self, tmp_path):
-        """save_snapshot writes JSON to snapshots dir with correct structure."""
-        from wanctl.check_cake_fix import save_snapshot
+    def test_save_snapshot_writes_json_file(self, tmp_path):
+        """_save_snapshot writes JSON to snapshots dir with correct structure."""
+        from wanctl.check_cake_fix import _save_snapshot
 
         queue_data = {
             "cake-down-spectrum": {
@@ -1813,7 +1813,7 @@ class TestSnapshot:
         }
 
         with patch("wanctl.check_cake_fix.SNAPSHOT_DIR", tmp_path):
-            path = save_snapshot(queue_data, "spectrum")
+            path = _save_snapshot(queue_data, "spectrum")
 
         assert path.exists()
         assert path.suffix == ".json"
@@ -1941,16 +1941,16 @@ class TestExtractChanges:
 
 
 # =============================================================================
-# TestShowDiffTable -- show_diff_table()
+# TestShowDiffTable -- _show_diff_table()
 # =============================================================================
 
 
 class TestShowDiffTable:
-    """Test show_diff_table() for printing proposed changes."""
+    """Test _show_diff_table() for printing proposed changes."""
 
     def test_prints_table_with_columns(self, capsys):
         """Prints table with Parameter | Current | Recommended columns."""
-        from wanctl.check_cake_fix import show_diff_table
+        from wanctl.check_cake_fix import _show_diff_table
 
         changes = {
             "download": {
@@ -1959,7 +1959,7 @@ class TestShowDiffTable:
             },
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
-        total = show_diff_table(changes, queue_names)
+        total = _show_diff_table(changes, queue_names)
 
         captured = capsys.readouterr()
         assert "Parameter" in captured.err
@@ -1969,13 +1969,13 @@ class TestShowDiffTable:
 
     def test_strips_cake_prefix_from_param_names(self, capsys):
         """Strips 'cake-' prefix from parameter names for display."""
-        from wanctl.check_cake_fix import show_diff_table
+        from wanctl.check_cake_fix import _show_diff_table
 
         changes = {
             "download": {"cake-nat": ("no", "yes")},
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
-        show_diff_table(changes, queue_names)
+        _show_diff_table(changes, queue_names)
 
         captured = capsys.readouterr()
         # Should display "nat" not "cake-nat"
@@ -1987,14 +1987,14 @@ class TestShowDiffTable:
 
     def test_groups_by_direction(self, capsys):
         """Prints separate section per direction with queue name."""
-        from wanctl.check_cake_fix import show_diff_table
+        from wanctl.check_cake_fix import _show_diff_table
 
         changes = {
             "download": {"cake-nat": ("no", "yes")},
             "upload": {"cake-wash": ("no", "yes")},
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
-        total = show_diff_table(changes, queue_names)
+        total = _show_diff_table(changes, queue_names)
 
         captured = capsys.readouterr()
         assert "cake-down-spectrum" in captured.err
@@ -2005,23 +2005,23 @@ class TestShowDiffTable:
 
     def test_returns_total_change_count(self):
         """Returns total number of changes across all directions."""
-        from wanctl.check_cake_fix import show_diff_table
+        from wanctl.check_cake_fix import _show_diff_table
 
         changes = {
             "download": {"cake-nat": ("no", "yes"), "cake-flowmode": ("x", "y")},
             "upload": {"cake-wash": ("no", "yes")},
         }
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
-        total = show_diff_table(changes, queue_names)
+        total = _show_diff_table(changes, queue_names)
         assert total == 3
 
     def test_prints_to_stderr(self, capsys):
         """Table output goes to stderr, not stdout."""
-        from wanctl.check_cake_fix import show_diff_table
+        from wanctl.check_cake_fix import _show_diff_table
 
         changes = {"download": {"cake-nat": ("no", "yes")}}
         queue_names = {"download": "cake-down-spectrum", "upload": "cake-up-spectrum"}
-        show_diff_table(changes, queue_names)
+        _show_diff_table(changes, queue_names)
 
         captured = capsys.readouterr()
         assert captured.out == ""  # Nothing on stdout
@@ -2029,61 +2029,61 @@ class TestShowDiffTable:
 
 
 # =============================================================================
-# TestConfirmApply -- confirm_apply()
+# TestConfirmApply -- _confirm_apply()
 # =============================================================================
 
 
 class TestConfirmApply:
-    """Test confirm_apply() for user confirmation prompt."""
+    """Test _confirm_apply() for user confirmation prompt."""
 
     def test_returns_true_on_y(self):
         """Returns True on 'y' input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="y"):
-            assert confirm_apply(3) is True
+            assert _confirm_apply(3) is True
 
     def test_returns_true_on_Y(self):
         """Returns True on 'Y' input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="Y"):
-            assert confirm_apply(3) is True
+            assert _confirm_apply(3) is True
 
     def test_returns_true_on_yes(self):
         """Returns True on 'yes' input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="yes"):
-            assert confirm_apply(3) is True
+            assert _confirm_apply(3) is True
 
     def test_returns_true_on_YES(self):
         """Returns True on 'YES' input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="YES"):
-            assert confirm_apply(3) is True
+            assert _confirm_apply(3) is True
 
     def test_returns_false_on_n(self):
         """Returns False on 'n' input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="n"):
-            assert confirm_apply(3) is False
+            assert _confirm_apply(3) is False
 
     def test_returns_false_on_empty(self):
         """Returns False on empty input (safe default)."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value=""):
-            assert confirm_apply(3) is False
+            assert _confirm_apply(3) is False
 
     def test_returns_false_on_anything_else(self):
         """Returns False on arbitrary input."""
-        from wanctl.check_cake_fix import confirm_apply
+        from wanctl.check_cake_fix import _confirm_apply
 
         with patch("builtins.input", return_value="maybe"):
-            assert confirm_apply(3) is False
+            assert _confirm_apply(3) is False
 
 
 # =============================================================================
@@ -2287,8 +2287,8 @@ class TestFixFlow:
         assert nothing_results[0].severity == Severity.PASS
         client.set_queue_type_params.assert_not_called()
 
-    def test_callssave_snapshot_before_apply(self, tmp_path):
-        """Calls save_snapshot() before applying changes."""
+    def test_calls_save_snapshot_before_apply(self, tmp_path):
+        """Calls _save_snapshot() before applying changes."""
         from wanctl.check_cake_fix import run_fix
 
         dl = _optimal_queue_type_data("download")
@@ -2312,7 +2312,7 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.save_snapshot", side_effect=mock_save) as mock_snap,
+            patch("wanctl.check_cake_fix._save_snapshot", side_effect=mock_save) as mock_snap,
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
             run_fix(data, "autorate", client, yes=True)
@@ -2334,7 +2334,7 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake_fix._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
             run_fix(data, "autorate", client, yes=True)
@@ -2358,7 +2358,7 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake_fix._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[]),
         ):
             run_fix(data, "autorate", client, yes=True)
@@ -2385,7 +2385,7 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake_fix._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[verify_result]) as mock_audit,
         ):
             results = run_fix(data, "autorate", client, yes=True)
@@ -2408,9 +2408,9 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.save_snapshot", return_value=Path("/tmp/snap.json")),
+            patch("wanctl.check_cake_fix._save_snapshot", return_value=Path("/tmp/snap.json")),
             patch("wanctl.check_cake.run_audit", return_value=[]),
-            patch("wanctl.check_cake_fix.confirm_apply") as mock_confirm,
+            patch("wanctl.check_cake_fix._confirm_apply") as mock_confirm,
         ):
             run_fix(data, "autorate", client, yes=True)
 
@@ -2430,8 +2430,8 @@ class TestFixFlow:
 
         with (
             patch("wanctl.check_cake.check_daemon_lock", return_value=[lock_pass]),
-            patch("wanctl.check_cake_fix.confirm_apply", return_value=False),
-            patch("wanctl.check_cake_fix.show_diff_table", return_value=1),
+            patch("wanctl.check_cake_fix._confirm_apply", return_value=False),
+            patch("wanctl.check_cake_fix._show_diff_table", return_value=1),
         ):
             results = run_fix(data, "autorate", client, yes=False)
 

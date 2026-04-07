@@ -313,7 +313,7 @@ class TestFailoverRouterClientBehavioral:
         mock_ssh = MagicMock()
         mock_ssh.run_cmd.return_value = (0, '{"status": "ok"}', "")
 
-        with patch("wanctl.router_client.create_transport_with_password") as mock_create:
+        with patch("wanctl.router_client._create_transport_with_password") as mock_create:
             # First call creates REST (primary), second creates SSH (fallback)
             mock_create.side_effect = [mock_rest, mock_ssh]
 

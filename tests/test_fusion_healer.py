@@ -1532,31 +1532,20 @@ class TestAutorateSIGUSR1Loop:
         #           wan_info["controller"]._reload_fusion_config()
         #       reset_reload_state()
 
-        import os
-        import signal as sig_mod
+        with patch("wanctl.signal_utils._reload_event") as mock_event:
+            mock_event.is_set.return_value = True
 
-        from wanctl.signal_utils import register_signal_handlers
-
-        # Register SIGUSR1 handler, then send signal to trigger reload event
-        register_signal_handlers(include_sigterm=False, include_sigusr1=True)
-        os.kill(os.getpid(), sig_mod.SIGUSR1)
-
-        try:
             if is_reload_requested():
                 for wan_info in wan_controllers:
                     wan_info["logger"].info("SIGUSR1 received, reloading fusion config")
                     wan_info["controller"]._reload_fusion_config()
                 reset_reload_state()
 
-            ctrl1._reload_fusion_config.assert_called_once()
-            ctrl2._reload_fusion_config.assert_called_once()
-            ctrl1_logger.info.assert_called_once()
-            ctrl2_logger.info.assert_called_once()
-            # Verify reload state was cleared
-            assert not is_reload_requested()
-        finally:
-            # Ensure cleanup even on test failure
-            reset_reload_state()
+        ctrl1._reload_fusion_config.assert_called_once()
+        ctrl2._reload_fusion_config.assert_called_once()
+        ctrl1_logger.info.assert_called_once()
+        ctrl2_logger.info.assert_called_once()
+        mock_event.clear.assert_called_once()
 
 
 # =============================================================================
@@ -1929,7 +1918,6 @@ class TestConfigLoading:
 # =============================================================================
 
 
-@pytest.mark.timeout(10)
 class TestHealthEndpoint:
     """Tests for fusion heal state in health endpoint response."""
 
@@ -2001,56 +1989,6 @@ class TestHealthEndpoint:
         wan._overrun_count = 0
         wan._cycle_interval_ms = 50.0
         wan._profiler.stats.return_value = None
-        # Public facade for health_check.py (Phase 147)
-        wan.get_health_data.return_value = {
-            "cycle_budget": {
-                "profiler": wan._profiler,
-                "overrun_count": 0,
-                "cycle_interval_ms": 50.0,
-                "warning_threshold_pct": 80,
-            },
-            "signal_result": None,
-            "irtt": {
-                "thread": None,
-                "correlation": None,
-                "last_asymmetry_result": None,
-            },
-            "reflector": {"scorer": None},
-            "fusion": {
-                "enabled": fusion_enabled,
-                "icmp_filtered_rtt": 25.0,
-                "fused_rtt": None,
-                "icmp_weight": 0.7,
-                "healer": healer,
-            },
-            "tuning": {
-                "enabled": False,
-                "state": None,
-                "parameter_locks": None,
-                "pending_observation": None,
-            },
-            "suppression_alert": {"threshold": 20},
-        }
-        wan.download.get_health_data.return_value = {
-            "hysteresis": {
-                "dwell_counter": 0,
-                "dwell_cycles": 5,
-                "deadband_ms": 3.0,
-                "transitions_suppressed": 0,
-                "suppressions_per_min": 0,
-                "window_start_epoch": 0.0,
-            },
-        }
-        wan.upload.get_health_data.return_value = {
-            "hysteresis": {
-                "dwell_counter": 0,
-                "dwell_cycles": 5,
-                "deadband_ms": 3.0,
-                "transitions_suppressed": 0,
-                "suppressions_per_min": 0,
-                "window_start_epoch": 0.0,
-            },
-        }
         return wan
 
     def _make_integration_controller(self, wan):

@@ -311,7 +311,6 @@ class TestMetricsRegistryThreadSafety:
 # =============================================================================
 
 
-@pytest.mark.timeout(10)
 class TestMetricsServer:
     """Tests for MetricsServer class."""
 
@@ -1180,6 +1179,7 @@ class TestSignalQualityInRunCycle:
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
             patch.object(controller, "save_state"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -1206,6 +1206,7 @@ class TestSignalQualityInRunCycle:
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
             patch.object(controller, "save_state"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -1276,6 +1277,7 @@ class TestIRTTInRunCycle:
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
             patch.object(controller, "save_state"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -1320,6 +1322,7 @@ class TestIRTTInRunCycle:
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
             patch.object(controller, "save_state"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
@@ -1362,6 +1365,7 @@ class TestIRTTInRunCycle:
             patch.object(controller, "measure_rtt", return_value=25.3),
             patch.object(controller, "apply_rate_changes_if_needed", return_value=True),
             patch.object(controller, "save_state"),
+            patch.object(controller, "_check_connectivity_alerts"),
         ):
             controller.run_cycle()
 
