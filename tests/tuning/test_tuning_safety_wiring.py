@@ -439,6 +439,60 @@ def _make_health_wan_controller(
     wc._parameter_locks = parameter_locks if parameter_locks is not None else {}
     wc._pending_observation = pending_observation
 
+    # Healer mock (fusion disabled)
+    wc._fusion_healer = None
+
+    # Public facade for health_check.py (Phase 147)
+    wc.get_health_data.return_value = {
+        "cycle_budget": {
+            "profiler": wc._profiler,
+            "overrun_count": 0,
+            "cycle_interval_ms": 50.0,
+            "warning_threshold_pct": 80,
+        },
+        "signal_result": None,
+        "irtt": {
+            "thread": None,
+            "correlation": None,
+            "last_asymmetry_result": None,
+        },
+        "reflector": {"scorer": wc._reflector_scorer},
+        "fusion": {
+            "enabled": False,
+            "icmp_filtered_rtt": None,
+            "fused_rtt": None,
+            "icmp_weight": 0.7,
+            "healer": None,
+        },
+        "tuning": {
+            "enabled": tuning_enabled,
+            "state": tuning_state,
+            "parameter_locks": parameter_locks if parameter_locks is not None else {},
+            "pending_observation": pending_observation,
+        },
+        "suppression_alert": {"threshold": 20},
+    }
+    wc.download.get_health_data.return_value = {
+        "hysteresis": {
+            "dwell_counter": 0,
+            "dwell_cycles": 5,
+            "deadband_ms": 3.0,
+            "transitions_suppressed": 0,
+            "suppressions_per_min": 0,
+            "window_start_epoch": 0.0,
+        },
+    }
+    wc.upload.get_health_data.return_value = {
+        "hysteresis": {
+            "dwell_counter": 0,
+            "dwell_cycles": 5,
+            "deadband_ms": 3.0,
+            "transitions_suppressed": 0,
+            "suppressions_per_min": 0,
+            "window_start_epoch": 0.0,
+        },
+    }
+
     return wc
 
 
