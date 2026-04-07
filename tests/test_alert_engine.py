@@ -2743,6 +2743,18 @@ class TestSteeringHealthAlerting:
         daemon._cycle_interval_ms = 50.0
         daemon._wan_state_enabled = False
         daemon._wan_zone = None
+        # get_health_data() facade (Phase 147 interface)
+        daemon.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": daemon._profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+            },
+            "wan_awareness": {
+                "enabled": False,
+                "zone": None,
+            },
+        }
         return daemon
 
     def test_steering_health_includes_alerting_key(self, health_engine):
