@@ -669,7 +669,7 @@ class TestTransientFailureBlockingTime:
         mock_client = MagicMock()
         mock_client.exec_command.side_effect = ConnectionError("Transient failure")
 
-        with patch.object(ssh, "_ensure_connected"), patch.object(ssh, "_client", mock_client):
+        with patch("wanctl.routeros_ssh.paramiko.SSHClient", return_value=mock_client):
             start = time.monotonic()
             with pytest.raises(ConnectionError):
                 ssh.run_cmd("/test")

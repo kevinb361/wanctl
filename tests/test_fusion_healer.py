@@ -1532,20 +1532,25 @@ class TestAutorateSIGUSR1Loop:
         #           wan_info["controller"]._reload_fusion_config()
         #       reset_reload_state()
 
-        with patch("wanctl.signal_utils._reload_event") as mock_event:
-            mock_event.is_set.return_value = True
+        # Simulate SIGUSR1 via public API: register handler then send signal
+        from wanctl.signal_utils import register_signal_handlers
+        import signal as sig
 
-            if is_reload_requested():
-                for wan_info in wan_controllers:
-                    wan_info["logger"].info("SIGUSR1 received, reloading fusion config")
-                    wan_info["controller"]._reload_fusion_config()
-                reset_reload_state()
+        register_signal_handlers(include_sigterm=False, include_sigusr1=True)
+        sig.raise_signal(sig.SIGUSR1)
+
+        if is_reload_requested():
+            for wan_info in wan_controllers:
+                wan_info["logger"].info("SIGUSR1 received, reloading fusion config")
+                wan_info["controller"]._reload_fusion_config()
+            reset_reload_state()
 
         ctrl1._reload_fusion_config.assert_called_once()
         ctrl2._reload_fusion_config.assert_called_once()
         ctrl1_logger.info.assert_called_once()
         ctrl2_logger.info.assert_called_once()
-        mock_event.clear.assert_called_once()
+        # Verify reload state was cleared via public API
+        assert not is_reload_requested()
 
 
 # =============================================================================
