@@ -79,7 +79,7 @@ class EndpointPoller:
             self._is_online = True
             self._current_interval = self._normal_interval
 
-            return data
+            return data  # type: ignore[no-any-return]
 
         except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as exc:
             logger.debug("Poll failed for %s (%s): %s", self.name, url, exc)

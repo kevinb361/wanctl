@@ -1615,11 +1615,11 @@ class SteeringDaemon:
                     f"Using last known RTT from state: {last_rtt:.1f}ms "
                     f"(ping to {self.config.ping_host} failed after retries)"
                 )
-                return last_rtt
+                return last_rtt  # type: ignore[no-any-return]
             self.logger.error("No ping response and no RTT history available - cannot proceed")
             return None
 
-        return measure_with_retry(
+        return measure_with_retry(  # type: ignore[no-any-return]
             self.measure_current_rtt,
             max_retries=max_retries,
             retry_delay=0.5,
@@ -1661,7 +1661,7 @@ class SteeringDaemon:
             return 0.0
 
         delta = current_rtt - baseline_rtt
-        return max(0.0, delta)  # Never negative
+        return max(0.0, delta)  # type: ignore[no-any-return]  # Never negative
 
     def _apply_confidence_decision(self, decision: str) -> bool:
         """Apply a confidence controller steering decision.

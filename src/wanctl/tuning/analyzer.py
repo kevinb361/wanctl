@@ -72,7 +72,7 @@ def _compute_data_hours(metrics_data: list[dict]) -> float:
     timestamps = [m["timestamp"] for m in metrics_data if "timestamp" in m]
     if len(timestamps) < 2:
         return 0.0
-    return (max(timestamps) - min(timestamps)) / 3600.0
+    return (max(timestamps) - min(timestamps)) / 3600.0  # type: ignore[no-any-return]
 
 
 def run_tuning_analysis(

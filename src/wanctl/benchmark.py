@@ -174,7 +174,7 @@ def store_benchmark(
                 ),
             )
             conn.commit()
-            return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            return conn.execute("SELECT last_insert_rowid()").fetchone()[0]  # type: ignore[no-any-return]
         finally:
             conn.close()
     except Exception:
@@ -194,7 +194,7 @@ def parse_flent_results(gz_path: str) -> dict:
     series name) and ``"metadata"``.
     """
     with gzip.open(gz_path, "rt") as f:
-        return json.load(f)
+        return json.load(f)  # type: ignore[no-any-return]
 
 
 def extract_latency_stats(data: dict, baseline_rtt: float) -> dict:

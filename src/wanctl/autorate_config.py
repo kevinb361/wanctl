@@ -425,7 +425,7 @@ class Config(BaseConfig):
             tc = thresh[tc_key]
             alpha = cycle_interval / tc
             logger.info(f"Calculated {alpha_key}={alpha:.6f} from time_constant={tc}s")
-            return alpha
+            return alpha  # type: ignore[no-any-return]
         if alpha_key in thresh:
             alpha = thresh[alpha_key]
             if prefix == "load":
@@ -435,7 +435,7 @@ class Config(BaseConfig):
                         f"{alpha_key}={alpha} gives {expected_tc:.1f}s time constant - "
                         f"consider using {tc_key} for clarity"
                     )
-            return alpha
+            return alpha  # type: ignore[no-any-return]
         raise ValueError(f"Config must specify either {tc_key} or {alpha_key}")
 
     def _load_ping_config(self, cm: dict) -> None:

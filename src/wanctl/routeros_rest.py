@@ -455,7 +455,7 @@ class RouterOSREST:
             resp = self._request("GET", url, params=params, timeout=timeout_val)
 
             if resp.ok:
-                return resp.json()
+                return resp.json()  # type: ignore[no-any-return]
             self.logger.error(f"Failed to get queue: {resp.status_code}")
             return None
 
@@ -557,7 +557,7 @@ class RouterOSREST:
                     if resource_id and use_cache:
                         cache[filter_value] = resource_id
                         self.logger.debug(f"Resource ID cached: {filter_value} -> {resource_id}")
-                    return resource_id
+                    return resource_id  # type: ignore[no-any-return]
 
             return None
 
@@ -660,7 +660,7 @@ class RouterOSREST:
             if resp.ok and resp.json():
                 items = resp.json()
                 if items:
-                    return items[0]
+                    return items[0]  # type: ignore[no-any-return]
 
             return None
 
@@ -690,7 +690,7 @@ class RouterOSREST:
             if resp.ok and resp.json():
                 items = resp.json()
                 if items:
-                    return items[0]
+                    return items[0]  # type: ignore[no-any-return]
 
             return None
 
@@ -755,7 +755,7 @@ class RouterOSREST:
         """
         try:
             resp = self._request("GET", f"{self.base_url}/system/resource", timeout=5)
-            return resp.ok
+            return resp.ok  # type: ignore[no-any-return]
         except requests.RequestException:
             return False
 

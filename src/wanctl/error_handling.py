@@ -43,7 +43,7 @@ def _discover_logger(args: tuple[Any, ...]) -> logging.Logger:
     Falls back to the module logger if none found.
     """
     if args and hasattr(args[0], "logger"):
-        return args[0].logger
+        return args[0].logger  # type: ignore[no-any-return]
     if args and hasattr(args[0], "__dict__"):
         for attr in ["logger", "_logger", "log"]:
             if hasattr(args[0], attr):

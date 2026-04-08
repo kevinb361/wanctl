@@ -88,10 +88,12 @@ class TestFromConfig:
                 "memlimit": "32mb",
                 "rtt": "100ms",
             },
+            "continuous_monitoring": {
+                "download": {"ceiling_mbps": 95},
+                "upload": {"ceiling_mbps": 18},
+            },
             "timeouts": {"tc_command": 5.0},
         }
-        config.download_ceiling = 95_000_000
-        config.upload_ceiling = 18_000_000
         return config
 
     @patch("wanctl.backends.linux_cake_adapter.LinuxCakeBackend")

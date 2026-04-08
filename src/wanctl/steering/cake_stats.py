@@ -95,7 +95,7 @@ class CakeStatsReader:
                         self.router = data.get("router", {})
 
                 proxy = _AutorateConfigProxy(autorate_data)
-                self._linux_backend = get_backend(proxy)
+                self._linux_backend = get_backend(proxy)  # type: ignore[arg-type]
                 self._is_linux_cake = True
                 logger.info("CakeStatsReader using linux-cake backend")
             except Exception as e:

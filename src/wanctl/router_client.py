@@ -294,7 +294,7 @@ class FailoverRouterClient:
             self.logger.info(f"Primary transport ({self.primary_transport}) restored successfully")
             self._using_fallback = False
             self._probe_interval = _REPROBE_INITIAL_INTERVAL  # reset backoff
-            return result
+            return result  # type: ignore[no-any-return]
         except (ConnectionError, TimeoutError, OSError) as e:
             self.logger.debug(
                 f"Primary re-probe failed: {e}. "
@@ -332,10 +332,10 @@ class FailoverRouterClient:
             result = self._try_restore_primary(cmd, capture, timeout)
             if result is not None:
                 return result
-            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
+            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)  # type: ignore[no-any-return]
 
         try:
-            return self._get_primary().run_cmd(cmd, capture=capture, timeout=timeout)
+            return self._get_primary().run_cmd(cmd, capture=capture, timeout=timeout)  # type: ignore[no-any-return]
         except (ConnectionError, TimeoutError, OSError) as e:
             self.logger.warning(
                 f"Primary transport ({self.primary_transport}) failed: {e}. "
@@ -344,7 +344,7 @@ class FailoverRouterClient:
             self._using_fallback = True
             self._last_probe_time = _time.monotonic()  # start probe timer
             self._probe_interval = _REPROBE_INITIAL_INTERVAL  # reset interval
-            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)
+            return self._get_fallback().run_cmd(cmd, capture=capture, timeout=timeout)  # type: ignore[no-any-return]
 
     def close(self) -> None:
         """Close all transport connections.

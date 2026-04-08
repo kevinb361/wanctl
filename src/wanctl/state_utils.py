@@ -86,7 +86,7 @@ def safe_read_json(file_path: Path, default: dict[str, Any] | None = None) -> di
 
     try:
         with open(file_path) as f:
-            return json.load(f)
+            return json.load(f)  # type: ignore[no-any-return]
     except (json.JSONDecodeError, OSError):
         return default
 

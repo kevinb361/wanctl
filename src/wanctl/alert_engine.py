@@ -173,7 +173,7 @@ class AlertEngine:
         cooldown_sec = self._rules.get(lookup_key, {}).get(
             "cooldown_sec", self._default_cooldown_sec
         )
-        return (time.monotonic() - last_fire) < cooldown_sec
+        return (time.monotonic() - last_fire) < cooldown_sec  # type: ignore[no-any-return]
 
     def _persist_alert(
         self,

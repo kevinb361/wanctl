@@ -162,7 +162,7 @@ def format_table(results: list[dict], verbose: bool = False) -> str:
             for r in results
         ]
 
-    return tabulate(rows, headers=headers, tablefmt="simple")
+    return tabulate(rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
 
 
 def format_json(results: list[dict]) -> str:
@@ -268,7 +268,7 @@ def format_tuning_table(results: list[dict]) -> str:
             ]
         )
 
-    return tabulate(rows, headers=headers, tablefmt="simple")
+    return tabulate(rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
 
 
 def format_tuning_json(results: list[dict]) -> str:
@@ -319,7 +319,7 @@ def format_alerts_table(results: list[dict]) -> str:
             ]
         )
 
-    return tabulate(rows, headers=headers, tablefmt="simple")
+    return tabulate(rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
 
 
 def format_alerts_json(results: list[dict]) -> str:
@@ -395,7 +395,7 @@ def format_tins_table(results: list[dict]) -> str:
             ]
         )
 
-    return tabulate(rows, headers=headers, tablefmt="simple")
+    return tabulate(rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
 
 
 def format_tins_json(results: list[dict]) -> str:

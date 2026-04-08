@@ -155,7 +155,7 @@ def _extract_ceilings(data: dict, config_type: str) -> dict[str, int | None]:
 def _extract_mangle_comment(data: dict) -> str | None:
     """Extract mangle rule comment from steering config data."""
     mangle = data.get("mangle_rule", {})
-    return mangle.get("comment")
+    return mangle.get("comment")  # type: ignore[no-any-return]
 
 
 def _extract_cake_optimization(data: dict) -> dict | None:
@@ -171,7 +171,7 @@ def _extract_cake_optimization(data: dict) -> dict | None:
     """
     value = data.get("cake_optimization")
     if value is not None and isinstance(value, dict):
-        return value
+        return value  # type: ignore[no-any-return]
     return None
 
 
@@ -957,11 +957,11 @@ def _create_audit_client(router_cfg: dict) -> Any:
     if transport == "rest":
         from wanctl.routeros_rest import RouterOSREST
 
-        return RouterOSREST.from_config(ns, logger)
+        return RouterOSREST.from_config(ns, logger)  # type: ignore[arg-type]
     if transport == "ssh":
         from wanctl.routeros_ssh import RouterOSSSH
 
-        return RouterOSSSH.from_config(ns, logger)
+        return RouterOSSSH.from_config(ns, logger)  # type: ignore[arg-type]
     raise ValueError(f"Unsupported transport: {transport}")
 
 

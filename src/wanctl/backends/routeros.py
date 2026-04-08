@@ -140,7 +140,7 @@ class RouterOSBackend(RouterBackend):
             self.logger.warning(f"Could not parse max-limit for {queue}")
             return None
 
-        return max_limit
+        return max_limit  # type: ignore[no-any-return]
 
     def get_queue_stats(self, queue: str) -> dict | None:
         """Get statistics from RouterOS queue tree.

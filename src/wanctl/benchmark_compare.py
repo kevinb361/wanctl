@@ -283,7 +283,7 @@ def format_history(rows: list[dict], color: bool) -> str:
             ]
         )
 
-    return tabulate(
+    return tabulate(  # type: ignore[no-any-return]
         table_data,
         headers=["ID", "Timestamp", "WAN", "Grade", "Avg Latency", "DL Mbps", "Label"],
         tablefmt="simple",
