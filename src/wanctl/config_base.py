@@ -4,9 +4,26 @@ import logging
 import re
 import socket
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
+
+
+class RetentionConfig(TypedDict):
+    """Typed dict for storage retention configuration."""
+
+    raw_age_seconds: int
+    aggregate_1m_age_seconds: int
+    aggregate_5m_age_seconds: int
+    prometheus_compensated: bool
+
+
+class StorageConfig(TypedDict):
+    """Typed dict for storage configuration."""
+
+    db_path: str
+    retention_days: int
+    retention: RetentionConfig
 
 
 class ConfigValidationError(ValueError):
@@ -165,7 +182,7 @@ STORAGE_SCHEMA: list[dict] = [
 ]
 
 
-def get_storage_config(data: dict) -> dict[str, Any]:
+def get_storage_config(data: dict) -> StorageConfig:
     """Extract storage configuration from config data with defaults.
 
     Args:
@@ -215,7 +232,7 @@ def get_storage_config(data: dict) -> dict[str, Any]:
         default_1m = 86400
         default_5m = 604800
 
-    retention_config = {
+    retention_config: RetentionConfig = {
         "raw_age_seconds": retention.get("raw_age_seconds", default_raw),
         "aggregate_1m_age_seconds": retention.get("aggregate_1m_age_seconds", default_1m),
         "aggregate_5m_age_seconds": retention.get("aggregate_5m_age_seconds", default_5m),

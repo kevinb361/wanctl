@@ -7,6 +7,7 @@ for baseline RTT thresholds, bloat defaults, and unit conversion.
 import logging
 import os
 from pathlib import Path
+from typing import TypedDict
 
 from wanctl.config_base import BaseConfig
 from wanctl.config_validation_utils import (
@@ -38,8 +39,57 @@ MAX_SANE_BASELINE_RTT = 60.0
 MBPS_TO_BPS = 1_000_000
 
 
+class FusionHealingConfig(TypedDict):
+    """Typed dict for fusion healing parameters."""
+
+    suspend_threshold: float
+    recover_threshold: float
+    suspend_window_sec: float
+    recover_window_sec: float
+    grace_period_sec: float
+
+
+class FusionConfig(TypedDict):
+    """Typed dict for fusion configuration."""
+
+    icmp_weight: float
+    enabled: bool
+    healing: FusionHealingConfig
+
+
+class IRTTConfig(TypedDict):
+    """Typed dict for IRTT measurement configuration."""
+
+    enabled: bool
+    server: str | None
+    port: int
+    duration_sec: float
+    interval_ms: int
+    cadence_sec: float
+
+
+class ReflectorQualityConfig(TypedDict):
+    """Typed dict for reflector quality scoring configuration."""
+
+    min_score: float
+    window_size: int
+    probe_interval_sec: float
+    recovery_count: int
+
+
+class OWDAsymmetryConfig(TypedDict):
+    """Typed dict for OWD asymmetry detection configuration."""
+
+    ratio_threshold: float
+
+
 class Config(BaseConfig):
     """Configuration container loaded from YAML"""
+
+    fusion_config: FusionConfig
+    irtt_config: IRTTConfig
+    reflector_quality_config: ReflectorQualityConfig
+    owd_asymmetry_config: OWDAsymmetryConfig
 
     # Schema for autorate_continuous configuration validation
     SCHEMA = [
@@ -952,7 +1002,7 @@ class Config(BaseConfig):
 
     def _load_fusion_healing_config(
         self, fusion: dict, logger: logging.Logger
-    ) -> dict:
+    ) -> FusionHealingConfig:
         """Load and validate fusion healing parameters (Phase 119: FUSE-01 through FUSE-05)."""
         healing = fusion.get("healing", {})
         if not isinstance(healing, dict):

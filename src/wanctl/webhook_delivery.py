@@ -19,10 +19,11 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 import requests
 
+from wanctl.interfaces import AlertFormatter
 from wanctl.rate_utils import RateLimiter
 
 if TYPE_CHECKING:
@@ -35,40 +36,6 @@ _WAN_DISPLAY_NAMES: dict[str, str] = {
     "spectrum": "Spectrum",
     "att": "ATT",
 }
-
-
-@runtime_checkable
-class AlertFormatter(Protocol):
-    """Protocol for alert formatters. Duck-typing compatible.
-
-    Any class implementing format() with the correct signature satisfies this Protocol.
-    Allows new formatter backends (ntfy.sh, Slack, etc.) without modifying delivery code.
-    """
-
-    def format(
-        self,
-        alert_type: str,
-        severity: str,
-        wan_name: str,
-        details: dict[str, Any],
-        *,
-        mention_role_id: str | None = None,
-        mention_severity: str = "critical",
-    ) -> dict[str, Any]:
-        """Format an alert into a payload dict suitable for HTTP POST.
-
-        Args:
-            alert_type: Snake_case alert type (e.g., "congestion_sustained").
-            severity: Alert severity ("info", "warning", "critical", "recovery").
-            wan_name: WAN identifier (e.g., "spectrum", "att").
-            details: Structured dict with alert-specific data.
-            mention_role_id: Optional role ID for @mentions.
-            mention_severity: Minimum severity to trigger @mention.
-
-        Returns:
-            Dict payload for requests.post(url, json=payload).
-        """
-        ...  # pragma: no cover
 
 
 class DiscordFormatter:

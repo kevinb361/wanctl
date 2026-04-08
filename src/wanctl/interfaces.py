@@ -75,3 +75,52 @@ class ThreadManager(Protocol):
     """
 
     def shutdown_threads(self) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Router client protocols
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class RouterClient(Protocol):
+    """Router client for CAKE audit tools.
+
+    Satisfied by RouterOSREST and RouterOSRESTWithFailover.
+    Used by check_cake.py and check_cake_fix.py.
+    """
+
+    def run_cmd(
+        self, cmd: str, capture: bool = ..., timeout: int | None = ...
+    ) -> tuple[int, str, str]: ...
+
+    def get_queue_stats(self, queue_name: str) -> dict | None: ...
+
+    def get_queue_types(self, type_name: str) -> dict | None: ...
+
+    def set_queue_type_params(self, type_name: str, params: dict[str, str]) -> bool: ...
+
+    def find_mangle_rule_id(self, comment: str) -> str | None: ...
+
+    def test_connection(self) -> bool: ...
+
+
+# ---------------------------------------------------------------------------
+# Alert formatting protocols
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class AlertFormatter(Protocol):
+    """Protocol for alert formatters. Duck-typing compatible."""
+
+    def format(
+        self,
+        alert_type: str,
+        severity: str,
+        wan_name: str,
+        details: dict[str, Any],
+        *,
+        mention_role_id: str | None = ...,
+        mention_severity: str = ...,
+    ) -> dict[str, Any]: ...
