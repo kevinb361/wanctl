@@ -25,7 +25,7 @@ MAX_SNAPSHOTS = 20
 # =============================================================================
 
 
-def _save_snapshot(queue_type_data: dict[str, dict], wan_name: str) -> Path:
+def save_snapshot(queue_type_data: dict[str, dict], wan_name: str) -> Path:
     """Save current queue type parameters as a JSON snapshot.
 
     Creates a timestamped snapshot in SNAPSHOT_DIR for rollback purposes.
@@ -74,7 +74,7 @@ def _prune_snapshots(wan_name: str) -> None:
         oldest.unlink()
 
 
-def _show_diff_table(
+def show_diff_table(
     changes_by_direction: dict[str, dict[str, tuple[str, str]]],
     queue_names: dict[str, str],
 ) -> int:
@@ -104,7 +104,7 @@ def _show_diff_table(
     return total
 
 
-def _confirm_apply(total_changes: int) -> bool:
+def confirm_apply(total_changes: int) -> bool:
     """Prompt user to confirm applying changes.
 
     Args:
@@ -329,8 +329,8 @@ def _validate_and_confirm_fix(
         return True
 
     if not yes:
-        _show_diff_table(changes_by_direction, queue_names)
-        if not _confirm_apply(sum(len(c) for c in changes_by_direction.values())):
+        show_diff_table(changes_by_direction, queue_names)
+        if not confirm_apply(sum(len(c) for c in changes_by_direction.values())):
             results.append(CheckResult("Fix", "status", Severity.PASS, "Fix cancelled by user."))
             return True
 
@@ -344,7 +344,7 @@ def _apply_and_verify_fix(
     results: list[CheckResult], run_audit_fn: object,
 ) -> None:
     """Save snapshot, apply changes, and re-run audit for verification."""
-    snapshot_path = _save_snapshot(queue_type_data_by_direction, wan_name or "unknown")
+    snapshot_path = save_snapshot(queue_type_data_by_direction, wan_name or "unknown")
     print(f"Snapshot saved: {snapshot_path}", file=sys.stderr)
 
     results.extend(_apply_changes(client, changes_by_direction, queue_names))
