@@ -30,9 +30,7 @@ class RouterOS:
     def needs_rate_limiting(self) -> bool:
         """RouterOS needs rate limiting unless YAML explicitly disables it."""
         rl_config = self.config.rate_limiter_config
-        if rl_config.get("enabled") is False:
-            return False
-        return True
+        return rl_config.get("enabled") is not False
 
     @property
     def rate_limit_params(self) -> dict[str, int]:

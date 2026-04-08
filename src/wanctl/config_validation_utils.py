@@ -160,14 +160,14 @@ def validate_bandwidth_order(
     if not (floor_red <= floor_soft_red <= floor_yellow <= floor_green <= ceiling):
         if convert_to_mbps:
             # Convert to Mbps for display
-            MBPS_TO_BPS = 1_000_000
+            mbps_to_bps = 1_000_000
             msg = (
                 f"{name.capitalize()} floor ordering violation: expected "
-                f"floor_red ({floor_red / MBPS_TO_BPS:.1f}M) <= "
-                f"floor_soft_red ({floor_soft_red / MBPS_TO_BPS:.1f}M) <= "
-                f"floor_yellow ({floor_yellow / MBPS_TO_BPS:.1f}M) <= "
-                f"floor_green ({floor_green / MBPS_TO_BPS:.1f}M) <= "
-                f"ceiling ({ceiling / MBPS_TO_BPS:.1f}M)"
+                f"floor_red ({floor_red / mbps_to_bps:.1f}M) <= "
+                f"floor_soft_red ({floor_soft_red / mbps_to_bps:.1f}M) <= "
+                f"floor_yellow ({floor_yellow / mbps_to_bps:.1f}M) <= "
+                f"floor_green ({floor_green / mbps_to_bps:.1f}M) <= "
+                f"ceiling ({ceiling / mbps_to_bps:.1f}M)"
             )
         else:
             msg = (

@@ -38,8 +38,8 @@ class IRTTResult:
     port: int
     timestamp: float  # time.monotonic()
     success: bool
-    send_delay_median_ms: float = 0.0  # stats.send_delay.median / NS_TO_MS
-    receive_delay_median_ms: float = 0.0  # stats.receive_delay.median / NS_TO_MS
+    send_delay_median_ms: float = 0.0  # stats.send_delay.median / ns_to_ms
+    receive_delay_median_ms: float = 0.0  # stats.receive_delay.median / ns_to_ms
 
 
 class IRTTMeasurement:
@@ -152,7 +152,7 @@ class IRTTMeasurement:
             return None
 
         # IRTT reports all durations in nanoseconds.
-        NS_TO_MS = 1_000_000
+        ns_to_ms = 1_000_000
 
         rtt = stats.get("rtt", {})
         ipdv_rt = stats.get("ipdv_round_trip", {})
@@ -160,9 +160,9 @@ class IRTTMeasurement:
         receive_delay = stats.get("receive_delay", {})
 
         return IRTTResult(
-            rtt_mean_ms=rtt.get("mean", 0) / NS_TO_MS,
-            rtt_median_ms=rtt.get("median", 0) / NS_TO_MS,
-            ipdv_mean_ms=ipdv_rt.get("mean", 0) / NS_TO_MS,
+            rtt_mean_ms=rtt.get("mean", 0) / ns_to_ms,
+            rtt_median_ms=rtt.get("median", 0) / ns_to_ms,
+            ipdv_mean_ms=ipdv_rt.get("mean", 0) / ns_to_ms,
             send_loss=stats.get("upstream_loss_percent", 0.0),
             receive_loss=stats.get("downstream_loss_percent", 0.0),
             packets_sent=stats.get("packets_sent", 0),
@@ -171,8 +171,8 @@ class IRTTMeasurement:
             port=self._port,
             timestamp=time.monotonic(),
             success=True,
-            send_delay_median_ms=send_delay.get("median", 0) / NS_TO_MS,
-            receive_delay_median_ms=receive_delay.get("median", 0) / NS_TO_MS,
+            send_delay_median_ms=send_delay.get("median", 0) / ns_to_ms,
+            receive_delay_median_ms=receive_delay.get("median", 0) / ns_to_ms,
         )
 
     def _log_failure(self, reason: str) -> None:

@@ -2105,7 +2105,7 @@ def run_daemon_loop(
 
     Executes steering cycles until shutdown signal received.
     Manages systemd watchdog notifications based on cycle success.
-    Stops watchdog after MAX_CONSECUTIVE_FAILURES to trigger restart.
+    Stops watchdog after max_consecutive_failures to trigger restart.
 
     Args:
         daemon: Initialized SteeringDaemon instance
@@ -2117,7 +2117,7 @@ def run_daemon_loop(
         Exit code: 0 for graceful shutdown
     """
     consecutive_failures = 0
-    MAX_CONSECUTIVE_FAILURES = 3
+    max_consecutive_failures = 3
     watchdog_enabled = True
 
     logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
@@ -2144,10 +2144,10 @@ def run_daemon_loop(
                 )
         else:
             consecutive_failures += 1
-            logger.warning(f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")
+            logger.warning(f"Cycle failed ({consecutive_failures}/{max_consecutive_failures})")
 
             # Stop watchdog notifications if sustained failures
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+            if consecutive_failures >= max_consecutive_failures and watchdog_enabled:
                 watchdog_enabled = False
                 logger.error(
                     f"Sustained failure: {consecutive_failures} consecutive failed cycles. "

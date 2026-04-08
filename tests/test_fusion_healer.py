@@ -1511,8 +1511,6 @@ class TestAutorateSIGUSR1Loop:
 
     def test_sigusr1_calls_reload_on_all_wan_controllers(self, tmp_path):
         """SIGUSR1 triggers _reload_fusion_config on every WANController."""
-        from unittest.mock import patch
-
         # Create two mock WAN controllers
         ctrl1 = MagicMock()
         ctrl1_logger = MagicMock()
@@ -1533,8 +1531,9 @@ class TestAutorateSIGUSR1Loop:
         #       reset_reload_state()
 
         # Simulate SIGUSR1 via public API: register handler then send signal
-        from wanctl.signal_utils import register_signal_handlers
         import signal as sig
+
+        from wanctl.signal_utils import register_signal_handlers
 
         register_signal_handlers(include_sigterm=False, include_sigusr1=True)
         sig.raise_signal(sig.SIGUSR1)

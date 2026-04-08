@@ -8,6 +8,7 @@ Coverage targets:
 - All method delegation and error handling: 100%
 """
 
+
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -672,7 +673,7 @@ class TestNeedsRateLimiting:
 class TestRouterOSRateLimiting:
     """Tests for needs_rate_limiting and rate_limit_params on RouterOS wrapper."""
 
-    def _make_routeros(self, rate_limiter_config: dict) -> "RouterOS":
+    def _make_routeros(self, rate_limiter_config: dict) -> "RouterOS":  # noqa: F821
         """Create RouterOS instance with mocked config."""
         from wanctl.routeros_interface import RouterOS
 

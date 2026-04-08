@@ -1217,8 +1217,8 @@ class Config(BaseConfig):
         """
         from wanctl.tuning.strategies.response import RESPONSE_PARAMS as _RESP_DEFAULTS
 
-        _DEFAULT_EXCLUDE = list(_RESP_DEFAULTS)
-        raw_exclude = tuning.get("exclude_params", _DEFAULT_EXCLUDE)
+        _default_exclude = list(_RESP_DEFAULTS)
+        raw_exclude = tuning.get("exclude_params", _default_exclude)
         if not isinstance(raw_exclude, list):
             logger.warning(
                 f"tuning.exclude_params must be a list, got {type(raw_exclude).__name__}; "

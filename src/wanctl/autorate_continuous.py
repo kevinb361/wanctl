@@ -125,7 +125,7 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
         )
         raise SystemExit(1)
 
-    router: "LinuxCakeAdapter | RouterOS"
+    router: "LinuxCakeAdapter | RouterOS"  # noqa: UP037
     if config.router_transport == "linux-cake":
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
@@ -487,7 +487,7 @@ def _track_cycle_failures(
 
     Returns updated (consecutive_failures, watchdog_enabled).
     """
-    MAX_CONSECUTIVE_FAILURES = 3
+    max_consecutive_failures = 3
 
     if cycle_success:
         if not watchdog_enabled:
@@ -500,10 +500,10 @@ def _track_cycle_failures(
     consecutive_failures += 1
     for wan_info in controller.wan_controllers:
         wan_info["logger"].warning(
-            f"Cycle failed ({consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})"
+            f"Cycle failed ({consecutive_failures}/{max_consecutive_failures})"
         )
 
-    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES and watchdog_enabled:
+    if consecutive_failures >= max_consecutive_failures and watchdog_enabled:
         watchdog_enabled = False
         for wan_info in controller.wan_controllers:
             wan_info["logger"].error(
@@ -628,23 +628,23 @@ def _build_tuning_layers() -> list[list[tuple[str, Any]]]:
         tune_hampel_window,
     )
 
-    _Layer = list[tuple[str, Any]]
-    signal: _Layer = [
+    _layer_t = list[tuple[str, Any]]
+    signal: _layer_t = [
         ("hampel_sigma_threshold", tune_hampel_sigma),
         ("hampel_window_size", tune_hampel_window),
     ]
-    ewma: _Layer = [("load_time_constant_sec", tune_alpha_load)]
-    threshold: _Layer = [
+    ewma: _layer_t = [("load_time_constant_sec", tune_alpha_load)]
+    threshold: _layer_t = [
         ("target_bloat_ms", calibrate_target_bloat),
         ("warn_bloat_ms", calibrate_warn_bloat),
     ]
-    advanced: _Layer = [
+    advanced: _layer_t = [
         ("fusion_icmp_weight", tune_fusion_weight),
         ("reflector_min_score", tune_reflector_min_score),
         ("baseline_rtt_min", tune_baseline_bounds_min),
         ("baseline_rtt_max", tune_baseline_bounds_max),
     ]
-    response: _Layer = [
+    response: _layer_t = [
         ("dl_step_up_mbps", tune_dl_step_up),
         ("ul_step_up_mbps", tune_ul_step_up),
         ("dl_factor_down", tune_dl_factor_down),
