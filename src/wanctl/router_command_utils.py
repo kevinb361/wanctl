@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,7 +83,7 @@ class CommandResult[T]:
         """Allow using result in boolean context (if result: ...)."""
         return self.success
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bool | T | None]:
         """Support tuple unpacking for backward compatibility.
 
         Allows: success, value = result

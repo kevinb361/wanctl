@@ -13,7 +13,7 @@ watchdog timeout on large databases) and deferred to periodic maintenance.
 
 import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from wanctl.storage.downsampler import downsample_metrics, get_downsample_thresholds
@@ -31,7 +31,7 @@ def run_startup_maintenance(
     log: logging.Logger | None = None,
     watchdog_fn: Callable[[], None] | None = None,
     max_seconds: float | None = None,
-    retention_config: dict | None = None,
+    retention_config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run all maintenance tasks at daemon startup.
 

@@ -6,10 +6,12 @@ workflow for CAKE queue parameter corrections identified by the audit.
 
 import json
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from wanctl.check_config import CheckResult, Severity
+from wanctl.interfaces import RouterClient
 from wanctl.path_utils import ensure_directory_exists
 
 # =============================================================================
@@ -118,7 +120,7 @@ def confirm_apply(total_changes: int) -> bool:
 
 
 def _apply_changes(
-    client: object,
+    client: RouterClient,
     changes_by_direction: dict[str, dict[str, tuple[str, str]]],
     queue_names: dict[str, str],
 ) -> list[CheckResult]:
@@ -226,7 +228,7 @@ def _extract_changes_for_direction(
 def run_fix(
     data: dict,
     config_type: str,
-    client: object,
+    client: RouterClient,
     yes: bool = False,
     json_mode: bool = False,
     wan_name: str = "",
@@ -275,7 +277,7 @@ def run_fix(
 
 
 def _gather_fix_changes(
-    data: dict, config_type: str, client: object
+    data: dict, config_type: str, client: RouterClient
 ) -> tuple[dict, dict, dict]:
     """Gather CAKE parameter changes by direction. Returns (changes, queue_names, queue_type_data)."""
     from wanctl.check_cake import _extract_cake_optimization, _extract_queue_names
@@ -338,10 +340,10 @@ def _validate_and_confirm_fix(
 
 
 def _apply_and_verify_fix(
-    data: dict, config_type: str, client: object,
+    data: dict, config_type: str, client: RouterClient,
     changes_by_direction: dict, queue_names: dict,
     queue_type_data_by_direction: dict, wan_name: str,
-    results: list[CheckResult], run_audit_fn: object,
+    results: list[CheckResult], run_audit_fn: Callable[[dict, str, RouterClient], list[CheckResult]],
 ) -> None:
     """Save snapshot, apply changes, and re-run audit for verification."""
     snapshot_path = save_snapshot(queue_type_data_by_direction, wan_name or "unknown")

@@ -29,6 +29,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import yaml
 
@@ -40,6 +41,7 @@ from wanctl.check_config import (
     format_results,
     format_results_json,
 )
+from wanctl.interfaces import RouterClient
 from wanctl.lock_utils import is_process_alive, read_lock_pid
 
 # =============================================================================
@@ -224,7 +226,7 @@ def check_env_vars(data: dict) -> list[CheckResult]:
 # =============================================================================
 
 
-def check_connectivity(client: object, transport: str, host: str, port: int) -> list[CheckResult]:
+def check_connectivity(client: RouterClient, transport: str, host: str, port: int) -> list[CheckResult]:
     """Test router reachability and authentication.
 
     For REST: uses client.test_connection() (GET /system/resource).
@@ -278,7 +280,7 @@ def check_connectivity(client: object, transport: str, host: str, port: int) -> 
 
 
 def check_queue_tree(
-    client: object,
+    client: RouterClient,
     queue_names: dict[str, str],
     ceilings: dict[str, int | None],
     config_type: str,
@@ -684,7 +686,7 @@ def _evaluate_single_tin(
 # =============================================================================
 
 
-def check_mangle_rule(client: object, mangle_comment: str) -> list[CheckResult]:
+def check_mangle_rule(client: RouterClient, mangle_comment: str) -> list[CheckResult]:
     """Verify steering mangle rule exists on router.
 
     For REST: uses client.find_mangle_rule_id(comment).
@@ -759,7 +761,7 @@ def _skippable_categories(config_type: str) -> list[str]:
     return categories
 
 
-def run_audit(data: dict, config_type: str, client: object | None) -> list[CheckResult]:
+def run_audit(data: dict, config_type: str, client: RouterClient | None) -> list[CheckResult]:
     """Run all audit checks in order.
 
     1. Environment variable check
@@ -812,7 +814,7 @@ def _skip_categories(config_type: str, reason: str) -> list[CheckResult]:
 
 
 def _run_queue_and_param_checks(
-    data: dict, config_type: str, client: object
+    data: dict, config_type: str, client: RouterClient
 ) -> list[CheckResult]:
     """Run queue tree, CAKE param, mangle, and tin distribution checks."""
     results: list[CheckResult] = []
@@ -841,7 +843,7 @@ def _run_queue_and_param_checks(
 
 
 def _run_cake_param_checks(
-    data: dict, client: object, queue_names: dict
+    data: dict, client: RouterClient, queue_names: dict
 ) -> list[CheckResult]:
     """Run CAKE queue type parameter checks for each direction."""
     results: list[CheckResult] = []
@@ -873,7 +875,7 @@ def _run_cake_param_checks(
     return results
 
 
-def _run_mangle_check(data: dict, client: object) -> list[CheckResult]:
+def _run_mangle_check(data: dict, client: RouterClient) -> list[CheckResult]:
     """Run mangle rule check for steering config."""
     mangle_comment = _extract_mangle_comment(data)
     if mangle_comment:
@@ -942,7 +944,7 @@ def check_daemon_lock() -> list[CheckResult]:
 # =============================================================================
 
 
-def _create_audit_client(router_cfg: dict) -> object:
+def _create_audit_client(router_cfg: dict) -> Any:
     """Create a router client from extracted config dict.
 
     Uses SimpleNamespace to satisfy the config interface expected by
@@ -1052,6 +1054,7 @@ def main() -> int:
 
     try:
         if args.fix:
+            assert client is not None, "Router client required for --fix"
             wan_name = data.get("wan_name", "unknown")
             results = run_fix(
                 data,

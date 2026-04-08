@@ -8,7 +8,8 @@ optional VACUUM for space reclamation after large deletions.
 import logging
 import sqlite3
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def cleanup_old_metrics(
     batch_size: int = BATCH_SIZE,
     watchdog_fn: Callable[[], None] | None = None,
     max_seconds: float | None = None,
-    retention_config: dict | None = None,
+    retention_config: Mapping[str, Any] | None = None,
 ) -> int:
     """Delete metrics older than retention period in batches.
 
@@ -125,7 +126,7 @@ def _cleanup_flat(
 
 def _cleanup_per_granularity(
     conn: sqlite3.Connection,
-    retention_config: dict,
+    retention_config: Mapping[str, Any],
     batch_size: int,
     watchdog_fn: Callable[[], None] | None,
     max_seconds: float | None,

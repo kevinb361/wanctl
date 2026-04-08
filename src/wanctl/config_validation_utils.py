@@ -9,7 +9,7 @@ Consolidates common validation patterns used across the system:
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from wanctl.config_base import ConfigValidationError
@@ -59,7 +59,7 @@ def deprecate_param(
 
 
 def validate_retention_tuner_compat(
-    retention_config: dict,
+    retention_config: Mapping[str, Any],
     tuning_config: dict | None,
     logger: logging.Logger | None = None,
 ) -> None:

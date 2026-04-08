@@ -38,7 +38,7 @@ class StateThresholds:
     red_samples_required: int = 2  # Consecutive RED samples before routing
     green_samples_required: int = 15  # Consecutive GREEN samples before recovery
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate thresholds"""
         assert self.green_rtt < self.yellow_rtt, "green_rtt must be < yellow_rtt"
         assert self.yellow_rtt <= self.red_rtt, "yellow_rtt must be <= red_rtt"

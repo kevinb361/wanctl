@@ -394,7 +394,7 @@ class WebhookDelivery:
         self, payload: dict, alert_id: int | None, alert_type: str
     ) -> None:
         """Send webhook with exponential backoff retry."""
-        delay = self._INITIAL_DELAY
+        delay: float | None = self._INITIAL_DELAY
 
         for attempt in range(1, self._MAX_ATTEMPTS + 1):
             try:
@@ -429,10 +429,10 @@ class WebhookDelivery:
                 return
 
     def _handle_retryable_error(
-        self, attempt: int, delay: float, alert_id: int | None, alert_type: str, error_label: str
+        self, attempt: int, delay: float | None, alert_id: int | None, alert_type: str, error_label: str
     ) -> float | None:
         """Handle a retryable error. Returns next delay, or None if exhausted."""
-        if attempt < self._MAX_ATTEMPTS:
+        if attempt < self._MAX_ATTEMPTS and delay is not None:
             logger.warning(
                 "Webhook delivery failed (%s), retrying in %.1fs: %s",
                 error_label, delay, alert_type,

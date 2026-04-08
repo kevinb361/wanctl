@@ -12,8 +12,9 @@ import logging
 import sys
 import time
 import traceback
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wanctl.autorate_config import Config
 from wanctl.config_base import ConfigValidationError, get_storage_config
@@ -54,6 +55,9 @@ from wanctl.wan_controller import (
     _apply_tuning_to_controller,
     _mark_tuning_executed,
 )
+
+if TYPE_CHECKING:
+    from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
 # =============================================================================
 # CONSTANTS
@@ -121,6 +125,7 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
         )
         raise SystemExit(1)
 
+    router: "LinuxCakeAdapter | RouterOS"
     if config.router_transport == "linux-cake":
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
@@ -288,7 +293,7 @@ def _parse_autorate_args() -> argparse.Namespace:
 
 def _init_storage(
     controller: "ContinuousAutoRate",
-) -> tuple[Any, dict]:
+) -> tuple[Any, Mapping[str, Any]]:
     """Initialize storage, record config snapshot, and run startup maintenance.
 
     Args:
@@ -303,7 +308,7 @@ def _init_storage(
     storage_config = get_storage_config(first_config.data)
     db_path = storage_config.get("db_path")
     maintenance_conn = None
-    default_retention = {
+    default_retention: Mapping[str, Any] = {
         "raw_age_seconds": 3600,
         "aggregate_1m_age_seconds": 86400,
         "aggregate_5m_age_seconds": 604800,
@@ -311,7 +316,7 @@ def _init_storage(
     }
     retention_raw = storage_config.get("retention")
     # Guard against MagicMock in tests (isinstance(dict) check)
-    maintenance_retention_config = (
+    maintenance_retention_config: Mapping[str, Any] = (
         retention_raw if isinstance(retention_raw, dict) else default_retention
     )
 
@@ -544,7 +549,7 @@ def _notify_watchdog_with_distinction(
 def _run_maintenance(
     controller: "ContinuousAutoRate",
     maintenance_conn: Any,
-    maintenance_retention_config: dict,
+    maintenance_retention_config: Mapping[str, Any],
 ) -> None:
     """Run periodic maintenance: cleanup, downsample, vacuum, WAL truncate."""
     maint_logger = controller.wan_controllers[0]["logger"]
@@ -914,8 +919,8 @@ def _run_adaptive_tuning(controller: "ContinuousAutoRate") -> None:
 
 def _handle_sigusr1_reload(
     controller: "ContinuousAutoRate",
-    maintenance_retention_config: dict,
-) -> dict:
+    maintenance_retention_config: Mapping[str, Any],
+) -> Mapping[str, Any]:
     """Handle SIGUSR1 config reload. Returns updated maintenance_retention_config."""
     for wan_info in controller.wan_controllers:
         wan_info["logger"].info("SIGUSR1 received, reloading config")
@@ -924,7 +929,7 @@ def _handle_sigusr1_reload(
     try:
         reload_wan = controller.wan_controllers[0]
         new_storage_config = get_storage_config(reload_wan["config"].data)
-        new_retention = new_storage_config.get("retention")
+        new_retention = new_storage_config["retention"]
         validate_retention_tuner_compat(
             new_retention,
             reload_wan["config"].data.get("tuning"),
@@ -1106,7 +1111,7 @@ def _cleanup_daemon(
 def _run_daemon_loop(
     controller: "ContinuousAutoRate",
     maintenance_conn: Any,
-    maintenance_retention_config: dict,
+    maintenance_retention_config: Mapping[str, Any],
 ) -> None:
     """Main daemon control loop with cycle management, maintenance, and tuning."""
     consecutive_failures = 0

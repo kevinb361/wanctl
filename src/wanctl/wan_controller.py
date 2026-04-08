@@ -1151,22 +1151,22 @@ class WANController:
             return
         if self._irtt_thread is None:
             return
-        healing_cfg = self.config.fusion_config.get("healing", {})
+        healing_cfg = self.config.fusion_config["healing"]
         self._fusion_healer = FusionHealer(
             wan_name=self.wan_name,
-            suspend_threshold=healing_cfg.get("suspend_threshold", 0.3),
-            recover_threshold=healing_cfg.get("recover_threshold", 0.5),
-            suspend_window_sec=healing_cfg.get("suspend_window_sec", 60.0),
-            recover_window_sec=healing_cfg.get("recover_window_sec", 300.0),
-            grace_period_sec=healing_cfg.get("grace_period_sec", 1800.0),
-            cycle_interval_sec=self.config.irtt_config.get("cadence_sec", 10.0),
+            suspend_threshold=healing_cfg["suspend_threshold"],
+            recover_threshold=healing_cfg["recover_threshold"],
+            suspend_window_sec=healing_cfg["suspend_window_sec"],
+            recover_window_sec=healing_cfg["recover_window_sec"],
+            grace_period_sec=healing_cfg["grace_period_sec"],
+            cycle_interval_sec=self.config.irtt_config["cadence_sec"],
             alert_engine=self.alert_engine if isinstance(self.alert_engine, AlertEngine) else None,
             parameter_locks=self._parameter_locks,
         )
         self.logger.info(
             f"{self.wan_name}: FusionHealer initialized "
-            f"(suspend<{healing_cfg.get('suspend_threshold', 0.3)}, "
-            f"recover>{healing_cfg.get('recover_threshold', 0.5)})"
+            f"(suspend<{healing_cfg['suspend_threshold']}, "
+            f"recover>{healing_cfg['recover_threshold']})"
         )
 
     def _compute_fused_rtt(self, filtered_rtt: float) -> float:
