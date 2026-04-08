@@ -737,25 +737,20 @@ class WANController:
                 import time as time_mod
 
                 timestamp = int(time_mod.time())
-                details = json.dumps(
+                details_json = json.dumps(
                     {
                         "host": event["host"],
                         "score": round(event["score"], 3),
                         "event": event["event_type"],
                     }
                 )
-                self._metrics_writer.connection.execute(
-                    "INSERT INTO reflector_events "
-                    "(timestamp, event_type, host, wan_name, score, details) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        timestamp,
-                        event["event_type"],
-                        event["host"],
-                        self.wan_name,
-                        round(event["score"], 3),
-                        details,
-                    ),
+                self._metrics_writer.write_reflector_event(
+                    timestamp,
+                    event["event_type"],
+                    event["host"],
+                    self.wan_name,
+                    round(event["score"], 3),
+                    details_json,
                 )
             except Exception:
                 self.logger.warning(

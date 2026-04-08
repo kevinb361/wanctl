@@ -198,18 +198,11 @@ class AlertEngine:
         if self._writer is None:
             return None
 
-        try:
-            timestamp = int(time.time())
-            details_json = json.dumps(details)
-            cursor = self._writer.connection.execute(
-                "INSERT INTO alerts (timestamp, alert_type, severity, wan_name, details) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (timestamp, alert_type, severity, wan_name, details_json),
-            )
-            return cursor.lastrowid
-        except Exception:
-            logger.warning("Failed to persist alert %s on %s", alert_type, wan_name, exc_info=True)
-            return None
+        timestamp = int(time.time())
+        details_json = json.dumps(details)
+        return self._writer.write_alert(
+            timestamp, alert_type, severity, wan_name, details_json
+        )
 
     def get_active_cooldowns(self) -> dict[tuple[str, str], float]:
         """Return active cooldowns with seconds remaining.
