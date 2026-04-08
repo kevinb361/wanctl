@@ -67,7 +67,7 @@ None.
 
 ### Pending Todos
 
-3 todos in `.planning/todos/pending/`
+12 todos in `.planning/todos/pending/`
 
 ## Session Continuity
 

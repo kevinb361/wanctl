@@ -105,7 +105,10 @@ None
   2. A flent tcp_12down test triggers a burst detection event within 200ms of flow onset
   3. A flent rrul_be test (single-flow normal congestion) does NOT trigger a burst detection event
   4. Burst detection threshold is configurable in YAML and reloadable via SIGUSR1
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 151-01-PLAN.md -- BurstDetector module and unit tests
+- [ ] 151-02-PLAN.md -- WANController integration, config, health, metrics, SIGUSR1
 
 ### Phase 152: Fast-Path Response
 **Goal**: When a burst ramp is detected, the controller immediately jumps to SOFT_RED or RED floor instead of descending gradually, without causing rate oscillation
@@ -136,6 +139,6 @@ Phases execute in numeric order: 151 through 153.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 151. Burst Detection | v1.30 | 0/0 | Not started | - |
+| 151. Burst Detection | v1.30 | 0/2 | Planned | - |
 | 152. Fast-Path Response | v1.30 | 0/0 | Not started | - |
 | 153. Validation & Soak | v1.30 | 0/0 | Not started | - |
