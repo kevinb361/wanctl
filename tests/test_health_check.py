@@ -140,6 +140,7 @@ class TestHealthCheckHandler:
         assert _get_current_state(controller) == "YELLOW"
 
 
+@pytest.mark.timeout(5)
 class TestHealthServer:
     """Integration tests for the health check server."""
 
@@ -163,7 +164,7 @@ class TestHealthServer:
         assert server.thread.is_alive()
 
         server.shutdown()
-        time.sleep(0.1)  # Give thread time to finish
+        server.thread.join(timeout=1)  # Wait for thread to finish
 
     def test_health_endpoint_returns_json(self):
         """Test that /health endpoint returns valid JSON."""

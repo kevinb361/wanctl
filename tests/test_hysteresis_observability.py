@@ -166,11 +166,17 @@ class TestQueueControllerWindowedCounter:
 
     def test_reset_window_updates_start_time(self):
         """reset_window() updates _window_start_time."""
-        qc = _make_qc()
-        old_start = qc._window_start_time
-        time.sleep(0.01)  # Ensure time passes
-        qc.reset_window()
-        assert qc._window_start_time > old_start
+        with patch("wanctl.queue_controller.time") as mock_time:
+            mock_time.time.return_value = 100.0
+            mock_time.monotonic.return_value = 100.0
+            qc = _make_qc()
+            old_start = qc._window_start_time
+
+            # Advance mock time to ensure reset_window sees a later timestamp
+            mock_time.time.return_value = 100.5
+            mock_time.monotonic.return_value = 100.5
+            qc.reset_window()
+            assert qc._window_start_time > old_start
 
     def test_reset_window_resets_congestion_flag(self):
         """reset_window() clears _window_had_congestion."""

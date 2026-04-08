@@ -311,6 +311,7 @@ class TestMetricsRegistryThreadSafety:
 # =============================================================================
 
 
+@pytest.mark.timeout(5)
 class TestMetricsServer:
     """Tests for MetricsServer class."""
 
@@ -391,6 +392,7 @@ class TestMetricsServer:
 # =============================================================================
 
 
+@pytest.mark.timeout(5)
 class TestMetricsHandler:
     """Tests for MetricsHandler HTTP request handling."""
 

@@ -4,7 +4,7 @@ import logging
 import socket
 import subprocess
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -296,16 +296,18 @@ class TestOutageDurationTracking:
         self, logger: logging.Logger
     ) -> None:
         """outage_start_time should NOT be updated on subsequent failures."""
-        state = RouterConnectivityState(logger)
+        with patch("wanctl.router_connectivity.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            state = RouterConnectivityState(logger)
 
-        state.record_failure(TimeoutError("timeout"))
-        first_start = state.outage_start_time
+            state.record_failure(TimeoutError("timeout"))
+            first_start = state.outage_start_time
 
-        # Small delay to ensure monotonic clock advances
-        time.sleep(0.01)
-        state.record_failure(TimeoutError("timeout 2"))
+            # Advance mock time instead of real sleep
+            mock_time.monotonic.return_value = 100.5
+            state.record_failure(TimeoutError("timeout 2"))
 
-        assert state.outage_start_time == first_start
+            assert state.outage_start_time == first_start
 
     def test_get_outage_duration_none_when_reachable(self, logger: logging.Logger) -> None:
         """get_outage_duration() should return None when router is reachable."""
@@ -314,31 +316,36 @@ class TestOutageDurationTracking:
 
     def test_get_outage_duration_returns_elapsed_time(self, logger: logging.Logger) -> None:
         """get_outage_duration() should return elapsed seconds during outage."""
-        state = RouterConnectivityState(logger)
-        state.record_failure(TimeoutError("timeout"))
+        with patch("wanctl.router_connectivity.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            state = RouterConnectivityState(logger)
+            state.record_failure(TimeoutError("timeout"))
 
-        # Small delay so duration > 0
-        time.sleep(0.02)
-        duration = state.get_outage_duration()
+            # Advance mock time instead of real sleep
+            mock_time.monotonic.return_value = 100.5
+            duration = state.get_outage_duration()
 
-        assert duration is not None
-        assert duration >= 0.02
+            assert duration is not None
+            assert duration >= 0.02
 
     def test_record_success_logs_outage_duration(self, mock_logger: MagicMock) -> None:
         """record_success() after failures should log outage duration."""
-        state = RouterConnectivityState(mock_logger)
-        state.record_failure(TimeoutError("timeout"))
-        state.record_failure(TimeoutError("timeout"))
+        with patch("wanctl.router_connectivity.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            state = RouterConnectivityState(mock_logger)
+            state.record_failure(TimeoutError("timeout"))
+            mock_time.monotonic.return_value = 100.1
+            state.record_failure(TimeoutError("timeout"))
 
-        # Small delay so duration is measurable
-        time.sleep(0.01)
-        state.record_success()
+            # Advance mock time instead of real sleep
+            mock_time.monotonic.return_value = 100.5
+            state.record_success()
 
-        # Should have logged reconnection with duration
-        mock_logger.info.assert_called()
-        call_args = mock_logger.info.call_args[0][0]
-        assert "outage" in call_args.lower()
-        assert "2 failures" in call_args
+            # Should have logged reconnection with duration
+            mock_logger.info.assert_called()
+            call_args = mock_logger.info.call_args[0][0]
+            assert "outage" in call_args.lower()
+            assert "2 failures" in call_args
 
     def test_record_success_resets_outage_start_time(self, logger: logging.Logger) -> None:
         """record_success() should reset outage_start_time to None."""
@@ -351,16 +358,18 @@ class TestOutageDurationTracking:
 
     def test_outage_duration_in_to_dict(self, logger: logging.Logger) -> None:
         """to_dict() should include outage_duration_seconds."""
-        state = RouterConnectivityState(logger)
+        with patch("wanctl.router_connectivity.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            state = RouterConnectivityState(logger)
 
-        # When reachable, duration should be None
-        result = state.to_dict()
-        assert "outage_duration_seconds" in result
-        assert result["outage_duration_seconds"] is None
+            # When reachable, duration should be None
+            result = state.to_dict()
+            assert "outage_duration_seconds" in result
+            assert result["outage_duration_seconds"] is None
 
-        # When in outage, duration should be a float
-        state.record_failure(TimeoutError("timeout"))
-        time.sleep(0.01)
-        result = state.to_dict()
-        assert result["outage_duration_seconds"] is not None
-        assert result["outage_duration_seconds"] >= 0.01
+            # When in outage, duration should be a float
+            state.record_failure(TimeoutError("timeout"))
+            mock_time.monotonic.return_value = 100.5
+            result = state.to_dict()
+            assert result["outage_duration_seconds"] is not None
+            assert result["outage_duration_seconds"] >= 0.01

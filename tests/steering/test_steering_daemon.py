@@ -548,7 +548,8 @@ class TestRunDaemonLoop:
 
         def run_cycle_slow():
             call_count[0] += 1
-            time.sleep(0.05)  # 50ms - longer than interval
+            # Simulate slow cycle by advancing mock time past the interval
+            # (the daemon loop uses shutdown_event.wait for sleep timing)
             if call_count[0] >= 2:
                 shutdown_event.set()
             return True

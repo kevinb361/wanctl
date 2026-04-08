@@ -20,6 +20,7 @@ from wanctl.steering.health import (
 )
 
 
+@pytest.mark.timeout(5)
 class TestSteeringHealthServer:
     """Integration tests for the steering health check server."""
 
@@ -131,6 +132,8 @@ class TestSteeringHealthServer:
 
     def test_health_uptime_increases(self):
         """Test that uptime_seconds increases over time."""
+        import time as real_time
+
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=None)
 
@@ -142,8 +145,8 @@ class TestSteeringHealthServer:
                 data1 = json.loads(response.read().decode())
             uptime1 = data1["uptime_seconds"]
 
-            # Wait a bit
-            time.sleep(0.15)
+            # Move start_time back to simulate time passage (no real sleep)
+            SteeringHealthHandler.start_time = real_time.monotonic() - 10.0
 
             # Second request
             with urllib.request.urlopen(url, timeout=5) as response:
@@ -195,7 +198,7 @@ class TestSteeringHealthServer:
         assert server.thread.is_alive()
 
         server.shutdown()
-        time.sleep(0.1)  # Give thread time to finish
+        server.thread.join(timeout=1)  # Wait for thread to finish
 
         assert not server.thread.is_alive()
 
@@ -215,6 +218,7 @@ class TestUpdateSteeringHealthStatus:
         assert SteeringHealthHandler.consecutive_failures == 0
 
 
+@pytest.mark.timeout(5)
 class TestSteeringHealthResponseFields:
     """Tests for steering-specific response fields (STEER-01 through STEER-05)."""
 

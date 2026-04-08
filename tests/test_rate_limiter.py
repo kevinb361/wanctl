@@ -1,6 +1,5 @@
 """Tests for RateLimiter class in rate_utils module - rate limiting for configuration changes."""
 
-import time
 from unittest.mock import patch
 
 import pytest
@@ -73,36 +72,42 @@ class TestCanChange:
 
     def test_old_changes_expire(self):
         """Test that old changes expire from the window."""
-        limiter = RateLimiter(max_changes=2, window_seconds=1)
+        with patch("wanctl.rate_utils.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            limiter = RateLimiter(max_changes=2, window_seconds=1)
 
-        # Record 2 changes (at limit)
-        limiter.record_change()
-        limiter.record_change()
-        assert limiter.can_change() is False
+            # Record 2 changes (at limit)
+            limiter.record_change()
+            limiter.record_change()
+            assert limiter.can_change() is False
 
-        # Wait for window to expire
-        time.sleep(1.1)
+            # Advance time past window (1.1s later)
+            mock_time.monotonic.return_value = 101.1
 
-        # Should be allowed again
-        assert limiter.can_change() is True
+            # Should be allowed again
+            assert limiter.can_change() is True
 
     def test_partial_expiration(self):
         """Test that only old changes expire, not new ones."""
-        limiter = RateLimiter(max_changes=2, window_seconds=1)
+        with patch("wanctl.rate_utils.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            limiter = RateLimiter(max_changes=2, window_seconds=1)
 
-        # Record first change
-        limiter.record_change()
-        time.sleep(0.6)
+            # Record first change at T=100.0
+            limiter.record_change()
 
-        # Record second change (at limit)
-        limiter.record_change()
-        assert limiter.can_change() is False
+            # Advance 0.6s
+            mock_time.monotonic.return_value = 100.6
 
-        # Wait for first to expire, second still valid
-        time.sleep(0.5)
+            # Record second change (at limit)
+            limiter.record_change()
+            assert limiter.can_change() is False
 
-        # Should be allowed (first expired, second still valid)
-        assert limiter.can_change() is True
+            # Advance 0.5s more (T=101.1) - first expired, second still valid
+            mock_time.monotonic.return_value = 101.1
+
+            # Should be allowed (first expired, second still valid)
+            assert limiter.can_change() is True
 
 
 class TestRecordChange:
@@ -160,13 +165,16 @@ class TestChangesRemaining:
 
     def test_changes_remaining_after_expiration(self):
         """Test changes_remaining after some changes expire."""
-        limiter = RateLimiter(max_changes=5, window_seconds=1)
-        for _ in range(5):
-            limiter.record_change()
-        assert limiter.changes_remaining() == 0
+        with patch("wanctl.rate_utils.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            limiter = RateLimiter(max_changes=5, window_seconds=1)
+            for _ in range(5):
+                limiter.record_change()
+            assert limiter.changes_remaining() == 0
 
-        time.sleep(1.1)
-        assert limiter.changes_remaining() == 5
+            # Advance time past window
+            mock_time.monotonic.return_value = 101.1
+            assert limiter.changes_remaining() == 5
 
 
 class TestTimeUntilAvailable:
@@ -197,16 +205,20 @@ class TestTimeUntilAvailable:
 
     def test_time_until_available_decreases(self):
         """Test time_until_available decreases over time."""
-        limiter = RateLimiter(max_changes=1, window_seconds=2)
-        limiter.record_change()
+        with patch("wanctl.rate_utils.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            limiter = RateLimiter(max_changes=1, window_seconds=2)
+            limiter.record_change()
 
-        wait1 = limiter.time_until_available()
-        time.sleep(0.5)
-        wait2 = limiter.time_until_available()
+            wait1 = limiter.time_until_available()
 
-        # Second wait should be ~0.5s less
-        assert wait2 < wait1
-        assert (wait1 - wait2) > 0.4
+            # Advance 0.5s
+            mock_time.monotonic.return_value = 100.5
+            wait2 = limiter.time_until_available()
+
+            # Second wait should be ~0.5s less
+            assert wait2 < wait1
+            assert (wait1 - wait2) > 0.4
 
 
 class TestMonotonicTime:
@@ -245,14 +257,17 @@ class TestEdgeCases:
 
     def test_very_short_window(self):
         """Test rate limiter with very short window."""
-        limiter = RateLimiter(max_changes=10, window_seconds=1)
+        with patch("wanctl.rate_utils.time") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            limiter = RateLimiter(max_changes=10, window_seconds=1)
 
-        for _ in range(10):
-            limiter.record_change()
-        assert limiter.can_change() is False
+            for _ in range(10):
+                limiter.record_change()
+            assert limiter.can_change() is False
 
-        time.sleep(1.1)
-        assert limiter.can_change() is True
+            # Advance time past window
+            mock_time.monotonic.return_value = 101.1
+            assert limiter.can_change() is True
 
     def test_concurrent_like_behavior(self):
         """Test rapid sequential calls (simulating concurrent access)."""

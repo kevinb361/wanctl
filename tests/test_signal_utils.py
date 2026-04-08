@@ -104,19 +104,20 @@ class TestSignalUtils:
     def test_wait_for_shutdown_blocks_then_returns(self):
         """Test wait_for_shutdown blocks until event set or timeout."""
         import threading
-        import time
 
         result_holder = [None]
+        ready = threading.Event()
 
-        def set_event_after_delay():
-            time.sleep(0.02)  # 20ms delay
+        def set_event_after_ready():
+            ready.wait(timeout=1.0)  # Wait until main thread is ready
             _shutdown_event.set()
 
-        # Start thread to set event after delay
-        thread = threading.Thread(target=set_event_after_delay)
+        # Start thread to set event once main thread signals readiness
+        thread = threading.Thread(target=set_event_after_ready)
         thread.start()
 
-        # Wait should return True when event is set
+        # Signal the thread to set the shutdown event, then wait
+        ready.set()
         result = wait_for_shutdown(timeout=0.5)  # 500ms max timeout
         result_holder[0] = result
 

@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from unittest.mock import patch
 
 import pytest
 
@@ -168,12 +169,13 @@ class TestConfigSnapshot:
         """Verify multiple snapshots can be ordered by value (timestamp)."""
         db_path, writer = temp_db
 
-        # Record multiple snapshots
-        record_config_snapshot(writer, "spectrum", {}, "startup")
-        import time
+        # Record multiple snapshots with deterministic time ordering
+        with patch("wanctl.storage.config_snapshot.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            record_config_snapshot(writer, "spectrum", {}, "startup")
 
-        time.sleep(0.01)  # Small delay to ensure different timestamps
-        record_config_snapshot(writer, "spectrum", {}, "reload")
+            mock_time.time.return_value = 1001.0  # 1s later
+            record_config_snapshot(writer, "spectrum", {}, "reload")
 
         # Verify ordering
         conn = sqlite3.connect(db_path)
