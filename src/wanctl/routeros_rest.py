@@ -296,7 +296,7 @@ class RouterOSREST:
         Returns:
             Extracted comment string, or None if pattern not found
         """
-        match = re.search(r'\[find comment="([^"]+)"\]', cmd)
+        match = re.search(r'\[find comment[~=]"([^"]+)"\]', cmd)
         return match.group(1) if match else None
 
     def _parse_parameters(self, cmd: str) -> dict[str, str]:
@@ -587,6 +587,10 @@ class RouterOSREST:
     ) -> str | None:
         """Find mangle rule ID by comment.
 
+        Fetches all mangle rules and filters client-side because the MikroTik
+        REST API does not reliably filter by comment (special characters in
+        comments like colons cause empty results with query params).
+
         Args:
             comment: Comment of the rule
             use_cache: Whether to use cached ID (default True)
@@ -595,14 +599,24 @@ class RouterOSREST:
         Returns:
             Rule ID or None if not found
         """
-        return self._find_resource_id(
-            endpoint="ip/firewall/mangle",
-            filter_key="comment",
-            filter_value=comment,
-            cache=self._mangle_id_cache,
-            use_cache=use_cache,
-            timeout=timeout,
-        )
+        timeout_val = timeout if timeout is not None else self.timeout
+
+        if use_cache and comment in self._mangle_id_cache:
+            return self._mangle_id_cache[comment]
+
+        url = f"{self.base_url}/ip/firewall/mangle"
+        try:
+            resp = self._request("GET", url, timeout=timeout_val)
+            if resp.ok:
+                for rule in resp.json():
+                    if rule.get("comment") == comment:
+                        rule_id = rule.get(".id")
+                        if rule_id and use_cache:
+                            self._mangle_id_cache[comment] = rule_id
+                        return rule_id
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error finding mangle rule: {e}")
+        return None
 
     def set_queue_limit(self, queue_name: str, max_limit: int) -> bool:
         """Set queue tree max-limit directly via REST API.

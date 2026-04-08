@@ -780,29 +780,49 @@ class RouterOSController:
 
     def get_rule_status(self) -> bool | None:
         """
-        Check if adaptive steering rule is enabled
-        Returns: True if enabled, False if disabled, None on error
+        Check if adaptive steering rule is enabled.
+        Returns: True if enabled, False if disabled, None on error.
+
+        Uses the underlying client's find_mangle_rule_id + direct REST query
+        when available, falling back to CLI text parsing for SSH transport.
         """
+        # Try REST-aware path first (works with both REST and failover clients)
+        _get = getattr(self.client, "_get_primary", None)
+        underlying = _get() if _get else self.client
+        if hasattr(underlying, "find_mangle_rule_id"):
+            try:
+                rule_id = underlying.find_mangle_rule_id(
+                    self.config.mangle_rule_comment, timeout=5
+                )
+                if rule_id is None:
+                    self.logger.error("Mangle rule not found for status check")
+                    return None
+                import requests
+                url = f"{underlying.base_url}/ip/firewall/mangle/{rule_id}"
+                resp = underlying._request("GET", url, timeout=5)
+                if resp.ok:
+                    disabled = resp.json().get("disabled", "true")
+                    is_enabled = disabled in (False, "false")
+                    self.logger.debug(f"Rule {rule_id} enabled={is_enabled}")
+                    return is_enabled
+            except Exception as e:
+                self.logger.debug(f"REST status check failed, trying CLI: {e}")
+
+        # Fallback: CLI text parsing (SSH transport)
         rc, out, _ = self.client.run_cmd(
             f'/ip firewall mangle print where comment~"{self.config.mangle_rule_comment}"',
             capture=True,
-            timeout=5,  # Fast query operation
+            timeout=5,
         )
 
         if rc != 0:
             self.logger.error("Failed to read mangle rule status")
             return None
 
-        # Parse output - look for X flag in rule line (not in Flags legend)
-        # Disabled rule: " 4 X  ;;; comment"
-        # Enabled rule:  " 4    ;;; comment"
         lines = out.split("\n")
         for line in lines:
             if "ADAPTIVE" in line and ";;;" in line:
-                # Found the rule line - check for X flag between number and comment
-                # Split on ;;; to get the prefix part with flags
                 prefix = line.split(";;;")[0] if ";;;" in line else line
-                # Check if X appears in the prefix (after rule number)
                 if " X " in prefix or "\tX\t" in prefix or "\tX " in prefix or " X\t" in prefix:
                     self.logger.debug(f"Rule is DISABLED: {line[:60]}")
                     return False
