@@ -82,7 +82,7 @@ None
 - [x] **Phase 146: Test Cleanup & Organization** - Remove redundant tests, restructure directories, consolidate fixtures (completed 2026-04-06)
 - [x] **Phase 147: Interface Decoupling** - Reduce tight coupling between modules with cleaner interfaces (gap closure in progress) (completed 2026-04-08)
 - [x] **Phase 148: Test Robustness & Performance** - Replace brittle mocks, profile and speed up slow tests (completed 2026-04-08)
-- [ ] **Phase 149: Type Annotations & Protocols** - Add missing type annotations, use Protocol/ABC patterns
+- [x] **Phase 149: Type Annotations & Protocols** - Add missing type annotations, use Protocol/ABC patterns (completed 2026-04-08)
 - [ ] **Phase 150: Linting Strictness** - Enable stricter mypy rules and additional ruff rules
 
 ## Phase Details
@@ -234,5 +234,5 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 | 146. Test Cleanup & Organization | v1.29 | 3/3 | Complete    | 2026-04-06 |
 | 147. Interface Decoupling | v1.29 | 5/5 | Complete    | 2026-04-08 |
 | 148. Test Robustness & Performance | v1.29 | 3/3 | Complete    | 2026-04-08 |
-| 149. Type Annotations & Protocols | v1.29 | 0/? | Not started | - |
+| 149. Type Annotations & Protocols | v1.29 | 2/2 | Complete    | 2026-04-08 |
 | 150. Linting Strictness | v1.29 | 0/? | Not started | - |
