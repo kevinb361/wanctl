@@ -26,6 +26,8 @@ class TestHandleIcmpFailure:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -362,6 +364,8 @@ class TestIcmpRecovery:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -455,6 +459,8 @@ class TestApplyRateChangesIfNeeded:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -890,6 +896,8 @@ class TestUpdateBaselineIfIdle:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -1014,6 +1022,8 @@ class TestDualFallbackFailure:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -1128,6 +1138,8 @@ class TestIcmpRecoveryExtended:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -1194,6 +1206,8 @@ class TestRunCycleMetrics:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         return router
 
     @pytest.fixture
@@ -1324,6 +1338,8 @@ class TestVerifyLocalConnectivity:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 
@@ -1462,6 +1478,8 @@ class TestVerifyTcpConnectivity:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 
@@ -1633,6 +1651,8 @@ class TestVerifyConnectivityFallback:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 
@@ -1788,6 +1808,8 @@ class TestStateLoadSave:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 
@@ -2051,6 +2073,8 @@ class TestMeasureRttMedianOfThree:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 
@@ -2246,6 +2270,8 @@ class TestBaselineRttBoundsRejection:
 
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
         rtt_measurement = MagicMock()
         logger = MagicMock()
 

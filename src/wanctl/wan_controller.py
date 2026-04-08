@@ -71,9 +71,6 @@ from wanctl.wan_controller_state import WANControllerState
 # takes ~80 cycles = 4 seconds
 CYCLE_INTERVAL_SECONDS = 0.05
 
-# Rate limiter defaults (protects router API during instability)
-DEFAULT_RATE_LIMIT_MAX_CHANGES = 10  # Max changes per window
-DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 
 
@@ -340,14 +337,21 @@ class WANController:
     def _init_flash_wear_protection(self) -> None:
         """Initialize flash wear protection, rate limiter, and fallback tracking."""
         # Flash wear protection: only send updates when rates change
+        # RATE-04: Skip-identical guard stays on ALL transports
         self.last_applied_dl_rate: int | None = None
         self.last_applied_ul_rate: int | None = None
 
-        # Rate limiter: protect router API during instability
-        self.rate_limiter = RateLimiter(
-            max_changes=DEFAULT_RATE_LIMIT_MAX_CHANGES,
-            window_seconds=DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
-        )
+        # Rate limiter: conditional on transport backend (D-06, D-12)
+        # linux-cake writes to kernel memory -- no rate limiting needed
+        # REST/SSH writes to RouterOS API -- rate limiting protects responsiveness
+        if self.router.needs_rate_limiting:
+            params = self.router.rate_limit_params
+            self.rate_limiter: RateLimiter | None = RateLimiter(
+                max_changes=params["max_changes"],
+                window_seconds=params["window_seconds"],
+            )
+        else:
+            self.rate_limiter = None
         self._rate_limit_logged = False
 
         # Fallback connectivity tracking (ICMP filtered but WAN works)
@@ -984,15 +988,16 @@ class WANController:
 
         # =====================================================================
         # PROTECTED: Rate limiting prevents RouterOS API overload (RB5009 limit ~50 req/sec).
-        # See docs/CORE-ALGORITHM-ANALYSIS.md.
+        # When rate_limiter is None (linux-cake), this block is skipped entirely (RATE-02, RATE-05).
         # =====================================================================
-        if not self.rate_limiter.can_change():
+        if self.rate_limiter is not None and not self.rate_limiter.can_change():
             # Log once when entering throttled state (not every cycle)
             if not self._rate_limit_logged:
                 wait_time = self.rate_limiter.time_until_available()
                 self.logger.debug(
-                    f"{self.wan_name}: Rate limit active (>{DEFAULT_RATE_LIMIT_MAX_CHANGES} "
-                    f"changes/{DEFAULT_RATE_LIMIT_WINDOW_SECONDS}s), throttling updates "
+                    f"{self.wan_name}: Rate limit active "
+                    f"(>{self.rate_limiter.max_changes} changes/"
+                    f"{self.rate_limiter.window_seconds}s), throttling updates "
                     f"(next slot in {wait_time:.1f}s)"
                 )
                 self._rate_limit_logged = True
@@ -1010,8 +1015,9 @@ class WANController:
             self.logger.error(f"{self.wan_name}: Failed to apply limits")
             return False
 
-        # Record successful change for rate limiting
-        self.rate_limiter.record_change()
+        # Record successful change for rate limiting (only when rate limiter active)
+        if self.rate_limiter is not None:
+            self.rate_limiter.record_change()
         self._rate_limit_logged = False  # Reset so we log next throttle window
 
         # Record metrics for router update
