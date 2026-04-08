@@ -2044,8 +2044,8 @@ class WANController:
             if self._dl_congestion_start is None:
                 self._dl_congestion_start = now
             elif not self._dl_sustained_fired:
-                sustained_sec = self.alert_engine._rules.get("congestion_sustained_dl", {}).get(
-                    "sustained_sec", self._sustained_sec
+                sustained_sec = self.alert_engine.get_rule_param(
+                    "congestion_sustained_dl", "sustained_sec", self._sustained_sec
                 )
                 duration = now - self._dl_congestion_start
                 if duration >= sustained_sec:
@@ -2093,8 +2093,8 @@ class WANController:
             if self._ul_congestion_start is None:
                 self._ul_congestion_start = now
             elif not self._ul_sustained_fired:
-                sustained_sec = self.alert_engine._rules.get("congestion_sustained_ul", {}).get(
-                    "sustained_sec", self._sustained_sec
+                sustained_sec = self.alert_engine.get_rule_param(
+                    "congestion_sustained_ul", "sustained_sec", self._sustained_sec
                 )
                 duration = now - self._ul_congestion_start
                 if duration >= sustained_sec:
@@ -2145,9 +2145,8 @@ class WANController:
         now = time.monotonic()
 
         # --- Upstream loss (send_loss) ---
-        up_rule = self.alert_engine._rules.get("irtt_loss_upstream", {})
-        up_threshold = up_rule.get("loss_threshold_pct", self._irtt_loss_threshold_pct)
-        up_sustained = up_rule.get("sustained_sec", self._sustained_sec)
+        up_threshold = self.alert_engine.get_rule_param("irtt_loss_upstream", "loss_threshold_pct", self._irtt_loss_threshold_pct)
+        up_sustained = self.alert_engine.get_rule_param("irtt_loss_upstream", "sustained_sec", self._sustained_sec)
 
         if irtt_result.send_loss >= up_threshold:
             if self._irtt_loss_up_start is None:
@@ -2185,9 +2184,8 @@ class WANController:
                 self._irtt_loss_up_fired = False
 
         # --- Downstream loss (receive_loss) ---
-        down_rule = self.alert_engine._rules.get("irtt_loss_downstream", {})
-        down_threshold = down_rule.get("loss_threshold_pct", self._irtt_loss_threshold_pct)
-        down_sustained = down_rule.get("sustained_sec", self._sustained_sec)
+        down_threshold = self.alert_engine.get_rule_param("irtt_loss_downstream", "loss_threshold_pct", self._irtt_loss_threshold_pct)
+        down_sustained = self.alert_engine.get_rule_param("irtt_loss_downstream", "sustained_sec", self._sustained_sec)
 
         if irtt_result.receive_loss >= down_threshold:
             if self._irtt_loss_down_start is None:
@@ -2243,8 +2241,8 @@ class WANController:
                 self._connectivity_offline_start = now
             elif not self._wan_offline_fired:
                 # Check per-rule sustained_sec override
-                sustained_sec = self.alert_engine._rules.get("wan_offline", {}).get(
-                    "sustained_sec", self._sustained_sec
+                sustained_sec = self.alert_engine.get_rule_param(
+                    "wan_offline", "sustained_sec", self._sustained_sec
                 )
                 duration = now - self._connectivity_offline_start
                 if duration >= sustained_sec:
@@ -2295,8 +2293,8 @@ class WANController:
         drift_pct = abs(self.baseline_rtt - reference) / reference * 100.0
 
         # Per-rule threshold override (default 50%)
-        threshold = self.alert_engine._rules.get("baseline_drift", {}).get(
-            "drift_threshold_pct", 50
+        threshold = self.alert_engine.get_rule_param(
+            "baseline_drift", "drift_threshold_pct", 50
         )
 
         if drift_pct >= threshold:
@@ -2325,10 +2323,9 @@ class WANController:
         now = time.monotonic()
 
         # Shared config rule for both DL and UL flapping
-        flap_rule = self.alert_engine._rules.get("congestion_flapping", {})
-        flap_window = flap_rule.get("flap_window_sec", 120)
-        flap_threshold = flap_rule.get("flap_threshold", 30)
-        flap_severity = flap_rule.get("severity", "warning")
+        flap_window = self.alert_engine.get_rule_param("congestion_flapping", "flap_window_sec", 120)
+        flap_threshold = self.alert_engine.get_rule_param("congestion_flapping", "flap_threshold", 30)
+        flap_severity = self.alert_engine.get_rule_param("congestion_flapping", "severity", "warning")
 
         # Dwell filter: only count transitions where departing zone was held
         # long enough to be a real state, not a single-cycle blip.

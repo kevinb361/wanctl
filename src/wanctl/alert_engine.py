@@ -68,6 +68,10 @@ class AlertEngine:
         self._fire_count: int = 0
         self._rule_key_map: dict[str, str] = {}
 
+    def get_rule_param(self, rule_key: str, param: str, default: Any = None) -> Any:
+        """Return a single parameter from a rule's config dict."""
+        return self._rules.get(rule_key, {}).get(param, default)
+
     # =========================================================================
     # PUBLIC FACADE API
     # =========================================================================
