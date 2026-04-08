@@ -191,7 +191,11 @@ Plans:
   2. Full test suite runs in under 60 seconds (or 20%+ faster than baseline, whichever is more achievable)
   3. No test is marked flaky or requires retry to pass
   4. All existing tests pass (behavioral coverage preserved)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 148-01-PLAN.md -- Install xdist+timeout, configure pyproject.toml/Makefile, Prometheus reset fixture, fix 7 alert_engine MagicMock failures, create brittleness CI script
+- [ ] 148-02-PLAN.md -- Retarget 22 cross-module private patches across 6 test files to Phase 147 public APIs
+- [ ] 148-03-PLAN.md -- Eliminate real time.sleep() from tests, tighten brittleness to 0, xdist isolation gate
 
 ### Phase 149: Type Annotations & Protocols
 **Goal**: Every public function signature has complete type annotations and abstract interfaces use proper Protocol/ABC patterns
@@ -229,6 +233,6 @@ Note: Phase 146 depends on Phase 144 (not 145), so 146 could theoretically run a
 | 145. Method Extraction & Simplification | v1.29 | 6/6 | Complete    | 2026-04-06 |
 | 146. Test Cleanup & Organization | v1.29 | 3/3 | Complete    | 2026-04-06 |
 | 147. Interface Decoupling | v1.29 | 5/5 | Complete    | 2026-04-08 |
-| 148. Test Robustness & Performance | v1.29 | 0/? | Not started | - |
+| 148. Test Robustness & Performance | v1.29 | 0/3 | Not started | - |
 | 149. Type Annotations & Protocols | v1.29 | 0/? | Not started | - |
 | 150. Linting Strictness | v1.29 | 0/? | Not started | - |
