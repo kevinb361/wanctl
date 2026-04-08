@@ -429,6 +429,47 @@ class Config(BaseConfig):
         self.router_port = router.get("port", 443)
         self.router_verify_ssl = router.get("verify_ssl", True)
 
+    def _load_rate_limiter_config(self) -> None:
+        """Load rate limiter settings from router.rate_limiter YAML section.
+
+        Per D-08: YAML-overridable under router.rate_limiter with keys:
+          max_changes (int): Max API changes per window. Must be positive.
+          window_seconds (int): Sliding window duration. Must be positive.
+          enabled (bool): Whether rate limiting is active. Default True.
+
+        Invalid values log a warning and are excluded (backend defaults apply).
+        """
+        router = self.data.get("router", {})
+        rl = router.get("rate_limiter", {})
+        if not isinstance(rl, dict):
+            rl = {}
+        validated: dict[str, int | bool] = {}
+        logger = logging.getLogger(__name__)
+
+        if "enabled" in rl:
+            val = rl["enabled"]
+            if isinstance(val, bool):
+                validated["enabled"] = val
+            else:
+                logger.warning(
+                    "router.rate_limiter.enabled must be bool, got %s -- ignoring",
+                    type(val).__name__,
+                )
+
+        for key in ("max_changes", "window_seconds"):
+            if key in rl:
+                val = rl[key]
+                if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+                    validated[key] = val
+                else:
+                    logger.warning(
+                        "router.rate_limiter.%s must be positive int, got %r -- ignoring",
+                        key,
+                        val,
+                    )
+
+        self.rate_limiter_config: dict[str, int | bool] = validated
+
     def _load_state_config(self) -> None:
         """Load state file path from config, falling back to lock-derived path."""
         explicit = self.data.get("state_file")
@@ -1226,6 +1267,9 @@ class Config(BaseConfig):
 
         # Router transport (SSH or REST)
         self._load_router_transport_config()
+
+        # Rate limiter (optional, YAML-overridable under router.rate_limiter)
+        self._load_rate_limiter_config()
 
         # State file (derived from lock_file set by BaseConfig)
         self._load_state_config()
