@@ -2063,7 +2063,7 @@ class SteeringDaemon:
     ) -> None:
         """Append per-tin CAKE metrics to batch (CAKE-07 observability)."""
         if not (
-            getattr(self.cake_reader, "is_linux_cake", False)
+            getattr(self.cake_reader, "_is_linux_cake", False)
             and self.cake_reader.last_tin_stats
         ):
             return

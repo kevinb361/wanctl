@@ -116,11 +116,6 @@ class CakeStatsReader:
         #   - Correctly handles counter overflow at 2^64 (Python handles subtraction correctly)
         self.previous_stats: dict[str, CakeStats] = {}  # queue_name -> CakeStats
 
-    @property
-    def is_linux_cake(self) -> bool:
-        """Whether backend is linux-cake (for tin distribution display)."""
-        return self._is_linux_cake
-
     def _parse_json_response(self, out: str, queue_name: str) -> CakeStats | None:
         """
         Parse CAKE stats from REST API JSON response.

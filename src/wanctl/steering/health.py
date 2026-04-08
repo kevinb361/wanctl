@@ -209,7 +209,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             if hasattr(self.daemon, "cake_reader")
             else None
         )
-        if raw_tin_stats and getattr(self.daemon.cake_reader, "is_linux_cake", False):
+        if raw_tin_stats and getattr(self.daemon.cake_reader, "_is_linux_cake", False):
             from wanctl.backends.linux_cake import TIN_NAMES
 
             tins_list = []

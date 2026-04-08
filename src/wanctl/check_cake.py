@@ -687,7 +687,7 @@ def _evaluate_single_tin(
 def check_mangle_rule(client: object, mangle_comment: str) -> list[CheckResult]:
     """Verify steering mangle rule exists on router.
 
-    For REST: uses client.find_mangle_rule_id(comment).
+    For REST: uses client._find_mangle_rule_id(comment).
     For SSH: runs mangle print with comment filter.
 
     Returns list of CheckResult.
@@ -695,8 +695,8 @@ def check_mangle_rule(client: object, mangle_comment: str) -> list[CheckResult]:
     results: list[CheckResult] = []
 
     try:
-        if hasattr(client, "find_mangle_rule_id"):
-            rule_id = client.find_mangle_rule_id(mangle_comment)
+        if hasattr(client, "_find_mangle_rule_id"):
+            rule_id = client._find_mangle_rule_id(mangle_comment)
             found = rule_id is not None
         else:
             # SSH fallback

@@ -12,7 +12,7 @@ coverage:
 
 # Run tests with coverage enforcement (used by CI)
 coverage-check:
-	.venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90
+	.venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90 -p no:randomly
 
 # Linting
 lint:
@@ -27,7 +27,7 @@ format:
 	.venv/bin/ruff format src/ tests/
 
 # All CI checks (lint, type, coverage, dead-code, check-deps)
-ci: lint type coverage-check dead-code check-deps check-boundaries
+ci: lint type coverage-check dead-code check-deps check-boundaries check-brittleness
 
 # Dead code detection (vulture + ruff F401)
 dead-code:
@@ -55,6 +55,10 @@ check-deps:
 	else \
 	    echo "All runtime dependencies are imported"; \
 	fi
+
+# Check cross-module private mock brittleness in test files
+check-brittleness:
+	.venv/bin/python scripts/check_test_brittleness.py tests/ --threshold 3
 
 # Check cross-module private attribute access (AST-based boundary enforcement)
 check-boundaries:

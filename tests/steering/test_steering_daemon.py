@@ -2355,7 +2355,7 @@ class TestBaselineLoader:
         assert wan_zone == "RED", "Fresh file should return actual zone"
 
     def test_is_wan_zone_stale_true_for_old_file(self, tmp_path, mock_config, mock_logger):
-        """is_wan_zone_stale returns True when file age > 5s."""
+        """_is_wan_zone_stale returns True when file age > 5s."""
         import os
 
         from wanctl.steering.daemon import BaselineLoader
@@ -2371,7 +2371,7 @@ class TestBaselineLoader:
         assert loader.is_wan_zone_stale() is True
 
     def test_is_wan_zone_stale_true_for_oserror(self, tmp_path, mock_config, mock_logger):
-        """is_wan_zone_stale returns True when stat() raises OSError."""
+        """_is_wan_zone_stale returns True when stat() raises OSError."""
         from wanctl.steering.daemon import BaselineLoader
 
         # Point to nonexistent file
@@ -2381,7 +2381,7 @@ class TestBaselineLoader:
         assert loader.is_wan_zone_stale() is True
 
     def test_is_wan_zone_stale_false_for_fresh_file(self, tmp_path, mock_config, mock_logger):
-        """is_wan_zone_stale returns False when file age < 5s."""
+        """_is_wan_zone_stale returns False when file age < 5s."""
         from wanctl.steering.daemon import BaselineLoader
 
         state_file = tmp_path / "spectrum_state.json"
@@ -4147,7 +4147,7 @@ thresholds: {}
                         with patch("wanctl.steering.daemon.start_steering_health_server"):
                             with patch("wanctl.steering.daemon.run_daemon_loop", return_value=0):
                                 with patch("wanctl.steering.daemon.MetricsWriter") as mock_mw_cls:
-                                    mock_mw_cls.get_instance.return_value = mock_writer
+                                    mock_mw_cls._instance = mock_writer
                                     main()
 
         mock_writer.close.assert_called_once()
@@ -4180,7 +4180,7 @@ thresholds: {}
                         patch("wanctl.steering.daemon.run_daemon_loop", return_value=0),
                         patch("wanctl.steering.daemon.MetricsWriter") as mock_mw_cls,
                     ):
-                        mock_mw_cls.get_instance.return_value = mock_writer
+                        mock_mw_cls._instance = mock_writer
                         result = main()
 
         # Despite router close error, MetricsWriter and state save should still be called
@@ -4954,8 +4954,8 @@ class TestWanGracePeriodAndGating:
     """Tests for WAN grace period timer, enabled gate, and config weight wiring.
 
     Covers:
-    - is_wan_grace_period_active() returns True during first 30s
-    - get_effective_wan_zone() returns None when disabled or grace active
+    - _is_wan_grace_period_active() returns True during first 30s
+    - _get_effective_wan_zone() returns None when disabled or grace active
     - update_state_machine() passes effective wan_zone to ConfidenceSignals
     - Config weights passed through to compute_confidence() via evaluate()
     """
@@ -5033,25 +5033,25 @@ class TestWanGracePeriodAndGating:
 
     def test_grace_period_active_during_startup(self, daemon):
         """Grace period should be active immediately after startup."""
-        assert daemon.is_wan_grace_period_active() is True
+        assert daemon._is_wan_grace_period_active() is True
 
     def test_grace_period_expired_after_threshold(self, daemon):
         """Grace period should be inactive after grace_period_sec."""
         # Simulate time passing beyond grace period
         daemon._startup_time = time.monotonic() - 35.0
-        assert daemon.is_wan_grace_period_active() is False
+        assert daemon._is_wan_grace_period_active() is False
 
     def test_effective_wan_zone_none_during_grace(self, daemon):
         """During grace period, effective WAN zone should be None."""
         daemon._wan_zone = "RED"
         # Grace period is active (daemon just created)
-        assert daemon.get_effective_wan_zone() is None
+        assert daemon._get_effective_wan_zone() is None
 
     def test_effective_wan_zone_used_after_grace(self, daemon):
         """After grace period, effective WAN zone should be the actual zone."""
         daemon._wan_zone = "RED"
         daemon._startup_time = time.monotonic() - 35.0
-        assert daemon.get_effective_wan_zone() == "RED"
+        assert daemon._get_effective_wan_zone() == "RED"
 
     def test_effective_wan_zone_none_when_disabled(self):
         """When wan_state_config is None, effective WAN zone should be None."""
@@ -5089,7 +5089,7 @@ class TestWanGracePeriodAndGating:
             )
 
         daemon._wan_zone = "RED"
-        assert daemon.get_effective_wan_zone() is None
+        assert daemon._get_effective_wan_zone() is None
 
     def test_effective_wan_zone_none_when_enabled_false(self):
         """When wan_state_config has enabled=False, effective WAN zone should be None."""
@@ -5128,10 +5128,10 @@ class TestWanGracePeriodAndGating:
             )
 
         daemon._wan_zone = "RED"
-        assert daemon.get_effective_wan_zone() is None
+        assert daemon._get_effective_wan_zone() is None
 
     def test_update_state_machine_uses_effective_wan_zone(self, daemon, mock_state_mgr):
-        """update_state_machine should use get_effective_wan_zone() for ConfidenceSignals."""
+        """update_state_machine should use _get_effective_wan_zone() for ConfidenceSignals."""
         from wanctl.steering.cake_stats import CongestionSignals
 
         daemon._wan_zone = "RED"
@@ -5142,8 +5142,8 @@ class TestWanGracePeriodAndGating:
             queued_packets=10,
         )
 
-        # Spy on get_effective_wan_zone to verify it was called
-        with patch.object(daemon, "get_effective_wan_zone", return_value=None) as mock_gate:
+        # Spy on _get_effective_wan_zone to verify it was called
+        with patch.object(daemon, "_get_effective_wan_zone", return_value=None) as mock_gate:
             daemon.update_state_machine(signals)
             mock_gate.assert_called_once()
 

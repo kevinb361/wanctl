@@ -543,7 +543,7 @@ class TestMeasureRTTReflectorScoring:
         controller._reflector_scorer.maybe_probe.assert_called_once()
 
     def test_persist_reflector_events_writes_sqlite(self, controller):
-        """_persist_reflector_events should write events via MetricsWriter.write_reflector_event()."""
+        """_persist_reflector_events should write events to SQLite via MetricsWriter."""
         controller._reflector_scorer = MagicMock()
         controller._reflector_scorer.drain_events.return_value = [
             {"event_type": "deprioritized", "host": "8.8.8.8", "score": 0.6},
@@ -553,12 +553,13 @@ class TestMeasureRTTReflectorScoring:
 
         controller._persist_reflector_events()
 
-        # Verify write_reflector_event was called via public API
-        mock_writer.write_reflector_event.assert_called_once()
-        call_args = mock_writer.write_reflector_event.call_args
-        # Positional args: (timestamp, event_type, host, wan_name, score, details_json)
-        assert call_args[0][1] == "deprioritized"  # event_type
-        assert call_args[0][2] == "8.8.8.8"  # host
+        # Verify INSERT was called
+        mock_writer.connection.execute.assert_called_once()
+        call_args = mock_writer.connection.execute.call_args
+        assert "INSERT INTO reflector_events" in call_args[0][0]
+        params = call_args[0][1]
+        assert params[1] == "deprioritized"  # event_type
+        assert params[2] == "8.8.8.8"  # host
 
     def test_persist_reflector_events_no_writer(self, controller):
         """_persist_reflector_events should not crash when _metrics_writer is None."""

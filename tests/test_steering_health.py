@@ -1,6 +1,7 @@
 """Tests for the steering health check HTTP endpoint."""
 
 import json
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -8,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.helpers import find_free_port
 from wanctl import __version__
 from wanctl.perf_profiler import OperationProfiler
 from wanctl.steering.health import (
@@ -18,6 +18,50 @@ from wanctl.steering.health import (
     start_steering_health_server,
     update_steering_health_status,
 )
+
+
+def _make_health_data(
+    *,
+    wan_enabled: bool = False,
+    wan_zone: str | None = None,
+    effective_zone: str | None = None,
+    grace_period_active: bool = False,
+    zone_age: float | None = None,
+    stale: bool = False,
+    red_weight: int | None = None,
+    soft_red_weight: int | None = None,
+    profiler: OperationProfiler | None = None,
+    overrun_count: int = 0,
+    cycle_interval_ms: float = 50.0,
+) -> dict:
+    """Build a get_health_data() return dict for mock SteeringDaemon."""
+    if profiler is None:
+        profiler = OperationProfiler(max_samples=1200)
+
+    wan_awareness: dict = {"enabled": wan_enabled, "zone": wan_zone}
+    if wan_enabled:
+        wan_awareness["effective_zone"] = effective_zone
+        wan_awareness["grace_period_active"] = grace_period_active
+        wan_awareness["zone_age"] = zone_age
+        wan_awareness["stale"] = stale
+        wan_awareness["red_weight"] = red_weight
+        wan_awareness["soft_red_weight"] = soft_red_weight
+
+    return {
+        "cycle_budget": {
+            "profiler": profiler,
+            "overrun_count": overrun_count,
+            "cycle_interval_ms": cycle_interval_ms,
+        },
+        "wan_awareness": wan_awareness,
+    }
+
+
+def find_free_port() -> int:
+    """Find a free port for testing."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 class TestSteeringHealthServer:
@@ -242,8 +286,7 @@ class TestSteeringHealthResponseFields:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
+        daemon.get_health_data.return_value = _make_health_data()
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -502,8 +545,7 @@ class TestSteeringHealthLifecycle:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
+        daemon.get_health_data.return_value = _make_health_data()
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -716,8 +758,7 @@ class TestSteeringRouterConnectivityReporting:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
+        daemon.get_health_data.return_value = _make_health_data()
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -858,8 +899,6 @@ class TestSteeringCycleBudget:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",
@@ -876,14 +915,16 @@ class TestSteeringCycleBudget:
             "last_failure_time": None,
         }
 
-        # Set profiler attributes (from Plan 01)
-        daemon._profiler = OperationProfiler(max_samples=1200)
-        daemon._overrun_count = overrun_count
-        daemon._cycle_interval_ms = 50.0
-
+        # Build profiler for get_health_data() facade
+        profiler = OperationProfiler(max_samples=1200)
         if with_profiler_data:
             for val in [29.0, 30.0, 31.0, 32.0, 33.0, 28.0, 27.0, 31.5, 30.5, 29.5]:
-                daemon._profiler.record("steering_cycle_total", val)
+                profiler.record("steering_cycle_total", val)
+
+        daemon.get_health_data.return_value = _make_health_data(
+            profiler=profiler,
+            overrun_count=overrun_count,
+        )
 
         return daemon
 
@@ -1114,15 +1155,17 @@ class TestWanAwarenessHealth:
             "last_failure_type": None,
             "last_failure_time": None,
         }
-        # WAN awareness attributes (enabled by default)
-        daemon._wan_state_enabled = True
-        daemon._wan_zone = "RED"
-        daemon._wan_red_weight = None  # use class constant
-        daemon._wan_soft_red_weight = None  # use class constant
-        daemon._get_effective_wan_zone.return_value = "RED"
-        daemon._is_wan_grace_period_active.return_value = False
-        daemon.baseline_loader._get_wan_zone_age.return_value = 2.3
-        daemon.baseline_loader._is_wan_zone_stale.return_value = False
+        # WAN awareness via get_health_data() facade (enabled by default)
+        daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            grace_period_active=False,
+            zone_age=2.3,
+            stale=False,
+            red_weight=None,
+            soft_red_weight=None,
+        )
         return daemon
 
     def test_wan_awareness_enabled_with_all_fields(self, mock_daemon):
@@ -1149,8 +1192,9 @@ class TestWanAwarenessHealth:
 
     def test_wan_awareness_disabled_shows_raw_zone(self, mock_daemon):
         """Test health response shows enabled=false with raw zone when disabled."""
-        mock_daemon._wan_state_enabled = False
-        mock_daemon._wan_zone = "YELLOW"
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=False, wan_zone="YELLOW",
+        )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
@@ -1170,8 +1214,14 @@ class TestWanAwarenessHealth:
 
     def test_wan_awareness_grace_period_active(self, mock_daemon):
         """Test grace_period_active=true during startup grace period, effective_zone=None."""
-        mock_daemon._is_wan_grace_period_active.return_value = True
-        mock_daemon._get_effective_wan_zone.return_value = None
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone=None,
+            grace_period_active=True,
+            zone_age=2.3,
+            stale=False,
+        )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
@@ -1189,9 +1239,14 @@ class TestWanAwarenessHealth:
 
     def test_wan_awareness_confidence_contribution_red(self, mock_daemon):
         """Test confidence_contribution reflects config-driven WAN weight for RED zone."""
-        # Set config-driven weight (overrides class constant)
-        mock_daemon._wan_red_weight = 30
-        mock_daemon._get_effective_wan_zone.return_value = "RED"
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            red_weight=30,
+            zone_age=2.3,
+            stale=False,
+        )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
@@ -1207,7 +1262,13 @@ class TestWanAwarenessHealth:
 
     def test_wan_awareness_confidence_contribution_zero_for_green(self, mock_daemon):
         """Test confidence_contribution=0 when effective zone is GREEN."""
-        mock_daemon._get_effective_wan_zone.return_value = "GREEN"
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=True,
+            wan_zone="GREEN",
+            effective_zone="GREEN",
+            zone_age=2.3,
+            stale=False,
+        )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
@@ -1223,8 +1284,13 @@ class TestWanAwarenessHealth:
 
     def test_wan_awareness_staleness_age_numeric(self, mock_daemon):
         """Test staleness_age_sec is numeric float when file accessible, stale flag matches."""
-        mock_daemon.baseline_loader._get_wan_zone_age.return_value = 4.567
-        mock_daemon.baseline_loader._is_wan_zone_stale.return_value = False
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            zone_age=4.567,
+            stale=False,
+        )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
 
@@ -1240,14 +1306,14 @@ class TestWanAwarenessHealth:
             server.shutdown()
 
     def test_wan_zone_age_returns_none_on_oserror(self):
-        """Test _get_wan_zone_age() returns None on OSError."""
+        """Test get_wan_zone_age() returns None on OSError."""
         from wanctl.steering.daemon import BaselineLoader
 
         config = MagicMock()
         config.primary_state_file.stat.side_effect = OSError("no such file")
         loader = BaselineLoader(config, MagicMock())
 
-        result = loader._get_wan_zone_age()
+        result = loader.get_wan_zone_age()
         assert result is None
 
     def test_wan_awareness_degrade_timer_active(self, mock_daemon):
@@ -1330,8 +1396,7 @@ class TestPerTinHealth:
         daemon.config.red_samples_required = 2
         daemon.config.green_samples_required = 15
         daemon.confidence_controller = None
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
+        daemon.get_health_data.return_value = _make_health_data()
         daemon.state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
             "congestion_state": "GREEN",

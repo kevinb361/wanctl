@@ -38,6 +38,8 @@ dev = [
     "mypy>=1.10.0",
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.8.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.4.0",
     # Security scanning tools
     "pip-audit>=2.10.0",
@@ -137,7 +139,8 @@ directory = "coverage-report"
 show_contexts = true
 
 [tool.pytest.ini_options]
-addopts = "--cov-config=pyproject.toml"
+addopts = "--cov-config=pyproject.toml -n auto --timeout=2"
+timeout_method = "thread"
 
 [tool.bandit]
 exclude_dirs = [".venv", "build", "dist"]

@@ -11,6 +11,28 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
+@pytest.fixture(autouse=True)
+def reset_prometheus_registry():
+    """Reset Prometheus metrics registry before and after each test.
+
+    Required for xdist worker isolation (D-18). Each test must start with
+    clean metrics state regardless of which worker process runs it.
+    """
+    try:
+        from wanctl import metrics
+
+        metrics.reset()
+    except (ImportError, AttributeError):
+        pass
+    yield
+    try:
+        from wanctl import metrics
+
+        metrics.reset()
+    except (ImportError, AttributeError):
+        pass
+
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test files."""

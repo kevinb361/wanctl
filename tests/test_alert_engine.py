@@ -720,6 +720,7 @@ class TestAlertEngineWiringAutorate:
         config = _make_autorate_config(tmp_path, autorate_config_dict)
 
         mock_router = MagicMock(spec=RouterOS)
+        mock_router.needs_rate_limiting = False
         mock_rtt = MagicMock(spec=RTTMeasurement)
         logger = logging.getLogger("test")
 
@@ -748,6 +749,7 @@ class TestAlertEngineWiringAutorate:
         config = _make_autorate_config(tmp_path, autorate_config_dict)
 
         mock_router = MagicMock(spec=RouterOS)
+        mock_router.needs_rate_limiting = False
         mock_rtt = MagicMock(spec=RTTMeasurement)
         logger = logging.getLogger("test")
 
@@ -2508,50 +2510,74 @@ class TestAutorateHealthAlerting:
             "is_reachable": True,
             "last_check": "2026-01-01T00:00:00Z",
         }
-        wan_controller._overrun_count = 0
-        wan_controller._cycle_interval_ms = 50.0
-        wan_controller._profiler.stats.return_value = None
-        # Mock download/upload for _get_current_state()
+        # Mock download/upload for _get_current_state() and _build_rate_hysteresis_section()
         wan_controller.download.current_rate = 100_000_000
         wan_controller.download.red_streak = 0
         wan_controller.download.soft_red_streak = 0
         wan_controller.download.soft_red_required = 3
         wan_controller.download.green_streak = 5
         wan_controller.download.green_required = 5
+        wan_controller.download.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 5,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 0,
+                "suppressions_per_min": 0.0,
+                "window_start_epoch": 0.0,
+            },
+        }
         wan_controller.upload.current_rate = 20_000_000
         wan_controller.upload.red_streak = 0
         wan_controller.upload.soft_red_streak = 0
         wan_controller.upload.soft_red_required = 3
         wan_controller.upload.green_streak = 5
         wan_controller.upload.green_required = 5
-        # Phase 121-124: hysteresis attributes
-        wan_controller.download._yellow_dwell = 0
-        wan_controller.download.dwell_cycles = 5
-        wan_controller.download.deadband_ms = 3.0
-        wan_controller.download._transitions_suppressed = 0
-        wan_controller.download._window_suppressions = 0
-        wan_controller.download._window_start_time = 0.0
-        wan_controller.upload._yellow_dwell = 0
-        wan_controller.upload.dwell_cycles = 5
-        wan_controller.upload.deadband_ms = 3.0
-        wan_controller.upload._transitions_suppressed = 0
-        wan_controller.upload._window_suppressions = 0
-        wan_controller.upload._window_start_time = 0.0
-        wan_controller._suppression_alert_threshold = 20
-        # Phase 92+: signal quality, IRTT, fusion, tuning attributes (prevent MagicMock truthy trap)
-        wan_controller._last_signal_result = None
-        wan_controller._irtt_thread = None
-        wan_controller._irtt_correlation = None
-        wan_controller._last_asymmetry_result = None
-        wan_controller._fusion_enabled = False
-        wan_controller._fusion_icmp_weight = 0.7
-        wan_controller._last_fused_rtt = None
-        wan_controller._last_icmp_filtered_rtt = None
-        wan_controller._fusion_healer = None
-        wan_controller._tuning_enabled = False
-        wan_controller._tuning_state = None
-        wan_controller._parameter_locks = None
-        wan_controller._reflector_scorer = None
+        wan_controller.upload.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 5,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 0,
+                "suppressions_per_min": 0.0,
+                "window_start_epoch": 0.0,
+            },
+        }
+        # Provide proper get_health_data() return value with real typed values
+        # to prevent MagicMock leakage through health_check.py numeric comparisons
+        wan_controller.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": MagicMock(**{"stats.return_value": None}),
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": None,
+            "irtt": {
+                "thread": None,
+                "correlation": None,
+                "last_asymmetry_result": None,
+            },
+            "reflector": {
+                "scorer": None,
+            },
+            "fusion": {
+                "enabled": False,
+                "icmp_filtered_rtt": None,
+                "fused_rtt": None,
+                "icmp_weight": 0.7,
+                "healer": None,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": None,
+                "pending_observation": None,
+            },
+            "suppression_alert": {
+                "threshold": 20,
+            },
+        }
         return wan_controller
 
     def test_autorate_health_includes_alerting_key(self, health_engine):
@@ -2691,11 +2717,19 @@ class TestSteeringHealthAlerting:
             "is_reachable": True,
             "last_check": "2026-01-01T00:00:00Z",
         }
-        daemon._profiler.stats.return_value = None
-        daemon._overrun_count = 0
-        daemon._cycle_interval_ms = 50.0
-        daemon._wan_state_enabled = False
-        daemon._wan_zone = None
+        # Provide proper get_health_data() return value with real typed values
+        # to prevent MagicMock leakage through steering/health.py JSON serialization
+        daemon.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": MagicMock(**{"stats.return_value": None}),
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+            },
+            "wan_awareness": {
+                "enabled": False,
+                "zone": None,
+            },
+        }
         return daemon
 
     def test_steering_health_includes_alerting_key(self, health_engine):
