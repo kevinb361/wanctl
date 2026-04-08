@@ -1380,7 +1380,7 @@ class TestPerTinHealth:
         }
         daemon.get_health_data.return_value = _make_health_data()
         # Linux-cake CakeStatsReader with per-tin data
-        daemon.cake_reader._is_linux_cake = True
+        daemon.cake_reader.is_linux_cake = True
         daemon.cake_reader.last_tin_stats = [
             {
                 "dropped_packets": 0,
@@ -1515,7 +1515,7 @@ class TestPerTinHealth:
 
     def test_tins_omitted_when_not_linux_cake(self, mock_daemon_with_tins):
         """Health endpoint omits tins when _is_linux_cake is False (D-07)."""
-        mock_daemon_with_tins.cake_reader._is_linux_cake = False
+        mock_daemon_with_tins.cake_reader.is_linux_cake = False
         port = find_free_port()
         server = start_steering_health_server(
             host="127.0.0.1", port=port, daemon=mock_daemon_with_tins
