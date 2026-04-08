@@ -34,10 +34,12 @@ def _mock_irtt_thread():
     """Prevent IRTT thread from starting during entry point tests.
 
     Entry point tests use MagicMock configs where irtt_config is a MagicMock,
-    causing IRTTThread to start with invalid cadence_sec.  Patching
-    _start_irtt_thread to return None avoids this.
+    causing IRTTThread to start with invalid cadence_sec.  Mock IRTTMeasurement
+    to report IRTT as unavailable so _start_irtt_thread returns None naturally.
     """
-    with patch("wanctl.autorate_continuous._start_irtt_thread", return_value=None):
+    mock_measurement = MagicMock()
+    mock_measurement.is_available.return_value = False
+    with patch("wanctl.autorate_continuous.IRTTMeasurement", return_value=mock_measurement):
         yield
 
 
