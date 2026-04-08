@@ -605,7 +605,7 @@ class TestMangleCheck:
         from wanctl.check_cake import check_mangle_rule
 
         client = MagicMock()
-        client._find_mangle_rule_id.return_value = "*5"
+        client.find_mangle_rule_id.return_value = "*5"
 
         results = check_mangle_rule(client, "ADAPTIVE: Steer latency-sensitive to ATT")
         assert len(results) == 1
@@ -617,7 +617,7 @@ class TestMangleCheck:
         from wanctl.check_cake import check_mangle_rule
 
         client = MagicMock()
-        client._find_mangle_rule_id.return_value = None
+        client.find_mangle_rule_id.return_value = None
 
         results = check_mangle_rule(client, "ADAPTIVE: Steer latency-sensitive to ATT")
         assert len(results) == 1
@@ -630,7 +630,7 @@ class TestMangleCheck:
         client = MagicMock()
         client.test_connection.return_value = True
         client.get_queue_stats.return_value = _queue_response()
-        client._find_mangle_rule_id.return_value = "*5"
+        client.find_mangle_rule_id.return_value = "*5"
 
         data = _autorate_config_data()
         results = run_audit(data, "autorate", client)
@@ -865,7 +865,7 @@ class TestCLI:
             _queue_type_response("cake-down-spectrum", wash="no"),
             _queue_type_response("cake-up-spectrum", wash="yes"),
         ]
-        mock_client._find_mangle_rule_id.return_value = None
+        mock_client.find_mangle_rule_id.return_value = None
 
         with (
             patch.dict(os.environ, {"ROUTER_PASSWORD": "secret"}),

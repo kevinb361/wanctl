@@ -2329,7 +2329,7 @@ class WANController:
 
         # Dwell filter: only count transitions where departing zone was held
         # long enough to be a real state, not a single-cycle blip.
-        min_hold_sec = flap_rule.get("min_hold_sec", 1.0)
+        min_hold_sec = self.alert_engine.get_rule_param("congestion_flapping", "min_hold_sec", 1.0)
         if min_hold_sec <= 0:
             min_hold_cycles = 0
         else:
