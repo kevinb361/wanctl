@@ -680,6 +680,197 @@ class TestApplyRateChangesIfNeeded:
 
         mock_metric.assert_not_called()
 
+    # =========================================================================
+    # Transport-aware rate limiter tests (Phase 151)
+    # =========================================================================
+
+    def test_linux_cake_no_rate_limiter_created(self, mock_config, mock_rtt_measurement, mock_logger):
+        """Controller with needs_rate_limiting=False should have rate_limiter=None."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        assert controller.rate_limiter is None
+
+    def test_linux_cake_every_cycle_applies(self, mock_config, mock_rtt_measurement, mock_logger):
+        """Controller with rate_limiter=None applies every rate change (no throttling)."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        router.set_limits.assert_called_once()
+
+    def test_linux_cake_flash_wear_still_works(self, mock_config, mock_rtt_measurement, mock_logger):
+        """Controller with rate_limiter=None still skips identical rates (RATE-04)."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(100_000_000, 20_000_000)
+
+        assert result is True
+        router.set_limits.assert_not_called()
+
+    def test_rest_rate_limiter_uses_backend_params(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
+        """Controller with needs_rate_limiting=True uses backend's rate_limit_params."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 3, "window_seconds": 5}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        assert controller.rate_limiter is not None
+        assert controller.rate_limiter.max_changes == 3
+        assert controller.rate_limiter.window_seconds == 5
+
+    def test_linux_cake_no_rate_limit_metric(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
+        """Controller with rate_limiter=None never records rate_limit_event."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.config.metrics_enabled = True
+        controller.last_applied_dl_rate = None
+        controller.last_applied_ul_rate = None
+
+        with patch("wanctl.wan_controller.record_rate_limit_event") as mock_metric:
+            # Apply multiple changes rapidly -- no throttling since no rate limiter
+            for i in range(20):
+                controller.apply_rate_changes_if_needed(
+                    (80 + i) * 1_000_000, 18_000_000
+                )
+
+        mock_metric.assert_not_called()
+
+    def test_linux_cake_apply_does_not_call_record_change(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
+        """Successful apply with rate_limiter=None does not call record_change."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        # Should not raise AttributeError
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+        assert result is True
+        # rate_limiter is None, so no record_change call possible
+        assert controller.rate_limiter is None
+
+    def test_linux_cake_apply_updates_tracking(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
+        """Successful apply with rate_limiter=None still updates last_applied tracking."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = False
+        router.rate_limit_params = {}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 20_000_000
+
+        result = controller.apply_rate_changes_if_needed(90_000_000, 18_000_000)
+
+        assert result is True
+        assert controller.last_applied_dl_rate == 90_000_000
+        assert controller.last_applied_ul_rate == 18_000_000
+
 
 class TestUpdateBaselineIfIdle:
     """Tests for WANController._update_baseline_if_idle() baseline protection.
