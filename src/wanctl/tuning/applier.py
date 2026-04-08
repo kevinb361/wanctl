@@ -4,18 +4,23 @@ Receives TuningResult list from analyzer, clamps to bounds + max_step,
 persists to SQLite, logs changes, and returns applied results.
 """
 
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING
 
 from wanctl.tuning.models import TuningConfig, TuningResult, clamp_to_step
+
+if TYPE_CHECKING:
+    from wanctl.storage.writer import MetricsWriter
 
 logger = logging.getLogger(__name__)
 
 
 def persist_tuning_result(
     result: TuningResult,
-    writer: Any | None,
+    writer: MetricsWriter | None,
 ) -> int | None:
     """Persist a tuning adjustment to SQLite tuning_params table.
 
@@ -59,7 +64,7 @@ def persist_tuning_result(
 
 def persist_revert_record(
     result: TuningResult,
-    writer: Any | None,
+    writer: MetricsWriter | None,
 ) -> int | None:
     """Persist a revert to tuning_params table with reverted=1.
 
@@ -107,7 +112,7 @@ def persist_revert_record(
 def apply_tuning_results(
     results: list[TuningResult],
     tuning_config: TuningConfig,
-    writer: Any | None = None,
+    writer: MetricsWriter | None = None,
 ) -> list[TuningResult]:
     """Apply tuning results with bounds enforcement and persistence.
 

@@ -43,21 +43,24 @@ Configuration (in YAML):
       verify_ssl: true
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time as _time
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Union
 
 from wanctl.routeros_ssh import RouterOSSSH
 
 if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
     from wanctl.routeros_rest import RouterOSREST
 
 # Type alias for router clients
 RouterClient = Union[RouterOSSSH, "RouterOSREST"]
 
 
-def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
+def get_router_client(config: BaseConfig, logger: logging.Logger) -> RouterClient:
     """Factory function to create the appropriate router client.
 
     Selects between SSH (paramiko) and REST API based on config.
@@ -89,7 +92,7 @@ def get_router_client(config: Any, logger: logging.Logger) -> RouterClient:
     raise ValueError(f"Unsupported router transport: {transport}")
 
 
-def _resolve_password(config: Any) -> str:
+def _resolve_password(config: BaseConfig) -> str:
     """Resolve the router password from config, expanding ${ENV_VAR} references.
 
     Same resolution logic as RouterOSREST.from_config, but decoupled so the
@@ -113,7 +116,7 @@ def _resolve_password(config: Any) -> str:
     return password
 
 
-def clear_router_password(config: Any) -> None:
+def clear_router_password(config: BaseConfig) -> None:
     """Clear the router password from a config object.
 
     Sets config.router_password to empty string if the attribute exists.
@@ -128,7 +131,7 @@ def clear_router_password(config: Any) -> None:
 
 
 def _create_transport_with_password(
-    transport: str, config: Any, password: str, logger: logging.Logger
+    transport: str, config: BaseConfig, password: str, logger: logging.Logger
 ) -> RouterClient:
     """Create transport client using an explicit password.
 
@@ -166,7 +169,7 @@ def _create_transport_with_password(
     raise ValueError(f"Unsupported transport: {transport}")
 
 
-def _create_transport(transport: str, config: Any, logger: logging.Logger) -> RouterClient:
+def _create_transport(transport: str, config: BaseConfig, logger: logging.Logger) -> RouterClient:
     """Create transport client by name.
 
     Internal helper for FailoverRouterClient.
@@ -219,7 +222,7 @@ class FailoverRouterClient:
 
     def __init__(
         self,
-        config: Any,
+        config: BaseConfig,
         logger: logging.Logger,
         primary_transport: str = "rest",
         fallback_transport: str = "ssh",
@@ -355,7 +358,7 @@ class FailoverRouterClient:
 
 
 def get_router_client_with_failover(
-    config: Any,
+    config: BaseConfig,
     logger: logging.Logger,
 ) -> FailoverRouterClient:
     """Factory for router client with automatic failover.

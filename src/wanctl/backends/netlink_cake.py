@@ -20,10 +20,15 @@ Config schema:
       tc_command: 5.0
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 
 # Lazy import to avoid hard dependency.
 # pyroute2 is optional -- only needed for linux-cake-netlink transport.
@@ -442,7 +447,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             self._ipr = None
 
     @classmethod
-    def from_config(cls, config: Any, direction: str = "download") -> "NetlinkCakeBackend":
+    def from_config(cls, config: BaseConfig, direction: str = "download") -> NetlinkCakeBackend:
         """Create NetlinkCakeBackend from config object.
 
         Same logic as LinuxCakeBackend.from_config but returns NetlinkCakeBackend.

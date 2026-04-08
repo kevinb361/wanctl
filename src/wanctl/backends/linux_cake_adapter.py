@@ -19,11 +19,16 @@ Usage in daemon (ContinuousAutoRate.__init__):
         router = RouterOS(config, logger)
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.cake_params import build_cake_params, build_expected_readback
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 
 
 class LinuxCakeAdapter:
@@ -81,7 +86,7 @@ class LinuxCakeAdapter:
         return dl_ok and ul_ok
 
     @classmethod
-    def from_config(cls, config: Any, logger: logging.Logger) -> "LinuxCakeAdapter":
+    def from_config(cls, config: BaseConfig, logger: logging.Logger) -> LinuxCakeAdapter:
         """Create LinuxCakeAdapter from config, initializing CAKE qdiscs.
 
         Steps:
@@ -112,9 +117,13 @@ class LinuxCakeAdapter:
         for direction, backend in [("download", dl_backend), ("upload", ul_backend)]:
             # Initial bandwidth from config ceiling (CAKE needs a starting bandwidth)
             if direction == "download":
-                initial_bw_kbit = config.download_ceiling // 1000
+                cm = config.data.get("continuous_monitoring", {})
+                ceiling_mbps = cm.get("download", {}).get("ceiling_mbps", 500)
+                initial_bw_kbit = int(ceiling_mbps * 1000)
             else:
-                initial_bw_kbit = config.upload_ceiling // 1000
+                cm = config.data.get("continuous_monitoring", {})
+                ceiling_mbps = cm.get("upload", {}).get("ceiling_mbps", 40)
+                initial_bw_kbit = int(ceiling_mbps * 1000)
 
             params = build_cake_params(
                 direction=direction,

@@ -17,9 +17,14 @@ To add a new backend:
 4. Document config schema for the new router type
 """
 
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 
 
 class RouterBackend(ABC):
@@ -173,7 +178,7 @@ class RouterBackend(ABC):
         return True
 
     @classmethod
-    def from_config(cls, config: Any) -> "RouterBackend":
+    def from_config(cls, config: BaseConfig) -> RouterBackend:
         """Factory method to create backend from config object.
 
         Args:

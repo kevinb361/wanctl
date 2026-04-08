@@ -18,13 +18,18 @@ Config schema:
       tc_command: 5.0
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import shutil
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wanctl.backends.base import RouterBackend
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 
 # diffserv4 tin order: index 0=Bulk, 1=BestEffort, 2=Video, 3=Voice
 TIN_NAMES: list[str] = ["Bulk", "BestEffort", "Video", "Voice"]
@@ -421,7 +426,7 @@ class LinuxCakeBackend(RouterBackend):
         return all_match
 
     @classmethod
-    def from_config(cls, config: Any, direction: str = "download") -> "LinuxCakeBackend":
+    def from_config(cls, config: BaseConfig, direction: str = "download") -> LinuxCakeBackend:
         """Create LinuxCakeBackend from config object.
 
         Reads interface from cake_params section based on direction.

@@ -24,11 +24,16 @@ Usage:
     ssh.close()
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import paramiko
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 
 from wanctl.retry_utils import retry_with_backoff
 
@@ -97,7 +102,7 @@ class RouterOSSSH:
         return known_hosts
 
     @classmethod
-    def from_config(cls, config: Any, logger: logging.Logger) -> "RouterOSSSH":
+    def from_config(cls, config: BaseConfig, logger: logging.Logger) -> RouterOSSSH:
         """Create RouterOSSSH instance from a config object.
 
         Expects config to have:

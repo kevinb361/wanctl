@@ -37,12 +37,17 @@ Usage:
     rest.close()
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 from urllib3.exceptions import InsecureRequestWarning
 
 from wanctl.retry_utils import retry_with_backoff
@@ -138,7 +143,7 @@ class RouterOSREST:
         return self._session.request(method, url, **kwargs)
 
     @classmethod
-    def from_config(cls, config: Any, logger: logging.Logger) -> "RouterOSREST":
+    def from_config(cls, config: BaseConfig, logger: logging.Logger) -> RouterOSREST:
         """Create RouterOSREST instance from a config object.
 
         Expects config to have:

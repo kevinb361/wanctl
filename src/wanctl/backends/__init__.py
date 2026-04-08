@@ -6,16 +6,21 @@ Factory function selects backend based on config.router_transport:
 - "linux-cake-netlink": NetlinkCakeBackend (local tc CAKE via pyroute2 netlink)
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from wanctl.backends.base import RouterBackend
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 from wanctl.backends.netlink_cake import NetlinkCakeBackend
 from wanctl.backends.routeros import RouterOSBackend
 
 
-def get_backend(config: Any) -> RouterBackend:
+def get_backend(config: BaseConfig) -> RouterBackend:
     """Factory function to create the appropriate backend.
 
     Routes on config.router_transport attribute:

@@ -136,12 +136,14 @@ class TestRouterOSBackendInit:
     def test_from_config_creates_backend(self) -> None:
         """from_config creates instance with correct params."""
         config = MagicMock()
-        config.router = {
-            "host": "192.168.88.1",
-            "user": "api_user",
-            "ssh_key": "/etc/wanctl/ssh/key",
+        config.data = {
+            "router": {
+                "host": "192.168.88.1",
+                "user": "api_user",
+                "ssh_key": "/etc/wanctl/ssh/key",
+            },
+            "timeouts": {"ssh_command": 25},
         }
-        config.timeouts = {"ssh_command": 25}
 
         with patch("wanctl.backends.routeros.RouterOSSSH") as mock_ssh_class:
             backend = RouterOSBackend.from_config(config)
@@ -155,12 +157,14 @@ class TestRouterOSBackendInit:
             )
 
     def test_from_config_default_timeout(self) -> None:
-        """Uses 15 when config.timeouts missing."""
-        config = MagicMock(spec=["router"])
-        config.router = {
-            "host": "192.168.88.1",
-            "user": "admin",
-            "ssh_key": "/path/to/key",
+        """Uses 15 when config.data has no timeouts key."""
+        config = MagicMock()
+        config.data = {
+            "router": {
+                "host": "192.168.88.1",
+                "user": "admin",
+                "ssh_key": "/path/to/key",
+            },
         }
 
         with patch("wanctl.backends.routeros.RouterOSSSH") as mock_ssh_class:
@@ -170,14 +174,16 @@ class TestRouterOSBackendInit:
             assert call_kwargs["timeout"] == 15
 
     def test_from_config_custom_timeout(self) -> None:
-        """Uses config.timeouts['ssh_command'] when specified."""
+        """Uses config.data timeouts ssh_command when specified."""
         config = MagicMock()
-        config.router = {
-            "host": "192.168.88.1",
-            "user": "admin",
-            "ssh_key": "/path/to/key",
+        config.data = {
+            "router": {
+                "host": "192.168.88.1",
+                "user": "admin",
+                "ssh_key": "/path/to/key",
+            },
+            "timeouts": {"ssh_command": 45},
         }
-        config.timeouts = {"ssh_command": 45}
 
         with patch("wanctl.backends.routeros.RouterOSSSH") as mock_ssh_class:
             RouterOSBackend.from_config(config)

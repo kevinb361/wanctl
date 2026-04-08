@@ -15,10 +15,15 @@ Config schema:
       ssh_key: "/etc/wanctl/ssh/router.key"
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 from wanctl.backends.base import RouterBackend
+
+if TYPE_CHECKING:
+    from wanctl.config_base import BaseConfig
 from wanctl.router_command_utils import (
     check_command_success,
     extract_field_value,
@@ -70,10 +75,10 @@ class RouterOSBackend(RouterBackend):
         return {"max_changes": 5, "window_seconds": 10}
 
     @classmethod
-    def from_config(cls, config: Any) -> "RouterOSBackend":
+    def from_config(cls, config: BaseConfig) -> RouterOSBackend:
         """Create RouterOSBackend from config object.
 
-        Expects config.router dict with:
+        Expects config.data["router"] dict with:
         - host: Router IP/hostname
         - user: SSH username
         - ssh_key: Path to SSH key
@@ -84,8 +89,8 @@ class RouterOSBackend(RouterBackend):
         Returns:
             Configured RouterOSBackend instance
         """
-        router = config.router
-        timeout = config.timeouts.get("ssh_command", 15) if hasattr(config, "timeouts") else 15
+        router = config.data["router"]
+        timeout = config.data.get("timeouts", {}).get("ssh_command", 15)
 
         return cls(
             host=router["host"], user=router["user"], ssh_key=router["ssh_key"], timeout=timeout
