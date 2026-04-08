@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.29
-milestone_name: Code Health & Cleanup
-status: completed
-stopped_at: Phase 145 context gathered (discuss mode)
-last_updated: "2026-04-08T22:49:24.612Z"
+milestone: v1.30
+milestone_name: Burst Detection
+status: ready-to-plan
+stopped_at: null
+last_updated: "2026-04-08T23:30:00.000Z"
 last_activity: 2026-04-08
 progress:
-  total_phases: 9
-  completed_phases: 8
-  total_plans: 28
-  completed_plans: 28
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-05)
+See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 148 — test-robustness-performance
+**Current focus:** Phase 151 -- Burst Detection (ready to plan)
 
 ## Position
 
-**Milestone:** v1.29 Code Health & Cleanup
-**Phase:** 150 of 150 (linting strictness)
-**Plan:** Not started
-**Status:** v1.29 milestone complete
-**Last activity:** 2026-04-08
+**Milestone:** v1.30 Burst Detection
+**Phase:** 1 of 3 (Phase 151: Burst Detection)
+**Plan:** --
+**Status:** Ready to plan
+**Last activity:** 2026-04-08 -- Roadmap created, 3 phases, 7 requirements mapped
 
 Progress: [..........] 0%
 
@@ -37,35 +37,29 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 25
-- Average duration: -
+- Total plans completed: 0
+- Average duration: --
 - Total execution time: 0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 142 | 2 | - | - |
-| 143 | 3 | - | - |
-| 144 | 4 | - | - |
-| 145 | 6 | - | - |
-| 147 | 5 | - | - |
-| 148 | 3 | - | - |
-| 149 | 2 | - | - |
+| - | - | - | - |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- Ordering constraint: DEAD first, TYPE last, TEST interleaved with CPLX
-- Zero behavioral changes -- all existing 4,239 tests must pass after every phase
-- Pure code quality -- no new features, no architecture redesign
+- 3-phase structure: detection, response, validation -- derived from requirement categories
+- Detection and response separated because signal processing (second derivative) and rate control (floor jump) touch different modules
+- Validation is a distinct phase because it requires production deployment and real traffic
 
 ### Known Issues
 
-- IRTT server is single point (Dallas 104.200.21.31:2112), no SLA
-- VM inline on both WAN paths = single point of failure
-- ATT fusion disabled -- protocol correlation 0.74 causes permanent delta offset
+- tcp_12down causes 3200ms p99 -- the problem this milestone solves
+- Floor tuning (SOFT_RED=150, RED=50) already deployed -- fixes steady-state but not initial burst ramp
+- Controller takes ~1.5s to detect+descend through floors -- buffers fill during this gap
 
 ### Blockers
 
@@ -77,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-06T04:02:48.435Z
-Stopped at: Phase 145 context gathered (discuss mode)
-Resume file: .planning/phases/145-method-extraction-simplification/145-CONTEXT.md
+Last session: 2026-04-08
+Stopped at: Roadmap created for v1.30 Burst Detection
+Resume file: None
