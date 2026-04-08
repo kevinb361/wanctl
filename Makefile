@@ -58,7 +58,7 @@ check-deps:
 
 # Check cross-module private mock brittleness in test files
 check-brittleness:
-	.venv/bin/python scripts/check_test_brittleness.py tests/ --threshold 3
+	.venv/bin/python scripts/check_test_brittleness.py tests/ --threshold 0
 
 # Check cross-module private attribute access (AST-based boundary enforcement)
 check-boundaries:
