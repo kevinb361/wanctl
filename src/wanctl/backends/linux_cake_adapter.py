@@ -25,6 +25,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
+from wanctl.backends.netlink_cake import NetlinkCakeBackend, _pyroute2_available
 from wanctl.cake_params import build_cake_params, build_expected_readback
 
 if TYPE_CHECKING:
@@ -105,10 +106,14 @@ class LinuxCakeAdapter:
         Raises:
             RuntimeError: If CAKE initialization fails on either interface.
         """
-        dl_backend = LinuxCakeBackend.from_config(config, direction="download")
+        backend_cls: type[LinuxCakeBackend] = (
+            NetlinkCakeBackend if _pyroute2_available else LinuxCakeBackend
+        )
+
+        dl_backend = backend_cls.from_config(config, direction="download")
         dl_backend.logger = logger
 
-        ul_backend = LinuxCakeBackend.from_config(config, direction="upload")
+        ul_backend = backend_cls.from_config(config, direction="upload")
         ul_backend.logger = logger
 
         cake_config = config.data.get("cake_params", {})
@@ -153,9 +158,11 @@ class LinuxCakeAdapter:
                 )
 
         logger.info(
-            "LinuxCakeAdapter ready: download=%s, upload=%s",
+            "LinuxCakeAdapter ready: download=%s (%s), upload=%s (%s)",
             dl_backend.interface,
+            type(dl_backend).__name__,
             ul_backend.interface,
+            type(ul_backend).__name__,
         )
 
         return cls(dl_backend=dl_backend, ul_backend=ul_backend, logger=logger)
