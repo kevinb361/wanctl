@@ -1,0 +1,189 @@
+# Adaptive CAKE Configuration - Spectrum Cable (VM)
+# Linux CAKE backend for cake-shaper VM (Proxmox)
+# Cloned from spectrum.yaml with transport changed to linux-cake
+# FHS-compliant paths for systemd deployment
+wan_name: "spectrum"
+
+# Health endpoint — bind to Spectrum IP so ATT can use same port on .227
+health_check:
+  host: "10.10.110.223"
+  port: 9101
+
+# RouterOS connection (kept for steering REST access)
+router:
+  transport: "linux-cake" # Linux CAKE backend on cake-shaper VM
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key" # For SSH transport
+  # REST transport settings (used by steering daemon)
+  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
+
+# Queue names in RouterOS (used by steering daemon)
+queues:
+  download: "WAN-Download-Spectrum"
+  upload: "WAN-Upload-Spectrum"
+
+# CAKE qdisc parameters for LinuxCakeBackend
+cake_params:
+  download_interface: "ens17" # Spectrum router-side NIC (download egress with ingress keyword)
+  upload_interface: "ens16" # Spectrum modem-side NIC (upload egress with ack-filter)
+  overhead: "docsis" # sweep validated 2026-04-04 (=18 bytes, matches MikroTik)
+  mpu: 64 # sweep validated 2026-04-04 (matches MikroTik)
+  memlimit: "64mb" # Raised from 32mb — DL qdisc was at 86.6% (27.7/32MB)
+  rtt: "25ms" # sweep validated 2026-04-04 (10-run winner, matches MikroTik)
+
+# Continuous monitoring - Expert-tuned for Spectrum Cable
+continuous_monitoring:
+  enabled: true
+
+  # Baseline RTT (seeded from production autotuning 2026-03-25)
+  baseline_rtt_initial: 22 # Autotuned from 24 (1379 samples, baseline_rtt_min=19.7)
+
+  # Download parameters (Phase 2A: 4-state with SOFT_RED)
+  download:
+    floor_green_mbps: 550 # GREEN: healthy, high floor
+    floor_yellow_mbps: 350 # YELLOW: early warning
+    floor_soft_red_mbps: 275 # SOFT_RED: RTT-only congestion (no steering)
+    floor_red_mbps: 200 # RED: severe congestion
+    ceiling_mbps: 940 # Realistic "good-day" max (under DOCSIS overhead)
+    step_up_mbps: 10 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
+    factor_down: 0.85 # linux-cake validated 2026-04-02 (was 0.90, confirmed in pass)
+    factor_down_yellow: 0.92 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    green_required: 3 # linux-cake validated 2026-04-02 (was 5, confirmed in pass)
+
+  # Upload parameters (Phase 2A: unchanged, 3-state)
+  upload:
+    floor_mbps: 8 # Keeps upstream from going too conservative
+    ceiling_mbps: 32 # 80% of 40Mbps plan — headroom prevents ISP buffer bloat (was 38, validated 2026-04-03)
+    step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
+    factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
+    green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+
+  # RTT thresholds (Phase 2A: 4-state for download)
+  thresholds:
+    target_bloat_ms: 9 # linux-cake confirmed 2026-04-02 (flipped 15->9 in confirmation pass)
+    warn_bloat_ms: 75 # p158 A/B validated 2026-04-09 (was 60, confirmed in pass)
+    hard_red_bloat_ms: 100 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
+    dwell_cycles: 5 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    deadband_ms: 3.0 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    suppression_alert_threshold: 60 # DOCSIS jitter causes ~35/min under RRUL — 20 was too low (p157 A/B validated 2026-04-09)
+    # EWMA time constants (interval-independent, auto-calculated)
+    baseline_time_constant_sec: 50 # Slow EWMA for baseline (50s = stable, ignores transients)
+    load_time_constant_sec: 0.10 # Fast EWMA for load RTT (100ms = Phase 1: faster detection)
+    accel_threshold_ms: 12 # RTT spike threshold for instant RED (12ms - tuned 2026-01-17)
+
+    # Baseline RTT security bounds (optional, defaults shown)
+    # Rejects baseline values outside this range as corrupted/invalid
+    # baseline_rtt_bounds:
+    #   min: 10  # Reject baseline below 10ms (probably LAN, not internet)
+    #   max: 60  # Reject baseline above 60ms (probably corrupted state)
+
+  # Ping configuration (median-of-three for Spectrum's reflector variation)
+  # 4.2.2.2 (Level3) dropped -- 35% ICMP timeout rate at 20Hz from rate limiting
+  # 8.8.8.8 (Google) dropped -- 0% timeout but +13ms RTT skews median vs 1.1.1.1/9.9.9.9
+  # 208.67.222.222 (OpenDNS) -- 0% timeout, ~21ms RTT matches cluster, path diversity
+  ping_hosts: ["1.1.1.1", "208.67.222.222", "9.9.9.9"]
+  use_median_of_three: true # Handle reflector variation
+
+  # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
+  fallback_checks:
+    enabled: true # Enable multi-protocol verification
+    check_gateway: true # Try pinging local gateway first
+    check_tcp: true # Try TCP connections to verify Internet
+    gateway_ip: "10.10.110.1" # Gateway to check (container default gateway)
+    tcp_targets: # TCP endpoints to test (HTTPS)
+      - ["1.1.1.1", 443]
+      - ["208.67.222.222", 443]
+    fallback_mode: "graceful_degradation" # "freeze", "use_last_rtt", or "graceful_degradation"
+    max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)
+
+# State persistence (FHS compliant)
+state_file: "/var/lib/wanctl/spectrum_state.json"
+
+# Logging (FHS compliant)
+logging:
+  main_log: "/var/log/wanctl/spectrum.log"
+  debug_log: "/var/log/wanctl/spectrum_debug.log"
+
+# Lock file (FHS compliant - runtime directory)
+lock_file: "/run/wanctl/spectrum.lock"
+lock_timeout: 300 # 5 minutes
+
+# Timeouts (operational tuning)
+timeouts:
+  ssh_command: 15 # seconds - RouterOS SSH command timeout
+  ping: 0.5 # seconds - ping -W parameter (reduced from 1s for faster cycles)
+
+# Signal processing (seeded from production autotuning 2026-03-25)
+signal_processing:
+  hampel:
+    window_size: 12 # Autotuned from 7 (median_jitter=2.65ms, confidence 0.915)
+    sigma_threshold: 2.8 # Autotuned from 3.0 (outlier_rate=19.2%, confidence 0.913)
+
+# IRTT UDP RTT measurement (v1.18+)
+irtt:
+  enabled: true
+  server: "104.200.21.31"
+  port: 2112
+  duration_ms: 1000
+  packet_size: 48
+  cadence_sec: 10
+
+# Reflector quality scoring (v1.19+)
+reflector_quality:
+  min_score: 0.8
+  probe_interval_sec: 30
+  recovery_count: 3
+
+# Dual-signal fusion (v1.19+)
+fusion:
+  enabled: true
+  icmp_weight: 0.7
+
+# Adaptive tuning (v1.20+)
+tuning:
+  enabled: true
+  cadence_sec: 3600 # Run tuning analysis every hour
+  lookback_hours: 24 # Analyze last 24h of metrics
+  warmup_hours: 1 # Wait 1h after startup before first run
+  max_step_pct: 10.0 # Max 10% change per tuning cycle
+  exclude_params:
+    - target_bloat_ms # Cable (DOCSIS) jitter needs stable thresholds
+    - warn_bloat_ms # Cable (DOCSIS) jitter needs stable thresholds
+  bounds:
+    target_bloat_ms:
+      min: 5.0 # Tuner pegged at floor; 5ms gives room for tighter thresholds
+      max: 30.0
+    warn_bloat_ms:
+      min: 15.0 # Tuner pegged at floor; 15ms aligns with prime-time median delta
+      max: 80.0
+    hampel_sigma_threshold:
+      min: 1.5
+      max: 5.0
+    hampel_window_size:
+      min: 5
+      max: 15
+    load_time_constant_sec:
+      min: 0.5
+      max: 10.0
+    fusion_icmp_weight:
+      min: 0.5
+      max: 0.95
+    reflector_min_score:
+      min: 0.5
+      max: 0.95
+    baseline_rtt_min:
+      min: 5.0
+      max: 30.0
+      # Autotuned value: 19.7 (p5=21.9ms * 0.9)
+    baseline_rtt_max:
+      min: 25.0
+      max: 100.0
+      # Autotuned value: 27.0 (p95=22.7ms * 1.1 = 25.0, clamped to bounds min)
+
+# Alerting (v1.15+)
+alerting:
+  enabled: true
+  webhook_url: "${DISCORD_WEBHOOK_URL}"
