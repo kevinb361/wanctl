@@ -3033,6 +3033,11 @@ class TestBurstDetectionSection:
                 "enabled": True,
                 "result": result,
                 "total_bursts": 5,
+                "response_enabled": True,
+                "responses_total": 3,
+                "holdoff_remaining": 42,
+                "holdoff_cycles": 100,
+                "target_floor_bps": 150_000_000,
             },
         }
 
@@ -3041,7 +3046,11 @@ class TestBurstDetectionSection:
 
         assert section["enabled"] is True
         assert section["total_bursts"] == 5
-        assert section["burst_response_enabled"] is False
+        assert section["burst_response_enabled"] is True
+        assert section["burst_responses_total"] == 3
+        assert section["holdoff_remaining"] == 42
+        assert section["holdoff_cycles"] == 100
+        assert section["target_floor_mbps"] == 150
         assert section["current_acceleration"] == 1.234
         assert section["current_velocity"] == 2.567
         assert section["is_burst"] is False
@@ -3055,6 +3064,11 @@ class TestBurstDetectionSection:
                 "enabled": True,
                 "result": None,
                 "total_bursts": 0,
+                "response_enabled": True,
+                "responses_total": 0,
+                "holdoff_remaining": 0,
+                "holdoff_cycles": 100,
+                "target_floor_bps": 150_000_000,
             },
         }
 
@@ -3063,7 +3077,11 @@ class TestBurstDetectionSection:
 
         assert section["enabled"] is True
         assert section["total_bursts"] == 0
-        assert section["burst_response_enabled"] is False
+        assert section["burst_response_enabled"] is True
+        assert section["burst_responses_total"] == 0
+        assert section["holdoff_remaining"] == 0
+        assert section["holdoff_cycles"] == 100
+        assert section["target_floor_mbps"] == 150
         assert section["current_acceleration"] is None
         assert section["current_velocity"] is None
         assert section["is_burst"] is False
@@ -3077,6 +3095,11 @@ class TestBurstDetectionSection:
                 "enabled": False,
                 "result": None,
                 "total_bursts": 0,
+                "response_enabled": False,
+                "responses_total": 0,
+                "holdoff_remaining": 0,
+                "holdoff_cycles": 100,
+                "target_floor_bps": 150_000_000,
             },
         }
 
@@ -3085,4 +3108,6 @@ class TestBurstDetectionSection:
 
         assert section["enabled"] is False
         assert section["burst_response_enabled"] is False
+        assert section["burst_responses_total"] == 0
+        assert section["holdoff_remaining"] == 0
 

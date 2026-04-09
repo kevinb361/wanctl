@@ -8,6 +8,7 @@ Covers both autorate daemon and steering daemon reload chains.
 """
 
 import logging
+import unittest.mock
 from unittest.mock import MagicMock
 
 from wanctl.signal_utils import (
@@ -94,6 +95,138 @@ class TestAutorateReloadChainE2E:
 
         ctrl.reload.assert_called_once()
         assert not is_reload_requested()
+
+    def test_sigusr1_reloads_burst_response_config(self, tmp_path):
+        """SIGUSR1 reload updates burst response config (holdoff_cycles, target_floor).
+
+        Verifies _reload_burst_detection_config reads response sub-section
+        and applies validated values to controller attributes.
+        """
+        import yaml
+
+        from wanctl.wan_controller import WANController
+
+        # Create temp YAML with burst response config
+        config_data = {
+            "continuous_monitoring": {
+                "thresholds": {
+                    "burst_detection": {
+                        "enabled": True,
+                        "accel_threshold_ms": 8.0,
+                        "confirm_cycles": 3,
+                        "response": {
+                            "enabled": True,
+                            "holdoff_cycles": 200,
+                            "target_floor": "red",
+                        },
+                    },
+                },
+            },
+        }
+        tmp_yaml = tmp_path / "test_burst_response.yaml"
+        tmp_yaml.write_text(yaml.dump(config_data))
+
+        # Create controller with defaults
+        mock_config = MagicMock()
+        mock_config.config_file_path = str(tmp_yaml)
+        mock_config.burst_detection_enabled = True
+        mock_config.burst_detection_accel_threshold_ms = 8.0
+        mock_config.burst_detection_confirm_cycles = 3
+        mock_config.burst_response_enabled = True
+        mock_config.burst_response_target_floor = "soft_red"
+        mock_config.burst_response_holdoff_cycles = 100
+        mock_config.wan_name = "TestWAN"
+        mock_config.ceiling_download_mbps = 900
+        mock_config.ceiling_upload_mbps = 38
+        mock_config.floor_download_mbps = 100
+        mock_config.floor_upload_mbps = 5
+        mock_config.step_up_mbps = 15
+        mock_config.step_up_upload_mbps = 5
+        mock_config.factor_down = 0.90
+        mock_config.factor_down_yellow = 0.92
+        mock_config.factor_down_upload = 0.85
+        mock_config.green_required = 5
+        mock_config.green_required_upload = 3
+        mock_config.floor_soft_red_download_mbps = 150
+        mock_config.floor_red_download_mbps = 50
+        mock_config.dry_run = False
+        mock_config.transport = "rest"
+        mock_config.dwell_cycles = 5
+        mock_config.deadband_ms = 3.0
+        mock_config.alerting_config = None
+        mock_config.signal_processing_config = {
+            "hampel_window_size": 7,
+            "hampel_sigma_threshold": 3.0,
+            "jitter_time_constant_sec": 2.0,
+            "variance_time_constant_sec": 5.0,
+        }
+        mock_config.irtt_config = {
+            "enabled": False,
+            "server": None,
+            "port": 2112,
+            "duration_sec": 1.0,
+            "interval_ms": 100,
+            "cadence_sec": 10.0,
+        }
+        mock_config.reflector_quality_config = {
+            "min_score": 0.8,
+            "window_size": 50,
+            "probe_interval_sec": 30.0,
+            "recovery_count": 3,
+        }
+        mock_config.fusion_config = {"icmp_weight": 0.7, "enabled": False}
+        mock_config.tuning_config = None
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.hard_red_bloat_ms = 80.0
+        mock_config.alpha_baseline = 0.001
+        mock_config.alpha_load = 0.1
+        mock_config.baseline_update_threshold_ms = 3.0
+        mock_config.baseline_rtt_min = 10.0
+        mock_config.baseline_rtt_max = 60.0
+        mock_config.accel_threshold_ms = 15.0
+        mock_config.accel_confirm_cycles = 3
+        mock_config.ping_hosts = ["1.1.1.1"]
+        mock_config.use_median_of_three = False
+        mock_config.fallback_enabled = True
+        mock_config.fallback_check_gateway = True
+        mock_config.fallback_check_tcp = True
+        mock_config.fallback_gateway_ip = ""
+        mock_config.fallback_tcp_targets = [["1.1.1.1", 443]]
+        mock_config.fallback_mode = "graceful_degradation"
+        mock_config.fallback_max_cycles = 3
+        mock_config.metrics_enabled = False
+        mock_config.state_file = MagicMock()
+        mock_config.queue_down = "dl-test"
+        mock_config.queue_up = "ul-test"
+        mock_config.green_required_upload = 3
+        mock_config.factor_down_yellow = 0.92
+        mock_config.factor_down_upload = 0.85
+
+        mock_router = MagicMock()
+        mock_router.set_limits.return_value = True
+        mock_router.needs_rate_limiting = False
+
+        with unittest.mock.patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        # Verify defaults
+        assert controller._burst_holdoff_cycles == 100
+        assert controller._burst_response_target_floor == "soft_red"
+
+        # Reload from YAML
+        controller._reload_burst_detection_config()
+
+        # Verify updated values
+        assert controller._burst_holdoff_cycles == 200
+        assert controller._burst_response_target_floor == "red"
+        assert controller._burst_response_enabled is True
 
     def test_reload_event_cleared_after_autorate_handling(self):
         """After autorate reload chain completes, _reload_event is cleared

@@ -2548,6 +2548,36 @@ class TestBurstDetectorIntegration:
         metric_names = [entry[2] for entry in batch]
         assert "wanctl_burst_acceleration" not in metric_names
 
+    def test_burst_response_metrics_recorded(self, controller):
+        """Phase 152: burst response metrics recorded when holdoff is active."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._last_burst_result = BurstResult(
+            acceleration=1.5, velocity=3.0, is_burst=False,
+            consecutive_accel=0, warming_up=False,
+        )
+        controller._burst_holdoff_remaining = 50
+        controller._metrics_writer = MagicMock()
+
+        controller._run_logging_metrics(
+            measured_rtt=30.0, fused_rtt=29.5, dl_zone="GREEN", ul_zone="GREEN",
+            dl_rate=500_000_000, ul_rate=32_000_000, delta=5.0,
+            dl_transition_reason=None, ul_transition_reason=None, irtt_result=None,
+        )
+
+        call_args = controller._metrics_writer.write_metrics_batch.call_args
+        assert call_args is not None
+        batch = call_args[0][0]
+        metric_names = [entry[2] for entry in batch]
+        assert "wanctl_burst_response_active" in metric_names
+        assert "wanctl_burst_holdoff_remaining" in metric_names
+
+        # Verify values
+        response_active = [e for e in batch if e[2] == "wanctl_burst_response_active"][0]
+        holdoff_remaining = [e for e in batch if e[2] == "wanctl_burst_holdoff_remaining"][0]
+        assert response_active[3] == 1.0  # holdoff_remaining > 0
+        assert holdoff_remaining[3] == 50.0
+
 
 class TestBurstResponse:
     """Tests for burst response fast-path floor jump (Phase 152)."""
