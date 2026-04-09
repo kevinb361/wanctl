@@ -119,7 +119,10 @@ Plans:
   2. After a fast-path floor jump, the controller does not immediately recover and re-drop (no oscillation loop within 5s)
   3. Normal congestion (non-burst) still follows the existing gradual descent path unchanged
   4. Fast-path response parameters (target floor, holdoff duration) are configurable in YAML
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 152-01-PLAN.md -- Core burst response logic, holdoff, config parsing, unit tests
+- [ ] 152-02-PLAN.md -- Health endpoint, metrics, SIGUSR1 reload, integration tests
 
 ### Phase 153: Validation & Soak
 **Goal**: Burst detection delivers measurable latency improvement under worst-case load and causes no regression under normal traffic patterns or extended production use
@@ -140,5 +143,5 @@ Phases execute in numeric order: 151 through 153.
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 151. Burst Detection | v1.30 | 2/2 | Complete    | 2026-04-09 |
-| 152. Fast-Path Response | v1.30 | 0/0 | Not started | - |
+| 152. Fast-Path Response | v1.30 | 0/2 | Not started | - |
 | 153. Validation & Soak | v1.30 | 0/0 | Not started | - |
