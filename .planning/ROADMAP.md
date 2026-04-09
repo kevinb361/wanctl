@@ -90,7 +90,7 @@ None
 
 **Milestone Goal:** Detect and respond to multi-flow congestion bursts that overwhelm gradual floor descent, cutting p99 latency from 3,200ms to under 500ms during worst-case scenarios (tcp_12down).
 
-- [ ] **Phase 151: Burst Detection** - RTT acceleration detector with false-trigger filtering
+- [x] **Phase 151: Burst Detection** - RTT acceleration detector with false-trigger filtering (completed 2026-04-09)
 - [ ] **Phase 152: Fast-Path Response** - Direct floor jump on burst ramp with anti-oscillation safety
 - [ ] **Phase 153: Validation & Soak** - Flent regression tests and 24h production soak
 
@@ -105,10 +105,10 @@ None
   2. A flent tcp_12down test triggers a burst detection event within 200ms of flow onset
   3. A flent rrul_be test (single-flow normal congestion) does NOT trigger a burst detection event
   4. Burst detection threshold is configurable in YAML and reloadable via SIGUSR1
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 151-01-PLAN.md -- BurstDetector module and unit tests
-- [ ] 151-02-PLAN.md -- WANController integration, config, health, metrics, SIGUSR1
+- [x] 151-01-PLAN.md -- BurstDetector module and unit tests
+- [x] 151-02-PLAN.md -- WANController integration, config, health, metrics, SIGUSR1
 
 ### Phase 152: Fast-Path Response
 **Goal**: When a burst ramp is detected, the controller immediately jumps to SOFT_RED or RED floor instead of descending gradually, without causing rate oscillation
@@ -139,6 +139,6 @@ Phases execute in numeric order: 151 through 153.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 151. Burst Detection | v1.30 | 0/2 | Planned | - |
+| 151. Burst Detection | v1.30 | 2/2 | Complete    | 2026-04-09 |
 | 152. Fast-Path Response | v1.30 | 0/0 | Not started | - |
 | 153. Validation & Soak | v1.30 | 0/0 | Not started | - |
