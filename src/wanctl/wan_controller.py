@@ -291,8 +291,8 @@ class WANController:
         self._burst_detection_enabled: bool = getattr(config, "burst_detection_enabled", True)
         self._burst_detector = BurstDetector(
             wan_name=wan_name,
-            accel_threshold_ms=getattr(config, "burst_detection_accel_threshold_ms", 8.0),
-            confirm_cycles=getattr(config, "burst_detection_confirm_cycles", 3),
+            accel_threshold_ms=getattr(config, "burst_detection_accel_threshold_ms", 6.0),
+            confirm_cycles=getattr(config, "burst_detection_confirm_cycles", 2),
             logger=self.logger,
         )
         self._last_burst_result: BurstResult | None = None

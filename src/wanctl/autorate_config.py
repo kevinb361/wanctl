@@ -414,8 +414,8 @@ class Config(BaseConfig):
         if not isinstance(bd, dict):
             bd = {}
         self.burst_detection_enabled = bd.get("enabled", True)
-        self.burst_detection_accel_threshold_ms = float(bd.get("accel_threshold_ms", 8.0))
-        self.burst_detection_confirm_cycles = int(bd.get("confirm_cycles", 3))
+        self.burst_detection_accel_threshold_ms = float(bd.get("accel_threshold_ms", 6.0))
+        self.burst_detection_confirm_cycles = int(bd.get("confirm_cycles", 2))
 
         # Burst response: fast-path floor jump (Phase 152)
         response = bd.get("response", {})
