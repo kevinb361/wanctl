@@ -266,6 +266,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
         wan_health["burst_detection"] = self._build_burst_detection_section(health_data)
 
+        # Transport backend info (XPORT-03, SC-4)
+        router = wan_controller.router
+        if hasattr(router, "dl_backend") and hasattr(router, "ul_backend"):
+            dl_name = type(router.dl_backend).__name__
+            ul_name = type(router.ul_backend).__name__
+            wan_health["transport"] = {
+                "dl_backend": dl_name,
+                "ul_backend": ul_name,
+                "netlink_available": "Netlink" in dl_name or "Netlink" in ul_name,
+            }
+
         return wan_health
 
     def _build_rate_hysteresis_section(
