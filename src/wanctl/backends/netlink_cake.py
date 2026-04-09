@@ -358,7 +358,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 kwargs,
             )
             return True
-        except (NetlinkError, OSError, ImportError) as e:
+        except (NetlinkError, OSError, ImportError, ValueError, TypeError) as e:
             self.logger.warning(
                 "Netlink tc replace failed on %s: %s -- falling back to subprocess",
                 self.interface,
