@@ -260,6 +260,7 @@ class WANController:
         self._init_alert_timers()
         self._init_profiling()
         self._init_tuning()
+        self._init_cake_signal()
 
         # Load persisted state (hysteresis counters, current rates, EWMA)
         self.load_state()
@@ -574,6 +575,22 @@ class WANController:
             self._oscillation_threshold: float = float(osc_raw)
         else:
             self._oscillation_threshold = DEFAULT_OSCILLATION_THRESHOLD
+
+    def _init_cake_signal(self) -> None:
+        """Initialize CAKE signal processing (disabled by default, Phase 159).
+
+        Creates CakeSignalProcessor instances for download and upload.
+        Only active when transport is linux-cake (LinuxCakeAdapter).
+        """
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor, CakeSignalSnapshot
+
+        self._cake_signal_supported = isinstance(self.router, LinuxCakeAdapter)
+        config = CakeSignalConfig()  # All disabled by default
+        self._dl_cake_signal = CakeSignalProcessor(config=config)
+        self._ul_cake_signal = CakeSignalProcessor(config=config)
+        self._dl_cake_snapshot: CakeSignalSnapshot | None = None
+        self._ul_cake_snapshot: CakeSignalSnapshot | None = None
 
     def _restore_tuning_params(self) -> None:
         """Restore latest tuning parameter values from SQLite.
@@ -1679,6 +1696,7 @@ class WANController:
         *,
         signal_processing_ms: float = 0.0,
         ewma_spike_ms: float = 0.0,
+        cake_stats_ms: float = 0.0,
         congestion_assess_ms: float = 0.0,
         irtt_observation_ms: float = 0.0,
         logging_metrics_ms: float = 0.0,
@@ -1695,6 +1713,7 @@ class WANController:
             "autorate_router_communication": router_ms,
             "autorate_signal_processing": signal_processing_ms,
             "autorate_ewma_spike": ewma_spike_ms,
+            "autorate_cake_stats": cake_stats_ms,
             "autorate_congestion_assess": congestion_assess_ms,
             "autorate_irtt_observation": irtt_observation_ms,
             "autorate_logging_metrics": logging_metrics_ms,
@@ -1801,6 +1820,8 @@ class WANController:
                 signal_result, fused_rtt = self._run_signal_processing(measured_rtt)
             with PerfTimer("autorate_ewma_spike", self.logger) as ewma_timer:
                 self._run_spike_detection()
+            with PerfTimer("autorate_cake_stats", self.logger) as cake_stats_timer:
+                self._run_cake_stats()
             with PerfTimer("autorate_congestion_assess", self.logger) as congestion_timer:
                 dl_zone, dl_rate, dl_tr, ul_zone, ul_rate, ul_tr, delta = (
                     self._run_congestion_assessment()
@@ -1819,6 +1840,7 @@ class WANController:
             rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start,
             signal_processing_ms=signal_timer.elapsed_ms,
             ewma_spike_ms=ewma_timer.elapsed_ms,
+            cake_stats_ms=cake_stats_timer.elapsed_ms,
             congestion_assess_ms=congestion_timer.elapsed_ms,
             irtt_observation_ms=irtt_timer.elapsed_ms,
             logging_metrics_ms=metrics_timer.elapsed_ms,
@@ -1949,6 +1971,26 @@ class WANController:
             return float(self.baseline_rtt) + (delta * self._asymmetry_damping_factor)
 
         return float(self.load_rtt)
+
+    def _run_cake_stats(self) -> None:
+        """Read CAKE qdisc stats and update signal processors (Phase 159).
+
+        Runs on main thread (IPRoute not thread-safe). Reads stats from
+        NetlinkCakeBackend.get_queue_stats() for both DL and UL directions.
+        Only active when transport is linux-cake and cake_signal is enabled.
+        """
+        if not self._cake_signal_supported:
+            return
+
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        adapter: LinuxCakeAdapter = self.router  # type: ignore[assignment]
+
+        dl_stats = adapter.dl_backend.get_queue_stats("")
+        self._dl_cake_snapshot = self._dl_cake_signal.update(dl_stats)
+
+        ul_stats = adapter.ul_backend.get_queue_stats("")
+        self._ul_cake_snapshot = self._ul_cake_signal.update(ul_stats)
 
     def _run_congestion_assessment(
         self,
@@ -2744,6 +2786,12 @@ class WANController:
                     if self._last_asymmetry_result_ts > 0
                     else None
                 ),
+            },
+            "cake_signal": {
+                "enabled": self._dl_cake_signal.config.enabled,
+                "supported": self._cake_signal_supported,
+                "download": self._dl_cake_snapshot,
+                "upload": self._ul_cake_snapshot,
             },
         }
 
