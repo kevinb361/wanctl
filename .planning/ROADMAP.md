@@ -101,7 +101,7 @@ None
 **Milestone Goal:** Remove legacy router-era constraints and optimize the controller for local CAKE management -- netlink rate updates, deferred I/O, asymmetry-aware upload control, and post-DSCP parameter re-validation.
 
 - [x] **Phase 154: Netlink Backend Wiring** - Wire LinuxCakeAdapter to NetlinkCakeBackend with FD leak fix and CAKE parameter readback validation (completed 2026-04-09)
-- [ ] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes
+- [x] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes (completed 2026-04-09)
 - [ ] **Phase 156: Asymmetry-Aware Upload** - Attenuated upload rate control using IRTT directional congestion detection
 - [ ] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing
 - [ ] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink
@@ -131,10 +131,10 @@ Plans:
   2. State JSON writes use fdatasync (not fsync), remain synchronous, and only flush when state has actually changed and minimum interval has elapsed
   3. Cycle p99 under RRUL load is below 50ms (measured via health endpoint or cycle timing logs)
   4. Graceful shutdown drains all queued writes before process exit -- no data loss on systemctl stop
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 155-01-PLAN.md -- fdatasync swap + state write coalescing gate
-- [ ] 155-02-PLAN.md -- DeferredIOWorker background thread + control loop wiring
+- [x] 155-01-PLAN.md -- fdatasync swap + state write coalescing gate
+- [x] 155-02-PLAN.md -- DeferredIOWorker background thread + control loop wiring
 
 ### Phase 156: Asymmetry-Aware Upload
 **Goal**: Upload rate is preserved during download-only congestion, keeping VoIP and video quality stable during bulk downloads
@@ -146,7 +146,9 @@ Plans:
   3. When IRTT data is stale (>30s old), asymmetry gate disables automatically and upload rate control reverts to current behavior
   4. Asymmetry gate is configurable in YAML and toggleable via SIGUSR1 hot-reload
   5. During bidirectional congestion (both DL and UL RTT elevated), upload rate reduction is NOT suppressed -- override prevents feedback loop
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 156-01-PLAN.md -- Core gate logic + config + health observability + tests
 
 ### Phase 157: Hysteresis Re-Tuning
 **Goal**: Hysteresis suppression rate is validated against the post-DSCP, post-netlink, post-async jitter profile and tuned below the 20/min alert threshold
@@ -176,7 +178,7 @@ Phases execute in numeric order: 154 through 158.
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 154. Netlink Backend Wiring | v1.31 | 2/2 | Complete    | 2026-04-09 |
-| 155. Deferred I/O Worker | v1.31 | 0/2 | Not started | - |
-| 156. Asymmetry-Aware Upload | v1.31 | 0/? | Not started | - |
+| 155. Deferred I/O Worker | v1.31 | 2/2 | Complete    | 2026-04-09 |
+| 156. Asymmetry-Aware Upload | v1.31 | 0/1 | Not started | - |
 | 157. Hysteresis Re-Tuning | v1.31 | 0/? | Not started | - |
 | 158. Parameter Re-Validation | v1.31 | 0/? | Not started | - |
