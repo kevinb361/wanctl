@@ -125,7 +125,12 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         return self._ipr
 
     def _reset_ipr(self) -> None:
-        """Null the IPRoute reference to force reconnect on next call."""
+        """Close and null the IPRoute reference to force reconnect on next call."""
+        if self._ipr is not None:
+            try:
+                self._ipr.close()
+            except Exception:
+                pass
         self._ipr = None
 
     # =========================================================================
