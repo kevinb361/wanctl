@@ -2179,6 +2179,34 @@ class WANController:
                 ])
             self._last_irtt_write_ts = irtt_result.timestamp
 
+        # CAKE signal metrics (Phase 159, CAKE-04)
+        if self._dl_cake_snapshot is not None and self._dl_cake_signal.config.metrics_enabled:
+            snap = self._dl_cake_snapshot
+            if not snap.cold_start:
+                metrics_batch.extend([
+                    (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
+                     {"direction": "download"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
+                     {"direction": "download"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
+                     {"direction": "download"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
+                     {"direction": "download"}, "raw"),
+                ])
+        if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
+            snap = self._ul_cake_snapshot
+            if not snap.cold_start:
+                metrics_batch.extend([
+                    (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
+                     {"direction": "upload"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
+                     {"direction": "upload"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
+                     {"direction": "upload"}, "raw"),
+                    (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
+                     {"direction": "upload"}, "raw"),
+                ])
+
         if self._io_worker is not None:
             self._io_worker.enqueue_batch(metrics_batch)
         else:

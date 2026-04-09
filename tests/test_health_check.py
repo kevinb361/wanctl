@@ -113,6 +113,11 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                     else None
                 ),
             },
+            "cake_signal": (
+                wan_mock._cake_signal_health
+                if isinstance(getattr(wan_mock, "_cake_signal_health", None), dict)
+                else None
+            ),
         }
     wan_mock.get_health_data.side_effect = _wan_health_data
     _configure_qc_health_data(wan_mock.download)
@@ -3180,4 +3185,131 @@ class TestAsymmetryGateHealthSection:
             assert gate["last_result_age_sec"] is None
         finally:
             server.shutdown()
+
+
+# ---------------------------------------------------------------------------
+# CAKE Signal Health Section (Phase 159, CAKE-04)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildCakeSignalSection:
+    """Tests for _build_cake_signal_section in HealthCheckHandler."""
+
+    def _make_handler(self) -> HealthCheckHandler:
+        """Create a bare HealthCheckHandler instance for section builder tests."""
+        return HealthCheckHandler.__new__(HealthCheckHandler)
+
+    def test_returns_none_when_no_cake_signal_key(self) -> None:
+        """health_data has no cake_signal key -> returns None."""
+        handler = self._make_handler()
+        result = handler._build_cake_signal_section({})
+        assert result is None
+
+    def test_returns_none_when_not_supported(self) -> None:
+        """cake_signal present but supported=False -> returns None."""
+        handler = self._make_handler()
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": False,
+                "download": None,
+                "upload": None,
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        assert result is None
+
+    def test_returns_none_when_not_enabled(self) -> None:
+        """cake_signal present but enabled=False -> returns None."""
+        handler = self._make_handler()
+        health_data = {
+            "cake_signal": {
+                "enabled": False,
+                "supported": True,
+                "download": None,
+                "upload": None,
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        assert result is None
+
+    def test_returns_dict_when_enabled_and_supported(self) -> None:
+        """cake_signal enabled+supported with mock snapshots -> returns dict."""
+        from wanctl.cake_signal import CakeSignalSnapshot, TinSnapshot
+
+        handler = self._make_handler()
+        dl_snap = CakeSignalSnapshot(
+            drop_rate=12.345,
+            total_drop_rate=15.678,
+            backlog_bytes=4096,
+            peak_delay_us=250,
+            tins=(
+                TinSnapshot(name="Bulk", dropped_packets=10, drop_delta=2,
+                            backlog_bytes=100, peak_delay_us=50, ecn_marked_packets=0),
+                TinSnapshot(name="BestEffort", dropped_packets=20, drop_delta=5,
+                            backlog_bytes=200, peak_delay_us=150, ecn_marked_packets=0),
+                TinSnapshot(name="Video", dropped_packets=5, drop_delta=1,
+                            backlog_bytes=300, peak_delay_us=250, ecn_marked_packets=0),
+                TinSnapshot(name="Voice", dropped_packets=1, drop_delta=0,
+                            backlog_bytes=0, peak_delay_us=10, ecn_marked_packets=0),
+            ),
+            cold_start=False,
+        )
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": True,
+                "download": dl_snap,
+                "upload": None,
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        assert result is not None
+        assert result["upload"] is None
+
+        dl = result["download"]
+        assert dl is not None
+        assert dl["drop_rate"] == 12.3
+        assert dl["total_drop_rate"] == 15.7
+        assert dl["backlog_bytes"] == 4096
+        assert dl["peak_delay_us"] == 250
+        assert dl["cold_start"] is False
+
+    def test_per_tin_breakdown(self) -> None:
+        """Per-tin breakdown includes name, drop_delta, backlog_bytes, peak_delay_us."""
+        from wanctl.cake_signal import CakeSignalSnapshot, TinSnapshot
+
+        handler = self._make_handler()
+        snap = CakeSignalSnapshot(
+            drop_rate=0.0,
+            total_drop_rate=0.0,
+            backlog_bytes=0,
+            peak_delay_us=0,
+            tins=(
+                TinSnapshot(name="Bulk", dropped_packets=0, drop_delta=0,
+                            backlog_bytes=50, peak_delay_us=10, ecn_marked_packets=0),
+                TinSnapshot(name="BestEffort", dropped_packets=0, drop_delta=3,
+                            backlog_bytes=200, peak_delay_us=100, ecn_marked_packets=0),
+            ),
+            cold_start=False,
+        )
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": True,
+                "download": snap,
+                "upload": None,
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        tins = result["download"]["tins"]
+        assert len(tins) == 2
+        assert tins[0]["name"] == "Bulk"
+        assert tins[0]["drop_delta"] == 0
+        assert tins[0]["backlog_bytes"] == 50
+        assert tins[0]["peak_delay_us"] == 10
+        assert tins[1]["name"] == "BestEffort"
+        assert tins[1]["drop_delta"] == 3
+        assert tins[1]["backlog_bytes"] == 200
+        assert tins[1]["peak_delay_us"] == 100
 

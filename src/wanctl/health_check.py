@@ -264,6 +264,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
         wan_health["asymmetry_gate"] = self._build_asymmetry_gate_section(health_data)
+
+        cake_signal = self._build_cake_signal_section(health_data)
+        if cake_signal is not None:
+            wan_health["cake_signal"] = cake_signal
+
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
 
         return wan_health
@@ -478,6 +483,44 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if gate["last_result_age_sec"] is not None
                 else None
             ),
+        }
+
+    def _build_cake_signal_section(
+        self, health_data: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Build CAKE signal status section (Phase 159, CAKE-04).
+
+        Returns None if CAKE signal is not supported or not enabled.
+        """
+        cake_data = health_data.get("cake_signal")
+        if cake_data is None:
+            return None
+        if not cake_data.get("supported", False) or not cake_data.get("enabled", False):
+            return None
+
+        def _snap_to_dict(snap: Any) -> dict[str, Any] | None:
+            if snap is None:
+                return None
+            return {
+                "drop_rate": round(snap.drop_rate, 1),
+                "total_drop_rate": round(snap.total_drop_rate, 1),
+                "backlog_bytes": snap.backlog_bytes,
+                "peak_delay_us": snap.peak_delay_us,
+                "cold_start": snap.cold_start,
+                "tins": [
+                    {
+                        "name": t.name,
+                        "drop_delta": t.drop_delta,
+                        "backlog_bytes": t.backlog_bytes,
+                        "peak_delay_us": t.peak_delay_us,
+                    }
+                    for t in snap.tins
+                ],
+            }
+
+        return {
+            "download": _snap_to_dict(cake_data.get("download")),
+            "upload": _snap_to_dict(cake_data.get("upload")),
         }
 
     def _build_tuning_section(
