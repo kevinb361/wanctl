@@ -264,6 +264,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
+        wan_health["burst_detection"] = self._build_burst_detection_section(health_data)
 
         return wan_health
 
@@ -301,6 +302,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "outlier_rate": round(signal_result.outlier_rate, 3),
             "total_outliers": signal_result.total_outliers,
             "warming_up": signal_result.warming_up,
+        }
+
+    def _build_burst_detection_section(
+        self, health_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Build burst detection status for health endpoint."""
+        bd = health_data["burst_detection"]
+        result = bd["result"]
+        return {
+            "enabled": bd["enabled"],
+            "total_bursts": bd["total_bursts"],
+            "burst_response_enabled": False,  # Phase 152 will change this to True
+            "current_acceleration": round(result.acceleration, 3) if result else None,
+            "current_velocity": round(result.velocity, 3) if result else None,
+            "is_burst": result.is_burst if result else False,
+            "consecutive_accel_cycles": result.consecutive_accel if result else 0,
+            "warming_up": result.warming_up if result else True,
         }
 
     def _build_irtt_section(

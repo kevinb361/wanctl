@@ -109,6 +109,10 @@ def mock_autorate_config():
     config.baseline_rtt_max = 60.0
     config.accel_threshold_ms = 15.0
     config.accel_confirm_cycles = 3
+    # Burst detection parameters (Phase 151)
+    config.burst_detection_enabled = True
+    config.burst_detection_accel_threshold_ms = 2.0
+    config.burst_detection_confirm_cycles = 3
     # Hysteresis parameters (Phase 122)
     config.dwell_cycles = 3
     config.deadband_ms = 3.0

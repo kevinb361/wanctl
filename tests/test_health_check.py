@@ -86,6 +86,11 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
             "suppression_alert": {
                 "threshold": getattr(wan_mock, "_suppression_alert_threshold", 20),
             },
+            "burst_detection": {
+                "enabled": getattr(wan_mock, "_burst_detection_enabled", True),
+                "result": getattr(wan_mock, "_last_burst_result", None),
+                "total_bursts": getattr(wan_mock, "_burst_total_bursts", 0),
+            },
         }
     wan_mock.get_health_data.side_effect = _wan_health_data
     _configure_qc_health_data(wan_mock.download)
@@ -2993,4 +2998,79 @@ class TestHistoryHelperMethods:
 
         assert end_ts > start_ts
         assert (end_ts - start_ts) == 3600  # 1 hour default
+
+
+class TestBurstDetectionSection:
+    """Tests for burst_detection section in health endpoint (Phase 151)."""
+
+    def _make_handler(self):
+        """Create a HealthCheckHandler without starting a server."""
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        return handler
+
+    def test_burst_detection_section_with_result(self):
+        """Build burst_detection section when a BurstResult is available."""
+        from wanctl.burst_detector import BurstResult
+
+        result = BurstResult(
+            acceleration=1.234, velocity=2.567, is_burst=False,
+            consecutive_accel=1, warming_up=False,
+        )
+        health_data = {
+            "burst_detection": {
+                "enabled": True,
+                "result": result,
+                "total_bursts": 5,
+            },
+        }
+
+        handler = self._make_handler()
+        section = handler._build_burst_detection_section(health_data)
+
+        assert section["enabled"] is True
+        assert section["total_bursts"] == 5
+        assert section["burst_response_enabled"] is False
+        assert section["current_acceleration"] == 1.234
+        assert section["current_velocity"] == 2.567
+        assert section["is_burst"] is False
+        assert section["consecutive_accel_cycles"] == 1
+        assert section["warming_up"] is False
+
+    def test_burst_detection_section_with_none_result(self):
+        """Build burst_detection section when result is None (pre-warmup)."""
+        health_data = {
+            "burst_detection": {
+                "enabled": True,
+                "result": None,
+                "total_bursts": 0,
+            },
+        }
+
+        handler = self._make_handler()
+        section = handler._build_burst_detection_section(health_data)
+
+        assert section["enabled"] is True
+        assert section["total_bursts"] == 0
+        assert section["burst_response_enabled"] is False
+        assert section["current_acceleration"] is None
+        assert section["current_velocity"] is None
+        assert section["is_burst"] is False
+        assert section["consecutive_accel_cycles"] == 0
+        assert section["warming_up"] is True
+
+    def test_burst_detection_section_disabled(self):
+        """Build burst_detection section when detection is disabled."""
+        health_data = {
+            "burst_detection": {
+                "enabled": False,
+                "result": None,
+                "total_bursts": 0,
+            },
+        }
+
+        handler = self._make_handler()
+        section = handler._build_burst_detection_section(health_data)
+
+        assert section["enabled"] is False
+        assert section["burst_response_enabled"] is False
 

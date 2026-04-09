@@ -18,6 +18,7 @@ from typing import Any
 from wanctl.alert_engine import AlertEngine
 from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
 from wanctl.autorate_config import Config
+from wanctl.burst_detector import BurstDetector, BurstResult
 from wanctl.config_base import get_storage_config
 from wanctl.error_handling import handle_errors
 from wanctl.fusion_healer import FusionHealer, HealState
@@ -285,6 +286,16 @@ class WANController:
         self.accel_threshold = config.accel_threshold_ms
         self.accel_confirm = config.accel_confirm_cycles
         self._spike_streak = 0
+
+        # Burst detection: second derivative (acceleration) detector (Phase 151)
+        self._burst_detection_enabled: bool = getattr(config, "burst_detection_enabled", True)
+        self._burst_detector = BurstDetector(
+            wan_name=wan_name,
+            accel_threshold_ms=getattr(config, "burst_detection_accel_threshold_ms", 2.0),
+            confirm_cycles=getattr(config, "burst_detection_confirm_cycles", 3),
+            logger=self.logger,
+        )
+        self._last_burst_result: BurstResult | None = None
 
         # Create queue controllers
         self.download = QueueController(
@@ -1526,6 +1537,87 @@ class WANController:
         self.logger.warning("[HYSTERESIS] Config reload: %s", threshold_str)
         self._suppression_alert_threshold = new_threshold
 
+    def _reload_burst_detection_config(self) -> None:
+        """Re-read burst detection config from YAML (triggered by SIGUSR1).
+
+        Reads continuous_monitoring.thresholds.burst_detection from YAML.
+        Validates enabled (bool), accel_threshold_ms [0.5, 20.0],
+        confirm_cycles [1, 10]. Logs old->new transitions.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[BURST] Config reload failed: {e}")
+            return
+
+        cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
+        if not isinstance(cm, dict):
+            cm = {}
+        thresh = cm.get("thresholds", {})
+        if not isinstance(thresh, dict):
+            thresh = {}
+        bd = thresh.get("burst_detection", {})
+        if not isinstance(bd, dict):
+            bd = {}
+
+        # Parse enabled (bool, default True)
+        new_enabled = bd.get("enabled", True)
+        if not isinstance(new_enabled, bool):
+            self.logger.warning(
+                "[BURST] Reload: invalid enabled (%r); keeping current value",
+                new_enabled,
+            )
+            new_enabled = self._burst_detection_enabled
+
+        # Parse accel_threshold_ms (float, bounds [0.5, 20.0], default 2.0)
+        new_threshold = bd.get("accel_threshold_ms", 2.0)
+        if (
+            not isinstance(new_threshold, (int, float))
+            or isinstance(new_threshold, bool)
+            or new_threshold < 0.5
+            or new_threshold > 20.0
+        ):
+            self.logger.warning(
+                "[BURST] Reload: invalid accel_threshold_ms (%r); keeping current value",
+                new_threshold,
+            )
+            new_threshold = self._burst_detector.accel_threshold
+        new_threshold = float(new_threshold)
+
+        # Parse confirm_cycles (int, bounds [1, 10], default 3)
+        new_confirm = bd.get("confirm_cycles", 3)
+        if (
+            not isinstance(new_confirm, int)
+            or isinstance(new_confirm, bool)
+            or new_confirm < 1
+            or new_confirm > 10
+        ):
+            self.logger.warning(
+                "[BURST] Reload: invalid confirm_cycles (%r); keeping current value",
+                new_confirm,
+            )
+            new_confirm = self._burst_detector.confirm_cycles
+
+        # Log transitions
+        old_threshold = self._burst_detector.accel_threshold
+        old_confirm = self._burst_detector.confirm_cycles
+        self.logger.warning(
+            "[BURST] Config reload: enabled=%s, threshold=%s->%s, confirm=%s->%s",
+            new_enabled,
+            old_threshold,
+            new_threshold,
+            old_confirm,
+            new_confirm,
+        )
+
+        # Apply
+        self._burst_detection_enabled = new_enabled
+        self._burst_detector.accel_threshold = new_threshold
+        self._burst_detector.confirm_cycles = new_confirm
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -1746,6 +1838,10 @@ class WANController:
             self._spike_streak = 0
         self.previous_load_rtt = self.load_rtt
 
+        # Second-derivative burst detection (Phase 151 -- detection only, no rate action)
+        if self._burst_detection_enabled:
+            self._last_burst_result = self._burst_detector.update(self.load_rtt)
+
     def _run_congestion_assessment(
         self,
     ) -> tuple[str, int, str | None, str, int, str | None, float]:
@@ -1915,6 +2011,14 @@ class WANController:
                 (ts, self.wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
                 (ts, self.wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
                 (ts, self.wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
+            ])
+
+        if self._last_burst_result is not None and not self._last_burst_result.warming_up:
+            br = self._last_burst_result
+            metrics_batch.extend([
+                (ts, self.wan_name, "wanctl_burst_acceleration", br.acceleration, None, "raw"),
+                (ts, self.wan_name, "wanctl_burst_velocity", br.velocity, None, "raw"),
+                (ts, self.wan_name, "wanctl_burst_detected", float(br.is_burst), None, "raw"),
             ])
 
         if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
@@ -2397,6 +2501,7 @@ class WANController:
         self._reload_hysteresis_config()
         self._reload_cycle_budget_config()
         self._reload_suppression_alert_config()
+        self._reload_burst_detection_config()
 
     def shutdown_threads(self) -> None:
         """Stop background threads (RTT thread and thread pool)."""
@@ -2503,6 +2608,11 @@ class WANController:
             },
             "suppression_alert": {
                 "threshold": self._suppression_alert_threshold,
+            },
+            "burst_detection": {
+                "enabled": self._burst_detection_enabled,
+                "result": self._last_burst_result,
+                "total_bursts": self._burst_detector.total_bursts,
             },
         }
 

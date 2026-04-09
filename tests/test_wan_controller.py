@@ -2418,3 +2418,132 @@ class TestBaselineRttBoundsRejection:
         # new_baseline = 100.0 which equals max, should be accepted
         assert ctrl.baseline_rtt == 100.0
         logger.warning.assert_not_called()
+
+
+class TestBurstDetectorIntegration:
+    """Tests for BurstDetector integration into WANController (Phase 151)."""
+
+    @pytest.fixture
+    def mock_config(self, mock_autorate_config):
+        """Delegate to shared mock_autorate_config from conftest.py."""
+        return mock_autorate_config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.wan_controller import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    def test_burst_detector_initialized(self, controller):
+        """WANController creates a BurstDetector instance at init."""
+        from wanctl.burst_detector import BurstDetector
+
+        assert hasattr(controller, "_burst_detector")
+        assert isinstance(controller._burst_detector, BurstDetector)
+        assert controller._burst_detection_enabled is True
+        assert controller._last_burst_result is None
+
+    def test_burst_detection_in_health_data(self, controller):
+        """get_health_data() includes burst_detection section."""
+        health = controller.get_health_data()
+        assert "burst_detection" in health
+        bd = health["burst_detection"]
+        assert "enabled" in bd
+        assert "result" in bd
+        assert "total_bursts" in bd
+        assert bd["enabled"] is True
+        assert bd["total_bursts"] == 0
+
+    def test_burst_detection_disabled_skips_update(self, controller):
+        """When burst detection is disabled, _run_spike_detection does not update burst result."""
+        controller._burst_detection_enabled = False
+        controller._last_burst_result = None
+        controller.load_rtt = 30.0
+        controller.previous_load_rtt = 25.0
+        controller._run_spike_detection()
+        assert controller._last_burst_result is None
+
+    def test_burst_detection_enabled_updates_result(self, controller):
+        """When burst detection is enabled, _run_spike_detection updates burst result."""
+        controller._burst_detection_enabled = True
+        controller.load_rtt = 30.0
+        controller.previous_load_rtt = 25.0
+        controller._run_spike_detection()
+        assert controller._last_burst_result is not None
+        assert controller._last_burst_result.warming_up is True  # First sample
+
+    def test_burst_metrics_recorded_after_warmup(self, controller):
+        """Burst metrics are added to metrics batch after warmup completes."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._last_burst_result = BurstResult(
+            acceleration=1.5, velocity=3.0, is_burst=False,
+            consecutive_accel=0, warming_up=False,
+        )
+        controller._metrics_writer = MagicMock()
+
+        # Call _run_logging_metrics with minimal args
+        controller._run_logging_metrics(
+            measured_rtt=30.0, fused_rtt=29.5, dl_zone="GREEN", ul_zone="GREEN",
+            dl_rate=500_000_000, ul_rate=32_000_000, delta=5.0,
+            dl_transition_reason=None, ul_transition_reason=None, irtt_result=None,
+        )
+
+        # Verify write_metrics_batch was called and batch includes burst metrics
+        call_args = controller._metrics_writer.write_metrics_batch.call_args
+        assert call_args is not None
+        batch = call_args[0][0]
+        metric_names = [entry[2] for entry in batch]
+        assert "wanctl_burst_acceleration" in metric_names
+        assert "wanctl_burst_velocity" in metric_names
+        assert "wanctl_burst_detected" in metric_names
+
+    def test_burst_metrics_not_recorded_during_warmup(self, controller):
+        """Burst metrics are NOT added to metrics batch during warmup."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._last_burst_result = BurstResult(
+            acceleration=0.0, velocity=0.0, is_burst=False,
+            consecutive_accel=0, warming_up=True,
+        )
+        controller._metrics_writer = MagicMock()
+
+        controller._run_logging_metrics(
+            measured_rtt=30.0, fused_rtt=29.5, dl_zone="GREEN", ul_zone="GREEN",
+            dl_rate=500_000_000, ul_rate=32_000_000, delta=5.0,
+            dl_transition_reason=None, ul_transition_reason=None, irtt_result=None,
+        )
+
+        call_args = controller._metrics_writer.write_metrics_batch.call_args
+        assert call_args is not None
+        batch = call_args[0][0]
+        metric_names = [entry[2] for entry in batch]
+        assert "wanctl_burst_acceleration" not in metric_names
