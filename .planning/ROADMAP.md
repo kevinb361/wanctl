@@ -103,7 +103,7 @@ None
 - [x] **Phase 154: Netlink Backend Wiring** - Wire LinuxCakeAdapter to NetlinkCakeBackend with FD leak fix and CAKE parameter readback validation (completed 2026-04-09)
 - [x] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes (completed 2026-04-09)
 - [ ] **Phase 156: Asymmetry-Aware Upload** - Attenuated upload rate control using IRTT directional congestion detection
-- [ ] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing
+- [x] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing (completed 2026-04-09)
 - [ ] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink
 
 ## Phase Details
@@ -180,5 +180,5 @@ Phases execute in numeric order: 154 through 158.
 | 154. Netlink Backend Wiring | v1.31 | 2/2 | Complete    | 2026-04-09 |
 | 155. Deferred I/O Worker | v1.31 | 2/2 | Complete    | 2026-04-09 |
 | 156. Asymmetry-Aware Upload | v1.31 | 0/1 | Not started | - |
-| 157. Hysteresis Re-Tuning | v1.31 | 0/? | Not started | - |
+| 157. Hysteresis Re-Tuning | v1.31 | 2/2 | Complete    | 2026-04-09 |
 | 158. Parameter Re-Validation | v1.31 | 0/? | Not started | - |
