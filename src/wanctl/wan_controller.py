@@ -46,6 +46,7 @@ from wanctl.rtt_measurement import (
 )
 from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.storage import MetricsWriter
+from wanctl.storage.deferred_writer import DeferredIOWorker
 from wanctl.tuning.models import TuningResult, TuningState
 from wanctl.wan_controller_state import WANControllerState
 
@@ -527,6 +528,9 @@ class WANController:
         self._rtt_thread: BackgroundRTTThread | None = None
         self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
 
+        # Deferred I/O worker (Phase 155: CYCLE-02)
+        self._io_worker: DeferredIOWorker | None = None
+
     def _init_tuning(self) -> None:
         """Initialize adaptive tuning state and oscillation detection."""
         config = self.config
@@ -744,14 +748,24 @@ class WANController:
                         "event": event["event_type"],
                     }
                 )
-                self._metrics_writer.write_reflector_event(
-                    timestamp,
-                    event["event_type"],
-                    event["host"],
-                    self.wan_name,
-                    round(event["score"], 3),
-                    details_json,
-                )
+                if self._io_worker is not None:
+                    self._io_worker.enqueue_reflector_event(
+                        timestamp=timestamp,
+                        event_type=event["event_type"],
+                        host=event["host"],
+                        wan_name=self.wan_name,
+                        score=round(event["score"], 3),
+                        details_json=details_json,
+                    )
+                else:
+                    self._metrics_writer.write_reflector_event(
+                        timestamp,
+                        event["event_type"],
+                        event["host"],
+                        self.wan_name,
+                        round(event["score"], 3),
+                        details_json,
+                    )
             except Exception:
                 self.logger.warning(
                     "Failed to persist reflector event %s for %s",
@@ -1931,22 +1945,41 @@ class WANController:
                 ])
             self._last_irtt_write_ts = irtt_result.timestamp
 
-        self._metrics_writer.write_metrics_batch(metrics_batch)
+        if self._io_worker is not None:
+            self._io_worker.enqueue_batch(metrics_batch)
+        else:
+            self._metrics_writer.write_metrics_batch(metrics_batch)
 
         if dl_transition_reason:
-            self._metrics_writer.write_metric(
-                timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                value=float(self._encode_state(dl_zone)),
-                labels={"direction": "download", "reason": dl_transition_reason},
-                granularity="raw",
-            )
+            if self._io_worker is not None:
+                self._io_worker.enqueue_write(
+                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    value=float(self._encode_state(dl_zone)),
+                    labels={"direction": "download", "reason": dl_transition_reason},
+                    granularity="raw",
+                )
+            else:
+                self._metrics_writer.write_metric(
+                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    value=float(self._encode_state(dl_zone)),
+                    labels={"direction": "download", "reason": dl_transition_reason},
+                    granularity="raw",
+                )
         if ul_transition_reason:
-            self._metrics_writer.write_metric(
-                timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                value=float(self._encode_state(ul_zone)),
-                labels={"direction": "upload", "reason": ul_transition_reason},
-                granularity="raw",
-            )
+            if self._io_worker is not None:
+                self._io_worker.enqueue_write(
+                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    value=float(self._encode_state(ul_zone)),
+                    labels={"direction": "upload", "reason": ul_transition_reason},
+                    granularity="raw",
+                )
+            else:
+                self._metrics_writer.write_metric(
+                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    value=float(self._encode_state(ul_zone)),
+                    labels={"direction": "upload", "reason": ul_transition_reason},
+                    granularity="raw",
+                )
 
     def _run_router_communication(self, dl_rate: int, ul_rate: int) -> bool:
         """Router communication subsystem: apply rates with flash wear and rate limiting."""
@@ -2461,6 +2494,10 @@ class WANController:
             params["reflector_min_score"] = self._reflector_scorer.min_score
         params["fusion_icmp_weight"] = self._fusion_icmp_weight
         return params
+
+    def set_io_worker(self, worker: DeferredIOWorker) -> None:
+        """Set the deferred I/O worker for background metrics writes."""
+        self._io_worker = worker
 
     def get_metrics_writer(self) -> MetricsWriter | None:
         """Get the metrics writer instance."""

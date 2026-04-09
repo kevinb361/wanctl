@@ -43,6 +43,7 @@ from wanctl.signal_utils import (
     reset_reload_state,
 )
 from wanctl.storage import MetricsWriter
+from wanctl.storage.deferred_writer import DeferredIOWorker
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
@@ -459,8 +460,12 @@ def _configure_controller_flags(
 def _setup_daemon_state(
     controller: "ContinuousAutoRate",
     irtt_thread: IRTTThread | None,
-) -> None:
-    """Wire IRTT thread, start background RTT, and log startup info."""
+) -> DeferredIOWorker | None:
+    """Wire IRTT thread, start background RTT, create I/O worker, and log startup info.
+
+    Returns:
+        DeferredIOWorker instance if MetricsWriter is available, else None.
+    """
     for wan_info in controller.wan_controllers:
         wan_info["controller"].set_irtt_thread(irtt_thread)
         wan_info["controller"].init_fusion_healer()
@@ -469,12 +474,27 @@ def _setup_daemon_state(
     for wan_info in controller.wan_controllers:
         wan_info["controller"].start_background_rtt(rtt_shutdown)
 
+    # Create deferred I/O worker for background SQLite writes (Phase 155: CYCLE-02)
+    io_worker: DeferredIOWorker | None = None
+    metrics_writer = controller.wan_controllers[0]["controller"].get_metrics_writer()
+    if metrics_writer is not None:
+        io_worker = DeferredIOWorker(
+            writer=metrics_writer,
+            shutdown_event=get_shutdown_event(),
+            logger=logging.getLogger("wanctl.io_worker"),
+        )
+        io_worker.start()
+        for wan_info in controller.wan_controllers:
+            wan_info["controller"].set_io_worker(io_worker)
+
     for wan_info in controller.wan_controllers:
         wan_info["logger"].info(
             f"Starting daemon mode with {CYCLE_INTERVAL_SECONDS}s cycle interval"
         )
         if is_systemd_available():
             wan_info["logger"].info("Systemd watchdog support enabled")
+
+    return io_worker
 
 
 def _track_cycle_failures(
@@ -1089,8 +1109,9 @@ def _cleanup_daemon(
     metrics_server: Any,
     health_server: Any,
     emergency_lock_cleanup: Any,
+    io_worker: DeferredIOWorker | None = None,
 ) -> None:
-    """Ordered daemon shutdown: state > threads > locks > connections > servers > metrics."""
+    """Ordered daemon shutdown: state > threads > locks > connections > servers > io_worker > metrics."""
     cleanup_start = time.monotonic()
     deadline = cleanup_start + SHUTDOWN_TIMEOUT_SECONDS
     _cleanup_log = logging.getLogger(__name__)
@@ -1101,6 +1122,15 @@ def _cleanup_daemon(
     _release_daemon_locks(controller, lock_files, emergency_lock_cleanup)
     _close_router_connections(controller, deadline, _cleanup_log)
     _stop_daemon_servers(controller, metrics_server, health_server, deadline, _cleanup_log)
+    if io_worker is not None:
+        t0 = time.monotonic()
+        try:
+            io_worker.stop()
+        except Exception as e:
+            _cleanup_log.debug(f"Error stopping I/O worker: {e}")
+        check_cleanup_deadline(
+            "io_worker", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, _cleanup_log, now=time.monotonic()
+        )
     _close_metrics_writer(deadline, _cleanup_log)
 
     total = time.monotonic() - cleanup_start
@@ -1231,7 +1261,7 @@ def main() -> int | None:
 
     metrics_server, health_server = _start_servers(controller)
     irtt_thread = _start_irtt_thread(controller)
-    _setup_daemon_state(controller, irtt_thread)
+    io_worker = _setup_daemon_state(controller, irtt_thread)
 
     try:
         _run_daemon_loop(controller, maintenance_conn, maintenance_retention_config)
@@ -1243,6 +1273,7 @@ def main() -> int | None:
             metrics_server,
             health_server,
             emergency_lock_cleanup,
+            io_worker=io_worker,
         )
 
     return None
