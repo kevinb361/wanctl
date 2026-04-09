@@ -1933,7 +1933,10 @@ class WANController:
 
         # Consecutive sample hysteresis (ASYM-02)
         asym = self._last_asymmetry_result
-        if asym.direction == "downstream" and asym.ratio >= self._asymmetry_min_ratio:
+        # On DOCSIS, download-only congestion causes IRTT to report "upstream"
+        # asymmetry: the send OWD (client→server) spikes because the downstream
+        # request-grant cycle is contended, even though upload itself isn't congested.
+        if asym.direction == "upstream" and asym.ratio >= self._asymmetry_min_ratio:
             self._asymmetry_downstream_streak += 1
             if self._asymmetry_downstream_streak >= self._asymmetry_confirm_readings:
                 self._asymmetry_gate_active = True

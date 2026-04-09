@@ -50,7 +50,7 @@ def _make_controller(mock_autorate_config, gate_enabled=True):
 def _downstream_result(ratio=4.0):
     """Create a downstream AsymmetryResult."""
     return AsymmetryResult(
-        direction="downstream",
+        direction="upstream",
         ratio=ratio,
         send_delay_ms=5.0,
         receive_delay_ms=20.0,
@@ -223,7 +223,7 @@ class TestComputeEffectiveUlLoadRtt:
         """Downstream result with ratio < min_ratio does not increment streak."""
         controller = _make_controller(self.config, gate_enabled=True)
         controller._last_asymmetry_result = AsymmetryResult(
-            direction="downstream",
+            direction="upstream",
             ratio=2.0,  # Below min_ratio of 3.0
             send_delay_ms=5.0,
             receive_delay_ms=10.0,
