@@ -154,8 +154,18 @@ def mock_autorate_config():
         "probe_interval_sec": 30.0,
         "recovery_count": 3,
     }
+    # OWD asymmetry detection config (default ratio_threshold 2.0)
+    config.owd_asymmetry_config = {"ratio_threshold": 2.0}
     # Fusion config (optional, default icmp_weight 0.7, disabled by default)
     config.fusion_config = {"icmp_weight": 0.7, "enabled": False}
+    # Asymmetry gate config (Phase 156, disabled by default in tests)
+    config.asymmetry_gate_config = {
+        "enabled": False,
+        "damping_factor": 0.5,
+        "min_ratio": 3.0,
+        "confirm_readings": 3,
+        "staleness_sec": 30.0,
+    }
     # Tuning config (optional, disabled by default)
     config.tuning_config = None
     return config

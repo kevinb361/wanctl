@@ -948,6 +948,100 @@ class Config(BaseConfig):
 
         self.owd_asymmetry_config = {"ratio_threshold": float(ratio_threshold)}
 
+    def _load_asymmetry_gate_config(self) -> None:
+        """Load asymmetry gate config from continuous_monitoring.upload.asymmetry_gate.
+
+        Validates the optional asymmetry_gate section for upload delta attenuation.
+        Invalid values warn and fall back to defaults (does not crash).
+
+        Sets self.asymmetry_gate_config consumed by WANController (Phase 156).
+        """
+        logger = logging.getLogger(__name__)
+        cm = self.data.get("continuous_monitoring", {})
+        if not isinstance(cm, dict):
+            cm = {}
+        ul = cm.get("upload", {})
+        if not isinstance(ul, dict):
+            ul = {}
+        gate = ul.get("asymmetry_gate", {})
+        if not isinstance(gate, dict):
+            logger.warning(
+                "asymmetry_gate config must be dict, got %s; using defaults",
+                type(gate).__name__,
+            )
+            gate = {}
+
+        enabled = gate.get("enabled", False)
+        if not isinstance(enabled, bool):
+            logger.warning(
+                "asymmetry_gate.enabled must be bool, got %s; defaulting to False",
+                type(enabled).__name__,
+            )
+            enabled = False
+
+        damping_factor = gate.get("damping_factor", 0.5)
+        if (
+            not isinstance(damping_factor, (int, float))
+            or isinstance(damping_factor, bool)
+            or damping_factor < 0.0
+            or damping_factor > 1.0
+        ):
+            logger.warning(
+                "asymmetry_gate.damping_factor must be float [0.0, 1.0], "
+                "got %r; defaulting to 0.5",
+                damping_factor,
+            )
+            damping_factor = 0.5
+
+        min_ratio = gate.get("min_ratio", 3.0)
+        if (
+            not isinstance(min_ratio, (int, float))
+            or isinstance(min_ratio, bool)
+            or min_ratio < 1.0
+        ):
+            logger.warning(
+                "asymmetry_gate.min_ratio must be float >= 1.0, "
+                "got %r; defaulting to 3.0",
+                min_ratio,
+            )
+            min_ratio = 3.0
+
+        confirm_readings = gate.get("confirm_readings", 3)
+        if (
+            not isinstance(confirm_readings, int)
+            or isinstance(confirm_readings, bool)
+            or confirm_readings < 1
+            or confirm_readings > 10
+        ):
+            logger.warning(
+                "asymmetry_gate.confirm_readings must be int [1, 10], "
+                "got %r; defaulting to 3",
+                confirm_readings,
+            )
+            confirm_readings = 3
+
+        staleness_sec = gate.get("staleness_sec", 30.0)
+        if (
+            not isinstance(staleness_sec, (int, float))
+            or isinstance(staleness_sec, bool)
+            or staleness_sec < 5.0
+            or staleness_sec > 120.0
+        ):
+            logger.warning(
+                "asymmetry_gate.staleness_sec must be float [5.0, 120.0], "
+                "got %r; defaulting to 30.0",
+                staleness_sec,
+            )
+            staleness_sec = 30.0
+
+        self.asymmetry_gate_config = {
+            "enabled": enabled,
+            "damping_factor": float(damping_factor),
+            "min_ratio": float(min_ratio),
+            "confirm_readings": confirm_readings,
+            "staleness_sec": float(staleness_sec),
+        }
+
     def _load_fusion_config(self) -> None:
         """Load fusion configuration. Validates fusion: YAML section.
 
@@ -1344,6 +1438,9 @@ class Config(BaseConfig):
 
         # OWD asymmetry detection (optional, all defaults if absent)
         self._load_owd_asymmetry_config()
+
+        # Asymmetry gate for upload delta attenuation (Phase 156, disabled by default)
+        self._load_asymmetry_gate_config()
 
         # Dual-signal fusion (optional, defaults if absent)
         self._load_fusion_config()

@@ -443,6 +443,17 @@ class WANController:
         )
         self._last_asymmetry_result: AsymmetryResult | None = None
 
+        # Asymmetry gate (Phase 156: ASYM-01 through ASYM-03)
+        gate_cfg = config.asymmetry_gate_config
+        self._asymmetry_gate_enabled: bool = bool(gate_cfg["enabled"])
+        self._asymmetry_damping_factor: float = float(gate_cfg["damping_factor"])
+        self._asymmetry_min_ratio: float = float(gate_cfg["min_ratio"])
+        self._asymmetry_confirm_readings: int = int(gate_cfg["confirm_readings"])
+        self._asymmetry_staleness_sec: float = float(gate_cfg["staleness_sec"])
+        self._asymmetry_gate_active: bool = False
+        self._asymmetry_downstream_streak: int = 0
+        self._last_asymmetry_result_ts: float = 0.0
+
         # Dual-signal fusion (FUSE-01, FUSE-03, FUSE-04)
         self._fusion_icmp_weight: float = config.fusion_config["icmp_weight"]
         self._fusion_enabled: bool = config.fusion_config["enabled"]
@@ -1540,6 +1551,125 @@ class WANController:
         self.logger.warning("[HYSTERESIS] Config reload: %s", threshold_str)
         self._suppression_alert_threshold = new_threshold
 
+    def _reload_asymmetry_gate_config(self) -> None:
+        """Re-read asymmetry gate config from YAML (triggered by SIGUSR1).
+
+        Reloads continuous_monitoring.upload.asymmetry_gate section.
+        Validates with same bounds as _load_asymmetry_gate_config().
+        Logs old->new transitions at WARNING level for enabled changes.
+        """
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[ASYMMETRY_GATE] Config reload failed: {e}")
+            return
+
+        cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
+        if not isinstance(cm, dict):
+            cm = {}
+        ul = cm.get("upload", {})
+        if not isinstance(ul, dict):
+            ul = {}
+        gate = ul.get("asymmetry_gate", {})
+        if not isinstance(gate, dict):
+            gate = {}
+
+        # Parse enabled (default False)
+        new_enabled = gate.get("enabled", False)
+        if not isinstance(new_enabled, bool):
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Reload: enabled must be bool, got %s; keeping current",
+                type(new_enabled).__name__,
+            )
+            new_enabled = self._asymmetry_gate_enabled
+        old_enabled = self._asymmetry_gate_enabled
+
+        # Parse damping_factor [0.0, 1.0]
+        new_damping = gate.get("damping_factor", 0.5)
+        if (
+            not isinstance(new_damping, (int, float))
+            or isinstance(new_damping, bool)
+            or new_damping < 0.0
+            or new_damping > 1.0
+        ):
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Reload: damping_factor invalid (%r); keeping current",
+                new_damping,
+            )
+            new_damping = self._asymmetry_damping_factor
+        new_damping = float(new_damping)
+
+        # Parse min_ratio >= 1.0
+        new_ratio = gate.get("min_ratio", 3.0)
+        if (
+            not isinstance(new_ratio, (int, float))
+            or isinstance(new_ratio, bool)
+            or new_ratio < 1.0
+        ):
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Reload: min_ratio invalid (%r); keeping current",
+                new_ratio,
+            )
+            new_ratio = self._asymmetry_min_ratio
+        new_ratio = float(new_ratio)
+
+        # Parse confirm_readings [1, 10]
+        new_confirm = gate.get("confirm_readings", 3)
+        if (
+            not isinstance(new_confirm, int)
+            or isinstance(new_confirm, bool)
+            or new_confirm < 1
+            or new_confirm > 10
+        ):
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Reload: confirm_readings invalid (%r); keeping current",
+                new_confirm,
+            )
+            new_confirm = self._asymmetry_confirm_readings
+
+        # Parse staleness_sec [5.0, 120.0]
+        new_staleness = gate.get("staleness_sec", 30.0)
+        if (
+            not isinstance(new_staleness, (int, float))
+            or isinstance(new_staleness, bool)
+            or new_staleness < 5.0
+            or new_staleness > 120.0
+        ):
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Reload: staleness_sec invalid (%r); keeping current",
+                new_staleness,
+            )
+            new_staleness = self._asymmetry_staleness_sec
+        new_staleness = float(new_staleness)
+
+        # Log transitions
+        if old_enabled != new_enabled:
+            self.logger.warning(
+                "[ASYMMETRY_GATE] Config reload: enabled=%s->%s",
+                old_enabled,
+                new_enabled,
+            )
+        else:
+            self.logger.info(
+                "[ASYMMETRY_GATE] Config reload: enabled=%s (unchanged)",
+                new_enabled,
+            )
+
+        # Apply
+        self._asymmetry_gate_enabled = new_enabled
+        self._asymmetry_damping_factor = new_damping
+        self._asymmetry_min_ratio = new_ratio
+        self._asymmetry_confirm_readings = new_confirm
+        self._asymmetry_staleness_sec = new_staleness
+
+        # If gate disabled via reload, reset active state
+        if not new_enabled and (self._asymmetry_gate_active or self._asymmetry_downstream_streak > 0):
+            self._asymmetry_gate_active = False
+            self._asymmetry_downstream_streak = 0
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -1760,6 +1890,63 @@ class WANController:
             self._spike_streak = 0
         self.previous_load_rtt = self.load_rtt
 
+    def _compute_effective_ul_load_rtt(self) -> float:
+        """Compute effective upload load_rtt with asymmetry gate attenuation.
+
+        When sustained downstream-only congestion is detected via IRTT, the
+        upload delta is attenuated by damping_factor to preserve upload bandwidth
+        for latency-sensitive traffic (VoIP, video).
+
+        Gate conditions (all must be true for activation):
+        1. Gate enabled in config (ASYM-01)
+        2. Valid asymmetry result exists
+        3. Result is not stale (< staleness_sec old) (ASYM-03)
+        4. Delta below hard_red_threshold (bidirectional override)
+        5. Consecutive downstream readings >= confirm_readings (ASYM-02)
+        6. Asymmetry ratio >= min_ratio
+
+        Returns:
+            Effective load_rtt: attenuated if gate active, raw otherwise.
+        """
+        # Gate disabled -- passthrough
+        if not self._asymmetry_gate_enabled:
+            return float(self.load_rtt)
+
+        # No asymmetry data yet -- passthrough
+        if self._last_asymmetry_result is None:
+            return float(self.load_rtt)
+
+        # Staleness check (ASYM-03): auto-disable if IRTT data too old
+        if self._last_asymmetry_result_ts > 0:
+            age = time.monotonic() - self._last_asymmetry_result_ts
+            if age > self._asymmetry_staleness_sec:
+                self._asymmetry_gate_active = False
+                self._asymmetry_downstream_streak = 0
+                return float(self.load_rtt)
+
+        # Bidirectional override: if delta exceeds hard_red, both directions
+        # are genuinely congested -- do not attenuate upload
+        delta = float(self.load_rtt) - float(self.baseline_rtt)
+        if delta > self.hard_red_threshold:
+            self._asymmetry_gate_active = False
+            return float(self.load_rtt)
+
+        # Consecutive sample hysteresis (ASYM-02)
+        asym = self._last_asymmetry_result
+        if asym.direction == "downstream" and asym.ratio >= self._asymmetry_min_ratio:
+            self._asymmetry_downstream_streak += 1
+            if self._asymmetry_downstream_streak >= self._asymmetry_confirm_readings:
+                self._asymmetry_gate_active = True
+        else:
+            self._asymmetry_downstream_streak = 0
+            self._asymmetry_gate_active = False
+
+        # Delta attenuation (ASYM-01)
+        if self._asymmetry_gate_active:
+            return float(self.baseline_rtt) + (delta * self._asymmetry_damping_factor)
+
+        return float(self.load_rtt)
+
     def _run_congestion_assessment(
         self,
     ) -> tuple[str, int, str | None, str, int, str | None, float]:
@@ -1773,8 +1960,9 @@ class WANController:
         )
         self._dl_zone = dl_zone
 
+        effective_ul_load_rtt = self._compute_effective_ul_load_rtt()
         ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
-            self.baseline_rtt, self.load_rtt, self.target_delta, self.warn_delta
+            self.baseline_rtt, effective_ul_load_rtt, self.target_delta, self.warn_delta
         )
         self._ul_zone = ul_zone
 
@@ -1815,6 +2003,7 @@ class WANController:
             if self._asymmetry_analyzer is not None:
                 asym = self._asymmetry_analyzer.analyze(irtt_result)
                 self._last_asymmetry_result = asym
+                self._last_asymmetry_result_ts = time.monotonic()
 
             if isinstance(self.alert_engine, AlertEngine):
                 if age <= cadence * 3:
@@ -2430,6 +2619,7 @@ class WANController:
         self._reload_hysteresis_config()
         self._reload_cycle_budget_config()
         self._reload_suppression_alert_config()
+        self._reload_asymmetry_gate_config()
 
     def shutdown_threads(self) -> None:
         """Stop background threads (RTT thread and thread pool)."""
@@ -2540,6 +2730,17 @@ class WANController:
             },
             "suppression_alert": {
                 "threshold": self._suppression_alert_threshold,
+            },
+            "asymmetry_gate": {
+                "enabled": self._asymmetry_gate_enabled,
+                "active": self._asymmetry_gate_active,
+                "downstream_streak": self._asymmetry_downstream_streak,
+                "damping_factor": self._asymmetry_damping_factor,
+                "last_result_age_sec": (
+                    time.monotonic() - self._last_asymmetry_result_ts
+                    if self._last_asymmetry_result_ts > 0
+                    else None
+                ),
             },
         }
 
