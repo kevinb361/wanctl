@@ -263,6 +263,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_health["irtt"] = self._build_irtt_section(health_data, config)
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
+        wan_health["asymmetry_gate"] = self._build_asymmetry_gate_section(health_data)
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
 
         return wan_health
@@ -459,6 +460,25 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             fusion["pearson_correlation"] = None
             fusion["correlation_window_avg"] = None
             fusion["heal_grace_active"] = False
+
+    def _build_asymmetry_gate_section(
+        self, health_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Build asymmetry gate status section (ASYM-01 through ASYM-03)."""
+        gate = health_data.get("asymmetry_gate")
+        if gate is None:
+            return {"enabled": False}
+        return {
+            "enabled": gate["enabled"],
+            "active": gate["active"],
+            "downstream_streak": gate["downstream_streak"],
+            "damping_factor": gate["damping_factor"],
+            "last_result_age_sec": (
+                round(gate["last_result_age_sec"], 1)
+                if gate["last_result_age_sec"] is not None
+                else None
+            ),
+        }
 
     def _build_tuning_section(
         self, health_data: dict[str, Any], wan_controller: Any

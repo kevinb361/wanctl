@@ -86,6 +86,33 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
             "suppression_alert": {
                 "threshold": getattr(wan_mock, "_suppression_alert_threshold", 20),
             },
+            "asymmetry_gate": {
+                "enabled": (
+                    wan_mock._asymmetry_gate_enabled
+                    if isinstance(getattr(wan_mock, "_asymmetry_gate_enabled", False), bool)
+                    else False
+                ),
+                "active": (
+                    wan_mock._asymmetry_gate_active
+                    if isinstance(getattr(wan_mock, "_asymmetry_gate_active", False), bool)
+                    else False
+                ),
+                "downstream_streak": (
+                    wan_mock._asymmetry_downstream_streak
+                    if isinstance(getattr(wan_mock, "_asymmetry_downstream_streak", 0), int)
+                    else 0
+                ),
+                "damping_factor": (
+                    wan_mock._asymmetry_damping_factor
+                    if isinstance(getattr(wan_mock, "_asymmetry_damping_factor", 0.5), (int, float))
+                    else 0.5
+                ),
+                "last_result_age_sec": (
+                    wan_mock._asymmetry_last_result_age_sec
+                    if not isinstance(getattr(wan_mock, "_asymmetry_last_result_age_sec", None), MagicMock)
+                    else None
+                ),
+            },
         }
     wan_mock.get_health_data.side_effect = _wan_health_data
     _configure_qc_health_data(wan_mock.download)
@@ -2993,4 +3020,164 @@ class TestHistoryHelperMethods:
 
         assert end_ts > start_ts
         assert (end_ts - start_ts) == 3600  # 1 hour default
+
+
+# =============================================================================
+# TestAsymmetryGateHealthSection (Phase 156)
+# =============================================================================
+
+
+class TestAsymmetryGateHealthSection:
+    """Tests for asymmetry gate section in health endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan(self):
+        """Create a mock WAN controller for asymmetry gate health tests."""
+        wan = MagicMock()
+        wan.baseline_rtt = 25.0
+        wan.load_rtt = 50.0
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
+        wan.download._window_suppressions = 0
+        wan.download._window_start_time = 1712345000.0
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
+        wan.upload._window_suppressions = 0
+        wan.upload._window_start_time = 1712345000.0
+        wan._suppression_alert_threshold = 20
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
+        wan._tuning_enabled = False
+        wan._tuning_state = None
+        wan._parameter_locks = {}
+        wan._pending_observation = None
+        # Asymmetry gate defaults
+        wan._asymmetry_gate_enabled = False
+        wan._asymmetry_gate_active = False
+        wan._asymmetry_downstream_streak = 0
+        wan._asymmetry_damping_factor = 0.5
+        wan._asymmetry_last_result_age_sec = None
+        _configure_wan_health_data(wan)
+        return wan
+
+    def _make_controller(self, wan, irtt_enabled=False):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": irtt_enabled}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def test_gate_disabled_shows_enabled_false(self, mock_wan):
+        """health_data with gate disabled -> section shows enabled=False."""
+        mock_wan._asymmetry_gate_enabled = False
+        controller = self._make_controller(mock_wan)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            gate = data["wans"][0]["asymmetry_gate"]
+            assert gate["enabled"] is False
+            assert gate["active"] is False
+            assert gate["downstream_streak"] == 0
+        finally:
+            server.shutdown()
+
+    def test_gate_active_shows_all_fields(self, mock_wan):
+        """health_data with gate active -> all fields present and correct."""
+        mock_wan._asymmetry_gate_enabled = True
+        mock_wan._asymmetry_gate_active = True
+        mock_wan._asymmetry_downstream_streak = 3
+        mock_wan._asymmetry_damping_factor = 0.5
+        mock_wan._asymmetry_last_result_age_sec = 5.234
+        controller = self._make_controller(mock_wan)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            gate = data["wans"][0]["asymmetry_gate"]
+            assert gate["enabled"] is True
+            assert gate["active"] is True
+            assert gate["downstream_streak"] == 3
+            assert gate["damping_factor"] == 0.5
+            assert gate["last_result_age_sec"] == 5.2  # rounded to 1 decimal
+        finally:
+            server.shutdown()
+
+    def test_gate_missing_from_health_data(self, mock_wan):
+        """health_data has no asymmetry_gate key -> returns enabled=False."""
+        handler = HealthCheckHandler
+        # Directly test the section builder with missing key
+        health_data = {}
+        instance = handler.__new__(handler)
+        result = instance._build_asymmetry_gate_section(health_data)
+        assert result == {"enabled": False}
+
+    def test_gate_age_none(self, mock_wan):
+        """last_result_age_sec is None -> shows null in JSON."""
+        mock_wan._asymmetry_gate_enabled = True
+        mock_wan._asymmetry_gate_active = False
+        mock_wan._asymmetry_last_result_age_sec = None
+        controller = self._make_controller(mock_wan)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            gate = data["wans"][0]["asymmetry_gate"]
+            assert gate["last_result_age_sec"] is None
+        finally:
+            server.shutdown()
 
