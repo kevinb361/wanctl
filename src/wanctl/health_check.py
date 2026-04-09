@@ -313,7 +313,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return {
             "enabled": bd["enabled"],
             "total_bursts": bd["total_bursts"],
-            "burst_response_enabled": False,  # Phase 152 will change this to True
+            "burst_response_enabled": bd.get("response_enabled", False),
+            "burst_responses_total": bd.get("responses_total", 0),
+            "holdoff_remaining": bd.get("holdoff_remaining", 0),
+            "holdoff_cycles": bd.get("holdoff_cycles", 0),
+            "target_floor_mbps": bd.get("target_floor_bps", 0) // 1_000_000,
             "current_acceleration": round(result.acceleration, 3) if result else None,
             "current_velocity": round(result.velocity, 3) if result else None,
             "is_burst": result.is_burst if result else False,

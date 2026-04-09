@@ -1627,6 +1627,55 @@ class WANController:
         self._burst_detector.accel_threshold = new_threshold
         self._burst_detector.confirm_cycles = new_confirm
 
+        # Parse response sub-section (Phase 152)
+        response = bd.get("response", {})
+        if not isinstance(response, dict):
+            response = {}
+
+        new_response_enabled = response.get("enabled", True)
+        if not isinstance(new_response_enabled, bool):
+            self.logger.warning(
+                "[BURST] Reload: invalid response.enabled (%r); keeping current value",
+                new_response_enabled,
+            )
+            new_response_enabled = self._burst_response_enabled
+
+        new_holdoff = response.get("holdoff_cycles", 100)
+        if (
+            not isinstance(new_holdoff, int)
+            or isinstance(new_holdoff, bool)
+            or new_holdoff < 10
+            or new_holdoff > 1000
+        ):
+            self.logger.warning(
+                "[BURST] Reload: invalid response.holdoff_cycles (%r); keeping current value",
+                new_holdoff,
+            )
+            new_holdoff = self._burst_holdoff_cycles
+
+        new_target = response.get("target_floor", "soft_red")
+        if new_target not in ("soft_red", "red"):
+            self.logger.warning(
+                "[BURST] Reload: invalid response.target_floor (%r); keeping current value",
+                new_target,
+            )
+            new_target = self._burst_response_target_floor
+
+        # Log response config transitions
+        self.logger.warning(
+            "[BURST] Config reload response: enabled=%s, holdoff=%s->%s, target=%s->%s",
+            new_response_enabled,
+            self._burst_holdoff_cycles,
+            new_holdoff,
+            self._burst_response_target_floor,
+            new_target,
+        )
+
+        # Apply response config
+        self._burst_response_enabled = new_response_enabled
+        self._burst_holdoff_cycles = new_holdoff
+        self._burst_response_target_floor = new_target
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -2083,6 +2132,11 @@ class WANController:
                 (ts, self.wan_name, "wanctl_burst_acceleration", br.acceleration, None, "raw"),
                 (ts, self.wan_name, "wanctl_burst_velocity", br.velocity, None, "raw"),
                 (ts, self.wan_name, "wanctl_burst_detected", float(br.is_burst), None, "raw"),
+                # Phase 152: burst response metrics
+                (ts, self.wan_name, "wanctl_burst_response_active",
+                 float(self._burst_holdoff_remaining > 0), None, "raw"),
+                (ts, self.wan_name, "wanctl_burst_holdoff_remaining",
+                 float(self._burst_holdoff_remaining), None, "raw"),
             ])
 
         if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
@@ -2677,6 +2731,15 @@ class WANController:
                 "enabled": self._burst_detection_enabled,
                 "result": self._last_burst_result,
                 "total_bursts": self._burst_detector.total_bursts,
+                "response_enabled": self._burst_response_enabled,
+                "responses_total": self._burst_responses_total,
+                "holdoff_remaining": self._burst_holdoff_remaining,
+                "holdoff_cycles": self._burst_holdoff_cycles,
+                "target_floor_bps": (
+                    self.download.floor_soft_red_bps
+                    if self._burst_response_target_floor == "soft_red"
+                    else self.download.floor_red_bps
+                ),
             },
         }
 
