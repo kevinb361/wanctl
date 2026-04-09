@@ -325,6 +325,94 @@ class TestBackendSelection:
         assert found, f"Backend class name not in log messages: {log_messages}"
 
 
+class TestPeriodicReadback:
+    """Test periodic readback validation fires every READBACK_INTERVAL_CYCLES calls."""
+
+    def setup_method(self):
+        self.dl_backend = MagicMock()
+        self.dl_backend.interface = "ens28"
+        self.dl_backend.set_bandwidth.return_value = True
+        self.dl_backend.validate_cake.return_value = True
+        self.dl_backend.initialize_cake.return_value = True
+
+        self.ul_backend = MagicMock()
+        self.ul_backend.interface = "ens27"
+        self.ul_backend.set_bandwidth.return_value = True
+        self.ul_backend.validate_cake.return_value = True
+        self.ul_backend.initialize_cake.return_value = True
+
+        self.logger = MagicMock()
+        self.adapter = LinuxCakeAdapter(self.dl_backend, self.ul_backend, self.logger)
+        self.adapter._cake_config = {
+            "overhead": "bridged-ptm",
+            "memlimit": "32mb",
+            "rtt": "100ms",
+        }
+
+    def test_readback_counter_increments_on_set_limits(self):
+        """Counter increments after each set_limits() call."""
+        self.adapter.set_limits("att", 50_000_000, 10_000_000)
+        assert self.adapter._readback_counter == 1
+
+    def test_readback_not_called_before_interval(self):
+        """validate_cake() NOT called on calls 1-1199."""
+        for _ in range(1199):
+            self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        self.dl_backend.validate_cake.assert_not_called()
+        self.ul_backend.validate_cake.assert_not_called()
+
+    def test_readback_called_at_interval(self):
+        """validate_cake() called on call 1200."""
+        for _ in range(1200):
+            self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        assert self.dl_backend.validate_cake.call_count == 1
+        assert self.ul_backend.validate_cake.call_count == 1
+
+    def test_readback_counter_resets_after_check(self):
+        """Counter resets to 0 after readback fires."""
+        for _ in range(1200):
+            self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        assert self.adapter._readback_counter == 0
+
+        # One more call should increment to 1
+        self.adapter.set_limits("att", 50_000_000, 10_000_000)
+        assert self.adapter._readback_counter == 1
+
+    def test_readback_failure_triggers_reinit(self):
+        """When validate_cake() returns False, initialize_cake() is called."""
+        self.dl_backend.validate_cake.return_value = False
+        self.adapter._readback_counter = 1199
+
+        self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        self.dl_backend.initialize_cake.assert_called_once()
+
+    def test_readback_success_no_reinit(self):
+        """When validate_cake() returns True, initialize_cake() is NOT called."""
+        self.dl_backend.validate_cake.return_value = True
+        self.ul_backend.validate_cake.return_value = True
+        self.adapter._readback_counter = 1199
+
+        self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        self.dl_backend.initialize_cake.assert_not_called()
+        self.ul_backend.initialize_cake.assert_not_called()
+
+    def test_readback_checks_both_backends(self):
+        """DL passes, UL fails -- only UL gets re-initialized."""
+        self.dl_backend.validate_cake.return_value = True
+        self.ul_backend.validate_cake.return_value = False
+        self.adapter._readback_counter = 1199
+
+        self.adapter.set_limits("att", 50_000_000, 10_000_000)
+
+        self.dl_backend.initialize_cake.assert_not_called()
+        self.ul_backend.initialize_cake.assert_called_once()
+
+
 class TestDaemonWiring:
     """Test that ContinuousAutoRate branches on router_transport."""
 
