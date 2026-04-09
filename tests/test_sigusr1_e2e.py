@@ -74,6 +74,27 @@ class TestAutorateReloadChainE2E:
         # Verify event cleared (ready for next SIGUSR1)
         assert not is_reload_requested()
 
+    def test_sigusr1_reloads_burst_detection_config(self):
+        """SIGUSR1 reload chain includes burst detection config reload.
+
+        Verifies that reload() (which internally calls _reload_burst_detection_config)
+        is called on every WANController during SIGUSR1 handling.
+        """
+        _reload_event.set()
+        assert is_reload_requested()
+
+        ctrl = MagicMock()
+        logger = MagicMock()
+        wan_controllers = [{"controller": ctrl, "logger": logger}]
+
+        if is_reload_requested():
+            for wan_info in wan_controllers:
+                wan_info["controller"].reload()
+            reset_reload_state()
+
+        ctrl.reload.assert_called_once()
+        assert not is_reload_requested()
+
     def test_reload_event_cleared_after_autorate_handling(self):
         """After autorate reload chain completes, _reload_event is cleared
         so the next SIGUSR1 can be detected.

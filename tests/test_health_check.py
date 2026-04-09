@@ -87,9 +87,21 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 "threshold": getattr(wan_mock, "_suppression_alert_threshold", 20),
             },
             "burst_detection": {
-                "enabled": getattr(wan_mock, "_burst_detection_enabled", True),
-                "result": getattr(wan_mock, "_last_burst_result", None),
-                "total_bursts": getattr(wan_mock, "_burst_total_bursts", 0),
+                "enabled": (
+                    wan_mock._burst_detection_enabled
+                    if "_burst_detection_enabled" in wan_mock.__dict__
+                    else True
+                ),
+                "result": (
+                    wan_mock._last_burst_result
+                    if "_last_burst_result" in wan_mock.__dict__
+                    else None
+                ),
+                "total_bursts": (
+                    wan_mock._burst_total_bursts
+                    if "_burst_total_bursts" in wan_mock.__dict__
+                    else 0
+                ),
             },
         }
     wan_mock.get_health_data.side_effect = _wan_health_data
