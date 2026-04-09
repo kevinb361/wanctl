@@ -10,7 +10,7 @@ FROM python:3.12-slim
 
 LABEL maintainer="wanctl project"
 LABEL description="Adaptive CAKE bandwidth controller for Mikrotik RouterOS"
-LABEL version="1.27.0"
+LABEL version="1.31.0"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
