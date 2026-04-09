@@ -134,7 +134,7 @@ EOJSON
 
         # Check for restart
         restarted="no"
-        if (( ${uptime:-0} < ${start_uptime:-0} )); then
+        if awk "BEGIN {exit (${uptime:-0} < ${start_uptime:-0}) ? 0 : 1}"; then
             restarted="yes"
         fi
 
