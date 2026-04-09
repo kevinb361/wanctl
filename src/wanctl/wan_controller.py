@@ -297,6 +297,15 @@ class WANController:
         )
         self._last_burst_result: BurstResult | None = None
 
+        # Burst response: fast-path floor jump (Phase 152)
+        self._burst_response_enabled: bool = getattr(config, "burst_response_enabled", True)
+        self._burst_response_target_floor: str = getattr(
+            config, "burst_response_target_floor", "soft_red"
+        )
+        self._burst_holdoff_cycles: int = getattr(config, "burst_response_holdoff_cycles", 100)
+        self._burst_holdoff_remaining: int = 0
+        self._burst_responses_total: int = 0
+
         # Create queue controllers
         self.download = QueueController(
             name=f"{wan_name}-Download",
@@ -1838,9 +1847,64 @@ class WANController:
             self._spike_streak = 0
         self.previous_load_rtt = self.load_rtt
 
-        # Second-derivative burst detection (Phase 151 -- detection only, no rate action)
+        # Second-derivative burst detection (Phase 151)
         if self._burst_detection_enabled:
             self._last_burst_result = self._burst_detector.update(self.load_rtt)
+
+        # Burst RESPONSE: fast-path floor jump (Phase 152)
+        if self._burst_response_enabled and self._last_burst_result is not None:
+            self._apply_burst_response(self._last_burst_result)
+
+    def _apply_burst_response(self, burst_result: BurstResult) -> None:
+        """Apply fast-path floor jump when burst detected, manage holdoff.
+
+        During holdoff: suppress recovery by resetting green_streak each cycle.
+        When burst fires and rate > target floor: jump rate to floor, engage holdoff.
+        """
+        # Tick down holdoff counter each cycle
+        if self._burst_holdoff_remaining > 0:
+            self._burst_holdoff_remaining -= 1
+            # During holdoff: suppress recovery by resetting green streak
+            self.download.green_streak = 0
+            return
+
+        if not burst_result.is_burst:
+            return
+
+        # Resolve target floor at response time (not cached -- stays current with tuning)
+        if self._burst_response_target_floor == "red":
+            target_floor = self.download.floor_red_bps
+        else:
+            target_floor = self.download.floor_soft_red_bps
+
+        old_rate = self.download.current_rate
+
+        if old_rate <= target_floor:
+            return  # Already at or below floor, no action needed
+
+        # FAST-PATH: jump rate to configured floor
+        self.download.current_rate = target_floor
+        self._burst_holdoff_remaining = self._burst_holdoff_cycles
+        self._burst_responses_total += 1
+
+        # Force zone state consistent with floor jump
+        self.download.green_streak = 0
+        self.download.red_streak = 0
+        if self._burst_response_target_floor == "red":
+            self.download.red_streak = 1
+            self.download.soft_red_streak = 0
+        else:
+            self.download.soft_red_streak = 1
+
+        self.logger.warning(
+            "%s: BURST RESPONSE - rate %d -> %d Mbps (floor jump), "
+            "holdoff=%d cycles (%.1fs)",
+            self.wan_name,
+            old_rate // 1_000_000,
+            target_floor // 1_000_000,
+            self._burst_holdoff_cycles,
+            self._burst_holdoff_cycles * 0.05,
+        )
 
     def _run_congestion_assessment(
         self,

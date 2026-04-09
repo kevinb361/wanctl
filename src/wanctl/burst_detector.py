@@ -5,8 +5,8 @@ Called once per cycle with the current load_rtt (EWMA-smoothed). When sustained
 positive acceleration exceeds a configurable threshold for N consecutive cycles,
 a burst event fires.
 
-This is detection-only -- no rate control actions are taken. The WANController
-integration (Phase 152) will wire burst events to floor-jump responses.
+Detection fires BurstResult.is_burst=True which WANController._apply_burst_response
+(Phase 152) uses to trigger fast-path floor-jump responses.
 
 Signal flow:
     load_rtt -> BurstDetector.update() -> BurstResult
@@ -146,8 +146,7 @@ class BurstDetector:
             self._total_bursts += 1
             self._logger.warning(
                 "%s: BURST detected! accel=%.2fms/cycle^2 "
-                "(%d consecutive, threshold=%.1fms/cycle^2) "
-                "(detection only, response not yet enabled)",
+                "(%d consecutive, threshold=%.1fms/cycle^2)",
                 self._wan_name,
                 acceleration,
                 self._accel_streak,

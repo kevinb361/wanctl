@@ -113,6 +113,10 @@ def mock_autorate_config():
     config.burst_detection_enabled = True
     config.burst_detection_accel_threshold_ms = 2.0
     config.burst_detection_confirm_cycles = 3
+    # Burst response parameters (Phase 152)
+    config.burst_response_enabled = True
+    config.burst_response_target_floor = "soft_red"
+    config.burst_response_holdoff_cycles = 100
     # Hysteresis parameters (Phase 122)
     config.dwell_cycles = 3
     config.deadband_ms = 3.0

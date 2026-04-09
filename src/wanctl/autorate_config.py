@@ -271,6 +271,24 @@ class Config(BaseConfig):
             "min": 1,
             "max": 10,
         },
+        # Burst response parameters (Phase 152)
+        {
+            "path": "continuous_monitoring.thresholds.burst_detection.response.enabled",
+            "type": bool,
+            "required": False,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.burst_detection.response.target_floor",
+            "type": str,
+            "required": False,
+        },
+        {
+            "path": "continuous_monitoring.thresholds.burst_detection.response.holdoff_cycles",
+            "type": int,
+            "required": False,
+            "min": 10,
+            "max": 1000,
+        },
         # Baseline RTT bounds (optional - security validation)
         {
             "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -398,6 +416,14 @@ class Config(BaseConfig):
         self.burst_detection_enabled = bd.get("enabled", True)
         self.burst_detection_accel_threshold_ms = float(bd.get("accel_threshold_ms", 8.0))
         self.burst_detection_confirm_cycles = int(bd.get("confirm_cycles", 3))
+
+        # Burst response: fast-path floor jump (Phase 152)
+        response = bd.get("response", {})
+        if not isinstance(response, dict):
+            response = {}
+        self.burst_response_enabled = response.get("enabled", True)
+        self.burst_response_target_floor = response.get("target_floor", "soft_red")
+        self.burst_response_holdoff_cycles = int(response.get("holdoff_cycles", 100))
 
         # Baseline RTT security bounds
         bounds = thresh.get("baseline_rtt_bounds", {})

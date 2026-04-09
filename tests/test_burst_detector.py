@@ -175,8 +175,8 @@ class TestBurstDetection:
         # First positional arg is the format string
         assert "BURST detected" in log_args[0][0]
 
-    def test_burst_log_includes_detection_only_note(self) -> None:
-        """Burst log message includes 'detection only' per Pitfall 3."""
+    def test_burst_log_includes_burst_detected(self) -> None:
+        """Burst log message includes 'BURST detected' with acceleration details."""
         mock_logger = MagicMock()
         detector = BurstDetector(
             wan_name="Spectrum",
@@ -190,7 +190,7 @@ class TestBurstDetection:
         detector.update(50.38)
 
         log_args = mock_logger.warning.call_args
-        assert "detection only" in log_args[0][0]
+        assert "BURST detected" in log_args[0][0]
 
     def test_total_bursts_counter(self) -> None:
         """Burst counter increments on each burst event, survives reset."""
