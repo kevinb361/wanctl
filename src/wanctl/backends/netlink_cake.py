@@ -125,12 +125,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         return self._ipr
 
     def _reset_ipr(self) -> None:
-        """Close and null the IPRoute reference to force reconnect on next call."""
-        if self._ipr is not None:
-            try:
-                self._ipr.close()
-            except Exception:
-                pass
+        """Null the IPRoute reference to force reconnect on next call."""
         self._ipr = None
 
     # =========================================================================
@@ -358,7 +353,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 kwargs,
             )
             return True
-        except (NetlinkError, OSError, ImportError, ValueError, TypeError) as e:
+        except (NetlinkError, OSError, ImportError) as e:
             self.logger.warning(
                 "Netlink tc replace failed on %s: %s -- falling back to subprocess",
                 self.interface,

@@ -264,18 +264,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
-        wan_health["burst_detection"] = self._build_burst_detection_section(health_data)
-
-        # Transport backend info (XPORT-03, SC-4)
-        router = wan_controller.router
-        if hasattr(router, "dl_backend") and hasattr(router, "ul_backend"):
-            dl_name = type(router.dl_backend).__name__
-            ul_name = type(router.ul_backend).__name__
-            wan_health["transport"] = {
-                "dl_backend": dl_name,
-                "ul_backend": ul_name,
-                "netlink_available": "Netlink" in dl_name or "Netlink" in ul_name,
-            }
 
         return wan_health
 
@@ -313,27 +301,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "outlier_rate": round(signal_result.outlier_rate, 3),
             "total_outliers": signal_result.total_outliers,
             "warming_up": signal_result.warming_up,
-        }
-
-    def _build_burst_detection_section(
-        self, health_data: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Build burst detection status for health endpoint."""
-        bd = health_data["burst_detection"]
-        result = bd["result"]
-        return {
-            "enabled": bd["enabled"],
-            "total_bursts": bd["total_bursts"],
-            "burst_response_enabled": bd.get("response_enabled", False),
-            "burst_responses_total": bd.get("responses_total", 0),
-            "holdoff_remaining": bd.get("holdoff_remaining", 0),
-            "holdoff_cycles": bd.get("holdoff_cycles", 0),
-            "target_floor_mbps": bd.get("target_floor_bps", 0) // 1_000_000,
-            "current_acceleration": round(result.acceleration, 3) if result else None,
-            "current_velocity": round(result.velocity, 3) if result else None,
-            "is_burst": result.is_burst if result else False,
-            "consecutive_accel_cycles": result.consecutive_accel if result else 0,
-            "warming_up": result.warming_up if result else True,
         }
 
     def _build_irtt_section(

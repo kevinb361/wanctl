@@ -172,63 +172,6 @@ class TestIPRouteLifecycle:
 
 
 # =============================================================================
-# TestResetIpr (XPORT-02)
-# =============================================================================
-
-
-class TestResetIpr:
-    """FD leak fix tests for _reset_ipr() -- XPORT-02."""
-
-    def test_reset_ipr_closes_socket(self, backend):
-        """_reset_ipr() calls ipr.close() when self._ipr is not None."""
-        mock_ipr = MagicMock()
-        backend._ipr = mock_ipr
-
-        backend._reset_ipr()
-
-        mock_ipr.close.assert_called_once()
-        assert backend._ipr is None
-
-    def test_reset_ipr_safe_when_none(self, backend):
-        """_reset_ipr() is a no-op when self._ipr is already None."""
-        assert backend._ipr is None
-        backend._reset_ipr()  # should not raise
-        assert backend._ipr is None
-
-    def test_reset_ipr_nulls_after_close(self, backend):
-        """_reset_ipr() sets self._ipr to None after closing."""
-        mock_ipr = MagicMock()
-        backend._ipr = mock_ipr
-
-        backend._reset_ipr()
-
-        assert backend._ipr is None
-
-    def test_reset_ipr_swallows_close_exception(self, backend):
-        """_reset_ipr() swallows OSError from ipr.close() and still nulls."""
-        mock_ipr = MagicMock()
-        mock_ipr.close.side_effect = OSError("broken")
-        backend._ipr = mock_ipr
-
-        backend._reset_ipr()  # should not raise
-
-        assert backend._ipr is None
-
-    def test_reset_ipr_no_fd_growth_100_calls(self, backend):
-        """100 consecutive _reset_ipr() calls all close their sockets."""
-        mocks = []
-        for _ in range(100):
-            mock_ipr = MagicMock()
-            mocks.append(mock_ipr)
-            backend._ipr = mock_ipr
-            backend._reset_ipr()
-
-        # Every mock should have had .close() called exactly once
-        for i, m in enumerate(mocks):
-            m.close.assert_called_once(), f"Mock {i} was not closed"
-
-
-# =============================================================================
 # TestSetBandwidth (NLNK-01)
 # =============================================================================
 

@@ -380,3 +380,162 @@ class TestCongestionZoneExport:
         # Save same 4 tracked fields -- should be skipped (not dirty)
         result = new_manager.save(**sample_state)
         assert result is False
+
+
+class TestCoalescingGate:
+    """Tests for minimum-interval write coalescing gate.
+
+    Verifies that state writes are throttled to at most once per
+    MIN_SAVE_INTERVAL_SEC, reducing I/O from ~20/s to ~1/s while
+    ensuring force=True always writes and dirty state is never lost.
+    """
+
+    @pytest.fixture
+    def state_file(self, tmp_path):
+        """Temporary state file path."""
+        return tmp_path / "test-state.json"
+
+    @pytest.fixture
+    def state_manager(self, state_file):
+        """State manager instance."""
+        logger = MagicMock()
+        return WANControllerState(state_file, logger, "test-wan")
+
+    @pytest.fixture
+    def sample_state(self):
+        """Sample state data for tests."""
+        return {
+            "download": {
+                "green_streak": 5,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 100000000,
+            },
+            "upload": {
+                "green_streak": 3,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": 20000000,
+            },
+            "ewma": {"baseline_rtt": 20.0, "load_rtt": 22.0},
+            "last_applied": {"dl_rate": 100000000, "ul_rate": 20000000},
+        }
+
+    @pytest.fixture
+    def changed_state(self, sample_state):
+        """Modified state that differs from sample_state."""
+        modified = sample_state.copy()
+        modified["ewma"] = {"baseline_rtt": 20.0, "load_rtt": 25.0}
+        return modified
+
+    def test_first_save_always_writes(self, state_manager, sample_state):
+        """First save should always write regardless of interval (no prior write time)."""
+        result = state_manager.save(**sample_state)
+        assert result is True
+
+    def test_min_interval_suppresses_rapid_unchanged_saves(
+        self, state_manager, sample_state, monkeypatch
+    ):
+        """save() returns False when state unchanged AND interval not elapsed."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Try again at t=100.5 (0.5s later, within 1.0s interval)
+        clock[0] = 100.5
+        result = state_manager.save(**sample_state)
+        assert result is False
+
+    def test_dirty_state_writes_even_within_interval(
+        self, state_manager, sample_state, changed_state, monkeypatch
+    ):
+        """save() returns True when state changed even if interval NOT elapsed."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Changed state at t=100.1 (within interval, but dirty)
+        clock[0] = 100.1
+        result = state_manager.save(**changed_state)
+        assert result is True
+
+    def test_force_bypasses_interval_gate(
+        self, state_manager, sample_state, monkeypatch
+    ):
+        """save(force=True) bypasses both dirty tracking AND minimum interval gate."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Force save at t=100.1 (within interval, unchanged state)
+        clock[0] = 100.1
+        result = state_manager.save(**sample_state, force=True)
+        assert result is True
+
+    def test_force_updates_last_write_time(
+        self, state_manager, sample_state, changed_state, monkeypatch
+    ):
+        """force=True updates _last_write_time so subsequent saves respect interval."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Force save at t=100.5
+        clock[0] = 100.5
+        state_manager.save(**sample_state, force=True)
+
+        # Now try changed state at t=100.8 (only 0.3s after force save)
+        # Should still write because state is dirty (changed)
+        clock[0] = 100.8
+        result = state_manager.save(**changed_state)
+        assert result is True  # dirty trumps interval
+
+    def test_unchanged_state_skipped_even_after_interval(
+        self, state_manager, sample_state, monkeypatch
+    ):
+        """save() with unchanged state returns False even after interval elapsed."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Same state at t=105.0 (well after interval)
+        clock[0] = 105.0
+        result = state_manager.save(**sample_state)
+        assert result is False  # dirty gate still applies
+
+    def test_changed_state_writes_after_interval_elapsed(
+        self, state_manager, sample_state, changed_state, monkeypatch
+    ):
+        """save() with changed state writes when interval has elapsed."""
+        import wanctl.wan_controller_state as wcs
+
+        clock = [100.0]
+        monkeypatch.setattr(wcs.time, "monotonic", lambda: clock[0])
+
+        # First save at t=100.0
+        state_manager.save(**sample_state)
+
+        # Changed state at t=102.0 (after interval)
+        clock[0] = 102.0
+        result = state_manager.save(**changed_state)
+        assert result is True

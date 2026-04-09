@@ -26,7 +26,7 @@ VM_HOST="kevin@10.10.110.223"
 ROUTER_HOST="10.10.99.1"
 ROUTER_USER="admin"
 SPECTRUM_CONFIG="/etc/wanctl/spectrum.yaml"
-HEALTH_URL="http://10.10.110.223:9101/health"
+HEALTH_URL="http://127.0.0.1:9101/health"
 BRIDGE_NICS=(ens16 ens17 ens27 ens28)
 
 # ---------------------------------------------------------------------------
