@@ -133,7 +133,10 @@ Plans:
   2. Flent RRUL and rrul_be median and p99 latency remain within 10% of pre-burst-detection baseline
   3. 24h production soak shows zero false burst detection triggers during normal household usage
   4. All existing unit tests pass with no regressions
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 153-01-PLAN.md -- Flent regression suite script and formal validation (VAL-01, VAL-02)
+- [ ] 153-02-PLAN.md -- Soak monitoring script and 24h production soak (VAL-03)
 
 ## Progress
 
@@ -144,4 +147,4 @@ Phases execute in numeric order: 151 through 153.
 |-------|-----------|----------------|--------|-----------|
 | 151. Burst Detection | v1.30 | 2/2 | Complete    | 2026-04-09 |
 | 152. Fast-Path Response | v1.30 | 2/2 | Complete    | 2026-04-09 |
-| 153. Validation & Soak | v1.30 | 0/0 | Not started | - |
+| 153. Validation & Soak | v1.30 | 0/2 | Not started | - |
