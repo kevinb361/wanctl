@@ -25,7 +25,7 @@ set -euo pipefail
 
 FLENT_HOST="104.200.21.31"       # Dallas netperf server
 VM_HOST="kevin@10.10.110.223"    # cake-shaper VM
-HEALTH_URL="http://127.0.0.1:9101/health"
+HEALTH_URL="http://10.10.110.223:9101/health"
 
 DEFAULT_RUNS=5
 DEFAULT_DURATION=60
