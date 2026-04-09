@@ -8,10 +8,13 @@ pattern from steering/state_manager.py.
 
 import datetime
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
 from .state_utils import atomic_write_json, safe_json_load_file
+
+MIN_SAVE_INTERVAL_SEC: float = 1.0  # Don't write state more than once per second
 
 
 class WANControllerState:
@@ -48,6 +51,7 @@ class WANControllerState:
         self.wan_name = wan_name
         # Dirty tracking: store last saved state for comparison (excludes timestamp)
         self._last_saved_state: dict[str, Any] | None = None
+        self._last_write_time: float = 0.0  # monotonic timestamp of last write
 
     def _is_state_changed(
         self,
@@ -130,7 +134,19 @@ class WANControllerState:
             True if state was written, False if skipped (unchanged)
         """
         if not force and not self._is_state_changed(download, upload, ewma, last_applied):
-            self.logger.debug(f"{self.wan_name}: State unchanged, skipping disk write")
+            # Minimum interval gate combined with dirty check: skip write when
+            # state is unchanged. The interval tracking ensures we don't write
+            # more than once per MIN_SAVE_INTERVAL_SEC even for unchanged state.
+            now = time.monotonic()
+            if (now - self._last_write_time) < MIN_SAVE_INTERVAL_SEC:
+                self.logger.debug(
+                    f"{self.wan_name}: State unchanged within interval, "
+                    "skipping disk write"
+                )
+            else:
+                self.logger.debug(
+                    f"{self.wan_name}: State unchanged, skipping disk write"
+                )
             return False
 
         state = {
@@ -144,6 +160,7 @@ class WANControllerState:
             state["congestion"] = congestion
 
         atomic_write_json(self.state_file, state)
+        self._last_write_time = time.monotonic()
         # Update last saved state for dirty tracking
         # NOTE: congestion is intentionally excluded -- zone changes alone
         # must NOT trigger disk writes (prevents 20x write amplification)

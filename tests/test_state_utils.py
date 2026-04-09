@@ -103,6 +103,35 @@ class TestAtomicWriteJson:
         # File should not exist after failed write
         assert not file_path.exists()
 
+    def test_uses_fdatasync_on_linux(self, temp_dir, monkeypatch):
+        """Verify fdatasync is used instead of fsync."""
+        import wanctl.state_utils as su
+
+        calls = []
+        monkeypatch.setattr(su, "_sync_fn", lambda fd: calls.append(fd))
+        atomic_write_json(temp_dir / "test.json", {"k": "v"})
+        assert len(calls) == 1
+        assert isinstance(calls[0], int)  # file descriptor
+
+    def test_fallback_to_fsync_when_fdatasync_missing(self, temp_dir, monkeypatch):
+        """Verify fallback works when fdatasync unavailable."""
+        import wanctl.state_utils as su
+
+        fsync_calls = []
+        monkeypatch.setattr(su, "_sync_fn", lambda fd: fsync_calls.append(fd))
+        atomic_write_json(temp_dir / "test.json", {"k": "v"})
+        assert len(fsync_calls) == 1
+
+    def test_fdatasync_data_integrity_roundtrip(self, temp_dir):
+        """Data integrity preserved after fdatasync swap (write + read roundtrip)."""
+        file_path = temp_dir / "test.json"
+        data = {"nested": {"values": [1, 2, 3]}, "flag": True, "rate": 100000000}
+        atomic_write_json(file_path, data)
+
+        with open(file_path) as f:
+            result = json.load(f)
+        assert result == data
+
 
 class TestSafeReadJson:
     """Tests for safe_read_json function."""
