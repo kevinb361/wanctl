@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.31
 milestone_name: Linux-CAKE Optimization
-status: planning
+status: completed
 stopped_at: Roadmap created, ready to plan Phase 154
-last_updated: "2026-04-09T20:07:36.605Z"
+last_updated: "2026-04-09T22:04:19.097Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 155 — deferred-i-o-worker
+**Current focus:** Phase 158 — parameter-re-validation
 
 ## Position
 
 **Milestone:** v1.31 Linux-CAKE Optimization
 **Phase:** 158 of 5 (parameter re validation)
 **Plan:** Not started
-**Status:** Ready to plan
+**Status:** Milestone complete
 **Last activity:** 2026-04-09
 
 Progress: [..........] 0%
@@ -37,7 +37,7 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 6
 - Average duration: --
 - Total execution time: 0 hours
 

@@ -104,7 +104,7 @@ None
 - [x] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes (completed 2026-04-09)
 - [ ] **Phase 156: Asymmetry-Aware Upload** - Attenuated upload rate control using IRTT directional congestion detection
 - [x] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing (completed 2026-04-09)
-- [ ] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink
+- [x] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink (completed 2026-04-09)
 
 ## Phase Details
 
@@ -158,7 +158,10 @@ Plans:
   1. Post-v1.31 hysteresis suppression rate is measured and documented (baseline measurement under RRUL)
   2. If suppression rate exceeds 20/min, dwell_cycles and/or deadband_ms are A/B tested and updated to bring rate below threshold
   3. If suppression rate is already below 20/min after Phases 154-156, current values are confirmed correct and documented
-**Plans**: TBD
+**Plans**: 2/2 plans complete
+Plans:
+- [x] 157-01-PLAN.md -- Fix dead suppression_alert_pct config key
+- [x] 157-02-PLAN.md -- Baseline measurement and A/B testing
 
 ### Phase 158: Parameter Re-Validation
 **Goal**: Controller tuning parameters are confirmed optimal for the final v1.31 system behavior via A/B testing
@@ -168,7 +171,10 @@ Plans:
   1. step_up_mbps is A/B tested (current value vs alternatives) under RRUL on the post-v1.31 system and confirmed or updated
   2. warn_bloat_ms and hard_red_bloat_ms are A/B tested and confirmed or updated for the post-DSCP linux-cake profile
   3. All parameter changes (if any) are deployed and stable in production for 24h before milestone is marked complete
-**Plans**: TBD
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 158-01-PLAN.md -- Pre-test gate + individual A/B tests (step_up, warn_bloat, hard_red)
+- [x] 158-02-PLAN.md -- Confirmation pass + deploy + 24h soak
 
 ## Progress
 
@@ -181,4 +187,4 @@ Phases execute in numeric order: 154 through 158.
 | 155. Deferred I/O Worker | v1.31 | 2/2 | Complete    | 2026-04-09 |
 | 156. Asymmetry-Aware Upload | v1.31 | 0/1 | Not started | - |
 | 157. Hysteresis Re-Tuning | v1.31 | 2/2 | Complete    | 2026-04-09 |
-| 158. Parameter Re-Validation | v1.31 | 0/? | Not started | - |
+| 158. Parameter Re-Validation | v1.31 | 2/2 | Complete    | 2026-04-09 |
