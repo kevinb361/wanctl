@@ -91,7 +91,7 @@ None
 **Milestone Goal:** Detect and respond to multi-flow congestion bursts that overwhelm gradual floor descent, cutting p99 latency from 3,200ms to under 500ms during worst-case scenarios (tcp_12down).
 
 - [x] **Phase 151: Burst Detection** - RTT acceleration detector with false-trigger filtering (completed 2026-04-09)
-- [ ] **Phase 152: Fast-Path Response** - Direct floor jump on burst ramp with anti-oscillation safety
+- [x] **Phase 152: Fast-Path Response** - Direct floor jump on burst ramp with anti-oscillation safety (completed 2026-04-09)
 - [ ] **Phase 153: Validation & Soak** - Flent regression tests and 24h production soak
 
 ## Phase Details
@@ -119,10 +119,10 @@ Plans:
   2. After a fast-path floor jump, the controller does not immediately recover and re-drop (no oscillation loop within 5s)
   3. Normal congestion (non-burst) still follows the existing gradual descent path unchanged
   4. Fast-path response parameters (target floor, holdoff duration) are configurable in YAML
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 152-01-PLAN.md -- Core burst response logic, holdoff, config parsing, unit tests
-- [ ] 152-02-PLAN.md -- Health endpoint, metrics, SIGUSR1 reload, integration tests
+- [x] 152-01-PLAN.md -- Core burst response logic, holdoff, config parsing, unit tests
+- [x] 152-02-PLAN.md -- Health endpoint, metrics, SIGUSR1 reload, integration tests
 
 ### Phase 153: Validation & Soak
 **Goal**: Burst detection delivers measurable latency improvement under worst-case load and causes no regression under normal traffic patterns or extended production use
@@ -143,5 +143,5 @@ Phases execute in numeric order: 151 through 153.
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 151. Burst Detection | v1.30 | 2/2 | Complete    | 2026-04-09 |
-| 152. Fast-Path Response | v1.30 | 0/2 | Not started | - |
+| 152. Fast-Path Response | v1.30 | 2/2 | Complete    | 2026-04-09 |
 | 153. Validation & Soak | v1.30 | 0/0 | Not started | - |

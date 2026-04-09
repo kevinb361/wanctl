@@ -4,13 +4,13 @@ milestone: v1.30
 milestone_name: Burst Detection
 status: planning
 stopped_at: Roadmap created for v1.30 Burst Detection
-last_updated: "2026-04-09T00:14:40.274Z"
+last_updated: "2026-04-09T01:49:56.904Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 151 -- Burst Detection (ready to plan)
+**Current focus:** Phase 152 — fast-path-response
 
 ## Position
 
 **Milestone:** v1.30 Burst Detection
-**Phase:** 152 of 3 (fast path response)
+**Phase:** 153 of 3 (validation & soak)
 **Plan:** Not started
 **Status:** Ready to plan
 **Last activity:** 2026-04-09
@@ -37,7 +37,7 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 2
+- Total plans completed: 4
 - Average duration: --
 - Total execution time: 0 hours
 
@@ -46,6 +46,7 @@ Progress: [..........] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 151 | 2 | - | - |
+| 152 | 2 | - | - |
 
 ## Accumulated Context
 
