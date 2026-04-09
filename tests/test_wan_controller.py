@@ -2547,3 +2547,202 @@ class TestBurstDetectorIntegration:
         batch = call_args[0][0]
         metric_names = [entry[2] for entry in batch]
         assert "wanctl_burst_acceleration" not in metric_names
+
+
+class TestBurstResponse:
+    """Tests for burst response fast-path floor jump (Phase 152)."""
+
+    @pytest.fixture
+    def mock_config(self, mock_autorate_config):
+        """Delegate to shared mock_autorate_config from conftest.py."""
+        return mock_autorate_config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        return router
+
+    @pytest.fixture
+    def mock_rtt_measurement(self):
+        """Create a mock RTT measurement."""
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router, mock_rtt_measurement, mock_logger):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.wan_controller import WANController
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+        return controller
+
+    def test_burst_floor_jump_soft_red(self, controller):
+        """RSP-01: On is_burst=True with rate > floor, rate jumps to floor_soft_red_bps."""
+        from wanctl.burst_detector import BurstResult
+
+        controller.download.current_rate = 500_000_000
+        controller.download.floor_soft_red_bps = 150_000_000
+        controller.download.floor_red_bps = 50_000_000
+        controller.download.green_streak = 5
+        controller.download.red_streak = 2
+        controller.download.soft_red_streak = 0
+
+        burst = BurstResult(
+            acceleration=10.0, velocity=5.0, is_burst=True,
+            consecutive_accel=3, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        assert controller.download.current_rate == 150_000_000
+        assert controller.download.soft_red_streak == 1
+        assert controller.download.red_streak == 0
+        assert controller.download.green_streak == 0
+
+    def test_burst_no_action_at_floor(self, controller):
+        """RSP-01: When current_rate <= target floor, no action or holdoff engaged."""
+        from wanctl.burst_detector import BurstResult
+
+        controller.download.current_rate = 150_000_000
+        controller.download.floor_soft_red_bps = 150_000_000
+        controller._burst_holdoff_remaining = 0
+
+        burst = BurstResult(
+            acceleration=10.0, velocity=5.0, is_burst=True,
+            consecutive_accel=3, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        assert controller.download.current_rate == 150_000_000
+        assert controller._burst_holdoff_remaining == 0
+
+    def test_holdoff_suppresses_recovery(self, controller):
+        """RSP-02: During holdoff, green_streak reset to 0 and holdoff decrements."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._burst_holdoff_remaining = 5
+        controller.download.green_streak = 3
+
+        burst = BurstResult(
+            acceleration=0.0, velocity=0.0, is_burst=False,
+            consecutive_accel=0, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        assert controller.download.green_streak == 0
+        assert controller._burst_holdoff_remaining == 4
+
+    def test_holdoff_expires_allows_recovery(self, controller):
+        """RSP-02: After holdoff expires, normal recovery resumes."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._burst_holdoff_remaining = 0
+        controller.download.green_streak = 3
+
+        burst = BurstResult(
+            acceleration=0.0, velocity=0.0, is_burst=False,
+            consecutive_accel=0, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        # green_streak should NOT be forced to 0 when holdoff is 0 and no burst
+        assert controller.download.green_streak == 3
+
+    def test_normal_congestion_unchanged(self, controller):
+        """RSP-01/02: Normal congestion (is_burst=False, holdoff=0) leaves state unchanged."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._burst_holdoff_remaining = 0
+        controller.download.current_rate = 500_000_000
+        controller.download.green_streak = 2
+        controller.download.soft_red_streak = 1
+        controller.download.red_streak = 0
+
+        burst = BurstResult(
+            acceleration=3.0, velocity=2.0, is_burst=False,
+            consecutive_accel=1, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        assert controller.download.current_rate == 500_000_000
+        assert controller.download.green_streak == 2
+        assert controller.download.soft_red_streak == 1
+        assert controller.download.red_streak == 0
+        assert controller._burst_holdoff_remaining == 0
+
+    def test_no_oscillation_during_holdoff(self, controller):
+        """RSP-02: No oscillation -- burst -> floor -> holdoff -> no re-trigger within holdoff."""
+        from wanctl.burst_detector import BurstResult
+
+        controller.download.current_rate = 500_000_000
+        controller.download.floor_soft_red_bps = 150_000_000
+        controller.download.floor_red_bps = 50_000_000
+        controller._burst_holdoff_cycles = 3  # Small holdoff for test
+
+        # Cycle 1: burst fires -> floor jump + holdoff engages
+        burst = BurstResult(
+            acceleration=10.0, velocity=5.0, is_burst=True,
+            consecutive_accel=3, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+        assert controller.download.current_rate == 150_000_000
+        assert controller._burst_holdoff_remaining == 3
+
+        # Cycles 2-4: holdoff active, green_streak suppressed
+        for i in range(3):
+            controller.download.green_streak = 2  # Simulate recovery attempt
+            no_burst = BurstResult(
+                acceleration=0.0, velocity=0.0, is_burst=False,
+                consecutive_accel=0, warming_up=False,
+            )
+            controller._apply_burst_response(no_burst)
+            assert controller.download.green_streak == 0
+            assert controller._burst_holdoff_remaining == 2 - i
+
+        # Cycle 5: holdoff expired, green_streak NOT forced to 0
+        controller.download.green_streak = 4
+        no_burst = BurstResult(
+            acceleration=0.0, velocity=0.0, is_burst=False,
+            consecutive_accel=0, warming_up=False,
+        )
+        controller._apply_burst_response(no_burst)
+        assert controller.download.green_streak == 4  # Not suppressed
+
+    def test_burst_floor_jump_red(self, controller):
+        """RSP-01: With target_floor='red', jumps to floor_red_bps."""
+        from wanctl.burst_detector import BurstResult
+
+        controller._burst_response_target_floor = "red"
+        controller.download.current_rate = 500_000_000
+        controller.download.floor_soft_red_bps = 150_000_000
+        controller.download.floor_red_bps = 50_000_000
+
+        burst = BurstResult(
+            acceleration=10.0, velocity=5.0, is_burst=True,
+            consecutive_accel=3, warming_up=False,
+        )
+        controller._apply_burst_response(burst)
+
+        assert controller.download.current_rate == 50_000_000
+        assert controller.download.red_streak == 1
+        assert controller.download.soft_red_streak == 0
+
+    def test_config_parsing(self, controller):
+        """RSP-01/02: Config attrs parsed from mock config with correct defaults."""
+        assert controller._burst_response_enabled is True
+        assert controller._burst_response_target_floor == "soft_red"
+        assert controller._burst_holdoff_cycles == 100
