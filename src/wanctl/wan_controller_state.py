@@ -14,7 +14,7 @@ from typing import Any
 
 from .state_utils import atomic_write_json, safe_json_load_file
 
-MIN_SAVE_INTERVAL_SEC: float = 1.0  # Don't write state more than once per second
+MIN_SAVE_INTERVAL_SEC: float = 5.0  # Don't write state more than once per 5s
 
 
 class WANControllerState:
@@ -133,21 +133,17 @@ class WANControllerState:
         Returns:
             True if state was written, False if skipped (unchanged)
         """
-        if not force and not self._is_state_changed(download, upload, ewma, last_applied):
-            # Minimum interval gate combined with dirty check: skip write when
-            # state is unchanged. The interval tracking ensures we don't write
-            # more than once per MIN_SAVE_INTERVAL_SEC even for unchanged state.
+        # Interval gate applies to ALL non-forced writes (dirty or not).
+        # load_rtt changes every cycle, making state "dirty" constantly under
+        # load. Without this gate, fdatasync fires once/sec (1 in 20 cycles)
+        # which dominates post_cycle p99. At 5s interval, writes are 1 in 100
+        # cycles — below the p99 threshold.
+        if not force:
             now = time.monotonic()
             if (now - self._last_write_time) < MIN_SAVE_INTERVAL_SEC:
-                self.logger.debug(
-                    f"{self.wan_name}: State unchanged within interval, "
-                    "skipping disk write"
-                )
-            else:
-                self.logger.debug(
-                    f"{self.wan_name}: State unchanged, skipping disk write"
-                )
-            return False
+                return False
+            if not self._is_state_changed(download, upload, ewma, last_applied):
+                return False
 
         state = {
             "download": download,
