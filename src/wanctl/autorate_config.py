@@ -251,44 +251,6 @@ class Config(BaseConfig):
             "min": 0.0,
             "max": 20.0,
         },
-        # Burst detection parameters (Phase 151)
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.enabled",
-            "type": bool,
-            "required": False,
-        },
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.accel_threshold_ms",
-            "type": (int, float),
-            "required": False,
-            "min": 0.5,
-            "max": 20.0,
-        },
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.confirm_cycles",
-            "type": int,
-            "required": False,
-            "min": 1,
-            "max": 10,
-        },
-        # Burst response parameters (Phase 152)
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.response.enabled",
-            "type": bool,
-            "required": False,
-        },
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.response.target_floor",
-            "type": str,
-            "required": False,
-        },
-        {
-            "path": "continuous_monitoring.thresholds.burst_detection.response.holdoff_cycles",
-            "type": int,
-            "required": False,
-            "min": 10,
-            "max": 1000,
-        },
         # Baseline RTT bounds (optional - security validation)
         {
             "path": "continuous_monitoring.thresholds.baseline_rtt_bounds.min",
@@ -408,22 +370,6 @@ class Config(BaseConfig):
         # Hysteresis: dwell timer and deadband for GREEN<->YELLOW transitions (Phase 122)
         self.dwell_cycles = thresh.get("dwell_cycles", 3)
         self.deadband_ms = thresh.get("deadband_ms", 3.0)
-
-        # Burst detection (Phase 151)
-        bd = thresh.get("burst_detection", {})
-        if not isinstance(bd, dict):
-            bd = {}
-        self.burst_detection_enabled = bd.get("enabled", True)
-        self.burst_detection_accel_threshold_ms = float(bd.get("accel_threshold_ms", 6.0))
-        self.burst_detection_confirm_cycles = int(bd.get("confirm_cycles", 2))
-
-        # Burst response: fast-path floor jump (Phase 152)
-        response = bd.get("response", {})
-        if not isinstance(response, dict):
-            response = {}
-        self.burst_response_enabled = response.get("enabled", True)
-        self.burst_response_target_floor = response.get("target_floor", "soft_red")
-        self.burst_response_holdoff_cycles = int(response.get("holdoff_cycles", 100))
 
         # Baseline RTT security bounds
         bounds = thresh.get("baseline_rtt_bounds", {})

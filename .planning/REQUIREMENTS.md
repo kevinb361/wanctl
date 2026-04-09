@@ -1,60 +1,47 @@
-# Requirements: wanctl v1.31
+# Requirements: wanctl v1.30
 
-**Defined:** 2026-04-09
+**Defined:** 2026-04-08
 **Core Value:** Sub-second congestion detection with 50ms control loops
 
-## v1.31 Requirements
+## v1.30 Requirements
 
-Requirements for Linux-CAKE Optimization milestone. Removes legacy router-era constraints and optimizes controller for local CAKE management.
+Requirements for Burst Detection milestone. Each maps to roadmap phases.
 
-### Transport Performance
+### Detection
 
-- [ ] **XPORT-01**: Controller applies CAKE bandwidth changes via pyroute2 netlink instead of subprocess tc fork
-- [ ] **XPORT-02**: Netlink FD leak in _reset_ipr() is fixed — socket closed before reference nulled
-- [ ] **XPORT-03**: CAKE parameters (diffserv, overhead, rtt) are validated via readback after every netlink bandwidth change
+- [ ] **DET-01**: Controller detects multi-flow burst ramps via RTT second derivative (acceleration) within 200ms of onset
+- [ ] **DET-02**: Burst detection does not false-trigger on normal single-flow congestion (video call + browsing)
 
-### Cycle Reliability
+### Response
 
-- [ ] **CYCLE-01**: State file writes use fdatasync instead of fsync for reduced metadata sync overhead
-- [ ] **CYCLE-02**: Per-cycle SQLite metrics writes are offloaded to a background thread via queue
-- [ ] **CYCLE-03**: State JSON writes are coalesced — only written when dirty flag set AND minimum interval elapsed
+- [ ] **RSP-01**: When burst ramp detected, controller jumps directly to SOFT_RED or RED floor (skipping gradual descent)
+- [ ] **RSP-02**: Fast-path response does not cause rate oscillation (aggressive drop → recovery → aggressive drop loop)
 
-### Congestion Intelligence
+### Validation
 
-- [ ] **ASYM-01**: Upload rate reduction is attenuated (50%) when IRTT detects downstream-only congestion
-- [ ] **ASYM-02**: Asymmetry suppression requires N consecutive asymmetric IRTT readings before activating
-- [ ] **ASYM-03**: Asymmetry gate disables automatically when IRTT data is stale (>30s), failing open to current behavior
-
-### Tuning & Validation
-
-- [ ] **TUNE-01**: Post-DSCP hysteresis suppression rate is measured and documented (may already be resolved)
-- [ ] **TUNE-02**: step_up_mbps, warn_bloat_ms, hard_red_bloat_ms are A/B re-validated on linux-cake post-DSCP-fix
+- [ ] **VAL-01**: p99 latency under tcp_12down drops below 500ms (from current 800-3200ms)
+- [ ] **VAL-02**: No regression on RRUL and rrul_be tests (median and p99 stay within 10% of current)
+- [ ] **VAL-03**: No false triggers during 24h normal usage soak test
 
 ## Future Requirements
 
-- Directional state machines (separate DL/UL congestion states) — v1.32+
-- CAKE tin-aware floors (adjust floor_mbps based on tin bandwidth allocation) — v1.32+
-- Adaptive hysteresis (auto-tune dwell/deadband from jitter profile) — v1.32+
-- CakeStatsReader upgrade to netlink (steering daemon stats reads) — v1.32+
+- Variance-gated fusion healer correlation (idle-link Pearson r noise fix) — deferred to measurement quality milestone
+- CAKE tin separation improvements (diffserv marking, per-flow fairness) — deferred pending burst detection results
 
 ## Out of Scope
 
-- **Async event loop rewrite**: The synchronous single-threaded loop is proven across 31 milestones. Background threads for specific I/O is sufficient.
-- **CAKE tin-aware rate control**: Reading per-tin stats to influence rate decisions adds complexity. CAKE's internal FQ handles this.
-- **Separate DL/UL RTT measurement**: Would require dedicated upload-only reflectors. IRTT asymmetry detection achieves the goal without this.
+- CAKE AQM parameter changes — burst detection is controller-side, not AQM-side
+- ATT WAN tuning sweep — separate todo, different WAN characteristics
+- Fusion healer changes — separate signal processing concern
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| XPORT-01 | Phase 154 | Pending |
-| XPORT-02 | Phase 154 | Pending |
-| XPORT-03 | Phase 154 | Pending |
-| CYCLE-01 | Phase 155 | Pending |
-| CYCLE-02 | Phase 155 | Pending |
-| CYCLE-03 | Phase 155 | Pending |
-| ASYM-01 | Phase 156 | Pending |
-| ASYM-02 | Phase 156 | Pending |
-| ASYM-03 | Phase 156 | Pending |
-| TUNE-01 | Phase 157 | Pending |
-| TUNE-02 | Phase 158 | Pending |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| DET-01 | Phase 151 | Not started |
+| DET-02 | Phase 151 | Not started |
+| RSP-01 | Phase 152 | Not started |
+| RSP-02 | Phase 152 | Not started |
+| VAL-01 | Phase 153 | Not started |
+| VAL-02 | Phase 153 | Not started |
+| VAL-03 | Phase 153 | Not started |
