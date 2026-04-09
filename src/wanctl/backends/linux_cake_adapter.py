@@ -29,7 +29,11 @@ from wanctl.backends.netlink_cake import NetlinkCakeBackend, _pyroute2_available
 from wanctl.cake_params import build_cake_params, build_expected_readback
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from wanctl.config_base import BaseConfig
+
+READBACK_INTERVAL_CYCLES = 1200  # ~60s at 20Hz (matches FORCE_SAVE_INTERVAL)
 
 
 class LinuxCakeAdapter:
@@ -48,6 +52,8 @@ class LinuxCakeAdapter:
         self.dl_backend = dl_backend
         self.ul_backend = ul_backend
         self.logger = logger
+        self._readback_counter: int = 0
+        self._cake_config: dict[str, Any] = {}
 
     @property
     def needs_rate_limiting(self) -> bool:
@@ -84,7 +90,33 @@ class LinuxCakeAdapter:
                 "%s: Failed to set upload bandwidth on %s", wan, self.ul_backend.interface
             )
 
+        self._readback_counter += 1
+        if self._readback_counter >= READBACK_INTERVAL_CYCLES:
+            self._validate_readback_if_due()
+            self._readback_counter = 0
+
         return dl_ok and ul_ok
+
+    def _validate_readback_if_due(self) -> None:
+        """Periodic readback: verify CAKE params survived bandwidth-only changes."""
+        for direction, backend in [("download", self.dl_backend), ("upload", self.ul_backend)]:
+            if not hasattr(backend, "validate_cake"):
+                continue
+            params = build_cake_params(
+                direction=direction,
+                cake_config=self._cake_config,
+                bandwidth_kbit=0,  # bandwidth excluded from readback check
+            )
+            expected = build_expected_readback(params)
+            if not expected:
+                continue
+            if not backend.validate_cake(expected):
+                self.logger.warning(
+                    "CAKE params drifted on %s (%s) -- re-initializing",
+                    backend.interface,
+                    direction,
+                )
+                backend.initialize_cake(params)
 
     @classmethod
     def from_config(cls, config: BaseConfig, logger: logging.Logger) -> LinuxCakeAdapter:
@@ -165,4 +197,6 @@ class LinuxCakeAdapter:
             type(ul_backend).__name__,
         )
 
-        return cls(dl_backend=dl_backend, ul_backend=ul_backend, logger=logger)
+        adapter = cls(dl_backend=dl_backend, ul_backend=ul_backend, logger=logger)
+        adapter._cake_config = cake_config
+        return adapter
