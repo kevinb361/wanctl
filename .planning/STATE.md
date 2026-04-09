@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.30
-milestone_name: Burst Detection
+milestone: v1.31
+milestone_name: Linux-CAKE Optimization
 status: planning
-stopped_at: Roadmap created for v1.30 Burst Detection
-last_updated: "2026-04-09T01:49:56.904Z"
+stopped_at: Roadmap created, ready to plan Phase 154
+last_updated: "2026-04-09T07:00:00.000Z"
 last_activity: 2026-04-09
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08)
+See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 152 — fast-path-response
+**Current focus:** Phase 154 - Netlink Backend Wiring
 
 ## Position
 
-**Milestone:** v1.30 Burst Detection
-**Phase:** 153 of 3 (validation & soak)
-**Plan:** Not started
+**Milestone:** v1.31 Linux-CAKE Optimization
+**Phase:** 1 of 5 (Phase 154: Netlink Backend Wiring)
+**Plan:** --
 **Status:** Ready to plan
-**Last activity:** 2026-04-09
+**Last activity:** 2026-04-09 -- Roadmap created (5 phases, 11 requirements mapped)
 
 Progress: [..........] 0%
 
@@ -37,30 +37,27 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 0
 - Average duration: --
 - Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 151 | 2 | - | - |
-| 152 | 2 | - | - |
 
 ## Accumulated Context
 
 ### Key Decisions
 
-- 3-phase structure: detection, response, validation -- derived from requirement categories
-- Detection and response separated because signal processing (second derivative) and rate control (floor jump) touch different modules
-- Validation is a distinct phase because it requires production deployment and real traffic
+- Netlink wiring first (lowest risk, unblocks accurate cycle timing for A/B tests)
+- State JSON writes stay synchronous (only SQLite goes to background thread) -- avoids dirty-tracking race
+- Asymmetry suppression uses attenuated delta (50%), not full suppression -- prevents DOCSIS feedback loop
+- Hysteresis and parameter tuning strictly sequential -- must not tune simultaneously
+- All netlink calls on main thread only (IPRoute not thread-safe)
 
 ### Known Issues
 
-- tcp_12down causes 3200ms p99 -- the problem this milestone solves
-- Floor tuning (SOFT_RED=150, RED=50) already deployed -- fixes steady-state but not initial burst ramp
-- Controller takes ~1.5s to detect+descend through floors -- buffers fill during this gap
+- 1,833 cycle overruns from I/O tail spikes (post_cycle + logging_metrics)
+- Hysteresis suppression rate 31/min exceeds 20/min alert threshold
+- Upload drops to floor (8Mbps) during download-only Usenet load despite IRTT asymmetry detection
+- FD leak in NetlinkCakeBackend._reset_ipr() -- socket not closed before reference nulled
+- tc("change") silently resets CAKE params if not all supplied on every call
 
 ### Blockers
 
@@ -72,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-08
-Stopped at: Roadmap created for v1.30 Burst Detection
+Last session: 2026-04-09
+Stopped at: Roadmap created, ready to plan Phase 154
 Resume file: None

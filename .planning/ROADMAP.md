@@ -17,6 +17,7 @@ None
 - v1.27 Performance & QoS: Phases 131-136 (shipped 2026-04-03)
 - v1.28 Infrastructure Optimization: Phases 137-141 (shipped 2026-04-05)
 - v1.29 Code Health & Cleanup: Phases 142-150 (shipped 2026-04-08)
+- v1.30 Burst Detection: Phases 151-153 (shipped 2026-04-09)
 
 ## Phases
 
@@ -86,65 +87,93 @@ None
 
 </details>
 
-### v1.30 Burst Detection
-
-**Milestone Goal:** Detect and respond to multi-flow congestion bursts that overwhelm gradual floor descent, cutting p99 latency from 3,200ms to under 500ms during worst-case scenarios (tcp_12down).
+<details>
+<summary>v1.30 Burst Detection (Phases 151-153) -- SHIPPED 2026-04-09</summary>
 
 - [x] **Phase 151: Burst Detection** - RTT acceleration detector with false-trigger filtering (completed 2026-04-09)
 - [x] **Phase 152: Fast-Path Response** - Direct floor jump on burst ramp with anti-oscillation safety (completed 2026-04-09)
-- [ ] **Phase 153: Validation & Soak** - Flent regression tests and 24h production soak
+- [x] **Phase 153: Validation & Soak** - Flent regression tests and 24h production soak (completed 2026-04-09)
+
+</details>
+
+### v1.31 Linux-CAKE Optimization
+
+**Milestone Goal:** Remove legacy router-era constraints and optimize the controller for local CAKE management -- netlink rate updates, deferred I/O, asymmetry-aware upload control, and post-DSCP parameter re-validation.
+
+- [ ] **Phase 154: Netlink Backend Wiring** - Wire LinuxCakeAdapter to NetlinkCakeBackend with FD leak fix and CAKE parameter readback validation
+- [ ] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes
+- [ ] **Phase 156: Asymmetry-Aware Upload** - Attenuated upload rate control using IRTT directional congestion detection
+- [ ] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing
+- [ ] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink
 
 ## Phase Details
 
-### Phase 151: Burst Detection
-**Goal**: Controller can detect multi-flow burst ramps within 200ms by measuring RTT acceleration (second derivative), without false-triggering on normal single-flow congestion
-**Depends on**: Nothing (first phase of v1.30)
-**Requirements**: DET-01, DET-02
+### Phase 154: Netlink Backend Wiring
+**Goal**: CAKE bandwidth changes use kernel netlink instead of subprocess tc, recovering ~5ms/cycle and eliminating fork overhead from the hot path
+**Depends on**: Nothing (first phase of v1.31)
+**Requirements**: XPORT-01, XPORT-02, XPORT-03
 **Success Criteria** (what must be TRUE):
-  1. RTT acceleration (second derivative) is computed each cycle and exposed in health endpoint or logs
-  2. A flent tcp_12down test triggers a burst detection event within 200ms of flow onset
-  3. A flent rrul_be test (single-flow normal congestion) does NOT trigger a burst detection event
-  4. Burst detection threshold is configurable in YAML and reloadable via SIGUSR1
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 151-01-PLAN.md -- BurstDetector module and unit tests
-- [x] 151-02-PLAN.md -- WANController integration, config, health, metrics, SIGUSR1
-
-### Phase 152: Fast-Path Response
-**Goal**: When a burst ramp is detected, the controller immediately jumps to SOFT_RED or RED floor instead of descending gradually, without causing rate oscillation
-**Depends on**: Phase 151
-**Requirements**: RSP-01, RSP-02
-**Success Criteria** (what must be TRUE):
-  1. On burst detection, rate drops to SOFT_RED floor within one cycle (50ms) instead of gradual descent through YELLOW
-  2. After a fast-path floor jump, the controller does not immediately recover and re-drop (no oscillation loop within 5s)
-  3. Normal congestion (non-burst) still follows the existing gradual descent path unchanged
-  4. Fast-path response parameters (target floor, holdoff duration) are configurable in YAML
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 152-01-PLAN.md -- Core burst response logic, holdoff, config parsing, unit tests
-- [x] 152-02-PLAN.md -- Health endpoint, metrics, SIGUSR1 reload, integration tests
-
-### Phase 153: Validation & Soak
-**Goal**: Burst detection delivers measurable latency improvement under worst-case load and causes no regression under normal traffic patterns or extended production use
-**Depends on**: Phase 152
-**Requirements**: VAL-01, VAL-02, VAL-03
-**Success Criteria** (what must be TRUE):
-  1. Flent tcp_12down p99 latency is below 500ms (down from 800-3200ms baseline)
-  2. Flent RRUL and rrul_be median and p99 latency remain within 10% of pre-burst-detection baseline
-  3. 24h production soak shows zero false burst detection triggers during normal household usage
-  4. All existing unit tests pass with no regressions
+  1. LinuxCakeAdapter uses NetlinkCakeBackend for all bandwidth changes in production -- no subprocess tc on the hot path
+  2. After 100 consecutive set_bandwidth() calls, netlink FD count has not increased (FD leak in _reset_ipr() is fixed)
+  3. After a bandwidth-only netlink change, CAKE diffserv mode, overhead, and rtt remain unchanged (validated by readback)
+  4. Health endpoint reports netlink as the active transport backend
 **Plans:** 2 plans
 Plans:
-- [ ] 153-01-PLAN.md -- Flent regression suite script and formal validation (VAL-01, VAL-02)
-- [ ] 153-02-PLAN.md -- Soak monitoring script and 24h production soak (VAL-03)
+- [ ] 154-01-PLAN.md -- FD leak fix + adapter factory swap to NetlinkCakeBackend
+- [ ] 154-02-PLAN.md -- Periodic readback validation + health endpoint transport reporting
+
+### Phase 155: Deferred I/O Worker
+**Goal**: Per-cycle disk I/O is off the control loop hot path, dropping cycle p99 from 51ms to within the 50ms budget
+**Depends on**: Phase 154
+**Requirements**: CYCLE-01, CYCLE-02, CYCLE-03
+**Success Criteria** (what must be TRUE):
+  1. SQLite metrics writes happen on a background thread -- control loop enqueues data and returns without blocking
+  2. State JSON writes use fdatasync (not fsync), remain synchronous, and only flush when state has actually changed and minimum interval has elapsed
+  3. Cycle p99 under RRUL load is below 50ms (measured via health endpoint or cycle timing logs)
+  4. Graceful shutdown drains all queued writes before process exit -- no data loss on systemctl stop
+**Plans**: TBD
+
+### Phase 156: Asymmetry-Aware Upload
+**Goal**: Upload rate is preserved during download-only congestion, keeping VoIP and video quality stable during bulk downloads
+**Depends on**: Phase 155
+**Requirements**: ASYM-01, ASYM-02, ASYM-03
+**Success Criteria** (what must be TRUE):
+  1. During a download-only Usenet load, upload rate stays above 20Mbps instead of dropping to 8Mbps floor
+  2. Asymmetry suppression requires N consecutive asymmetric IRTT readings before activating (no single-sample trigger)
+  3. When IRTT data is stale (>30s old), asymmetry gate disables automatically and upload rate control reverts to current behavior
+  4. Asymmetry gate is configurable in YAML and toggleable via SIGUSR1 hot-reload
+  5. During bidirectional congestion (both DL and UL RTT elevated), upload rate reduction is NOT suppressed -- override prevents feedback loop
+**Plans**: TBD
+
+### Phase 157: Hysteresis Re-Tuning
+**Goal**: Hysteresis suppression rate is validated against the post-DSCP, post-netlink, post-async jitter profile and tuned below the 20/min alert threshold
+**Depends on**: Phase 156
+**Requirements**: TUNE-01
+**Success Criteria** (what must be TRUE):
+  1. Post-v1.31 hysteresis suppression rate is measured and documented (baseline measurement under RRUL)
+  2. If suppression rate exceeds 20/min, dwell_cycles and/or deadband_ms are A/B tested and updated to bring rate below threshold
+  3. If suppression rate is already below 20/min after Phases 154-156, current values are confirmed correct and documented
+**Plans**: TBD
+
+### Phase 158: Parameter Re-Validation
+**Goal**: Controller tuning parameters are confirmed optimal for the final v1.31 system behavior via A/B testing
+**Depends on**: Phase 157
+**Requirements**: TUNE-02
+**Success Criteria** (what must be TRUE):
+  1. step_up_mbps is A/B tested (current value vs alternatives) under RRUL on the post-v1.31 system and confirmed or updated
+  2. warn_bloat_ms and hard_red_bloat_ms are A/B tested and confirmed or updated for the post-DSCP linux-cake profile
+  3. All parameter changes (if any) are deployed and stable in production for 24h before milestone is marked complete
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 151 through 153.
+Phases execute in numeric order: 154 through 158.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 151. Burst Detection | v1.30 | 2/2 | Complete    | 2026-04-09 |
-| 152. Fast-Path Response | v1.30 | 2/2 | Complete    | 2026-04-09 |
-| 153. Validation & Soak | v1.30 | 0/2 | Not started | - |
+| 154. Netlink Backend Wiring | v1.31 | 0/2 | Not started | - |
+| 155. Deferred I/O Worker | v1.31 | 0/? | Not started | - |
+| 156. Asymmetry-Aware Upload | v1.31 | 0/? | Not started | - |
+| 157. Hysteresis Re-Tuning | v1.31 | 0/? | Not started | - |
+| 158. Parameter Re-Validation | v1.31 | 0/? | Not started | - |
