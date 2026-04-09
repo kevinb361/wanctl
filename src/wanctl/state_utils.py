@@ -16,6 +16,10 @@ from typing import Any
 
 from wanctl.path_utils import ensure_file_directory
 
+# fdatasync skips metadata sync (mtime, size) -- safe with temp+rename pattern.
+# Fallback to fsync for non-Linux test environments (macOS).
+_sync_fn = getattr(os, "fdatasync", os.fsync)
+
 
 def atomic_write_json(file_path: Path, data: dict[str, Any]) -> None:
     """Atomically write JSON data to a file.
@@ -52,7 +56,7 @@ def atomic_write_json(file_path: Path, data: dict[str, Any]) -> None:
             # Compact JSON format (no whitespace) for faster serialization
             json.dump(data, f, separators=(",", ":"))
             f.flush()
-            os.fsync(f.fileno())  # Ensure data is written to disk
+            _sync_fn(f.fileno())  # fdatasync on Linux, fsync fallback
 
         # Atomic rename (POSIX guarantees this is atomic on same filesystem)
         os.replace(tmp_path, file_path)
