@@ -68,12 +68,16 @@ table bridge qos {
         ether type ip udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
         # STUN/TURN (WebRTC negotiation and relay -- Zoom, Meet, Teams)
         ether type ip udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
-        # WireGuard
+        # WireGuard (sport: outbound to server, dport: inbound from clients)
         ether type ip udp sport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip udp dport 51820 ip dscp set ef ct mark set 0x00000004 accept
         # IPSec NAT-T (FortiVPN, IKEv2 tunnels)
         ether type ip udp sport 4500 ip dscp set ef ct mark set 0x00000004 accept
         # IKE (IPSec key exchange)
         ether type ip udp sport 500 ip dscp set ef ct mark set 0x00000004 accept
+        # ZeroTier (sport: peer-to-peer, dport: to local node)
+        ether type ip udp sport 9993 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip udp dport 9993 ip dscp set ef ct mark set 0x00000004 accept
 
         # --- Video classification (D-08) ---
         # QUIC / HTTP/3 (predominantly YouTube, Google, Cloudflare)
