@@ -64,6 +64,8 @@ table bridge qos {
         ether type ip udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
         # SSH (interactive terminal)
         ether type ip tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        # NTP responses
+        ether type ip udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
         # STUN/TURN (WebRTC negotiation and relay -- Zoom, Meet, Teams)
         ether type ip udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
 
@@ -107,6 +109,7 @@ table bridge qos {
         ether type ip udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
 
         # --- Video classification (D-08) ---
