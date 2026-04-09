@@ -3111,3 +3111,111 @@ class TestBurstDetectionSection:
         assert section["burst_responses_total"] == 0
         assert section["holdoff_remaining"] == 0
 
+
+class TestTransportSection:
+    """Tests for transport backend info in health endpoint (XPORT-03, SC-4)."""
+
+    def _make_wan_controller(self, has_dl_backend: bool = True, dl_name: str = "NetlinkCakeBackend", ul_name: str = "NetlinkCakeBackend"):
+        """Create a mock WAN controller with optional dl_backend/ul_backend on router."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 0
+        wan.download._window_suppressions = 0
+        wan.download._window_start_time = 1712345000.0
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 0
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 0
+        wan.upload._window_suppressions = 0
+        wan.upload._window_start_time = 1712345000.0
+        wan._suppression_alert_threshold = 20
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
+
+        if has_dl_backend:
+            dl_backend = MagicMock()
+            type(dl_backend).__name__ = dl_name
+            ul_backend = MagicMock()
+            type(ul_backend).__name__ = ul_name
+            wan.router.dl_backend = dl_backend
+            wan.router.ul_backend = ul_backend
+        else:
+            # RouterOS-style -- no dl_backend/ul_backend
+            del wan.router.dl_backend
+            del wan.router.ul_backend
+
+        _configure_wan_health_data(wan)
+        return wan
+
+    def _build_health(self, wan_controller):
+        """Build wan_health via a real health endpoint."""
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        config = MagicMock()
+        config.wan_name = "spectrum"
+        config.irtt_config = {"enabled": False}
+        return handler._build_wan_status({"controller": wan_controller, "config": config})
+
+    def test_transport_section_present_for_linux_cake(self):
+        """Transport section present when router has dl_backend/ul_backend."""
+        wan = self._make_wan_controller(
+            has_dl_backend=True,
+            dl_name="NetlinkCakeBackend",
+            ul_name="NetlinkCakeBackend",
+        )
+        health = self._build_health(wan)
+
+        assert "transport" in health
+        assert health["transport"]["dl_backend"] == "NetlinkCakeBackend"
+        assert health["transport"]["ul_backend"] == "NetlinkCakeBackend"
+        assert health["transport"]["netlink_available"] is True
+
+    def test_transport_section_absent_for_routeros(self):
+        """Transport section NOT present when router is RouterOS (no dl_backend)."""
+        wan = self._make_wan_controller(has_dl_backend=False)
+        health = self._build_health(wan)
+
+        assert "transport" not in health
+
+    def test_transport_section_shows_subprocess_backend(self):
+        """Transport section shows LinuxCakeBackend name when no netlink."""
+        wan = self._make_wan_controller(
+            has_dl_backend=True,
+            dl_name="LinuxCakeBackend",
+            ul_name="LinuxCakeBackend",
+        )
+        health = self._build_health(wan)
+
+        assert "transport" in health
+        assert health["transport"]["dl_backend"] == "LinuxCakeBackend"
+        assert health["transport"]["netlink_available"] is False
+
