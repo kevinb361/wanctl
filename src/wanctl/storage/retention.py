@@ -197,23 +197,46 @@ def vacuum_if_needed(
     conn: sqlite3.Connection,
     deleted_rows: int,
     threshold: int = 100000,
+    max_pages: int = 2000,
 ) -> bool:
-    """Run VACUUM if deleted rows exceed threshold.
+    """Reclaim freelist pages after large deletions using incremental vacuum.
 
-    VACUUM reclaims disk space after large deletions but is expensive.
-    Only run after significant cleanup to avoid unnecessary overhead.
+    Uses PRAGMA incremental_vacuum instead of full VACUUM to avoid copying
+    the entire database into memory (which caused 500M+ peak RSS on a 355M DB).
+    Requires auto_vacuum=INCREMENTAL on the database.
+
+    Falls back to full VACUUM if auto_vacuum is not INCREMENTAL (e.g., during
+    the one-time migration cycle before the mode change takes effect).
 
     Args:
         conn: SQLite database connection
         deleted_rows: Number of rows deleted in recent cleanup
-        threshold: Minimum deleted rows to trigger VACUUM (default 100000)
+        threshold: Minimum deleted rows to trigger vacuum (default 100000)
+        max_pages: Maximum freelist pages to reclaim per cycle (default 2000)
 
     Returns:
-        True if VACUUM was run, False otherwise
+        True if vacuum was run, False otherwise
     """
     if deleted_rows < threshold:
         return False
 
-    logger.info("Running VACUUM after deleting %d rows", deleted_rows)
-    conn.execute("VACUUM")
-    return True
+    auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
+    if auto_vacuum == 2:  # INCREMENTAL
+        freelist = conn.execute("PRAGMA freelist_count").fetchone()[0]
+        pages_to_reclaim = min(freelist, max_pages)
+        if pages_to_reclaim > 0:
+            logger.info(
+                "Incremental vacuum: reclaiming %d/%d freelist pages after deleting %d rows",
+                pages_to_reclaim,
+                freelist,
+                deleted_rows,
+            )
+            conn.execute(f"PRAGMA incremental_vacuum({pages_to_reclaim})")
+        else:
+            logger.debug("Incremental vacuum: no freelist pages to reclaim")
+        return pages_to_reclaim > 0
+    else:
+        # Fallback: full VACUUM for DBs not yet migrated to INCREMENTAL
+        logger.info("Running full VACUUM after deleting %d rows (auto_vacuum=%d)", deleted_rows, auto_vacuum)
+        conn.execute("VACUUM")
+        return True
