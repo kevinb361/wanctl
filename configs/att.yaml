@@ -1,0 +1,172 @@
+# Adaptive CAKE Configuration - AT&T VDSL (VM)
+# Linux CAKE backend for cake-shaper VM (Proxmox)
+# Cloned from att.yaml with transport changed to linux-cake
+# FHS-compliant paths for systemd deployment
+wan_name: "att"
+
+# Source IP for ICMP pings — routes through ATT via MikroTik FORCE_OUT_ATT
+# Without this, pings from cake-shaper (10.10.110.223) go out Spectrum (default route)
+ping_source_ip: "10.10.110.227"
+
+# Health endpoint — bind to ATT IP so Spectrum can use same port on .227
+health_check:
+  host: "10.10.110.227"
+  port: 9101
+
+# RouterOS connection (kept for steering REST access)
+router:
+  transport: "linux-cake-netlink"  # Netlink backend — no subprocess fork (p99 16ms→<1ms)
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"  # For SSH transport
+  # REST transport settings (used by steering daemon)
+  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
+
+# Queue names in RouterOS (used by steering daemon)
+queues:
+  download: "WAN-Download-ATT"
+  upload: "WAN-Upload-ATT"
+
+# CAKE qdisc parameters for LinuxCakeBackend
+cake_params:
+  download_interface: "ens28"    # ATT router-side NIC (CAKE target)
+  upload_interface: "ens27"      # ATT modem-side NIC (upload egress with ack-filter)
+  overhead: "bridged-ptm"       # ATT VDSL2 (per CAKE-05)
+  memlimit: "32mb"              # Per CAKE-06
+  rtt: "100ms"                  # Per CAKE-10
+
+# Continuous monitoring - Expert-tuned for ATT VDSL2
+continuous_monitoring:
+  enabled: true
+
+  # Baseline RTT (seeded from production autotuning 2026-03-25)
+  baseline_rtt_initial: 28.3  # Autotuned from 31 (1379 samples, confidence 0.916)
+
+  # Download parameters (expert-tuned for ATT 100/20 DSL)
+  download:
+    floor_mbps: 25           # Prevents collapse during line variation
+    ceiling_mbps: 95         # Realistic max (DSL + PPPoE/PTM overhead)
+    step_up_mbps: 2
+    factor_down: 0.90        # Moderate 10% backoff
+
+  # Upload parameters (very gentle - upload particularly benefits)
+  upload:
+    floor_mbps: 6            # Conservative floor for DSL stability
+    ceiling_mbps: 18         # Safe ceiling with headroom
+    step_up_mbps: 0.5        # Very gentle climb (DSL upload is sensitive)
+    factor_down: 0.95        # Very conservative 5% backoff
+
+  # RTT thresholds (tuned to real VDSL load performance)
+  thresholds:
+    target_bloat_ms: 1.4      # Autotuned from 3 (p75 GREEN delta, 1352 samples)
+    warn_bloat_ms: 5.0        # Autotuned from 10 (p90 GREEN delta, 1352 samples)
+    # EWMA time constants (interval-independent, auto-calculated)
+    baseline_time_constant_sec: 67   # Slow EWMA for baseline (DSL is noisy, need longer smoothing)
+    load_time_constant_sec: 0.25     # Fast EWMA for load RTT (250ms = reacts quickly to congestion)
+
+  # Ping configuration (3 reflectors with median for resilience)
+  ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+  use_median_of_three: true
+
+  # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
+  fallback_checks:
+    enabled: true                          # Enable multi-protocol verification
+    check_gateway: true                    # Try pinging local gateway first
+    check_tcp: true                        # Try TCP connections to verify Internet
+    gateway_ip: "10.10.110.1"             # Gateway to check (container default gateway)
+    tcp_targets:                           # TCP endpoints to test (HTTPS)
+      - ["1.1.1.1", 443]
+      - ["8.8.8.8", 443]
+    fallback_mode: "graceful_degradation"  # "freeze", "use_last_rtt", or "graceful_degradation"
+    max_fallback_cycles: 3                 # Max cycles before giving up (graceful mode only)
+
+# State persistence (FHS compliant)
+state_file: "/var/lib/wanctl/att_state.json"
+
+# Logging (FHS compliant)
+logging:
+  main_log: "/var/log/wanctl/att.log"
+  debug_log: "/var/log/wanctl/att_debug.log"
+
+# Lock file (FHS compliant - runtime directory)
+lock_file: "/run/wanctl/att.lock"
+lock_timeout: 300  # 5 minutes
+
+# Timeouts (operational tuning)
+timeouts:
+  ssh_command: 15  # seconds - RouterOS SSH command timeout
+  ping: 1  # seconds - ping -W parameter (per-packet timeout)
+
+# Signal processing (seeded from production autotuning 2026-03-25)
+signal_processing:
+  hampel:
+    window_size: 20       # Autotuned from 7->17->20 (median_jitter=0.42ms, 2026-03-27)
+    sigma_threshold: 3.2  # Autotuned from 3.0 (outlier_rate=4.5%, confidence 0.916)
+
+# IRTT UDP RTT measurement (v1.18+)
+irtt:
+  enabled: true
+  server: "104.200.21.31"
+  port: 2112
+  duration_ms: 1000
+  packet_size: 48
+  cadence_sec: 10
+
+# Reflector quality scoring (v1.19+)
+reflector_quality:
+  min_score: 0.8
+  probe_interval_sec: 30
+  recovery_count: 3
+
+# Dual-signal fusion (v1.19+)
+# Disabled on ATT: IRTT to Dallas (44ms) diverges from ICMP to CDN (28ms),
+# creating a permanent 4.8ms fused delta that locks controller in YELLOW.
+# ICMP alone at 20Hz provides sufficient DSL last-mile congestion detection.
+fusion:
+  enabled: true    # Enabled for Phase 119 auto-healing
+  icmp_weight: 0.7
+
+# Adaptive tuning (v1.20+)
+tuning:
+  enabled: true
+  cadence_sec: 3600        # Run tuning analysis every hour
+  lookback_hours: 24       # Analyze last 24h of metrics
+  warmup_hours: 1          # Wait 1h after startup before first run
+  max_step_pct: 10.0       # Max 10% change per tuning cycle
+  bounds:
+    target_bloat_ms:
+      min: 1.0
+      max: 10.0
+    warn_bloat_ms:
+      min: 5.0
+      max: 30.0
+    hampel_sigma_threshold:
+      min: 1.5
+      max: 5.0
+    hampel_window_size:
+      min: 5
+      max: 21     # Tuner pegged at ceiling; jitter 0.34ms wants wider window
+    load_time_constant_sec:
+      min: 0.5
+      max: 10.0
+    fusion_icmp_weight:
+      min: 0.5
+      max: 0.95
+    reflector_min_score:
+      min: 0.5
+      max: 0.95
+    baseline_rtt_min:
+      min: 10.0
+      max: 40.0
+      # Autotuned value: 25.1 (p5=27.9ms * 0.9)
+    baseline_rtt_max:
+      min: 30.0
+      max: 120.0
+      # Autotuned value: 40.0 (p95=28.0ms * 1.1 = 30.8, clamped to bounds min)
+
+# Alerting (v1.15+)
+alerting:
+  enabled: true
+  webhook_url: "${DISCORD_WEBHOOK_URL}"
