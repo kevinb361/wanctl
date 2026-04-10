@@ -52,15 +52,15 @@ continuous_monitoring:
     floor_soft_red_mbps: 28  # SOFT_RED: RTT-only congestion
     floor_red_mbps: 20       # RED: severe congestion
     ceiling_mbps: 95         # Realistic max (DSL + PPPoE/PTM overhead)
-    step_up_mbps: 2          # A/B confirmed (1/2/4 within 3%)
-    factor_down: 0.90        # A/B confirmed (0.85/0.90/0.95 within 2%)
-    green_required: 5        # A/B winner (was 3 default, p99 -8%)
+    step_up_mbps: 1          # A/B winner on real ATT (was 2, p99 -12%)
+    factor_down: 0.90        # A/B confirmed (0.85/0.90/0.95 within 5%)
+    green_required: 8        # A/B winner on real ATT (was 5, p99 -8%)
 
   # Upload parameters (A/B validated 2026-04-10)
   upload:
     floor_mbps: 6            # Conservative floor for DSL stability
     ceiling_mbps: 18         # Safe ceiling with headroom
-    step_up_mbps: 1.0        # A/B winner (was 0.5, p99 -5%; 2.0 caused 220ms spikes)
+    step_up_mbps: 1.0        # A/B confirmed on real ATT (0.5/1.0/2.0 within 5%)
     factor_down: 0.95        # A/B confirmed (0.90/0.95/0.98 within 4%)
 
   # RTT thresholds (A/B validated 2026-04-10)
@@ -69,7 +69,7 @@ continuous_monitoring:
     warn_bloat_ms: 10.0       # A/B winner (was 5.0, p99 -15%, zero transitions)
     hard_red_bloat_ms: 80     # A/B confirmed (40/80/120 within 4%), explicit for 4-state
     dwell_cycles: 5           # A/B winner (was 3 default, p99 -5%)
-    deadband_ms: 2.0          # A/B winner (was 3.0 default, p99 -7%)
+    deadband_ms: 5.0          # A/B winner on real ATT (was 2.0, p99 -13%)
     suppression_alert_threshold: 60  # Match Spectrum — prevents false alerts under heavy load
     # EWMA time constants (interval-independent, auto-calculated)
     baseline_time_constant_sec: 67   # Slow EWMA for baseline (DSL is noisy, need longer smoothing)
