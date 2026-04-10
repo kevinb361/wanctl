@@ -333,7 +333,14 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             if "mpu" in params:
                 kwargs["mpu"] = int(params["mpu"])
             if "memlimit" in params:
-                kwargs["memlimit"] = int(params["memlimit"])
+                raw = str(params["memlimit"]).lower().strip()
+                multipliers = {"kb": 1024, "mb": 1024**2, "gb": 1024**3}
+                for suffix, mult in multipliers.items():
+                    if raw.endswith(suffix):
+                        kwargs["memlimit"] = int(raw[: -len(suffix)]) * mult
+                        break
+                else:
+                    kwargs["memlimit"] = int(raw)
             if "rtt" in params:
                 kwargs["rtt"] = str(params["rtt"])
 
