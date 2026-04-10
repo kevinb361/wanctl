@@ -444,7 +444,7 @@ class TestInitializeCake:
 
         backend.initialize_cake({"rtt": "100ms"})
         call_kwargs = mock_instance.tc.call_args[1]
-        assert call_kwargs.get("rtt") == "100ms"
+        assert call_kwargs.get("rtt") == 100000  # 100ms -> 100000us
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
     @patch.object(LinuxCakeBackend, "initialize_cake", return_value=True)
@@ -709,7 +709,7 @@ def _make_mock_tin(tin_data: dict) -> MagicMock:
 def _make_mock_tins_container(tin_data_list: list[dict]) -> MagicMock:
     """Build a mock TCA_CAKE_STATS_TIN_STATS container."""
     tins_by_index = {}
-    for i, td in enumerate(tin_data_list):
+    for i, td in enumerate(tin_data_list, start=1):  # pyroute2 tins are 1-indexed
         tins_by_index[f"TCA_CAKE_TIN_STATS_{i}"] = _make_mock_tin(td)
     container = MagicMock()
     container.get_attr.side_effect = lambda key: tins_by_index.get(key)

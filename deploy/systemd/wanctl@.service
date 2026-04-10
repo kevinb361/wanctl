@@ -66,6 +66,9 @@ ProcSubset=pid
 # Device ACL -- empty (no device access needed)
 DeviceAllow=
 
+# CPU affinity — keep wanctl off CPU 0 (IRQ/system) to reduce scheduling jitter
+CPUAffinity=1-2
+
 # Resource limits (updated 2026-04-07: ATT peak=384.7MB hitting old MemoryHigh=384M)
 MemoryMax=640M
 MemoryHigh=512M

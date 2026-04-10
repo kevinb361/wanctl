@@ -94,6 +94,40 @@ class LinuxCakeAdapter:
 
         return dl_ok and ul_ok
 
+    def get_both_queue_stats(self) -> tuple[dict | None, dict | None]:
+        """Read CAKE stats for both DL and UL in a single netlink dump.
+
+        When both backends are NetlinkCakeBackend, issues one tc("dump")
+        without an interface filter and parses both interfaces from the
+        response — saving one netlink round-trip per cycle.
+
+        Falls back to two separate get_queue_stats calls for subprocess backends.
+
+        Returns:
+            (dl_stats, ul_stats) tuple.
+        """
+        from wanctl.backends.netlink_cake import NetlinkCakeBackend
+
+        if not (isinstance(self.dl_backend, NetlinkCakeBackend)
+                and isinstance(self.ul_backend, NetlinkCakeBackend)):
+            return (
+                self.dl_backend.get_queue_stats(""),
+                self.ul_backend.get_queue_stats(""),
+            )
+
+        try:
+            ipr = self.dl_backend._get_ipr()
+            msgs = ipr.tc("dump")
+        except Exception:
+            return (
+                self.dl_backend.get_queue_stats(""),
+                self.ul_backend.get_queue_stats(""),
+            )
+
+        dl_stats = self.dl_backend._parse_cake_msg(msgs)
+        ul_stats = self.ul_backend._parse_cake_msg(msgs)
+        return dl_stats, ul_stats
+
     @classmethod
     def from_config(cls, config: BaseConfig, logger: logging.Logger) -> LinuxCakeAdapter:
         """Create LinuxCakeAdapter from config, initializing CAKE qdiscs.

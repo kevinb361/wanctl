@@ -217,30 +217,44 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             self._reset_ipr()
             return super().get_queue_stats(queue)
 
-        # Find CAKE message in dump response
-        cake_msg = None
-        for msg in msgs:
-            if msg.get_attr("TCA_KIND") == "cake":
-                cake_msg = msg
-                break
-        if cake_msg is None:
-            self.logger.warning("No CAKE qdisc found on %s via netlink", self.interface)
-            return None
-
-        # Extract base stats from TCA_STATS2
-        stats2 = cake_msg.get_attr("TCA_STATS2")
-        if stats2 is None:
-            self.logger.warning(
-                "No TCA_STATS2 in CAKE response on %s -- falling back to subprocess",
-                self.interface,
-            )
+        result = self._parse_cake_msg(msgs, filter_ifindex=False)  # dump already filtered by index
+        if result is None:
             self._reset_ipr()
             return super().get_queue_stats(queue)
+        return result
+
+    def _parse_cake_msg(self, msgs: list, filter_ifindex: bool = True) -> dict[str, Any] | None:
+        """Parse CAKE stats from a tc dump message list for this interface.
+
+        Finds the CAKE message matching this backend's ifindex and extracts
+        base stats, extended stats, and per-tin stats.
+
+        Args:
+            msgs: List of tc dump response messages (may contain multiple interfaces).
+            filter_ifindex: If True, match by ifindex (for unfiltered dumps).
+                If False, take first CAKE message (for pre-filtered dumps).
+
+        Returns:
+            Stats dict, or None if no matching CAKE qdisc found.
+        """
+        cake_msg = None
+        for msg in msgs:
+            if msg.get_attr("TCA_KIND") != "cake":
+                continue
+            if filter_ifindex and msg.get("index", 0) != self._ifindex:
+                continue
+            cake_msg = msg
+            break
+        if cake_msg is None:
+            return None
+
+        stats2 = cake_msg.get_attr("TCA_STATS2")
+        if stats2 is None:
+            return None
 
         basic = stats2.get_attr("TCA_STATS_BASIC") or {}
         queue_stats = stats2.get_attr("TCA_STATS_QUEUE") or {}
 
-        # pyroute2 TCA_STATS_BASIC/QUEUE return dict-like objects
         stats: dict[str, Any] = {
             "packets": basic.get("packets", 0) if isinstance(basic, dict) else getattr(basic, "packets", 0),
             "bytes": basic.get("bytes", 0) if isinstance(basic, dict) else getattr(basic, "bytes", 0),
@@ -249,7 +263,6 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             "queued_bytes": queue_stats.get("backlog", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "backlog", 0),
         }
 
-        # Extract CAKE-specific stats from TCA_STATS_APP
         app = stats2.get_attr("TCA_STATS_APP")
         if app is not None:
             stats["memory_used"] = app.get_attr("TCA_CAKE_STATS_MEMORY_USED") or 0
@@ -260,13 +273,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             stats["memory_limit"] = 0
             stats["capacity_estimate"] = 0
 
-        # Extract per-tin stats
         tins: list[dict[str, Any]] = []
         total_ecn = 0
         if app is not None:
             tins_container = app.get_attr("TCA_CAKE_STATS_TIN_STATS")
             if tins_container is not None:
-                # Iterate over tin attrs: TCA_CAKE_TIN_STATS_0, _1, _2, ...
                 for i in range(1, 9):  # tins are 1-indexed: TCA_CAKE_TIN_STATS_1 through _8
                     tin = tins_container.get_attr(f"TCA_CAKE_TIN_STATS_{i}")
                     if tin is None:
