@@ -57,6 +57,13 @@ _OVERHEAD_KEYWORD_TO_PYROUTE2: dict[str, dict[str, Any]] = {
     "ethernet": {"atm_mode": "noatm", "overhead": 38},
 }
 
+# Netlink returns diffserv mode as int enum; config uses string names.
+_DIFFSERV_NAME_TO_INT: dict[str, int] = {
+    "diffserv3": 0,
+    "diffserv4": 1,
+    "besteffort": 2,
+}
+
 # Map validate_cake expected dict keys to TCA_CAKE option attribute names.
 _VALIDATE_KEY_TO_TCA: dict[str, str] = {
     "diffserv": "TCA_CAKE_DIFFSERV_MODE",
@@ -424,6 +431,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                             actual = options.get_attr(tca_key)
                         else:
                             actual = options.get_attr(key)
+                        # Normalize diffserv: netlink returns int enum, config uses string
+                        if key == "diffserv" and isinstance(expected_value, str):
+                            expected_value = _DIFFSERV_NAME_TO_INT.get(
+                                expected_value, expected_value
+                            )
                         if actual != expected_value:
                             self.logger.error(
                                 "CAKE param mismatch on %s: %s expected=%r actual=%r",

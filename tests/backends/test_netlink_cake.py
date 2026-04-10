@@ -486,7 +486,7 @@ class TestValidateCake:
         # Build mock message with options
         mock_options = MagicMock()
         mock_options.get_attr.side_effect = lambda k: {
-            "TCA_CAKE_DIFFSERV_MODE": "diffserv4",
+            "TCA_CAKE_DIFFSERV_MODE": 1,  # netlink returns int enum (diffserv4=1)
             "TCA_CAKE_OVERHEAD": 18,
         }.get(k)
         mock_msg = MagicMock()
