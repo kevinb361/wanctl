@@ -42,26 +42,43 @@ def _congestion_state_code(state: str) -> int:
     return codes.get(state, 3)
 
 
-def _format_iso_timestamp(
-    monotonic_ts: float | None, server_start_time: float | None
-) -> str | None:
-    """Convert monotonic timestamp to ISO 8601 string.
+def _parse_transition_timestamp(value: Any) -> datetime | None:
+    """Parse persisted transition timestamps into UTC datetimes.
 
-    Calculates wall-clock time by computing the offset from server start time.
-
-    Args:
-        monotonic_ts: Monotonic timestamp (from time.monotonic())
-        server_start_time: Server start monotonic time for offset calculation
-
-    Returns:
-        ISO 8601 formatted timestamp string, or None if timestamp unavailable
+    Steering state may contain either a monotonic timestamp from the current
+    process or a wall-clock ISO 8601 string restored from persisted state.
     """
-    if monotonic_ts is None or server_start_time is None:
+    if not isinstance(value, str):
+        return None
+
+    normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+
+def _format_iso_timestamp(
+    monotonic_ts: float | str | None, server_start_time: float | None
+) -> str | None:
+    """Convert monotonic or persisted wall-clock timestamps to ISO 8601."""
+    if monotonic_ts is None:
+        return None
+
+    persisted_ts = _parse_transition_timestamp(monotonic_ts)
+    if persisted_ts is not None:
+        return persisted_ts.isoformat()
+
+    if not isinstance(monotonic_ts, (int, float)) or server_start_time is None:
         return None
 
     # Calculate how long ago the event occurred relative to server start
     now_monotonic = time.monotonic()
-    elapsed_since_event = now_monotonic - monotonic_ts
+    elapsed_since_event = now_monotonic - float(monotonic_ts)
 
     # Convert to wall-clock time
     event_time = datetime.now(UTC) - timedelta(seconds=elapsed_since_event)
@@ -238,8 +255,15 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         """Build decision info section (STEER-05)."""
         last_transition = state.get("last_transition_time")
         time_in_state = 0.0
-        if last_transition is not None and self.start_time is not None:
-            time_in_state = round(time.monotonic() - last_transition, 1)
+        persisted_ts = _parse_transition_timestamp(last_transition)
+        if persisted_ts is not None:
+            time_in_state = round(
+                max(0.0, (datetime.now(UTC) - persisted_ts).total_seconds()), 1
+            )
+        elif last_transition is not None and self.start_time is not None and isinstance(
+            last_transition, (int, float)
+        ):
+            time_in_state = round(max(0.0, time.monotonic() - float(last_transition)), 1)
         elif self.start_time is not None:
             time_in_state = round(uptime, 1)
 

@@ -2473,7 +2473,7 @@ class WANController:
         irtt_result: IRTTResult | None,
     ) -> None:
         """Logging and metrics subsystem: cycle log, SQLite history recording."""
-        self.logger.info(
+        self.logger.debug(
             f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
             f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
             f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "

@@ -164,7 +164,7 @@ class SignalProcessor:
 
         # Log outlier at INFO for operator visibility
         if is_outlier:
-            self._logger.info(
+            self._logger.debug(
                 f"{self._wan_name}: RTT outlier detected: {raw_rtt:.1f}ms "
                 f"-> {filtered_rtt:.1f}ms (outlier_rate={outlier_rate:.1%})"
             )
