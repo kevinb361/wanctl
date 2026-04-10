@@ -3223,9 +3223,9 @@ class TestRunCycle:
 
         daemon_for_run_cycle.run_cycle()
 
-        # Verify logger.info was called with congestion state
-        info_calls = [str(c) for c in mock_logger.info.call_args_list]
-        assert any("congestion=YELLOW" in c for c in info_calls)
+        # Verify per-cycle debug log includes congestion state
+        debug_calls = [str(c) for c in mock_logger.debug.call_args_list]
+        assert any("congestion=YELLOW" in c for c in debug_calls)
 
     def test_run_cycle_state_change_triggers_transition_log(
         self, daemon_for_run_cycle, mock_state_mgr, mock_logger

@@ -401,6 +401,23 @@ class TestSteeringHealthResponseFields:
         finally:
             server.shutdown()
 
+    def test_persisted_iso_transition_time_does_not_crash(self, mock_daemon):
+        """Persisted ISO timestamps should render without monotonic math failures."""
+        mock_daemon.state_mgr.state["last_transition_time"] = "2026-04-10T18:00:00Z"
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert data["decision"]["last_transition_time"] == "2026-04-10T18:00:00+00:00"
+            assert isinstance(data["decision"]["time_in_state_seconds"], (int, float))
+            assert data["decision"]["time_in_state_seconds"] >= 0
+        finally:
+            server.shutdown()
+
     def test_counters_present(self, mock_daemon):
         """Test that counters.red_count, good_count, cake_read_failures are present."""
         mock_daemon.state_mgr.state["red_count"] = 3

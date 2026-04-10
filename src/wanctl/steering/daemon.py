@@ -1949,7 +1949,7 @@ class SteeringDaemon:
 
         # === Log Measurement ===
         wan_name = self.config.primary_wan.upper()
-        self.logger.info(
+        self.logger.debug(
             f"[{wan_name}_{state['current_state'].split('_')[-1]}] "
             f"{signals} | "
             f"congestion={state.get('congestion_state', 'N/A')}"
