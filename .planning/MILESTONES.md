@@ -1,5 +1,18 @@
 # Project Milestones: wanctl
 
+## v1.32 CAKE-Aware Congestion Detection (Shipped: 2026-04-10)
+
+**Phases completed:** 3 phases, 5 plans, 9 tasks
+
+**Key accomplishments:**
+
+- 1. [Rule 1 - Bug] MagicMock leaking into JSON serialization
+- CAKE-aware zone classification with dwell bypass on elevated drop rate and green_streak suppression on elevated backlog
+- Refractory period anti-oscillation with CAKE snapshot wiring through congestion assessment, YAML threshold parsing, and health endpoint detection state
+- Exponential rate recovery probing with 1.5x multiplier, 90% ceiling linear fallback, and 9-path multiplier reset via CAKE signal guards
+
+---
+
 ## v1.29 Code Health & Cleanup (Shipped: 2026-04-08)
 
 **Phases completed:** 9 phases, 28 plans, 59 tasks
