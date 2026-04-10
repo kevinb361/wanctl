@@ -139,7 +139,7 @@ fusion:
 
 # Adaptive tuning (v1.20+)
 tuning:
-  enabled: true
+  enabled: false  # Disabled during CAKE detection sweep
   cadence_sec: 3600        # Run tuning analysis every hour
   lookback_hours: 24       # Analyze last 24h of metrics
   warmup_hours: 1          # Wait 1h after startup before first run
@@ -183,11 +183,11 @@ tuning:
 cake_signal:
   enabled: true
   drop_rate:
-    enabled: false
+    enabled: true
     time_constant_sec: 1.0
     threshold_drops_per_sec: 10.0
   backlog:
-    enabled: false
+    enabled: true
     threshold_bytes: 10000
   peak_delay:
     enabled: false

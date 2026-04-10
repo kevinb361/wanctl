@@ -4,23 +4,31 @@ This document describes the configuration schema for wanctl.
 
 ## Config File Location
 
-- Development: `configs/<wan_name>.yaml`
-- Production: `/etc/wanctl/<wan_name>.yaml`
+- Checked-in templates: `configs/examples/*.yaml.example`
+- Production configs: `/etc/wanctl/<wan_name>.yaml`
 
-## Complete Schema
+## Representative Autorate Schema
+
+Start from one of the checked-in examples under `configs/examples/`, then copy the file you want into `/etc/wanctl/`.
+
+The schema block below is representative of the core autorate configuration surface, not an exhaustive dump of every optional section. Current examples also show fields such as `schema_version`, `router.port`, and `router.verify_ssl`, plus optional sections like `irtt`, `reflector_quality`, `owd_asymmetry`, `fusion`, `tuning`, `alerting`, and `storage`.
 
 ```yaml
+# Optional schema version marker used by checked-in examples
+schema_version: "1.0"
+
 # WAN identifier (used in logs and state files)
 wan_name: "wan1"
 
 # Router connection settings
 router:
-  type: routeros # Router platform (only 'routeros' currently supported)
   transport: "ssh" # Transport: "ssh" (default) or "rest"
   host: "192.168.1.1" # Router IP or hostname
   user: "admin" # SSH username
   ssh_key: "/etc/wanctl/ssh/router.key" # Path to SSH private key (for ssh transport)
   # password: "${ROUTER_PASSWORD}"       # REST API password (for rest transport)
+  port: 443
+  verify_ssl: false
 
 # Queue names in RouterOS (must match your queue tree config)
 queues:

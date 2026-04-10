@@ -4,8 +4,9 @@ This guide covers setting up a development environment for wanctl.
 
 ## Prerequisites
 
-- Python 3.12 or later
+- Python 3.11 or later
 - Git
+- `uv` for dependency management and tool installation
 - (Optional) A RouterOS device for integration testing
 
 ## Setting Up Your Environment
@@ -17,37 +18,20 @@ git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
 ```
 
-### 2. Create a Virtual Environment
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# or
-.venv\Scripts\activate     # Windows
-```
-
-### 3. Install Dependencies
-
-```bash
-# Production dependencies
-pip install -r requirements.txt
-
-# Development dependencies
-pip install pytest pyflakes
-```
-
-Or using uv (faster):
+### 2. Install Dependencies
 
 ```bash
 uv sync
 ```
+
+This project’s `Makefile` expects tools in `.venv/bin/`, so `uv sync` is the supported setup path.
 
 ## Running Tests
 
 ### Run All Tests
 
 ```bash
-pytest tests/ -v
+make test
 ```
 
 ### Run Specific Test File
@@ -56,11 +40,11 @@ pytest tests/ -v
 pytest tests/test_config_base.py -v
 ```
 
-### Run with Coverage (if pytest-cov installed)
+### Run with Coverage
 
 ```bash
-pip install pytest-cov
-pytest tests/ --cov=src/wanctl --cov-report=term-missing
+make coverage
+make coverage-check
 ```
 
 ## Linting
@@ -68,13 +52,19 @@ pytest tests/ --cov=src/wanctl --cov-report=term-missing
 ### Check for Errors
 
 ```bash
-pyflakes src/ tests/
+make lint
 ```
 
-### Verify Syntax
+### Type Checking
 
 ```bash
-python3 -m py_compile src/wanctl/*.py
+make type
+```
+
+### Full Local CI Pass
+
+```bash
+make ci
 ```
 
 ## Project Structure
@@ -85,7 +75,7 @@ wanctl/
 │   ├── autorate_continuous.py  # Primary entry point
 │   ├── calibrate.py            # Calibration wizard
 │   ├── config_base.py          # Configuration framework
-│   ├── lockfile.py             # Lock file management
+│   ├── lock_utils.py           # Locking helpers
 │   ├── state_utils.py          # State persistence
 │   ├── backends/               # Router backend implementations
 │   │   ├── base.py             # Abstract interface
@@ -93,6 +83,9 @@ wanctl/
 │   └── steering/               # Multi-WAN steering
 │       ├── daemon.py           # Steering daemon
 │       └── congestion_assessment.py
+│   ├── dashboard/              # Textual dashboard
+│   ├── storage/                # History and retention pipeline
+│   └── tuning/                 # Adaptive tuning modules
 ├── tests/                    # Unit tests
 ├── configs/examples/         # Example configurations
 ├── scripts/                  # Deployment and utility scripts
@@ -111,10 +104,6 @@ wanctl/
 from .base import RouterBackend
 
 class MyRouterBackend(RouterBackend):
-    def connect(self) -> None:
-        """Establish connection to router."""
-        pass
-
     def get_queue_stats(self, queue_name: str) -> dict:
         """Get CAKE queue statistics."""
         pass
@@ -123,8 +112,20 @@ class MyRouterBackend(RouterBackend):
         """Set queue bandwidth limit."""
         pass
 
-    def disconnect(self) -> None:
-        """Close connection."""
+    def get_bandwidth(self, queue_name: str) -> int | None:
+        """Read the current queue limit."""
+        pass
+
+    def enable_rule(self, comment: str) -> bool:
+        """Enable a steering rule."""
+        pass
+
+    def disable_rule(self, comment: str) -> bool:
+        """Disable a steering rule."""
+        pass
+
+    def is_rule_enabled(self, comment: str) -> bool | None:
+        """Check a steering rule state."""
         pass
 ```
 
@@ -147,7 +148,7 @@ The test suite uses mocks and doesn't require actual router hardware. For integr
 ### Debug a Configuration Issue
 
 ```bash
-python3 -m wanctl.autorate_continuous \
+PYTHONPATH=src python -m wanctl.autorate_continuous \
     --config /path/to/config.yaml \
     --debug \
     --dry-run
@@ -161,18 +162,27 @@ ssh -i /path/to/key admin@router-ip '/system resource print'
 
 ### Validate Config Syntax
 
-```python
-from wanctl.config_base import load_config
-config = load_config('/path/to/config.yaml')
+```bash
+PYTHONPATH=src python -m wanctl.check_config /path/to/config.yaml
 ```
 
 ## CI/CD
 
-GitHub Actions runs on every push and PR:
+The repo-local CI entry point is `make ci`, which runs:
 
-- **lint**: pyflakes static analysis
-- **test**: pytest unit tests
-- **syntax-check**: Python compilation check
+- **lint**: Ruff checks
+- **type**: mypy on `src/wanctl/`
+- **coverage-check**: pytest with the 90% coverage threshold
+- **dead-code**: Vulture plus unused-import checks
+- **check-deps**: runtime dependency usage validation
+- **check-boundaries**: private-boundary enforcement
+- **check-brittleness**: brittle test access checks
+
+Additional security targets are available with:
+
+```bash
+make security
+```
 
 All checks must pass before merging.
 
