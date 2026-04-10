@@ -113,7 +113,7 @@ None
 **Milestone Goal:** Integrate CAKE qdisc statistics (drops, backlog, peak delay) into the autorate hot path as secondary congestion signals alongside RTT delta — enabling faster congestion confirmation and smarter rate recovery.
 
 - [x] **Phase 159: CAKE Signal Infrastructure** - Per-tin netlink stats, EWMA drop rate, health endpoint, YAML config, metrics DB storage (completed 2026-04-09)
-- [ ] **Phase 160: Congestion Detection** - Drop rate bypasses dwell timer, backlog suppresses green_streak, refractory period, Bulk tin exclusion
+- [x] **Phase 160: Congestion Detection** - Drop rate bypasses dwell timer, backlog suppresses green_streak, refractory period, Bulk tin exclusion (completed 2026-04-10)
 - [ ] **Phase 161: Adaptive Recovery** - Exponential probing (1.5x step) guarded by CAKE signals, linear above 90% ceiling, reset on non-GREEN
 
 ## Phase Details
@@ -142,10 +142,10 @@ Plans:
   2. Queue backlog above threshold suppresses green_streak to prevent premature rate recovery
   3. Refractory period prevents feedback loop oscillation after drop-triggered rate reduction
   4. Only BestEffort and higher-priority tin drops drive rate decisions (Bulk tin drops excluded)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 160-01-PLAN.md -- CAKE-aware QueueController zone classification + CakeSignalConfig thresholds
-- [ ] 160-02-PLAN.md -- Refractory period + congestion assessment wiring + config parsing + health endpoint
+- [x] 160-01-PLAN.md -- CAKE-aware QueueController zone classification + CakeSignalConfig thresholds
+- [x] 160-02-PLAN.md -- Refractory period + congestion assessment wiring + config parsing + health endpoint
 
 ### Phase 161: Adaptive Recovery
 **Goal**: Rate recovery uses exponential probing guarded by CAKE signals instead of constant step_up
@@ -155,6 +155,9 @@ Plans:
   1. Rate recovery uses exponential probing (1.5x step multiplier) guarded by CAKE signals
   2. Probing reverts to linear step_up above 90% of ceiling to prevent overshoot
   3. Probe multiplier resets immediately on any non-GREEN zone transition
+**Plans:** 1 plan
+Plans:
+- [ ] 161-01-PLAN.md -- Exponential probe logic + config + wiring + regression gate
 
 ## Progress
 
@@ -164,5 +167,5 @@ Phases execute in numeric order: 159 through 161.
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 159. CAKE Signal Infrastructure | v1.32 | 2/2 | Complete | 2026-04-09 |
-| 160. Congestion Detection | v1.32 | 0/2 | Not started | - |
-| 161. Adaptive Recovery | v1.32 | 0/? | Not started | - |
+| 160. Congestion Detection | v1.32 | 2/2 | Complete    | 2026-04-10 |
+| 161. Adaptive Recovery | v1.32 | 0/1 | Not started | - |
