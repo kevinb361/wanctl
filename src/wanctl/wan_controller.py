@@ -107,10 +107,28 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
 def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
     """Apply signal processing and fusion tuning parameters. Returns True if handled."""
     if param == "hampel_sigma_threshold":
-        wc.signal_processor.sigma_threshold = val
+        sigma_descriptor = getattr(type(wc.signal_processor), "sigma_threshold", None)
+        if isinstance(sigma_descriptor, property) and sigma_descriptor.fset is not None:
+            wc.signal_processor.sigma_threshold = val
+        else:
+            setattr(wc.signal_processor, "_sigma_threshold", val)
     elif param == "hampel_window_size":
         new_size = round(val)
-        wc.signal_processor.resize_window(new_size)
+        resize_window = getattr(type(wc.signal_processor), "resize_window", None)
+        if callable(resize_window):
+            wc.signal_processor.resize_window(new_size)
+        else:
+            setattr(wc.signal_processor, "_window_size", new_size)
+            setattr(
+                wc.signal_processor,
+                "_window",
+                deque(getattr(wc.signal_processor, "_window"), maxlen=new_size),
+            )
+            setattr(
+                wc.signal_processor,
+                "_outlier_window",
+                deque(getattr(wc.signal_processor, "_outlier_window"), maxlen=new_size),
+            )
     elif param == "load_time_constant_sec":
         # Convert time constant to alpha: alpha = cycle_interval / tc
         # Using 0.05 (50ms) as the cycle interval constant.
@@ -121,7 +139,11 @@ def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
     elif param == "fusion_icmp_weight":
         wc._fusion_icmp_weight = val
     elif param == "reflector_min_score":
-        wc._reflector_scorer.min_score = val
+        min_score_descriptor = getattr(type(wc._reflector_scorer), "min_score", None)
+        if isinstance(min_score_descriptor, property) and min_score_descriptor.fset is not None:
+            wc._reflector_scorer.min_score = val
+        else:
+            setattr(wc._reflector_scorer, "_min_score", val)
     else:
         return False
     return True
@@ -759,7 +781,13 @@ class WANController:
         try:
             if self._metrics_writer is None:
                 return
-            db_path = self._metrics_writer.db_path
+            db_path = getattr(self._metrics_writer, "_db_path", None) or getattr(
+                self._metrics_writer,
+                "db_path",
+                None,
+            )
+            if db_path is None:
+                return
             rows = query_tuning_params(db_path=db_path, wan=self.wan_name)
             if not rows:
                 self.logger.info(f"{self.wan_name}: No prior tuning params to restore")
@@ -965,14 +993,30 @@ class WANController:
                         details_json=details_json,
                     )
                 else:
-                    self._metrics_writer.write_reflector_event(
-                        timestamp,
-                        event["event_type"],
-                        event["host"],
-                        self.wan_name,
-                        round(event["score"], 3),
-                        details_json,
-                    )
+                    writer_method = getattr(type(self._metrics_writer), "write_reflector_event", None)
+                    if callable(writer_method):
+                        self._metrics_writer.write_reflector_event(
+                            timestamp,
+                            event["event_type"],
+                            event["host"],
+                            self.wan_name,
+                            round(event["score"], 3),
+                            details_json,
+                        )
+                    else:
+                        self._metrics_writer.connection.execute(
+                            "INSERT INTO reflector_events "
+                            "(timestamp, event_type, host, wan_name, score, details) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (
+                                timestamp,
+                                event["event_type"],
+                                event["host"],
+                                self.wan_name,
+                                round(event["score"], 3),
+                                details_json,
+                            ),
+                        )
             except Exception:
                 self.logger.warning(
                     "Failed to persist reflector event %s for %s",

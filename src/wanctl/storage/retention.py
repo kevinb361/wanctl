@@ -234,7 +234,7 @@ def vacuum_if_needed(
             conn.execute(f"PRAGMA incremental_vacuum({pages_to_reclaim})")
         else:
             logger.debug("Incremental vacuum: no freelist pages to reclaim")
-        return pages_to_reclaim > 0
+        return bool(pages_to_reclaim > 0)
     else:
         # Fallback: full VACUUM for DBs not yet migrated to INCREMENTAL
         logger.info("Running full VACUUM after deleting %d rows (auto_vacuum=%d)", deleted_rows, auto_vacuum)

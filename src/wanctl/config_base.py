@@ -405,8 +405,9 @@ class BaseConfig:
         # Universal fields (present in all configs) - already validated
         self.wan_name = self.validate_identifier(self.data["wan_name"], "wan_name")
 
-        # Router SSH configuration
+        # Router transport and connection configuration
         router = self.data["router"]
+        self.router_transport = router.get("transport", "rest")
         self.router_host = router["host"]
         self.router_user = router["user"]
         self.ssh_key = router["ssh_key"]
