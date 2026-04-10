@@ -2547,3 +2547,313 @@ class TestReloadHysteresisConfig:
 
         assert "dwell_cycles=3 (unchanged)" in caplog.text
         assert "deadband_ms=3.0 (unchanged)" in caplog.text
+
+
+# =============================================================================
+# Phase 160: CAKE DETECTION TESTS
+# =============================================================================
+
+from wanctl.cake_signal import CakeSignalSnapshot, TinSnapshot
+
+
+def _make_cake_snapshot(
+    drop_rate: float = 0.0,
+    backlog_bytes: int = 0,
+    cold_start: bool = False,
+) -> CakeSignalSnapshot:
+    """Helper to construct a CakeSignalSnapshot for detection tests."""
+    return CakeSignalSnapshot(
+        drop_rate=drop_rate,
+        total_drop_rate=drop_rate,
+        backlog_bytes=backlog_bytes,
+        peak_delay_us=0,
+        tins=(),
+        cold_start=cold_start,
+    )
+
+
+@pytest.fixture
+def controller_cake_dwell():
+    """4-state controller with dwell_cycles=5 and CAKE detection thresholds enabled."""
+    return QueueController(
+        name="TestDownload",
+        floor_green=800_000_000,
+        floor_yellow=600_000_000,
+        floor_soft_red=500_000_000,
+        floor_red=400_000_000,
+        ceiling=920_000_000,
+        step_up=10_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.96,
+        green_required=5,
+        dwell_cycles=5,
+        deadband_ms=3.0,
+        drop_rate_threshold=10.0,
+        backlog_threshold_bytes=10000,
+    )
+
+
+@pytest.fixture
+def controller_cake_3state():
+    """3-state controller with dwell and CAKE detection thresholds enabled."""
+    return QueueController(
+        name="TestUpload",
+        floor_green=35_000_000,
+        floor_yellow=30_000_000,
+        floor_soft_red=25_000_000,
+        floor_red=25_000_000,
+        ceiling=40_000_000,
+        step_up=1_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.96,
+        green_required=5,
+        dwell_cycles=5,
+        deadband_ms=3.0,
+        drop_rate_threshold=10.0,
+        backlog_threshold_bytes=10000,
+    )
+
+
+class TestCakeDropBypass:
+    """Tests for DETECT-01: drop rate above threshold bypasses dwell timer."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_drop_rate_above_threshold_bypasses_dwell_4state(self, controller_cake_dwell):
+        """High drop rate + YELLOW delta -> immediate YELLOW (no dwell needed)."""
+        snap = _make_cake_snapshot(drop_rate=15.0)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,  # delta=20 -> YELLOW range
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "YELLOW", "Drop rate above threshold should bypass dwell"
+
+    def test_drop_rate_below_threshold_normal_dwell_4state(self, controller_cake_dwell):
+        """Low drop rate + YELLOW delta -> normal dwell (stays GREEN)."""
+        snap = _make_cake_snapshot(drop_rate=5.0)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN", "Drop rate below threshold should not bypass dwell"
+
+    def test_cold_start_no_bypass_4state(self, controller_cake_dwell):
+        """Cold start snapshot ignored even with high drop rate."""
+        snap = _make_cake_snapshot(drop_rate=15.0, cold_start=True)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN", "Cold start should not bypass dwell"
+
+    def test_none_snapshot_normal_dwell_4state(self, controller_cake_dwell):
+        """None snapshot -> backward compatible dwell behavior."""
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=None,
+        )
+        assert zone == "GREEN", "None snapshot should not bypass dwell"
+
+    def test_bypass_increments_counter(self, controller_cake_dwell):
+        """After bypass, _dwell_bypassed_count increments."""
+        snap = _make_cake_snapshot(drop_rate=15.0)
+        controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert controller_cake_dwell._dwell_bypassed_count == 1
+
+    def test_bypass_sets_this_cycle_flag(self, controller_cake_dwell):
+        """After bypass, _dwell_bypassed_this_cycle is True."""
+        snap = _make_cake_snapshot(drop_rate=15.0)
+        controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert controller_cake_dwell._dwell_bypassed_this_cycle is True
+
+    def test_bypass_works_in_3state(self, controller_cake_3state):
+        """Drop bypass also works in 3-state adjust() method."""
+        snap = _make_cake_snapshot(drop_rate=15.0)
+        zone, _, _ = controller_cake_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,  # delta=20 > target=15
+            target_delta=self.GREEN_THRESHOLD,
+            warn_delta=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "YELLOW", "3-state drop bypass should work"
+
+    def test_threshold_zero_disables_bypass(self, controller_cake_dwell):
+        """drop_rate_threshold=0.0 disables bypass even with high drop rate."""
+        controller_cake_dwell._drop_rate_threshold = 0.0
+        snap = _make_cake_snapshot(drop_rate=100.0)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN", "Threshold 0.0 should disable bypass"
+
+
+class TestCakeBacklogSuppression:
+    """Tests for DETECT-02: backlog above threshold suppresses green_streak."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_backlog_above_threshold_suppresses_green_streak_4state(self, controller_cake_dwell):
+        """High backlog in GREEN -> zone is GREEN but green_streak is 0."""
+        snap = _make_cake_snapshot(backlog_bytes=15000)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,  # delta=-1 -> GREEN
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_dwell.green_streak == 0
+
+    def test_backlog_below_threshold_normal_green_streak_4state(self, controller_cake_dwell):
+        """Low backlog in GREEN -> green_streak increments normally."""
+        snap = _make_cake_snapshot(backlog_bytes=5000)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_dwell.green_streak == 1
+
+    def test_cold_start_no_suppression_4state(self, controller_cake_dwell):
+        """Cold start snapshot -> green_streak increments normally."""
+        snap = _make_cake_snapshot(backlog_bytes=15000, cold_start=True)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_dwell.green_streak == 1
+
+    def test_none_snapshot_normal_green_streak_4state(self, controller_cake_dwell):
+        """None snapshot -> green_streak increments normally (backward compat)."""
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=None,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_dwell.green_streak == 1
+
+    def test_suppression_increments_counter(self, controller_cake_dwell):
+        """After suppression, _backlog_suppressed_count increments."""
+        snap = _make_cake_snapshot(backlog_bytes=15000)
+        controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert controller_cake_dwell._backlog_suppressed_count == 1
+
+    def test_suppression_sets_this_cycle_flag(self, controller_cake_dwell):
+        """After suppression, _backlog_suppressed_this_cycle is True."""
+        snap = _make_cake_snapshot(backlog_bytes=15000)
+        controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert controller_cake_dwell._backlog_suppressed_this_cycle is True
+
+    def test_suppression_works_in_3state(self, controller_cake_3state):
+        """Backlog suppression also works in 3-state adjust() method."""
+        snap = _make_cake_snapshot(backlog_bytes=15000)
+        zone, _, _ = controller_cake_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            target_delta=self.GREEN_THRESHOLD,
+            warn_delta=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_3state.green_streak == 0
+
+    def test_recovery_after_backlog_clears(self, controller_cake_dwell):
+        """After green_required+1 cycles with no backlog, rate increases."""
+        initial_rate = controller_cake_dwell.current_rate
+        # Run enough GREEN cycles without backlog for rate to increase
+        for _ in range(controller_cake_dwell.green_required + 1):
+            controller_cake_dwell.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED_THRESHOLD,
+                hard_red_threshold=self.HARD_RED_THRESHOLD,
+                cake_snapshot=_make_cake_snapshot(backlog_bytes=0),
+            )
+        assert controller_cake_dwell.current_rate > initial_rate
+
+    def test_threshold_zero_disables_suppression(self, controller_cake_dwell):
+        """backlog_threshold_bytes=0 disables suppression even with high backlog."""
+        controller_cake_dwell._backlog_threshold_bytes = 0
+        snap = _make_cake_snapshot(backlog_bytes=99999)
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=snap,
+        )
+        assert zone == "GREEN"
+        assert controller_cake_dwell.green_streak == 1
