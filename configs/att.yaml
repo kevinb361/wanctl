@@ -137,6 +137,9 @@ tuning:
   lookback_hours: 24       # Analyze last 24h of metrics
   warmup_hours: 1          # Wait 1h after startup before first run
   max_step_pct: 10.0       # Max 10% change per tuning cycle
+  exclude_params:
+    - target_bloat_ms # A/B validated 2026-04-10, DSL jitter needs stable thresholds
+    - warn_bloat_ms   # A/B validated 2026-04-10, autotuner was too aggressive (5.0 caused false YELLOW)
   bounds:
     target_bloat_ms:
       min: 1.0
