@@ -39,6 +39,7 @@ class TestBaselineBoundsValidation:
         """Create a mock router."""
         router = MagicMock()
         router.set_limits.return_value = True
+        router.needs_rate_limiting = False
         return router
 
     @pytest.fixture

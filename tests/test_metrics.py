@@ -1123,7 +1123,7 @@ class TestWANControllerIRTTWriteTs:
             controller = WANController(
                 wan_name="TestWAN",
                 config=mock_config,
-                router=MagicMock(),
+                router=MagicMock(needs_rate_limiting=False),
                 rtt_measurement=MagicMock(),
                 logger=MagicMock(),
             )
@@ -1147,7 +1147,7 @@ class TestSignalQualityInRunCycle:
             ctrl = WANController(
                 wan_name="TestWAN",
                 config=mock_config,
-                router=MagicMock(),
+                router=MagicMock(needs_rate_limiting=False),
                 rtt_measurement=MagicMock(),
                 logger=MagicMock(),
             )
@@ -1240,7 +1240,7 @@ class TestIRTTInRunCycle:
             ctrl = WANController(
                 wan_name="TestWAN",
                 config=mock_config,
-                router=MagicMock(),
+                router=MagicMock(needs_rate_limiting=False),
                 rtt_measurement=MagicMock(),
                 logger=MagicMock(),
             )

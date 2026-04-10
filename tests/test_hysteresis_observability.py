@@ -402,6 +402,100 @@ class TestHysteresisHealthEndpoint:
         wan._cycle_interval_ms = 50.0
         wan._warning_threshold_pct = 80.0
         wan._suppression_alert_threshold = 20
+        wan._reflector_scorer = None
+        wan.alert_engine = None
+        wan._tuning_enabled = False
+        wan._tuning_state = None
+        wan._parameter_locks = None
+        wan._pending_observation = None
+        wan._asymmetry_gate_enabled = False
+        wan._asymmetry_gate_active = False
+        wan._asymmetry_downstream_streak = 0
+        wan._asymmetry_damping_factor = 1.0
+        wan._last_asymmetry_result_ts = 0
+        wan._cake_signal_supported = False
+        wan._dl_cake_signal = MagicMock()
+        wan._dl_cake_signal.config.enabled = False
+        wan._dl_cake_snapshot = None
+        wan._ul_cake_snapshot = None
+        wan._dl_refractory_remaining = 0
+        wan._ul_refractory_remaining = 0
+        wan._refractory_cycles = 40
+        _qc_health = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 3,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 12,
+                "suppressions_per_min": 5,
+                "window_start_epoch": 1712345000.0,
+            },
+            "cake_detection": {},
+            "recovery_probe": {},
+        }
+        _ul_qc_health = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 3,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 8,
+                "suppressions_per_min": 3,
+                "window_start_epoch": 1712345000.0,
+            },
+            "cake_detection": {},
+            "recovery_probe": {},
+        }
+        wan.download.get_health_data.return_value = _qc_health
+        wan.upload.get_health_data.return_value = _ul_qc_health
+        wan.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": wan._profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": None,
+            "irtt": {"thread": None, "correlation": None, "last_asymmetry_result": None},
+            "reflector": {"scorer": None},
+            "fusion": {
+                "enabled": False,
+                "icmp_filtered_rtt": None,
+                "fused_rtt": None,
+                "icmp_weight": 0.7,
+                "healer": None,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": None,
+                "pending_observation": None,
+            },
+            "suppression_alert": {"threshold": 20},
+            "asymmetry_gate": {
+                "enabled": False,
+                "active": False,
+                "downstream_streak": 0,
+                "damping_factor": 1.0,
+                "last_result_age_sec": None,
+            },
+            "cake_signal": {
+                "enabled": False,
+                "supported": False,
+                "download": None,
+                "upload": None,
+                "detection": {
+                    "dl_refractory_remaining": 0,
+                    "ul_refractory_remaining": 0,
+                    "refractory_cycles": 40,
+                    "dl_dwell_bypassed_count": 0,
+                    "ul_dwell_bypassed_count": 0,
+                    "dl_backlog_suppressed_count": 0,
+                    "ul_backlog_suppressed_count": 0,
+                    "dl_recovery_probe": {},
+                    "ul_recovery_probe": {},
+                },
+            },
+        }
         return wan
 
     def test_hysteresis_has_windowed_fields_download(self):
@@ -971,18 +1065,11 @@ class TestSIGUSR1ChainIncludesSuppressionReload:
 
     def test_sigusr1_handler_calls_reload(self):
         """The SIGUSR1 handler chain includes _reload_suppression_alert_config."""
-        # Read the source and verify the call is present in the handler
+        # autorate_continuous calls controller.reload(), which dispatches sub-reloads
+        import wanctl.wan_controller as wc_module
 
-        import wanctl.autorate_continuous as module
-
-        source = inspect.getsource(module)
-        # The handler iterates wan_controllers and calls _reload_* methods
+        source = inspect.getsource(wc_module.WANController.reload)
         assert "_reload_suppression_alert_config" in source, (
-            "_reload_suppression_alert_config not found in autorate_continuous.py"
-        )
-        # Verify it's called on the controller (not just defined)
-        # Pattern: wan_info["controller"]._reload_suppression_alert_config()
-        assert 'wan_info["controller"]._reload_suppression_alert_config()' in source, (
-            '_reload_suppression_alert_config() not called on controller in SIGUSR1 handler'
+            "_reload_suppression_alert_config not called in WANController.reload()"
         )
 

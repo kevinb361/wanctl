@@ -27,6 +27,7 @@ def mock_router():
     """Create a mock router with set_limits returning True by default."""
     router = MagicMock()
     router.set_limits.return_value = True
+    router.needs_rate_limiting = False
     return router
 
 
@@ -550,6 +551,7 @@ class TestMeasureRTTReflectorScoring:
         ]
         mock_writer = MagicMock()
         controller._metrics_writer = mock_writer
+        controller._io_worker = None  # bypass deferred I/O to test direct writer
 
         controller._persist_reflector_events()
 

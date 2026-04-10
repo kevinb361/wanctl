@@ -681,7 +681,7 @@ class TestObservationMode:
         """WANController.__init__ creates self.signal_processor."""
         from wanctl.wan_controller import WANController
 
-        router = MagicMock()
+        router = MagicMock(needs_rate_limiting=False)
         rtt = MagicMock()
         logger = logging.getLogger("test")
         with patch.object(WANController, "load_state"):
@@ -701,7 +701,7 @@ class TestObservationMode:
         """WANController passes config to SignalProcessor correctly."""
         from wanctl.wan_controller import WANController
 
-        router = MagicMock()
+        router = MagicMock(needs_rate_limiting=False)
         rtt = MagicMock()
         logger = logging.getLogger("test")
         with patch.object(WANController, "load_state"):
@@ -720,7 +720,7 @@ class TestObservationMode:
         """WANController._last_signal_result starts as None."""
         from wanctl.wan_controller import WANController
 
-        router = MagicMock()
+        router = MagicMock(needs_rate_limiting=False)
         rtt = MagicMock()
         logger = logging.getLogger("test")
         with patch.object(WANController, "load_state"):
@@ -737,7 +737,7 @@ class TestObservationMode:
         """run_cycle passes signal_result.filtered_rtt to update_ewma."""
         from wanctl.wan_controller import WANController
 
-        router = MagicMock()
+        router = MagicMock(needs_rate_limiting=False)
         rtt = MagicMock()
         logger = logging.getLogger("test")
         with patch.object(WANController, "load_state"):
@@ -783,7 +783,7 @@ class TestObservationMode:
         """run_cycle stores signal_result in _last_signal_result."""
         from wanctl.wan_controller import WANController
 
-        router = MagicMock()
+        router = MagicMock(needs_rate_limiting=False)
         rtt = MagicMock()
         logger = logging.getLogger("test")
         with patch.object(WANController, "load_state"):

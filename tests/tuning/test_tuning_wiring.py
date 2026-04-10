@@ -199,7 +199,7 @@ class TestWANControllerTuningInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )
@@ -215,7 +215,7 @@ class TestWANControllerTuningInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )
@@ -230,7 +230,7 @@ class TestWANControllerTuningInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )

@@ -1588,7 +1588,7 @@ def _make_integration_controller(mock_autorate_config, fusion_enabled=True, irtt
         ctrl = WANController(
             wan_name="TestWAN",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=logging.getLogger("test.fusion_healer_integration"),
         )
@@ -1962,18 +1962,27 @@ class TestHealthEndpoint:
             "last_failure_time": None,
         }
         # Phase 121-124: hysteresis attributes
-        wan.download._yellow_dwell = 0
-        wan.download.dwell_cycles = 5
-        wan.download.deadband_ms = 3.0
-        wan.download._transitions_suppressed = 0
-        wan.download._window_suppressions = 0
-        wan.download._window_start_time = 0.0
-        wan.upload._yellow_dwell = 0
-        wan.upload.dwell_cycles = 5
-        wan.upload.deadband_ms = 3.0
-        wan.upload._transitions_suppressed = 0
-        wan.upload._window_suppressions = 0
-        wan.upload._window_start_time = 0.0
+        _qc_health = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 5,
+                "deadband_ms": 3.0,
+                "transitions_suppressed": 0,
+                "suppressions_per_min": 0,
+                "window_start_epoch": 0.0,
+            },
+            "cake_detection": {
+                "drop_rate_threshold": 10.0,
+                "backlog_threshold_bytes": 10000,
+                "dwell_bypassed_count": 0,
+                "backlog_suppressed_count": 0,
+                "dwell_bypassed_this_cycle": False,
+                "backlog_suppressed_this_cycle": False,
+            },
+            "recovery_probe": {},
+        }
+        wan.download.get_health_data.return_value = _qc_health
+        wan.upload.get_health_data.return_value = _qc_health
         wan._suppression_alert_threshold = 20
         # Prevent MagicMock truthy issues (attributes accessed by health endpoint)
         wan._last_signal_result = None
@@ -1993,6 +2002,73 @@ class TestHealthEndpoint:
         wan._overrun_count = 0
         wan._cycle_interval_ms = 50.0
         wan._profiler.stats.return_value = None
+        wan._suppression_alert_threshold = 20
+        wan._asymmetry_gate_enabled = False
+        wan._asymmetry_gate_active = False
+        wan._asymmetry_downstream_streak = 0
+        wan._asymmetry_damping_factor = 1.0
+        wan._last_asymmetry_result_ts = 0
+        wan._cake_signal_supported = False
+        wan._dl_cake_signal = MagicMock()
+        wan._dl_cake_signal.config.enabled = False
+        wan._dl_cake_snapshot = None
+        wan._ul_cake_snapshot = None
+        wan._dl_refractory_remaining = 0
+        wan._ul_refractory_remaining = 0
+        wan._refractory_cycles = 40
+        wan.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": wan._profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": None,
+            "irtt": {
+                "thread": None,
+                "correlation": None,
+                "last_asymmetry_result": None,
+            },
+            "reflector": {"scorer": None},
+            "fusion": {
+                "enabled": fusion_enabled,
+                "icmp_filtered_rtt": 25.0,
+                "fused_rtt": None,
+                "icmp_weight": 0.7,
+                "healer": healer,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": None,
+                "pending_observation": None,
+            },
+            "suppression_alert": {"threshold": 20},
+            "asymmetry_gate": {
+                "enabled": False,
+                "active": False,
+                "downstream_streak": 0,
+                "damping_factor": 1.0,
+                "last_result_age_sec": None,
+            },
+            "cake_signal": {
+                "enabled": False,
+                "supported": False,
+                "download": None,
+                "upload": None,
+                "detection": {
+                    "dl_refractory_remaining": 0,
+                    "ul_refractory_remaining": 0,
+                    "refractory_cycles": 40,
+                    "dl_dwell_bypassed_count": 0,
+                    "ul_dwell_bypassed_count": 0,
+                    "dl_backlog_suppressed_count": 0,
+                    "ul_backlog_suppressed_count": 0,
+                    "dl_recovery_probe": {},
+                    "ul_recovery_probe": {},
+                },
+            },
+        }
         return wan
 
     def _make_integration_controller(self, wan):
