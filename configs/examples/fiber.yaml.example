@@ -119,6 +119,7 @@ continuous_monitoring:
 
 # Storage retention (optional, defaults shown)
 # storage:
+#   maintenance_interval_seconds: 900   # Run cleanup/downsampling every 15 minutes
 #   retention:
 #     raw_age_seconds: 900
 #     aggregate_1m_age_seconds: 86400

@@ -6,6 +6,7 @@ import pytest
 
 from wanctl.config_base import (
     DEFAULT_STORAGE_DB_PATH,
+    DEFAULT_STORAGE_MAINTENANCE_INTERVAL_SECONDS,
     DEFAULT_STORAGE_RETENTION_DAYS,
     STORAGE_SCHEMA,
     BaseConfig,
@@ -787,6 +788,7 @@ class TestStorageConfig:
         paths = [spec["path"] for spec in STORAGE_SCHEMA]
         assert "storage.retention_days" in paths
         assert "storage.db_path" in paths
+        assert "storage.maintenance_interval_seconds" in paths
 
     def test_storage_schema_defaults(self):
         """Test STORAGE_SCHEMA has correct defaults."""
@@ -799,11 +801,17 @@ class TestStorageConfig:
             elif spec["path"] == "storage.db_path":
                 assert spec["default"] == "/var/lib/wanctl/metrics.db"
                 assert spec["required"] is False
+            elif spec["path"] == "storage.maintenance_interval_seconds":
+                assert spec["default"] == 900
+                assert spec["required"] is False
+                assert spec["min"] == 60
+                assert spec["max"] == 86400
 
     def test_default_constants(self):
         """Test storage default constants."""
         assert DEFAULT_STORAGE_RETENTION_DAYS == 7
         assert DEFAULT_STORAGE_DB_PATH == "/var/lib/wanctl/metrics.db"
+        assert DEFAULT_STORAGE_MAINTENANCE_INTERVAL_SECONDS == 900
 
     def test_get_storage_config_defaults(self):
         """Test get_storage_config returns defaults when storage section missing."""
@@ -812,6 +820,7 @@ class TestStorageConfig:
 
         assert result["retention_days"] == 7
         assert result["db_path"] == "/var/lib/wanctl/metrics.db"
+        assert result["maintenance_interval_seconds"] == 900
 
     def test_get_storage_config_empty_storage_section(self):
         """Test get_storage_config with empty storage section."""
@@ -820,6 +829,7 @@ class TestStorageConfig:
 
         assert result["retention_days"] == 7
         assert result["db_path"] == "/var/lib/wanctl/metrics.db"
+        assert result["maintenance_interval_seconds"] == 900
 
     def test_get_storage_config_custom_values(self):
         """Test get_storage_config with custom values."""
@@ -827,12 +837,14 @@ class TestStorageConfig:
             "storage": {
                 "retention_days": 30,
                 "db_path": "/custom/path/metrics.db",
+                "maintenance_interval_seconds": 300,
             }
         }
         result = get_storage_config(data)
 
         assert result["retention_days"] == 30
         assert result["db_path"] == "/custom/path/metrics.db"
+        assert result["maintenance_interval_seconds"] == 300
 
     def test_get_storage_config_partial_values(self):
         """Test get_storage_config with partial values."""
@@ -841,6 +853,7 @@ class TestStorageConfig:
 
         assert result["retention_days"] == 14
         assert result["db_path"] == "/var/lib/wanctl/metrics.db"
+        assert result["maintenance_interval_seconds"] == 900
 
     def test_storage_schema_validation_valid(self):
         """Test STORAGE_SCHEMA validation with valid values."""
@@ -848,12 +861,14 @@ class TestStorageConfig:
             "storage": {
                 "retention_days": 30,
                 "db_path": "/custom/path.db",
+                "maintenance_interval_seconds": 300,
             }
         }
         result = validate_schema(data, STORAGE_SCHEMA)
 
         assert result["storage.retention_days"] == 30
         assert result["storage.db_path"] == "/custom/path.db"
+        assert result["storage.maintenance_interval_seconds"] == 300
 
     def test_storage_schema_validation_defaults(self):
         """Test STORAGE_SCHEMA validation uses defaults when missing."""
@@ -862,6 +877,7 @@ class TestStorageConfig:
 
         assert result["storage.retention_days"] == 7
         assert result["storage.db_path"] == "/var/lib/wanctl/metrics.db"
+        assert result["storage.maintenance_interval_seconds"] == 900
 
     def test_storage_schema_validation_retention_too_low(self):
         """Test STORAGE_SCHEMA validates retention_days minimum."""
@@ -873,6 +889,13 @@ class TestStorageConfig:
     def test_storage_schema_validation_retention_too_high(self):
         """Test STORAGE_SCHEMA validates retention_days maximum."""
         data = {"storage": {"retention_days": 500}}
+        with pytest.raises(ConfigValidationError) as exc_info:
+            validate_schema(data, STORAGE_SCHEMA)
+        assert "out of range" in str(exc_info.value)
+
+    def test_storage_schema_validation_maintenance_interval_too_low(self):
+        """Test STORAGE_SCHEMA validates maintenance interval minimum."""
+        data = {"storage": {"maintenance_interval_seconds": 30}}
         with pytest.raises(ConfigValidationError) as exc_info:
             validate_schema(data, STORAGE_SCHEMA)
         assert "out of range" in str(exc_info.value)
@@ -1052,6 +1075,7 @@ class TestGetStorageConfigRetention:
         assert retention["aggregate_1m_age_seconds"] == 86400
         assert retention["aggregate_5m_age_seconds"] == 604800
         assert retention["prometheus_compensated"] is False
+        assert result["maintenance_interval_seconds"] == 900
 
     def test_explicit_retention_values(self):
         """get_storage_config with explicit retention values returns those values."""
@@ -1069,6 +1093,7 @@ class TestGetStorageConfigRetention:
         assert retention["raw_age_seconds"] == 1800
         assert retention["aggregate_1m_age_seconds"] == 43200
         assert retention["aggregate_5m_age_seconds"] == 259200
+        assert result["maintenance_interval_seconds"] == 900
 
     def test_partial_retention_uses_defaults(self):
         """get_storage_config with partial retention fills defaults for the rest."""
@@ -1145,6 +1170,7 @@ class TestGetStorageConfigRetention:
         assert "storage.retention.aggregate_1m_age_seconds" in paths
         assert "storage.retention.aggregate_5m_age_seconds" in paths
         assert "storage.retention.prometheus_compensated" in paths
+        assert "storage.maintenance_interval_seconds" in paths
 
     def test_backward_compat_retention_days_key(self):
         """Return dict still includes retention_days for backward compat."""
@@ -1157,6 +1183,7 @@ class TestGetStorageConfigRetention:
         """Return dict still includes db_path."""
         result = get_storage_config({})
         assert "db_path" in result
+        assert "maintenance_interval_seconds" in result
 
 
 # =============================================================================

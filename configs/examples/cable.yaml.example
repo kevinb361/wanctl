@@ -134,6 +134,7 @@ continuous_monitoring:
 # Storage retention (optional, defaults shown)
 # Controls how long metrics data is kept at each granularity.
 # storage:
+#   maintenance_interval_seconds: 900   # Run cleanup/downsampling every 15 minutes
 #   retention:
 #     raw_age_seconds: 900               # Raw samples kept for 15 minutes
 #     aggregate_1m_age_seconds: 86400    # 1-minute aggregates kept for 24 hours
