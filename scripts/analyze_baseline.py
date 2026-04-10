@@ -69,7 +69,11 @@ def analyze_baseline(db_path: Path, hours: int) -> dict:
 
 
 def check_detection_events(db_path: Path, hours: int) -> dict:
-    """Check for any state transitions during the baseline window."""
+    """Check for any state transitions during the baseline window.
+
+    Queries wanctl_state (written every cycle) and counts actual value
+    changes between consecutive rows, not raw sample count.
+    """
     end_ts = int(time.time())
     start_ts = end_ts - (hours * 3600)
 
@@ -81,7 +85,16 @@ def check_detection_events(db_path: Path, hours: int) -> dict:
         wan="spectrum",
     )
 
-    return {"state_transitions": len(results), "events": results[:10]}
+    # Count actual state transitions (value changes between consecutive samples)
+    MAX_DISPLAY_EVENTS = 10
+    transitions = sum(
+        1 for a, b in zip(results, results[1:]) if a["value"] != b["value"]
+    )
+    return {
+        "state_samples": len(results),
+        "state_transitions": transitions,
+        "events": results[:MAX_DISPLAY_EVENTS],
+    }
 
 
 def main() -> None:
@@ -129,13 +142,14 @@ def main() -> None:
     # Detection events
     events = check_detection_events(args.db, args.hours)
     print("=== Detection Events ===")
+    print(f"State samples in {args.hours}h window: {events['state_samples']}")
     print(f"State transitions in {args.hours}h window: {events['state_transitions']}")
     if events["state_transitions"] > 0:
-        print("WARNING: Detection events found during idle baseline!")
+        print("WARNING: State transitions found during idle baseline!")
         for e in events["events"]:
             print(f"  ts={e['timestamp']} value={e['value']}")
     else:
-        print("PASS: No detection events during idle window")
+        print("PASS: No state transitions during idle window")
 
 
 if __name__ == "__main__":
