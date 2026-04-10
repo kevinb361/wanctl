@@ -476,7 +476,7 @@ class TestCongestionAssessmentIntegration:
         original_adjust = controller.upload.adjust
         captured_args = {}
 
-        def capture_adjust(baseline, load_rtt, target_delta, warn_delta):
+        def capture_adjust(baseline, load_rtt, target_delta, warn_delta, **kwargs):
             captured_args["load_rtt"] = load_rtt
             return "GREEN", 35_000_000, None
 
@@ -502,7 +502,7 @@ class TestCongestionAssessmentIntegration:
 
         captured_args = {}
 
-        def capture_adjust(baseline, load_rtt, target_delta, warn_delta):
+        def capture_adjust(baseline, load_rtt, target_delta, warn_delta, **kwargs):
             captured_args["load_rtt"] = load_rtt
             return "GREEN", 35_000_000, None
 
