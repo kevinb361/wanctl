@@ -187,3 +187,25 @@ tuning:
 alerting:
   enabled: true
   webhook_url: "${DISCORD_WEBHOOK_URL}"
+
+# CAKE signal processing — baseline measurement (v1.33, Phase 162)
+# Master switch + metrics enabled for 24h idle data collection
+# All detection booleans DISABLED — measuring noise floor, not acting on it
+cake_signal:
+  enabled: true
+  drop_rate:
+    enabled: false
+    time_constant_sec: 1.0
+    threshold_drops_per_sec: 10.0
+  backlog:
+    enabled: false
+    threshold_bytes: 10000
+  peak_delay:
+    enabled: false
+  metrics:
+    enabled: true
+  detection:
+    refractory_cycles: 40
+  recovery:
+    probe_multiplier: 1.5
+    probe_ceiling_pct: 0.9
