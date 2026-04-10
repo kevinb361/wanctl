@@ -758,3 +758,295 @@ class TestCakeSignalConfigDetectionThresholds:
         cfg = CakeSignalConfig()
         with pytest.raises(FrozenInstanceError):
             cfg.refractory_cycles = 99  # type: ignore[misc]
+
+
+class TestCakeSignalConfigDetectionParsing:
+    """Tests for Phase 160 detection threshold YAML parsing via _parse_cake_signal_config."""
+
+    def _make_controller_with_yaml(self, tmp_path, yaml_content: str):
+        """Create a minimal mock WANController with a temp YAML config file."""
+        from unittest.mock import MagicMock
+
+        from wanctl.wan_controller import WANController
+
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text(yaml_content)
+
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(config_file)
+
+        return WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)
+
+    def test_parse_detection_thresholds_defaults(self, tmp_path) -> None:
+        """YAML with cake_signal: {enabled: true} only -> defaults for thresholds."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({"cake_signal": {"enabled": True}}),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 10.0
+        assert cfg.backlog_threshold_bytes == 10000
+        assert cfg.refractory_cycles == 40
+
+    def test_parse_detection_thresholds_custom(self, tmp_path) -> None:
+        """Custom threshold values parsed correctly."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {
+                        "enabled": True,
+                        "threshold_drops_per_sec": 25.0,
+                    },
+                    "backlog": {
+                        "enabled": True,
+                        "threshold_bytes": 50000,
+                    },
+                    "detection": {
+                        "refractory_cycles": 60,
+                    },
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 25.0
+        assert cfg.backlog_threshold_bytes == 50000
+        assert cfg.refractory_cycles == 60
+
+    def test_parse_detection_thresholds_bounds(self, tmp_path) -> None:
+        """Values outside bounds clamped: drop_rate [1.0, 1000.0], backlog [100, 10M], refractory [1, 200]."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {
+                        "enabled": True,
+                        "threshold_drops_per_sec": 0.5,  # below min 1.0
+                    },
+                    "backlog": {
+                        "enabled": True,
+                        "threshold_bytes": 50,  # below min 100
+                    },
+                    "detection": {
+                        "refractory_cycles": 500,  # above max 200
+                    },
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 1.0
+        assert cfg.backlog_threshold_bytes == 100
+        assert cfg.refractory_cycles == 200
+
+    def test_parse_detection_thresholds_invalid_types(self, tmp_path) -> None:
+        """Non-numeric/boolean values -> defaults applied."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {
+                        "enabled": True,
+                        "threshold_drops_per_sec": "fast",  # string, not float
+                    },
+                    "backlog": {
+                        "enabled": True,
+                        "threshold_bytes": True,  # bool, rejected by isinstance guard
+                    },
+                    "detection": {
+                        "refractory_cycles": "many",  # string, not int
+                    },
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 10.0
+        assert cfg.backlog_threshold_bytes == 10000
+        assert cfg.refractory_cycles == 40
+
+    def test_parse_detection_thresholds_negative(self, tmp_path) -> None:
+        """Negative values -> defaults applied."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {
+                        "threshold_drops_per_sec": -5.0,
+                    },
+                    "backlog": {
+                        "threshold_bytes": -1000,
+                    },
+                    "detection": {
+                        "refractory_cycles": -10,
+                    },
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 10.0
+        assert cfg.backlog_threshold_bytes == 10000
+        assert cfg.refractory_cycles == 40
+
+    def test_parse_detection_upper_bounds(self, tmp_path) -> None:
+        """Upper bound clamping: drop_rate max 1000.0, backlog max 10M."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {
+                        "threshold_drops_per_sec": 5000.0,  # above max 1000
+                    },
+                    "backlog": {
+                        "threshold_bytes": 50_000_000,  # above max 10M
+                    },
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.drop_rate_threshold == 1000.0
+        assert cfg.backlog_threshold_bytes == 10_000_000
+
+
+class TestCakeSignalReloadDetection:
+    """Tests for Phase 160 detection threshold reload via SIGUSR1."""
+
+    def _make_mock_ctrl(self, tmp_path, yaml_content: str):
+        """Create mock WANController with real _parse and _reload bound."""
+        import yaml
+        from unittest.mock import MagicMock
+
+        from wanctl.wan_controller import WANController
+
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text(yaml_content)
+
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(config_file)
+        mock_ctrl._cake_signal_supported = True
+
+        mock_ctrl._parse_cake_signal_config = (
+            WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)
+        )
+        mock_ctrl._reload_cake_signal_config = (
+            WANController._reload_cake_signal_config.__get__(mock_ctrl, WANController)
+        )
+        return mock_ctrl, config_file
+
+    def test_reload_logs_threshold_changes(self, tmp_path) -> None:
+        """Reload logs detection threshold transitions."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, config_file = self._make_mock_ctrl(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True, "threshold_drops_per_sec": 50.0},
+                    "backlog": {"enabled": True, "threshold_bytes": 80000},
+                    "detection": {"refractory_cycles": 100},
+                }
+            }),
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(
+                enabled=True, drop_rate_enabled=True, backlog_enabled=True,
+                drop_rate_threshold=10.0, backlog_threshold_bytes=10000,
+                refractory_cycles=40,
+            )
+        )
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+
+        mock_ctrl._reload_cake_signal_config()
+
+        call_args = mock_ctrl.logger.warning.call_args
+        formatted = call_args[0][0] % call_args[0][1:]
+        assert "drop_threshold=10.0->50.0" in formatted
+        assert "backlog_threshold=10000->80000" in formatted
+        assert "refractory=40->100" in formatted
+
+    def test_reload_updates_queuecontroller_thresholds(self, tmp_path) -> None:
+        """Reload updates QueueController detection thresholds."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, config_file = self._make_mock_ctrl(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True, "threshold_drops_per_sec": 30.0},
+                    "backlog": {"enabled": True, "threshold_bytes": 25000},
+                }
+            }),
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+        # Set initial threshold values on download/upload mocks
+        mock_ctrl.download._drop_rate_threshold = 0.0
+        mock_ctrl.upload._drop_rate_threshold = 0.0
+        mock_ctrl.download._backlog_threshold_bytes = 0
+        mock_ctrl.upload._backlog_threshold_bytes = 0
+
+        mock_ctrl._reload_cake_signal_config()
+
+        assert mock_ctrl.download._drop_rate_threshold == 30.0
+        assert mock_ctrl.upload._drop_rate_threshold == 30.0
+        assert mock_ctrl.download._backlog_threshold_bytes == 25000
+        assert mock_ctrl.upload._backlog_threshold_bytes == 25000
+
+    def test_reload_zeroes_thresholds_when_disabled(self, tmp_path) -> None:
+        """Disabling cake_signal via reload zeroes all detection thresholds."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, config_file = self._make_mock_ctrl(
+            tmp_path,
+            yaml.dump({"cake_signal": {"enabled": False}}),
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, drop_rate_threshold=30.0)
+        )
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+        mock_ctrl.download._drop_rate_threshold = 30.0
+        mock_ctrl.upload._drop_rate_threshold = 30.0
+        mock_ctrl.download._backlog_threshold_bytes = 25000
+        mock_ctrl.upload._backlog_threshold_bytes = 25000
+        mock_ctrl._dl_refractory_remaining = 10
+        mock_ctrl._ul_refractory_remaining = 5
+
+        mock_ctrl._reload_cake_signal_config()
+
+        assert mock_ctrl.download._drop_rate_threshold == 0.0
+        assert mock_ctrl.upload._drop_rate_threshold == 0.0
+        assert mock_ctrl.download._backlog_threshold_bytes == 0
+        assert mock_ctrl.upload._backlog_threshold_bytes == 0
+        assert mock_ctrl._dl_refractory_remaining == 0
+        assert mock_ctrl._ul_refractory_remaining == 0

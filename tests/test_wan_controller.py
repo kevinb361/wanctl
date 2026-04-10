@@ -2203,6 +2203,202 @@ class TestMeasureRttMedianOfThree:
         assert result == 15.0
 
 
+class TestRefractoryPeriod:
+    """Tests for Phase 160 CAKE signal refractory period in WANController.
+
+    DETECT-03: After dwell bypass, refractory counter masks CAKE snapshots
+    for N cycles to prevent cascading rate reductions.
+    """
+
+    @pytest.fixture
+    def mock_config(self, mock_autorate_config):
+        """Delegate to shared mock_autorate_config from conftest.py."""
+        return mock_autorate_config
+
+    @pytest.fixture
+    def mock_router(self):
+        """Create a mock router."""
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        return router
+
+    @pytest.fixture
+    def controller(self, mock_config, mock_router):
+        """Create a WANController with mocked dependencies for refractory tests."""
+        from wanctl.wan_controller import WANController
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+        # Set baseline values needed for _run_congestion_assessment
+        ctrl.baseline_rtt = 25.0
+        ctrl.load_rtt = 30.0
+        ctrl.green_threshold = 9.0
+        ctrl.soft_red_threshold = 45.0
+        ctrl.hard_red_threshold = 80.0
+        ctrl.target_delta = 15.0
+        ctrl.warn_delta = 45.0
+        return ctrl
+
+    def _make_snapshot(self):
+        """Create a minimal CakeSignalSnapshot for testing."""
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=20.0,
+            total_drop_rate=25.0,
+            backlog_bytes=5000,
+            peak_delay_us=100,
+            tins=(),
+            cold_start=False,
+        )
+
+    def test_refractory_set_after_dwell_bypass(self, controller):
+        """After dwell bypass, refractory counter set to configured value."""
+        controller._refractory_cycles = 40
+        controller._dl_refractory_remaining = 0
+        controller._dl_cake_snapshot = self._make_snapshot()
+        controller._ul_cake_snapshot = None
+
+        # Mock download.adjust_4state to simulate normal return
+        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+
+        # Simulate dwell bypass happening during adjust_4state
+        controller.download._dwell_bypassed_this_cycle = True
+        controller.upload._dwell_bypassed_this_cycle = False
+
+        controller._run_congestion_assessment()
+
+        assert controller._dl_refractory_remaining == 40
+        assert controller._ul_refractory_remaining == 0
+
+    def test_refractory_masks_snapshot(self, controller):
+        """During refractory, cake_snapshot passed as None (masked)."""
+        controller._dl_refractory_remaining = 5
+        controller._dl_cake_snapshot = self._make_snapshot()
+        controller._ul_cake_snapshot = None
+
+        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+        controller.download._dwell_bypassed_this_cycle = False
+        controller.upload._dwell_bypassed_this_cycle = False
+
+        controller._run_congestion_assessment()
+
+        # DL should have been called with cake_snapshot=None (masked)
+        call_kwargs = controller.download.adjust_4state.call_args
+        assert call_kwargs.kwargs.get("cake_snapshot") is None or call_kwargs[1].get("cake_snapshot") is None
+
+    def test_refractory_decrements(self, controller):
+        """Refractory counter decrements each cycle."""
+        controller._dl_refractory_remaining = 3
+        controller._dl_cake_snapshot = None
+        controller._ul_cake_snapshot = None
+
+        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+        controller.download._dwell_bypassed_this_cycle = False
+        controller.upload._dwell_bypassed_this_cycle = False
+
+        controller._run_congestion_assessment()
+
+        assert controller._dl_refractory_remaining == 2
+
+    def test_refractory_zero_passes_snapshot(self, controller):
+        """After refractory expires, cake_snapshot passed normally."""
+        snapshot = self._make_snapshot()
+        controller._dl_refractory_remaining = 0
+        controller._dl_cake_snapshot = snapshot
+        controller._ul_cake_snapshot = None
+
+        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+        controller.download._dwell_bypassed_this_cycle = False
+        controller.upload._dwell_bypassed_this_cycle = False
+
+        controller._run_congestion_assessment()
+
+        # DL should have been called with the actual snapshot
+        call_kwargs = controller.download.adjust_4state.call_args
+        passed_snapshot = call_kwargs.kwargs.get("cake_snapshot") or call_kwargs[1].get("cake_snapshot")
+        assert passed_snapshot is snapshot
+
+    def test_dl_ul_refractory_independent(self, controller):
+        """DL and UL refractory counters are independent."""
+        snapshot = self._make_snapshot()
+        controller._dl_refractory_remaining = 5
+        controller._ul_refractory_remaining = 0
+        controller._dl_cake_snapshot = snapshot
+        controller._ul_cake_snapshot = snapshot
+
+        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+        controller.download._dwell_bypassed_this_cycle = False
+        controller.upload._dwell_bypassed_this_cycle = False
+
+        controller._run_congestion_assessment()
+
+        # DL should be masked (refractory > 0)
+        dl_kwargs = controller.download.adjust_4state.call_args
+        dl_snap = dl_kwargs.kwargs.get("cake_snapshot") or dl_kwargs[1].get("cake_snapshot")
+        assert dl_snap is None
+
+        # UL should pass the snapshot (refractory == 0)
+        ul_kwargs = controller.upload.adjust.call_args
+        ul_snap = ul_kwargs.kwargs.get("cake_snapshot") or ul_kwargs[1].get("cake_snapshot")
+        assert ul_snap is snapshot
+
+    def test_refractory_reset_on_disable(self, controller):
+        """Disabling cake_signal via SIGUSR1 resets refractory to 0."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        controller._dl_refractory_remaining = 15
+        controller._ul_refractory_remaining = 10
+        controller._cake_signal_supported = True
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+
+        # Write a YAML file that disables cake_signal
+        import tempfile
+        import os
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump({"cake_signal": {"enabled": False}}, f)
+            config_file = f.name
+
+        try:
+            controller.config.config_file_path = config_file
+            # Bind real methods
+            controller._parse_cake_signal_config = (
+                WANController._parse_cake_signal_config.__get__(controller, WANController)
+            )
+            controller._reload_cake_signal_config = (
+                WANController._reload_cake_signal_config.__get__(controller, WANController)
+            )
+
+            controller._reload_cake_signal_config()
+
+            assert controller._dl_refractory_remaining == 0
+            assert controller._ul_refractory_remaining == 0
+        finally:
+            os.unlink(config_file)
+
+
 class TestBaselineRttBoundsRejection:
     """Tests for WANController._update_baseline_if_idle() bounds rejection.
 

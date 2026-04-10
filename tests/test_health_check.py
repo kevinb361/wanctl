@@ -3313,3 +3313,80 @@ class TestBuildCakeSignalSection:
         assert tins[1]["backlog_bytes"] == 200
         assert tins[1]["peak_delay_us"] == 100
 
+    def test_cake_signal_detection_section_present(self) -> None:
+        """Phase 160: detection section present when cake_signal has detection data."""
+        handler = self._make_handler()
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": True,
+                "download": None,
+                "upload": None,
+                "detection": {
+                    "dl_refractory_remaining": 15,
+                    "ul_refractory_remaining": 0,
+                    "refractory_cycles": 40,
+                    "dl_dwell_bypassed_count": 3,
+                    "ul_dwell_bypassed_count": 1,
+                    "dl_backlog_suppressed_count": 7,
+                    "ul_backlog_suppressed_count": 2,
+                },
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        assert result is not None
+        assert "detection" in result
+
+    def test_cake_signal_detection_values(self) -> None:
+        """Phase 160: detection values are correct types and match input."""
+        handler = self._make_handler()
+        detection_data = {
+            "dl_refractory_remaining": 10,
+            "ul_refractory_remaining": 5,
+            "refractory_cycles": 40,
+            "dl_dwell_bypassed_count": 12,
+            "ul_dwell_bypassed_count": 4,
+            "dl_backlog_suppressed_count": 8,
+            "ul_backlog_suppressed_count": 3,
+        }
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": True,
+                "download": None,
+                "upload": None,
+                "detection": detection_data,
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        det = result["detection"]
+        assert det["dl_refractory_remaining"] == 10
+        assert det["ul_refractory_remaining"] == 5
+        assert det["refractory_cycles"] == 40
+        assert det["dl_dwell_bypassed_count"] == 12
+        assert det["ul_dwell_bypassed_count"] == 4
+        assert det["dl_backlog_suppressed_count"] == 8
+        assert det["ul_backlog_suppressed_count"] == 3
+        # Verify all values are integers
+        for key, val in det.items():
+            assert isinstance(val, int), f"{key} should be int, got {type(val)}"
+
+    def test_cake_signal_detection_absent_when_disabled(self) -> None:
+        """Phase 160: detection section absent when cake_signal disabled -> returns None."""
+        handler = self._make_handler()
+        health_data = {
+            "cake_signal": {
+                "enabled": False,
+                "supported": True,
+                "download": None,
+                "upload": None,
+                "detection": {
+                    "dl_refractory_remaining": 0,
+                    "refractory_cycles": 40,
+                },
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        # Whole section returns None when disabled
+        assert result is None
+
