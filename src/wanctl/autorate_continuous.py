@@ -851,6 +851,17 @@ def _run_tuning_for_wan(
 
     _mark_tuning_executed(wc)
 
+    # Heartbeat: always log cycle completion so silence never means "broken"
+    layer_names = ["signal", "EWMA", "threshold", "advanced"]
+    layer_name = layer_names[layer_idx] if layer_idx < len(layer_names) else f"layer-{layer_idx}"
+    wan_info["logger"].info(
+        "[TUNING] %s: cycle %d complete (layer: %s, strategies: %d)",
+        wc.wan_name,
+        wc.tuning_layer_index,
+        layer_name,
+        len(active_strategies),
+    )
+
 
 def _log_excluded_params(
     wc: Any,
