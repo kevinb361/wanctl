@@ -15,7 +15,11 @@ import time
 from pathlib import Path
 
 # Add project root to path for imports when run as script
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+# Dev: scripts/ -> parent -> src/wanctl/  (parent.parent / "src")
+# Prod: /opt/wanctl/scripts/ -> parent -> /opt/wanctl/ (parent.parent = /opt)
+_script_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(_script_dir.parent / "src"))  # dev layout
+sys.path.insert(0, str(_script_dir.parent.parent))    # prod layout (/opt)
 
 from wanctl.storage.reader import compute_summary, query_metrics
 
