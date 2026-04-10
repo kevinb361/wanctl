@@ -2830,8 +2830,18 @@ class TestCakeBacklogSuppression:
 
     def test_recovery_after_backlog_clears(self, controller_cake_dwell):
         """After green_required+1 cycles with no backlog, rate increases."""
-        initial_rate = controller_cake_dwell.current_rate
-        # Run enough GREEN cycles without backlog for rate to increase
+        # First reduce rate via a RED cycle so there is room to recover
+        controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 100.0,  # delta=100 -> RED
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+        )
+        reduced_rate = controller_cake_dwell.current_rate
+        assert reduced_rate < 920_000_000, "Rate should have decreased after RED"
+
+        # Now run enough GREEN cycles without backlog for rate to increase
         for _ in range(controller_cake_dwell.green_required + 1):
             controller_cake_dwell.adjust_4state(
                 baseline_rtt=self.BASELINE,
@@ -2841,7 +2851,7 @@ class TestCakeBacklogSuppression:
                 hard_red_threshold=self.HARD_RED_THRESHOLD,
                 cake_snapshot=_make_cake_snapshot(backlog_bytes=0),
             )
-        assert controller_cake_dwell.current_rate > initial_rate
+        assert controller_cake_dwell.current_rate > reduced_rate
 
     def test_threshold_zero_disables_suppression(self, controller_cake_dwell):
         """backlog_threshold_bytes=0 disables suppression even with high backlog."""

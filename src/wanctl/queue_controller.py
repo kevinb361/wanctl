@@ -4,11 +4,16 @@ Implements 3-state (GREEN/YELLOW/RED) and 4-state (GREEN/YELLOW/SOFT_RED/RED)
 congestion response with hysteresis counters and dwell timer.
 """
 
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wanctl.rate_utils import enforce_rate_bounds
+
+if TYPE_CHECKING:
+    from wanctl.cake_signal import CakeSignalSnapshot
 
 
 class QueueController:
@@ -30,6 +35,8 @@ class QueueController:
         green_required: int = 5,
         dwell_cycles: int = 3,
         deadband_ms: float = 3.0,
+        drop_rate_threshold: float = 0.0,
+        backlog_threshold_bytes: int = 0,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -62,11 +69,24 @@ class QueueController:
         self._window_start_time: float = time.time()
         self._window_had_congestion: bool = False
 
+        # CAKE signal detection thresholds (Phase 160: DETECT-01, DETECT-02)
+        self._drop_rate_threshold: float = drop_rate_threshold
+        self._backlog_threshold_bytes: int = backlog_threshold_bytes
+        self._dwell_bypassed_count: int = 0
+        self._backlog_suppressed_count: int = 0
+        self._dwell_bypassed_this_cycle: bool = False
+        self._backlog_suppressed_this_cycle: bool = False
+
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
 
     def adjust(
-        self, baseline_rtt: float, load_rtt: float, target_delta: float, warn_delta: float
+        self,
+        baseline_rtt: float,
+        load_rtt: float,
+        target_delta: float,
+        warn_delta: float,
+        cake_snapshot: CakeSignalSnapshot | None = None,
     ) -> tuple[str, int, str | None]:
         """
         Apply 3-zone logic with hysteresis and return (zone, new_rate, transition_reason)
@@ -84,8 +104,10 @@ class QueueController:
             (zone, new_rate, transition_reason)
             transition_reason is None if no state change, otherwise explains why
         """
+        self._dwell_bypassed_this_cycle = False
+        self._backlog_suppressed_this_cycle = False
         delta = load_rtt - baseline_rtt
-        zone = self._classify_zone_3state(delta, target_delta, warn_delta)
+        zone = self._classify_zone_3state(delta, target_delta, warn_delta, cake_snapshot)
 
         # Track congestion during window (Phase 136: HYST-01)
         if zone in ("YELLOW", "RED"):
@@ -101,7 +123,11 @@ class QueueController:
         return zone, new_rate, transition_reason
 
     def _classify_zone_3state(
-        self, delta: float, target_delta: float, warn_delta: float
+        self,
+        delta: float,
+        target_delta: float,
+        warn_delta: float,
+        cake_snapshot: CakeSignalSnapshot | None = None,
     ) -> str:
         """Classify congestion zone for 3-state logic with dwell timer and deadband."""
         if delta > warn_delta:
@@ -115,6 +141,17 @@ class QueueController:
             # Above GREEN->YELLOW threshold
             self.green_streak = 0
             self.red_streak = 0
+            # DETECT-01: Drop rate bypasses dwell timer
+            if (
+                cake_snapshot is not None
+                and not cake_snapshot.cold_start
+                and self._drop_rate_threshold > 0
+                and cake_snapshot.drop_rate > self._drop_rate_threshold
+            ):
+                self._dwell_bypassed_count += 1
+                self._dwell_bypassed_this_cycle = True
+                self._yellow_dwell = 0
+                return "YELLOW"
             return self._apply_dwell_logic()
 
         if self._last_zone == "YELLOW" and delta >= (
@@ -130,6 +167,18 @@ class QueueController:
         self.green_streak += 1
         self.red_streak = 0
         self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
+
+        # DETECT-02: Suppress green_streak while backlog is high
+        if (
+            cake_snapshot is not None
+            and not cake_snapshot.cold_start
+            and self._backlog_threshold_bytes > 0
+            and cake_snapshot.backlog_bytes > self._backlog_threshold_bytes
+        ):
+            self.green_streak = 0
+            self._backlog_suppressed_count += 1
+            self._backlog_suppressed_this_cycle = True
+
         return "GREEN"
 
     def _apply_dwell_logic(self) -> str:
@@ -210,6 +259,7 @@ class QueueController:
         green_threshold: float,
         soft_red_threshold: float,
         hard_red_threshold: float,
+        cake_snapshot: CakeSignalSnapshot | None = None,
     ) -> tuple[str, int, str | None]:
         """
         Apply 4-state logic with hysteresis and return (state, new_rate, transition_reason)
@@ -233,8 +283,10 @@ class QueueController:
             (zone, new_rate, transition_reason)
             transition_reason is None if no state change, otherwise explains why
         """
+        self._dwell_bypassed_this_cycle = False
+        self._backlog_suppressed_this_cycle = False
         delta = load_rtt - baseline_rtt
-        zone = self._classify_zone_4state(delta, green_threshold, soft_red_threshold, hard_red_threshold)
+        zone = self._classify_zone_4state(delta, green_threshold, soft_red_threshold, hard_red_threshold, cake_snapshot)
 
         # Track congestion during window (Phase 136: HYST-01)
         if zone in ("YELLOW", "SOFT_RED", "RED"):
@@ -255,6 +307,7 @@ class QueueController:
         green_threshold: float,
         soft_red_threshold: float,
         hard_red_threshold: float,
+        cake_snapshot: CakeSignalSnapshot | None = None,
     ) -> str:
         """Classify congestion zone for 4-state logic with dwell timer and deadband."""
         # Determine raw state based on thresholds
@@ -279,6 +332,17 @@ class QueueController:
             self.green_streak = 0
             self.soft_red_streak = 0
             self.red_streak = 0
+            # DETECT-01: Drop rate bypasses dwell timer
+            if (
+                cake_snapshot is not None
+                and not cake_snapshot.cold_start
+                and self._drop_rate_threshold > 0
+                and cake_snapshot.drop_rate > self._drop_rate_threshold
+            ):
+                self._dwell_bypassed_count += 1
+                self._dwell_bypassed_this_cycle = True
+                self._yellow_dwell = 0
+                return "YELLOW"
             return self._apply_dwell_logic()
 
         # raw_state == "GREEN" -- check deadband
@@ -297,6 +361,18 @@ class QueueController:
         self.soft_red_streak = 0
         self.red_streak = 0
         self._yellow_dwell = 0  # Reset dwell counter (HYST-03)
+
+        # DETECT-02: Suppress green_streak while backlog is high
+        if (
+            cake_snapshot is not None
+            and not cake_snapshot.cold_start
+            and self._backlog_threshold_bytes > 0
+            and cake_snapshot.backlog_bytes > self._backlog_threshold_bytes
+        ):
+            self.green_streak = 0
+            self._backlog_suppressed_count += 1
+            self._backlog_suppressed_this_cycle = True
+
         return "GREEN"
 
     def _apply_soft_red_sustain(self) -> str:
@@ -340,7 +416,7 @@ class QueueController:
     # =========================================================================
 
     def get_health_data(self) -> dict[str, Any]:
-        """Return hysteresis state for the health endpoint."""
+        """Return hysteresis and CAKE detection state for the health endpoint."""
         return {
             "hysteresis": {
                 "dwell_counter": self._yellow_dwell,
@@ -349,5 +425,13 @@ class QueueController:
                 "transitions_suppressed": self._transitions_suppressed,
                 "suppressions_per_min": self._window_suppressions,
                 "window_start_epoch": self._window_start_time,
+            },
+            "cake_detection": {
+                "drop_rate_threshold": self._drop_rate_threshold,
+                "backlog_threshold_bytes": self._backlog_threshold_bytes,
+                "dwell_bypassed_count": self._dwell_bypassed_count,
+                "backlog_suppressed_count": self._backlog_suppressed_count,
+                "dwell_bypassed_this_cycle": self._dwell_bypassed_this_cycle,
+                "backlog_suppressed_this_cycle": self._backlog_suppressed_this_cycle,
             },
         }
