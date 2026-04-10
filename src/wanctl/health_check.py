@@ -120,6 +120,7 @@ def _build_cycle_budget(
         "autorate_rtt_measurement",
         "autorate_signal_processing",
         "autorate_ewma_spike",
+        "autorate_cake_stats",
         "autorate_congestion_assess",
         "autorate_irtt_observation",
         "autorate_logging_metrics",
