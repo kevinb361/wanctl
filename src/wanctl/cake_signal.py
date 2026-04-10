@@ -152,7 +152,8 @@ class CakeSignalProcessor:
         self._cold_start = True
         self._drop_rate_ewma = 0.0  # Active (excludes Bulk)
         self._total_drop_rate_ewma = 0.0  # All tins
-        self._alpha = CYCLE_INTERVAL_SECONDS / config.time_constant_sec
+        tc = max(0.1, config.time_constant_sec) if config.time_constant_sec > 0 else 1.0
+        self._alpha = CYCLE_INTERVAL_SECONDS / tc
         self._last_snapshot: CakeSignalSnapshot | None = None
 
     @property
@@ -164,7 +165,8 @@ class CakeSignalProcessor:
     def config(self, value: CakeSignalConfig) -> None:
         """Update config (for SIGUSR1 reload). Recalculates alpha."""
         self._config = value
-        self._alpha = CYCLE_INTERVAL_SECONDS / value.time_constant_sec
+        tc = max(0.1, value.time_constant_sec) if value.time_constant_sec > 0 else 1.0
+        self._alpha = CYCLE_INTERVAL_SECONDS / tc
 
     def update(self, raw_stats: dict[str, Any] | None) -> CakeSignalSnapshot | None:
         """Process one cycle of CAKE stats.
