@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.33
 milestone_name: Detection Threshold Tuning
-status: defining_requirements
-stopped_at: Milestone v1.33 started
-last_updated: "2026-04-10T04:00:00.000Z"
+status: roadmap_complete
+stopped_at: Roadmap created with 3 phases (162-164)
+last_updated: "2026-04-10T04:30:00.000Z"
 last_activity: 2026-04-10
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Defining v1.33 requirements — detection threshold tuning
+**Current focus:** v1.33 Detection Threshold Tuning -- roadmap complete, ready to plan Phase 162
 
 ## Position
 
 **Milestone:** v1.33 Detection Threshold Tuning
-**Phase:** Not started (defining requirements)
-**Plan:** —
-**Status:** Defining requirements
+**Phase:** 1 of 3 (Phase 162: Baseline Measurement)
+**Plan:** --
+**Status:** Ready to plan
 **Last activity:** 2026-04-10
 
 Progress: [..........] 0%
@@ -37,7 +37,7 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 0
 - Average duration: --
 - Total execution time: 0 hours
 
@@ -45,11 +45,9 @@ Progress: [..........] 0%
 
 ### Key Decisions
 
-- Netlink wiring first (lowest risk, unblocks accurate cycle timing for A/B tests)
-- State JSON writes stay synchronous (only SQLite goes to background thread) -- avoids dirty-tracking race
-- Asymmetry suppression uses attenuated delta (50%), not full suppression -- prevents DOCSIS feedback loop
-- Hysteresis and parameter tuning strictly sequential -- must not tune simultaneously
-- All netlink calls on main thread only (IPRoute not thread-safe)
+- 3-phase structure: baseline -> sweep -> soak (mirrors v1.26 and v1.31/p158 pattern)
+- Each parameter tested individually under RRUL (no simultaneous changes)
+- Baseline must run 24h at idle before any tuning begins
 
 ### Known Issues
 
@@ -69,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-09
-Stopped at: Roadmap created, ready to plan Phase 154
+Last session: 2026-04-10
+Stopped at: Roadmap created, ready to plan Phase 162
 Resume file: None
