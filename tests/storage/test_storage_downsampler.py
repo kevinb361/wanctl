@@ -280,8 +280,8 @@ class TestDownsampleMetrics:
     def test_preserves_recent_raw_data(self, test_db):
         """Test that recent raw data is not downsampled."""
         now = int(time.time())
-        # Insert raw data 30 minutes ago (within 1 hour threshold)
-        start = now - 1800
+        # Insert raw data 10 minutes ago (within 15 minute threshold)
+        start = now - 600
         insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
 
         results = downsample_metrics(test_db)
@@ -339,7 +339,7 @@ class TestDownsampleThresholds:
         assert config["from_granularity"] == "raw"
         assert config["to_granularity"] == "1m"
         assert config["bucket_seconds"] == 60
-        assert config["age_seconds"] == 3600  # 1 hour
+        assert config["age_seconds"] == 900  # 15 minutes
 
     def test_1m_to_5m_config(self):
         """Test 1m->5m configuration."""
@@ -481,15 +481,15 @@ class TestDownsampleMetricsWithThresholds:
         start = align_to_bucket(now - 2400, 60)
         insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
 
-        # Default threshold is 3600s (1h) -- 40min data should NOT be downsampled
+        # Default threshold is 900s (15min) -- 40min data SHOULD be downsampled
         results_default = downsample_metrics(test_db)
-        assert results_default["raw->1m"] == 0
+        assert results_default["raw->1m"] == 1
 
-        # Reinsert data (was not deleted since nothing was downsampled)
-        # Use custom threshold of 1800s (30min) -- 40min data SHOULD be downsampled
-        custom = get_downsample_thresholds(raw_age_seconds=1800)
+        # Reinsert data and use a longer threshold so 40min data is retained
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [15.0] * 60, start)
+        custom = get_downsample_thresholds(raw_age_seconds=3600)
         results_custom = downsample_metrics(test_db, thresholds=custom)
-        assert results_custom["raw->1m"] == 1
+        assert results_custom["raw->1m"] == 0
 
     def test_backward_compat_no_thresholds(self, test_db):
         """downsample_metrics still works with no thresholds param."""

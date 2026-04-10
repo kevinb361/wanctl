@@ -118,7 +118,7 @@ continuous_monitoring:
 # Storage retention (optional, defaults shown)
 # storage:
 #   retention:
-#     raw_age_seconds: 3600
+#     raw_age_seconds: 900
 #     aggregate_1m_age_seconds: 86400
 #     aggregate_5m_age_seconds: 604800
 #     prometheus_compensated: false

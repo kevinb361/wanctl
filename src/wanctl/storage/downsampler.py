@@ -3,7 +3,7 @@ Downsampler - Reduce metric granularity as data ages.
 
 Implements time-based downsampling to keep database size bounded while
 preserving appropriate detail for different time ranges:
-- Raw data (1s) kept for 1 hour
+- Raw data (1s) kept for 15 minutes
 - 1-minute aggregates kept for 1 day
 - 5-minute aggregates kept for 7 days
 - 1-hour aggregates kept for retention period
@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 Granularity = Literal["raw", "1m", "5m", "1h"]
 
 def get_downsample_thresholds(
-    raw_age_seconds: int = 3600,
+    raw_age_seconds: int = 900,
     aggregate_1m_age_seconds: int = 86400,
     aggregate_5m_age_seconds: int = 604800,
 ) -> dict[str, dict[str, int | str]]:
     """Build downsample thresholds from config values or defaults.
 
     Args:
-        raw_age_seconds: Age threshold for raw -> 1m downsampling (default 3600 = 1h).
+        raw_age_seconds: Age threshold for raw -> 1m downsampling (default 900 = 15m).
         aggregate_1m_age_seconds: Age threshold for 1m -> 5m (default 86400 = 1d).
         aggregate_5m_age_seconds: Age threshold for 5m -> 1h (default 604800 = 7d).
 
