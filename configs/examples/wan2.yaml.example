@@ -8,7 +8,7 @@
 # - Load balancing secondary
 # - Lower-priority connection for bulk traffic
 #
-# Usage: systemctl enable --now wanctl@wan2.timer
+# Usage: systemctl enable --now wanctl@wan2.service
 
 # Schema version for config format compatibility
 schema_version: "1.0"

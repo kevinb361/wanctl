@@ -3,7 +3,7 @@
 # This is a template for a primary WAN connection.
 # Copy to /etc/wanctl/wan1.yaml and customize for your setup.
 #
-# Usage: systemctl enable --now wanctl@wan1.timer
+# Usage: systemctl enable --now wanctl@wan1.service
 
 # Schema version for config format compatibility
 schema_version: "1.0"

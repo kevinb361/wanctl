@@ -321,8 +321,9 @@ class TestProfilingInstrumentation:
                 rtt_measurement=mock_rtt_measurement,
                 logger=mock_logger,
             )
-        # Setup for successful run_cycle: mock RTT to return valid value
+        # Keep profiling tests hermetic even if RTT measurement falls through.
         mock_rtt_measurement.ping_host.return_value = 25.0
+        ctrl.verify_connectivity_fallback = MagicMock(return_value=(True, 25.0))
         return ctrl
 
     def test_run_cycle_records_rtt_measurement_timing(self, profiled_controller):

@@ -23,11 +23,14 @@ import logging
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
+
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
-class CommandResult[T]:
+class CommandResult(Generic[T]):
     """Result type for router command execution.
 
     Provides a type-safe alternative to Tuple[bool, Any] returns.
@@ -51,11 +54,11 @@ class CommandResult[T]:
     """
 
     success: bool
-    value: T | None = None
+    value: Any | None = None
     error: str | None = None
 
     @classmethod
-    def ok(cls, value: T) -> CommandResult[T]:
+    def ok(cls, value: T) -> "CommandResult":
         """Create a successful result with a value.
 
         Args:
@@ -67,7 +70,7 @@ class CommandResult[T]:
         return cls(success=True, value=value, error=None)
 
     @classmethod
-    def err(cls, error: str, value: T | None = None) -> CommandResult[T]:
+    def err(cls, error: str, value: T | None = None) -> "CommandResult":
         """Create a failed result with an error message.
 
         Args:
@@ -83,7 +86,7 @@ class CommandResult[T]:
         """Allow using result in boolean context (if result: ...)."""
         return self.success
 
-    def __iter__(self) -> Iterator[bool | T | None]:
+    def __iter__(self) -> Iterator[bool | Any | None]:
         """Support tuple unpacking for backward compatibility.
 
         Allows: success, value = result
@@ -310,7 +313,7 @@ def extract_queue_stats(output: str, logger: logging.Logger | None = None) -> di
         return stats
 
 
-def handle_command_error[T](
+def handle_command_error(
     rc: int, err: str, cmd: str, logger: logging.Logger | None = None, return_value: T | None = None
 ) -> CommandResult[T]:
     """Handle command execution error and return a CommandResult.
@@ -356,7 +359,7 @@ def handle_command_error[T](
         logger = logging.getLogger(__name__)
 
     if rc == 0:
-        return CommandResult.ok(None)  # type: ignore[arg-type]
+        return CommandResult.ok(None)
 
     error_msg = f"Command failed: {cmd} -> {err}"
     logger.error(error_msg)

@@ -587,6 +587,12 @@ class RouterOSREST:
             timeout=timeout,
         )
 
+    def _find_mangle_rule_id(
+        self, comment: str, use_cache: bool = True, timeout: int | None = None
+    ) -> str | None:
+        """Backward-compatible alias for find_mangle_rule_id."""
+        return self.find_mangle_rule_id(comment, use_cache=use_cache, timeout=timeout)
+
     def find_mangle_rule_id(
         self, comment: str, use_cache: bool = True, timeout: int | None = None
     ) -> str | None:
