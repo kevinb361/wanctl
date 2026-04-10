@@ -28,7 +28,7 @@ METRICS = [
 ]
 
 
-def analyze_baseline(db_path: Path, hours: int) -> dict:
+def analyze_baseline(db_path: Path, hours: int, wan: str = "spectrum") -> dict:
     """Query and summarize CAKE signal baseline metrics.
 
     Returns dict with per-metric, per-direction summaries.
@@ -41,7 +41,7 @@ def analyze_baseline(db_path: Path, hours: int) -> dict:
         start_ts=start_ts,
         end_ts=end_ts,
         metrics=METRICS,
-        wan="spectrum",
+        wan=wan,
     )
 
     if not results:
@@ -68,7 +68,7 @@ def analyze_baseline(db_path: Path, hours: int) -> dict:
     return {"summaries": summaries, "total_rows": len(results), "hours": hours}
 
 
-def check_detection_events(db_path: Path, hours: int) -> dict:
+def check_detection_events(db_path: Path, hours: int, wan: str = "spectrum") -> dict:
     """Check for any state transitions during the baseline window.
 
     Queries wanctl_state (written every cycle) and counts actual value
@@ -82,7 +82,7 @@ def check_detection_events(db_path: Path, hours: int) -> dict:
         start_ts=start_ts,
         end_ts=end_ts,
         metrics=["wanctl_state"],
-        wan="spectrum",
+        wan=wan,
     )
 
     # Count actual state transitions (value changes between consecutive samples)
@@ -101,6 +101,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Analyze CAKE signal baseline")
     parser.add_argument("--hours", type=int, default=24, help="Hours to analyze (default: 24)")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB, help="Path to metrics.db")
+    parser.add_argument("--wan", type=str, default="spectrum", help="WAN name filter (default: spectrum)")
     args = parser.parse_args()
 
     if not args.db.exists():
@@ -109,10 +110,11 @@ def main() -> None:
 
     print(f"=== CAKE Signal Baseline Analysis ({args.hours}h) ===")
     print(f"Database: {args.db}")
+    print(f"WAN filter: {args.wan}")
     print()
 
     # Baseline metrics
-    baseline = analyze_baseline(args.db, args.hours)
+    baseline = analyze_baseline(args.db, args.hours, wan=args.wan)
     if "error" in baseline:
         print(f"ERROR: {baseline['error']}")
         sys.exit(1)
@@ -140,7 +142,7 @@ def main() -> None:
         print()
 
     # Detection events
-    events = check_detection_events(args.db, args.hours)
+    events = check_detection_events(args.db, args.hours, wan=args.wan)
     print("=== Detection Events ===")
     print(f"State samples in {args.hours}h window: {events['state_samples']}")
     print(f"State transitions in {args.hours}h window: {events['state_transitions']}")
