@@ -8,25 +8,19 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.30 Burst Detection
+## Current Milestone: Planning next
 
-**Goal:** Detect and respond to multi-flow congestion bursts that overwhelm the gradual floor descent, cutting p99 latency from 3,200ms to under 500ms during worst-case scenarios (tcp_12down).
-
-**Target features:**
-- RTT acceleration detector — detect rate-of-change (second derivative) of RTT to identify multi-flow burst ramps
-- Fast-path floor jump — skip gradual descent when burst ramp detected, jump directly to SOFT_RED or RED floor
-- Safety constraints — no false triggers on normal single-flow congestion, no rate oscillation
-- A/B validation — flent tcp_12down regression tests, RRUL/rrul_be no-regression checks
+**Previous:** v1.32 CAKE-Aware Congestion Detection — shipped 2026-04-10
 
 ## Current State
 
-**Version:** v1.29.1 (Code Health & Cleanup) — shipped 2026-04-08
-**Tests:** 4,239 passing
-**LOC:** ~32,700 Python (src/)
-**Milestones:** 30 shipped (v1.0-v1.29), 150 phases, 305 plans
+**Version:** v1.32.2 (CAKE-Aware Congestion Detection) — shipped 2026-04-10
+**Tests:** 3,683+ passing (78 pre-existing fixture failures, 103 telemetry import errors — not regressions)
+**LOC:** ~34,000 Python (src/)
+**Milestones:** 33 shipped (v1.0-v1.32), 161 phases, 323 plans
 
-**Latest:** v1.29 Code Health & Cleanup — monolith decomposition (5,218→5 modules), method extraction (all <50 LOC), Protocol interfaces, strict linting, 74.5% test speedup
-**Previous:** v1.28 Infrastructure Optimization — 3 vCPU, IRQ rebalancing (-23% load), SFP+ multi-queue (0 drops), bridge DSCP, WireGuard TX fix
+**Latest:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
+**Previous:** v1.31 Linux-CAKE Optimization — netlink backend, deferred I/O, asymmetry gate, hysteresis tuning, parameter re-validation (warn_bloat 60→75)
 
 ## Requirements
 
@@ -634,4 +628,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-05 after v1.29 Code Health & Cleanup milestone start_
+_Last updated: 2026-04-10 after Phase 159 CAKE Signal Infrastructure complete_
