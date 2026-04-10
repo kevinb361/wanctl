@@ -1618,6 +1618,21 @@ class TestQueryMetricsCombinedFilters:
         assert len(result) == 3
 
 
+class TestQueryMetricsPagination:
+    """Tests for query_metrics limit/offset pagination."""
+
+    def test_query_limit_applies_in_sql(self, populated_db):
+        """Test query_metrics limit restricts returned rows."""
+        result = query_metrics(db_path=populated_db, limit=5)
+        assert len(result) == 5
+
+    def test_query_offset_skips_rows(self, populated_db):
+        """Test query_metrics offset skips the most recent rows."""
+        full_result = query_metrics(db_path=populated_db)
+        offset_result = query_metrics(db_path=populated_db, limit=5, offset=5)
+        assert offset_result == full_result[5:10]
+
+
 class TestQueryMetricsResultFormat:
     """Tests for query_metrics result format."""
 
