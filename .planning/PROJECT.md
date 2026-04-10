@@ -26,8 +26,8 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **LOC:** ~34,000 Python (src/)
 **Milestones:** 33 shipped (v1.0-v1.32), 161 phases, 323 plans
 
-**Latest:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
-**Previous:** v1.31 Linux-CAKE Optimization — netlink backend, deferred I/O, asymmetry gate, hysteresis tuning, parameter re-validation (warn_bloat 60→75)
+**Latest:** v1.33 Detection Threshold Tuning — Phase 162 complete (baseline measurement config + analysis script deployed)
+**Previous:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
 
 ## Requirements
 

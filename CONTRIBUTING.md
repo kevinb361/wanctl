@@ -46,28 +46,20 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup instructions.
 Quick start:
 
 ```bash
-# Clone the repo
 git clone https://github.com/kevinb361/wanctl.git
 cd wanctl
 
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
+# Install the project and dev tools
+uv sync
 
-# Install dependencies
-pip install -r requirements.txt
-pip install pytest pyflakes  # dev dependencies
-
-# Run tests
-pytest tests/ -v
-
-# Run linting
-pyflakes src/ tests/
+# Run the default local checks
+make test
+make lint
 ```
 
 ## Code Style
 
-- Python 3.12+ with type hints
+- Python 3.11+ with type hints
 - Follow existing patterns in the codebase
 - Keep functions focused and well-documented
 - No unnecessary dependencies
@@ -75,11 +67,11 @@ pyflakes src/ tests/
 Run linting before submitting:
 
 ```bash
-# Using ruff (recommended)
-ruff check src/ tests/
+# Using the repo target
+make lint
 
-# Or pyflakes
-pyflakes src/ tests/
+# Or directly with Ruff
+ruff check src/ tests/
 ```
 
 ## Testing
@@ -118,7 +110,7 @@ New to the project? Here are some areas where contributions are welcome:
 
 - Add unit tests for uncovered code paths
 - Add edge case tests for config validation
-- Write integration test helpers
+- Improve integration profiles or helpers under `tests/integration/`
 
 ### New Router Backends
 
