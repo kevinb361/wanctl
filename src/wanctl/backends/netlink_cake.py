@@ -333,12 +333,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 kwargs["diffserv_mode"] = str(params["diffserv"])
             if "overhead_keyword" in params:
                 kw = str(params["overhead_keyword"])
-                if kw in _OVERHEAD_KEYWORD_TO_PYROUTE2:
-                    kwargs.update(_OVERHEAD_KEYWORD_TO_PYROUTE2[kw])
-                else:
-                    # Direct keywords like "conservative", "raw" -- fall through
-                    # to subprocess since pyroute2 may not support them directly
-                    return super().initialize_cake(params)
+                # pyroute2 doesn't correctly handle overhead keywords like "docsis" —
+                # the kernel expects specific netlink attrs that pyroute2 doesn't set.
+                # Fall back to subprocess tc for initialization (one-time at startup).
+                # Netlink is still used for the hot path (set_bandwidth, get_queue_stats).
+                return super().initialize_cake(params)
             elif "overhead" in params:
                 kwargs["overhead"] = int(params["overhead"])
             if "mpu" in params:

@@ -379,15 +379,12 @@ class TestInitializeCake:
         assert call_kwargs.get("diffserv_mode") == "diffserv4"
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
-    def test_initialize_cake_maps_docsis_overhead(self, MockIPRoute, backend):
-        """overhead_keyword 'docsis' maps to overhead=-1 in pyroute2."""
-        mock_instance = MagicMock()
-        mock_instance.link_lookup.return_value = [42]
-        MockIPRoute.return_value = mock_instance
-
-        backend.initialize_cake({"overhead_keyword": "docsis"})
-        call_kwargs = mock_instance.tc.call_args[1]
-        assert call_kwargs.get("overhead") == -1
+    @patch.object(LinuxCakeBackend, "initialize_cake", return_value=True)
+    def test_initialize_cake_docsis_falls_back_to_subprocess(self, mock_super_init, MockIPRoute, backend):
+        """overhead_keyword falls back to subprocess tc (pyroute2 can't handle keywords like docsis)."""
+        result = backend.initialize_cake({"overhead_keyword": "docsis"})
+        assert result is True
+        mock_super_init.assert_called_once_with({"overhead_keyword": "docsis"})
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_initialize_cake_maps_boolean_flags(self, MockIPRoute, backend):

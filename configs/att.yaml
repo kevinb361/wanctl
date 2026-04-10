@@ -35,7 +35,7 @@ cake_params:
   upload_interface: "ens27"      # ATT modem-side NIC (upload egress with ack-filter)
   overhead: "bridged-ptm"       # ATT VDSL2 (per CAKE-05)
   memlimit: "32mb"              # Per CAKE-06
-  rtt: "100ms"                  # Per CAKE-10
+  rtt: "35ms"                   # VDSL2 actual RTT ~28ms, 1.25x margin (was 100ms — 3.5x too high)
 
 # Continuous monitoring - Expert-tuned for ATT VDSL2
 continuous_monitoring:

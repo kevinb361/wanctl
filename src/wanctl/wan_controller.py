@@ -2231,10 +2231,26 @@ class WANController:
         if self._cake_stats_thread is not None:
             snapshot = self._cake_stats_thread.get_latest()
             if snapshot is not None:
-                self._dl_cake_snapshot = self._dl_cake_signal.update(snapshot.dl_stats)
-                self._ul_cake_snapshot = self._ul_cake_signal.update(snapshot.ul_stats)
-                return
-            # No data yet (thread still starting) — fall through to inline
+                # Staleness detection: warn at 500ms, fall through to inline at 5s
+                age_s = time.monotonic() - snapshot.timestamp
+                if age_s > 5.0:
+                    self.logger.warning(
+                        "%s: CAKE stats cache stale (%.1fs old) — falling back to inline",
+                        self.wan_name,
+                        age_s,
+                    )
+                    # Fall through to inline reads below
+                else:
+                    if age_s > 0.5:
+                        self.logger.debug(
+                            "%s: CAKE stats cache aging (%.0fms)",
+                            self.wan_name,
+                            age_s * 1000,
+                        )
+                    self._dl_cake_snapshot = self._dl_cake_signal.update(snapshot.dl_stats)
+                    self._ul_cake_snapshot = self._ul_cake_signal.update(snapshot.ul_stats)
+                    return
+            # No data yet or stale — fall through to inline
 
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
