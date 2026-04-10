@@ -8,9 +8,16 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: Planning next
+## Current Milestone: v1.33 Detection Threshold Tuning
 
-**Previous:** v1.32 CAKE-Aware Congestion Detection — shipped 2026-04-10
+**Goal:** A/B validate the v1.32 CAKE detection thresholds under production RRUL load and optimize for the DOCSIS cable profile.
+
+**Target features:**
+- A/B test drop_rate_threshold (current: 10.0 drops/sec)
+- A/B test backlog_threshold_bytes (current: 10,000 bytes)
+- A/B test refractory_cycles (current: 40 / 2s)
+- A/B test probe_multiplier_factor (current: 1.5x)
+- Confirmation pass + 24h production soak
 
 ## Current State
 
