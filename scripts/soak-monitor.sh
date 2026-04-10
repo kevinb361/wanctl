@@ -1,13 +1,15 @@
 #!/bin/bash
-# soak-monitor.sh - Simple soak period monitoring for wanctl rc7
+# soak-monitor.sh - Soak period monitoring for wanctl
 # Usage: ./soak-monitor.sh [--watch] [--json]
 #
 # Run once for status check, or with --watch for continuous monitoring
 
 set -euo pipefail
 
-# Configuration
-CONTAINERS=("cake-spectrum" "cake-att")
+# Configuration - cake-shaper VM with WAN-specific health IPs
+TARGETS=(
+    "kevin@10.10.110.223|spectrum|10.10.110.223"
+)
 HEALTH_PORT=9101
 CHECK_INTERVAL=60  # seconds for --watch mode
 
@@ -41,19 +43,21 @@ if command -v jq &>/dev/null; then
     HAS_JQ=true
 fi
 
-# Check single container health
-check_container() {
-    local container=$1
+# Check single target health
+check_target() {
+    local ssh_target=$1
+    local wan_name=$2
+    local health_ip=$3
     local health_json
 
     # Fetch health data
-    if ! health_json=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" "curl -s http://127.0.0.1:${HEALTH_PORT}/health" 2>/dev/null); then
-        echo "UNREACHABLE|?|?|?|?/?"
+    if ! health_json=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" "curl -s http://${health_ip}:${HEALTH_PORT}/health" 2>/dev/null); then
+        echo "UNREACHABLE|?|?|?|?/?|?|?|?"
         return 1
     fi
 
     if [[ -z "$health_json" || "$health_json" == "null" ]]; then
-        echo "NO_RESPONSE|?|?|?|?/?"
+        echo "NO_RESPONSE|?|?|?|?/?|?|?|?"
         return 1
     fi
 
@@ -62,25 +66,36 @@ check_container() {
         return 0
     fi
 
-    local status version uptime failures dl_state ul_state
+    local status version uptime failures dl_state ul_state drop_rate backlog peak_delay
 
     if $HAS_JQ; then
-        # Use jq for reliable parsing
         status=$(echo "$health_json" | jq -r '.status // "unknown"')
         version=$(echo "$health_json" | jq -r '.version // "?"')
         uptime=$(echo "$health_json" | jq -r '.uptime_seconds // 0')
         failures=$(echo "$health_json" | jq -r '.consecutive_failures // 0')
         dl_state=$(echo "$health_json" | jq -r '.wans[0].download.state // "?"')
         ul_state=$(echo "$health_json" | jq -r '.wans[0].upload.state // "?"')
+        # CAKE signal data
+        drop_rate=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.drop_rate // "-"')
+        backlog=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.backlog_bytes // "-"')
+        peak_delay=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.peak_delay_us // "-"')
     else
-        # Fallback to grep/sed parsing
-        status=$(echo "$health_json" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-        version=$(echo "$health_json" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-        uptime=$(echo "$health_json" | sed -n 's/.*"uptime_seconds"[[:space:]]*:[[:space:]]*\([0-9.]*\).*/\1/p' | head -1)
-        failures=$(echo "$health_json" | sed -n 's/.*"consecutive_failures"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-        # Simplified state extraction - just get first occurrence
-        dl_state=$(echo "$health_json" | sed -n 's/.*"download"[^}]*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-        ul_state=$(echo "$health_json" | sed -n 's/.*"upload"[^}]*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+        # Fallback to python parsing (more reliable than sed for nested JSON)
+        eval "$(echo "$health_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+w = d.get('wans', [{}])[0]
+cs = w.get('cake_signal', {}).get('download', {})
+print(f'status=\"{d.get(\"status\", \"?\")}\"')
+print(f'version=\"{d.get(\"version\", \"?\")}\"')
+print(f'uptime=\"{d.get(\"uptime_seconds\", 0)}\"')
+print(f'failures=\"{d.get(\"consecutive_failures\", 0)}\"')
+print(f'dl_state=\"{w.get(\"download\", {}).get(\"state\", \"?\")}\"')
+print(f'ul_state=\"{w.get(\"upload\", {}).get(\"state\", \"?\")}\"')
+print(f'drop_rate=\"{cs.get(\"drop_rate\", \"-\")}\"')
+print(f'backlog=\"{cs.get(\"backlog_bytes\", \"-\")}\"')
+print(f'peak_delay=\"{cs.get(\"peak_delay_us\", \"-\")}\"')
+" 2>/dev/null)" || true
     fi
 
     # Format uptime
@@ -94,40 +109,27 @@ check_container() {
         fi
     fi
 
-    echo "${status:-?}|${version:-?}|${uptime_fmt}|${failures:-0}|${dl_state:-?}/${ul_state:-?}"
+    # Format CAKE signal values
+    local cake_str="-"
+    if [[ "$drop_rate" != "-" && "$drop_rate" != "null" ]]; then
+        local dr_fmt bl_fmt pd_fmt
+        dr_fmt=$(printf "%.0f" "$drop_rate" 2>/dev/null || echo "$drop_rate")
+        bl_fmt=$(echo "$backlog" | awk '{if($1>1048576)printf "%.1fM",$1/1048576; else if($1>1024)printf "%.0fK",$1/1024; else printf "%d",$1}' 2>/dev/null || echo "$backlog")
+        pd_fmt=$(printf "%.1f" "$(echo "$peak_delay / 1000" | bc -l 2>/dev/null || echo 0)" 2>/dev/null || echo "$peak_delay")
+        cake_str="${dr_fmt}d/s ${bl_fmt} ${pd_fmt}ms"
+    fi
+
+    echo "${status:-?}|${version:-?}|${uptime_fmt}|${failures:-0}|${dl_state:-?}/${ul_state:-?}|${cake_str}"
 }
 
 # Check for recent errors in journal
 check_errors() {
-    local container=$1
+    local ssh_target=$1
+    local wan_name=$2
     local count
-    count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
-        "journalctl -u wanctl@wan1 --since '1 hour ago' -p err --no-pager 2>/dev/null | grep -v '^-- No entries --$' | grep -c '.' || true" 2>/dev/null)
+    count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" \
+        "journalctl -u wanctl@${wan_name} --since '1 hour ago' -p err --no-pager 2>/dev/null | grep -v '^-- No entries --$' | grep -c '.' || true" 2>/dev/null)
     echo "${count:-0}" | tr -d '\n'
-}
-
-# Check rate limiter activity
-check_rate_limits() {
-    local container=$1
-    local count
-    count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$container" \
-        "journalctl -u wanctl@wan1 --since '1 hour ago' --no-pager 2>/dev/null | grep -ci 'rate.limit' 2>/dev/null || true" 2>/dev/null)
-    echo "${count:-0}" | tr -d '\n'
-}
-
-# Colorize value based on condition
-colorize() {
-    local value=$1
-    local good_pattern=$2
-    local bad_pattern=${3:-}
-
-    if [[ -n "$bad_pattern" && "$value" =~ $bad_pattern ]]; then
-        echo -e "${RED}${value}${NC}"
-    elif [[ "$value" =~ $good_pattern ]]; then
-        echo -e "${GREEN}${value}${NC}"
-    else
-        echo -e "${YELLOW}${value}${NC}"
-    fi
 }
 
 # Print header
@@ -136,12 +138,12 @@ print_header() {
         return
     fi
     echo ""
-    echo -e "${BLUE}${BOLD}═══════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}${BOLD}═══════════════════════════════════════════════════════════════════════════════════${NC}"
     echo -e "${BLUE}${BOLD}  wanctl Soak Monitor - $(date '+%Y-%m-%d %H:%M:%S')${NC}"
-    echo -e "${BLUE}${BOLD}═══════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}${BOLD}═══════════════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
-    echo -e "${BOLD}CONTAINER        HEALTH     VERSION      UPTIME     FAILS  STATE        ERR  RL${NC}"
-    echo "───────────────────────────────────────────────────────────────────────────────"
+    echo -e "${BOLD}WAN        HEALTH     VERSION   UPTIME     FAILS  STATE        CAKE SIGNAL           ERR${NC}"
+    echo "───────────────────────────────────────────────────────────────────────────────────────────"
 }
 
 # Main check function
@@ -151,28 +153,26 @@ run_check() {
     local all_healthy=true
     local json_output="["
 
-    for i in "${!CONTAINERS[@]}"; do
-        local container="${CONTAINERS[$i]}"
-        local health_data errors rate_limits
+    for i in "${!TARGETS[@]}"; do
+        IFS='|' read -r ssh_target wan_name health_ip <<< "${TARGETS[$i]}"
+        local health_data errors
 
-        health_data=$(check_container "$container")
+        health_data=$(check_target "$ssh_target" "$wan_name" "$health_ip")
 
         if $JSON_MODE; then
-            errors=$(check_errors "$container")
-            rate_limits=$(check_rate_limits "$container")
+            errors=$(check_errors "$ssh_target" "$wan_name")
             [[ $i -gt 0 ]] && json_output+=","
-            json_output+="{\"container\":\"$container\",\"health\":$health_data,\"errors_1h\":$errors,\"rate_limits_1h\":$rate_limits}"
+            json_output+="{\"wan\":\"$wan_name\",\"health\":$health_data,\"errors_1h\":$errors}"
             continue
         fi
 
         # Parse health data
-        IFS='|' read -r status version uptime failures state <<< "$health_data"
+        IFS='|' read -r status version uptime failures state cake_str <<< "$health_data"
 
-        errors=$(check_errors "$container")
-        rate_limits=$(check_rate_limits "$container")
+        errors=$(check_errors "$ssh_target" "$wan_name")
 
         # Colorize values
-        local c_status c_fails c_state c_errors
+        local c_status c_fails c_state c_errors c_cake
 
         case "$status" in
             healthy) c_status="${GREEN}healthy${NC}" ;;
@@ -202,18 +202,25 @@ run_check() {
             c_errors="$errors"
         fi
 
+        # Colorize CAKE signal
+        if [[ "$cake_str" == "-" ]]; then
+            c_cake="${BLUE}disabled${NC}"
+        else
+            c_cake="$cake_str"
+        fi
+
         # Print row
-        printf "%-16s " "$container"
+        printf "%-10s " "$wan_name"
         echo -en "$c_status"
         printf "%*s" $((11 - ${#status})) ""
-        printf "%-12s %-10s " "$version" "$uptime"
+        printf "%-9s %-10s " "$version" "$uptime"
         echo -en "$c_fails"
         printf "%*s" $((6 - ${#failures})) ""
         echo -en "$c_state"
         printf "%*s" $((13 - ${#state})) ""
-        echo -en "$c_errors"
-        printf "%*s" $((5 - ${#errors})) ""
-        echo "$rate_limits"
+        echo -en "$c_cake"
+        printf "%*s" $((22 - ${#cake_str})) ""
+        echo -e "$c_errors"
     done
 
     if $JSON_MODE; then
@@ -224,9 +231,9 @@ run_check() {
     # Summary
     echo ""
     if $all_healthy; then
-        echo -e "${GREEN}${BOLD}✓ All containers healthy${NC}"
+        echo -e "${GREEN}${BOLD}✓ All WANs healthy${NC}"
     else
-        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: journalctl -u wanctl@wan1 -n 50${NC}"
+        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh kevin@10.10.110.223 'journalctl -u wanctl@spectrum -n 50'${NC}"
     fi
     echo ""
 }
