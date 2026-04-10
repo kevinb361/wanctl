@@ -34,6 +34,7 @@ cake_params:
   download_interface: "ens28"    # ATT router-side NIC (CAKE target)
   upload_interface: "ens27"      # ATT modem-side NIC (upload egress with ack-filter)
   overhead: "bridged-ptm"       # ATT VDSL2 (per CAKE-05)
+  mpu: 64                       # PTM minimum frame size — correct small-packet overhead (ACKs, DNS, VoIP)
   memlimit: "32mb"              # Per CAKE-06
   rtt: "35ms"                   # VDSL2 actual RTT ~28ms, 1.25x margin (was 100ms — 3.5x too high)
 
@@ -44,9 +45,12 @@ continuous_monitoring:
   # Baseline RTT (seeded from production autotuning 2026-03-25)
   baseline_rtt_initial: 28.3  # Autotuned from 31 (1379 samples, confidence 0.916)
 
-  # Download parameters (A/B validated 2026-04-10)
+  # Download parameters (4-state, A/B validated 2026-04-10)
   download:
-    floor_mbps: 25           # Prevents collapse during line variation
+    floor_green_mbps: 55     # GREEN: healthy, high floor (~59% of ceiling)
+    floor_yellow_mbps: 35    # YELLOW: early warning
+    floor_soft_red_mbps: 28  # SOFT_RED: RTT-only congestion
+    floor_red_mbps: 20       # RED: severe congestion
     ceiling_mbps: 95         # Realistic max (DSL + PPPoE/PTM overhead)
     step_up_mbps: 2          # A/B confirmed (1/2/4 within 3%)
     factor_down: 0.90        # A/B confirmed (0.85/0.90/0.95 within 2%)
@@ -63,7 +67,10 @@ continuous_monitoring:
   thresholds:
     target_bloat_ms: 1.4      # A/B confirmed (1.4/3.0/5.0 within 2%)
     warn_bloat_ms: 10.0       # A/B winner (was 5.0, p99 -15%, zero transitions)
+    hard_red_bloat_ms: 80     # A/B confirmed (40/80/120 within 4%), explicit for 4-state
+    dwell_cycles: 5           # A/B winner (was 3 default, p99 -5%)
     deadband_ms: 2.0          # A/B winner (was 3.0 default, p99 -7%)
+    suppression_alert_threshold: 60  # Match Spectrum — prevents false alerts under heavy load
     # EWMA time constants (interval-independent, auto-calculated)
     baseline_time_constant_sec: 67   # Slow EWMA for baseline (DSL is noisy, need longer smoothing)
     load_time_constant_sec: 0.25     # Fast EWMA for load RTT (250ms = reacts quickly to congestion)
@@ -99,7 +106,7 @@ lock_timeout: 300  # 5 minutes
 # Timeouts (operational tuning)
 timeouts:
   ssh_command: 15  # seconds - RouterOS SSH command timeout
-  ping: 1  # seconds - ping -W parameter (per-packet timeout)
+  ping: 0.5  # seconds - ping -W parameter (1s blocks 20 cycles, match Spectrum)
 
 # Signal processing (seeded from production autotuning 2026-03-25)
 signal_processing:
@@ -123,11 +130,11 @@ reflector_quality:
   recovery_count: 3
 
 # Dual-signal fusion (v1.19+)
-# Disabled on ATT: IRTT to Dallas (44ms) diverges from ICMP to CDN (28ms),
-# creating a permanent 4.8ms fused delta that locks controller in YELLOW.
-# ICMP alone at 20Hz provides sufficient DSL last-mile congestion detection.
+# Config says enabled=true but healer auto-suspends fusion due to IRTT-ICMP RTT
+# divergence (IRTT 24.7ms to Dallas vs ICMP 28.3ms to CDN = permanent delta).
+# Healer will re-enable if correlation recovers. ICMP alone at 20Hz is sufficient.
 fusion:
-  enabled: true    # Enabled for Phase 119 auto-healing
+  enabled: true    # Healer manages actual state (currently suspended)
   icmp_weight: 0.7
 
 # Adaptive tuning (v1.20+)
