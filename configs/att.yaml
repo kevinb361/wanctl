@@ -166,6 +166,27 @@ tuning:
       max: 120.0
       # Autotuned value: 40.0 (p95=28.0ms * 1.1 = 30.8, clamped to bounds min)
 
+# CAKE signal processing — baseline measurement (v1.33)
+# Same setup as Spectrum: metrics enabled, detection disabled
+cake_signal:
+  enabled: true
+  drop_rate:
+    enabled: false
+    time_constant_sec: 1.0
+    threshold_drops_per_sec: 10.0
+  backlog:
+    enabled: false
+    threshold_bytes: 10000
+  peak_delay:
+    enabled: false
+  metrics:
+    enabled: true
+  detection:
+    refractory_cycles: 40
+  recovery:
+    probe_multiplier: 1.5
+    probe_ceiling_pct: 0.9
+
 # Alerting (v1.15+)
 alerting:
   enabled: true
