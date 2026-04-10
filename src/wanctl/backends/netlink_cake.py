@@ -342,7 +342,19 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 else:
                     kwargs["memlimit"] = int(raw)
             if "rtt" in params:
-                kwargs["rtt"] = str(params["rtt"])
+                # pyroute2 wants microseconds (int) or a keyword (datacentre/lan/etc)
+                rtt_raw = str(params["rtt"]).lower().strip()
+                rtt_suffixes = {"us": 1, "ms": 1000, "s": 1_000_000}
+                for suffix, mult in rtt_suffixes.items():
+                    if rtt_raw.endswith(suffix):
+                        kwargs["rtt"] = int(rtt_raw[: -len(suffix)]) * mult
+                        break
+                else:
+                    # Either an integer (us) or a keyword like "internet"
+                    try:
+                        kwargs["rtt"] = int(rtt_raw)
+                    except ValueError:
+                        kwargs["rtt"] = rtt_raw
 
             # Boolean flags
             for tc_flag, pyroute2_kwarg in [
