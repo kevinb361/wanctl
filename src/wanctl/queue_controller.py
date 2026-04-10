@@ -37,6 +37,8 @@ class QueueController:
         deadband_ms: float = 3.0,
         drop_rate_threshold: float = 0.0,
         backlog_threshold_bytes: int = 0,
+        probe_multiplier_factor: float = 1.0,
+        probe_ceiling_pct: float = 0.9,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -76,6 +78,12 @@ class QueueController:
         self._backlog_suppressed_count: int = 0
         self._dwell_bypassed_this_cycle: bool = False
         self._backlog_suppressed_this_cycle: bool = False
+
+        # Exponential probe state (Phase 161: RECOV-01, RECOV-02, RECOV-03)
+        self._probe_multiplier: float = 1.0
+        self._probe_multiplier_factor: float = probe_multiplier_factor
+        self._probe_ceiling_pct: float = probe_ceiling_pct
+        self._probe_step_count: int = 0
 
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
@@ -134,12 +142,14 @@ class QueueController:
             # RED: immediate, bypasses dwell (D-02)
             self.red_streak += 1
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self._yellow_dwell = 0
             return "RED"
 
         if delta > target_delta:
             # Above GREEN->YELLOW threshold
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self.red_streak = 0
             # DETECT-01: Drop rate bypasses dwell timer
             if (
@@ -159,6 +169,7 @@ class QueueController:
         ):
             # Deadband: delta below target but within margin -> stay YELLOW (HYST-02, D-03)
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self.red_streak = 0
             self._yellow_dwell = 0
             return "YELLOW"
@@ -176,6 +187,7 @@ class QueueController:
             and cake_snapshot.backlog_bytes > self._backlog_threshold_bytes
         ):
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self._backlog_suppressed_count += 1
             self._backlog_suppressed_this_cycle = True
 
@@ -213,10 +225,29 @@ class QueueController:
         if self.red_streak >= 1:
             return int(self.current_rate * self.factor_down)
         if self.green_streak >= self.green_required:
-            return self.current_rate + self.step_up_bps
+            return self.current_rate + self._compute_probe_step()
         if zone == "YELLOW":
             return int(self.current_rate * self.factor_down_yellow)
         return self.current_rate
+
+    def _compute_probe_step(self) -> int:
+        """Compute recovery step with exponential probing (RECOV-01, RECOV-02).
+
+        Step = step_up_bps * _probe_multiplier, then advance multiplier.
+        Above probe_ceiling_pct of ceiling, reverts to linear step_up_bps.
+
+        Returns:
+            Step size in bps to add to current_rate.
+        """
+        # RECOV-02: Linear above ceiling threshold
+        if self.current_rate >= self.ceiling_bps * self._probe_ceiling_pct:
+            return self.step_up_bps
+
+        # RECOV-01: Exponential probing
+        step = int(self.step_up_bps * self._probe_multiplier)
+        self._probe_multiplier *= self._probe_multiplier_factor
+        self._probe_step_count += 1
+        return step
 
     def _build_transition_reason(
         self,
@@ -326,10 +357,12 @@ class QueueController:
             self.red_streak += 1
             self.soft_red_streak = 0
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self._yellow_dwell = 0
             return "RED"
         if raw_state == "YELLOW":
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self.soft_red_streak = 0
             self.red_streak = 0
             # DETECT-01: Drop rate bypasses dwell timer
@@ -351,6 +384,7 @@ class QueueController:
         ):
             # Deadband: raw GREEN but within margin -> stay YELLOW (HYST-02, D-03)
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self.soft_red_streak = 0
             self.red_streak = 0
             self._yellow_dwell = 0
@@ -370,6 +404,7 @@ class QueueController:
             and cake_snapshot.backlog_bytes > self._backlog_threshold_bytes
         ):
             self.green_streak = 0
+            self._probe_multiplier = 1.0
             self._backlog_suppressed_count += 1
             self._backlog_suppressed_this_cycle = True
 
@@ -379,6 +414,7 @@ class QueueController:
         """Apply SOFT_RED sustain logic -- require consecutive samples before confirming."""
         self.soft_red_streak += 1
         self.green_streak = 0
+        self._probe_multiplier = 1.0
         self.red_streak = 0
         self._yellow_dwell = 0
         if self.soft_red_streak >= self.soft_red_required:
@@ -394,7 +430,7 @@ class QueueController:
         if zone == "SOFT_RED":
             return self.current_rate, self.floor_soft_red_bps
         if self.green_streak >= self.green_required:
-            return self.current_rate + self.step_up_bps, state_floor
+            return self.current_rate + self._compute_probe_step(), state_floor
         if zone == "YELLOW":
             return int(self.current_rate * self.factor_down_yellow), self.floor_yellow_bps
         return self.current_rate, state_floor
@@ -433,5 +469,12 @@ class QueueController:
                 "backlog_suppressed_count": self._backlog_suppressed_count,
                 "dwell_bypassed_this_cycle": self._dwell_bypassed_this_cycle,
                 "backlog_suppressed_this_cycle": self._backlog_suppressed_this_cycle,
+            },
+            "recovery_probe": {
+                "probe_multiplier": self._probe_multiplier,
+                "probe_multiplier_factor": self._probe_multiplier_factor,
+                "probe_ceiling_pct": self._probe_ceiling_pct,
+                "probe_step_count": self._probe_step_count,
+                "above_ceiling_pct": self.current_rate >= self.ceiling_bps * self._probe_ceiling_pct,
             },
         }

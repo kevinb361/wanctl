@@ -606,16 +606,22 @@ class WANController:
             if config.backlog_enabled:
                 self.download._backlog_threshold_bytes = config.backlog_threshold_bytes
                 self.upload._backlog_threshold_bytes = config.backlog_threshold_bytes
+            # Phase 161: Wire probe recovery params
+            self.download._probe_multiplier_factor = config.probe_multiplier_factor
+            self.download._probe_ceiling_pct = config.probe_ceiling_pct
+            self.upload._probe_multiplier_factor = config.probe_multiplier_factor
+            self.upload._probe_ceiling_pct = config.probe_ceiling_pct
 
         if config.enabled and self._cake_signal_supported:
             self.logger.info(
                 "%s: CAKE signal enabled (drop_rate=%s, backlog=%s, peak_delay=%s, "
                 "metrics=%s, tc=%.1fs, drop_thresh=%.1f, backlog_thresh=%d, "
-                "refractory=%d)",
+                "refractory=%d, probe_mult=%.1f, probe_ceil=%.0f%%)",
                 self.wan_name, config.drop_rate_enabled, config.backlog_enabled,
                 config.peak_delay_enabled, config.metrics_enabled,
                 config.time_constant_sec, config.drop_rate_threshold,
                 config.backlog_threshold_bytes, config.refractory_cycles,
+                config.probe_multiplier_factor, config.probe_ceiling_pct * 100,
             )
         elif config.enabled and not self._cake_signal_supported:
             self.logger.warning(
@@ -694,6 +700,21 @@ class WANController:
             refractory_cycles = 40
         refractory_cycles = max(1, min(200, int(refractory_cycles)))
 
+        # Recovery section (Phase 161: RECOV-01, RECOV-02)
+        rec = cs.get("recovery", {})
+        if not isinstance(rec, dict):
+            rec = {}
+
+        probe_multiplier = rec.get("probe_multiplier", 1.5)
+        if not isinstance(probe_multiplier, (int, float)) or isinstance(probe_multiplier, bool) or probe_multiplier < 1.0:
+            probe_multiplier = 1.5
+        probe_multiplier = max(1.0, min(5.0, float(probe_multiplier)))
+
+        probe_ceiling_pct = rec.get("probe_ceiling_pct", 0.9)
+        if not isinstance(probe_ceiling_pct, (int, float)) or isinstance(probe_ceiling_pct, bool) or probe_ceiling_pct <= 0:
+            probe_ceiling_pct = 0.9
+        probe_ceiling_pct = max(0.5, min(1.0, float(probe_ceiling_pct)))
+
         return CakeSignalConfig(
             enabled=enabled,
             drop_rate_enabled=drop_rate_enabled,
@@ -704,6 +725,8 @@ class WANController:
             drop_rate_threshold=drop_rate_threshold,
             backlog_threshold_bytes=backlog_threshold,
             refractory_cycles=refractory_cycles,
+            probe_multiplier_factor=probe_multiplier,
+            probe_ceiling_pct=probe_ceiling_pct,
         )
 
     def _restore_tuning_params(self) -> None:
@@ -1826,6 +1849,10 @@ class WANController:
             changes.append(f"backlog_threshold={old_config.backlog_threshold_bytes}->{new_config.backlog_threshold_bytes}")
         if old_config.refractory_cycles != new_config.refractory_cycles:
             changes.append(f"refractory={old_config.refractory_cycles}->{new_config.refractory_cycles}")
+        if abs(old_config.probe_multiplier_factor - new_config.probe_multiplier_factor) > 0.01:
+            changes.append(f"probe_multiplier={old_config.probe_multiplier_factor}->{new_config.probe_multiplier_factor}")
+        if abs(old_config.probe_ceiling_pct - new_config.probe_ceiling_pct) > 0.01:
+            changes.append(f"probe_ceiling_pct={old_config.probe_ceiling_pct}->{new_config.probe_ceiling_pct}")
 
         change_str = ", ".join(changes) if changes else "(unchanged)"
         self.logger.warning("[CAKE_SIGNAL] Config reload: %s", change_str)
@@ -1844,12 +1871,19 @@ class WANController:
             self.upload._drop_rate_threshold = dr_thresh
             self.download._backlog_threshold_bytes = bl_thresh
             self.upload._backlog_threshold_bytes = bl_thresh
+            # Phase 161: Update probe recovery params
+            self.download._probe_multiplier_factor = new_config.probe_multiplier_factor
+            self.download._probe_ceiling_pct = new_config.probe_ceiling_pct
+            self.upload._probe_multiplier_factor = new_config.probe_multiplier_factor
+            self.upload._probe_ceiling_pct = new_config.probe_ceiling_pct
         else:
             # Disabled: zero thresholds to deactivate detection
             self.download._drop_rate_threshold = 0.0
             self.upload._drop_rate_threshold = 0.0
             self.download._backlog_threshold_bytes = 0
             self.upload._backlog_threshold_bytes = 0
+            self.download._probe_multiplier_factor = 1.0
+            self.upload._probe_multiplier_factor = 1.0
             self._dl_refractory_remaining = 0
             self._ul_refractory_remaining = 0
 
@@ -3014,6 +3048,8 @@ class WANController:
                     "ul_dwell_bypassed_count": self.upload._dwell_bypassed_count,
                     "dl_backlog_suppressed_count": self.download._backlog_suppressed_count,
                     "ul_backlog_suppressed_count": self.upload._backlog_suppressed_count,
+                    "dl_recovery_probe": self.download.get_health_data().get("recovery_probe", {}),
+                    "ul_recovery_probe": self.upload.get_health_data().get("recovery_probe", {}),
                 },
             },
         }

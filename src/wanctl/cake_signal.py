@@ -126,6 +126,10 @@ class CakeSignalConfig:
             0 disables suppression.
         refractory_cycles: Cycles to mask CAKE signals after a drop-triggered
             rate reduction, preventing cascading reductions (DETECT-03).
+        probe_multiplier_factor: Exponential probe growth factor per recovery
+            step (RECOV-01). 1.0 disables exponential growth (linear only).
+        probe_ceiling_pct: Fraction of ceiling above which probing reverts to
+            linear step_up (RECOV-02). E.g., 0.9 means above 90% of ceiling.
     """
 
     enabled: bool = False
@@ -137,6 +141,8 @@ class CakeSignalConfig:
     drop_rate_threshold: float = 10.0
     backlog_threshold_bytes: int = 10000
     refractory_cycles: int = 40
+    probe_multiplier_factor: float = 1.5
+    probe_ceiling_pct: float = 0.9
 
 
 class CakeSignalProcessor:
