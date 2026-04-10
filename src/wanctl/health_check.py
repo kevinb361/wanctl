@@ -518,10 +518,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 ],
             }
 
-        return {
+        result: dict[str, Any] = {
             "download": _snap_to_dict(cake_data.get("download")),
             "upload": _snap_to_dict(cake_data.get("upload")),
         }
+
+        # Phase 160: Detection state (refractory, bypass/suppression counters)
+        detection = cake_data.get("detection")
+        if detection is not None and isinstance(detection, dict):
+            result["detection"] = detection
+
+        return result
 
     def _build_tuning_section(
         self, health_data: dict[str, Any], wan_controller: Any

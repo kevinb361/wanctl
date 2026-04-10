@@ -593,13 +593,29 @@ class WANController:
         self._dl_cake_snapshot: CakeSignalSnapshot | None = None
         self._ul_cake_snapshot: CakeSignalSnapshot | None = None
 
+        # Refractory period counters (Phase 160: DETECT-03)
+        self._dl_refractory_remaining: int = 0
+        self._ul_refractory_remaining: int = 0
+        self._refractory_cycles: int = config.refractory_cycles
+
+        # Pass detection thresholds to QueueControllers (Phase 160: DETECT-01, DETECT-02)
+        if config.enabled and self._cake_signal_supported:
+            if config.drop_rate_enabled:
+                self.download._drop_rate_threshold = config.drop_rate_threshold
+                self.upload._drop_rate_threshold = config.drop_rate_threshold
+            if config.backlog_enabled:
+                self.download._backlog_threshold_bytes = config.backlog_threshold_bytes
+                self.upload._backlog_threshold_bytes = config.backlog_threshold_bytes
+
         if config.enabled and self._cake_signal_supported:
             self.logger.info(
                 "%s: CAKE signal enabled (drop_rate=%s, backlog=%s, peak_delay=%s, "
-                "metrics=%s, tc=%.1fs)",
+                "metrics=%s, tc=%.1fs, drop_thresh=%.1f, backlog_thresh=%d, "
+                "refractory=%d)",
                 self.wan_name, config.drop_rate_enabled, config.backlog_enabled,
                 config.peak_delay_enabled, config.metrics_enabled,
-                config.time_constant_sec,
+                config.time_constant_sec, config.drop_rate_threshold,
+                config.backlog_threshold_bytes, config.refractory_cycles,
             )
         elif config.enabled and not self._cake_signal_supported:
             self.logger.warning(
@@ -658,6 +674,26 @@ class WANController:
             mt = {}
         metrics_enabled = mt.get("enabled", False) is True
 
+        # Detection thresholds (Phase 160)
+        drop_rate_threshold = dr.get("threshold_drops_per_sec", 10.0)
+        if not isinstance(drop_rate_threshold, (int, float)) or isinstance(drop_rate_threshold, bool) or drop_rate_threshold <= 0:
+            drop_rate_threshold = 10.0
+        drop_rate_threshold = max(1.0, min(1000.0, float(drop_rate_threshold)))
+
+        backlog_threshold = bl.get("threshold_bytes", 10000)
+        if not isinstance(backlog_threshold, (int, float)) or isinstance(backlog_threshold, bool) or backlog_threshold <= 0:
+            backlog_threshold = 10000
+        backlog_threshold = max(100, min(10_000_000, int(backlog_threshold)))
+
+        # Detection section for refractory
+        det = cs.get("detection", {})
+        if not isinstance(det, dict):
+            det = {}
+        refractory_cycles = det.get("refractory_cycles", 40)
+        if not isinstance(refractory_cycles, (int, float)) or isinstance(refractory_cycles, bool) or refractory_cycles <= 0:
+            refractory_cycles = 40
+        refractory_cycles = max(1, min(200, int(refractory_cycles)))
+
         return CakeSignalConfig(
             enabled=enabled,
             drop_rate_enabled=drop_rate_enabled,
@@ -665,6 +701,9 @@ class WANController:
             peak_delay_enabled=peak_delay_enabled,
             metrics_enabled=metrics_enabled,
             time_constant_sec=tc_sec,
+            drop_rate_threshold=drop_rate_threshold,
+            backlog_threshold_bytes=backlog_threshold,
+            refractory_cycles=refractory_cycles,
         )
 
     def _restore_tuning_params(self) -> None:
@@ -1781,12 +1820,38 @@ class WANController:
             changes.append(f"metrics={old_config.metrics_enabled}->{new_config.metrics_enabled}")
         if abs(old_config.time_constant_sec - new_config.time_constant_sec) > 0.001:
             changes.append(f"tc={old_config.time_constant_sec}->{new_config.time_constant_sec}")
+        if abs(old_config.drop_rate_threshold - new_config.drop_rate_threshold) > 0.01:
+            changes.append(f"drop_threshold={old_config.drop_rate_threshold}->{new_config.drop_rate_threshold}")
+        if old_config.backlog_threshold_bytes != new_config.backlog_threshold_bytes:
+            changes.append(f"backlog_threshold={old_config.backlog_threshold_bytes}->{new_config.backlog_threshold_bytes}")
+        if old_config.refractory_cycles != new_config.refractory_cycles:
+            changes.append(f"refractory={old_config.refractory_cycles}->{new_config.refractory_cycles}")
 
         change_str = ", ".join(changes) if changes else "(unchanged)"
         self.logger.warning("[CAKE_SIGNAL] Config reload: %s", change_str)
 
         self._dl_cake_signal.config = new_config
         self._ul_cake_signal.config = new_config
+
+        # Update refractory and detection thresholds (Phase 160)
+        self._refractory_cycles = new_config.refractory_cycles
+
+        # Update QueueController thresholds based on enabled state
+        if new_config.enabled and self._cake_signal_supported:
+            dr_thresh = new_config.drop_rate_threshold if new_config.drop_rate_enabled else 0.0
+            bl_thresh = new_config.backlog_threshold_bytes if new_config.backlog_enabled else 0
+            self.download._drop_rate_threshold = dr_thresh
+            self.upload._drop_rate_threshold = dr_thresh
+            self.download._backlog_threshold_bytes = bl_thresh
+            self.upload._backlog_threshold_bytes = bl_thresh
+        else:
+            # Disabled: zero thresholds to deactivate detection
+            self.download._drop_rate_threshold = 0.0
+            self.upload._drop_rate_threshold = 0.0
+            self.download._backlog_threshold_bytes = 0
+            self.upload._backlog_threshold_bytes = 0
+            self._dl_refractory_remaining = 0
+            self._ul_refractory_remaining = 0
 
     def _record_profiling(
         self,
@@ -2097,20 +2162,39 @@ class WANController:
         self,
     ) -> tuple[str, int, str | None, str, int, str | None, float]:
         """Congestion assessment: zone classification, alerts, drift, flapping."""
+        # Phase 160: Apply refractory masking BEFORE passing to QueueController
+        dl_cake = self._dl_cake_snapshot
+        if self._dl_refractory_remaining > 0:
+            dl_cake = None  # Mask CAKE signals during refractory
+            self._dl_refractory_remaining -= 1
+
+        ul_cake = self._ul_cake_snapshot
+        if self._ul_refractory_remaining > 0:
+            ul_cake = None
+            self._ul_refractory_remaining -= 1
+
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
             self.load_rtt,
             self.green_threshold,
             self.soft_red_threshold,
             self.hard_red_threshold,
+            cake_snapshot=dl_cake,
         )
         self._dl_zone = dl_zone
 
         effective_ul_load_rtt = self._compute_effective_ul_load_rtt()
         ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
-            self.baseline_rtt, effective_ul_load_rtt, self.target_delta, self.warn_delta
+            self.baseline_rtt, effective_ul_load_rtt, self.target_delta, self.warn_delta,
+            cake_snapshot=ul_cake,
         )
         self._ul_zone = ul_zone
+
+        # Phase 160: Enter refractory if dwell was bypassed this cycle (DETECT-03)
+        if self.download._dwell_bypassed_this_cycle:
+            self._dl_refractory_remaining = self._refractory_cycles
+        if self.upload._dwell_bypassed_this_cycle:
+            self._ul_refractory_remaining = self._refractory_cycles
 
         delta = self.load_rtt - self.baseline_rtt
         self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
@@ -2922,6 +3006,15 @@ class WANController:
                 "supported": self._cake_signal_supported,
                 "download": self._dl_cake_snapshot,
                 "upload": self._ul_cake_snapshot,
+                "detection": {
+                    "dl_refractory_remaining": self._dl_refractory_remaining,
+                    "ul_refractory_remaining": self._ul_refractory_remaining,
+                    "refractory_cycles": self._refractory_cycles,
+                    "dl_dwell_bypassed_count": self.download._dwell_bypassed_count,
+                    "ul_dwell_bypassed_count": self.upload._dwell_bypassed_count,
+                    "dl_backlog_suppressed_count": self.download._backlog_suppressed_count,
+                    "ul_backlog_suppressed_count": self.upload._backlog_suppressed_count,
+                },
             },
         }
 
