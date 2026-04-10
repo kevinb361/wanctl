@@ -2045,8 +2045,18 @@ class WANController:
                     delta, dl_tr, ul_tr, irtt_result,
                 )
 
+        # Skip router subsystem entirely when rates unchanged (saves netlink round-trip)
+        rates_changed = (
+            dl_rate != self.last_applied_dl_rate
+            or ul_rate != self.last_applied_ul_rate
+            or self.pending_rates.has_pending()
+            or not self.router_connectivity.is_reachable
+        )
         with PerfTimer("autorate_router_communication", self.logger) as router_timer:
-            router_failed = self._run_router_communication(dl_rate, ul_rate)
+            if rates_changed:
+                router_failed = self._run_router_communication(dl_rate, ul_rate)
+            else:
+                router_failed = False
         self._record_profiling(
             rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start,
             signal_processing_ms=signal_timer.elapsed_ms,
@@ -2197,10 +2207,9 @@ class WANController:
 
         adapter: LinuxCakeAdapter = self.router  # type: ignore[assignment]
 
-        dl_stats = adapter.dl_backend.get_queue_stats("")
+        # Single netlink dump for both interfaces (saves one round-trip per cycle)
+        dl_stats, ul_stats = adapter.get_both_queue_stats()
         self._dl_cake_snapshot = self._dl_cake_signal.update(dl_stats)
-
-        ul_stats = adapter.ul_backend.get_queue_stats("")
         self._ul_cake_snapshot = self._ul_cake_signal.update(ul_stats)
 
     def _run_congestion_assessment(
