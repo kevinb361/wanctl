@@ -44,24 +44,26 @@ continuous_monitoring:
   # Baseline RTT (seeded from production autotuning 2026-03-25)
   baseline_rtt_initial: 28.3  # Autotuned from 31 (1379 samples, confidence 0.916)
 
-  # Download parameters (expert-tuned for ATT 100/20 DSL)
+  # Download parameters (A/B validated 2026-04-10)
   download:
     floor_mbps: 25           # Prevents collapse during line variation
     ceiling_mbps: 95         # Realistic max (DSL + PPPoE/PTM overhead)
-    step_up_mbps: 2
-    factor_down: 0.90        # Moderate 10% backoff
+    step_up_mbps: 2          # A/B confirmed (1/2/4 within 3%)
+    factor_down: 0.90        # A/B confirmed (0.85/0.90/0.95 within 2%)
+    green_required: 5        # A/B winner (was 3 default, p99 -8%)
 
-  # Upload parameters (very gentle - upload particularly benefits)
+  # Upload parameters (A/B validated 2026-04-10)
   upload:
     floor_mbps: 6            # Conservative floor for DSL stability
     ceiling_mbps: 18         # Safe ceiling with headroom
-    step_up_mbps: 0.5        # Very gentle climb (DSL upload is sensitive)
-    factor_down: 0.95        # Very conservative 5% backoff
+    step_up_mbps: 1.0        # A/B winner (was 0.5, p99 -5%; 2.0 caused 220ms spikes)
+    factor_down: 0.95        # A/B confirmed (0.90/0.95/0.98 within 4%)
 
-  # RTT thresholds (tuned to real VDSL load performance)
+  # RTT thresholds (A/B validated 2026-04-10)
   thresholds:
-    target_bloat_ms: 1.4      # Autotuned from 3 (p75 GREEN delta, 1352 samples)
-    warn_bloat_ms: 5.0        # Autotuned from 10 (p90 GREEN delta, 1352 samples)
+    target_bloat_ms: 1.4      # A/B confirmed (1.4/3.0/5.0 within 2%)
+    warn_bloat_ms: 10.0       # A/B winner (was 5.0, p99 -15%, zero transitions)
+    deadband_ms: 2.0          # A/B winner (was 3.0 default, p99 -7%)
     # EWMA time constants (interval-independent, auto-calculated)
     baseline_time_constant_sec: 67   # Slow EWMA for baseline (DSL is noisy, need longer smoothing)
     load_time_constant_sec: 0.25     # Fast EWMA for load RTT (250ms = reacts quickly to congestion)
