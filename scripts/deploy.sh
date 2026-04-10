@@ -36,6 +36,7 @@ TARGET_SYSTEMD_DIR="/etc/systemd/system"
 PROFILING_SCRIPTS=(
     "scripts/profiling_collector.py"
     "scripts/analyze_profiling.py"
+    "scripts/analyze_baseline.py"
 )
 
 # Documentation files (optional, for reference)
