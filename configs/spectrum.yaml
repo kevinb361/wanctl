@@ -144,7 +144,7 @@ fusion:
 
 # Adaptive tuning (v1.20+)
 tuning:
-  enabled: true
+  enabled: true # Re-enabled after Phase 163 sweep
   cadence_sec: 3600 # Run tuning analysis every hour
   lookback_hours: 24 # Analyze last 24h of metrics
   warmup_hours: 1 # Wait 1h after startup before first run
@@ -194,12 +194,12 @@ alerting:
 cake_signal:
   enabled: true
   drop_rate:
-    enabled: false
+    enabled: true # Phase 163: detection enabled for A/B sweep
     time_constant_sec: 1.0
-    threshold_drops_per_sec: 10.0
+    threshold_drops_per_sec: 5.0 # Phase 163 A/B winner (5.0 vs 10.0 vs 20.0, p99 -22%)
   backlog:
-    enabled: false
-    threshold_bytes: 10000
+    enabled: true # Phase 163: detection enabled for A/B sweep
+    threshold_bytes: 5000 # Phase 163 A/B winner (5000 vs 10000 vs 20000, p99 -15%)
   peak_delay:
     enabled: false
   metrics:
@@ -207,5 +207,5 @@ cake_signal:
   detection:
     refractory_cycles: 40
   recovery:
-    probe_multiplier: 1.5
-    probe_ceiling_pct: 0.9
+    probe_multiplier: 1.0 # Phase 163 A/B winner (1.0 vs 1.5 vs 2.0, linear recovery best)
+    probe_ceiling_pct: 0.95 # Phase 163 A/B winner (0.95 vs 0.9 vs 0.85, p99 -5%)
