@@ -1,9 +1,11 @@
 # Spectrum WAN Watchdog Restarts Issue
 
-**Status:** Active Issue (Ongoing)
+> Historical incident record. This document captures a January 2026 watchdog-restart investigation. Treat it as post-mortem/reference material, not the primary deployment or operations guide.
+
+**Status:** Historical investigation snapshot
 **Severity:** MEDIUM - Service auto-recovers but indicates underlying WAN instability
 **Date Discovered:** 2026-01-11
-**Affected:** cake-spectrum service only (ATT unaffected)
+**Affected:** `wanctl@spectrum.service` only at the time of investigation (`wanctl@att.service` unaffected)
 
 ## Executive Summary
 
@@ -31,9 +33,9 @@ Jan 11 10:20:54,783 [spectrum] [ERROR] Sustained failure: 3 consecutive failed c
 Followed ~30 seconds later by:
 
 ```
-Jan 11 10:21:18 cake-spectrum systemd[1]: wanctl@spectrum.service: Main process exited, code=killed, status=6/ABRT
-Jan 11 10:21:18 cake-spectrum systemd[1]: wanctl@spectrum.service: Failed with result 'watchdog'.
-Jan 11 10:21:24 cake-spectrum systemd[1]: wanctl@spectrum.service: Scheduled restart job, restart counter is at 2.
+Jan 11 10:21:18 <host> systemd[1]: wanctl@spectrum.service: Main process exited, code=killed, status=6/ABRT
+Jan 11 10:21:18 <host> systemd[1]: wanctl@spectrum.service: Failed with result 'watchdog'.
+Jan 11 10:21:24 <host> systemd[1]: wanctl@spectrum.service: Scheduled restart job, restart counter is at 2.
 ```
 
 ## Root Cause Analysis

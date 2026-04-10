@@ -467,7 +467,7 @@ print_next_steps() {
     if [[ "$WITH_STEERING" == "true" ]]; then
         echo -e "${BLUE}5. Enable steering (optional):${NC}"
         echo "   Edit $TARGET_CONFIG_DIR/steering.yaml"
-        echo "   ssh $TARGET_HOST 'sudo systemctl enable --now steering.timer'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl enable --now steering.service'"
         echo ""
     fi
 
@@ -561,6 +561,15 @@ echo ""
 if [[ "$DRY_RUN" == "true" ]]; then
     print_warning "DRY RUN - no changes will be made"
     echo ""
+    print_step "Planned actions:"
+    echo "  - run install.sh on target if wanctl user is missing"
+    echo "  - rsync src/wanctl/ to $TARGET_HOST:$TARGET_CODE_DIR/"
+    echo "  - deploy config to $TARGET_CONFIG_DIR/$WAN_NAME.yaml if present"
+    echo "  - deploy profiling/analysis scripts, docs, QoS assets, and systemd units"
+    if [[ "$WITH_STEERING" == "true" ]]; then
+        echo "  - deploy steering.service and $TARGET_CONFIG_DIR/steering.yaml"
+    fi
+    exit 0
 fi
 
 check_prerequisites
@@ -574,12 +583,6 @@ if [[ "$DRY_RUN" != "true" ]]; then
 fi
 
 deploy_code
-
-# Dry-run only exercises rsync — skip the rest
-if [[ "$DRY_RUN" == "true" ]]; then
-    exit 0
-fi
-
 deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_analysis_scripts

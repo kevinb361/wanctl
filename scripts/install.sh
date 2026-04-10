@@ -17,7 +17,7 @@
 set -e
 
 # Version
-VERSION="1.12.0"
+VERSION="1.32.2"
 
 # Colors for output
 RED='\033[0;31m'
@@ -107,10 +107,11 @@ check_prerequisites() {
         print_success "ssh-keygen available"
     fi
 
-    # Network connectivity (can we reach common DNS?)
+    # Network connectivity is helpful for package installs, but not required
+    # for local/offline deployments where dependencies are already present.
     if ! ping -c 1 -W 2 1.1.1.1 &>/dev/null 2>&1; then
-        print_error "No internet connectivity (cannot ping 1.1.1.1)"
-        errors=$((errors + 1))
+        print_warning "No internet connectivity (cannot ping 1.1.1.1) - continuing with offline install checks only"
+        warnings=$((warnings + 1))
     else
         print_success "Internet connectivity OK"
     fi
@@ -1430,7 +1431,7 @@ STEEREOF
         echo "  sudo systemctl enable --now wanctl@${wan_name}.service"
 
         if [[ "$is_multi_wan" == "true" && "$is_primary_host" == "true" ]] && [[ -f "$CONFIG_DIR/steering.yaml" ]]; then
-            echo "  sudo systemctl enable --now steering.timer"
+            echo "  sudo systemctl enable --now steering.service"
         fi
 
         if [[ "$is_multi_wan" == "true" && "$is_primary_host" == "true" ]]; then
@@ -1523,8 +1524,24 @@ uninstall() {
     print_header "Uninstalling wanctl"
 
     print_step "Stopping services..."
-    systemctl stop 'wanctl@*.timer' 2>/dev/null || true
-    systemctl disable 'wanctl@*.timer' 2>/dev/null || true
+    local wan_services
+    wan_services=$(systemctl list-units --full --all 'wanctl@*.service' --no-legend 2>/dev/null | awk '{print $1}')
+    if [[ -n "$wan_services" ]]; then
+        echo "$wan_services" | xargs -r systemctl stop 2>/dev/null || true
+        echo "$wan_services" | xargs -r systemctl disable 2>/dev/null || true
+    fi
+    systemctl stop steering.service 2>/dev/null || true
+    systemctl disable steering.service 2>/dev/null || true
+
+    # Clean up any legacy timer-based units from older installs.
+    local wan_timers
+    wan_timers=$(systemctl list-units --full --all 'wanctl@*.timer' --no-legend 2>/dev/null | awk '{print $1}')
+    if [[ -n "$wan_timers" ]]; then
+        echo "$wan_timers" | xargs -r systemctl stop 2>/dev/null || true
+        echo "$wan_timers" | xargs -r systemctl disable 2>/dev/null || true
+    fi
+    systemctl stop steering.timer 2>/dev/null || true
+    systemctl disable steering.timer 2>/dev/null || true
 
     print_step "Removing systemd units..."
     rm -f /etc/systemd/system/wanctl@.service

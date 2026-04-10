@@ -260,5 +260,5 @@ After calibration:
 1. Review the generated config
 2. Update queue names to match your RouterOS setup
 3. Copy SSH key: `sudo cp ~/.ssh/router_key /etc/wanctl/ssh/router.key`
-4. Enable the service: `sudo systemctl enable --now wanctl@wan1.timer`
+4. Enable the service: `sudo systemctl enable --now wanctl@wan1.service`
 5. Monitor: `journalctl -u wanctl@wan1 -f`

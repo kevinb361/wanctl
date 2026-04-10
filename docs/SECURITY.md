@@ -113,7 +113,7 @@ If you deploy the updated code WITHOUT adding host keys to known_hosts:
 **Resolution:**
 
 - Add host keys to known_hosts (see Steps above)
-- Restart systemd timers: `systemctl restart wanctl@wan1.timer`
+- Restart the service after updating host keys: `systemctl restart wanctl@wan1.service`
 
 ## Deployment Checklist
 

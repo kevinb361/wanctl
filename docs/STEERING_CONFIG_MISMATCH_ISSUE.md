@@ -1,5 +1,7 @@
 # Steering Daemon Configuration Mismatch Issue
 
+> Historical incident record. This document describes a closed steering deployment issue from January 2026. Current setup guidance lives in `docs/DEPLOYMENT.md`, `docs/GETTING-STARTED.md`, and `docs/STEERING.md`.
+
 **Status:** CLOSED
 **Severity:** Medium (steering non-functional for 3+ days, but no impact on bufferbloat control)
 **Discovered:** 2026-01-11 during debug log review
@@ -86,13 +88,13 @@ But the actual production config exists as:
 - **Autorate continued working perfectly** - bufferbloat control unaffected
 - **Steering failures logged but not monitored** - no alerts set up for steering daemon
 - **No functional impact** - network remained stable on primary WAN (Spectrum)
-- **Timer kept retrying silently** - systemd steering.timer attempted restart every 2s
+- **Service kept retrying silently** - the steering daemon kept failing and restarting until the config mismatch was fixed
 
 ---
 
 ## Temporary Fix Applied (2026-01-11)
 
-**Manual correction deployed to cake-spectrum:/etc/wanctl/steering.yaml:**
+**Manual correction deployed to the affected host `/etc/wanctl/steering.yaml`:**
 
 ```yaml
 # Fixed values:

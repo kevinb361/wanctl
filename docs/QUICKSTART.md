@@ -8,7 +8,7 @@ Before starting, ensure you have:
 
 - [ ] **Mikrotik Router** running RouterOS 7.x
 - [ ] **CAKE queues** already configured on the router (see [Setting Up CAKE](#setting-up-cake-on-routeros))
-- [ ] **Linux host** (Ubuntu 22.04+, Debian 12+, or similar) with Python 3.12+
+- [ ] **Linux host** (Ubuntu 22.04+, Debian 12+, or similar) with Python 3.11+
 - [ ] **SSH key** for router access (password auth not supported)
 - [ ] **Network access** from host to router
 
@@ -116,11 +116,11 @@ sudo -u wanctl python3 -m wanctl.autorate_continuous \
 ## Step 6: Enable the Service
 
 ```bash
-# Enable and start the timer
-sudo systemctl enable --now wanctl@wan1.timer
+# Enable and start the service
+sudo systemctl enable --now wanctl@wan1.service
 
 # Verify it's running
-systemctl status wanctl@wan1.timer
+systemctl status wanctl@wan1.service
 
 # Watch the logs
 journalctl -u wanctl@wan1 -f
@@ -174,7 +174,7 @@ Router's SSH host key not in known_hosts:
 
 ```bash
 # Add router host key
-sudo -u wanctl ssh-keyscan -H <router_ip> >> /home/wanctl/.ssh/known_hosts
+sudo -u wanctl ssh-keyscan -H <router_ip> >> /var/lib/wanctl/.ssh/known_hosts
 ```
 
 ### "Permission denied (publickey)"

@@ -246,6 +246,8 @@ class QueueController:
         # RECOV-01: Exponential probing
         step = int(self.step_up_bps * self._probe_multiplier)
         self._probe_multiplier *= self._probe_multiplier_factor
+        max_multiplier = max(1.0, (self.ceiling_bps - self.floor_red_bps) / max(1, self.step_up_bps))
+        self._probe_multiplier = min(self._probe_multiplier, max_multiplier)
         self._probe_step_count += 1
         return step
 
