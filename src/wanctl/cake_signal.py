@@ -119,6 +119,13 @@ class CakeSignalConfig:
         peak_delay_enabled: Whether peak delay signal feeds into zone logic (Phase 160).
         metrics_enabled: Whether to emit Prometheus-style metrics (Phase 160).
         time_constant_sec: EWMA time constant in seconds. alpha = cycle_interval / tc.
+        drop_rate_threshold: Drops/sec above which dwell timer is bypassed (DETECT-01).
+            0.0 disables the bypass. Conservative default avoids false triggers.
+        backlog_threshold_bytes: Queue backlog bytes above which green_streak is
+            suppressed, preventing premature rate recovery (DETECT-02).
+            0 disables suppression.
+        refractory_cycles: Cycles to mask CAKE signals after a drop-triggered
+            rate reduction, preventing cascading reductions (DETECT-03).
     """
 
     enabled: bool = False
@@ -127,6 +134,9 @@ class CakeSignalConfig:
     peak_delay_enabled: bool = False
     metrics_enabled: bool = False
     time_constant_sec: float = 1.0
+    drop_rate_threshold: float = 10.0
+    backlog_threshold_bytes: int = 10000
+    refractory_cycles: int = 40
 
 
 class CakeSignalProcessor:

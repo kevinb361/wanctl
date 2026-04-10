@@ -714,3 +714,47 @@ class TestCakeSignalReload:
         call_args = mock_ctrl.logger.warning.call_args
         formatted = call_args[0][0] % call_args[0][1:]
         assert "(unchanged)" in formatted
+
+
+# ---------------------------------------------------------------------------
+# CakeSignalConfig -- detection threshold fields (Phase 160: DETECT-01/02/03)
+# ---------------------------------------------------------------------------
+
+class TestCakeSignalConfigDetectionThresholds:
+    """Tests for Phase 160 detection threshold fields on CakeSignalConfig."""
+
+    def test_default_values(self) -> None:
+        """New threshold fields have conservative defaults."""
+        cfg = CakeSignalConfig()
+        assert cfg.drop_rate_threshold == 10.0
+        assert cfg.backlog_threshold_bytes == 10000
+        assert cfg.refractory_cycles == 40
+
+    def test_custom_values(self) -> None:
+        """Non-default construction works for all threshold fields."""
+        cfg = CakeSignalConfig(
+            drop_rate_threshold=25.0,
+            backlog_threshold_bytes=50000,
+            refractory_cycles=100,
+        )
+        assert cfg.drop_rate_threshold == 25.0
+        assert cfg.backlog_threshold_bytes == 50000
+        assert cfg.refractory_cycles == 100
+
+    def test_frozen_drop_rate_threshold(self) -> None:
+        """Cannot reassign drop_rate_threshold after creation."""
+        cfg = CakeSignalConfig()
+        with pytest.raises(FrozenInstanceError):
+            cfg.drop_rate_threshold = 99.0  # type: ignore[misc]
+
+    def test_frozen_backlog_threshold_bytes(self) -> None:
+        """Cannot reassign backlog_threshold_bytes after creation."""
+        cfg = CakeSignalConfig()
+        with pytest.raises(FrozenInstanceError):
+            cfg.backlog_threshold_bytes = 99999  # type: ignore[misc]
+
+    def test_frozen_refractory_cycles(self) -> None:
+        """Cannot reassign refractory_cycles after creation."""
+        cfg = CakeSignalConfig()
+        with pytest.raises(FrozenInstanceError):
+            cfg.refractory_cycles = 99  # type: ignore[misc]
