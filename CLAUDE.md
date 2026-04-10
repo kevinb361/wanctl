@@ -7,7 +7,7 @@
 Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
 
 **Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
-**Version:** 1.31.0
+**Version:** 1.32.0
 **Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
 
 ## Change Policy
@@ -127,13 +127,13 @@ When ICMP is blocked/filtered, controller now measures TCP RTT as fallback durin
 
 ## Version
 
-**Current:** v1.27.1 (Performance & QoS) + v1.28 infrastructure deployed
+**Current:** v1.32.0 (CAKE-Aware Congestion Detection) — Phase 159 deployed
 
-- v1.28: cake-shaper 3 vCPUs, IRQ rebalancing (load avg -23%), SFP+ multi-queue (0 drops)
-- v1.28: Bridge download DSCP classification via nftables (closes bridge-before-router gap)
-- v1.28: WireGuard TX error fix (ZeroTier interface binding)
+- v1.32: CAKE signal infrastructure — per-tin netlink stats, EWMA drop rate, health endpoint, YAML config
+- v1.31: Linux-CAKE optimization — netlink backend, deferred I/O, hysteresis tuning, warn_bloat 60→75
+- v1.30: Burst detection — RTT acceleration detector, threshold=6.0 A/B validated
+- v1.29: Code health — dead code, module splitting, method extraction, strict linting
 - BackgroundRTTThread offloads RTT measurement (cycle util 102%->27%)
-- CAKE parameter sweep script (scripts/cake-param-sweep.sh)
 - 4,239 unit tests passing, 0 failures
 
 ## Circuit Breaker Policy
