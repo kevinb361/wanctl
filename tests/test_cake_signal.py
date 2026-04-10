@@ -432,3 +432,285 @@ class TestCakeSignalProcessorTinSnapshots:
         assert snap.tins[1].drop_delta == 5  # 15 - 10
         assert snap.tins[2].drop_delta == 1  # 4 - 3
         assert snap.tins[3].drop_delta == 1  # 2 - 1
+
+
+# ---------------------------------------------------------------------------
+# YAML config parsing (_parse_cake_signal_config) -- Phase 159, CAKE-05
+# ---------------------------------------------------------------------------
+
+class TestCakeSignalYAMLConfig:
+    """Tests for _parse_cake_signal_config via WANController."""
+
+    def _make_controller_with_yaml(self, tmp_path, yaml_content: str):
+        """Create a minimal mock WANController with a temp YAML config file."""
+        import yaml as _yaml
+        from unittest.mock import MagicMock
+
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text(yaml_content)
+
+        # Minimal mock that exposes config.config_file_path
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(config_file)
+
+        # Bind _parse_cake_signal_config to our mock
+        from wanctl.wan_controller import WANController
+        return WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)  # bound method
+
+    def test_parse_missing_section(self, tmp_path) -> None:
+        """No cake_signal key in YAML -> all defaults (disabled)."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path, yaml.dump({"some_other_key": True})
+        )
+        cfg = parse()
+        assert cfg.enabled is False
+        assert cfg.drop_rate_enabled is False
+        assert cfg.backlog_enabled is False
+        assert cfg.peak_delay_enabled is False
+        assert cfg.metrics_enabled is False
+        assert cfg.time_constant_sec == 1.0
+
+    def test_parse_all_enabled(self, tmp_path) -> None:
+        """All sub-features enabled with custom time_constant."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True, "time_constant_sec": 2.0},
+                    "backlog": {"enabled": True},
+                    "peak_delay": {"enabled": True},
+                    "metrics": {"enabled": True},
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.enabled is True
+        assert cfg.drop_rate_enabled is True
+        assert cfg.backlog_enabled is True
+        assert cfg.peak_delay_enabled is True
+        assert cfg.metrics_enabled is True
+        assert cfg.time_constant_sec == 2.0
+
+    def test_parse_invalid_types(self, tmp_path) -> None:
+        """Non-bool enabled, non-float time_constant -> defaults."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": "yes",  # not a bool
+                    "drop_rate": {"enabled": 42, "time_constant_sec": "fast"},
+                    "backlog": {"enabled": None},
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.enabled is False  # "yes" is not bool
+        assert cfg.drop_rate_enabled is False  # 42 is not True
+        assert cfg.backlog_enabled is False  # None is not True
+        assert cfg.time_constant_sec == 1.0  # "fast" not valid
+
+    def test_parse_time_constant_bounds_low(self, tmp_path) -> None:
+        """time_constant below 0.1 clamped to 0.1."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True, "time_constant_sec": 0.01},
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.time_constant_sec == 0.1
+
+    def test_parse_time_constant_bounds_high(self, tmp_path) -> None:
+        """time_constant above 30.0 clamped to 30.0."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True, "time_constant_sec": 100.0},
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.time_constant_sec == 30.0
+
+    def test_parse_partial_section(self, tmp_path) -> None:
+        """Only some sub-features enabled."""
+        import yaml
+
+        parse = self._make_controller_with_yaml(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True},
+                    # backlog, peak_delay, metrics not specified -> disabled
+                }
+            }),
+        )
+        cfg = parse()
+        assert cfg.enabled is True
+        assert cfg.drop_rate_enabled is True
+        assert cfg.backlog_enabled is False
+        assert cfg.peak_delay_enabled is False
+        assert cfg.metrics_enabled is False
+        assert cfg.time_constant_sec == 1.0
+
+    def test_parse_file_not_found(self, tmp_path) -> None:
+        """Config file doesn't exist -> defaults."""
+        from unittest.mock import MagicMock
+
+        from wanctl.wan_controller import WANController
+
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(tmp_path / "nonexistent.yaml")
+        parse = WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)
+        cfg = parse()
+        assert cfg.enabled is False
+
+    def test_parse_empty_yaml(self, tmp_path) -> None:
+        """Empty YAML file -> defaults."""
+        config_file = tmp_path / "empty.yaml"
+        config_file.write_text("")
+
+        from unittest.mock import MagicMock
+
+        from wanctl.wan_controller import WANController
+
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(config_file)
+        parse = WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)
+        cfg = parse()
+        assert cfg.enabled is False
+
+
+# ---------------------------------------------------------------------------
+# SIGUSR1 reload (_reload_cake_signal_config) -- Phase 159, CAKE-05
+# ---------------------------------------------------------------------------
+
+class TestCakeSignalReload:
+    """Tests for _reload_cake_signal_config via WANController."""
+
+    def _make_mock_ctrl(self, tmp_path, yaml_content: str):
+        """Create mock WANController with real _parse and _reload bound."""
+        import yaml
+        from unittest.mock import MagicMock
+
+        from wanctl.wan_controller import WANController
+
+        config_file = tmp_path / "test.yaml"
+        config_file.write_text(yaml_content)
+
+        mock_ctrl = MagicMock()
+        mock_ctrl.config.config_file_path = str(config_file)
+
+        # Bind real methods so they call the actual implementation
+        mock_ctrl._parse_cake_signal_config = (
+            WANController._parse_cake_signal_config.__get__(mock_ctrl, WANController)
+        )
+        mock_ctrl._reload_cake_signal_config = (
+            WANController._reload_cake_signal_config.__get__(mock_ctrl, WANController)
+        )
+        return mock_ctrl, config_file
+
+    def test_reload_updates_processor_config(self, tmp_path) -> None:
+        """Reload updates both DL and UL processor configs."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, config_file = self._make_mock_ctrl(
+            tmp_path, yaml.dump({"cake_signal": {"enabled": False}})
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(config=CakeSignalConfig())
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(config=CakeSignalConfig())
+
+        # Verify initial state
+        assert mock_ctrl._dl_cake_signal.config.enabled is False
+
+        # Update YAML to enable
+        config_file.write_text(yaml.dump({
+            "cake_signal": {
+                "enabled": True,
+                "drop_rate": {"enabled": True, "time_constant_sec": 3.0},
+                "metrics": {"enabled": True},
+            }
+        }))
+
+        # Call reload
+        mock_ctrl._reload_cake_signal_config()
+
+        # Both processors should have new config
+        assert mock_ctrl._dl_cake_signal.config.enabled is True
+        assert mock_ctrl._dl_cake_signal.config.drop_rate_enabled is True
+        assert mock_ctrl._dl_cake_signal.config.metrics_enabled is True
+        assert mock_ctrl._dl_cake_signal.config.time_constant_sec == 3.0
+        assert mock_ctrl._ul_cake_signal.config.enabled is True
+
+    def test_reload_logs_transitions(self, tmp_path) -> None:
+        """Reload logs transition descriptions at WARNING level."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, _ = self._make_mock_ctrl(
+            tmp_path,
+            yaml.dump({
+                "cake_signal": {
+                    "enabled": True,
+                    "drop_rate": {"enabled": True},
+                }
+            }),
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=False)
+        )
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=False)
+        )
+
+        mock_ctrl._reload_cake_signal_config()
+
+        # Check logger.warning was called with transition info
+        mock_ctrl.logger.warning.assert_called_once()
+        call_args = mock_ctrl.logger.warning.call_args
+        assert "[CAKE_SIGNAL]" in call_args[0][0]
+        # The formatted string should contain enabled transition
+        formatted = call_args[0][0] % call_args[0][1:]
+        assert "enabled=False->True" in formatted
+
+    def test_reload_unchanged_logs_unchanged(self, tmp_path) -> None:
+        """Reload with no changes logs (unchanged)."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, _ = self._make_mock_ctrl(
+            tmp_path, yaml.dump({"cake_signal": {"enabled": False}})
+        )
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=False)
+        )
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=False)
+        )
+
+        mock_ctrl._reload_cake_signal_config()
+
+        call_args = mock_ctrl.logger.warning.call_args
+        formatted = call_args[0][0] % call_args[0][1:]
+        assert "(unchanged)" in formatted

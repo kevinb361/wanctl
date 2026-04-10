@@ -577,20 +577,95 @@ class WANController:
             self._oscillation_threshold = DEFAULT_OSCILLATION_THRESHOLD
 
     def _init_cake_signal(self) -> None:
-        """Initialize CAKE signal processing (disabled by default, Phase 159).
+        """Initialize CAKE signal processing from YAML config (Phase 159, CAKE-05).
 
         Creates CakeSignalProcessor instances for download and upload.
         Only active when transport is linux-cake (LinuxCakeAdapter).
         """
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
-        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor, CakeSignalSnapshot
+        from wanctl.cake_signal import CakeSignalProcessor, CakeSignalSnapshot
 
         self._cake_signal_supported = isinstance(self.router, LinuxCakeAdapter)
-        config = CakeSignalConfig()  # All disabled by default
+
+        config = self._parse_cake_signal_config()
         self._dl_cake_signal = CakeSignalProcessor(config=config)
         self._ul_cake_signal = CakeSignalProcessor(config=config)
         self._dl_cake_snapshot: CakeSignalSnapshot | None = None
         self._ul_cake_snapshot: CakeSignalSnapshot | None = None
+
+        if config.enabled and self._cake_signal_supported:
+            self.logger.info(
+                "%s: CAKE signal enabled (drop_rate=%s, backlog=%s, peak_delay=%s, "
+                "metrics=%s, tc=%.1fs)",
+                self.wan_name, config.drop_rate_enabled, config.backlog_enabled,
+                config.peak_delay_enabled, config.metrics_enabled,
+                config.time_constant_sec,
+            )
+        elif config.enabled and not self._cake_signal_supported:
+            self.logger.warning(
+                "%s: CAKE signal enabled in config but transport is not linux-cake -- disabled",
+                self.wan_name,
+            )
+
+    def _parse_cake_signal_config(self) -> Any:
+        """Parse cake_signal section from YAML config file.
+
+        Returns CakeSignalConfig with all booleans defaulting to False
+        and time_constant_sec defaulting to 1.0 if section missing or invalid.
+        """
+        from wanctl.cake_signal import CakeSignalConfig
+
+        try:
+            import yaml
+
+            with open(self.config.config_file_path) as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            return CakeSignalConfig()
+
+        cs = data.get("cake_signal", {}) if data else {}
+        if not isinstance(cs, dict):
+            return CakeSignalConfig()
+
+        enabled = cs.get("enabled", False)
+        if not isinstance(enabled, bool):
+            enabled = False
+
+        dr = cs.get("drop_rate", {})
+        if not isinstance(dr, dict):
+            dr = {}
+        drop_rate_enabled = dr.get("enabled", False) is True
+
+        tc_sec = dr.get("time_constant_sec", 1.0)
+        if not isinstance(tc_sec, (int, float)) or isinstance(tc_sec, bool) or tc_sec <= 0:
+            tc_sec = 1.0
+        tc_sec = float(tc_sec)
+        # Bounds: [0.1, 30.0]
+        tc_sec = max(0.1, min(30.0, tc_sec))
+
+        bl = cs.get("backlog", {})
+        if not isinstance(bl, dict):
+            bl = {}
+        backlog_enabled = bl.get("enabled", False) is True
+
+        pd = cs.get("peak_delay", {})
+        if not isinstance(pd, dict):
+            pd = {}
+        peak_delay_enabled = pd.get("enabled", False) is True
+
+        mt = cs.get("metrics", {})
+        if not isinstance(mt, dict):
+            mt = {}
+        metrics_enabled = mt.get("enabled", False) is True
+
+        return CakeSignalConfig(
+            enabled=enabled,
+            drop_rate_enabled=drop_rate_enabled,
+            backlog_enabled=backlog_enabled,
+            peak_delay_enabled=peak_delay_enabled,
+            metrics_enabled=metrics_enabled,
+            time_constant_sec=tc_sec,
+        )
 
     def _restore_tuning_params(self) -> None:
         """Restore latest tuning parameter values from SQLite.
@@ -1687,6 +1762,32 @@ class WANController:
             self._asymmetry_gate_active = False
             self._asymmetry_downstream_streak = 0
 
+    def _reload_cake_signal_config(self) -> None:
+        """Re-read cake_signal config from YAML (triggered by SIGUSR1, CAKE-05)."""
+        new_config = self._parse_cake_signal_config()
+        old_config = self._dl_cake_signal.config
+
+        # Log transitions
+        changes: list[str] = []
+        if old_config.enabled != new_config.enabled:
+            changes.append(f"enabled={old_config.enabled}->{new_config.enabled}")
+        if old_config.drop_rate_enabled != new_config.drop_rate_enabled:
+            changes.append(f"drop_rate={old_config.drop_rate_enabled}->{new_config.drop_rate_enabled}")
+        if old_config.backlog_enabled != new_config.backlog_enabled:
+            changes.append(f"backlog={old_config.backlog_enabled}->{new_config.backlog_enabled}")
+        if old_config.peak_delay_enabled != new_config.peak_delay_enabled:
+            changes.append(f"peak_delay={old_config.peak_delay_enabled}->{new_config.peak_delay_enabled}")
+        if old_config.metrics_enabled != new_config.metrics_enabled:
+            changes.append(f"metrics={old_config.metrics_enabled}->{new_config.metrics_enabled}")
+        if abs(old_config.time_constant_sec - new_config.time_constant_sec) > 0.001:
+            changes.append(f"tc={old_config.time_constant_sec}->{new_config.time_constant_sec}")
+
+        change_str = ", ".join(changes) if changes else "(unchanged)"
+        self.logger.warning("[CAKE_SIGNAL] Config reload: %s", change_str)
+
+        self._dl_cake_signal.config = new_config
+        self._ul_cake_signal.config = new_config
+
     def _record_profiling(
         self,
         rtt_ms: float,
@@ -2693,6 +2794,7 @@ class WANController:
         self._reload_cycle_budget_config()
         self._reload_suppression_alert_config()
         self._reload_asymmetry_gate_config()
+        self._reload_cake_signal_config()  # Phase 159, CAKE-05
 
     def shutdown_threads(self) -> None:
         """Stop background threads (RTT thread and thread pool)."""
