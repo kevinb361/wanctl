@@ -32,10 +32,14 @@ TARGET_SYSTEMD_DIR="/etc/systemd/system"
 # NOTE: Python code deployment uses rsync (see deploy_code function).
 # No file lists needed — rsync syncs the entire src/wanctl/ tree.
 
-# Profiling and analysis scripts (optional, for data collection and analysis)
+# Profiling scripts (standalone log parsers, no wanctl imports)
 PROFILING_SCRIPTS=(
     "scripts/profiling_collector.py"
     "scripts/analyze_profiling.py"
+)
+
+# Analysis scripts (import wanctl modules, must live under /opt/wanctl/)
+ANALYSIS_SCRIPTS=(
     "scripts/analyze_baseline.py"
 )
 
@@ -213,6 +217,28 @@ deploy_profiling_scripts() {
     done
 
     print_success "Profiling scripts deployed"
+}
+
+deploy_analysis_scripts() {
+    print_step "Deploying analysis scripts..."
+
+    cd "$PROJECT_ROOT"
+
+    # Deploy to /opt/wanctl/scripts/ so sys.path resolves wanctl imports
+    ssh "$TARGET_HOST" "sudo mkdir -p /opt/wanctl/scripts"
+
+    for file in "${ANALYSIS_SCRIPTS[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename /opt/wanctl/scripts/$basename && sudo chown root:root /opt/wanctl/scripts/$basename && sudo chmod 755 /opt/wanctl/scripts/$basename"
+            echo "  -> wanctl/scripts/$basename"
+        else
+            print_warning "File not found: $file"
+        fi
+    done
+
+    print_success "Analysis scripts deployed"
 }
 
 deploy_docs() {
@@ -556,6 +582,7 @@ fi
 
 deploy_config "$WAN_NAME"
 deploy_profiling_scripts
+deploy_analysis_scripts
 deploy_docs
 deploy_nic_tuning_script
 deploy_sysctl_tuning
