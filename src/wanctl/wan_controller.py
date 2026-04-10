@@ -40,6 +40,7 @@ from wanctl.rate_utils import RateLimiter
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.routeros_interface import RouterOS
+from wanctl.cake_stats_thread import BackgroundCakeStatsThread
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTMeasurement,
@@ -540,6 +541,9 @@ class WANController:
         self._rtt_thread: BackgroundRTTThread | None = None
         self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
 
+        # Background CAKE stats thread (offloads 7-20ms netlink I/O from main loop)
+        self._cake_stats_thread: BackgroundCakeStatsThread | None = None
+
         # Deferred I/O worker (Phase 155: CYCLE-02)
         self._io_worker: DeferredIOWorker | None = None
 
@@ -814,6 +818,27 @@ class WANController:
             pool=self._rtt_pool,
         )
         self._rtt_thread.start()
+
+    def start_background_cake_stats(self, shutdown_event: threading.Event) -> None:
+        """Start background CAKE stats thread if transport supports it.
+
+        Creates a BackgroundCakeStatsThread with its own IPRoute connections
+        that reads CAKE qdisc stats continuously. The main loop reads cached
+        results via _run_cake_stats() instead of blocking on 7-20ms netlink I/O.
+        """
+        if not self._cake_signal_supported:
+            return
+
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        adapter: LinuxCakeAdapter = self.router  # type: ignore[assignment]
+        self._cake_stats_thread = BackgroundCakeStatsThread(
+            dl_interface=adapter.dl_backend.interface,
+            ul_interface=adapter.ul_backend.interface,
+            shutdown_event=shutdown_event,
+            cadence_sec=self._cycle_interval_ms / 1000.0,
+        )
+        self._cake_stats_thread.start()
 
     def measure_rtt(self) -> float | None:
         """Read latest RTT from background thread (non-blocking).
@@ -2196,12 +2221,20 @@ class WANController:
     def _run_cake_stats(self) -> None:
         """Read CAKE qdisc stats and update signal processors (Phase 159).
 
-        Runs on main thread (IPRoute not thread-safe). Reads stats from
-        NetlinkCakeBackend.get_queue_stats() for both DL and UL directions.
-        Only active when transport is linux-cake and cake_signal is enabled.
+        Reads from BackgroundCakeStatsThread cache (lock-free, ~0ms) instead
+        of inline netlink I/O (7-20ms). Falls back to inline reads if
+        background thread not started (e.g., tests or non-netlink transport).
         """
         if not self._cake_signal_supported:
             return
+
+        if self._cake_stats_thread is not None:
+            snapshot = self._cake_stats_thread.get_latest()
+            if snapshot is not None:
+                self._dl_cake_snapshot = self._dl_cake_signal.update(snapshot.dl_stats)
+                self._ul_cake_snapshot = self._ul_cake_signal.update(snapshot.ul_stats)
+                return
+            # No data yet (thread still starting) — fall through to inline
 
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 

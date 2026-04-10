@@ -474,6 +474,7 @@ def _setup_daemon_state(
     rtt_shutdown = get_shutdown_event()
     for wan_info in controller.wan_controllers:
         wan_info["controller"].start_background_rtt(rtt_shutdown)
+        wan_info["controller"].start_background_cake_stats(get_shutdown_event())
 
     # Create deferred I/O worker for background SQLite writes (Phase 155: CYCLE-02)
     io_worker: DeferredIOWorker | None = None
