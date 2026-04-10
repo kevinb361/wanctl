@@ -2867,3 +2867,405 @@ class TestCakeBacklogSuppression:
         )
         assert zone == "GREEN"
         assert controller_cake_dwell.green_streak == 1
+
+
+# =============================================================================
+# Phase 161: EXPONENTIAL PROBE RECOVERY TESTS (RECOV-01, RECOV-02, RECOV-03)
+# =============================================================================
+
+
+@pytest.fixture
+def controller_probe_4state():
+    """4-state controller configured for exponential probe testing (DL)."""
+    ctrl = QueueController(
+        name="TestDownload",
+        floor_green=550_000_000,
+        floor_yellow=350_000_000,
+        floor_soft_red=275_000_000,
+        floor_red=200_000_000,
+        ceiling=940_000_000,
+        step_up=10_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.92,
+        green_required=3,
+        dwell_cycles=5,
+        deadband_ms=3.0,
+    )
+    ctrl._probe_multiplier_factor = 1.5
+    ctrl._probe_ceiling_pct = 0.9
+    ctrl.current_rate = 550_000_000
+    return ctrl
+
+
+@pytest.fixture
+def controller_probe_3state():
+    """3-state controller configured for exponential probe testing (UL)."""
+    ctrl = QueueController(
+        name="TestUpload",
+        floor_green=28_000_000,
+        floor_yellow=20_000_000,
+        floor_soft_red=15_000_000,
+        floor_red=8_000_000,
+        ceiling=32_000_000,
+        step_up=5_000_000,
+        factor_down=0.85,
+        factor_down_yellow=0.92,
+        green_required=3,
+        dwell_cycles=0,
+        deadband_ms=0.0,
+    )
+    ctrl._probe_multiplier_factor = 1.5
+    ctrl._probe_ceiling_pct = 0.9
+    ctrl.current_rate = 8_000_000
+    return ctrl
+
+
+class TestExponentialProbing:
+    """RECOV-01: Exponential rate recovery probing tests."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 9.0
+    SOFT_RED = 45.0
+    HARD_RED = 100.0
+    UL_TARGET = 15.0
+    UL_WARN = 75.0
+
+    def test_probe_step_grows_exponentially_4state(self, controller_probe_4state):
+        """Consecutive GREEN recovery steps grow exponentially (1.0x, 1.5x, 2.25x)."""
+        ctrl = controller_probe_4state
+        steps = []
+        # Run multiple recovery cycles: green_required=3, so after 3 GREEN, rate steps up
+        for i in range(9):
+            rate_before = ctrl.current_rate
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+            rate_after = ctrl.current_rate
+            if rate_after > rate_before:
+                steps.append(rate_after - rate_before)
+
+        assert len(steps) >= 2, f"Expected at least 2 recovery steps, got {len(steps)}"
+        assert steps[1] > steps[0], (
+            f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        )
+
+    def test_probe_step_grows_exponentially_3state(self, controller_probe_3state):
+        """Consecutive GREEN recovery steps grow exponentially for 3-state (upload)."""
+        ctrl = controller_probe_3state
+        steps = []
+        for i in range(9):
+            rate_before = ctrl.current_rate
+            ctrl.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                target_delta=self.UL_TARGET,
+                warn_delta=self.UL_WARN,
+            )
+            rate_after = ctrl.current_rate
+            if rate_after > rate_before:
+                steps.append(rate_after - rate_before)
+
+        assert len(steps) >= 2, f"Expected at least 2 recovery steps, got {len(steps)}"
+        assert steps[1] > steps[0], (
+            f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        )
+
+    def test_probe_no_growth_when_factor_1(self, controller_probe_4state):
+        """With probe_multiplier_factor=1.0, all recovery steps are equal."""
+        ctrl = controller_probe_4state
+        ctrl._probe_multiplier_factor = 1.0
+        steps = []
+        for i in range(9):
+            rate_before = ctrl.current_rate
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+            rate_after = ctrl.current_rate
+            if rate_after > rate_before:
+                steps.append(rate_after - rate_before)
+
+        assert len(steps) >= 2
+        assert all(s == steps[0] for s in steps), (
+            f"All steps should be equal with factor=1.0, got {steps}"
+        )
+
+
+class TestProbeLinearFallback:
+    """RECOV-02: Linear fallback above ceiling threshold tests."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 9.0
+    SOFT_RED = 45.0
+    HARD_RED = 100.0
+
+    def test_linear_above_ceiling_pct_4state(self, controller_probe_4state):
+        """Above 90% ceiling, step equals step_up_bps exactly (linear)."""
+        ctrl = controller_probe_4state
+        # Set rate above 90% of ceiling (940M * 0.91 = 855.4M)
+        ctrl.current_rate = int(ctrl.ceiling_bps * 0.91)
+        # Build up green_streak
+        for _ in range(ctrl.green_required):
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+
+        # The rate should have stepped up by exactly step_up_bps
+        expected = int(ctrl.ceiling_bps * 0.91) + ctrl.step_up_bps
+        assert ctrl.current_rate == expected, (
+            f"Expected linear step to {expected}, got {ctrl.current_rate}"
+        )
+
+    def test_exponential_below_ceiling_pct_4state(self, controller_probe_4state):
+        """Below 90% ceiling, step should be larger than step_up_bps after first recovery."""
+        ctrl = controller_probe_4state
+        ctrl.current_rate = int(ctrl.ceiling_bps * 0.5)
+        # First recovery: step_up * 1.0
+        for _ in range(ctrl.green_required):
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+        first_rate = ctrl.current_rate
+
+        # Second recovery: step_up * 1.5
+        for _ in range(ctrl.green_required):
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+        second_step = ctrl.current_rate - first_rate
+        assert second_step > ctrl.step_up_bps, (
+            f"Second step ({second_step}) should exceed step_up_bps ({ctrl.step_up_bps})"
+        )
+
+
+class TestProbeMultiplierReset:
+    """RECOV-03: Probe multiplier reset on non-GREEN transitions (4-state)."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 9.0
+    SOFT_RED = 45.0
+    HARD_RED = 100.0
+
+    def _build_up_multiplier(self, ctrl):
+        """Run enough GREEN cycles to grow probe multiplier above 1.0."""
+        for _ in range(ctrl.green_required + 2):
+            ctrl.adjust_4state(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                green_threshold=self.GREEN_THRESHOLD,
+                soft_red_threshold=self.SOFT_RED,
+                hard_red_threshold=self.HARD_RED,
+            )
+        assert ctrl._probe_multiplier > 1.0, "Multiplier should have grown"
+
+    def test_reset_on_red_4state(self, controller_probe_4state):
+        """Probe multiplier resets to 1.0 on RED zone transition."""
+        ctrl = controller_probe_4state
+        self._build_up_multiplier(ctrl)
+        # Trigger RED
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.HARD_RED + 10,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_yellow_4state(self, controller_probe_4state):
+        """Probe multiplier resets to 1.0 on YELLOW zone transition."""
+        ctrl = controller_probe_4state
+        self._build_up_multiplier(ctrl)
+        # Trigger YELLOW (above green_threshold but below soft_red)
+        # Need to get past dwell timer -- set dwell_cycles=0 for this test
+        ctrl.dwell_cycles = 0
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.GREEN_THRESHOLD + 5,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_soft_red_4state(self, controller_probe_4state):
+        """Probe multiplier resets to 1.0 on SOFT_RED zone transition."""
+        ctrl = controller_probe_4state
+        self._build_up_multiplier(ctrl)
+        # Trigger SOFT_RED (above soft_red threshold but below hard_red)
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.SOFT_RED + 5,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_deadband_yellow_4state(self, controller_probe_4state):
+        """Probe multiplier resets to 1.0 on deadband-hold-YELLOW."""
+        ctrl = controller_probe_4state
+        self._build_up_multiplier(ctrl)
+        # First put into YELLOW state
+        ctrl.dwell_cycles = 0
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.GREEN_THRESHOLD + 5,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+        )
+        # Now build up multiplier again after YELLOW reset
+        ctrl._probe_multiplier = 2.0  # Manually set to verify reset
+        # Delta within deadband: just below green_threshold but within deadband_ms
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.GREEN_THRESHOLD - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_backlog_suppression_4state(self, controller_probe_4state):
+        """Probe multiplier resets to 1.0 on backlog suppression in GREEN."""
+        ctrl = controller_probe_4state
+        self._build_up_multiplier(ctrl)
+        # Set up backlog detection
+        ctrl._backlog_threshold_bytes = 10000
+        snap = _make_cake_snapshot(backlog_bytes=50000)
+        ctrl.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED,
+            hard_red_threshold=self.HARD_RED,
+            cake_snapshot=snap,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+
+class TestProbeMultiplierReset3State:
+    """RECOV-03: Probe multiplier reset on non-GREEN transitions (3-state)."""
+
+    BASELINE = 25.0
+    UL_TARGET = 15.0
+    UL_WARN = 75.0
+
+    def _build_up_multiplier(self, ctrl):
+        """Run enough GREEN cycles to grow probe multiplier above 1.0."""
+        for _ in range(ctrl.green_required + 2):
+            ctrl.adjust(
+                baseline_rtt=self.BASELINE,
+                load_rtt=self.BASELINE - 1.0,
+                target_delta=self.UL_TARGET,
+                warn_delta=self.UL_WARN,
+            )
+        assert ctrl._probe_multiplier > 1.0, "Multiplier should have grown"
+
+    def test_reset_on_red_3state(self, controller_probe_3state):
+        """Probe multiplier resets to 1.0 on RED zone transition (3-state)."""
+        ctrl = controller_probe_3state
+        self._build_up_multiplier(ctrl)
+        ctrl.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.UL_WARN + 10,
+            target_delta=self.UL_TARGET,
+            warn_delta=self.UL_WARN,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_yellow_3state(self, controller_probe_3state):
+        """Probe multiplier resets to 1.0 on YELLOW zone transition (3-state)."""
+        ctrl = controller_probe_3state
+        self._build_up_multiplier(ctrl)
+        ctrl.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.UL_TARGET + 5,
+            target_delta=self.UL_TARGET,
+            warn_delta=self.UL_WARN,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_deadband_yellow_3state(self, controller_probe_3state):
+        """Probe multiplier resets to 1.0 on deadband-hold-YELLOW (3-state)."""
+        ctrl = controller_probe_3state
+        # Need dwell and deadband for this test
+        ctrl.dwell_cycles = 0
+        ctrl.deadband_ms = 3.0
+        # First put into YELLOW state
+        ctrl.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.UL_TARGET + 5,
+            target_delta=self.UL_TARGET,
+            warn_delta=self.UL_WARN,
+        )
+        # Manually set multiplier to verify reset
+        ctrl._probe_multiplier = 2.0
+        # Delta within deadband: just below target but within deadband_ms
+        ctrl.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + self.UL_TARGET - 1.0,
+            target_delta=self.UL_TARGET,
+            warn_delta=self.UL_WARN,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+    def test_reset_on_backlog_suppression_3state(self, controller_probe_3state):
+        """Probe multiplier resets to 1.0 on backlog suppression in GREEN (3-state)."""
+        ctrl = controller_probe_3state
+        self._build_up_multiplier(ctrl)
+        ctrl._backlog_threshold_bytes = 10000
+        snap = _make_cake_snapshot(backlog_bytes=50000)
+        ctrl.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            target_delta=self.UL_TARGET,
+            warn_delta=self.UL_WARN,
+            cake_snapshot=snap,
+        )
+        assert ctrl._probe_multiplier == 1.0
+
+
+class TestProbeHealthEndpoint:
+    """Health endpoint includes recovery_probe section."""
+
+    def test_health_includes_probe_section(self):
+        """get_health_data() includes recovery_probe with all probe fields."""
+        ctrl = QueueController(
+            name="TestDownload",
+            floor_green=550_000_000,
+            floor_yellow=350_000_000,
+            floor_soft_red=275_000_000,
+            floor_red=200_000_000,
+            ceiling=940_000_000,
+            step_up=10_000_000,
+            factor_down=0.85,
+        )
+        health = ctrl.get_health_data()
+        assert "recovery_probe" in health
+        probe = health["recovery_probe"]
+        assert "probe_multiplier" in probe
+        assert "probe_multiplier_factor" in probe
+        assert "probe_ceiling_pct" in probe
+        assert "probe_step_count" in probe
+        assert "above_ceiling_pct" in probe
