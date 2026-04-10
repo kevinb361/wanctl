@@ -2816,6 +2816,22 @@ class TestSteeringConfig:
         assert config.router_password == "secret"
         assert config.router_port == 8443
 
+    def test_router_dict_does_not_retain_plaintext_password(self, tmp_path, valid_config_dict):
+        """Compatibility router dict should not keep a duplicate plaintext password."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        valid_config_dict["router"]["transport"] = "rest"
+        valid_config_dict["router"]["password"] = "secret"
+        config_file = tmp_path / "steering.yaml"
+        config_file.write_text(yaml.dump(valid_config_dict))
+
+        config = SteeringConfig(str(config_file))
+
+        assert config.router_password == "secret"
+        assert config.router["password"] == ""
+
 
 class TestWanStateConfig:
     """Tests for SteeringConfig._load_wan_state_config() method.

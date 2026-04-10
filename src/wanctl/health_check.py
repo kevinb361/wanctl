@@ -667,21 +667,30 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         # Select granularity automatically
         granularity = select_granularity(start_ts, end_ts)
 
-        # Query metrics from database
-        results = query_metrics(
+        offset = params.get("offset", 0)
+        limit = params.get("limit", 1000)
+
+        # Query metrics from database with SQL-level pagination.
+        paginated = query_metrics(
             db_path=DEFAULT_DB_PATH,
             start_ts=start_ts,
             end_ts=end_ts,
             metrics=params.get("metrics"),
             wan=params.get("wan"),
             granularity=granularity,
+            limit=limit,
+            offset=offset,
         )
-
-        # Apply pagination in Python (database returns all matching records)
-        total_count = len(results)
-        offset = params.get("offset", 0)
-        limit = params.get("limit", 1000)
-        paginated = results[offset : offset + limit]
+        total_count = len(
+            query_metrics(
+                db_path=DEFAULT_DB_PATH,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                metrics=params.get("metrics"),
+                wan=params.get("wan"),
+                granularity=granularity,
+            )
+        )
 
         # Format each metric record
         formatted_data = [self._format_metric(row) for row in paginated]

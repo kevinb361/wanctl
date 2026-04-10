@@ -669,7 +669,8 @@ class SteeringConfig(BaseConfig):
             "user": self.router_user,
             "ssh_key": self.ssh_key,
             "transport": self.router_transport,
-            "password": self.router_password,
+            # Keep compatibility shape without retaining a second plaintext secret copy.
+            "password": "",
             "port": self.router_port,
             "verify_ssl": self.router_verify_ssl,
         }

@@ -23,6 +23,8 @@ def query_metrics(
     metrics: list[str] | None = None,
     wan: str | None = None,
     granularity: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict]:
     """Query metrics from the database with optional filters.
 
@@ -35,6 +37,8 @@ def query_metrics(
         metrics: List of metric names to filter (exact match)
         wan: WAN name to filter (e.g., "spectrum", "att")
         granularity: Data granularity to filter (raw, 1m, 5m, 1h)
+        limit: Maximum number of rows to return.
+        offset: Number of rows to skip before returning results.
 
     Returns:
         List of dicts with keys: timestamp, wan_name, metric_name, value, labels, granularity
@@ -86,6 +90,16 @@ def query_metrics(
             params.append(granularity)
 
         sql += " ORDER BY timestamp DESC"
+
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+            if offset > 0:
+                sql += " OFFSET ?"
+                params.append(offset)
+        elif offset > 0:
+            sql += " LIMIT -1 OFFSET ?"
+            params.append(offset)
 
         cursor = conn.execute(sql, params)
         rows = cursor.fetchall()
