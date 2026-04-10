@@ -18,6 +18,7 @@ None
 - v1.28 Infrastructure Optimization: Phases 137-141 (shipped 2026-04-05)
 - v1.29 Code Health & Cleanup: Phases 142-150 (shipped 2026-04-08)
 - v1.30 Burst Detection: Phases 151-153 (shipped 2026-04-09)
+- v1.31 Linux-CAKE Optimization: Phases 154-158 (shipped 2026-04-09)
 
 ## Phases
 
@@ -96,95 +97,72 @@ None
 
 </details>
 
-### v1.31 Linux-CAKE Optimization
-
-**Milestone Goal:** Remove legacy router-era constraints and optimize the controller for local CAKE management -- netlink rate updates, deferred I/O, asymmetry-aware upload control, and post-DSCP parameter re-validation.
+<details>
+<summary>v1.31 Linux-CAKE Optimization (Phases 154-158) -- SHIPPED 2026-04-09</summary>
 
 - [x] **Phase 154: Netlink Backend Wiring** - Wire LinuxCakeAdapter to NetlinkCakeBackend with FD leak fix and CAKE parameter readback validation (completed 2026-04-09)
 - [x] **Phase 155: Deferred I/O Worker** - Background thread for SQLite metrics writes, fdatasync for state files, coalesced state writes (completed 2026-04-09)
-- [ ] **Phase 156: Asymmetry-Aware Upload** - Attenuated upload rate control using IRTT directional congestion detection
+- [x] **Phase 156: Asymmetry-Aware Upload** - Asymmetry gate with attenuated upload rate control using IRTT directional congestion detection (completed 2026-04-09)
 - [x] **Phase 157: Hysteresis Re-Tuning** - Measure and tune post-DSCP hysteresis suppression rate via A/B testing (completed 2026-04-09)
 - [x] **Phase 158: Parameter Re-Validation** - A/B re-validate step_up, bloat thresholds on linux-cake post-DSCP post-netlink (completed 2026-04-09)
 
+</details>
+
+### v1.32 CAKE-Aware Congestion Detection
+
+**Milestone Goal:** Integrate CAKE qdisc statistics (drops, backlog, peak delay) into the autorate hot path as secondary congestion signals alongside RTT delta — enabling faster congestion confirmation and smarter rate recovery.
+
+- [x] **Phase 159: CAKE Signal Infrastructure** - Per-tin netlink stats, EWMA drop rate, health endpoint, YAML config, metrics DB storage (completed 2026-04-09)
+- [ ] **Phase 160: Congestion Detection** - Drop rate bypasses dwell timer, backlog suppresses green_streak, refractory period, Bulk tin exclusion
+- [ ] **Phase 161: Adaptive Recovery** - Exponential probing (1.5x step) guarded by CAKE signals, linear above 90% ceiling, reset on non-GREEN
+
 ## Phase Details
 
-### Phase 154: Netlink Backend Wiring
-**Goal**: CAKE bandwidth changes use kernel netlink instead of subprocess tc, recovering ~5ms/cycle and eliminating fork overhead from the hot path
-**Depends on**: Nothing (first phase of v1.31)
-**Requirements**: XPORT-01, XPORT-02, XPORT-03
+### Phase 159: CAKE Signal Infrastructure
+**Goal**: CAKE qdisc stats are read every cycle via netlink with per-tin tracking, EWMA-smoothed drop rate, health endpoint exposure, and metrics DB storage
+**Depends on**: Nothing (first phase of v1.32)
+**Requirements**: CAKE-01, CAKE-02, CAKE-03, CAKE-04, CAKE-05
 **Success Criteria** (what must be TRUE):
-  1. LinuxCakeAdapter uses NetlinkCakeBackend for all bandwidth changes in production -- no subprocess tc on the hot path
-  2. After 100 consecutive set_bandwidth() calls, netlink FD count has not increased (FD leak in _reset_ipr() is fixed)
-  3. After a bandwidth-only netlink change, CAKE diffserv mode, overhead, and rtt remain unchanged (validated by readback)
-  4. Health endpoint reports netlink as the active transport backend
+  1. CAKE qdisc stats are read every cycle via netlink with <1ms latency per direction
+  2. Drop rate is computed as EWMA-smoothed drops/sec with u32-safe delta math and cold start warmup
+  3. Per-tin stats are tracked separately (Bulk drops distinguished from BestEffort+ drops)
+  4. CAKE signal metrics (drop rate, backlog, peak delay) are exposed via health endpoint and stored in metrics DB
+  5. All CAKE signal features are independently toggleable via YAML config (default: disabled)
 **Plans:** 2/2 plans complete
 Plans:
-- [x] 154-01-PLAN.md -- FD leak fix + adapter factory swap to NetlinkCakeBackend
-- [x] 154-02-PLAN.md -- Periodic readback validation + health endpoint transport reporting
+- [x] 159-01-PLAN.md -- CakeSignalProcessor module + WANController wiring
+- [x] 159-02-PLAN.md -- YAML config parsing + SIGUSR1 hot-reload + health endpoint + metrics DB
 
-### Phase 155: Deferred I/O Worker
-**Goal**: Per-cycle disk I/O is off the control loop hot path, dropping cycle p99 from 51ms to within the 50ms budget
-**Depends on**: Phase 154
-**Requirements**: CYCLE-01, CYCLE-02, CYCLE-03
+### Phase 160: Congestion Detection
+**Goal**: CAKE drop rate and backlog are used as secondary congestion signals to bypass dwell timer and suppress premature recovery
+**Depends on**: Phase 159
+**Requirements**: DETECT-01, DETECT-02, DETECT-03, DETECT-04
 **Success Criteria** (what must be TRUE):
-  1. SQLite metrics writes happen on a background thread -- control loop enqueues data and returns without blocking
-  2. State JSON writes use fdatasync (not fsync), remain synchronous, and only flush when state has actually changed and minimum interval has elapsed
-  3. Cycle p99 under RRUL load is below 50ms (measured via health endpoint or cycle timing logs)
-  4. Graceful shutdown drains all queued writes before process exit -- no data loss on systemctl stop
-**Plans:** 2/2 plans complete
+  1. Drop rate above threshold bypasses dwell timer to confirm congestion immediately
+  2. Queue backlog above threshold suppresses green_streak to prevent premature rate recovery
+  3. Refractory period prevents feedback loop oscillation after drop-triggered rate reduction
+  4. Only BestEffort and higher-priority tin drops drive rate decisions (Bulk tin drops excluded)
+**Plans:** 2 plans
 Plans:
-- [x] 155-01-PLAN.md -- fdatasync swap + state write coalescing gate
-- [x] 155-02-PLAN.md -- DeferredIOWorker background thread + control loop wiring
+- [ ] 160-01-PLAN.md -- CAKE-aware QueueController zone classification + CakeSignalConfig thresholds
+- [ ] 160-02-PLAN.md -- Refractory period + congestion assessment wiring + config parsing + health endpoint
 
-### Phase 156: Asymmetry-Aware Upload
-**Goal**: Upload rate is preserved during download-only congestion, keeping VoIP and video quality stable during bulk downloads
-**Depends on**: Phase 155
-**Requirements**: ASYM-01, ASYM-02, ASYM-03
+### Phase 161: Adaptive Recovery
+**Goal**: Rate recovery uses exponential probing guarded by CAKE signals instead of constant step_up
+**Depends on**: Phase 160
+**Requirements**: RECOV-01, RECOV-02, RECOV-03
 **Success Criteria** (what must be TRUE):
-  1. During a download-only Usenet load, upload rate stays above 20Mbps instead of dropping to 8Mbps floor
-  2. Asymmetry suppression requires N consecutive asymmetric IRTT readings before activating (no single-sample trigger)
-  3. When IRTT data is stale (>30s old), asymmetry gate disables automatically and upload rate control reverts to current behavior
-  4. Asymmetry gate is configurable in YAML and toggleable via SIGUSR1 hot-reload
-  5. During bidirectional congestion (both DL and UL RTT elevated), upload rate reduction is NOT suppressed -- override prevents feedback loop
-**Plans:** 1 plan
-Plans:
-- [ ] 156-01-PLAN.md -- Core gate logic + config + health observability + tests
-
-### Phase 157: Hysteresis Re-Tuning
-**Goal**: Hysteresis suppression rate is validated against the post-DSCP, post-netlink, post-async jitter profile and tuned below the 20/min alert threshold
-**Depends on**: Phase 156
-**Requirements**: TUNE-01
-**Success Criteria** (what must be TRUE):
-  1. Post-v1.31 hysteresis suppression rate is measured and documented (baseline measurement under RRUL)
-  2. If suppression rate exceeds 20/min, dwell_cycles and/or deadband_ms are A/B tested and updated to bring rate below threshold
-  3. If suppression rate is already below 20/min after Phases 154-156, current values are confirmed correct and documented
-**Plans**: 2/2 plans complete
-Plans:
-- [x] 157-01-PLAN.md -- Fix dead suppression_alert_pct config key
-- [x] 157-02-PLAN.md -- Baseline measurement and A/B testing
-
-### Phase 158: Parameter Re-Validation
-**Goal**: Controller tuning parameters are confirmed optimal for the final v1.31 system behavior via A/B testing
-**Depends on**: Phase 157
-**Requirements**: TUNE-02
-**Success Criteria** (what must be TRUE):
-  1. step_up_mbps is A/B tested (current value vs alternatives) under RRUL on the post-v1.31 system and confirmed or updated
-  2. warn_bloat_ms and hard_red_bloat_ms are A/B tested and confirmed or updated for the post-DSCP linux-cake profile
-  3. All parameter changes (if any) are deployed and stable in production for 24h before milestone is marked complete
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 158-01-PLAN.md -- Pre-test gate + individual A/B tests (step_up, warn_bloat, hard_red)
-- [x] 158-02-PLAN.md -- Confirmation pass + deploy + 24h soak
+  1. Rate recovery uses exponential probing (1.5x step multiplier) guarded by CAKE signals
+  2. Probing reverts to linear step_up above 90% of ceiling to prevent overshoot
+  3. Probe multiplier resets immediately on any non-GREEN zone transition
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 154 through 158.
+Phases execute in numeric order: 159 through 161.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 154. Netlink Backend Wiring | v1.31 | 2/2 | Complete    | 2026-04-09 |
-| 155. Deferred I/O Worker | v1.31 | 2/2 | Complete    | 2026-04-09 |
-| 156. Asymmetry-Aware Upload | v1.31 | 0/1 | Not started | - |
-| 157. Hysteresis Re-Tuning | v1.31 | 2/2 | Complete    | 2026-04-09 |
-| 158. Parameter Re-Validation | v1.31 | 2/2 | Complete    | 2026-04-09 |
+| 159. CAKE Signal Infrastructure | v1.32 | 2/2 | Complete | 2026-04-09 |
+| 160. Congestion Detection | v1.32 | 0/2 | Not started | - |
+| 161. Adaptive Recovery | v1.32 | 0/? | Not started | - |
