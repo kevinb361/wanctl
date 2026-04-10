@@ -267,7 +267,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             tins_container = app.get_attr("TCA_CAKE_STATS_TIN_STATS")
             if tins_container is not None:
                 # Iterate over tin attrs: TCA_CAKE_TIN_STATS_0, _1, _2, ...
-                for i in range(8):  # up to 8 tins (diffserv4=4, besteffort=1, diffserv3=3)
+                for i in range(1, 9):  # tins are 1-indexed: TCA_CAKE_TIN_STATS_1 through _8
                     tin = tins_container.get_attr(f"TCA_CAKE_TIN_STATS_{i}")
                     if tin is None:
                         break
