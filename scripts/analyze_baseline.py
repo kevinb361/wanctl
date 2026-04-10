@@ -110,12 +110,20 @@ def main() -> None:
     for metric, directions in baseline["summaries"].items():
         print(f"--- {metric} ---")
         for direction, stats in directions.items():
-            print(f"  {direction}: count={stats['count']}, "
-                  f"avg={stats.get('avg', 'N/A'):.4f}, "
-                  f"p50={stats.get('p50', 'N/A'):.4f}, "
-                  f"p99={stats.get('p99', 'N/A'):.4f}, "
-                  f"min={stats.get('min', 'N/A'):.4f}, "
-                  f"max={stats.get('max', 'N/A'):.4f}")
+            avg = stats.get("avg")
+            p50 = stats.get("p50")
+            p99 = stats.get("p99")
+            mn = stats.get("min")
+            mx = stats.get("max")
+
+            print(
+                f"  {direction}: count={stats['count']}, "
+                f"avg={f'{avg:.4f}' if avg is not None else 'N/A'}, "
+                f"p50={f'{p50:.4f}' if p50 is not None else 'N/A'}, "
+                f"p99={f'{p99:.4f}' if p99 is not None else 'N/A'}, "
+                f"min={f'{mn:.4f}' if mn is not None else 'N/A'}, "
+                f"max={f'{mx:.4f}' if mx is not None else 'N/A'}"
+            )
         print()
 
     # Detection events
