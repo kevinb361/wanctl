@@ -352,14 +352,15 @@ def _validate_transport_consistency(data: dict) -> list[CheckResult]:
     transport = _get_nested(data, "router.transport", "rest")
     has_cake_params = isinstance(data.get("cake_params"), dict)
 
-    if has_cake_params and transport != "linux-cake":
+    linux_cake_transports = ("linux-cake", "linux-cake-netlink")
+    if has_cake_params and transport not in linux_cake_transports:
         return [CheckResult(
             "Cross-field Checks", "transport_mismatch", Severity.ERROR,
-            f"cake_params section present but transport is '{transport}' (not 'linux-cake'). "
-            "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake'.",
-            suggestion="Change router.transport to 'linux-cake' in YAML config",
+            f"cake_params section present but transport is '{transport}' (not linux-cake). "
+            "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake' or 'linux-cake-netlink'.",
+            suggestion="Change router.transport to 'linux-cake' or 'linux-cake-netlink' in YAML config",
         )]
-    if transport == "linux-cake" and not has_cake_params:
+    if transport in linux_cake_transports and not has_cake_params:
         return [CheckResult(
             "Cross-field Checks", "transport_mismatch", Severity.ERROR,
             "transport is 'linux-cake' but cake_params section is missing. "

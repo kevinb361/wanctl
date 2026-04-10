@@ -31,11 +31,20 @@ if TYPE_CHECKING:
     from wanctl.config_base import BaseConfig
 
 
+def _make_backend(config: BaseConfig, direction: str) -> LinuxCakeBackend:
+    """Create the appropriate backend based on transport config."""
+    if config.router_transport == "linux-cake-netlink":
+        from wanctl.backends.netlink_cake import NetlinkCakeBackend
+        return NetlinkCakeBackend.from_config(config, direction=direction)
+    return LinuxCakeBackend.from_config(config, direction=direction)
+
+
 class LinuxCakeAdapter:
     """Adapts two LinuxCakeBackend instances to the RouterOS set_limits() interface.
 
     The daemon's WANController only calls set_limits(wan, down_bps, up_bps).
     This adapter translates that into per-interface set_bandwidth() calls.
+    Works with both LinuxCakeBackend (subprocess) and NetlinkCakeBackend (pyroute2).
     """
 
     def __init__(
@@ -105,10 +114,10 @@ class LinuxCakeAdapter:
         Raises:
             RuntimeError: If CAKE initialization fails on either interface.
         """
-        dl_backend = LinuxCakeBackend.from_config(config, direction="download")
+        dl_backend = _make_backend(config, direction="download")
         dl_backend.logger = logger
 
-        ul_backend = LinuxCakeBackend.from_config(config, direction="upload")
+        ul_backend = _make_backend(config, direction="upload")
         ul_backend.logger = logger
 
         cake_config = config.data.get("cake_params", {})
