@@ -701,19 +701,7 @@ class WANController:
         refractory_cycles = max(1, min(200, int(refractory_cycles)))
 
         # Recovery section (Phase 161: RECOV-01, RECOV-02)
-        rec = cs.get("recovery", {})
-        if not isinstance(rec, dict):
-            rec = {}
-
-        probe_multiplier = rec.get("probe_multiplier", 1.5)
-        if not isinstance(probe_multiplier, (int, float)) or isinstance(probe_multiplier, bool) or probe_multiplier < 1.0:
-            probe_multiplier = 1.5
-        probe_multiplier = max(1.0, min(5.0, float(probe_multiplier)))
-
-        probe_ceiling_pct = rec.get("probe_ceiling_pct", 0.9)
-        if not isinstance(probe_ceiling_pct, (int, float)) or isinstance(probe_ceiling_pct, bool) or probe_ceiling_pct <= 0:
-            probe_ceiling_pct = 0.9
-        probe_ceiling_pct = max(0.5, min(1.0, float(probe_ceiling_pct)))
+        probe_multiplier, probe_ceiling_pct = self._parse_recovery_config(cs)
 
         return CakeSignalConfig(
             enabled=enabled,
@@ -728,6 +716,29 @@ class WANController:
             probe_multiplier_factor=probe_multiplier,
             probe_ceiling_pct=probe_ceiling_pct,
         )
+
+    @staticmethod
+    def _parse_recovery_config(cs: dict) -> tuple[float, float]:
+        """Parse recovery sub-section from cake_signal config (Phase 161).
+
+        Returns:
+            (probe_multiplier, probe_ceiling_pct) with validated bounds.
+        """
+        rec = cs.get("recovery", {})
+        if not isinstance(rec, dict):
+            rec = {}
+
+        probe_multiplier = rec.get("probe_multiplier", 1.5)
+        if not isinstance(probe_multiplier, (int, float)) or isinstance(probe_multiplier, bool) or probe_multiplier < 1.0:
+            probe_multiplier = 1.5
+        probe_multiplier = max(1.0, min(5.0, float(probe_multiplier)))
+
+        probe_ceiling_pct = rec.get("probe_ceiling_pct", 0.9)
+        if not isinstance(probe_ceiling_pct, (int, float)) or isinstance(probe_ceiling_pct, bool) or probe_ceiling_pct <= 0:
+            probe_ceiling_pct = 0.9
+        probe_ceiling_pct = max(0.5, min(1.0, float(probe_ceiling_pct)))
+
+        return probe_multiplier, probe_ceiling_pct
 
     def _restore_tuning_params(self) -> None:
         """Restore latest tuning parameter values from SQLite.
