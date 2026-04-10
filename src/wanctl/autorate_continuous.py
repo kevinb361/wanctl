@@ -118,16 +118,17 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
     router backend (LinuxCakeAdapter or RouterOS).
     """
     has_cake_params = isinstance(config.data.get("cake_params"), dict)
-    if has_cake_params and config.router_transport != "linux-cake":
+    linux_cake_transports = ("linux-cake", "linux-cake-netlink")
+    if has_cake_params and config.router_transport not in linux_cake_transports:
         logger.error(
-            "FATAL: cake_params section present but transport is '%s' (not 'linux-cake'). "
+            "FATAL: cake_params section present but transport is '%s' (not linux-cake). "
             "CAKE qdiscs will NOT be created. Fix router.transport in YAML config.",
             config.router_transport,
         )
         raise SystemExit(1)
 
     router: "LinuxCakeAdapter | RouterOS"  # noqa: UP037
-    if config.router_transport == "linux-cake":
+    if config.router_transport in linux_cake_transports:
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
         router = LinuxCakeAdapter.from_config(config, logger)

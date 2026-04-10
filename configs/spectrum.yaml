@@ -11,7 +11,7 @@ health_check:
 
 # RouterOS connection (kept for steering REST access)
 router:
-  transport: "linux-cake" # Linux CAKE backend on cake-shaper VM
+  transport: "linux-cake-netlink" # Netlink backend — no subprocess fork (p99 16ms→<1ms)
   host: "10.10.99.1"
   user: "admin"
   ssh_key: "/etc/wanctl/ssh/router.key" # For SSH transport
