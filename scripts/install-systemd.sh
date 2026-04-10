@@ -6,9 +6,9 @@
 # Assumes install.sh and deploy.sh have already been run
 #
 # Usage:
-#   ./install-systemd.sh wan1              # Enable wan1 timer
-#   ./install-systemd.sh wan1 wan2         # Enable multiple WANs
-#   ./install-systemd.sh wan1 --steering   # Enable with steering
+#   ./install-systemd.sh wan1              # Enable wan1 service
+#   ./install-systemd.sh wan1 wan2         # Enable multiple WAN services
+#   ./install-systemd.sh wan1 --steering   # Enable with steering service
 #
 set -e
 
@@ -41,10 +41,10 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "Usage: $0 <wan_name> [wan_name...] [--steering]"
             echo ""
-            echo "Enable wanctl timers for specified WANs"
+            echo "Enable wanctl services for specified WANs"
             echo ""
             echo "Options:"
-            echo "  --steering    Also enable steering timer"
+            echo "  --steering    Also enable steering service"
             exit 0
             ;;
         *)
@@ -66,18 +66,18 @@ if [[ ! -f /etc/systemd/system/wanctl@.service ]]; then
     exit 1
 fi
 
-# Enable WAN timers
+# Enable WAN services
 for wan in "${WANS[@]}"; do
     if [[ ! -f "/etc/wanctl/${wan}.yaml" ]]; then
         print_warning "Config not found: /etc/wanctl/${wan}.yaml"
-        print_warning "Create config before enabling timer"
+        print_warning "Create config before enabling service"
         continue
     fi
 
-    echo "Enabling wanctl@${wan}..."
-    systemctl enable "wanctl@${wan}.timer"
-    systemctl start "wanctl@${wan}.timer"
-    print_success "wanctl@${wan}.timer enabled and started"
+    echo "Enabling wanctl@${wan}.service..."
+    systemctl enable "wanctl@${wan}.service"
+    systemctl start "wanctl@${wan}.service"
+    print_success "wanctl@${wan}.service enabled and started"
 done
 
 # Enable steering if requested

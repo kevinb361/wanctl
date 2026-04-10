@@ -4,43 +4,39 @@
 
 ## What It Does
 
-Dual-WAN system for MikroTik: eliminates bufferbloat via CAKE queue tuning + intelligent WAN steering based on real-time congestion.
+`wanctl` is a long-running adaptive CAKE controller for MikroTik RouterOS with optional WAN steering.
+It measures RTT and queue signals, adjusts shaping rates in real time, and runs continuously under systemd.
 
-**Type:** Production (24/7), Python 3.12, deployed to `/opt/wanctl`
+**Type:** Production (24/7), Python 3.11+, deployed to `/opt/wanctl`
 **Version:** 1.32.2
-**Cycle Interval:** 50ms (20Hz polling, 40x faster than original 2s baseline)
+**Cycle Interval:** 50ms (20Hz polling)
 
 ## Change Policy
 
-- Explain before changing, prefer analysis over implementation
-- Never refactor core logic, algorithms, thresholds, or timing without approval
+- Explain risky changes before changing behavior.
+- Never refactor core logic, algorithms, thresholds, or timing without approval.
+- Prefer targeted fixes over broad cleanup in the control path.
 - **Priority:** stability > safety > clarity > elegance
 
 ## Portable Controller Architecture
 
-🔒 **NON-NEGOTIABLE:** Controller is link-agnostic. Identical code runs on all deployments (cable/DSL/fiber). All variability in config parameters (YAML).
+**NON-NEGOTIABLE:** The controller is link-agnostic. The same code must run across cable, DSL, fiber, and other deployments. Deployment-specific behavior belongs in YAML config, not Python branching.
 
-See `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` for details.
+See `docs/ARCHITECTURE.md` and `docs/CONFIGURATION.md`.
 
-## File Locations
+## Runtime Layout
 
-```
+```text
 /opt/wanctl/          # Application code
-/etc/wanctl/          # Config (*.yaml, secrets)
+/etc/wanctl/          # Config (*.yaml, secrets, SSH keys)
 /var/lib/wanctl/      # State files
 /var/log/wanctl/      # Logs
+/run/wanctl/          # Runtime files
 ```
-
-## Container Details
-
-| Container     | Purpose                           |
-| ------------- | --------------------------------- |
-| cake-spectrum | Primary WAN (Spectrum) + steering |
-| cake-att      | Secondary WAN (ATT)               |
 
 ## RouterOS Integration
 
-**Recommended:** REST API (2x faster than SSH)
+**Recommended:** REST API (typically lower latency than SSH)
 
 ```yaml
 router:
@@ -51,110 +47,97 @@ router:
 
 ## Development Commands
 
-```bash
-# Tests (use venv directly, not system python)
-.venv/bin/pytest tests/ -v
-.venv/bin/pytest tests/test_foo.py -v  # specific file
+Use the virtualenv directly:
 
-# Linting and type checking
+```bash
+.venv/bin/pytest tests/ -v
+.venv/bin/pytest tests/test_foo.py -v
 .venv/bin/ruff check src/ tests/
 .venv/bin/mypy src/wanctl/
-
-# Format code
 .venv/bin/ruff format src/ tests/
 ```
 
-## Quick Commands
+Focused hot-path regression slice:
 
 ```bash
-# Status
-./scripts/soak-monitor.sh
-
-# Monitor logs
-ssh cake-spectrum 'journalctl -u wanctl@spectrum -f'
-
-# Health check
-ssh cake-spectrum 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
+.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q
 ```
 
-## Architectural Spine (READ-ONLY)
+## Quick Operational Commands
 
-**Do not modify without explicit instruction:**
+```bash
+./scripts/soak-monitor.sh
+ssh <host> 'journalctl -u wanctl@<wan> -f'
+ssh <host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
+```
+
+## Architectural Spine (Read-Only Unless Explicitly Requested)
 
 ### Control Model
 
-- All decisions based on RTT **delta** (not absolute RTT)
-- Baseline must remain frozen during load (only updates when delta < 3ms)
-- Rate decreases: immediate | Rate increases: require sustained GREEN cycles (configurable, default 5)
+- All congestion decisions are based on RTT delta, not absolute RTT.
+- Baseline RTT must stay frozen during load and only update under healthy/idle conditions.
+- Rate decreases are immediate.
+- Rate increases require sustained healthy cycles.
 
 ### State Logic
 
-- Download: 4-state (GREEN/YELLOW/SOFT_RED/RED)
-- Upload: 3-state (GREEN/YELLOW/RED)
-- SOFT_RED clamps to floor and holds (no repeated decay)
+- Download uses a 4-state model: GREEN/YELLOW/SOFT_RED/RED.
+- Upload uses a 3-state model: GREEN/YELLOW/RED.
+- SOFT_RED clamps to floor and holds; it is not repeated decay.
 
 ### Flash Wear Protection
 
-- Queue limits ONLY sent to router when values change
-- `last_applied_dl_rate`/`last_applied_ul_rate` tracking MANDATORY
+- Queue limits should only be sent to the router when values change.
+- `last_applied_dl_rate` and `last_applied_ul_rate` tracking are part of the safety model.
 
 ### Steering Spine
 
-- Only secondary WAN (cake-spectrum) makes routing decisions
-- Steering is binary: enabled or disabled
-- Only new latency-sensitive connections rerouted
-- Autorate baseline RTT is authoritative (steering must not alter)
+- Steering is optional and binary: enabled or disabled.
+- Only new latency-sensitive connections are rerouted.
+- Autorate baseline RTT remains authoritative.
 
-## ICMP Blackout Handling
+## Tuning Guidance
 
-**Resolved:** Spectrum ISP ICMP blocking (v1.1.0 fix)
+Do not recommend threshold or bounds changes casually. First read:
 
-When ICMP is blocked/filtered, controller now measures TCP RTT as fallback during connectivity checks. This prevents watchdog restarts and provides accurate latency data even during ICMP outages. See `CHANGELOG.md` for details.
+- `.planning/` phase research for the relevant area
+- YAML comments in the active configs/examples
+- `CHANGELOG.md`
 
-## Known Issues
+“Pegged at bounds” is often by design, not automatically a bug.
 
-- None currently. EWMA boundary flapping resolved in v1.24.0 via dwell timer + deadband hysteresis.
+## Service Model
 
-## Tuning Parameter Reference
+Active deployment is service-based, not timer-based.
 
-**Do not recommend tuning/bounds changes without first reading:**
+Current primary scripts:
+- `scripts/install.sh`
+- `scripts/deploy.sh`
+- `scripts/install-systemd.sh`
 
-- `.planning/` phase research (phases 88-103 for signal processing and adaptive tuning)
-- Config YAML comments (contain seeding rationale)
-- `CHANGELOG.md` analysis records
+Current units:
+- `deploy/systemd/wanctl@.service`
+- `deploy/systemd/steering.service`
 
-"Pegged at bounds" is often by design — security bounds, marginal differences, or expert overrides.
-
-## Version
-
-**Current:** v1.32.0 (CAKE-Aware Congestion Detection) — Phase 159 deployed
-
-- v1.32: CAKE signal infrastructure — per-tin netlink stats, EWMA drop rate, health endpoint, YAML config
-- v1.31: Linux-CAKE optimization — netlink backend, deferred I/O, hysteresis tuning, warn_bloat 60→75
-- v1.30: Burst detection — RTT acceleration detector, threshold=6.0 A/B validated
-- v1.29: Code health — dead code, module splitting, method extraction, strict linting
-- BackgroundRTTThread offloads RTT measurement (cycle util 102%->27%)
-- 4,239 unit tests passing, 0 failures
-
-## Circuit Breaker Policy
-
-**Startup failure recovery:** If wanctl fails 5 times in 5 minutes, systemd stops auto-restart. Manual recovery required: `systemctl reset-failed wanctl@spectrum && systemctl start wanctl@spectrum`
+Do not reintroduce timer-era guidance into active docs or scripts.
 
 ## Performance Characteristics
 
-**Cycle Interval:** 50ms (production standard, deployed 2026-01-13)
-**Congestion Response:** 50-100ms detection time (sub-second)
-**Router Impact:** 0% CPU at idle, 20% peak under load (MikroTik RB5009, post-v1.28 IRQ+queue tuning)
-**Utilization:** 60-80% (30-40ms execution per 50ms cycle)
-**Startup Maintenance:** <20s (watchdog-safe, time-budgeted cleanup + downsampling)
-**Periodic Maintenance:** Hourly (cleanup + downsample + VACUUM), respects watchdog
+**Cycle Interval:** 50ms (production standard)
+**Congestion Response:** sub-second detection under normal operating conditions
+**Startup Maintenance:** watchdog-safe, time-budgeted cleanup/downsampling
+**Periodic Maintenance:** background cleanup and retention work must remain bounded
 
-See `docs/PRODUCTION_INTERVAL.md` for complete performance analysis, validation results, and rollback procedures.
+See `docs/PRODUCTION_INTERVAL.md` for deeper background.
 
 ## Documentation
 
-- `CHANGELOG.md` - Version history and changes
-- `docs/PRODUCTION_INTERVAL.md` - **50ms interval decision and performance validation**
-- `docs/PORTABLE_CONTROLLER_ARCHITECTURE.md` - Design principles
-- `docs/CONFIG_SCHEMA.md` - Configuration reference
-- `docs/TRANSPORT_COMPARISON.md` - REST vs SSH performance
+Primary references:
+- `README.md`
+- `docs/GETTING-STARTED.md`
+- `docs/CONFIGURATION.md`
+- `docs/TESTING.md`
+- `docs/DEPLOYMENT.md`
+- `docs/STEERING.md`
+- `docs/TRANSPORT_COMPARISON.md`

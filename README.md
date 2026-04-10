@@ -33,7 +33,7 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 ### Prerequisites
 
 - Mikrotik router running RouterOS 7.x with CAKE queues configured
-- Linux host (LXC container, VM, or bare metal) with Python 3.12+
+- Linux host (LXC container, VM, or bare metal) with Python 3.11+
 - REST API enabled on router (recommended) or SSH key authentication
 
 ### Installation
@@ -72,7 +72,7 @@ sudo ./scripts/install.sh --uninstall
 After wizard completion, enable the service:
 
 ```bash
-sudo systemctl enable --now wanctl@wan1.timer
+sudo systemctl enable --now wanctl@wan1.service
 ```
 
 ### Transport Setup
@@ -235,7 +235,7 @@ For dual-WAN setups, the steering daemon routes latency-sensitive traffic to the
 
 ```bash
 # Enable steering
-sudo systemctl enable --now steering.timer
+sudo systemctl enable --now steering.service
 ```
 
 **What gets steered:** VoIP, gaming, DNS, SSH, interactive web
@@ -247,7 +247,7 @@ Steering uses multi-signal detection (RTT + CAKE drops + queue depth) with hyste
 
 ```bash
 # Service status
-systemctl status wanctl@wan1.timer
+systemctl status wanctl@wan1.service
 
 # Live logs
 journalctl -u wanctl@wan1 -f

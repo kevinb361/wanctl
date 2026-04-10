@@ -347,11 +347,13 @@ class WANController:
         # Rate limiter: conditional on transport backend (D-06, D-12)
         # linux-cake writes to kernel memory -- no rate limiting needed
         # REST/SSH writes to RouterOS API -- rate limiting protects responsiveness
-        if self.router.needs_rate_limiting:
-            params = self.router.rate_limit_params
+        needs_rate_limiting = getattr(self.router, "needs_rate_limiting", False) is True
+        if needs_rate_limiting:
+            raw_params = getattr(self.router, "rate_limit_params", {})
+            params = raw_params if isinstance(raw_params, dict) else {}
             self.rate_limiter: RateLimiter | None = RateLimiter(
-                max_changes=params["max_changes"],
-                window_seconds=params["window_seconds"],
+                max_changes=int(params.get("max_changes", 5)),
+                window_seconds=int(params.get("window_seconds", 10)),
             )
         else:
             self.rate_limiter = None
@@ -705,7 +707,7 @@ class WANController:
         refractory_cycles = max(1, min(200, int(refractory_cycles)))
 
         # Recovery section (Phase 161: RECOV-01, RECOV-02)
-        probe_multiplier, probe_ceiling_pct = self._parse_recovery_config(cs)
+        probe_multiplier, probe_ceiling_pct = WANController._parse_recovery_config(cs)
 
         return CakeSignalConfig(
             enabled=enabled,
@@ -827,6 +829,10 @@ class WANController:
         results via _run_cake_stats() instead of blocking on 7-20ms netlink I/O.
         """
         if not self._cake_signal_supported:
+            return
+        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
+            return
+        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
             return
 
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
@@ -2227,6 +2233,8 @@ class WANController:
         """
         if not self._cake_signal_supported:
             return
+        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
+            return
 
         if self._cake_stats_thread is not None:
             snapshot = self._cake_stats_thread.get_latest()
@@ -2295,9 +2303,11 @@ class WANController:
         self._ul_zone = ul_zone
 
         # Phase 160: Enter refractory if dwell was bypassed this cycle (DETECT-03)
-        if self.download._dwell_bypassed_this_cycle:
+        dl_detection = self.download.get_health_data().get("cake_detection", {})
+        ul_detection = self.upload.get_health_data().get("cake_detection", {})
+        if dl_detection.get("dwell_bypassed_this_cycle"):
             self._dl_refractory_remaining = self._refractory_cycles
-        if self.upload._dwell_bypassed_this_cycle:
+        if ul_detection.get("dwell_bypassed_this_cycle"):
             self._ul_refractory_remaining = self._refractory_cycles
 
         delta = self.load_rtt - self.baseline_rtt
@@ -3114,10 +3124,10 @@ class WANController:
                     "dl_refractory_remaining": self._dl_refractory_remaining,
                     "ul_refractory_remaining": self._ul_refractory_remaining,
                     "refractory_cycles": self._refractory_cycles,
-                    "dl_dwell_bypassed_count": self.download._dwell_bypassed_count,
-                    "ul_dwell_bypassed_count": self.upload._dwell_bypassed_count,
-                    "dl_backlog_suppressed_count": self.download._backlog_suppressed_count,
-                    "ul_backlog_suppressed_count": self.upload._backlog_suppressed_count,
+                    "dl_dwell_bypassed_count": self.download.get_health_data().get("cake_detection", {}).get("dwell_bypassed_count", 0),
+                    "ul_dwell_bypassed_count": self.upload.get_health_data().get("cake_detection", {}).get("dwell_bypassed_count", 0),
+                    "dl_backlog_suppressed_count": self.download.get_health_data().get("cake_detection", {}).get("backlog_suppressed_count", 0),
+                    "ul_backlog_suppressed_count": self.upload.get_health_data().get("cake_detection", {}).get("backlog_suppressed_count", 0),
                     "dl_recovery_probe": self.download.get_health_data().get("recovery_probe", {}),
                     "ul_recovery_probe": self.upload.get_health_data().get("recovery_probe", {}),
                 },

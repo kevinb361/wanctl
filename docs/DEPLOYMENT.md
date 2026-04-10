@@ -1,204 +1,119 @@
-# Adaptive CAKE Deployment Instructions
+# Deployment
 
-> **Updated for v1.21:** Production deployment now targets a Proxmox VM (cake-shaper, VM 206) with Linux CAKE qdiscs instead of LXC containers. The systemd units in `deploy/systemd/` are the current source of truth. Legacy container-based instructions below are preserved for reference.
+This guide covers the current `wanctl` deployment flow built around the service units in
+[`deploy/systemd/`](/home/kevin/projects/wanctl/deploy/systemd).
 
-## Quick Deployment (Automated)
+## Automated Remote Deployment
+
+From your workstation:
 
 ```bash
 cd /path/to/wanctl
 ./scripts/deploy.sh <wan_name> <target_host>
+./scripts/deploy.sh <wan_name> <target_host> --with-steering
 ```
 
-This will automatically deploy and enable all timers on the target host.
+The deploy script:
 
----
+- copies `src/wanctl/` into `/opt/wanctl`
+- installs the WAN config into `/etc/wanctl/<wan_name>.yaml` when found
+- deploys helper scripts, docs, QoS assets, and systemd units
+- optionally deploys `steering.service` and `/etc/wanctl/steering.yaml`
+- runs a pre-startup validation step on the target host
+
+`./scripts/deploy.sh --dry-run` prints the planned actions without requiring SSH checks.
+
+## Install-Only Mode
+
+To prepare a host without copying code yet:
+
+```bash
+./scripts/deploy.sh --install-only <target_host>
+```
+
+That runs [`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh) remotely to create the
+service user, directories, and base systemd integration.
 
 ## Manual Deployment
 
-### For Primary WAN Host
+If you are not using `deploy.sh`, copy these current assets to the target host:
+
+- `/opt/wanctl/` from `src/wanctl/`
+- `/etc/wanctl/<wan_name>.yaml`
+- [`deploy/systemd/wanctl@.service`](/home/kevin/projects/wanctl/deploy/systemd/wanctl@.service)
+- optionally [`deploy/systemd/steering.service`](/home/kevin/projects/wanctl/deploy/systemd/steering.service)
+
+Then on the target host:
 
 ```bash
-# Copy files to target (adjust hostname/IP for your setup)
-scp wanctl@<wan1-host>.service wanctl@<wan1-host>.timer user@<wan1-host>:/tmp/
-
-# SSH into host
-ssh user@<wan1-host>
-
-# Install units
-sudo mv /tmp/wanctl@*.service /tmp/wanctl@*.timer /etc/systemd/system/
+sudo install -d /opt/wanctl /etc/wanctl /var/lib/wanctl /var/log/wanctl /run/wanctl
+sudo cp -r /path/to/src/wanctl/. /opt/wanctl/
+sudo cp /path/to/wan1.yaml /etc/wanctl/wan1.yaml
+sudo cp /path/to/deploy/systemd/wanctl@.service /etc/systemd/system/wanctl@.service
 sudo systemctl daemon-reload
-
-# Enable and start timers
-sudo systemctl enable wanctl@wan1.timer
-sudo systemctl enable wanctl@wan1-reset.timer
-sudo systemctl start wanctl@wan1.timer
-sudo systemctl start wanctl@wan1-reset.timer
-
-# Verify
-systemctl list-timers wanctl@*
+sudo systemctl enable --now wanctl@wan1.service
 ```
 
-### For Secondary WAN Host (Dual-WAN Setup)
+For steering:
 
 ```bash
-# Copy files to target
-scp wanctl@<wan2-host>.service wanctl@<wan2-host>.timer user@<wan2-host>:/tmp/
-
-# SSH into host
-ssh user@<wan2-host>
-
-# Install units
-sudo mv /tmp/wanctl@*.service /tmp/wanctl@*.timer /etc/systemd/system/
+sudo cp /path/to/deploy/systemd/steering.service /etc/systemd/system/steering.service
+sudo cp /path/to/steering.yaml /etc/wanctl/steering.yaml
 sudo systemctl daemon-reload
-
-# Enable and start timers
-sudo systemctl enable wanctl@wan2.timer
-sudo systemctl enable wanctl@wan2-reset.timer
-sudo systemctl start wanctl@wan2.timer
-sudo systemctl start wanctl@wan2-reset.timer
-
-# Verify
-systemctl list-timers wanctl@*
+sudo systemctl enable --now steering.service
 ```
-
----
-
-## Timer Schedule
-
-### Regular Tests (Every 10 minutes)
-
-- **WAN1**: Starts 2 min after boot, then every 10 minutes
-- **WAN2**: Starts 7 min after boot, then every 10 minutes
-- **Offset**: 5 minutes between tests to prevent interference
-
-### Nightly Resets (Twice Daily)
-
-- **Both WANs**: 3:00 AM and 3:00 PM
-- Clears EWMA state and unshapes queues to prevent drift
-
----
 
 ## Monitoring
 
-### View Timer Status
-
 ```bash
-# On target host
-ssh user@<wan-host> 'systemctl list-timers wanctl@*'
+systemctl status wanctl@wan1.service
+journalctl -u wanctl@wan1.service -f
 ```
 
-### View Live Logs
+If steering is enabled:
 
 ```bash
-# WAN1 logs
-ssh user@<wan1-host> 'journalctl -u wanctl@wan1.service -f'
-
-# WAN2 logs
-ssh user@<wan2-host> 'journalctl -u wanctl@wan2.service -f'
+systemctl status steering.service
+journalctl -u steering.service -f
 ```
-
-### View Historical Logs
-
-```bash
-# Last 50 entries
-ssh user@<wan-host> 'journalctl -u wanctl@wan1.service -n 50'
-
-# Since yesterday
-ssh user@<wan-host> 'journalctl -u wanctl@wan1.service --since yesterday'
-```
-
-### Check Log Files
-
-```bash
-# Main log
-ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous.log'
-
-# Debug log (if --debug was used)
-ssh user@<wan-host> 'tail -f /var/log/wanctl/continuous_debug.log'
-```
-
----
 
 ## Troubleshooting
 
-### Service Not Running
+Check recent controller logs:
 
 ```bash
-# Check service status
-systemctl status wanctl@wan1.service
-
-# Check timer status
-systemctl status wanctl@wan1.timer
-
-# View recent errors
-journalctl -u wanctl@wan1.service --since "10 minutes ago"
+journalctl -u wanctl@wan1.service -n 100 --no-pager
 ```
 
-### Manual Test Run
+Run the controller manually on the target host:
 
 ```bash
-# On target host
 cd /opt/wanctl
 python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --debug
 ```
 
-### Reset State Manually
+Disable the service temporarily:
 
 ```bash
-# On target host
-python3 -m wanctl.autorate_continuous --config /etc/wanctl/wan1.yaml --reset
+sudo systemctl stop wanctl@wan1.service
 ```
 
-### Stop Timers Temporarily
+Disable it across reboots:
 
 ```bash
-# Stop without disabling (will restart after reboot)
-sudo systemctl stop wanctl@wan1.timer
-
-# Stop and disable (won't restart after reboot)
-sudo systemctl disable --now wanctl@wan1.timer
+sudo systemctl disable --now wanctl@wan1.service
 ```
 
-### Re-enable After Stopping
+Re-enable it:
 
 ```bash
-sudo systemctl enable --now wanctl@wan1.timer
+sudo systemctl enable --now wanctl@wan1.service
 ```
-
----
 
 ## Files Created
 
-### Per-WAN Host
-
-- `/etc/systemd/system/wanctl@.service` - Main service template
-- `/etc/systemd/system/wanctl@.timer` - 10-minute timer template
-- `/etc/systemd/system/wanctl@-reset.service` - Reset service template
-- `/etc/systemd/system/wanctl@-reset.timer` - Twice-daily reset timer
-
-### Configuration
-
+- `/etc/systemd/system/wanctl@.service` - main controller unit template
+- `/etc/systemd/system/steering.service` - optional steering daemon unit
 - `/etc/wanctl/<wan_name>.yaml` - WAN-specific configuration
-
-### State Files
-
-- `/var/lib/wanctl/<wan_name>_state.json` - Persisted EWMA state
-
----
-
-## Expected Behavior
-
-1. **First Run**: Scripts will measure throughput and establish baseline EWMA values
-2. **Convergence**: Over 30-60 minutes, EWMA will stabilize around true capacity
-3. **Steady State**: CAKE limits adjust automatically based on measured conditions
-4. **Under Load**: Bandwidth reduces when latency increases
-5. **Idle**: Limits increase gradually when headroom available
-6. **Reset**: Twice daily, state clears and queues unshaped to prevent drift
-
-## Performance Expectations
-
-- **Test Duration**: ~20 seconds per WAN
-- **Overhead**: <1% of time spent testing
-- **Response Time**: Adjustments within 30-60 minutes of condition change
-- **Stability**: Rate-of-change limited to prevent wild swings
-- **Safety**: Health checks reject implausible measurements
+- `/etc/wanctl/steering.yaml` - optional steering configuration
+- `/var/lib/wanctl/<wan_name>_state.json` - persisted controller state

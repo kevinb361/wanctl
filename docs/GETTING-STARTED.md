@@ -116,29 +116,12 @@ If validation cannot infer the config type, pass `--type autorate` or `--type st
 
 ## 6. Start the Controller
 
-The repository currently exposes two systemd-oriented startup paths.
-**These are mutually exclusive — enable one or the other, never both:**
+`wanctl` currently runs as a long-lived systemd service. Both
+[`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh) and
+[`scripts/install-systemd.sh`](/home/kevin/projects/wanctl/scripts/install-systemd.sh)
+prepare or enable the same `wanctl@<wan>.service` unit.
 
-- [`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh) prints
-  `sudo systemctl enable --now wanctl@<wan>.service` at the end of setup
-- [`scripts/install-systemd.sh`](/home/kevin/projects/wanctl/scripts/install-systemd.sh)
-  enables `wanctl@<wan>.timer`
-
-Use the command printed by the installer flow you actually ran.
-
-If you need to switch between them, disable the current mode first:
-
-```bash
-# Switch from timer to direct service
-sudo systemctl disable --now wanctl@wan1.timer
-sudo systemctl enable --now wanctl@wan1.service
-
-# Switch from direct service to timer
-sudo systemctl disable --now wanctl@wan1.service
-sudo systemctl enable --now wanctl@wan1.timer
-```
-
-Service-based start:
+Start and verify it with:
 
 ```bash
 sudo systemctl daemon-reload
@@ -147,11 +130,11 @@ systemctl status wanctl@wan1.service
 journalctl -u wanctl@wan1.service -f
 ```
 
-Timer-based helper flow:
+If you are upgrading an older timer-based install, disable any legacy timer units first:
 
 ```bash
-sudo ./scripts/install-systemd.sh wan1
-systemctl status wanctl@wan1.timer
+sudo systemctl disable --now wanctl@wan1.timer 2>/dev/null || true
+sudo systemctl disable --now steering.timer 2>/dev/null || true
 ```
 
 The checked-in unit template is
