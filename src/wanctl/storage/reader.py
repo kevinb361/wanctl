@@ -16,6 +16,44 @@ from wanctl.storage.writer import DEFAULT_DB_PATH
 logger = logging.getLogger(__name__)
 
 
+def _build_metrics_filter_sql(
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+    metrics: list[str] | None = None,
+    wan: str | None = None,
+    granularity: str | None = None,
+) -> tuple[str, list]:
+    """Build the shared WHERE clause and parameters for metrics queries."""
+    sql = """
+        FROM metrics
+        WHERE 1=1
+    """
+    params: list = []
+
+    if start_ts is not None:
+        sql += " AND timestamp >= ?"
+        params.append(start_ts)
+
+    if end_ts is not None:
+        sql += " AND timestamp <= ?"
+        params.append(end_ts)
+
+    if metrics:
+        placeholders = ",".join("?" * len(metrics))
+        sql += f" AND metric_name IN ({placeholders})"
+        params.extend(metrics)
+
+    if wan:
+        sql += " AND wan_name = ?"
+        params.append(wan)
+
+    if granularity:
+        sql += " AND granularity = ?"
+        params.append(granularity)
+
+    return sql, params
+
+
 def query_metrics(
     db_path: Path | str = DEFAULT_DB_PATH,
     start_ts: int | None = None,
@@ -61,35 +99,18 @@ def query_metrics(
 
     try:
         # Build query with optional filters
-        sql = """
-            SELECT timestamp, wan_name, metric_name, value, labels, granularity
-            FROM metrics
-            WHERE 1=1
-        """
-        params: list = []
-
-        if start_ts is not None:
-            sql += " AND timestamp >= ?"
-            params.append(start_ts)
-
-        if end_ts is not None:
-            sql += " AND timestamp <= ?"
-            params.append(end_ts)
-
-        if metrics:
-            placeholders = ",".join("?" * len(metrics))
-            sql += f" AND metric_name IN ({placeholders})"
-            params.extend(metrics)
-
-        if wan:
-            sql += " AND wan_name = ?"
-            params.append(wan)
-
-        if granularity:
-            sql += " AND granularity = ?"
-            params.append(granularity)
-
-        sql += " ORDER BY timestamp DESC"
+        where_sql, params = _build_metrics_filter_sql(
+            start_ts=start_ts,
+            end_ts=end_ts,
+            metrics=metrics,
+            wan=wan,
+            granularity=granularity,
+        )
+        sql = (
+            "SELECT timestamp, wan_name, metric_name, value, labels, granularity "
+            + where_sql
+            + " ORDER BY timestamp DESC"
+        )
 
         if limit is not None:
             sql += " LIMIT ?"
@@ -441,3 +462,42 @@ def select_granularity(start_ts: int, end_ts: int) -> str:
     if duration_seconds < seven_days:
         return "5m"
     return "1h"
+
+
+def count_metrics(
+    db_path: Path | str = DEFAULT_DB_PATH,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+    metrics: list[str] | None = None,
+    wan: str | None = None,
+    granularity: str | None = None,
+) -> int:
+    """Count metrics rows matching the provided filters."""
+    db_path = Path(db_path)
+
+    if not db_path.exists():
+        logger.debug("Database not found: %s", db_path)
+        return 0
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.OperationalError as e:
+        logger.warning("Failed to open database: %s", e)
+        return 0
+
+    try:
+        where_sql, params = _build_metrics_filter_sql(
+            start_ts=start_ts,
+            end_ts=end_ts,
+            metrics=metrics,
+            wan=wan,
+            granularity=granularity,
+        )
+        sql = "SELECT COUNT(*) " + where_sql
+        row = conn.execute(sql, params).fetchone()
+        return int(row[0]) if row is not None else 0
+    except sqlite3.OperationalError as e:
+        logger.debug("Count query failed: %s", e)
+        return 0
+    finally:
+        conn.close()
