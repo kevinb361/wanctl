@@ -132,6 +132,10 @@ def validate_field(
 # Default storage configuration values
 DEFAULT_STORAGE_DB_PATH = "/var/lib/wanctl/metrics.db"
 DEFAULT_STORAGE_RETENTION_DAYS = 7
+DEFAULT_STORAGE_RAW_AGE_SECONDS = 900
+DEFAULT_STORAGE_1M_AGE_SECONDS = 86400
+DEFAULT_STORAGE_5M_AGE_SECONDS = 604800
+DEFAULT_STORAGE_5M_AGE_SECONDS_PROMETHEUS = 172800
 
 # Storage schema - can be included in any daemon's SCHEMA
 STORAGE_SCHEMA: list[dict] = [
@@ -153,7 +157,7 @@ STORAGE_SCHEMA: list[dict] = [
         "path": "storage.retention.raw_age_seconds",
         "type": int,
         "required": False,
-        "default": 3600,
+        "default": DEFAULT_STORAGE_RAW_AGE_SECONDS,
         "min": 60,
         "max": 604800,
     },
@@ -161,7 +165,7 @@ STORAGE_SCHEMA: list[dict] = [
         "path": "storage.retention.aggregate_1m_age_seconds",
         "type": int,
         "required": False,
-        "default": 86400,
+        "default": DEFAULT_STORAGE_1M_AGE_SECONDS,
         "min": 3600,
         "max": 2592000,
     },
@@ -169,7 +173,7 @@ STORAGE_SCHEMA: list[dict] = [
         "path": "storage.retention.aggregate_5m_age_seconds",
         "type": int,
         "required": False,
-        "default": 604800,
+        "default": DEFAULT_STORAGE_5M_AGE_SECONDS,
         "min": 3600,
         "max": 31536000,
     },
@@ -193,7 +197,7 @@ def get_storage_config(data: dict) -> StorageConfig:
         - retention_days: int (backward compat, computed from aggregate_5m_age_seconds)
         - db_path: str (default /var/lib/wanctl/metrics.db)
         - retention: dict with per-granularity thresholds:
-            - raw_age_seconds: int (default 3600)
+            - raw_age_seconds: int (default 900)
             - aggregate_1m_age_seconds: int (default 86400)
             - aggregate_5m_age_seconds: int (default 604800)
             - prometheus_compensated: bool (default False)
@@ -211,8 +215,8 @@ def get_storage_config(data: dict) -> StorageConfig:
         new_key="retention",
         logger=logger,
         transform_fn=lambda days: {
-            "raw_age_seconds": 3600,
-            "aggregate_1m_age_seconds": 86400,
+            "raw_age_seconds": DEFAULT_STORAGE_RAW_AGE_SECONDS,
+            "aggregate_1m_age_seconds": DEFAULT_STORAGE_1M_AGE_SECONDS,
             "aggregate_5m_age_seconds": days * 86400,
         },
     )
@@ -224,13 +228,13 @@ def get_storage_config(data: dict) -> StorageConfig:
 
     # Defaults based on prometheus_compensated mode
     if prometheus_compensated:
-        default_raw = 3600
-        default_1m = 86400  # 24h
-        default_5m = 172800  # 48h
+        default_raw = DEFAULT_STORAGE_RAW_AGE_SECONDS
+        default_1m = DEFAULT_STORAGE_1M_AGE_SECONDS  # 24h
+        default_5m = DEFAULT_STORAGE_5M_AGE_SECONDS_PROMETHEUS  # 48h
     else:
-        default_raw = 3600
-        default_1m = 86400
-        default_5m = 604800
+        default_raw = DEFAULT_STORAGE_RAW_AGE_SECONDS
+        default_1m = DEFAULT_STORAGE_1M_AGE_SECONDS
+        default_5m = DEFAULT_STORAGE_5M_AGE_SECONDS
 
     retention_config: RetentionConfig = {
         "raw_age_seconds": retention.get("raw_age_seconds", default_raw),

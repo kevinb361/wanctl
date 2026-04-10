@@ -1048,7 +1048,7 @@ class TestGetStorageConfigRetention:
         """get_storage_config({}) returns default retention dict."""
         result = get_storage_config({})
         retention = result["retention"]
-        assert retention["raw_age_seconds"] == 3600
+        assert retention["raw_age_seconds"] == 900
         assert retention["aggregate_1m_age_seconds"] == 86400
         assert retention["aggregate_5m_age_seconds"] == 604800
         assert retention["prometheus_compensated"] is False
@@ -1082,7 +1082,7 @@ class TestGetStorageConfigRetention:
         result = get_storage_config(data)
         retention = result["retention"]
         assert retention["aggregate_5m_age_seconds"] == 172800
-        assert retention["raw_age_seconds"] == 3600  # default
+        assert retention["raw_age_seconds"] == 900  # default
         assert retention["aggregate_1m_age_seconds"] == 86400  # default
 
     def test_deprecated_retention_days_translates(self):
@@ -1091,7 +1091,7 @@ class TestGetStorageConfigRetention:
         result = get_storage_config(data)
         retention = result["retention"]
         assert retention["aggregate_5m_age_seconds"] == 1209600  # 14 * 86400
-        assert retention["raw_age_seconds"] == 3600  # default
+        assert retention["raw_age_seconds"] == 900  # default
         assert retention["aggregate_1m_age_seconds"] == 86400  # default
 
     def test_retention_days_ignored_when_retention_present(self):

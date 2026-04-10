@@ -311,7 +311,7 @@ def _init_storage(
     db_path = storage_config.get("db_path")
     maintenance_conn = None
     default_retention: Mapping[str, Any] = {
-        "raw_age_seconds": 3600,
+        "raw_age_seconds": 900,
         "aggregate_1m_age_seconds": 86400,
         "aggregate_5m_age_seconds": 604800,
         "prometheus_compensated": False,

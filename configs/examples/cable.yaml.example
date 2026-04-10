@@ -135,7 +135,7 @@ continuous_monitoring:
 # Controls how long metrics data is kept at each granularity.
 # storage:
 #   retention:
-#     raw_age_seconds: 3600              # Raw samples kept for 1 hour
+#     raw_age_seconds: 900               # Raw samples kept for 15 minutes
 #     aggregate_1m_age_seconds: 86400    # 1-minute aggregates kept for 24 hours
 #     aggregate_5m_age_seconds: 604800   # 5-minute aggregates kept for 7 days
 #     prometheus_compensated: false      # Set true if Prometheus scrapes metrics
