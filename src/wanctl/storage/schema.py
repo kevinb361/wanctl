@@ -5,7 +5,10 @@ Provides Prometheus-compatible metric naming and efficient indexing for
 time-series queries.
 """
 
+import logging
 import sqlite3
+
+logger = logging.getLogger(__name__)
 
 # Prometheus-compatible metric names and descriptions
 STORED_METRICS: dict[str, str] = {
@@ -167,6 +170,33 @@ CREATE INDEX IF NOT EXISTS idx_tuning_wan_param
 """
 
 
+def _migrate_to_incremental_vacuum(conn: sqlite3.Connection) -> None:
+    """One-time migration: switch auto_vacuum from NONE to INCREMENTAL.
+
+    INCREMENTAL mode lets us reclaim freelist pages without copying the
+    entire database (full VACUUM on a 355M DB caused 500M+ peak RSS).
+
+    Setting auto_vacuum requires a full VACUUM to take effect — this is
+    the last full VACUUM the DB should ever need.  Subsequent reclamation
+    uses PRAGMA incremental_vacuum in retention.vacuum_if_needed().
+    """
+    auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
+    if auto_vacuum == 2:  # already INCREMENTAL
+        return
+
+    page_count = conn.execute("PRAGMA page_count").fetchone()[0]
+    page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+    db_mb = page_count * page_size / 1048576.0
+
+    logger.info(
+        "Migrating auto_vacuum NONE -> INCREMENTAL (%.1fMB DB, one-time full VACUUM)",
+        db_mb,
+    )
+    conn.execute("PRAGMA auto_vacuum=INCREMENTAL")
+    conn.execute("VACUUM")
+    logger.info("auto_vacuum migration complete")
+
+
 def create_tables(conn: sqlite3.Connection) -> None:
     """Create all tables and indexes from the schema.
 
@@ -182,3 +212,4 @@ def create_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(REFLECTOR_EVENTS_SCHEMA)
     conn.executescript(TUNING_PARAMS_SCHEMA)
     conn.commit()
+    _migrate_to_incremental_vacuum(conn)

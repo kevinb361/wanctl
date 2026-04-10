@@ -164,34 +164,52 @@ class TestCleanupOldMetrics:
 
 
 class TestVacuumIfNeeded:
-    """Tests for vacuum_if_needed function."""
+    """Tests for vacuum_if_needed function (incremental vacuum mode)."""
+
+    def _create_freelist_pages(self, conn):
+        """Insert and delete rows to create freelist pages for vacuum to reclaim."""
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS _vacuum_test (id INTEGER PRIMARY KEY, data TEXT)"
+        )
+        conn.executemany(
+            "INSERT INTO _vacuum_test (data) VALUES (?)",
+            [("x" * 1000,)] * 500,
+        )
+        conn.commit()
+        conn.execute("DELETE FROM _vacuum_test")
+        conn.commit()
 
     def test_vacuum_runs_above_threshold(self, test_db):
-        """Test VACUUM runs when deleted rows exceed threshold."""
-        # Note: We can't easily verify VACUUM ran, but we can verify
-        # it doesn't error and returns True
+        """Test incremental vacuum reclaims freelist pages above threshold."""
+        self._create_freelist_pages(test_db)
         result = vacuum_if_needed(test_db, deleted_rows=150000, threshold=100000)
         assert result is True
 
     def test_vacuum_skipped_below_threshold(self, test_db):
-        """Test VACUUM is skipped below threshold."""
+        """Test vacuum is skipped below threshold."""
         result = vacuum_if_needed(test_db, deleted_rows=50000, threshold=100000)
         assert result is False
 
     def test_vacuum_at_exact_threshold(self, test_db):
-        """Test VACUUM runs at exactly threshold (>= threshold)."""
-        # At exact threshold, VACUUM runs (uses >= comparison)
+        """Test vacuum runs at exactly threshold."""
+        self._create_freelist_pages(test_db)
         result = vacuum_if_needed(test_db, deleted_rows=100000, threshold=100000)
         assert result is True
 
     def test_vacuum_with_custom_threshold(self, test_db):
-        """Test VACUUM with custom threshold."""
+        """Test vacuum with custom threshold."""
+        self._create_freelist_pages(test_db)
         result = vacuum_if_needed(test_db, deleted_rows=1000, threshold=500)
         assert result is True
 
     def test_vacuum_with_zero_deleted(self, test_db):
-        """Test VACUUM not run when nothing deleted."""
+        """Test vacuum not run when nothing deleted."""
         result = vacuum_if_needed(test_db, deleted_rows=0, threshold=100000)
+        assert result is False
+
+    def test_no_reclaim_when_no_freelist(self, test_db):
+        """Test incremental vacuum returns False when no freelist pages exist."""
+        result = vacuum_if_needed(test_db, deleted_rows=200000, threshold=100000)
         assert result is False
 
 
