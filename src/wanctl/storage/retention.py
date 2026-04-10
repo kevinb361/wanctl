@@ -197,7 +197,8 @@ def vacuum_if_needed(
     conn: sqlite3.Connection,
     deleted_rows: int,
     threshold: int = 100000,
-    max_pages: int = 2000,
+    max_pages: int = 20000,
+    freelist_threshold_pages: int = 5000,
 ) -> bool:
     """Reclaim freelist pages after large deletions using incremental vacuum.
 
@@ -212,17 +213,20 @@ def vacuum_if_needed(
         conn: SQLite database connection
         deleted_rows: Number of rows deleted in recent cleanup
         threshold: Minimum deleted rows to trigger vacuum (default 100000)
-        max_pages: Maximum freelist pages to reclaim per cycle (default 2000)
+        max_pages: Maximum freelist pages to reclaim per cycle (default 20000)
+        freelist_threshold_pages: Reclaim when freelist grows beyond this many
+            pages, even if deleted_rows is below threshold.
 
     Returns:
         True if vacuum was run, False otherwise
     """
-    if deleted_rows < threshold:
+    auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
+    freelist = conn.execute("PRAGMA freelist_count").fetchone()[0]
+
+    if deleted_rows < threshold and freelist < freelist_threshold_pages:
         return False
 
-    auto_vacuum = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
     if auto_vacuum == 2:  # INCREMENTAL
-        freelist = conn.execute("PRAGMA freelist_count").fetchone()[0]
         pages_to_reclaim = min(freelist, max_pages)
         if pages_to_reclaim > 0:
             logger.info(

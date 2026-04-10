@@ -5,7 +5,7 @@ import sqlite3
 import time
 from unittest.mock import MagicMock, patch
 
-from wanctl.storage.maintenance import run_startup_maintenance
+from wanctl.storage.maintenance import maintenance_lock, maintenance_lock_path, run_startup_maintenance
 
 
 def insert_test_metrics(
@@ -313,3 +313,23 @@ class TestStartupMaintenanceRetentionConfig:
             _, kwargs = mock_downsample.call_args
             # No custom thresholds passed
             assert "thresholds" not in kwargs or kwargs.get("thresholds") is None
+
+
+class TestMaintenanceLock:
+    """Tests for shared storage maintenance locking."""
+
+    def test_second_holder_skips_while_lock_is_active(self, tmp_path):
+        db_path = tmp_path / "metrics.db"
+        with maintenance_lock(db_path) as acquired_first:
+            assert acquired_first is True
+            with maintenance_lock(db_path) as acquired_second:
+                assert acquired_second is False
+
+    def test_stale_lock_is_recovered(self, tmp_path):
+        db_path = tmp_path / "metrics.db"
+        lock_path = maintenance_lock_path(db_path)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path.write_text("999999\n")
+
+        with maintenance_lock(db_path) as acquired:
+            assert acquired is True

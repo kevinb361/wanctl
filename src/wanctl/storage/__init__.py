@@ -22,7 +22,7 @@ from wanctl.storage.downsampler import (
     DOWNSAMPLE_THRESHOLDS,
     downsample_metrics,
 )
-from wanctl.storage.maintenance import run_startup_maintenance
+from wanctl.storage.maintenance import maintenance_lock, maintenance_lock_path, run_startup_maintenance
 from wanctl.storage.reader import (
     compute_summary,
     query_benchmarks,
@@ -69,4 +69,6 @@ __all__ = [
     "DOWNSAMPLE_THRESHOLDS",
     # Maintenance
     "run_startup_maintenance",
+    "maintenance_lock",
+    "maintenance_lock_path",
 ]
