@@ -2207,9 +2207,10 @@ class WANController:
 
         adapter: LinuxCakeAdapter = self.router  # type: ignore[assignment]
 
-        # Single netlink dump for both interfaces (saves one round-trip per cycle)
-        dl_stats, ul_stats = adapter.get_both_queue_stats()
+        dl_stats = adapter.dl_backend.get_queue_stats("")
         self._dl_cake_snapshot = self._dl_cake_signal.update(dl_stats)
+
+        ul_stats = adapter.ul_backend.get_queue_stats("")
         self._ul_cake_snapshot = self._ul_cake_signal.update(ul_stats)
 
     def _run_congestion_assessment(
