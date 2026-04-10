@@ -45,6 +45,7 @@ from wanctl.metrics import (
 from wanctl.signal_processing import SignalResult
 from wanctl.storage.reader import (
     compute_summary,
+    count_metrics,
     query_metrics,
     select_granularity,
 )
@@ -1631,6 +1632,23 @@ class TestQueryMetricsPagination:
         full_result = query_metrics(db_path=populated_db)
         offset_result = query_metrics(db_path=populated_db, limit=5, offset=5)
         assert offset_result == full_result[5:10]
+
+
+class TestCountMetrics:
+    """Tests for count_metrics SQL-side counting."""
+
+    def test_count_matches_unpaginated_query(self, populated_db):
+        """Count should match the equivalent unpaginated query size."""
+        full_result = query_metrics(db_path=populated_db, wan="spectrum", metrics=["wanctl_rtt_ms"])
+        total = count_metrics(db_path=populated_db, wan="spectrum", metrics=["wanctl_rtt_ms"])
+        assert total == len(full_result)
+
+    def test_count_ignores_pagination_window(self, populated_db):
+        """Count should reflect all matching rows, not just one page."""
+        paged = query_metrics(db_path=populated_db, limit=5, offset=5)
+        total = count_metrics(db_path=populated_db)
+        assert total >= len(paged)
+        assert total == len(query_metrics(db_path=populated_db))
 
 
 class TestQueryMetricsResultFormat:

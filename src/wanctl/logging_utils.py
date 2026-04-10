@@ -81,7 +81,8 @@ class JSONFormatter(logging.Formatter):
             JSON string representation of the log record
         """
         log_data: dict[str, Any] = {
-            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC)
+            .strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -92,19 +93,13 @@ class JSONFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key.startswith("_") or key in self._EXCLUDE_ATTRS:
                 continue
-            # Ensure the value is JSON-serializable
-            try:
-                json.dumps(value)
-                log_data[key] = value
-            except (TypeError, ValueError):
-                # Convert non-serializable values to strings
-                log_data[key] = str(value)
+            log_data[key] = value
 
         # Include exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        return json.dumps(log_data, separators=(",", ":"))
+        return json.dumps(log_data, separators=(",", ":"), default=str)
 
 
 def get_log_format() -> str:

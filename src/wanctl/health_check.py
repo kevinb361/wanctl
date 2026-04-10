@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
 from wanctl import __version__
-from wanctl.storage.reader import query_metrics, select_granularity
+from wanctl.storage.reader import count_metrics, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
 # Default: warn when less than 100MB free on data partition
@@ -681,15 +681,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             limit=limit,
             offset=offset,
         )
-        total_count = len(
-            query_metrics(
-                db_path=DEFAULT_DB_PATH,
-                start_ts=start_ts,
-                end_ts=end_ts,
-                metrics=params.get("metrics"),
-                wan=params.get("wan"),
-                granularity=granularity,
-            )
+        total_count = count_metrics(
+            db_path=DEFAULT_DB_PATH,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            metrics=params.get("metrics"),
+            wan=params.get("wan"),
+            granularity=granularity,
         )
 
         # Format each metric record
