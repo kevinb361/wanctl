@@ -11,10 +11,16 @@ WatchdogSec. VACUUM is skipped at startup (uninterruptible, can exceed
 watchdog timeout on large databases) and deferred to periodic maintenance.
 """
 
+import errno
 import logging
+import os
 import sqlite3
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
+
+from wanctl.lock_utils import is_process_alive, read_lock_pid
 
 from wanctl.storage.downsampler import downsample_metrics, get_downsample_thresholds
 from wanctl.storage.retention import (
@@ -23,6 +29,57 @@ from wanctl.storage.retention import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_MAINTENANCE_LOCK_TIMEOUT = 7200
+
+
+def maintenance_lock_path(db_path: Path | str) -> Path:
+    """Return the shared maintenance lock path for a metrics database."""
+    db_path = Path(db_path)
+    return db_path.with_name(f".{db_path.name}.maintenance.lock")
+
+
+
+def _try_acquire_maintenance_lock(lock_path: Path) -> bool:
+    """Acquire the shared maintenance lock, cleaning up stale holders quietly."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(2):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            with os.fdopen(fd, 'w') as lock_file:
+                lock_file.write(f"{os.getpid()}\n")
+            return True
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+            existing_pid = read_lock_pid(lock_path)
+            if existing_pid is not None and is_process_alive(existing_pid):
+                return False
+            try:
+                lock_path.unlink(missing_ok=True)
+            except OSError:
+                return False
+    return False
+
+
+@contextmanager
+def maintenance_lock(db_path: Path | str, log: logging.Logger | None = None) -> Iterator[bool]:
+    """Best-effort shared lock for DB maintenance across processes."""
+    lock_path = maintenance_lock_path(db_path)
+    acquired = False
+    try:
+        acquired = _try_acquire_maintenance_lock(lock_path)
+        if not acquired and log is not None:
+            log.debug("Skipping maintenance; lock held: %s", lock_path)
+        yield acquired
+    finally:
+        if acquired:
+            try:
+                lock_path.unlink(missing_ok=True)
+            except OSError as e:
+                if log is not None:
+                    log.debug("Failed to remove maintenance lock %s: %s", lock_path, e)
 
 
 def run_startup_maintenance(

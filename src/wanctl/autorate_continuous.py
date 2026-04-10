@@ -333,6 +333,7 @@ def _init_storage(
     # Only record snapshot if db_path is a valid string (not MagicMock in tests)
     if db_path and isinstance(db_path, str):
         from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
+        from wanctl.storage.maintenance import maintenance_lock
 
         writer = MetricsWriter(Path(db_path))
         maintenance_conn = writer.connection
@@ -340,15 +341,17 @@ def _init_storage(
 
         # Run startup maintenance (cleanup + downsampling)
         # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
-        maint_result = run_startup_maintenance(
-            maintenance_conn,
-            retention_config=maintenance_retention_config,
-            log=startup_logger,
-            watchdog_fn=notify_watchdog,
-            max_seconds=20,
-        )
-        if maint_result.get("error"):
-            startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
+        with maintenance_lock(db_path, startup_logger) as acquired:
+            if acquired:
+                maint_result = run_startup_maintenance(
+                    maintenance_conn,
+                    retention_config=maintenance_retention_config,
+                    log=startup_logger,
+                    watchdog_fn=notify_watchdog,
+                    max_seconds=20,
+                )
+                if maint_result.get("error"):
+                    startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
 
     return maintenance_conn, maintenance_retention_config
 
@@ -580,43 +583,52 @@ def _run_maintenance(
             downsample_metrics,
             get_downsample_thresholds,
         )
+        from wanctl.storage.maintenance import maintenance_lock
         from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
 
-        deleted = cleanup_old_metrics(
-            maintenance_conn,
-            retention_config=maintenance_retention_config,
-            watchdog_fn=notify_watchdog,
-        )
-        notify_watchdog()
+        db_path = get_storage_config(controller.wan_controllers[0]["config"].data).get("db_path")
+        if not isinstance(db_path, str):
+            return
 
-        custom_thresholds = get_downsample_thresholds(
-            raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
-            aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
-            aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
-        )
-        downsampled = downsample_metrics(
-            maintenance_conn,
-            watchdog_fn=notify_watchdog,
-            thresholds=custom_thresholds,
-        )
-        notify_watchdog()
+        with maintenance_lock(db_path, maint_logger) as acquired:
+            if not acquired:
+                return
 
-        vacuumed = vacuum_if_needed(maintenance_conn, deleted)
-        notify_watchdog()
-
-        wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-        wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
-        notify_watchdog()
-
-        total_ds = sum(downsampled.values())
-        if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
-            maint_logger.info(
-                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
-                deleted,
-                total_ds,
-                vacuumed,
-                wal_truncated,
+            deleted = cleanup_old_metrics(
+                maintenance_conn,
+                retention_config=maintenance_retention_config,
+                watchdog_fn=notify_watchdog,
             )
+            notify_watchdog()
+
+            custom_thresholds = get_downsample_thresholds(
+                raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
+                aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
+                aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
+            )
+            downsampled = downsample_metrics(
+                maintenance_conn,
+                watchdog_fn=notify_watchdog,
+                thresholds=custom_thresholds,
+            )
+            notify_watchdog()
+
+            vacuumed = vacuum_if_needed(maintenance_conn, deleted)
+            notify_watchdog()
+
+            wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
+            notify_watchdog()
+
+            total_ds = sum(downsampled.values())
+            if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
+                maint_logger.info(
+                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
+                    deleted,
+                    total_ds,
+                    vacuumed,
+                    wal_truncated,
+                )
     except Exception as e:
         maint_logger.error("Periodic maintenance failed: %s", e)
 

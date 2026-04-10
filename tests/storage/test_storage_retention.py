@@ -212,6 +212,17 @@ class TestVacuumIfNeeded:
         result = vacuum_if_needed(test_db, deleted_rows=200000, threshold=100000)
         assert result is False
 
+    def test_vacuum_runs_when_freelist_large_even_if_deleted_rows_small(self, test_db):
+        """Large freelist alone should trigger incremental reclaim."""
+        self._create_freelist_pages(test_db)
+        result = vacuum_if_needed(
+            test_db,
+            deleted_rows=0,
+            threshold=100000,
+            freelist_threshold_pages=1,
+        )
+        assert result is True
+
 
 class TestRetentionIntegration:
     """Integration tests for retention cleanup workflow."""

@@ -2217,17 +2217,20 @@ def _run_steering_startup_storage(
 
     if db_path and isinstance(db_path, str):
         from wanctl.storage import record_config_snapshot, run_startup_maintenance
+        from wanctl.storage.maintenance import maintenance_lock
 
         writer = MetricsWriter(Path(db_path))
         record_config_snapshot(writer, config.primary_wan, config.data, "startup")
 
-        maint_result = run_startup_maintenance(
-            writer.connection,
-            retention_config=retention_config,
-            log=logger,
-        )
-        if maint_result.get("error"):
-            logger.warning(f"Startup maintenance error: {maint_result['error']}")
+        with maintenance_lock(db_path, logger) as acquired:
+            if acquired:
+                maint_result = run_startup_maintenance(
+                    writer.connection,
+                    retention_config=retention_config,
+                    log=logger,
+                )
+                if maint_result.get("error"):
+                    logger.warning(f"Startup maintenance error: {maint_result['error']}")
 
         logger.info(f"Config snapshot recorded to {db_path}")
 
