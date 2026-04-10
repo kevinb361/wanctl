@@ -23,6 +23,7 @@ class StorageConfig(TypedDict):
 
     db_path: str
     retention_days: int
+    maintenance_interval_seconds: int
     retention: RetentionConfig
 
 
@@ -136,6 +137,7 @@ DEFAULT_STORAGE_RAW_AGE_SECONDS = 900
 DEFAULT_STORAGE_1M_AGE_SECONDS = 86400
 DEFAULT_STORAGE_5M_AGE_SECONDS = 604800
 DEFAULT_STORAGE_5M_AGE_SECONDS_PROMETHEUS = 172800
+DEFAULT_STORAGE_MAINTENANCE_INTERVAL_SECONDS = 900
 
 # Storage schema - can be included in any daemon's SCHEMA
 STORAGE_SCHEMA: list[dict] = [
@@ -152,6 +154,14 @@ STORAGE_SCHEMA: list[dict] = [
         "type": str,
         "required": False,
         "default": DEFAULT_STORAGE_DB_PATH,
+    },
+    {
+        "path": "storage.maintenance_interval_seconds",
+        "type": int,
+        "required": False,
+        "default": DEFAULT_STORAGE_MAINTENANCE_INTERVAL_SECONDS,
+        "min": 60,
+        "max": 86400,
     },
     {
         "path": "storage.retention.raw_age_seconds",
@@ -196,6 +206,7 @@ def get_storage_config(data: dict) -> StorageConfig:
         Dict with keys:
         - retention_days: int (backward compat, computed from aggregate_5m_age_seconds)
         - db_path: str (default /var/lib/wanctl/metrics.db)
+        - maintenance_interval_seconds: int (default 900)
         - retention: dict with per-granularity thresholds:
             - raw_age_seconds: int (default 900)
             - aggregate_1m_age_seconds: int (default 86400)
@@ -246,6 +257,9 @@ def get_storage_config(data: dict) -> StorageConfig:
     return {
         "db_path": storage.get("db_path", DEFAULT_STORAGE_DB_PATH),
         "retention_days": retention_config["aggregate_5m_age_seconds"] // 86400,
+        "maintenance_interval_seconds": storage.get(
+            "maintenance_interval_seconds", DEFAULT_STORAGE_MAINTENANCE_INTERVAL_SECONDS
+        ),
         "retention": retention_config,
     }
 

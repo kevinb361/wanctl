@@ -64,8 +64,9 @@ if TYPE_CHECKING:
 # CONSTANTS
 # =============================================================================
 
-# Periodic maintenance interval (seconds) - cleanup/downsample/vacuum every hour
-MAINTENANCE_INTERVAL = 3600
+# Default periodic maintenance interval (seconds). Configurable via
+# storage.maintenance_interval_seconds.
+DEFAULT_MAINTENANCE_INTERVAL = 900
 
 
 # =============================================================================
@@ -295,14 +296,14 @@ def _parse_autorate_args() -> argparse.Namespace:
 
 def _init_storage(
     controller: "ContinuousAutoRate",
-) -> tuple[Any, Mapping[str, Any]]:
+) -> tuple[Any, Mapping[str, Any], int]:
     """Initialize storage, record config snapshot, and run startup maintenance.
 
     Args:
         controller: The ContinuousAutoRate instance (for config/logger access).
 
     Returns:
-        Tuple of (maintenance_conn, maintenance_retention_config).
+        Tuple of (maintenance_conn, maintenance_retention_config, maintenance_interval_seconds).
         maintenance_conn is None if storage is not enabled.
         maintenance_retention_config is the per-granularity retention dict.
     """
@@ -310,6 +311,7 @@ def _init_storage(
     storage_config = get_storage_config(first_config.data)
     db_path = storage_config.get("db_path")
     maintenance_conn = None
+    maintenance_interval_seconds = DEFAULT_MAINTENANCE_INTERVAL
     default_retention: Mapping[str, Any] = {
         "raw_age_seconds": 900,
         "aggregate_1m_age_seconds": 86400,
@@ -317,6 +319,9 @@ def _init_storage(
         "prometheus_compensated": False,
     }
     retention_raw = storage_config.get("retention")
+    maintenance_interval_seconds = int(
+        storage_config.get("maintenance_interval_seconds", DEFAULT_MAINTENANCE_INTERVAL)
+    )
     # Guard against MagicMock in tests (isinstance(dict) check)
     maintenance_retention_config: Mapping[str, Any] = (
         retention_raw if isinstance(retention_raw, dict) else default_retention
@@ -353,7 +358,7 @@ def _init_storage(
                 if maint_result.get("error"):
                     startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
 
-    return maintenance_conn, maintenance_retention_config
+    return maintenance_conn, maintenance_retention_config, maintenance_interval_seconds
 
 
 def _acquire_daemon_locks(
@@ -965,8 +970,9 @@ def _run_adaptive_tuning(controller: "ContinuousAutoRate") -> None:
 def _handle_sigusr1_reload(
     controller: "ContinuousAutoRate",
     maintenance_retention_config: Mapping[str, Any],
-) -> Mapping[str, Any]:
-    """Handle SIGUSR1 config reload. Returns updated maintenance_retention_config."""
+    maintenance_interval_seconds: int,
+) -> tuple[Mapping[str, Any], int]:
+    """Handle SIGUSR1 config reload. Returns updated retention config and interval."""
     for wan_info in controller.wan_controllers:
         wan_info["logger"].info("SIGUSR1 received, reloading config")
         wan_info["controller"].reload()
@@ -981,14 +987,20 @@ def _handle_sigusr1_reload(
             logger=reload_wan["logger"],
         )
         maintenance_retention_config = new_retention
-        reload_wan["logger"].info("Retention config reloaded via SIGUSR1")
+        maintenance_interval_seconds = int(
+            new_storage_config.get("maintenance_interval_seconds", DEFAULT_MAINTENANCE_INTERVAL)
+        )
+        reload_wan["logger"].info(
+            "Storage config reloaded via SIGUSR1 (maintenance_interval=%ss)",
+            maintenance_interval_seconds,
+        )
     except ConfigValidationError as e:
         controller.wan_controllers[0]["logger"].error(
             "Retention config reload failed, keeping previous config: %s", e
         )
 
     reset_reload_state()
-    return maintenance_retention_config
+    return maintenance_retention_config, maintenance_interval_seconds
 
 
 def _save_controller_state(
@@ -1167,6 +1179,7 @@ def _run_daemon_loop(
     controller: "ContinuousAutoRate",
     maintenance_conn: Any,
     maintenance_retention_config: Mapping[str, Any],
+    maintenance_interval_seconds: int,
 ) -> None:
     """Main daemon control loop with cycle management, maintenance, and tuning."""
     consecutive_failures = 0
@@ -1189,10 +1202,10 @@ def _run_daemon_loop(
             controller, cycle_success, consecutive_failures, watchdog_enabled
         )
 
-        # Periodic maintenance: cleanup + downsample + vacuum every hour
+        # Periodic maintenance: cleanup + downsample + vacuum on configured cadence
         if maintenance_conn is not None:
             now = time.monotonic()
-            if now - last_maintenance >= MAINTENANCE_INTERVAL:
+            if now - last_maintenance >= maintenance_interval_seconds:
                 _run_maintenance(controller, maintenance_conn, maintenance_retention_config)
                 last_maintenance = now
 
@@ -1201,8 +1214,8 @@ def _run_daemon_loop(
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
-            maintenance_retention_config = _handle_sigusr1_reload(
-                controller, maintenance_retention_config
+            maintenance_retention_config, maintenance_interval_seconds = _handle_sigusr1_reload(
+                controller, maintenance_retention_config, maintenance_interval_seconds
             )
 
         # Sleep for remainder of cycle interval
@@ -1262,7 +1275,7 @@ def main() -> int | None:
 
     controller = ContinuousAutoRate(args.config, debug=args.debug)
     _configure_controller_flags(controller, args)
-    maintenance_conn, maintenance_retention_config = _init_storage(controller)
+    maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = _init_storage(controller)
 
     if args.oneshot:
         controller.run_cycle(use_lock=True)
@@ -1289,7 +1302,12 @@ def main() -> int | None:
     io_worker = _setup_daemon_state(controller, irtt_thread)
 
     try:
-        _run_daemon_loop(controller, maintenance_conn, maintenance_retention_config)
+        _run_daemon_loop(
+            controller,
+            maintenance_conn,
+            maintenance_retention_config,
+            maintenance_interval_seconds,
+        )
     finally:
         _cleanup_daemon(
             controller,
