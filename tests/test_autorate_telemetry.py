@@ -23,7 +23,7 @@ from wanctl.wan_controller import CYCLE_INTERVAL_SECONDS, WANController
 @pytest.fixture
 def controller(mock_autorate_config):
     """Create a WANController with patched load_state to avoid file I/O."""
-    mock_router = MagicMock()
+    mock_router = MagicMock(needs_rate_limiting=False)
     mock_rtt = MagicMock()
     mock_logger = MagicMock()
     with patch.object(WANController, "load_state"):

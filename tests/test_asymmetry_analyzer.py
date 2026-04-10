@@ -397,6 +397,78 @@ def _make_health_wan_controller() -> MagicMock:
     wan._overrun_count = 0
     wan._cycle_interval_ms = 50.0
     wan._profiler.stats.return_value = None
+    _qc_health = {
+        "hysteresis": {
+            "dwell_counter": 0,
+            "dwell_cycles": 5,
+            "deadband_ms": 3.0,
+            "transitions_suppressed": 0,
+            "suppressions_per_min": 0,
+            "window_start_epoch": 0.0,
+        },
+        "cake_detection": {},
+        "recovery_probe": {},
+    }
+    wan.download.get_health_data.return_value = _qc_health
+    wan.upload.get_health_data.return_value = _qc_health
+
+    # Dynamic side_effect reads current attributes so tests can override after construction
+    def _health_data():
+        return {
+            "cycle_budget": {
+                "profiler": wan._profiler,
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "signal_result": wan._last_signal_result,
+            "irtt": {
+                "thread": wan._irtt_thread,
+                "correlation": wan._irtt_correlation,
+                "last_asymmetry_result": wan._last_asymmetry_result,
+            },
+            "reflector": {"scorer": wan._reflector_scorer},
+            "fusion": {
+                "enabled": wan._fusion_enabled,
+                "icmp_filtered_rtt": wan._last_icmp_filtered_rtt,
+                "fused_rtt": wan._last_fused_rtt,
+                "icmp_weight": wan._fusion_icmp_weight,
+                "healer": wan._fusion_healer,
+            },
+            "tuning": {
+                "enabled": False,
+                "state": None,
+                "parameter_locks": None,
+                "pending_observation": None,
+            },
+            "suppression_alert": {"threshold": 20},
+            "asymmetry_gate": {
+                "enabled": False,
+                "active": False,
+                "downstream_streak": 0,
+                "damping_factor": 1.0,
+                "last_result_age_sec": None,
+            },
+            "cake_signal": {
+                "enabled": False,
+                "supported": False,
+                "download": None,
+                "upload": None,
+                "detection": {
+                    "dl_refractory_remaining": 0,
+                    "ul_refractory_remaining": 0,
+                    "refractory_cycles": 40,
+                    "dl_dwell_bypassed_count": 0,
+                    "ul_dwell_bypassed_count": 0,
+                    "dl_backlog_suppressed_count": 0,
+                    "ul_backlog_suppressed_count": 0,
+                    "dl_recovery_probe": {},
+                    "ul_recovery_probe": {},
+                },
+            },
+        }
+
+    wan.get_health_data.side_effect = _health_data
     return wan
 
 

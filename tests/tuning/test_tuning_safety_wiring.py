@@ -70,7 +70,7 @@ class TestWANControllerSafetyInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )
@@ -85,7 +85,7 @@ class TestWANControllerSafetyInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )
@@ -99,7 +99,7 @@ class TestWANControllerSafetyInit:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=MagicMock(),
         )
@@ -265,7 +265,7 @@ class TestReloadClearsSafetyState:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=logging.getLogger("test.tuning.reload"),
         )
@@ -291,7 +291,7 @@ class TestReloadClearsSafetyState:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=logging.getLogger("test.tuning.reload"),
         )
@@ -321,7 +321,7 @@ class TestReloadClearsSafetyState:
         wc = WANController(
             wan_name="Test",
             config=mock_autorate_config,
-            router=MagicMock(),
+            router=MagicMock(needs_rate_limiting=False),
             rtt_measurement=MagicMock(),
             logger=logging.getLogger("test.tuning.reload"),
         )
@@ -367,6 +367,8 @@ def _make_health_handler(wan_controller):
         "_build_irtt_section",
         "_build_reflector_section",
         "_build_fusion_section",
+        "_resolve_fusion_rtt_sources",
+        "_add_fusion_healer_state",
         "_build_tuning_section",
         "_build_tuning_params_dict",
         "_build_tuning_safety_section",
@@ -438,6 +440,57 @@ def _make_health_wan_controller(
     # Safety attributes (Plan 100-02)
     wc._parameter_locks = parameter_locks if parameter_locks is not None else {}
     wc._pending_observation = pending_observation
+
+    # Health data facade — mirrors WANController.get_health_data() structure
+    wc.get_health_data.return_value = {
+        "cycle_budget": {
+            "profiler": wc._profiler,
+            "overrun_count": 0,
+            "cycle_interval_ms": 50.0,
+            "warning_threshold_pct": 80.0,
+        },
+        "signal_result": None,
+        "irtt": {"thread": None, "correlation": None, "last_asymmetry_result": None},
+        "reflector": {"scorer": None},
+        "fusion": {
+            "enabled": False,
+            "icmp_filtered_rtt": None,
+            "fused_rtt": None,
+            "icmp_weight": 0.7,
+            "healer": None,
+        },
+        "tuning": {
+            "enabled": tuning_enabled,
+            "state": tuning_state,
+            "parameter_locks": parameter_locks if parameter_locks is not None else {},
+            "pending_observation": pending_observation,
+        },
+        "suppression_alert": {"threshold": 20},
+        "asymmetry_gate": {
+            "enabled": False,
+            "active": False,
+            "downstream_streak": 0,
+            "damping_factor": 1.0,
+            "last_result_age_sec": None,
+        },
+        "cake_signal": {
+            "enabled": False,
+            "supported": False,
+            "download": None,
+            "upload": None,
+            "detection": {
+                "dl_refractory_remaining": 0,
+                "ul_refractory_remaining": 0,
+                "refractory_cycles": 40,
+                "dl_dwell_bypassed_count": 0,
+                "ul_dwell_bypassed_count": 0,
+                "dl_backlog_suppressed_count": 0,
+                "ul_backlog_suppressed_count": 0,
+                "dl_recovery_probe": {},
+                "ul_recovery_probe": {},
+            },
+        },
+    }
 
     return wc
 

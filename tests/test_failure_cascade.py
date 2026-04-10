@@ -28,6 +28,7 @@ def mock_router():
     """Create a mock router with set_limits returning True by default."""
     router = MagicMock()
     router.set_limits.return_value = True
+    router.needs_rate_limiting = False
     return router
 
 
