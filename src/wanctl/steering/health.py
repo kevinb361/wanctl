@@ -187,6 +187,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             health["cycle_budget"] = cycle_budget
 
         health["wan_awareness"] = self._build_wan_awareness_section(health_data)
+        health["storage"] = self._build_storage_section(health_data)
         self._add_alerting_section(health)
 
         return self.daemon.router_connectivity.is_reachable
@@ -289,6 +290,53 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "red_rtt_ms": self.daemon.config.red_rtt_ms,
             "red_samples_required": self.daemon.config.red_samples_required,
             "green_samples_required": self.daemon.config.green_samples_required,
+        }
+
+    def _build_storage_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build bounded steering storage status from in-memory telemetry."""
+        storage = health_data.get("storage")
+        if not isinstance(storage, dict):
+            return {
+                "pending_writes": 0,
+                "queue": {"drained_total": 0, "error_total": 0},
+                "writes": {
+                    "success_total": 0,
+                    "failure_total": 0,
+                    "lock_failure_total": 0,
+                    "volume_total": 0,
+                    "last_duration_ms": None,
+                    "max_duration_ms": None,
+                },
+                "checkpoint": {
+                    "busy": 0,
+                    "wal_pages": 0,
+                    "checkpointed_pages": 0,
+                    "maintenance_lock_skipped_total": 0,
+                },
+            }
+        checkpoint = storage.get("checkpoint") if isinstance(storage.get("checkpoint"), dict) else {}
+        return {
+            "pending_writes": int(storage.get("pending_writes", 0) or 0),
+            "queue": {
+                "drained_total": int(storage.get("queue_drained_total", 0) or 0),
+                "error_total": int(storage.get("queue_error_total", 0) or 0),
+            },
+            "writes": {
+                "success_total": int(storage.get("write_success_total", 0) or 0),
+                "failure_total": int(storage.get("write_failure_total", 0) or 0),
+                "lock_failure_total": int(storage.get("write_lock_failure_total", 0) or 0),
+                "volume_total": int(storage.get("write_volume_total", 0) or 0),
+                "last_duration_ms": storage.get("write_last_duration_ms"),
+                "max_duration_ms": storage.get("write_max_duration_ms"),
+            },
+            "checkpoint": {
+                "busy": int(checkpoint.get("busy", 0) or 0),
+                "wal_pages": int(checkpoint.get("wal_pages", 0) or 0),
+                "checkpointed_pages": int(checkpoint.get("checkpointed_pages", 0) or 0),
+                "maintenance_lock_skipped_total": int(
+                    checkpoint.get("maintenance_lock_skipped_total", 0) or 0
+                ),
+            },
         }
 
     def _build_wan_awareness_section(self, health_data: dict[str, Any]) -> dict[str, Any]:

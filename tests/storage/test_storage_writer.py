@@ -1,5 +1,6 @@
 """Unit tests for storage writer module."""
 
+import json
 import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -8,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from wanctl.metrics import metrics
 from wanctl.storage.writer import MetricsWriter
 
 
@@ -187,6 +189,59 @@ class TestWriteMetric:
         cursor = conn.execute("SELECT COUNT(*) FROM metrics")
         assert cursor.fetchone()[0] == 5
 
+    def test_write_metric_records_success_telemetry(self, reset_singleton, test_db_path):
+        """Successful writes expose in-memory timing and success counters."""
+        writer = MetricsWriter(test_db_path)
+
+        writer.write_metric(
+            timestamp=1706200000,
+            wan_name="spectrum",
+            metric_name="wanctl_rtt_ms",
+            value=15.5,
+        )
+
+        labels = {"process": "unknown"}
+        assert metrics.get_counter("wanctl_storage_write_success_total", labels) == 1
+        assert metrics.get_counter("wanctl_storage_write_failure_total", labels) is None
+        assert metrics.get_gauge("wanctl_storage_write_last_duration_ms", labels) is not None
+        assert metrics.get_gauge("wanctl_storage_write_max_duration_ms", labels) is not None
+
+    def test_write_metric_records_failure_telemetry_and_rolls_back(
+        self, reset_singleton, test_db_path
+    ):
+        """Failed writes still rollback and expose failure counters."""
+        writer = MetricsWriter(test_db_path)
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.commands: list[str] = []
+
+            def execute(self, sql: str, *args):
+                self.commands.append(sql)
+                if sql.lstrip().startswith("INSERT INTO metrics"):
+                    raise sqlite3.OperationalError("database is locked")
+                return self
+
+        fake_conn = FakeConnection()
+        writer._conn = fake_conn  # type: ignore[assignment]
+
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            writer.write_metric(
+                timestamp=1706200000,
+                wan_name="spectrum",
+                metric_name="wanctl_rtt_ms",
+                value=15.5,
+            )
+
+        labels = {"process": "unknown"}
+        assert fake_conn.commands[0] == "BEGIN"
+        assert fake_conn.commands[-1] == "ROLLBACK"
+        assert any(command.lstrip().startswith("INSERT INTO metrics") for command in fake_conn.commands)
+        assert metrics.get_counter("wanctl_storage_write_failure_total", labels) == 1
+        assert metrics.get_counter("wanctl_storage_write_lock_failure_total", labels) == 1
+        assert metrics.get_counter("wanctl_storage_write_success_total", labels) is None
+        assert metrics.get_gauge("wanctl_storage_write_last_duration_ms", labels) is None
+
 
 class TestWriteMetricsBatch:
     """Tests for write_metrics_batch method."""
@@ -226,8 +281,6 @@ class TestWriteMetricsBatch:
         writer.write_metrics_batch(metrics)
 
         # Verify labels
-        import json
-
         conn = writer._get_connection()
         cursor = conn.execute("SELECT labels FROM metrics ORDER BY timestamp")
         rows = cursor.fetchall()
@@ -236,6 +289,26 @@ class TestWriteMetricsBatch:
         labels2 = json.loads(rows[1]["labels"])
         assert labels1["state"] == "GREEN"
         assert labels2["state"] == "YELLOW"
+
+    def test_write_batch_records_process_label(self, reset_singleton, test_db_path):
+        """Batched writes expose process-labeled success telemetry."""
+        writer = MetricsWriter(test_db_path)
+        metrics_batch = [
+            (
+                1706200000,
+                "spectrum",
+                "wanctl_state",
+                0.0,
+                {"direction": "download", "process": "steering"},
+                "raw",
+            ),
+        ]
+
+        writer.write_metrics_batch(metrics_batch)
+
+        labels = {"process": "steering"}
+        assert metrics.get_counter("wanctl_storage_write_success_total", labels) == 1
+        assert metrics.get_gauge("wanctl_storage_write_last_duration_ms", labels) is not None
 
     def test_write_batch_atomicity(self, reset_singleton, test_db_path):
         """Test batch write is atomic (all or nothing)."""

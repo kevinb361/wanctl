@@ -8,9 +8,11 @@ import json
 import logging
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
+from wanctl.metrics import record_storage_write_failure, record_storage_write_success
 from wanctl.storage.schema import create_tables
 
 logger = logging.getLogger(__name__)
@@ -67,6 +69,7 @@ class MetricsWriter:
         self._db_path = db_path or DEFAULT_DB_PATH
         self._conn: sqlite3.Connection | None = None
         self._write_lock = threading.Lock()
+        self._process_role = "unknown"
         self._initialized = True
 
     # =========================================================================
@@ -77,6 +80,10 @@ class MetricsWriter:
     def db_path(self) -> Path:
         """Database file path."""
         return self._db_path
+
+    def set_process_role(self, process_role: str) -> None:
+        """Set the process label used for storage observability metrics."""
+        self._process_role = process_role or "unknown"
 
     @classmethod
     def get_instance(cls) -> "MetricsWriter | None":
@@ -91,6 +98,24 @@ class MetricsWriter:
             sqlite3.Connection: Database connection with WAL mode enabled
         """
         return self._get_connection()
+
+    def _resolve_process_role(self, labels: dict[str, Any] | None = None) -> str:
+        """Resolve the process role for observability labels."""
+        if isinstance(labels, dict):
+            process_role = labels.get("process")
+            if isinstance(process_role, str) and process_role:
+                return process_role
+        return self._process_role
+
+    def _record_write_success(self, process_role: str, started_at: float, row_count: int) -> None:
+        """Record successful write observability metrics."""
+        duration_ms = max(0.0, (time.monotonic() - started_at) * 1000.0)
+        record_storage_write_success(process_role, duration_ms, row_count)
+
+    def _record_write_failure(self, process_role: str, error: Exception) -> None:
+        """Record failed write observability metrics."""
+        lock_failure = isinstance(error, sqlite3.OperationalError) and "locked" in str(error).lower()
+        record_storage_write_failure(process_role, lock_failure=lock_failure)
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get or create database connection.
@@ -189,6 +214,8 @@ class MetricsWriter:
             granularity: Data granularity (raw, 1m, 5m, 1h)
         """
         labels_json = json.dumps(labels) if labels else None
+        process_role = self._resolve_process_role(labels)
+        started_at = time.monotonic()
 
         with self._write_lock:
             conn = self._get_connection()
@@ -202,8 +229,10 @@ class MetricsWriter:
                     (timestamp, wan_name, metric_name, value, labels_json, granularity),
                 )
                 conn.execute("COMMIT")
-            except Exception:
+                self._record_write_success(process_role, started_at, 1)
+            except Exception as exc:
                 conn.execute("ROLLBACK")
+                self._record_write_failure(process_role, exc)
                 raise
 
     def write_metrics_batch(
@@ -221,11 +250,20 @@ class MetricsWriter:
         if not metrics:
             return
 
+        process_role = self._process_role
+        for _, _, _, _, labels, _ in metrics:
+            if isinstance(labels, dict):
+                process_label = labels.get("process")
+                if isinstance(process_label, str) and process_label:
+                    process_role = process_label
+                    break
+
         # Serialize labels
         rows = [
             (ts, wan, name, val, json.dumps(labels) if labels else None, gran)
             for ts, wan, name, val, labels, gran in metrics
         ]
+        started_at = time.monotonic()
 
         with self._write_lock:
             conn = self._get_connection()
@@ -239,8 +277,10 @@ class MetricsWriter:
                     rows,
                 )
                 conn.execute("COMMIT")
-            except Exception:
+                self._record_write_success(process_role, started_at, len(rows))
+            except Exception as exc:
                 conn.execute("ROLLBACK")
+                self._record_write_failure(process_role, exc)
                 raise
 
     def write_alert(
@@ -317,7 +357,9 @@ class MetricsWriter:
     def close(self) -> None:
         """Close the database connection."""
         if self._conn is not None:
-            self._conn.close()
+            close = getattr(self._conn, "close", None)
+            if callable(close):
+                close()
             self._conn = None
             logger.debug("MetricsWriter connection closed")
 

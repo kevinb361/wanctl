@@ -26,6 +26,13 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 
 - [ ] **VALID-01**: All parameter changes deployed and stable in production for 24h soak
 
+### Storage Observability And DB Decision
+
+- [x] **PH165-OBS-01**: Shared SQLite writer paths record bounded in-memory contention telemetry for write duration, success, and lock-failure outcomes without changing existing commit/rollback behavior
+- [x] **PH165-OBS-02**: Autorate deferred queue pressure, steering direct-write volume, and maintenance/checkpoint contention signals are observable without writing telemetry back into SQLite
+- [x] **PH165-OBS-03**: Autorate and steering operator surfaces expose storage contention status with stable, bounded payload fields and low-overhead Prometheus-style metrics
+- [x] **PH165-DEC-04**: A tested decision helper/report classifies measured results into keep shared DB, reduce write pressure further, or plan split DBs later, with no migration performed unless that gate is explicitly reached
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -37,6 +44,10 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 | RECOV-04 | 163 | Pending |
 | RECOV-05 | 163 | Pending |
 | VALID-01 | 164 | Pending |
+| PH165-OBS-01 | 165 | Complete |
+| PH165-OBS-02 | 165 | Complete |
+| PH165-OBS-03 | 165 | Complete |
+| PH165-DEC-04 | 165 | Complete |
 
 ## Out of Scope
 

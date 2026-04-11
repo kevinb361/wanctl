@@ -24,6 +24,7 @@ from wanctl.fusion_healer import FusionHealer, HealState
 from wanctl.irtt_measurement import IRTTResult
 from wanctl.irtt_thread import IRTTThread
 from wanctl.metrics import (
+    get_storage_metrics_snapshot,
     record_autorate_cycle,
     record_ping_failure,
     record_rate_limit_event,
@@ -3176,6 +3177,7 @@ class WANController:
                     "ul_recovery_probe": self.upload.get_health_data().get("recovery_probe", {}),
                 },
             },
+            "storage": get_storage_metrics_snapshot("autorate"),
         }
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")

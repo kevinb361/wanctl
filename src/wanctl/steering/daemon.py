@@ -42,7 +42,12 @@ from ..config_validation_utils import (
 from ..daemon_utils import check_cleanup_deadline
 from ..lock_utils import validate_and_acquire_lock
 from ..logging_utils import setup_logging
-from ..metrics import record_steering_state, record_steering_transition
+from ..metrics import (
+    get_storage_metrics_snapshot,
+    record_steering_state,
+    record_steering_transition,
+    record_storage_maintenance_lock_skip,
+)
 from ..perf_profiler import (
     PROFILE_REPORT_INTERVAL,  # noqa: F401 -- re-exported for test compatibility
     OperationProfiler,
@@ -1044,6 +1049,7 @@ class SteeringDaemon:
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
             self._metrics_writer = MetricsWriter(Path(db_path))
+            self._metrics_writer.set_process_role("steering")
             self.logger.info(f"Metrics storage enabled: {db_path}")
 
     def _init_steering_alerting(self) -> None:
@@ -1268,6 +1274,7 @@ class SteeringDaemon:
                 "cycle_interval_ms": self._cycle_interval_ms,
             },
             "wan_awareness": wan_awareness,
+            "storage": get_storage_metrics_snapshot("steering"),
         }
 
     def _is_current_state_good(self, current_state: str) -> bool:
@@ -2220,6 +2227,7 @@ def _run_steering_startup_storage(
         from wanctl.storage.maintenance import maintenance_lock
 
         writer = MetricsWriter(Path(db_path))
+        writer.set_process_role("steering")
         record_config_snapshot(writer, config.primary_wan, config.data, "startup")
 
         with maintenance_lock(db_path, logger) as acquired:
@@ -2231,6 +2239,8 @@ def _run_steering_startup_storage(
                 )
                 if maint_result.get("error"):
                     logger.warning(f"Startup maintenance error: {maint_result['error']}")
+            else:
+                record_storage_maintenance_lock_skip("steering")
 
         logger.info(f"Config snapshot recorded to {db_path}")
 

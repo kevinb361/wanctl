@@ -6,6 +6,7 @@ import time
 
 import pytest
 
+from wanctl.metrics import metrics
 from wanctl.storage import MetricsWriter
 
 
@@ -123,6 +124,26 @@ class TestSteeringMetricsRecording:
         conn.close()
 
         assert rows[0] == 2
+
+    def test_steering_contention_metrics_do_not_round_trip_to_sqlite(self, temp_db):
+        """Steering path should reserve storage observability for in-memory telemetry."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+
+        writer.write_metrics_batch(
+            [(ts, "spectrum", "wanctl_state", 0.0, {"source": "steering"}, "raw")]
+        )
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name LIKE 'wanctl_storage_%'"
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0
+        assert metrics.get_counter(
+            "wanctl_storage_write_success_total", {"process": "steering"}
+        ) is None
 
 
 class TestWanAwarenessMetrics:

@@ -271,6 +271,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             wan_health["cake_signal"] = cake_signal
 
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
+        wan_health["storage"] = self._build_storage_section(health_data)
 
         return wan_health
 
@@ -620,6 +621,53 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "revert_count": revert_count,
             "locked_parameters": locked_params,
             "pending_observation": pending,
+        }
+
+    def _build_storage_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build bounded storage contention status from in-memory telemetry."""
+        storage = health_data.get("storage")
+        if not isinstance(storage, dict):
+            return {
+                "pending_writes": 0,
+                "queue": {"drained_total": 0, "error_total": 0},
+                "writes": {
+                    "success_total": 0,
+                    "failure_total": 0,
+                    "lock_failure_total": 0,
+                    "volume_total": 0,
+                    "last_duration_ms": None,
+                    "max_duration_ms": None,
+                },
+                "checkpoint": {
+                    "busy": 0,
+                    "wal_pages": 0,
+                    "checkpointed_pages": 0,
+                    "maintenance_lock_skipped_total": 0,
+                },
+            }
+        checkpoint = storage.get("checkpoint") if isinstance(storage.get("checkpoint"), dict) else {}
+        return {
+            "pending_writes": int(storage.get("pending_writes", 0) or 0),
+            "queue": {
+                "drained_total": int(storage.get("queue_drained_total", 0) or 0),
+                "error_total": int(storage.get("queue_error_total", 0) or 0),
+            },
+            "writes": {
+                "success_total": int(storage.get("write_success_total", 0) or 0),
+                "failure_total": int(storage.get("write_failure_total", 0) or 0),
+                "lock_failure_total": int(storage.get("write_lock_failure_total", 0) or 0),
+                "volume_total": int(storage.get("write_volume_total", 0) or 0),
+                "last_duration_ms": storage.get("write_last_duration_ms"),
+                "max_duration_ms": storage.get("write_max_duration_ms"),
+            },
+            "checkpoint": {
+                "busy": int(checkpoint.get("busy", 0) or 0),
+                "wal_pages": int(checkpoint.get("wal_pages", 0) or 0),
+                "checkpointed_pages": int(checkpoint.get("checkpointed_pages", 0) or 0),
+                "maintenance_lock_skipped_total": int(
+                    checkpoint.get("maintenance_lock_skipped_total", 0) or 0
+                ),
+            },
         }
 
     def _build_alerting_section(self) -> dict[str, Any]:

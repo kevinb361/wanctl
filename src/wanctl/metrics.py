@@ -175,6 +175,11 @@ class MetricsRegistry:
 metrics = MetricsRegistry()
 
 
+def reset() -> None:
+    """Reset the global metrics registry. Exposed for tests and fixtures."""
+    metrics.reset()
+
+
 class MetricsHandler(BaseHTTPRequestHandler):
     """HTTP request handler for /metrics endpoint."""
 
@@ -475,3 +480,157 @@ def record_steering_transition(primary_wan: str, from_state: str, to_state: str)
         },
         help_text="Total steering state transitions",
     )
+
+
+
+def _storage_process_labels(process_role: str) -> dict[str, str]:
+    """Build canonical process labels for storage observability metrics."""
+    return {"process": process_role}
+
+
+
+def record_storage_write_success(process_role: str, duration_ms: float, row_count: int) -> None:
+    """Record a successful SQLite write transaction."""
+    labels = _storage_process_labels(process_role)
+    metrics.inc_counter(
+        "wanctl_storage_write_success_total",
+        labels=labels,
+        help_text="Total successful SQLite write transactions by process role",
+    )
+    metrics.inc_counter(
+        "wanctl_storage_write_volume_total",
+        labels=labels,
+        value=row_count,
+        help_text="Total SQLite metric rows written by process role",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_write_last_duration_ms",
+        duration_ms,
+        labels=labels,
+        help_text="Duration of the most recent successful SQLite write transaction in milliseconds",
+    )
+    current_max = metrics.get_gauge("wanctl_storage_write_max_duration_ms", labels)
+    if current_max is None or duration_ms > current_max:
+        metrics.set_gauge(
+            "wanctl_storage_write_max_duration_ms",
+            duration_ms,
+            labels=labels,
+            help_text="Maximum successful SQLite write transaction duration in milliseconds",
+        )
+
+
+
+def record_storage_write_failure(process_role: str, *, lock_failure: bool) -> None:
+    """Record a failed SQLite write transaction."""
+    labels = _storage_process_labels(process_role)
+    metrics.inc_counter(
+        "wanctl_storage_write_failure_total",
+        labels=labels,
+        help_text="Total failed SQLite write transactions by process role",
+    )
+    if lock_failure:
+        metrics.inc_counter(
+            "wanctl_storage_write_lock_failure_total",
+            labels=labels,
+            help_text="Total SQLite lock-related write failures by process role",
+        )
+
+
+
+def record_storage_pending_writes(process_role: str, pending_count: int) -> None:
+    """Record current deferred SQLite queue depth."""
+    metrics.set_gauge(
+        "wanctl_storage_pending_writes",
+        float(pending_count),
+        labels=_storage_process_labels(process_role),
+        help_text="Queued SQLite write operations not yet processed",
+    )
+
+
+
+def record_storage_queue_drain(process_role: str, item_count: int = 1) -> None:
+    """Record successful queue drain operations."""
+    metrics.inc_counter(
+        "wanctl_storage_queue_drained_total",
+        labels=_storage_process_labels(process_role),
+        value=item_count,
+        help_text="Total deferred SQLite queue items successfully drained by process role",
+    )
+
+
+
+def record_storage_queue_error(process_role: str, item_count: int = 1) -> None:
+    """Record failed queue drain operations."""
+    metrics.inc_counter(
+        "wanctl_storage_queue_error_total",
+        labels=_storage_process_labels(process_role),
+        value=item_count,
+        help_text="Total deferred SQLite queue items that failed during drain by process role",
+    )
+
+
+
+def record_storage_checkpoint(
+    process_role: str,
+    *,
+    busy: int,
+    wal_pages: int,
+    checkpointed_pages: int,
+) -> None:
+    """Record WAL checkpoint outcome metrics."""
+    labels = _storage_process_labels(process_role)
+    metrics.set_gauge(
+        "wanctl_storage_checkpoint_busy",
+        float(busy),
+        labels=labels,
+        help_text="Whether the most recent WAL checkpoint was blocked (1) or not (0)",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_wal_pages",
+        float(wal_pages),
+        labels=labels,
+        help_text="Number of pages in the WAL during the most recent checkpoint",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_checkpointed_pages",
+        float(checkpointed_pages),
+        labels=labels,
+        help_text="Number of WAL pages checkpointed during the most recent checkpoint",
+    )
+
+
+
+def record_storage_maintenance_lock_skip(process_role: str) -> None:
+    """Record skipped maintenance runs due to the shared maintenance lock."""
+    metrics.inc_counter(
+        "wanctl_storage_maintenance_lock_skipped_total",
+        labels=_storage_process_labels(process_role),
+        help_text="Total maintenance runs skipped because another process held the shared lock",
+    )
+
+
+
+def get_storage_metrics_snapshot(process_role: str) -> dict[str, Any]:
+    """Return a bounded storage observability snapshot for a process role."""
+    labels = _storage_process_labels(process_role)
+    return {
+        "process": process_role,
+        "pending_writes": int(metrics.get_gauge("wanctl_storage_pending_writes", labels) or 0),
+        "queue_drained_total": int(metrics.get_counter("wanctl_storage_queue_drained_total", labels) or 0),
+        "queue_error_total": int(metrics.get_counter("wanctl_storage_queue_error_total", labels) or 0),
+        "write_success_total": int(metrics.get_counter("wanctl_storage_write_success_total", labels) or 0),
+        "write_failure_total": int(metrics.get_counter("wanctl_storage_write_failure_total", labels) or 0),
+        "write_lock_failure_total": int(metrics.get_counter("wanctl_storage_write_lock_failure_total", labels) or 0),
+        "write_volume_total": int(metrics.get_counter("wanctl_storage_write_volume_total", labels) or 0),
+        "write_last_duration_ms": metrics.get_gauge("wanctl_storage_write_last_duration_ms", labels),
+        "write_max_duration_ms": metrics.get_gauge("wanctl_storage_write_max_duration_ms", labels),
+        "checkpoint": {
+            "busy": int(metrics.get_gauge("wanctl_storage_checkpoint_busy", labels) or 0),
+            "wal_pages": int(metrics.get_gauge("wanctl_storage_wal_pages", labels) or 0),
+            "checkpointed_pages": int(metrics.get_gauge("wanctl_storage_checkpointed_pages", labels) or 0),
+            "maintenance_lock_skipped_total": int(
+                metrics.get_counter("wanctl_storage_maintenance_lock_skipped_total", labels)
+                or 0
+            ),
+        },
+    }
