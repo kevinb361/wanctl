@@ -63,20 +63,6 @@
 
 ---
 
-## v1.28 Infrastructure Optimization (Shipped: 2026-04-05)
-
-**Phases completed:** 4 phases, 5 plans, 9 tasks
-
-**Key accomplishments:**
-
-- 3-core IRQ affinity splits Spectrum bridge across CPU0+CPU2, netdev_budget doubled to 600, RRUL load avg drops 23% (1.13 to 0.87)
-- SFP+ switched to multi-queue mq-pfifo eliminating 404K TX queue drops; heaviest switch IRQ (36) pinned from cpu2 to cpu1 for load rebalancing
-- ZeroTier binding to wireguard1 caused 850K+ TX errors (43K/day); restricting ZT to WAN/LAN interfaces reduced error rate to 0
-- nftables bridge forward rules with conntrack marks classifying download traffic into CAKE diffserv4 Voice/Bulk/BestEffort tins on both Spectrum and ATT bridges
-- Bridge QoS deployed to cake-shaper VM with nftables DSCP classification active on both bridges -- ATT tin separation verified, Spectrum showing 1.8M Voice + 95K Bulk packets, RRUL validation pending after ceiling sweep
-
----
-
 ## v1.27 Performance & QoS (Shipped: 2026-04-03)
 
 **Phases completed:** 6 phases, 11 plans, 12 tasks
