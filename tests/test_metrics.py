@@ -40,6 +40,9 @@ from wanctl.metrics import (
     record_router_update,
     record_steering_state,
     record_steering_transition,
+    record_storage_checkpoint,
+    record_storage_pending_writes,
+    record_storage_write_success,
     start_metrics_server,
 )
 from wanctl.signal_processing import SignalResult
@@ -1874,3 +1877,29 @@ class TestSelectGranularity:
         result = select_granularity(start_ts, end_ts)
         assert result == "raw"
 
+
+
+
+class TestStorageObservabilityMetrics:
+    """Tests for Phase 165 storage observability metric exports."""
+
+    def test_storage_metrics_exposed_via_prometheus_handler(self):
+        port = find_free_port()
+        server = MetricsServer(host="127.0.0.1", port=port)
+        server.start()
+        time.sleep(0.05)
+        try:
+            record_storage_pending_writes("autorate", 3)
+            record_storage_write_success("autorate", 4.5, 12)
+            record_storage_checkpoint("autorate", busy=0, wal_pages=7, checkpointed_pages=7)
+
+            url = f"http://127.0.0.1:{port}/metrics"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                content = response.read().decode("utf-8")
+
+            assert '# HELP wanctl_storage_pending_writes Queued SQLite write operations not yet processed' in content
+            assert 'wanctl_storage_pending_writes{process="autorate"} 3.0' in content
+            assert 'wanctl_storage_write_success_total{process="autorate"} 1' in content
+            assert 'wanctl_storage_checkpointed_pages{process="autorate"} 7.0' in content
+        finally:
+            server.stop()

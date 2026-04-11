@@ -118,6 +118,11 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 if isinstance(getattr(wan_mock, "_cake_signal_health", None), dict)
                 else None
             ),
+            "storage": (
+                wan_mock._storage_health
+                if isinstance(getattr(wan_mock, "_storage_health", None), dict)
+                else None
+            ),
         }
     wan_mock.get_health_data.side_effect = _wan_health_data
     _configure_qc_health_data(wan_mock.download)
@@ -359,6 +364,93 @@ class TestHealthServer:
             assert wan["upload"]["state"] == "GREEN"
         finally:
             server.shutdown()
+
+
+    def test_health_includes_storage_section(self):
+        """Storage contention telemetry should be exposed in WAN health output."""
+        mock_controller = MagicMock()
+        mock_wan_controller = MagicMock()
+        mock_wan_controller.baseline_rtt = 24.5
+        mock_wan_controller.load_rtt = 28.3
+        mock_wan_controller.download.current_rate = 800_000_000
+        mock_wan_controller.download.red_streak = 0
+        mock_wan_controller.download.soft_red_streak = 0
+        mock_wan_controller.download.soft_red_required = 3
+        mock_wan_controller.download.green_streak = 5
+        mock_wan_controller.download.green_required = 5
+        mock_wan_controller.download._yellow_dwell = 0
+        mock_wan_controller.download.dwell_cycles = 3
+        mock_wan_controller.download.deadband_ms = 3.0
+        mock_wan_controller.download._transitions_suppressed = 0
+        mock_wan_controller.download._window_suppressions = 0
+        mock_wan_controller.download._window_start_time = 1712345000.0
+        mock_wan_controller.upload.current_rate = 35_000_000
+        mock_wan_controller.upload.red_streak = 0
+        mock_wan_controller.upload.soft_red_streak = 0
+        mock_wan_controller.upload.soft_red_required = 3
+        mock_wan_controller.upload.green_streak = 5
+        mock_wan_controller.upload.green_required = 5
+        mock_wan_controller.upload._yellow_dwell = 0
+        mock_wan_controller.upload.dwell_cycles = 3
+        mock_wan_controller.upload.deadband_ms = 3.0
+        mock_wan_controller.upload._transitions_suppressed = 0
+        mock_wan_controller.upload._window_suppressions = 0
+        mock_wan_controller.upload._window_start_time = 1712345000.0
+        mock_wan_controller.router_connectivity.is_reachable = True
+        mock_wan_controller.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        mock_wan_controller._last_signal_result = None
+        mock_wan_controller._irtt_thread = None
+        mock_wan_controller._irtt_correlation = None
+        mock_wan_controller._last_asymmetry_result = None
+        mock_wan_controller._fusion_enabled = False
+        mock_wan_controller._fusion_icmp_weight = 0.7
+        mock_wan_controller._last_fused_rtt = None
+        mock_wan_controller._last_icmp_filtered_rtt = None
+        mock_wan_controller._fusion_healer = None
+        mock_wan_controller._storage_health = {
+            "pending_writes": 2,
+            "queue_drained_total": 14,
+            "queue_error_total": 1,
+            "write_success_total": 20,
+            "write_failure_total": 1,
+            "write_lock_failure_total": 1,
+            "write_volume_total": 120,
+            "write_last_duration_ms": 4.2,
+            "write_max_duration_ms": 11.5,
+            "checkpoint": {
+                "busy": 0,
+                "wal_pages": 8,
+                "checkpointed_pages": 8,
+                "maintenance_lock_skipped_total": 3,
+            },
+        }
+        _configure_wan_health_data(mock_wan_controller)
+
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        handler.controller = mock_controller
+        handler.start_time = time.monotonic() - 5
+        handler.consecutive_failures = 0
+
+        data = handler._get_health_status()
+        storage = data["wans"][0]["storage"]
+        assert storage["pending_writes"] == 2
+        assert storage["queue"]["drained_total"] == 14
+        assert storage["queue"]["error_total"] == 1
+        assert storage["writes"]["lock_failure_total"] == 1
+        assert storage["checkpoint"]["wal_pages"] == 8
+        assert storage["checkpoint"]["maintenance_lock_skipped_total"] == 3
 
 
 class TestRouterConnectivityReporting:

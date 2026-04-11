@@ -5,8 +5,7 @@ import threading
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
+from wanctl.metrics import metrics
 from wanctl.storage.deferred_writer import DeferredIOWorker
 
 
@@ -226,6 +225,22 @@ class TestHealth:
         time.sleep(0.2)
         assert worker.pending_count == 0
         worker.stop()
+
+    def test_queue_metrics_are_distinct_from_sqlite_duration(self) -> None:
+        worker, writer, shutdown = self._make_worker()
+        gate = threading.Event()
+        writer.write_metrics_batch.side_effect = lambda x: gate.wait(timeout=2.0)
+        worker.start()
+        try:
+            worker.enqueue_batch([(1, "s", "m", 1.0, None, "raw")])
+            time.sleep(0.05)
+            assert worker.pending_count >= 1
+            assert metrics.get_gauge(
+                "wanctl_storage_write_last_duration_ms", {"process": "autorate"}
+            ) is None
+        finally:
+            gate.set()
+            worker.stop()
 
     def test_is_alive_when_running(self) -> None:
         worker, writer, shutdown = self._make_worker()

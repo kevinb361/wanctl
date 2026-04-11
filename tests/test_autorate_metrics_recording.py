@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from wanctl.metrics import metrics
 from wanctl.storage import MetricsWriter
 
 
@@ -123,6 +124,27 @@ class TestMetricsRecordingIntegration:
         conn.close()
 
         assert count == 6
+
+    def test_autorate_observability_metrics_reserved_for_queue_and_writer_telemetry(
+        self, temp_db: tuple[Path, MetricsWriter]
+    ) -> None:
+        """Autorate contention telemetry should not appear as SQLite rows."""
+        db_path, writer = temp_db
+        ts = int(time.time())
+        writer.write_metrics_batch(
+            [(ts, "spectrum", "wanctl_rtt_ms", 25.5, None, "raw")]
+        )
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE metric_name LIKE 'wanctl_storage_%'"
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0
+        assert metrics.get_gauge(
+            "wanctl_storage_pending_writes", {"process": "autorate"}
+        ) is None
 
 
 class TestStateEncodingHelper:

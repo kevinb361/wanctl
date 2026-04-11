@@ -23,7 +23,7 @@ A/B validate the v1.32 CAKE detection thresholds under production RRUL load. Thr
 **Plans**: 1 plan (complete)
 
 ### Phase 163: Parameter Sweep
-**Goal**: Each detection and recovery threshold is individually A/B tested under RRUL load and confirmed or updated
+**Goal**: Each detection and recovery threshold is individually A/B tested under RRUL and confirmed or updated
 **Depends on**: Phase 162
 **Requirements**: THRESH-01, THRESH-02, THRESH-03, RECOV-04, RECOV-05
 **Success Criteria** (what must be TRUE):
@@ -59,3 +59,19 @@ Plans:
 | 162. Baseline Measurement | 1/1 | Complete    | 2026-04-10 |
 | 163. Parameter Sweep | 0/3 | Not started | - |
 | 164. Confirmation Soak | 0/2 | Not started | - |
+
+### Phase 165: Storage write contention observability and DB topology decision
+
+**Goal**: Measure real write contention on the current shared SQLite topology, expose low-overhead operator visibility, and make any DB-topology follow-on contingent on explicit decision-gate evidence
+**Requirements**: PH165-OBS-01, PH165-OBS-02, PH165-OBS-03, PH165-DEC-04
+**Depends on:** Phase 164
+**Success Criteria** (what must be TRUE):
+  1. Shared SQLite write paths record bounded in-memory contention telemetry for duration, success/failure, queue pressure, and maintenance/checkpoint outcomes without changing write semantics (PH165-OBS-01, PH165-OBS-02)
+  2. Autorate and steering health/operator surfaces expose storage contention status without adding observability writes back into SQLite or breaking existing payload contracts (PH165-OBS-03)
+  3. A tested decision helper/report can evaluate measured data and classify the next step as keep shared DB, reduce write pressure further, or plan a later split-DB phase (PH165-DEC-04)
+  4. Any production/topology decision is made only after a clearly marked measurement checkpoint; per-WAN DB migration is not executed by default in this phase
+**Plans:** 2/2 plans complete
+
+Plans:
+- [x] 165-01-PLAN.md — Instrument shared-DB write contention in writer, deferred queue, steering, and maintenance paths with tests (PH165-OBS-01, PH165-OBS-02)
+- [x] 165-02-PLAN.md — Surface storage contention in health/operator outputs, add decision helper tests, and run a manual measurement gate (PH165-OBS-03, PH165-DEC-04)

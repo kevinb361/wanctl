@@ -33,6 +33,7 @@ def _make_health_data(
     profiler: OperationProfiler | None = None,
     overrun_count: int = 0,
     cycle_interval_ms: float = 50.0,
+    storage: dict | None = None,
 ) -> dict:
     """Build a get_health_data() return dict for mock SteeringDaemon."""
     if profiler is None:
@@ -52,6 +53,7 @@ def _make_health_data(
             "cycle_interval_ms": cycle_interval_ms,
         },
         "wan_awareness": wan_awareness,
+        "storage": storage or {},
     }
 
 
@@ -84,6 +86,65 @@ class TestSteeringHealthServer:
             assert "version" in data
         finally:
             server.shutdown()
+
+
+    def test_health_includes_storage_section(self):
+        """Steering health should expose bounded storage telemetry."""
+        daemon = MagicMock()
+        daemon.config.state_good = "SPECTRUM_GOOD"
+        daemon.config.state_degraded = "SPECTRUM_DEGRADED"
+        daemon.config.confidence_config = None
+        daemon.config.green_rtt_ms = 5.0
+        daemon.config.yellow_rtt_ms = 15.0
+        daemon.config.red_rtt_ms = 15.0
+        daemon.config.red_samples_required = 2
+        daemon.config.green_samples_required = 15
+        daemon.confidence_controller = None
+        daemon.state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "congestion_state": "GREEN",
+            "red_count": 0,
+            "good_count": 5,
+            "cake_read_failures": 0,
+            "last_transition_time": time.monotonic() - 60,
+        }
+        daemon.router_connectivity.is_reachable = True
+        daemon.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        daemon.get_health_data.return_value = _make_health_data(
+            storage={
+                "pending_writes": 1,
+                "queue_drained_total": 9,
+                "queue_error_total": 0,
+                "write_success_total": 9,
+                "write_failure_total": 0,
+                "write_lock_failure_total": 0,
+                "write_volume_total": 45,
+                "write_last_duration_ms": 2.1,
+                "write_max_duration_ms": 6.8,
+                "checkpoint": {
+                    "busy": 0,
+                    "wal_pages": 0,
+                    "checkpointed_pages": 0,
+                    "maintenance_lock_skipped_total": 1,
+                },
+            }
+        )
+
+        handler = SteeringHealthHandler.__new__(SteeringHealthHandler)
+        handler.daemon = daemon
+        handler.start_time = time.monotonic() - 5
+        handler.consecutive_failures = 0
+
+        data = handler._get_health_status()
+        assert data["storage"]["pending_writes"] == 1
+        assert data["storage"]["queue"]["drained_total"] == 9
+        assert data["storage"]["writes"]["success_total"] == 9
+        assert data["storage"]["checkpoint"]["maintenance_lock_skipped_total"] == 1
 
     def test_health_root_path(self):
         """Test that / endpoint returns same response as /health."""

@@ -26,6 +26,8 @@ from wanctl.irtt_thread import IRTTThread
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
 from wanctl.metrics import (
+    record_storage_checkpoint,
+    record_storage_maintenance_lock_skip,
     start_metrics_server,
 )
 from wanctl.router_client import clear_router_password
@@ -341,6 +343,7 @@ def _init_storage(
         from wanctl.storage.maintenance import maintenance_lock
 
         writer = MetricsWriter(Path(db_path))
+        writer.set_process_role("autorate")
         maintenance_conn = writer.connection
         record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
 
@@ -357,6 +360,8 @@ def _init_storage(
                 )
                 if maint_result.get("error"):
                     startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
+            else:
+                record_storage_maintenance_lock_skip("autorate")
 
     return maintenance_conn, maintenance_retention_config, maintenance_interval_seconds
 
@@ -492,6 +497,7 @@ def _setup_daemon_state(
             writer=metrics_writer,
             shutdown_event=get_shutdown_event(),
             logger=logging.getLogger("wanctl.io_worker"),
+            process_role="autorate",
         )
         io_worker.start()
         for wan_info in controller.wan_controllers:
@@ -597,6 +603,7 @@ def _run_maintenance(
 
         with maintenance_lock(db_path, maint_logger) as acquired:
             if not acquired:
+                record_storage_maintenance_lock_skip("autorate")
                 return
 
             deleted = cleanup_old_metrics(
@@ -622,7 +629,16 @@ def _run_maintenance(
             notify_watchdog()
 
             wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-            wal_truncated = wal_result and wal_result[1] and wal_result[1] > 0
+            busy = int(wal_result[0]) if wal_result else 0
+            wal_pages = int(wal_result[1]) if wal_result else 0
+            checkpointed_pages = int(wal_result[2]) if wal_result else 0
+            record_storage_checkpoint(
+                "autorate",
+                busy=busy,
+                wal_pages=wal_pages,
+                checkpointed_pages=checkpointed_pages,
+            )
+            wal_truncated = wal_pages > 0
             notify_watchdog()
 
             total_ds = sum(downsampled.values())

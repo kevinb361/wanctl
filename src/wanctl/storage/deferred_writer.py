@@ -13,6 +13,12 @@ import threading
 from dataclasses import dataclass
 from typing import Any
 
+from wanctl.metrics import (
+    record_storage_pending_writes,
+    record_storage_queue_drain,
+    record_storage_queue_error,
+)
+
 _SENTINEL = object()
 
 
@@ -71,6 +77,7 @@ class DeferredIOWorker:
         writer: Any,  # MetricsWriter (use Any to avoid circular import)
         shutdown_event: threading.Event,
         logger: logging.Logger,
+        process_role: str = "autorate",
     ) -> None:
         self._writer = writer
         self._shutdown_event = shutdown_event
@@ -78,6 +85,7 @@ class DeferredIOWorker:
         self._queue: queue.SimpleQueue[Any] = queue.SimpleQueue()
         self._thread: threading.Thread | None = None
         self._pending_count: int = 0
+        self._process_role = process_role
         self._count_lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -92,6 +100,7 @@ class DeferredIOWorker:
             daemon=True,
         )
         self._thread.start()
+        record_storage_pending_writes(self._process_role, self.pending_count)
         self._logger.info("Deferred I/O worker started")
 
     def stop(self) -> None:
@@ -107,8 +116,7 @@ class DeferredIOWorker:
     ) -> None:
         """Enqueue a batch of metrics for background write."""
         self._queue.put(_BatchWrite(metrics=tuple(metrics)))
-        with self._count_lock:
-            self._pending_count += 1
+        self._update_pending_count(1)
 
     def enqueue_write(
         self,
@@ -131,8 +139,7 @@ class DeferredIOWorker:
                 granularity=granularity,
             )
         )
-        with self._count_lock:
-            self._pending_count += 1
+        self._update_pending_count(1)
 
     def enqueue_alert(
         self,
@@ -153,8 +160,7 @@ class DeferredIOWorker:
                 details_json=details_json,
             )
         )
-        with self._count_lock:
-            self._pending_count += 1
+        self._update_pending_count(1)
 
     def enqueue_reflector_event(
         self,
@@ -177,8 +183,14 @@ class DeferredIOWorker:
                 details_json=details_json,
             )
         )
+        self._update_pending_count(1)
+
+    def _update_pending_count(self, delta: int) -> None:
+        """Update pending count and publish queue depth telemetry."""
         with self._count_lock:
-            self._pending_count += 1
+            self._pending_count = max(0, self._pending_count + delta)
+            current = self._pending_count
+        record_storage_pending_writes(self._process_role, current)
 
     @property
     def pending_count(self) -> int:
@@ -221,6 +233,7 @@ class DeferredIOWorker:
 
     def _process_item(self, item: Any) -> None:
         """Dispatch a queued item to the appropriate writer method."""
+        volume = len(item.metrics) if isinstance(item, _BatchWrite) else 1
         try:
             if isinstance(item, _BatchWrite):
                 self._writer.write_metrics_batch(list(item.metrics))
@@ -250,8 +263,9 @@ class DeferredIOWorker:
                     score=item.score,
                     details_json=item.details_json,
                 )
+            record_storage_queue_drain(self._process_role, volume)
         except Exception:
+            record_storage_queue_error(self._process_role, volume)
             self._logger.debug("Deferred write failed", exc_info=True)
         finally:
-            with self._count_lock:
-                self._pending_count = max(0, self._pending_count - 1)
+            self._update_pending_count(-1)
