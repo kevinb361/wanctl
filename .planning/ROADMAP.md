@@ -2,13 +2,15 @@
 
 ## Overview
 
-A/B validate the v1.32 CAKE detection thresholds under production RRUL load. Three phases: establish idle baseline measurements, sweep all 5 detection/recovery parameters, then confirm winners with a 24h production soak.
+A/B validate the v1.32 CAKE detection thresholds under production RRUL load. The core milestone flow is baseline measurement, parameter sweep, and a 24h confirmation soak. During execution, two follow-on phases were added to capture shared-storage observability work and the planned post-soak burst-control follow-up without losing traceability in the active milestone.
 
 ## Phases
 
 - [x] **Phase 162: Baseline Measurement** - 24h idle capture of drop rate and backlog before any tuning (completed 2026-04-10)
-- [ ] **Phase 163: Parameter Sweep** - A/B test all 5 detection and recovery thresholds under RRUL
+- [x] **Phase 163: Parameter Sweep** - A/B test all 5 detection and recovery thresholds under RRUL (completed 2026-04-11)
 - [ ] **Phase 164: Confirmation Soak** - Deploy winning parameters and verify 24h production stability
+- [x] **Phase 165: Storage Write Contention Observability And DB Topology Decision** - Add shared-DB observability and record an explicit keep-shared-db decision (completed 2026-04-11)
+- [ ] **Phase 166: Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes** - Planned post-soak follow-up for fast burst clamp behavior and operator-visible telemetry
 
 ## Phase Details
 
@@ -32,11 +34,11 @@ A/B validate the v1.32 CAKE detection thresholds under production RRUL load. Thr
   3. refractory_cycles has been tested at 20, 40, and 60 under RRUL and the winner selected by p99 latency (THRESH-03)
   4. probe_multiplier_factor has been tested at 1.0, 1.5, and 2.0 under RRUL and the winner selected by recovery speed vs overshoot (RECOV-04)
   5. probe_ceiling_pct has been tested at 0.85, 0.9, and 0.95 under RRUL and the winner selected by throughput ceiling vs latency (RECOV-05)
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 163-01-PLAN.md — Pre-sweep setup + drop_rate_threshold A/B test (THRESH-01)
-- [ ] 163-02-PLAN.md — backlog_threshold_bytes + refractory_cycles A/B tests (THRESH-02, THRESH-03)
-- [ ] 163-03-PLAN.md — probe_multiplier_factor + probe_ceiling_pct A/B tests (RECOV-04, RECOV-05)
+- [x] 163-01-PLAN.md — Pre-sweep setup + drop_rate_threshold A/B test (THRESH-01)
+- [x] 163-02-PLAN.md — backlog_threshold_bytes + refractory_cycles A/B tests (THRESH-02, THRESH-03)
+- [x] 163-03-PLAN.md — probe_multiplier_factor + probe_ceiling_pct A/B tests (RECOV-04, RECOV-05)
 
 ### Phase 164: Confirmation Soak
 **Goal**: All parameter changes from the sweep are deployed together and proven stable in production
@@ -49,7 +51,7 @@ Plans:
   4. Latency and throughput under real-world load are equal to or better than pre-tuning baseline
 **Plans**: 2 plans
 Plans:
-- [ ] 164-01-PLAN.md — Deploy final config, start 24h soak, periodic spot checks
+- [x] 164-01-PLAN.md — Deploy final config, start 24h soak, periodic spot checks
 - [ ] 164-02-PLAN.md — 24h analysis, baseline comparison, autotuner re-enable
 
 ## Progress
@@ -57,8 +59,10 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 162. Baseline Measurement | 1/1 | Complete    | 2026-04-10 |
-| 163. Parameter Sweep | 0/3 | Not started | - |
-| 164. Confirmation Soak | 0/2 | Not started | - |
+| 163. Parameter Sweep | 3/3 | Complete   | 2026-04-11 |
+| 164. Confirmation Soak | 1/2 | In Progress|  |
+| 165. Storage Write Contention Observability And DB Topology Decision | 2/2 | Complete | 2026-04-11 |
+| 166. Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes | 0/2 | Planned |  |
 
 ### Phase 165: Storage write contention observability and DB topology decision
 
@@ -75,3 +79,18 @@ Plans:
 Plans:
 - [x] 165-01-PLAN.md — Instrument shared-DB write contention in writer, deferred queue, steering, and maintenance paths with tests (PH165-OBS-01, PH165-OBS-02)
 - [x] 165-02-PLAN.md — Surface storage contention in health/operator outputs, add decision helper tests, and run a manual measurement gate (PH165-OBS-03, PH165-DEC-04)
+
+### Phase 166: Burst detection and multi-flow ramp control for tcp_12down p99 spikes
+
+**Goal**: Reduce tcp_12down multi-flow ramp p99 latency spikes by adding burst-aware detection and a faster, bounded clamp path that reacts before queues are floor-trapped
+**Requirements**: BURST-01, BURST-02, BURST-03
+**Depends on:** Phase 165
+**Success Criteria** (what must be TRUE):
+  1. Controller can detect rapid multi-flow RTT/backlog burst signatures and move to an aggressive download clamp path faster than the current gradual YELLOW descent (BURST-01)
+  2. Burst mitigation is bounded by sustain/guardrail logic so it does not false-trigger under ordinary RRUL or normal evening jitter (BURST-02)
+  3. Health/metrics output exposes burst trigger evidence clearly enough to evaluate tcp_12down and RRUL A/B results without log archaeology (BURST-03)
+**Plans:** 2 plans
+
+Plans:
+- [ ] 166-01-PLAN.md — Add burst-signal detection and bounded aggressive clamp behavior with unit coverage (BURST-01, BURST-02)
+- [ ] 166-02-PLAN.md — Expose burst telemetry, wire config/health surfaces, and validate tcp_12down vs RRUL behavior (BURST-02, BURST-03)
