@@ -20,11 +20,12 @@ Fix the critical storage bloat (925 MB metrics.db), resolve the periodic mainten
   1. Metrics DB size is reduced below the storage-pressure warning threshold and retention settings prevent re-growth
   2. Periodic maintenance runs complete without "error return without exception set" or any other unhandled error
   3. analyze_baseline.py runs successfully on production with correct import paths
-**Plans:** 3 plans (2 complete, 1 gap closure)
+**Plans:** 4 plans (3 complete, 1 gap closure)
 Plans:
 - [x] 172-01-PLAN.md -- Per-WAN storage config and SystemError-resilient maintenance
 - [x] 172-02-PLAN.md -- analyze_baseline entry point promotion and CLI multi-DB discovery
-- [ ] 172-03-PLAN.md -- One-shot DB migration script and canary storage verification (gap closure)
+- [x] 172-03-PLAN.md -- One-shot DB migration script and canary storage verification (gap closure)
+- [ ] 172-04-PLAN.md -- Top-level storage field in autorate health endpoint (gap closure)
 
 ### Phase 173: Clean Deploy & Canary Validation
 **Goal**: Production is running v1.35 with version bump and canary confirms all services healthy
@@ -49,6 +50,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 172. Storage Health & Code Fixes | 2/3 | Gap closure in progress | - |
+| 172. Storage Health & Code Fixes | 3/4 | Gap closure in progress | - |
 | 173. Clean Deploy & Canary Validation | 0/0 | Not started | - |
 | 174. Production Soak | 0/0 | Not started | - |
