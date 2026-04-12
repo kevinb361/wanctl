@@ -38,10 +38,8 @@ PROFILING_SCRIPTS=(
     "scripts/analyze_profiling.py"
 )
 
-# Analysis scripts (import wanctl modules, must live under /opt/wanctl/)
-ANALYSIS_SCRIPTS=(
-    "scripts/analyze_baseline.py"
-)
+# Analysis scripts are deployed as wanctl module entry points.
+ANALYSIS_SCRIPTS=()
 
 # Documentation files (optional, for reference)
 DOCS_FILES=(
@@ -224,7 +222,7 @@ deploy_analysis_scripts() {
 
     cd "$PROJECT_ROOT"
 
-    # Deploy to /opt/wanctl/scripts/ so sys.path resolves wanctl imports
+    # Keep the wrapper deploy path available for legacy script compatibility.
     ssh "$TARGET_HOST" "sudo mkdir -p /opt/wanctl/scripts"
 
     for file in "${ANALYSIS_SCRIPTS[@]}"; do
