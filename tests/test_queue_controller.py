@@ -3269,3 +3269,50 @@ class TestProbeHealthEndpoint:
         assert "probe_ceiling_pct" in probe
         assert "probe_step_count" in probe
         assert "above_ceiling_pct" in probe
+
+
+class TestBurstClamp:
+    """Tests for bounded burst-clamp behavior."""
+
+    def test_apply_burst_clamp_decays_once_and_updates_state(self):
+        ctrl = QueueController(
+            name="TestDownload",
+            floor_green=800_000_000,
+            floor_yellow=600_000_000,
+            floor_soft_red=500_000_000,
+            floor_red=400_000_000,
+            ceiling=920_000_000,
+            step_up=10_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+        )
+        ctrl.current_rate = 920_000_000
+        ctrl.green_streak = 4
+        ctrl._probe_multiplier = 2.0
+
+        new_rate = ctrl.apply_burst_clamp()
+
+        assert new_rate == 782_000_000
+        assert ctrl.current_rate == 782_000_000
+        assert ctrl.green_streak == 0
+        assert ctrl._probe_multiplier == 1.0
+        assert ctrl._last_zone == "SOFT_RED"
+
+    def test_apply_burst_clamp_respects_soft_red_floor(self):
+        ctrl = QueueController(
+            name="TestDownload",
+            floor_green=800_000_000,
+            floor_yellow=600_000_000,
+            floor_soft_red=500_000_000,
+            floor_red=400_000_000,
+            ceiling=920_000_000,
+            step_up=10_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+        )
+        ctrl.current_rate = 520_000_000
+
+        new_rate = ctrl.apply_burst_clamp()
+
+        assert new_rate == 500_000_000
+        assert ctrl.current_rate == 500_000_000

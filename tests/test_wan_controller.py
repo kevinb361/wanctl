@@ -1179,17 +1179,15 @@ class TestIcmpRecoveryExtended:
         mock_router.set_limits.assert_called()
 
     def test_run_cycle_state_transition_logged(self, controller, mock_logger):
-        """Info log should contain zone and rates."""
+        """Cycle log should contain zone and rates."""
         with (
             patch.object(controller, "measure_rtt", return_value=25.0),
             patch.object(controller, "save_state"),
         ):
             controller.run_cycle()
 
-        # Check for info log with zone and rates
-        info_calls = [str(call) for call in mock_logger.info.call_args_list]
-        # Should contain zone info like "GREEN" or "YELLOW" and rate info like "DL="
-        assert any("DL=" in call and "UL=" in call for call in info_calls)
+        debug_calls = [str(call) for call in mock_logger.debug.call_args_list]
+        assert any("DL=" in call and "UL=" in call for call in debug_calls)
 
 
 class TestRunCycleMetrics:
@@ -2614,3 +2612,81 @@ class TestBaselineRttBoundsRejection:
         # new_baseline = 100.0 which equals max, should be accepted
         assert ctrl.baseline_rtt == 100.0
         logger.warning.assert_not_called()
+
+
+class TestBurstDetection:
+    """Tests for corroborated burst detection in WANController."""
+
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl
+
+    def test_run_spike_detection_arms_burst_when_delta_also_elevated(self, controller):
+        controller.previous_load_rtt = 25.0
+        controller.load_rtt = 42.5
+        controller.baseline_rtt = 20.0
+        controller._spike_streak = 2
+
+        controller._run_spike_detection()
+
+        assert controller._dl_burst_pending is True
+        assert controller._dl_burst_reason is not None
+
+    def test_run_spike_detection_requires_non_green_delta(self, controller):
+        controller.previous_load_rtt = 5.0
+        controller.load_rtt = 24.5
+        controller.baseline_rtt = 20.0
+        controller._spike_streak = 2
+
+        controller._run_spike_detection()
+
+        assert controller._dl_burst_pending is False
+        assert controller._dl_burst_reason is None
+
+    def test_run_spike_detection_latches_candidate_until_delta_corroborates(self, controller):
+        controller.previous_load_rtt = 20.0
+        controller.load_rtt = 40.0
+        controller.baseline_rtt = 25.0
+        controller._spike_streak = 2
+
+        controller._run_spike_detection()
+
+        assert controller._dl_burst_pending is False
+        assert controller._dl_burst_candidate_cycles == 2
+
+        controller.load_rtt = 42.0
+        controller._run_spike_detection()
+
+        assert controller._dl_burst_pending is True
+        assert controller._dl_burst_reason is not None
+        assert controller._dl_burst_trigger_count == 1
+
+
+    def test_run_spike_detection_blocks_sustained_soft_red_burst_rearm(self, controller):
+        controller.previous_load_rtt = 25.0
+        controller.load_rtt = 42.5
+        controller.baseline_rtt = 20.0
+        controller._spike_streak = 2
+        controller.download.soft_red_streak = controller.download.soft_red_required
+
+        controller._run_spike_detection()
+
+        assert controller._dl_burst_pending is False
+        assert controller._dl_burst_reason is None

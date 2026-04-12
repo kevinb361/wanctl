@@ -437,6 +437,26 @@ class QueueController:
             return int(self.current_rate * self.factor_down_yellow), self.floor_yellow_bps
         return self.current_rate, state_floor
 
+    def apply_burst_clamp(self) -> int:
+        """Apply a bounded fast clamp for a confirmed download burst.
+
+        This bypasses the slower YELLOW descent by taking one RED-strength
+        decay step, but never drops below the SOFT_RED floor and never
+        increases the rate if the queue is already below that floor.
+        """
+        self.green_streak = 0
+        self.soft_red_streak = max(self.soft_red_streak, self.soft_red_required)
+        self.red_streak = 0
+        self._yellow_dwell = 0
+        self._probe_multiplier = 1.0
+        self._last_zone = "SOFT_RED"
+
+        decayed_rate = int(self.current_rate * self.factor_down)
+        new_rate = max(self.floor_soft_red_bps, decayed_rate)
+        new_rate = min(new_rate, self.current_rate)
+        self.current_rate = new_rate
+        return new_rate
+
     def reset_window(self) -> int:
         """Reset windowed suppression counter. Returns previous window's count.
 

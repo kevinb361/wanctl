@@ -18,6 +18,7 @@ from typing import Any
 from wanctl.alert_engine import AlertEngine
 from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
 from wanctl.autorate_config import Config
+from wanctl.cake_stats_thread import BackgroundCakeStatsThread
 from wanctl.config_base import get_storage_config
 from wanctl.error_handling import handle_errors
 from wanctl.fusion_healer import FusionHealer, HealState
@@ -41,7 +42,6 @@ from wanctl.rate_utils import RateLimiter
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.routeros_interface import RouterOS
-from wanctl.cake_stats_thread import BackgroundCakeStatsThread
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTMeasurement,
@@ -311,6 +311,16 @@ class WANController:
         self.accel_threshold = config.accel_threshold_ms
         self.accel_confirm = config.accel_confirm_cycles
         self._spike_streak = 0
+        self._dl_burst_pending = False
+        self._dl_burst_reason: str | None = None
+        self._dl_burst_trigger_count = 0
+        self._dl_burst_last_reason: str | None = None
+        self._dl_burst_last_accel_ms: float | None = None
+        self._dl_burst_last_delta_ms: float | None = None
+        self._dl_burst_last_trigger_ts: float | None = None
+        self._dl_burst_exported_trigger_count = 0
+        self._dl_burst_candidate_cycles = 0
+        self._dl_burst_candidate_accel_ms: float | None = None
 
         # Create queue controllers
         self.download = QueueController(
@@ -2192,21 +2202,63 @@ class WANController:
         return signal_result, fused_rtt
 
     def _run_spike_detection(self) -> None:
-        """EWMA spike detection: rate-of-change acceleration for sudden RTT spikes."""
+        """EWMA spike detection with corroborated burst confirmation.
+
+        A burst is only armed when acceleration is sustained and the current
+        RTT delta is above the GREEN threshold. A short candidate window keeps
+        the detection alive for a couple of cycles so that the clamp can still
+        fire when the RTT delta lags the acceleration spike slightly.
+        """
+        self._dl_burst_pending = False
+        self._dl_burst_reason = None
+
+        if self._dl_burst_candidate_cycles > 0:
+            self._dl_burst_candidate_cycles -= 1
+
         delta_accel = self.load_rtt - self.previous_load_rtt
+        current_delta = self.load_rtt - self.baseline_rtt
+        burst_window_open = (
+            self.download.red_streak == 0
+            and self.download.soft_red_streak < self.download.soft_red_required
+            and self.download.current_rate >= self.download.floor_yellow_bps
+        )
+        if not burst_window_open:
+            self._dl_burst_candidate_cycles = 0
+            self._dl_burst_candidate_accel_ms = None
+
         if delta_accel > self.accel_threshold:
             self._spike_streak += 1
-            if self._spike_streak >= self.accel_confirm:
-                self.logger.warning(
-                    f"{self.wan_name}: RTT spike confirmed! delta_accel={delta_accel:.1f}ms "
-                    f"(threshold={self.accel_threshold}ms, {self._spike_streak} consecutive) "
-                    f"- forcing RED"
-                )
-                self.download.red_streak = 1
-                self.download.green_streak = 0
-                self.download.soft_red_streak = 0
+            if self._spike_streak >= self.accel_confirm and burst_window_open:
+                self._dl_burst_candidate_cycles = max(self._dl_burst_candidate_cycles, 2)
+                self._dl_burst_candidate_accel_ms = float(delta_accel)
         else:
             self._spike_streak = 0
+
+        if (
+            self._dl_burst_candidate_cycles > 0
+            and current_delta > self.green_threshold
+            and burst_window_open
+        ):
+            burst_accel_ms = float(self._dl_burst_candidate_accel_ms or delta_accel)
+            self._dl_burst_pending = True
+            self._dl_burst_reason = (
+                f"Burst confirmed from RTT acceleration {burst_accel_ms:.1f}ms "
+                f"after {max(self._spike_streak, self.accel_confirm)} consecutive spikes"
+            )
+            self._dl_burst_trigger_count += 1
+            self._dl_burst_last_reason = self._dl_burst_reason
+            self._dl_burst_last_accel_ms = burst_accel_ms
+            self._dl_burst_last_delta_ms = float(current_delta)
+            self._dl_burst_last_trigger_ts = time.monotonic()
+            self._dl_burst_candidate_cycles = 0
+            self._dl_burst_candidate_accel_ms = None
+            self.logger.warning(
+                f"{self.wan_name}: RTT spike confirmed; burst confirmed! delta_accel={burst_accel_ms:.1f}ms "
+                f"current_delta={current_delta:.1f}ms "
+                f"(threshold={self.accel_threshold}ms, {max(self._spike_streak, self.accel_confirm)} consecutive) "
+                f"- arming fast clamp"
+            )
+
         self.previous_load_rtt = self.load_rtt
 
     def _compute_effective_ul_load_rtt(self) -> float:
@@ -2338,6 +2390,10 @@ class WANController:
             self.hard_red_threshold,
             cake_snapshot=dl_cake,
         )
+        if self._dl_burst_pending and dl_zone in ("GREEN", "YELLOW"):
+            dl_zone = "SOFT_RED"
+            dl_rate = self.download.apply_burst_clamp()
+            dl_transition_reason = self._dl_burst_reason
         self._dl_zone = dl_zone
 
         effective_ul_load_rtt = self._compute_effective_ul_load_rtt()
@@ -2650,7 +2706,14 @@ class WANController:
                 dl_state=dl_zone,
                 ul_state=ul_zone,
                 cycle_duration=cycle_duration,
+                burst_active=self._dl_burst_pending,
+                burst_trigger_delta=max(
+                    0, self._dl_burst_trigger_count - self._dl_burst_exported_trigger_count
+                ),
+                burst_last_delta_ms=self._dl_burst_last_delta_ms,
+                burst_last_accel_ms=self._dl_burst_last_accel_ms,
             )
+            self._dl_burst_exported_trigger_count = self._dl_burst_trigger_count
 
     def _check_congestion_alerts(
         self,
@@ -3175,6 +3238,18 @@ class WANController:
                     "ul_backlog_suppressed_count": self.upload.get_health_data().get("cake_detection", {}).get("backlog_suppressed_count", 0),
                     "dl_recovery_probe": self.download.get_health_data().get("recovery_probe", {}),
                     "ul_recovery_probe": self.upload.get_health_data().get("recovery_probe", {}),
+                },
+                "burst": {
+                    "active": self._dl_burst_pending,
+                    "trigger_count": self._dl_burst_trigger_count,
+                    "last_reason": self._dl_burst_last_reason,
+                    "last_accel_ms": self._dl_burst_last_accel_ms,
+                    "last_delta_ms": self._dl_burst_last_delta_ms,
+                    "last_trigger_ago_sec": (
+                        round(time.monotonic() - self._dl_burst_last_trigger_ts, 1)
+                        if self._dl_burst_last_trigger_ts is not None
+                        else None
+                    ),
                 },
             },
             "storage": get_storage_metrics_snapshot("autorate"),

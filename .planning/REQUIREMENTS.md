@@ -35,9 +35,9 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 
 ### Burst Detection And Multi-Flow Ramp Control
 
-- [ ] **BURST-01**: Controller detects rapid multi-flow tcp_12down-style burst signatures early enough to bypass the slow YELLOW descent and clamp download rate aggressively before queues become floor-trapped
-- [ ] **BURST-02**: Burst mitigation is bounded with sustain/guardrail logic so it does not materially regress RRUL, rrul_be, or normal evening traffic through false triggers or oscillation
-- [ ] **BURST-03**: Health/metrics surfaces expose burst trigger state and counters clearly enough to compare tcp_12down and RRUL outcomes without relying on ad hoc log parsing
+- [x] **BURST-01**: Controller detects rapid multi-flow tcp_12down-style burst signatures early enough to bypass the slow YELLOW descent and clamp download rate aggressively before queues become floor-trapped
+- [x] **BURST-02**: Burst mitigation is bounded with sustain/guardrail logic so it does not materially regress RRUL, rrul_be, or normal evening traffic through false triggers or oscillation
+- [x] **BURST-03**: Health/metrics surfaces expose burst trigger state and counters clearly enough to compare tcp_12down and RRUL outcomes without relying on ad hoc log parsing
 
 ## Traceability
 
@@ -54,9 +54,9 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 | PH165-OBS-02 | 165 | Complete |
 | PH165-OBS-03 | 165 | Complete |
 | PH165-DEC-04 | 165 | Complete |
-| BURST-01 | 166 | Pending |
-| BURST-02 | 166 | Pending |
-| BURST-03 | 166 | Pending |
+| BURST-01 | 166 | Complete |
+| BURST-02 | 166 | Complete |
+| BURST-03 | 166 | Complete |
 
 ## Out of Scope
 

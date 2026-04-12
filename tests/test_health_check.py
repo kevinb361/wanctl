@@ -3463,6 +3463,35 @@ class TestBuildCakeSignalSection:
         for key, val in det.items():
             assert isinstance(val, int), f"{key} should be int, got {type(val)}"
 
+    def test_cake_signal_burst_section_present(self) -> None:
+        """Phase 166: bounded burst telemetry is surfaced when present."""
+        handler = self._make_handler()
+        health_data = {
+            "cake_signal": {
+                "enabled": True,
+                "supported": True,
+                "download": None,
+                "upload": None,
+                "burst": {
+                    "active": True,
+                    "trigger_count": 3,
+                    "last_reason": "Burst confirmed from RTT acceleration 40.0ms after 3 consecutive spikes",
+                    "last_accel_ms": 40.04,
+                    "last_delta_ms": 22.26,
+                    "last_trigger_ago_sec": 4.04,
+                },
+            },
+        }
+        result = handler._build_cake_signal_section(health_data)
+        assert result is not None
+        burst = result["burst"]
+        assert burst["active"] is True
+        assert burst["trigger_count"] == 3
+        assert burst["last_reason"].startswith("Burst confirmed")
+        assert burst["last_accel_ms"] == 40.0
+        assert burst["last_delta_ms"] == 22.3
+        assert burst["last_trigger_ago_sec"] == 4.0
+
     def test_cake_signal_detection_absent_when_disabled(self) -> None:
         """Phase 160: detection section absent when cake_signal disabled -> returns None."""
         handler = self._make_handler()

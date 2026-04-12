@@ -530,6 +530,29 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         if detection is not None and isinstance(detection, dict):
             result["detection"] = detection
 
+        burst = cake_data.get("burst")
+        if burst is not None and isinstance(burst, dict):
+            result["burst"] = {
+                "active": bool(burst.get("active", False)),
+                "trigger_count": int(burst.get("trigger_count", 0) or 0),
+                "last_reason": burst.get("last_reason"),
+                "last_accel_ms": (
+                    round(float(burst["last_accel_ms"]), 1)
+                    if burst.get("last_accel_ms") is not None
+                    else None
+                ),
+                "last_delta_ms": (
+                    round(float(burst["last_delta_ms"]), 1)
+                    if burst.get("last_delta_ms") is not None
+                    else None
+                ),
+                "last_trigger_ago_sec": (
+                    round(float(burst["last_trigger_ago_sec"]), 1)
+                    if burst.get("last_trigger_ago_sec") is not None
+                    else None
+                ),
+            }
+
         return result
 
     def _build_tuning_section(
@@ -645,7 +668,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "maintenance_lock_skipped_total": 0,
                 },
             }
-        checkpoint = storage.get("checkpoint") if isinstance(storage.get("checkpoint"), dict) else {}
+        raw_checkpoint = storage.get("checkpoint")
+        checkpoint: dict[str, Any] = raw_checkpoint if isinstance(raw_checkpoint, dict) else {}
         return {
             "pending_writes": int(storage.get("pending_writes", 0) or 0),
             "queue": {
