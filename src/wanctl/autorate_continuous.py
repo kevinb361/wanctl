@@ -598,71 +598,91 @@ def _run_maintenance(
     maintenance_conn: Any,
     maintenance_retention_config: Mapping[str, Any],
 ) -> None:
-    """Run periodic maintenance: cleanup, downsample, vacuum, WAL truncate."""
+    """Run periodic maintenance: cleanup, downsample, vacuum, WAL truncate.
+
+    Retries once on SystemError for CPython sqlite3 edge cases during
+    maintenance operations.
+    """
     maint_logger = controller.wan_controllers[0]["logger"]
-    try:
-        from wanctl.storage.downsampler import (
-            downsample_metrics,
-            get_downsample_thresholds,
-        )
-        from wanctl.storage.maintenance import maintenance_lock
-        from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
+    for attempt in range(2):
+        try:
+            from wanctl.storage.downsampler import (
+                downsample_metrics,
+                get_downsample_thresholds,
+            )
+            from wanctl.storage.maintenance import maintenance_lock
+            from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
 
-        db_path = get_storage_config(controller.wan_controllers[0]["config"].data).get("db_path")
-        if not isinstance(db_path, str):
-            return
-
-        with maintenance_lock(db_path, maint_logger) as acquired:
-            if not acquired:
-                record_storage_maintenance_lock_skip("autorate")
+            db_path = get_storage_config(controller.wan_controllers[0]["config"].data).get("db_path")
+            if not isinstance(db_path, str):
                 return
 
-            deleted = cleanup_old_metrics(
-                maintenance_conn,
-                retention_config=maintenance_retention_config,
-                watchdog_fn=notify_watchdog,
-            )
-            notify_watchdog()
+            with maintenance_lock(db_path, maint_logger) as acquired:
+                if not acquired:
+                    record_storage_maintenance_lock_skip("autorate")
+                    return
 
-            custom_thresholds = get_downsample_thresholds(
-                raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
-                aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
-                aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
-            )
-            downsampled = downsample_metrics(
-                maintenance_conn,
-                watchdog_fn=notify_watchdog,
-                thresholds=custom_thresholds,
-            )
-            notify_watchdog()
-
-            vacuumed = vacuum_if_needed(maintenance_conn, deleted)
-            notify_watchdog()
-
-            wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-            busy = int(wal_result[0]) if wal_result else 0
-            wal_pages = int(wal_result[1]) if wal_result else 0
-            checkpointed_pages = int(wal_result[2]) if wal_result else 0
-            record_storage_checkpoint(
-                "autorate",
-                busy=busy,
-                wal_pages=wal_pages,
-                checkpointed_pages=checkpointed_pages,
-            )
-            wal_truncated = wal_pages > 0
-            notify_watchdog()
-
-            total_ds = sum(downsampled.values())
-            if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
-                maint_logger.info(
-                "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
-                    deleted,
-                    total_ds,
-                    vacuumed,
-                    wal_truncated,
+                deleted = cleanup_old_metrics(
+                    maintenance_conn,
+                    retention_config=maintenance_retention_config,
+                    watchdog_fn=notify_watchdog,
                 )
-    except Exception as e:
-        maint_logger.error("Periodic maintenance failed: %s", e)
+                notify_watchdog()
+
+                custom_thresholds = get_downsample_thresholds(
+                    raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
+                    aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
+                    aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
+                )
+                downsampled = downsample_metrics(
+                    maintenance_conn,
+                    watchdog_fn=notify_watchdog,
+                    thresholds=custom_thresholds,
+                )
+                notify_watchdog()
+
+                vacuumed = vacuum_if_needed(maintenance_conn, deleted)
+                notify_watchdog()
+
+                wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                busy = int(wal_result[0]) if wal_result else 0
+                wal_pages = int(wal_result[1]) if wal_result else 0
+                checkpointed_pages = int(wal_result[2]) if wal_result else 0
+                record_storage_checkpoint(
+                    "autorate",
+                    busy=busy,
+                    wal_pages=wal_pages,
+                    checkpointed_pages=checkpointed_pages,
+                )
+                wal_truncated = wal_pages > 0
+                notify_watchdog()
+
+                total_ds = sum(downsampled.values())
+                if deleted > 0 or total_ds > 0 or vacuumed or wal_truncated:
+                    maint_logger.info(
+                        "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s, wal_truncated=%s",
+                        deleted,
+                        total_ds,
+                        vacuumed,
+                        wal_truncated,
+                    )
+            return
+        except SystemError as e:
+            if attempt == 0:
+                maint_logger.warning(
+                    "Maintenance SystemError (attempt %d/2, retrying): %s",
+                    attempt + 1,
+                    str(e),
+                )
+                continue
+            maint_logger.error(
+                "Maintenance SystemError persisted after retry, skipping cycle: %s",
+                str(e),
+            )
+            return
+        except Exception as e:
+            maint_logger.error("Periodic maintenance failed: %s", str(e))
+            return
 
 
 def _build_tuning_layers() -> list[list[tuple[str, Any]]]:
