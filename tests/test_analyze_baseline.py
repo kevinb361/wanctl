@@ -1,4 +1,6 @@
 import sqlite3
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -61,3 +63,15 @@ def test_analyze_baseline_returns_expected_structure(tmp_path: Path) -> None:
     assert result["total_rows"] >= 1
     assert "summaries" in result
     assert "wanctl_cake_drop_rate" in result["summaries"]
+
+
+def test_wrapper_script_runs_as_subprocess() -> None:
+    """Verify scripts/analyze_baseline.py runs without import errors."""
+    result = subprocess.run(
+        [sys.executable, "scripts/analyze_baseline.py", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, f"Wrapper failed: {result.stderr}"
+    assert "Analyze CAKE signal baseline" in result.stdout
