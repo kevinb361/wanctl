@@ -3,8 +3,11 @@
 import logging
 import sqlite3
 import time
+from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from wanctl.autorate_continuous import _run_maintenance
 from wanctl.storage.maintenance import maintenance_lock, maintenance_lock_path, run_startup_maintenance
 
 
@@ -333,3 +336,125 @@ class TestMaintenanceLock:
 
         with maintenance_lock(db_path) as acquired:
             assert acquired is True
+
+
+@contextmanager
+def _acquired_lock():
+    yield True
+
+
+def _build_controller(logger: MagicMock | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        wan_controllers=[
+            {
+                "logger": logger or MagicMock(spec=logging.Logger),
+                "config": SimpleNamespace(data={"storage": {"db_path": "/tmp/test-maintenance.db"}}),
+            }
+        ]
+    )
+
+
+def _run_maintenance_with_mocks(
+    *,
+    logger: MagicMock | None = None,
+    cleanup_side_effect: object = 0,
+    downsample_side_effect: object | None = None,
+    vacuum_side_effect: object = False,
+) -> MagicMock:
+    controller = _build_controller(logger)
+    maintenance_conn = MagicMock()
+    maintenance_conn.execute.return_value.fetchone.return_value = (0, 0, 0)
+    retention_config = {
+        "raw_age_seconds": 3600,
+        "aggregate_1m_age_seconds": 86400,
+        "aggregate_5m_age_seconds": 604800,
+    }
+
+    cleanup_mock = MagicMock()
+    if isinstance(cleanup_side_effect, BaseException):
+        cleanup_mock.side_effect = cleanup_side_effect
+    elif isinstance(cleanup_side_effect, list):
+        cleanup_mock.side_effect = cleanup_side_effect
+    else:
+        cleanup_mock.return_value = cleanup_side_effect
+
+    downsample_mock = MagicMock()
+    if isinstance(downsample_side_effect, BaseException):
+        downsample_mock.side_effect = downsample_side_effect
+    elif isinstance(downsample_side_effect, list):
+        downsample_mock.side_effect = downsample_side_effect
+    else:
+        downsample_mock.return_value = downsample_side_effect if downsample_side_effect is not None else {}
+
+    vacuum_mock = MagicMock()
+    if isinstance(vacuum_side_effect, BaseException):
+        vacuum_mock.side_effect = vacuum_side_effect
+    elif isinstance(vacuum_side_effect, list):
+        vacuum_mock.side_effect = vacuum_side_effect
+    else:
+        vacuum_mock.return_value = vacuum_side_effect
+
+    with (
+        patch("wanctl.storage.maintenance.maintenance_lock", side_effect=lambda *_args, **_kwargs: _acquired_lock()),
+        patch("wanctl.storage.retention.cleanup_old_metrics", cleanup_mock),
+        patch("wanctl.storage.downsampler.get_downsample_thresholds", return_value={"raw->1m": {}}),
+        patch("wanctl.storage.downsampler.downsample_metrics", downsample_mock),
+        patch("wanctl.storage.retention.vacuum_if_needed", vacuum_mock),
+        patch("wanctl.autorate_continuous.notify_watchdog"),
+        patch("wanctl.autorate_continuous.record_storage_checkpoint"),
+        patch("wanctl.autorate_continuous.record_storage_maintenance_lock_skip"),
+    ):
+        _run_maintenance(controller, maintenance_conn, retention_config)
+
+    return controller.wan_controllers[0]["logger"]
+
+
+class TestPeriodicMaintenanceSystemError:
+    """Tests for periodic maintenance SystemError handling."""
+
+    def test_run_maintenance_system_error_success_on_first_attempt(self):
+        """Successful maintenance should not emit retry warnings or errors."""
+        logger = _run_maintenance_with_mocks()
+
+        logger.warning.assert_not_called()
+        logger.error.assert_not_called()
+
+    def test_run_maintenance_system_error_retries_then_succeeds(self):
+        """First-attempt SystemError should log a warning and retry once."""
+        logger = _run_maintenance_with_mocks(
+            cleanup_side_effect=[SystemError("error return without exception set"), 0]
+        )
+
+        logger.warning.assert_called_once()
+        logger.error.assert_not_called()
+
+    def test_run_maintenance_system_error_logs_attempt_and_message(self):
+        """Retry warning should include attempt count and original SystemError text."""
+        logger = _run_maintenance_with_mocks(
+            cleanup_side_effect=[SystemError("error return without exception set"), 0]
+        )
+
+        logger.warning.assert_called_once_with(
+            "Maintenance SystemError (attempt %d/2, retrying): %s",
+            1,
+            "error return without exception set",
+        )
+
+    def test_run_maintenance_system_error_persists_and_skips_cycle(self):
+        """Repeated SystemError should log an error and stop after the retry."""
+        logger = _run_maintenance_with_mocks(
+            cleanup_side_effect=[
+                SystemError("error return without exception set"),
+                SystemError("error return without exception set"),
+            ]
+        )
+
+        logger.warning.assert_called_once()
+        logger.error.assert_called_once()
+
+    def test_run_maintenance_system_error_non_retryable_exception(self):
+        """Non-SystemError exceptions should keep the existing fail-fast behavior."""
+        logger = _run_maintenance_with_mocks(cleanup_side_effect=RuntimeError("boom"))
+
+        logger.warning.assert_not_called()
+        logger.error.assert_called_once_with("Periodic maintenance failed: %s", "boom")
