@@ -1,8 +1,10 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-12T03:25:00.000Z",
-  "status": "milestone_archived",
-  "completed_milestone": "v1.33",
-  "next_action": "Run $gsd-new-milestone to define the next milestone.",
-  "context_notes": "v1.33 is archived in .planning/milestones/. ROADMAP.md is collapsed and REQUIREMENTS.md was deleted for a fresh next milestone."
+  "timestamp": "2026-04-12T03:40:00.000Z",
+  "status": "milestone_started",
+  "milestone": "v1.34",
+  "milestone_name": "Production Observability and Alerting Hardening",
+  "current_phase": "167",
+  "next_action": "Run $gsd-plan-phase 167 to begin the first phase.",
+  "context_notes": "v1.34 focuses on production observability, bounded alerts, operator summary surfaces, post-deploy canaries, and runbook-backed threshold policy."
 }

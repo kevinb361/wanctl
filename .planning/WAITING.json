@@ -1,10 +1,11 @@
 {
   "status": "ready",
   "type": "next_step",
-  "question": "v1.33 is archived. Start the next milestone?",
+  "question": "v1.34 is defined. Start planning Phase 167?",
   "options": [
-    "run $gsd-new-milestone",
-    "stop here"
+    "run $gsd-plan-phase 167",
+    "adjust milestone scope"
   ],
-  "since": "2026-04-12T03:25:00.000Z"
+  "since": "2026-04-12T03:40:00.000Z",
+  "phase": "167"
 }
