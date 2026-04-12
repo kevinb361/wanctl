@@ -9,9 +9,9 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 ### Latency And Burst Regression Alerts
 
-- [ ] **ALRT-01**: Sustained latency-regression conditions are detectable from existing health/metrics signals without relying on ad hoc flent runs
-- [ ] **ALRT-02**: Burst-related regressions and repeated burst-health state changes can trigger bounded operator alerts without chattering under normal load
-- [ ] **ALRT-03**: Alert conditions have explicit thresholds, cooldowns, and severity mapping suitable for long-running production use
+- [x] **ALRT-01**: Sustained latency-regression conditions are detectable from existing health/metrics signals without relying on ad hoc flent runs
+- [x] **ALRT-02**: Burst-related regressions and repeated burst-health state changes can trigger bounded operator alerts without chattering under normal load
+- [x] **ALRT-03**: Alert conditions have explicit thresholds, cooldowns, and severity mapping suitable for long-running production use
 
 ### Storage And Runtime Pressure Monitoring
 
@@ -40,9 +40,9 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALRT-01 | Phase 167 | Pending |
-| ALRT-02 | Phase 167 | Pending |
-| ALRT-03 | Phase 167 | Pending |
+| ALRT-01 | Phase 167 | Complete |
+| ALRT-02 | Phase 167 | Complete |
+| ALRT-03 | Phase 167 | Complete |
 | OPER-01 | Phase 168 | Pending |
 | OPER-02 | Phase 168 | Pending |
 | OPER-03 | Phase 168 | Pending |
@@ -54,4 +54,4 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after initial v1.34 definition*
+*Last updated: 2026-04-11 after Phase 167 completion*

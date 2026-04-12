@@ -6,7 +6,7 @@ Turn the production lessons from v1.33 into stable operator visibility. The mile
 
 ## Phases
 
-- [ ] **Phase 167: Latency And Burst Regression Alerts** - Add stable alerting rules for sustained latency drift, burst-health churn, and alert cooldown/severity policy
+- [x] **Phase 167: Latency And Burst Regression Alerts** - Add stable alerting rules for sustained latency drift, burst-health churn, and alert cooldown/severity policy
 - [ ] **Phase 168: Storage And Runtime Pressure Monitoring** - Surface DB/WAL pressure, maintenance failures, memory growth, and cycle-budget degradation with bounded operator signals
 - [ ] **Phase 169: Operator Summary Surfaces** - Tighten `/health`, `/metrics`, and CLI/operator summaries around the highest-value production risk signals
 - [ ] **Phase 170: Post-Deploy Canary Checks** - Add a scripted canary path that validates health, storage pressure, and baseline latency signals after deploys
@@ -24,8 +24,8 @@ Turn the production lessons from v1.33 into stable operator visibility. The mile
   3. Alert thresholds and severities are explicit, documented in code/config, and suitable for 24/7 production operation (ALRT-03)
 **Plans**: 2 plans
 Plans:
-- [ ] 167-01-PLAN.md — Define latency/burst alert thresholds and wire bounded alert emission
-- [ ] 167-02-PLAN.md — Validate alert behavior under healthy and degraded scenarios
+- [x] 167-01-PLAN.md — Define latency/burst alert thresholds and wire bounded alert emission
+- [x] 167-02-PLAN.md — Validate alert behavior under healthy and degraded scenarios
 
 ### Phase 168: Storage and runtime pressure monitoring
 **Goal**: Make DB, WAL, memory, and cycle-budget pressure visible before they degrade service quality
@@ -78,7 +78,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 167. Latency And Burst Regression Alerts | 0/2 | Planned |  |
+| 167. Latency And Burst Regression Alerts | 2/2 | Complete | 2026-04-11 |
 | 168. Storage And Runtime Pressure Monitoring | 0/2 | Planned |  |
 | 169. Operator Summary Surfaces | 0/2 | Planned |  |
 | 170. Post-Deploy Canary Checks | 0/2 | Planned |  |
