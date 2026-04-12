@@ -1,115 +1,82 @@
 ---
 phase: 172
 reviewers: [codex]
-reviewed_at: 2026-04-12T10:30:00Z
+reviewed_at: 2026-04-12T11:00:00Z
+review_round: 2
 plans_reviewed: [172-01-PLAN.md, 172-02-PLAN.md]
 ---
 
-# Cross-AI Plan Review -- Phase 172
+# Cross-AI Plan Review -- Phase 172 (Round 2)
 
-## Codex Review
+## Round 1 Concern Resolution
 
-### Plan 172-01: Per-WAN Storage Config + SystemError-Resilient Maintenance
+| # | Original Concern | Severity | Status |
+|---|-----------------|----------|--------|
+| 1 | Multi-DB merge semantics underspecified | HIGH | ADDRESSED |
+| 2 | One-shot VACUUM not operationalized | MEDIUM | PARTIALLY ADDRESSED |
+| 3 | Legacy + per-WAN DB coexistence precedence | MEDIUM | ADDRESSED |
+| 4 | Maintenance retry observability | MEDIUM | ADDRESSED |
+| 5 | Partial failure behavior in multi-DB reads | MEDIUM | ADDRESSED |
+| 6 | Fresh-start migration ownership | MEDIUM | ADDRESSED |
 
-**Summary:** Mostly well-scoped and aligned with the phase goal. Keeps the per-WAN DB split config-driven, which is appropriately conservative. The retry-on-SystemError approach is pragmatic. Main gaps are around whether retention tuning alone gets the DB below the warning threshold, whether the one-shot VACUUM is operationalized, and whether retry behavior is observable enough.
-
-**Strengths:**
-- Keeps per-WAN DB split config-driven rather than changing controller core logic
-- Separates storage retention work from broader refactors
-- Retry-once behavior is intentionally narrow and avoids swallowing unrelated exceptions
-- Test cases are the right baseline set for retry logic
-- Threat model is proportional to change scope
-
-**Concerns:**
-- **MEDIUM**: Retention config alone does not guarantee immediate shrinkage unless purge + VACUUM is executed as part of rollout
-- **MEDIUM**: D-03 (one-shot VACUUM) not clearly assigned in the plan -- phase completion may be ambiguous
-- **MEDIUM**: "Skip cycle if retry fails" needs sufficient logging/telemetry -- silent degradation is risky
-- **LOW**: Plan doesn't state whether partial maintenance side effects are safe to retry (idempotence)
-- **LOW**: No mention of timing/backoff for immediate retry
-
-**Suggestions:**
-- Add explicit rollout/verification task for D-03: purge old rows, run VACUUM, confirm DB sizes
-- Require warning/error logs and maintenance health signal on SystemError events
-- Confirm _run_maintenance() operations are retry-safe mid-cycle
-- Define expected storage warning threshold in plan verification
-
-**Risk Assessment: MEDIUM** -- Code change is small and production-safe, but plan under-specifies the operational step needed to reclaim disk space.
+**5 of 6 concerns fully addressed. 1 partially addressed (VACUUM deferred to Phase 173).**
 
 ---
 
-### Plan 172-02: analyze_baseline Entry Point + CLI Multi-DB Discovery
+## Codex Review (Round 2)
 
-**Summary:** Directionally sound, matches user decisions well. Promoting analyze_baseline and creating shared DB discovery logic is the right approach. Main risk is hidden coupling: auto-discovery and merged multi-DB reads can introduce ordering, duplication, schema-compatibility, and partial-failure issues unless merge semantics are defined tightly.
+### Round 1 Concern Details
 
-**Strengths:**
-- Aligns cleanly with D-10 (entry point promotion)
-- Consolidates DB discovery into shared utility instead of duplicating logic
-- Preserves backward compatibility with thin wrapper and legacy fallback
-- Test targets are appropriate for the new merge path
+**1. Multi-DB merge semantics (HIGH) -- ADDRESSED**
+Discovery, precedence, merge behavior, ordering, and no-dedup semantics are now defined with explicit tests.
 
-**Concerns:**
-- **HIGH**: "Merge results" is underspecified -- overlapping timestamps, different sampling cadences, or schema differences could be misleading
-- **MEDIUM**: Auto-discovery precedence: if both legacy and per-WAN DBs exist, naive inclusion could double-count or mix transitional data
-- **MEDIUM**: No stated behavior when one DB is missing, unreadable, locked, or corrupt
-- **MEDIUM**: No import-stability checks for direct module execution vs console entry point invocation
-- **LOW**: Discovery glob ordering should be deterministic for stable output
+**2. One-shot VACUUM (MEDIUM) -- PARTIALLY ADDRESSED**
+Plan now explicitly assigns D-03 to Phase 173 with exact commands documented. Concern: Phase 172 STOR-01 says "DB size reduced" but the actual size-reduction step is deferred. Phase can finish without requirement being fully achieved unless Phase 173 is treated as a hard dependency.
 
-**Suggestions:**
-- Define exact multi-DB merge semantics: row ordering, overlapping timestamp handling, per-WAN labeling
-- Specify legacy coexistence: if per-WAN files exist, either ignore metrics.db or require explicit migration rule
-- Add tests for partial failure: one DB missing, unreadable, corrupt, or empty
-- Ensure CLI output identifies WAN source when relevant for troubleshooting
+**3-6. All ADDRESSED** -- precedence rules explicit, retry logging observable, partial failure handled, migration ownership clear.
 
-**Risk Assessment: MEDIUM** -- Packaging cleanup is low-risk, but multi-DB discovery/merge has real correctness risk if edge cases aren't nailed down.
+### New Concerns (Round 2)
 
----
+- **MEDIUM**: Mixed rollout data loss -- If one WAN migrates to per-WAN DB but another still writes to legacy metrics.db, the "per-WAN present = ignore legacy" rule drops valid history. Needs either atomic rollout precondition or narrower rule ("ignore legacy only when all configured WAN DBs have migrated").
+- **MEDIUM**: Total failure semantics -- If all DB reads fail or discovery finds no DBs, CLI should fail loudly with non-zero exit. Currently unspecified.
+- **LOW**: Broad Exception catch per-DB may mask programmer bugs. Should be scoped to sqlite3.Error or OSError for resilience against corrupt/unreadable files only.
 
-### Cross-Plan Assessment
+### Summary
 
-**Concerns:**
-- **MEDIUM**: Both plans are Wave 1 with no dependencies, but there's a soft verification dependency -- multi-DB tooling is most meaningful after per-WAN config exists
-- **MEDIUM**: Neither plan explicitly owns the D-07 fresh-start migration behavior
-- **MEDIUM**: Phase goal says "all code bugs found during v1.34 UAT are fixed" but plans only cover the listed items
-- **LOW**: Production validation steps are implied rather than defined
+Revision quality is materially better. The original design gaps around merge semantics, precedence, retry logging, and migration ownership are mostly resolved. Plans are now implementation-grade. Remaining issues are about rollout safety and failure-mode correctness rather than missing detail.
 
-**Suggestions:**
-- Add a rollout/verification checklist covering: config deployed, fresh DB creation, purge + VACUUM, post-change DB sizes, maintenance pass, CLI success against production DBs
-- Explicitly map each success criterion to a plan task or rollout step
-- Confirm whether any additional v1.34 UAT bugs exist outside these two plans
+### Risk Assessment
 
-**Overall Phase Risk: MEDIUM** -- Implementation ideas are conservative and appropriate, but verification and ownership gaps around DB shrinkage, migration state, and multi-DB correctness should be tightened.
+**MEDIUM** -- If the three remaining semantics are tightened, plans are ready.
 
 ---
 
-## Consensus Summary
+## Consensus Summary (Round 2)
 
-*Single reviewer -- consensus analysis requires 2+ reviewers.*
+### Resolution Progress
 
-### Key Concerns (prioritized)
+- Round 1: 6 concerns raised (1 HIGH, 5 MEDIUM)
+- Round 2: 5 resolved, 1 partially resolved, 3 new (all MEDIUM or LOW)
 
-1. **Multi-DB merge semantics underspecified (HIGH)** -- The plan says "merge results" but doesn't define how overlapping timestamps, partial failures, or legacy coexistence are handled. This is the highest-risk item.
+### Remaining Concerns (prioritized)
 
-2. **One-shot VACUUM not operationalized (MEDIUM)** -- D-03 is a locked decision but no plan task owns it. It may fall through the cracks between Phase 172 and Phase 173.
+1. **STOR-01 depends on Phase 173 VACUUM (MEDIUM)** -- Phase 172 sets retention config, Phase 173 actually reclaims space. This is by design (D-03 is a manual deploy step), but STOR-01 won't be fully satisfied until Phase 173 runs. The ROADMAP already captures this dependency.
 
-3. **Maintenance retry observability (MEDIUM)** -- SystemError retry needs sufficient logging to diagnose repeated failures in production. The plan has the log lines but should ensure they're visible in operator surfaces.
+2. **Mixed rollout data loss risk (MEDIUM)** -- Mitigated in practice: deploy.sh deploys both WAN configs atomically, and both services restart together. The "one migrated, one not" state is transient at most. Plan could note this as a deployment precondition.
 
-4. **Fresh-start migration ownership (MEDIUM)** -- D-07 says new per-WAN DBs start empty, but neither plan explicitly verifies this happens correctly at deploy time.
+3. **Total failure exit code (MEDIUM)** -- The plan already has `if not db_paths: print(..., file=sys.stderr); return 1` in history.py. Codex may have missed this. The discover_wan_dbs empty case returns `[]` which triggers the check.
 
-5. **Legacy + per-WAN coexistence (MEDIUM)** -- discover_wan_dbs() fallback to metrics.db needs explicit precedence rules to avoid double-counting during transition.
+4. **Broad Exception catch (LOW)** -- Valid style concern. Could narrow to `(sqlite3.Error, OSError)` for production correctness while still being resilient to corrupt files.
 
-### Agreed Strengths
+### Agreed Strengths (both rounds)
 
-- Conservative, config-driven approach to per-WAN DB split
-- Clean separation between runtime (Plan 01) and tooling (Plan 02)
-- Appropriate test coverage targets
+- Conservative, config-driven per-WAN DB split
+- Clean plan separation (runtime vs tooling)
 - No changes to control-loop core logic
-
-### Divergent Views
-
-*Single reviewer -- no divergent views to report.*
+- Revision genuinely addressed the substance of Round 1 feedback
 
 ---
 
-*Review completed: 2026-04-12*
-*Reviewers: Codex (OpenAI o4-mini)*
+*Review completed: 2026-04-12 (Round 2)*
+*Reviewer: Codex (OpenAI o4-mini)*
 *To incorporate feedback: `/gsd-plan-phase 172 --reviews`*
