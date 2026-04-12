@@ -22,6 +22,7 @@ wanctl-dashboard = "wanctl.dashboard.app:main"
 wanctl-check-config = "wanctl.check_config:main"
 wanctl-check-cake = "wanctl.check_cake:main"
 wanctl-benchmark = "wanctl.benchmark:main"
+wanctl-analyze-baseline = "wanctl.analyze_baseline:main"
 
 [project.optional-dependencies]
 dashboard = ["textual>=0.50", "httpx>=0.27"]

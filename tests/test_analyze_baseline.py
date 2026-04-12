@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -9,13 +10,14 @@ from wanctl.storage.schema import create_tables
 def _create_metrics_db(db_path: Path) -> None:
     conn = sqlite3.connect(db_path)
     create_tables(conn)
+    now = int(time.time())
     rows = [
-        (1_700_000_000, "spectrum", "wanctl_cake_drop_rate", 1.0, '{"direction":"download"}', "raw"),
-        (1_700_000_010, "spectrum", "wanctl_cake_drop_rate", 2.0, '{"direction":"upload"}', "raw"),
-        (1_700_000_020, "spectrum", "wanctl_cake_backlog_bytes", 10.0, '{"direction":"download"}', "raw"),
-        (1_700_000_030, "spectrum", "wanctl_cake_peak_delay_us", 20.0, '{"direction":"upload"}', "raw"),
-        (1_700_000_040, "spectrum", "wanctl_state", 0.0, "", "raw"),
-        (1_700_000_050, "spectrum", "wanctl_state", 1.0, "", "raw"),
+        (now - 60, "spectrum", "wanctl_cake_drop_rate", 1.0, '{"direction":"download"}', "raw"),
+        (now - 50, "spectrum", "wanctl_cake_drop_rate", 2.0, '{"direction":"upload"}', "raw"),
+        (now - 40, "spectrum", "wanctl_cake_backlog_bytes", 10.0, '{"direction":"download"}', "raw"),
+        (now - 30, "spectrum", "wanctl_cake_peak_delay_us", 20.0, '{"direction":"upload"}', "raw"),
+        (now - 20, "spectrum", "wanctl_state", 0.0, "", "raw"),
+        (now - 10, "spectrum", "wanctl_state", 1.0, "", "raw"),
     ]
     conn.executemany(
         """
