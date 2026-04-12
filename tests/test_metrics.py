@@ -19,6 +19,10 @@ from tests.helpers import find_free_port
 from wanctl.irtt_measurement import IRTTResult
 from wanctl.metrics import (
     METRIC_BANDWIDTH_MBPS,
+    METRIC_BURST_ACTIVE,
+    METRIC_BURST_LAST_ACCEL_MS,
+    METRIC_BURST_LAST_DELTA_MS,
+    METRIC_BURST_TRIGGERS,
     METRIC_CONGESTION_STATE,
     METRIC_CYCLE_DURATION_SECONDS,
     METRIC_CYCLES_TOTAL,
@@ -503,6 +507,7 @@ class TestRecordAutorateCycle:
 
         # Check cycle counter
         assert metrics.get_counter(METRIC_CYCLES_TOTAL, {"wan": "spectrum"}) == 1
+        assert metrics.get_gauge(METRIC_BURST_ACTIVE, {"wan": "spectrum", "direction": "download"}) == 0.0
 
     def test_record_autorate_cycle_rtt_delta_clamps_to_zero(self):
         """Test RTT delta is clamped to 0 when load < baseline."""
@@ -553,6 +558,29 @@ class TestRecordAutorateCycle:
 
         assert metrics.get_gauge(METRIC_STATE, {"wan": "test", "direction": "download"}) == 0
         assert metrics.get_gauge(METRIC_STATE, {"wan": "test", "direction": "upload"}) == 0
+
+    def test_record_autorate_cycle_exports_burst_metrics(self):
+        """Test burst gauges/counters are emitted with autorate cycle metrics."""
+        record_autorate_cycle(
+            wan_name="Spectrum",
+            dl_rate_mbps=750.5,
+            ul_rate_mbps=35.2,
+            baseline_rtt=24.5,
+            load_rtt=28.3,
+            dl_state="SOFT_RED",
+            ul_state="GREEN",
+            cycle_duration=0.045,
+            burst_active=True,
+            burst_trigger_delta=2,
+            burst_last_delta_ms=22.25,
+            burst_last_accel_ms=40.04,
+        )
+
+        labels = {"wan": "spectrum", "direction": "download"}
+        assert metrics.get_gauge(METRIC_BURST_ACTIVE, labels) == 1.0
+        assert metrics.get_counter(METRIC_BURST_TRIGGERS, labels) == 2
+        assert metrics.get_gauge(METRIC_BURST_LAST_DELTA_MS, labels) == pytest.approx(22.25)
+        assert metrics.get_gauge(METRIC_BURST_LAST_ACCEL_MS, labels) == pytest.approx(40.04)
 
 
 class TestRecordRateLimitEvent:
@@ -1901,5 +1929,41 @@ class TestStorageObservabilityMetrics:
             assert 'wanctl_storage_pending_writes{process="autorate"} 3.0' in content
             assert 'wanctl_storage_write_success_total{process="autorate"} 1' in content
             assert 'wanctl_storage_checkpointed_pages{process="autorate"} 7.0' in content
+        finally:
+            server.stop()
+
+
+class TestBurstObservabilityMetrics:
+    """Tests for Phase 166 burst observability metric exports."""
+
+    def test_burst_metrics_exposed_via_prometheus_handler(self):
+        port = find_free_port()
+        server = MetricsServer(host="127.0.0.1", port=port)
+        server.start()
+        time.sleep(0.05)
+        try:
+            record_autorate_cycle(
+                wan_name="Spectrum",
+                dl_rate_mbps=700.0,
+                ul_rate_mbps=35.0,
+                baseline_rtt=20.0,
+                load_rtt=45.0,
+                dl_state="SOFT_RED",
+                ul_state="GREEN",
+                cycle_duration=0.05,
+                burst_active=True,
+                burst_trigger_delta=1,
+                burst_last_delta_ms=25.0,
+                burst_last_accel_ms=18.5,
+            )
+
+            url = f"http://127.0.0.1:{port}/metrics"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                content = response.read().decode("utf-8")
+
+            assert 'wanctl_burst_active{direction="download",wan="spectrum"} 1.0' in content
+            assert 'wanctl_burst_triggers_total{direction="download",wan="spectrum"} 1' in content
+            assert 'wanctl_burst_last_trigger_delta_ms{direction="download",wan="spectrum"} 25.0' in content
+            assert 'wanctl_burst_last_trigger_accel_ms{direction="download",wan="spectrum"} 18.5' in content
         finally:
             server.stop()

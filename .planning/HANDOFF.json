@@ -1,59 +1,60 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-12T01:10:00.000Z",
+  "timestamp": "2026-04-12T03:10:00.000Z",
   "phase": "166",
   "phase_name": "burst-detection-and-multi-flow-ramp-control-for-tcp-12down-p",
   "phase_dir": ".planning/phases/166-burst-detection-and-multi-flow-ramp-control-for-tcp-12down-p",
-  "plan": 1,
-  "task": 1,
-  "total_tasks": 2,
-  "status": "paused",
+  "plan": 2,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "complete",
   "completed_tasks": [
-    {
-      "id": "164-01",
-      "name": "Deploy final config, confirm parity, and start the 24h soak",
-      "status": "done",
-      "commit": "live-only"
-    },
-    {
-      "id": "164-02",
-      "name": "Run the 24h analysis and close the confirmation soak",
-      "status": "done",
-      "commit": "live-only"
-    }
-  ],
-  "remaining_tasks": [
     {
       "id": "166-01",
       "name": "Add burst-confirmation tests and bounded fast-clamp behavior",
-      "status": "not_started"
+      "status": "done",
+      "commit": "working-tree"
     },
     {
-      "id": "166-02",
-      "name": "Expose burst telemetry and run the manual tcp_12down vs RRUL gate",
-      "status": "not_started"
+      "id": "166-02-auto",
+      "name": "Expose bounded burst telemetry in health and metrics with tests",
+      "status": "done",
+      "commit": "working-tree"
+    },
+    {
+      "id": "166-02-manual",
+      "name": "Deploy and validate tcp_12down improvement against RRUL",
+      "status": "done",
+      "commit": "live-and-working-tree"
     }
   ],
+  "remaining_tasks": [],
   "blockers": [],
   "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Phase 164 passed with zero unexpected restarts, zero error-level journal entries, and quiet final CAKE metrics",
-      "rationale": "This satisfied VALID-01 and cleared the milestone soak gate.",
-      "phase": "164"
-    },
-    {
-      "decision": "Treat Phase 166 as the next active engineering phase",
-      "rationale": "It is already planned and is the first remaining incomplete phase in v1.33.",
+      "decision": "Manual gate result recorded as approved: improved and safe",
+      "rationale": "Final retune reduced tcp_12down p99 to 134ms and 74ms, kept rrul_be at 144ms p99, and produced no RRUL false trigger.",
       "phase": "166"
     }
   ],
   "uncommitted_files": [
-    ".planning/REQUIREMENTS.md",
+    ".planning/HANDOFF.json",
     ".planning/ROADMAP.md",
+    ".planning/REQUIREMENTS.md",
     ".planning/STATE.md",
-    ".planning/phases/164-confirmation-soak/164-02-SUMMARY.md"
+    ".planning/WAITING.json",
+    "configs/spectrum.yaml",
+    "src/wanctl/health_check.py",
+    "src/wanctl/metrics.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/wan_controller.py",
+    "tests/test_autorate_error_recovery.py",
+    "tests/test_health_check.py",
+    "tests/test_metrics.py",
+    "tests/test_queue_controller.py",
+    "tests/test_wan_controller.py"
   ],
-  "next_action": "Review Phase 166 Plan 01 and begin the burst-detection implementation slice.",
-  "context_notes": "Phase 164 is closed. The remaining v1.33 work is Phase 166, which should stay narrowly focused on burst confirmation, bounded clamp behavior, and operator-visible telemetry."
+  "next_action": "Run $gsd-complete-milestone or commit the Phase 166 implementation batch.",
+  "context_notes": "Spectrum production metrics remain enabled on 10.10.110.223:9100 for burst validation. Final acceptance is based on the last live gate; the final passing sample did not increment the burst counter."
 }

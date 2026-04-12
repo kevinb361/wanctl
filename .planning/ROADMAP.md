@@ -10,7 +10,7 @@ A/B validate the v1.32 CAKE detection thresholds under production RRUL load. The
 - [x] **Phase 163: Parameter Sweep** - A/B test all 5 detection and recovery thresholds under RRUL (completed 2026-04-11)
 - [x] **Phase 164: Confirmation Soak** - Deploy winning parameters and verify 24h production stability (completed 2026-04-11)
 - [x] **Phase 165: Storage Write Contention Observability And DB Topology Decision** - Add shared-DB observability and record an explicit keep-shared-db decision (completed 2026-04-11)
-- [ ] **Phase 166: Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes** - Planned post-soak follow-up for fast burst clamp behavior and operator-visible telemetry
+- [x] **Phase 166: Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes** - Added bounded burst detection/telemetry, retuned corroboration timing, and cleared the final tcp_12down vs RRUL gate (completed 2026-04-11)
 
 ## Phase Details
 
@@ -62,7 +62,7 @@ Plans:
 | 163. Parameter Sweep | 3/3 | Complete   | 2026-04-11 |
 | 164. Confirmation Soak | 2/2 | Complete | 2026-04-11 |
 | 165. Storage Write Contention Observability And DB Topology Decision | 2/2 | Complete | 2026-04-11 |
-| 166. Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes | 0/2 | Planned |  |
+| 166. Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes | 2/2 | Complete | 2026-04-11 |
 
 ### Phase 165: Storage write contention observability and DB topology decision
 
@@ -89,8 +89,8 @@ Plans:
   1. Controller can detect rapid multi-flow RTT/backlog burst signatures and move to an aggressive download clamp path faster than the current gradual YELLOW descent (BURST-01)
   2. Burst mitigation is bounded by sustain/guardrail logic so it does not false-trigger under ordinary RRUL or normal evening jitter (BURST-02)
   3. Health/metrics output exposes burst trigger evidence clearly enough to evaluate tcp_12down and RRUL A/B results without log archaeology (BURST-03)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 166-01-PLAN.md — Add burst-signal detection and bounded aggressive clamp behavior with unit coverage (BURST-01, BURST-02)
-- [ ] 166-02-PLAN.md — Expose burst telemetry, wire config/health surfaces, and validate tcp_12down vs RRUL behavior (BURST-02, BURST-03)
+- [x] 166-01-PLAN.md — Add burst-signal detection and bounded aggressive clamp behavior with unit coverage (BURST-01, BURST-02)
+- [x] 166-02-PLAN.md — Expose burst telemetry, wire config/health surfaces, and validate tcp_12down vs RRUL behavior (BURST-02, BURST-03)

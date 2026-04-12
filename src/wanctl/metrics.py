@@ -312,6 +312,10 @@ METRIC_PING_FAILURES = "wanctl_ping_failures_total"
 METRIC_STEERING_ENABLED = "wanctl_steering_enabled"
 METRIC_STEERING_TRANSITIONS = "wanctl_steering_transitions_total"
 METRIC_CONGESTION_STATE = "wanctl_congestion_state"
+METRIC_BURST_ACTIVE = "wanctl_burst_active"
+METRIC_BURST_TRIGGERS = "wanctl_burst_triggers_total"
+METRIC_BURST_LAST_DELTA_MS = "wanctl_burst_last_trigger_delta_ms"
+METRIC_BURST_LAST_ACCEL_MS = "wanctl_burst_last_trigger_accel_ms"
 
 # State value mappings for numeric representation
 STATE_VALUES = {
@@ -331,6 +335,11 @@ def record_autorate_cycle(
     dl_state: str,
     ul_state: str,
     cycle_duration: float,
+    *,
+    burst_active: bool = False,
+    burst_trigger_delta: int = 0,
+    burst_last_delta_ms: float | None = None,
+    burst_last_accel_ms: float | None = None,
 ) -> None:
     """
     Record metrics for an autorate cycle.
@@ -409,6 +418,35 @@ def record_autorate_cycle(
         labels={"wan": wan},
         help_text="Duration of last autorate cycle in seconds",
     )
+
+    burst_labels = {"wan": wan, "direction": "download"}
+    metrics.set_gauge(
+        METRIC_BURST_ACTIVE,
+        1.0 if burst_active else 0.0,
+        labels=burst_labels,
+        help_text="Whether download burst mitigation is active in the current autorate cycle",
+    )
+    if burst_trigger_delta > 0:
+        metrics.inc_counter(
+            METRIC_BURST_TRIGGERS,
+            labels=burst_labels,
+            value=burst_trigger_delta,
+            help_text="Total confirmed download burst mitigation triggers",
+        )
+    if burst_last_delta_ms is not None:
+        metrics.set_gauge(
+            METRIC_BURST_LAST_DELTA_MS,
+            burst_last_delta_ms,
+            labels=burst_labels,
+            help_text="RTT delta in milliseconds when the most recent download burst was confirmed",
+        )
+    if burst_last_accel_ms is not None:
+        metrics.set_gauge(
+            METRIC_BURST_LAST_ACCEL_MS,
+            burst_last_accel_ms,
+            labels=burst_labels,
+            help_text="RTT acceleration in milliseconds per cycle when the most recent download burst was confirmed",
+        )
 
 
 def record_rate_limit_event(wan_name: str) -> None:

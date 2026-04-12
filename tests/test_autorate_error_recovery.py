@@ -685,6 +685,71 @@ class TestRunCycleErrorPaths:
 
         # Streak should reset
         assert ctrl._spike_streak == 0
+    def test_confirmed_spike_triggers_bounded_burst_clamp(self, controller_with_mocks):
+        """Confirmed acceleration plus real congestion bypasses YELLOW dwell."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        ctrl.previous_load_rtt = 25.0
+        ctrl.load_rtt = 25.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 2
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=200.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        assert ctrl._dl_zone == "SOFT_RED"
+        assert ctrl.download.current_rate == 782_000_000
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("burst confirmed" in call for call in warning_calls)
+
+    def test_confirmed_spike_without_congestion_does_not_trigger_burst(self, controller_with_mocks):
+        """Acceleration alone is not enough when the current delta stays GREEN."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        ctrl.previous_load_rtt = 5.0
+        ctrl.load_rtt = 5.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 2
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=200.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        assert ctrl._dl_zone == "GREEN"
+        assert ctrl.download.current_rate == ctrl.download.ceiling_bps
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert not any("burst confirmed" in call for call in warning_calls)
+        assert ctrl._dl_burst_pending is False
+
+
+    def test_confirmed_spike_after_sustained_soft_red_does_not_rearm_burst(self, controller_with_mocks):
+        """Burst clamp should not re-arm once SOFT_RED is already sustained."""
+        ctrl, mock_config, _, mock_logger = controller_with_mocks
+        ctrl.previous_load_rtt = 25.0
+        ctrl.load_rtt = 25.0
+        ctrl.baseline_rtt = 20.0
+        ctrl.accel_threshold = 15.0
+        ctrl.accel_confirm = 3
+        ctrl._spike_streak = 2
+        ctrl.download.soft_red_streak = ctrl.download.soft_red_required
+
+        with (
+            patch.object(ctrl, "measure_rtt", return_value=200.0),
+            patch.object(ctrl, "save_state"),
+        ):
+            ctrl.run_cycle()
+
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert not any("burst confirmed" in call for call in warning_calls)
+        assert ctrl._dl_burst_pending is False
+        assert ctrl._dl_burst_trigger_count == 0
 
 
 # =============================================================================
