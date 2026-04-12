@@ -39,6 +39,7 @@ Progress: [####......] 40%
 - Phase 167 added bounded `latency_regression` and `burst_churn_dl` alerts on the existing AlertEngine path without changing the controller algorithm
 - Phase 168 added bounded `storage.files`, `storage.status`, and `runtime` visibility to autorate and steering health, plus scrape-time DB/WAL/RSS gauges on the existing metrics path
 - The Phase 168 production sanity gate deployed the new observability modules to `cake-shaper`, confirmed healthy-state `storage.status=ok` / `runtime.status=ok` on both autorate services and steering, and confirmed the new metrics on Spectrum `/metrics`
+- Future observability and deploy validation work should keep ATT feature-parity with Spectrum, or explicitly record intentional divergence in the phase summary
 
 ## Session Continuity
 

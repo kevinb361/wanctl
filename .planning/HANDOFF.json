@@ -6,5 +6,5 @@
   "milestone_name": "Production Observability and Alerting Hardening",
   "current_phase": "169",
   "next_action": "Run $gsd-plan-phase 169 to begin operator summary surfaces.",
-  "context_notes": "Phase 168 is complete. Storage/runtime pressure visibility is live and healthy on cake-shaper; next focus is tightening operator-facing summary surfaces around those bounded signals."
+  "context_notes": "Phase 168 is complete. Storage/runtime pressure visibility is live and healthy on cake-shaper; next focus is tightening operator-facing summary surfaces around those bounded signals. Keep ATT feature-parity with Spectrum unless divergence is intentional and documented."
 }
