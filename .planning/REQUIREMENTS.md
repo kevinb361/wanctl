@@ -28,7 +28,7 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 - [x] **CANA-01**: A scripted post-deploy canary check validates core health, storage pressure, and basic latency signals after production changes
 - [x] **CANA-02**: The canary path has a clear pass/fail contract and exits non-zero when the production state is unsafe or unclear
-- [ ] **POL-01**: Observability thresholds and operator actions are documented in a runbook with clear warn-vs-act-now guidance
+- [x] **POL-01**: Observability thresholds and operator actions are documented in a runbook with clear warn-vs-act-now guidance
 
 ## Out of Scope
 
@@ -50,8 +50,8 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 | SURF-02 | Phase 169 | Complete |
 | CANA-01 | Phase 170 | Complete |
 | CANA-02 | Phase 170 | Complete |
-| POL-01 | Phase 171 | Pending |
+| POL-01 | Phase 171 | Complete |
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-12 after Phase 169 completion*
+*Last updated: 2026-04-12 after Phase 171 completion*

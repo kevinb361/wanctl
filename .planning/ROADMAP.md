@@ -10,7 +10,7 @@ Turn the production lessons from v1.33 into stable operator visibility. The mile
 - [x] **Phase 168: Storage And Runtime Pressure Monitoring** - Surface DB/WAL pressure, maintenance failures, memory growth, and cycle-budget degradation with bounded operator signals
 - [x] **Phase 169: Operator Summary Surfaces** - Tighten `/health`, `/metrics`, and CLI/operator summaries around the highest-value production risk signals
 - [x] **Phase 170: Post-Deploy Canary Checks** - Add a scripted canary path that validates health, storage pressure, and baseline latency signals after deploys
-- [ ] **Phase 171: Threshold Policy And Runbooks** - Document warn-vs-act-now thresholds and operator response flow based on the live signals introduced in v1.34
+- [x] **Phase 171: Threshold Policy And Runbooks** - Document warn-vs-act-now thresholds and operator response flow based on the live signals introduced in v1.34 (completed 2026-04-12)
 
 ## Phase Details
 
@@ -72,7 +72,7 @@ Plans:
   1. Operators have a documented runbook that explains warn-vs-act-now thresholds and what actions to take for each major signal class (POL-01)
 **Plans**: 1 plan
 Plans:
-- [ ] 171-01-PLAN.md — Write and verify the observability threshold policy and runbook updates
+- [x] 171-01-PLAN.md — Write and verify the observability threshold policy and runbook updates
 
 ## Progress
 
@@ -82,4 +82,4 @@ Plans:
 | 168. Storage And Runtime Pressure Monitoring | 2/2 | Complete | 2026-04-11 |
 | 169. Operator Summary Surfaces | 2/2 | Complete | 2026-04-12 |
 | 170. Post-Deploy Canary Checks | 2/2 | Complete | 2026-04-12 |
-| 171. Threshold Policy And Runbooks | 0/1 | Planned |  |
+| 171. Threshold Policy And Runbooks | 1/1 | Complete    | 2026-04-12 |

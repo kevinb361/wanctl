@@ -10,15 +10,17 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.33 (Detection Threshold Tuning) — shipped 2026-04-11
-**Tests:** default pytest profile stabilized and Phase 166 hot-path validation completed on production
+**Version:** v1.34 (Production Observability and Alerting Hardening) — shipped 2026-04-12
+**Tests:** default pytest profile stabilized, targeted observability/canary regression slices passed, and operator runbook policy is documented
 **LOC:** ~35,600 Python (src/)
-**Milestones:** 34 shipped (v1.0-v1.33), 166 phases, 333 plans
+**Milestones:** 35 shipped (v1.0-v1.34), 171 phases, 342 plans
 
-**Latest:** v1.33 Detection Threshold Tuning — baseline, five-parameter RRUL sweep, 24h soak, storage contention observability, and burst-control follow-up all completed
-**Previous:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
+**Latest:** v1.34 Production Observability and Alerting Hardening — latency/burst alerts, storage/runtime pressure visibility, summary surfaces, scripted canary checks, and a threshold runbook all completed
+**Previous:** v1.33 Detection Threshold Tuning — baseline, five-parameter RRUL sweep, 24h soak, storage contention observability, and burst-control follow-up all completed
 
 ## Current Milestone: v1.34 Production Observability and Alerting Hardening
+
+**Status:** Complete on 2026-04-12
 
 **Goal:** turn the production signals surfaced in v1.33 into stable operator alerts, summaries, and post-deploy checks so regressions are caught before they become user-visible.
 
@@ -639,8 +641,8 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-10 after Phase 159 CAKE Signal Infrastructure complete_
+_Last updated: 2026-04-12 after Phase 171 Threshold Policy And Runbooks complete_
 
 
 ---
-*Last updated: 2026-04-11 after starting v1.34 milestone*
+*Last updated: 2026-04-12 after completing v1.34 milestone*
