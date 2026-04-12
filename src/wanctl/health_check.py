@@ -214,6 +214,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 wan_health = self._build_wan_status(wan_info)
                 health["wans"].append(wan_health)
 
+            if health["wans"]:
+                health["storage"] = health["wans"][0]["storage"]
+
         health["alerting"] = self._build_alerting_section()
 
         # Top-level router reachability aggregate

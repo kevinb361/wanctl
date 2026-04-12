@@ -483,6 +483,131 @@ class TestHealthServer:
         assert runtime["status"] == "ok"
 
 
+class TestTopLevelStorageField:
+    """Tests for top-level storage contract in autorate health output."""
+
+    def _build_handler_with_storage(self) -> HealthCheckHandler:
+        mock_controller = MagicMock()
+        mock_wan_controller = MagicMock()
+        mock_wan_controller.baseline_rtt = 24.5
+        mock_wan_controller.load_rtt = 28.3
+        mock_wan_controller.download.current_rate = 800_000_000
+        mock_wan_controller.download.red_streak = 0
+        mock_wan_controller.download.soft_red_streak = 0
+        mock_wan_controller.download.soft_red_required = 3
+        mock_wan_controller.download.green_streak = 5
+        mock_wan_controller.download.green_required = 5
+        mock_wan_controller.download._yellow_dwell = 0
+        mock_wan_controller.download.dwell_cycles = 3
+        mock_wan_controller.download.deadband_ms = 3.0
+        mock_wan_controller.download._transitions_suppressed = 0
+        mock_wan_controller.download._window_suppressions = 0
+        mock_wan_controller.download._window_start_time = 1712345000.0
+        mock_wan_controller.upload.current_rate = 35_000_000
+        mock_wan_controller.upload.red_streak = 0
+        mock_wan_controller.upload.soft_red_streak = 0
+        mock_wan_controller.upload.soft_red_required = 3
+        mock_wan_controller.upload.green_streak = 5
+        mock_wan_controller.upload.green_required = 5
+        mock_wan_controller.upload._yellow_dwell = 0
+        mock_wan_controller.upload.dwell_cycles = 3
+        mock_wan_controller.upload.deadband_ms = 3.0
+        mock_wan_controller.upload._transitions_suppressed = 0
+        mock_wan_controller.upload._window_suppressions = 0
+        mock_wan_controller.upload._window_start_time = 1712345000.0
+        mock_wan_controller.router_connectivity.is_reachable = True
+        mock_wan_controller.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        mock_wan_controller._last_signal_result = None
+        mock_wan_controller._irtt_thread = None
+        mock_wan_controller._irtt_correlation = None
+        mock_wan_controller._last_asymmetry_result = None
+        mock_wan_controller._fusion_enabled = False
+        mock_wan_controller._fusion_icmp_weight = 0.7
+        mock_wan_controller._last_fused_rtt = None
+        mock_wan_controller._last_icmp_filtered_rtt = None
+        mock_wan_controller._fusion_healer = None
+        mock_wan_controller._storage_health = {
+            "pending_writes": 2,
+            "queue_drained_total": 14,
+            "queue_error_total": 1,
+            "write_success_total": 20,
+            "write_failure_total": 1,
+            "write_lock_failure_total": 1,
+            "write_volume_total": 120,
+            "write_last_duration_ms": 4.2,
+            "write_max_duration_ms": 11.5,
+            "checkpoint": {
+                "busy": 0,
+                "wal_pages": 8,
+                "checkpointed_pages": 8,
+                "maintenance_lock_skipped_total": 3,
+            },
+        }
+        mock_wan_controller._storage_files = {
+            "db_bytes": 2048,
+            "wal_bytes": 4096,
+            "shm_bytes": 512,
+            "total_bytes": 6656,
+            "db_exists": True,
+            "wal_exists": True,
+            "shm_exists": True,
+        }
+        mock_wan_controller._runtime_health = {
+            "process": "autorate",
+            "rss_bytes": 128 * 1024 * 1024,
+        }
+        _configure_wan_health_data(mock_wan_controller)
+
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": mock_wan_controller, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        handler.controller = mock_controller
+        handler.start_time = time.monotonic() - 5
+        handler.consecutive_failures = 0
+        return handler
+
+    def test_health_includes_top_level_storage(self):
+        """Top-level health payload should expose storage for canary consumers."""
+        handler = self._build_handler_with_storage()
+
+        data = handler._get_health_status()
+
+        assert "storage" in data
+        assert isinstance(data["storage"], dict)
+        assert data["storage"]["files"]["db_bytes"] == 2048
+        assert data["storage"]["files"]["wal_bytes"] == 4096
+        assert isinstance(data["storage"]["status"], str)
+
+    def test_top_level_storage_matches_wan_storage(self):
+        """Top-level storage should mirror the first WAN storage section."""
+        handler = self._build_handler_with_storage()
+
+        data = handler._get_health_status()
+
+        assert data["storage"] == data["wans"][0]["storage"]
+
+    def test_top_level_storage_absent_without_controller(self):
+        """Storage should stay absent when the health handler has no controller."""
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        handler.controller = None
+        handler.start_time = time.monotonic() - 5
+        handler.consecutive_failures = 0
+
+        data = handler._get_health_status()
+
+        assert "storage" not in data or data.get("storage") is None
+
+
 class TestRouterConnectivityReporting:
     """Tests for router connectivity reporting in health endpoint."""
 
