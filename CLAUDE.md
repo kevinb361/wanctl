@@ -8,7 +8,7 @@
 It measures RTT and queue signals, adjusts shaping rates in real time, and runs continuously under systemd.
 
 **Type:** Production (24/7), Python 3.11+, deployed to `/opt/wanctl`
-**Version:** 1.32.2
+**Version:** 1.35.0
 **Cycle Interval:** 50ms (20Hz polling)
 
 ## Change Policy
