@@ -10,6 +10,7 @@
 #   canary-check.sh --timeout 45               # Custom readiness timeout
 #   canary-check.sh --skip-steering            # Skip steering check
 #   canary-check.sh --expect-version 1.33.0    # Warn on version mismatch
+#   canary-check.sh --input health.json        # Check offline fixture JSON
 #   canary-check.sh --json                     # JSON output for automation
 #   canary-check.sh --help                     # Show help
 #
@@ -44,6 +45,7 @@ TIMEOUT="$DEFAULT_TIMEOUT"
 SKIP_STEERING=false
 EXPECT_VERSION=""
 JSON_MODE=false
+INPUT_FILE=""
 HAS_JQ=false
 JSON_RESULTS=()
 
@@ -63,6 +65,7 @@ Options:
   --timeout N        Readiness timeout in seconds (default: ${DEFAULT_TIMEOUT})
   --skip-steering    Skip steering health check
   --expect-version V Warn if health version != V
+  --input FILE       Read health JSON from file instead of curling endpoints
   --json             Output results as JSON array
   --help, -h         Show help
 
@@ -342,6 +345,40 @@ run_target_check() {
     append_json_result "$name" "$result" "$service" "$detail"
 }
 
+run_input_check() {
+    local json before_errors before_warnings result detail
+
+    if [[ ! -r "$INPUT_FILE" ]]; then
+        print_fail "input file not readable: $INPUT_FILE"
+        append_json_result "test" "fail" "autorate" "input file unreadable"
+        return
+    fi
+
+    json=$(<"$INPUT_FILE")
+    before_errors=$ERRORS
+    before_warnings=$WARNINGS
+
+    if [[ -z "$json" || "$json" == "null" ]]; then
+        print_fail "input file is empty: $INPUT_FILE"
+        append_json_result "test" "fail" "autorate" "empty input"
+        return
+    fi
+
+    check_autorate_health "test" "$json"
+
+    if (( ERRORS > before_errors )); then
+        result="fail"
+        detail="blocking issues detected"
+    elif (( WARNINGS > before_warnings )); then
+        result="warn"
+        detail="warnings detected"
+    else
+        result="pass"
+        detail="all checks passed"
+    fi
+    append_json_result "test" "$result" "autorate" "$detail"
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --ssh)
@@ -358,6 +395,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --expect-version)
             EXPECT_VERSION="${2:-}"
+            shift 2
+            ;;
+        --input)
+            INPUT_FILE="${2:-}"
             shift 2
             ;;
         --json)
@@ -381,6 +422,11 @@ if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$TIMEOUT" -le 0 ]]; then
     exit 1
 fi
 
+if [[ -n "$INPUT_FILE" && -n "$SSH_TARGET" ]]; then
+    echo "--input cannot be combined with --ssh" >&2
+    exit 1
+fi
+
 if ! $JSON_MODE; then
     echo ""
     echo -e "${BLUE}${BOLD}═══════════════════════════════════════════════════════════════════════════════════${NC}"
@@ -389,18 +435,26 @@ if ! $JSON_MODE; then
     echo ""
 fi
 
-for target in "${AUTORATE_TARGETS[@]}"; do
-    IFS='|' read -r name host port <<< "$target"
-    run_target_check "autorate" "$name" "$host" "$port"
-done
+if [[ -n "$INPUT_FILE" ]]; then
+    run_input_check
+else
+    for target in "${AUTORATE_TARGETS[@]}"; do
+        IFS='|' read -r name host port <<< "$target"
+        run_target_check "autorate" "$name" "$host" "$port"
+    done
 
-if ! $SKIP_STEERING; then
-    IFS='|' read -r name host port <<< "$STEERING_TARGET"
-    run_target_check "steering" "$name" "$host" "$port"
+    if ! $SKIP_STEERING; then
+        IFS='|' read -r name host port <<< "$STEERING_TARGET"
+        run_target_check "steering" "$name" "$host" "$port"
+    fi
 fi
 
 if $JSON_MODE; then
-    printf '[%s]\n' "$(IFS=,; echo "${JSON_RESULTS[*]}")"
+    if [[ -n "$INPUT_FILE" && "${#JSON_RESULTS[@]}" -gt 0 ]]; then
+        printf '%s\n' "${JSON_RESULTS[-1]}"
+    else
+        printf '[%s]\n' "$(IFS=,; echo "${JSON_RESULTS[*]}")"
+    fi
 else
     echo ""
     echo -e "${BOLD}Summary${NC}"
