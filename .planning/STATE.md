@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.33
 milestone_name: milestone
-status: "Waiting for 24h soak checkpoint (`2026-04-11 19:49:48 CDT`)"
-stopped_at: Waiting for Phase 164 T+24h soak checkpoint
-last_updated: "2026-04-11T01:18:50.285Z"
+status: "Phase 164 complete; ready to begin Phase 166 planning/execution"
+stopped_at: Phase 164 completed with 24h soak pass
+last_updated: "2026-04-12T01:10:00.000Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 7
-  percent: 70
+  completed_plans: 8
+  percent: 80
 ---
 
 # Session State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Sub-second congestion detection with 50ms control loops
-**Current focus:** Phase 164 — confirmation-soak
+**Current focus:** Phase 166 — burst-detection-and-multi-flow-ramp-control-for-tcp-12down-p
 
 ## Position
 
 **Milestone:** v1.33 Detection Threshold Tuning
-**Phase:** 164 of 5 (confirmation soak)
-**Plan:** 1 of 2 complete; 24h soak observation pending
-**Status:** Waiting for 24h soak checkpoint (`2026-04-11 19:49:48 CDT`)
+**Phase:** 166 of 5 (burst detection and multi-flow ramp control)
+**Plan:** 0 of 2 complete; planned and ready after the completed soak gate
+**Status:** Phase 164 passed; Phase 166 is the next active engineering phase
 **Last activity:** 2026-04-11
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: --
 - Total execution time: 0 hours
 
@@ -46,7 +46,8 @@ Progress: [███████░░░] 70%
 ### Roadmap Evolution
 
 - Phase 165 completed: storage contention observability shipped, deployed, and the manual decision gate recorded `keep_shared_db`
-- Phase 166 planned: burst detection and multi-flow ramp control for tcp_12down p99 spikes is queued as the next follow-on phase after the soak gate
+- Phase 164 completed: 24h confirmation soak passed with zero unexpected restarts, zero error-level journal entries, and quiet final CAKE metrics
+- Phase 166 planned: burst detection and multi-flow ramp control for tcp_12down p99 spikes is now the next active engineering phase
 
 ### Key Decisions
 
@@ -73,5 +74,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-10T04:32:44.384Z
-Stopped at: Waiting for Phase 164 T+24h soak checkpoint
-Resume file: .planning/phases/164-confirmation-soak/164-01-SUMMARY.md
+Stopped at: Phase 164 completed with 24h soak pass
+Resume file: .planning/phases/164-confirmation-soak/164-02-SUMMARY.md

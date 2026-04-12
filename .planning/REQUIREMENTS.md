@@ -24,7 +24,7 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 
 ### Validation
 
-- [ ] **VALID-01**: All parameter changes deployed and stable in production for 24h soak
+- [x] **VALID-01**: All parameter changes deployed and stable in production for 24h soak
 
 ### Storage Observability And DB Decision
 
@@ -49,7 +49,7 @@ Requirements for Detection Threshold Tuning milestone. A/B validate v1.32 CAKE d
 | THRESH-03 | 163 | Complete |
 | RECOV-04 | 163 | Complete |
 | RECOV-05 | 163 | Complete |
-| VALID-01 | 164 | Pending |
+| VALID-01 | 164 | Complete |
 | PH165-OBS-01 | 165 | Complete |
 | PH165-OBS-02 | 165 | Complete |
 | PH165-OBS-03 | 165 | Complete |

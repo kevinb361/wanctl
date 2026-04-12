@@ -8,7 +8,7 @@ A/B validate the v1.32 CAKE detection thresholds under production RRUL load. The
 
 - [x] **Phase 162: Baseline Measurement** - 24h idle capture of drop rate and backlog before any tuning (completed 2026-04-10)
 - [x] **Phase 163: Parameter Sweep** - A/B test all 5 detection and recovery thresholds under RRUL (completed 2026-04-11)
-- [ ] **Phase 164: Confirmation Soak** - Deploy winning parameters and verify 24h production stability
+- [x] **Phase 164: Confirmation Soak** - Deploy winning parameters and verify 24h production stability (completed 2026-04-11)
 - [x] **Phase 165: Storage Write Contention Observability And DB Topology Decision** - Add shared-DB observability and record an explicit keep-shared-db decision (completed 2026-04-11)
 - [ ] **Phase 166: Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes** - Planned post-soak follow-up for fast burst clamp behavior and operator-visible telemetry
 
@@ -49,10 +49,10 @@ Plans:
   2. wanctl service running for 24h with zero unexpected restarts
   3. Health endpoint shows CAKE detection metrics within expected ranges (no sustained false positives or missed detections)
   4. Latency and throughput under real-world load are equal to or better than pre-tuning baseline
-**Plans**: 2 plans
+**Plans**: 2/2 plans complete
 Plans:
 - [x] 164-01-PLAN.md — Deploy final config, start 24h soak, periodic spot checks
-- [ ] 164-02-PLAN.md — 24h analysis, baseline comparison, autotuner re-enable
+- [x] 164-02-PLAN.md — 24h analysis, baseline comparison, autotuner re-enable
 
 ## Progress
 
@@ -60,7 +60,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 162. Baseline Measurement | 1/1 | Complete    | 2026-04-10 |
 | 163. Parameter Sweep | 3/3 | Complete   | 2026-04-11 |
-| 164. Confirmation Soak | 1/2 | In Progress|  |
+| 164. Confirmation Soak | 2/2 | Complete | 2026-04-11 |
 | 165. Storage Write Contention Observability And DB Topology Decision | 2/2 | Complete | 2026-04-11 |
 | 166. Burst Detection And Multi-Flow Ramp Control For tcp_12down p99 Spikes | 0/2 | Planned |  |
 
