@@ -458,20 +458,28 @@ print_next_steps() {
     echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
     echo ""
 
-    echo -e "${BLUE}4. Monitor:${NC}"
+    echo -e "${BLUE}4. Run post-deploy canary:${NC}"
+    echo "   scripts/canary-check.sh --ssh $TARGET_HOST"
+    echo ""
+    echo "   The canary validates health, storage, and latency signals."
+    echo "   Exit 0 = PASS, 1 = FAIL, 2 = WARN"
+    echo "   For threshold details or escalation steps, see: docs/RUNBOOK.md"
+    echo ""
+
+    echo -e "${BLUE}5. Monitor:${NC}"
     echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name} -f'"
     echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/wanctl/${wan_name}.log'"
     echo "   ssh $TARGET_HOST 'sudo systemctl status wanctl@${wan_name}.service'"
     echo ""
 
     if [[ "$WITH_STEERING" == "true" ]]; then
-        echo -e "${BLUE}5. Enable steering (optional):${NC}"
+        echo -e "${BLUE}6. Enable steering (optional):${NC}"
         echo "   Edit $TARGET_CONFIG_DIR/steering.yaml"
         echo "   ssh $TARGET_HOST 'sudo systemctl enable --now steering.service'"
         echo ""
     fi
 
-    echo -e "${BLUE}6. Collect profiling data (Phase 1):${NC}"
+    echo -e "${BLUE}7. Collect profiling data (Phase 1):${NC}"
     echo "   After deployment, let the daemon run for 7-14 days"
     echo "   Then extract profiling statistics:"
     echo "   ssh $TARGET_HOST 'python3 /opt/scripts/profiling_collector.py /var/log/wanctl/${wan_name}.log --all'"
