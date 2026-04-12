@@ -3807,3 +3807,89 @@ class TestOperatorSummaryContract:
         result = handler._get_health_status()
         row = result["summary"]["rows"][0]
         assert row["status"] == "warning"
+
+    def test_health_summary_ignores_historical_queue_errors_when_storage_is_otherwise_ok(self):
+        controller = MagicMock()
+        controller.wan_controllers = []
+
+        wan = MagicMock()
+        wan.baseline_rtt = 10.0
+        wan.load_rtt = 12.0
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan.download.current_rate = 500_000_000
+        wan.upload.current_rate = 40_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.config.wan_name = "spectrum"
+        wan._fusion_enabled = False
+        wan._irtt_thread = None
+        _configure_wan_health_data(wan)
+        wan._storage_health = {
+            "pending_writes": 1,
+            "queue_drained_total": 100,
+            "queue_error_total": 40,
+            "write_success_total": 100,
+            "write_failure_total": 0,
+            "write_lock_failure_total": 0,
+            "write_volume_total": 100,
+            "write_last_duration_ms": 1.0,
+            "write_max_duration_ms": 5.0,
+            "checkpoint": {
+                "busy": 0,
+                "wal_pages": 0,
+                "checkpointed_pages": 0,
+                "maintenance_lock_skipped_total": 0,
+            },
+        }
+        wan._storage_files = {
+            "db_bytes": 1024,
+            "wal_bytes": 8 * 1024 * 1024,
+            "shm_bytes": 0,
+            "total_bytes": 1024 + 8 * 1024 * 1024,
+            "db_exists": True,
+            "wal_exists": True,
+            "shm_exists": False,
+        }
+        wan._runtime_health = {
+            "process": "autorate",
+            "rss_bytes": 64 * 1024 * 1024,
+        }
+        wan._cake_signal_health = {
+            "supported": True,
+            "enabled": True,
+            "download": None,
+            "upload": None,
+            "burst": {
+                "active": False,
+                "trigger_count": 0,
+                "last_reason": None,
+                "last_accel_ms": None,
+                "last_delta_ms": None,
+                "last_trigger_ago_sec": None,
+            },
+        }
+        controller.wan_controllers.append({"controller": wan, "config": wan.config})
+
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        handler.controller = controller
+        handler.start_time = time.monotonic() - 5
+        handler.consecutive_failures = 0
+
+        result = handler._get_health_status()
+        row = result["summary"]["rows"][0]
+        assert row["storage_status"] == "ok"
+        assert row["status"] == "ok"

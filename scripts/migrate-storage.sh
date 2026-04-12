@@ -75,6 +75,15 @@ run_sql() {
     sudo sqlite3 "$db_path" "$sql"
 }
 
+table_exists() {
+    local db_path="$1"
+    local table_name="$2"
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        return 0
+    fi
+    sudo sqlite3 "$db_path" "SELECT 1 FROM sqlite_master WHERE type='table' AND name='${table_name}';" | grep -qx '1'
+}
+
 run_migration() {
     local state_dir="/var/lib/wanctl"
     local legacy_db="${state_dir}/metrics.db"
@@ -83,12 +92,12 @@ run_migration() {
     local att_db="${state_dir}/metrics-att.db"
     local legacy_size cutoff metrics_deleted downsampled_deleted pre_size post_size saved_bytes saved_mb
 
-    if [[ ! -f "${legacy_db}" ]]; then
+    if ! sudo test -f "${legacy_db}"; then
         print_warn "Legacy DB not found, nothing to migrate"
         return 0
     fi
 
-    if [[ -f "${archive_name}" ]]; then
+    if sudo test -f "${archive_name}"; then
         print_warn "Archive already exists, migration already completed"
         return 0
     fi
@@ -111,8 +120,18 @@ run_migration() {
 
     print_info "Purging data older than 24h from legacy DB..."
     cutoff=$(date -d '24 hours ago' +%s)
-    metrics_deleted=$(run_sql "${legacy_db}" "DELETE FROM metrics WHERE timestamp < ${cutoff}; SELECT changes();")
-    downsampled_deleted=$(run_sql "${legacy_db}" "DELETE FROM downsampled_metrics WHERE timestamp < ${cutoff}; SELECT changes();")
+    metrics_deleted="0"
+    downsampled_deleted="0"
+    if [[ "${DRY_RUN}" == "true" ]] || table_exists "${legacy_db}" "metrics"; then
+        metrics_deleted=$(run_sql "${legacy_db}" "DELETE FROM metrics WHERE timestamp < ${cutoff}; SELECT changes();")
+    else
+        print_warn "metrics table not found; skipping raw-metrics purge"
+    fi
+    if [[ "${DRY_RUN}" == "true" ]] || table_exists "${legacy_db}" "downsampled_metrics"; then
+        downsampled_deleted=$(run_sql "${legacy_db}" "DELETE FROM downsampled_metrics WHERE timestamp < ${cutoff}; SELECT changes();")
+    else
+        print_warn "downsampled_metrics table not found; skipping downsample purge"
+    fi
     print_info "Deleted rows from metrics: ${metrics_deleted}"
     print_info "Deleted rows from downsampled_metrics: ${downsampled_deleted}"
 
@@ -130,23 +149,23 @@ run_migration() {
 
     print_info "Archiving legacy DB..."
     run_cmd sudo mv "${legacy_db}" "${archive_name}"
-    if [[ -f "${legacy_db}-wal" ]]; then
+    if sudo test -f "${legacy_db}-wal"; then
         run_cmd sudo mv "${legacy_db}-wal" "${archive_name}-wal"
     fi
-    if [[ -f "${legacy_db}-shm" ]]; then
+    if sudo test -f "${legacy_db}-shm"; then
         run_cmd sudo mv "${legacy_db}-shm" "${archive_name}-shm"
     fi
     print_pass "Archived to: ${archive_name}"
 
     echo
     echo "=== Post-Migration Verification ==="
-    if [[ -f "${legacy_db}" ]]; then
+    if sudo test -f "${legacy_db}"; then
         echo "Legacy DB: STILL EXISTS (ERROR)"
     else
         echo "Legacy DB: Archived (OK)"
     fi
 
-    if [[ -f "${archive_name}" ]]; then
+    if sudo test -f "${archive_name}"; then
         echo "Archive: $(human_size "$(sudo stat -c%s "${archive_name}" 2>/dev/null || echo 0)") (OK)"
     elif [[ "${DRY_RUN}" == "true" ]]; then
         echo "Archive: Dry-run only (would be created)"
@@ -154,13 +173,13 @@ run_migration() {
         echo "Archive: Missing (ERROR)"
     fi
 
-    if [[ -f "${spectrum_db}" ]]; then
+    if sudo test -f "${spectrum_db}"; then
         echo "Spectrum DB: $(human_size "$(sudo stat -c%s "${spectrum_db}" 2>/dev/null || echo 0)")"
     else
         echo "Spectrum DB: Not yet created (will be created on service start)"
     fi
 
-    if [[ -f "${att_db}" ]]; then
+    if sudo test -f "${att_db}"; then
         echo "ATT DB: $(human_size "$(sudo stat -c%s "${att_db}" 2>/dev/null || echo 0)")"
     else
         echo "ATT DB: Not yet created (will be created on service start)"
@@ -176,6 +195,11 @@ run_migration() {
 run_remote() {
     ssh "$SSH_TARGET" "DRY_RUN=${DRY_RUN} bash -s --" <<REMOTE_SCRIPT
 set -euo pipefail
+RED='${RED}'
+GREEN='${GREEN}'
+YELLOW='${YELLOW}'
+BLUE='${BLUE}'
+NC='${NC}'
 $(declare -f print_info)
 $(declare -f print_pass)
 $(declare -f print_warn)
@@ -183,6 +207,7 @@ $(declare -f print_fail)
 $(declare -f human_size)
 $(declare -f run_cmd)
 $(declare -f run_sql)
+$(declare -f table_exists)
 $(declare -f run_migration)
 run_migration
 REMOTE_SCRIPT
