@@ -365,17 +365,19 @@ verify_deployment() {
     print_step "Verifying deployment..."
 
     local errors=0
+    local source_files deployed_files diff_output
+    source_files=$(find "$PROJECT_ROOT/src/wanctl" -name '*.py' -printf '%P\n' | sort)
+    # /opt/wanctl/scripts hosts separately deployed helper wrappers, so exclude it from
+    # the mirrored src/wanctl verification set.
+    deployed_files=$(ssh "$TARGET_HOST" "find $TARGET_CODE_DIR -path '$TARGET_CODE_DIR/scripts' -prune -o -name '*.py' -printf '%P\n' | sort")
 
-    # Compare Python file counts (source vs deployed)
-    local source_count
-    source_count=$(find "$PROJECT_ROOT/src/wanctl" -name '*.py' | wc -l)
-    local deployed_count
-    deployed_count=$(ssh "$TARGET_HOST" "find $TARGET_CODE_DIR -name '*.py' | wc -l")
-
-    if [[ "$source_count" -eq "$deployed_count" ]]; then
-        print_success "File count matches: $deployed_count Python files"
+    if diff_output=$(diff -u <(printf '%s\n' "$source_files") <(printf '%s\n' "$deployed_files")); then
+        local source_count
+        source_count=$(printf '%s\n' "$source_files" | sed '/^$/d' | wc -l)
+        print_success "Application tree matches: $source_count Python files"
     else
-        print_error "File count mismatch: $source_count source vs $deployed_count deployed"
+        print_error "Application tree mismatch between src/wanctl and $TARGET_CODE_DIR"
+        echo "$diff_output"
         ((errors++))
     fi
 
