@@ -102,6 +102,20 @@ print_info() {
     fi
 }
 
+format_bytes() {
+    local bytes="${1:-0}"
+    if [[ -z "$bytes" || ! "$bytes" =~ ^[0-9]+$ ]]; then
+        echo "unknown"
+        return 0
+    fi
+
+    if command -v numfmt &>/dev/null; then
+        numfmt --to=iec --suffix=B "$bytes"
+    else
+        echo "${bytes} bytes"
+    fi
+}
+
 json_escape() {
     python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"
 }
@@ -125,6 +139,21 @@ get_summary_row_json() {
     else
         echo "$json" | python3 -c "import json, sys; d=json.load(sys.stdin); print(json.dumps(d.get('summary', {}).get('rows', [])[int(sys.argv[1])]))" "$index"
     fi
+}
+
+report_storage_sizes() {
+    local service="$1"
+    local target="$2"
+    local json="$3"
+    local db_bytes wal_bytes shm_bytes total_bytes storage_status
+
+    db_bytes=$(jq_or_py "$json" '.storage.files.db_bytes // 0' 'd.get("storage", {}).get("files", {}).get("db_bytes", 0)')
+    wal_bytes=$(jq_or_py "$json" '.storage.files.wal_bytes // 0' 'd.get("storage", {}).get("files", {}).get("wal_bytes", 0)')
+    shm_bytes=$(jq_or_py "$json" '.storage.files.shm_bytes // 0' 'd.get("storage", {}).get("files", {}).get("shm_bytes", 0)')
+    total_bytes=$(jq_or_py "$json" '.storage.files.total_bytes // 0' 'd.get("storage", {}).get("files", {}).get("total_bytes", 0)')
+    storage_status=$(jq_or_py "$json" '.storage.status // "unknown"' 'd.get("storage", {}).get("status", "unknown")')
+
+    print_info "${service} ${target}: storage status=${storage_status}, db=$(format_bytes "$db_bytes"), wal=$(format_bytes "$wal_bytes"), shm=$(format_bytes "$shm_bytes"), total=$(format_bytes "$total_bytes")"
 }
 
 append_json_result() {
@@ -194,6 +223,7 @@ check_autorate_health() {
     local version uptime row_count index row_json row_name
 
     check_status_field "autorate" "$target" "$json"
+    report_storage_sizes "autorate" "$target" "$json"
 
     version=$(jq_or_py "$json" '.version // "unknown"' 'd.get("version", "unknown")')
     if [[ -n "$EXPECT_VERSION" && "$version" != "$EXPECT_VERSION" ]]; then
@@ -261,6 +291,7 @@ check_steering_health() {
     local row_count index row_json row_name
 
     check_status_field "steering" "$target" "$json"
+    report_storage_sizes "steering" "$target" "$json"
 
     row_count=$(jq_or_py "$json" '.summary.rows | length' 'len(d.get("summary", {}).get("rows", []))')
     if [[ "$row_count" =~ ^[0-9]+$ ]] && [[ "$row_count" -gt 0 ]]; then
