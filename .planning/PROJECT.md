@@ -18,9 +18,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.33 Detection Threshold Tuning — baseline, five-parameter RRUL sweep, 24h soak, storage contention observability, and burst-control follow-up all completed
 **Previous:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
 
+## Current Milestone: v1.34 Production Observability and Alerting Hardening
+
+**Goal:** turn the production signals surfaced in v1.33 into stable operator alerts, summaries, and post-deploy checks so regressions are caught before they become user-visible.
+
+**Target features:**
+- latency and burst-regression alerts tied to health and metrics signals
+- storage, memory, WAL, and cycle-budget pressure alerts with bounded operator summaries
+- scripted post-deploy canary validation and runbook-backed threshold policy
+
 ## Next Milestone Goals
 
-Not defined yet. Use `$gsd-new-milestone` to set the next milestone goal, requirements, and roadmap.
+- Make latency and burst regressions visible without ad hoc flent runs
+- Catch storage and runtime pressure before service quality degrades
+- Standardize post-deploy validation into a repeatable operator workflow
 
 ## Requirements
 
@@ -632,4 +643,4 @@ _Last updated: 2026-04-10 after Phase 159 CAKE Signal Infrastructure complete_
 
 
 ---
-*Last updated: 2026-04-11 after v1.33 milestone*
+*Last updated: 2026-04-11 after starting v1.34 milestone*
