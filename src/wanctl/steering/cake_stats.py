@@ -82,8 +82,9 @@ class CakeStatsReader:
             logger.warning("Failed to load autorate config for transport detection: %s", e)
             autorate_transport = "rest"
 
-        if autorate_transport == "linux-cake":
-            # Linux CAKE path: use LinuxCakeBackend via factory (D-01, D-02)
+        if autorate_transport in ("linux-cake", "linux-cake-netlink"):
+            # Linux CAKE path: use the local kernel backend via factory.
+            # Both subprocess and netlink transports should avoid RouterOS queue reads.
             try:
                 # Build a minimal config namespace for get_backend()
                 class _AutorateConfigProxy:
@@ -97,7 +98,7 @@ class CakeStatsReader:
                 proxy = _AutorateConfigProxy(autorate_data)
                 self._linux_backend = get_backend(proxy)  # type: ignore[arg-type]
                 self._is_linux_cake = True
-                logger.info("CakeStatsReader using linux-cake backend")
+                logger.info("CakeStatsReader using %s backend", autorate_transport)
             except Exception as e:
                 logger.warning(
                     "Failed to create LinuxCakeBackend, falling back to RouterOS: %s",

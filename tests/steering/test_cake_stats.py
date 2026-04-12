@@ -644,6 +644,20 @@ class TestCakeStatsReaderLinuxCake:
         return config_path
 
     @pytest.fixture
+    def linux_cake_netlink_config_file(self, tmp_path):
+        """Create a temporary autorate YAML with linux-cake-netlink transport."""
+        config_data = {
+            "router": {"transport": "linux-cake-netlink"},
+            "cake_params": {
+                "download_interface": "br-wan-dl",
+                "upload_interface": "br-wan-ul",
+            },
+        }
+        config_path = tmp_path / "spectrum_netlink.yaml"
+        config_path.write_text(yaml.dump(config_data))
+        return config_path
+
+    @pytest.fixture
     def rest_config_file(self, tmp_path):
         """Create a temporary autorate YAML with rest transport."""
         config_data = {
@@ -657,6 +671,16 @@ class TestCakeStatsReaderLinuxCake:
     def linux_cake_config(self, linux_cake_config_file, mock_steering_config):
         """Config pointing to linux-cake autorate YAML."""
         mock_steering_config.primary_wan_config = linux_cake_config_file
+        mock_steering_config.router = MagicMock()
+        mock_steering_config.router.host = "10.10.99.1"
+        mock_steering_config.router.port = 22
+        mock_steering_config.router.username = "admin"
+        return mock_steering_config
+
+    @pytest.fixture
+    def linux_cake_netlink_config(self, linux_cake_netlink_config_file, mock_steering_config):
+        """Config pointing to linux-cake-netlink autorate YAML."""
+        mock_steering_config.primary_wan_config = linux_cake_netlink_config_file
         mock_steering_config.router = MagicMock()
         mock_steering_config.router.host = "10.10.99.1"
         mock_steering_config.router.port = 22
@@ -684,6 +708,25 @@ class TestCakeStatsReaderLinuxCake:
         ):
             mock_get_backend.return_value = mock_backend
             reader = CakeStatsReader(linux_cake_config, logger)
+
+            assert reader._is_linux_cake is True
+            assert reader._linux_backend is mock_backend
+            assert reader.client is None
+            mock_router_factory.assert_not_called()
+
+    def test_linux_cake_netlink_creates_backend_not_router_client(
+        self, linux_cake_netlink_config, logger
+    ):
+        """linux-cake-netlink should use the local backend path, not RouterOS fallback."""
+        mock_backend = MagicMock()
+        with (
+            patch("wanctl.steering.cake_stats.get_backend") as mock_get_backend,
+            patch(
+                "wanctl.steering.cake_stats.get_router_client_with_failover"
+            ) as mock_router_factory,
+        ):
+            mock_get_backend.return_value = mock_backend
+            reader = CakeStatsReader(linux_cake_netlink_config, logger)
 
             assert reader._is_linux_cake is True
             assert reader._linux_backend is mock_backend

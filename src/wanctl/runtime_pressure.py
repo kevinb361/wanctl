@@ -89,7 +89,6 @@ def get_storage_file_snapshot(db_path: str | Path | None) -> dict[str, Any]:
 def classify_storage_status(storage: dict[str, Any], files: dict[str, Any]) -> str:
     """Classify storage pressure from bounded queue/write/file signals."""
     pending_writes = int(storage.get("pending_writes", 0) or 0)
-    queue_errors = int(storage.get("queue", {}).get("error_total", 0) or 0)
     lock_failures = int(storage.get("writes", {}).get("lock_failure_total", 0) or 0)
     checkpoint_busy = int(storage.get("checkpoint", {}).get("busy", 0) or 0)
     wal_bytes = int(files.get("wal_bytes", 0) or 0)
@@ -101,9 +100,10 @@ def classify_storage_status(storage: dict[str, Any], files: dict[str, Any]) -> s
         or wal_bytes >= WAL_CRITICAL_BYTES
     ):
         return "critical"
+    # queue.error_total is a lifetime counter of past deferred write exceptions.
+    # It remains useful for diagnosis, but it is not a current-pressure signal.
     if (
-        queue_errors > 0
-        or pending_writes >= PENDING_WRITES_WARNING
+        pending_writes >= PENDING_WRITES_WARNING
         or wal_bytes >= WAL_WARNING_BYTES
     ):
         return "warning"

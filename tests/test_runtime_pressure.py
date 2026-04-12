@@ -56,6 +56,40 @@ def test_build_storage_section_classifies_wal_pressure():
     assert section["status"] == "warning"
 
 
+def test_build_storage_section_ignores_historical_queue_errors_when_current_pressure_is_ok():
+    section = build_storage_section(
+        {
+            "pending_writes": 1,
+            "queue_drained_total": 100,
+            "queue_error_total": 40,
+            "write_success_total": 100,
+            "write_failure_total": 0,
+            "write_lock_failure_total": 0,
+            "write_volume_total": 100,
+            "write_last_duration_ms": 1.0,
+            "write_max_duration_ms": 5.0,
+            "checkpoint": {
+                "busy": 0,
+                "wal_pages": 0,
+                "checkpointed_pages": 0,
+                "maintenance_lock_skipped_total": 0,
+            },
+        },
+        {
+            "db_bytes": 1024,
+            "wal_bytes": 8 * 1024 * 1024,
+            "shm_bytes": 0,
+            "total_bytes": 1024 + 8 * 1024 * 1024,
+            "db_exists": True,
+            "wal_exists": True,
+            "shm_exists": False,
+        },
+    )
+
+    assert section["queue"]["error_total"] == 40
+    assert section["status"] == "ok"
+
+
 def test_build_runtime_section_combines_memory_and_cycle_status():
     runtime = build_runtime_section(
         process_role="autorate",
