@@ -39,7 +39,9 @@ PROFILING_SCRIPTS=(
 )
 
 # Analysis scripts are deployed as wanctl module entry points.
-ANALYSIS_SCRIPTS=()
+ANALYSIS_SCRIPTS=(
+    "scripts/analyze_baseline.py"
+)
 
 # Documentation files (optional, for reference)
 DOCS_FILES=(
