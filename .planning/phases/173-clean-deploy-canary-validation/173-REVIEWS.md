@@ -1,90 +1,69 @@
 ---
 phase: 173
 reviewers: [codex]
-reviewed_at: 2026-04-12T17:15:00Z
-plans_reviewed: [173-01-PLAN.md, 173-02-PLAN.md]
+reviewed_at: 2026-04-12T18:00:00Z
+plans_reviewed: [173-01-PLAN.md, 173-02-PLAN.md, 173-03-PLAN.md]
+review_round: 2
 ---
 
-# Cross-AI Plan Review -- Phase 173
+# Cross-AI Plan Review -- Phase 173 (Round 2)
 
-## Codex Review
+## Codex Review (Round 2 — post-revision)
 
-### Plan 173-01: Version Bump
+### Previous Concerns Resolution
 
-**Summary:** Appropriately small and matches phase scope, but treats version as purely cosmetic when it's actually a release gate (canary depends on it).
+| # | Concern | Severity | Status |
+|---|---------|----------|--------|
+| 1 | Stop-all-services defeated canary | HIGH | Partially addressed — Spectrum isolated, but migration still stops both (documented, unavoidable) |
+| 2 | No rollback strategy | HIGH | Addressed — explicit rollback sections in Plans 02 and 03 |
+| 3 | Migration blast radius undocumented | HIGH | Addressed — line 114 side effect documented, ATT restart deferred to Plan 03 |
+| 4 | Fixed sleeps instead of health readiness | MEDIUM | Addressed — health polling with uptime check |
+| 5 | Version is release gate, not cosmetic | MEDIUM | Addressed — treated as release gate in threat model |
+| 6 | Config diff needs accept/reject criteria | MEDIUM | Addressed — explicit accept/reject criteria |
+| 7 | Check DB writes not just existence | MEDIUM | Addressed — mtime advancement checks |
+| 8 | Storage pressure pre-migration check | MEDIUM | Addressed — baseline check added |
 
-**Strengths:**
-- Scope is tight and avoids touching controller logic
-- Targets exact user-approved version surfaces from D-01
-- Verification is lightweight and proportional
-- Isolated Wave 1 sequencing is sensible before production deploy
+### New Issues Found
 
-**Concerns:**
-- `MEDIUM` Calling version tampering "accepted" understates risk -- reported version is a release gate because canary-check.sh --expect-version depends on it
-- `MEDIUM` "Verify import chain" is vague -- if packaging or service startup reads version differently than import path, plan may pass locally but fail on host
-- `LOW` Commit and push are operational but plan doesn't confirm deploy host will receive that exact commit
+1. **`MEDIUM` Plan 01 bundles unrelated code into the release-gate commit** — Committing Phase 172 migrate-storage.sh changes with the version bump creates provenance ambiguity. If canary fails, unclear whether fault is version content or script changes. Should be separate commits or explicitly justified.
 
-**Suggestions:**
-- Reframe threat model: incorrect version strings are a deploy-validation failure mode, not cosmetic
-- Verify all version consumers explicitly, not just Python import
-- Add check that deploy path resolves to intended commit before Wave 2 starts
-- Confirm pyproject.toml, runtime import, and canary expectation are all identical 1.35.0
+2. **`LOW` Pushing to main before production validation** — Unvalidated release state lands on main before success criteria are met. Rollback section should distinguish repo rollback from host rollback.
 
-**Risk Assessment:** LOW-MEDIUM
+3. **`LOW` Migration trigger underspecified** — "runs if needed" but the decision rule (archive file existence check) should be restated in the review summary for clarity. (Note: this IS specified in the plan action text via the idempotency check on `metrics.db.pre-v135-archive`.)
 
----
+### Strengths
 
-### Plan 173-02: Rolling Deploy & Canary
+- Materially better on operational safety
+- Real checkpointing, explicit stop conditions, per-WAN validation
+- Readiness validation is strong: health polling, version checks, storage status, DB activity, canary exit-code handling
+- Migration correctly treated as special risk event, not hidden in normal deploy flow
 
-**Summary:** Directionally correct but has one major operational flaw: stopping all services up front behaves more like a coordinated outage than a canary. Needs clearer failure handling, rollback rules, and per-WAN sequencing.
+### Risk Assessment
 
-**Strengths:**
-- Matches user decisions on order (Spectrum first, ATT with --with-steering)
-- Includes migration timing and idempotency handling
-- Separates deployment actions from post-deploy validation with human checkpoints
-- Includes explicit success checks for version, per-WAN DB, and storage pressure
-- Keeps focused on deployment, no refactor creep
+**MEDIUM** — Major round-1 gaps fixed. Residual risk in forced cross-WAN outage during migration and bundled commit provenance.
 
-**Concerns:**
-- `HIGH` "Stop all services" conflicts with rolling/canary intent -- creates broader outage window than necessary
-- `HIGH` No explicit rollback strategy if Spectrum deploys but fails canary
-- `HIGH` Migration scope underspecified -- if global/shared, could have cross-service effects
-- `MEDIUM` 5s wait for steering start not justified -- should be event-based
-- `MEDIUM` 20s stabilization wait is brittle -- could use health endpoint readiness
-- `MEDIUM` Pre-flight config diff doesn't specify what diffs are acceptable vs blocking
-- `MEDIUM` Checks DB-file existence but not whether service is writing to correct per-WAN DB
-- `MEDIUM` Storage pressure checked only post-deploy, should also check pre-migration
-- `LOW` No handling for partial deploy states (code updated but restart failure)
+### Verdict
 
-**Suggestions:**
-- True per-WAN canary sequencing: stop Spectrum only -> deploy -> migrate -> start -> validate -> only then touch ATT
-- Hard stop rules: if Spectrum fails at any stage, do not touch ATT
-- Explicit rollback steps: restore previous code, restart prior known-good service set
-- Replace fixed sleeps with observable gates (systemctl is-active, health endpoint)
-- Expand post-deploy checks: confirm DB file mtime changes after startup
-- Keep steering out of Spectrum canary blast radius
-
-**Risk Assessment:** MEDIUM-HIGH
+**NEEDS REVISION** — Two tightenings requested:
+1. Separate or justify Phase 172 changes in version-bump commit
+2. Make migration trigger more explicit (already in plan text, but should be more prominent)
 
 ---
 
-## Consensus Summary
+## Consensus Summary (Round 2)
 
 ### Agreed Strengths
-- Plans are well-scoped and aligned to phase goal
-- Version bump is appropriately isolated in Wave 1
-- Human checkpoints for operational tasks are appropriate
-- Migration idempotency handling is solid
+- Plans are materially safer than round 1
+- Per-WAN canary isolation is now real (within migration constraints)
+- Rollback, readiness, config gating, and storage validation all solid
 
 ### Agreed Concerns
-- **HIGH: Stop-all-services approach defeats rolling/canary purpose** -- need true per-WAN isolation
-- **HIGH: No rollback strategy** if deployment partially fails
-- **HIGH: Migration blast radius** not scoped to individual WANs
-- **MEDIUM: Fixed sleep gates** instead of health-endpoint readiness checks
-- **MEDIUM: Version as release gate** not properly reflected in threat model
+- **MEDIUM: Bundled commit provenance** — Phase 172 changes mixed with version bump
+- **LOW: Push-before-validate** — main gets unvalidated release state
+- **LOW: Migration trigger clarity** — already specified but could be more prominent
 
 ### Divergent Views
-(Single reviewer -- no divergence to report)
+(Single reviewer — no divergence to report)
 
 ### Recommendation
-Plan 173-02 needs revision before execution. Key change: restructure deploy sequence to be a true per-WAN canary (deploy+validate Spectrum completely before touching ATT) with explicit rollback gates.
+Plans are close to execution-ready. The MEDIUM concern about bundled commits is the only substantive item — the LOW items are acceptable operational tradeoffs. Splitting the commit into two (Phase 172 fixes first, then version bump) would resolve the provenance concern cleanly.
