@@ -547,6 +547,12 @@ class WANController:
         self._dl_zone_hold: int = 0  # cycles current DL zone has been held
         self._ul_zone_hold: int = 0  # cycles current UL zone has been held
 
+        # Sustained latency regression / burst churn alerts (v1.34 Phase 167)
+        self._latency_regression_start: float | None = None
+        self._latency_regression_active: bool = False
+        self._burst_transition_timestamps: deque[float] = deque()
+        self._burst_last_seen_trigger_count: int = 0
+
     def _init_profiling(self) -> None:
         """Initialize profiling instrumentation, cycle budget monitoring, and background RTT."""
         config = self.config
@@ -2415,6 +2421,8 @@ class WANController:
         self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
         self._check_baseline_drift()
         self._check_flapping_alerts(dl_zone, ul_zone)
+        self._check_latency_regression_alert(dl_zone, ul_zone)
+        self._check_burst_churn_alert()
 
         return dl_zone, dl_rate, dl_transition_reason, ul_zone, ul_rate, ul_transition_reason, delta
 
@@ -2827,6 +2835,106 @@ class WANController:
                     )
                 self._ul_congestion_start = None
                 self._ul_sustained_fired = False
+
+    def _check_latency_regression_alert(self, dl_zone: str, ul_zone: str) -> None:
+        """Alert on sustained elevated RTT delta outside the healthy GREEN state."""
+        now = time.monotonic()
+        delta = float(self.load_rtt - self.baseline_rtt)
+        degraded = delta >= self.green_threshold and (dl_zone != "GREEN" or ul_zone != "GREEN")
+
+        if not degraded:
+            self._latency_regression_start = None
+            self._latency_regression_active = False
+            return
+
+        if self._latency_regression_start is None:
+            self._latency_regression_start = now
+            return
+
+        if self._latency_regression_active:
+            return
+
+        sustained_sec = self.alert_engine.get_rule_param(
+            "latency_regression", "sustained_sec", self._sustained_sec
+        )
+        duration = now - self._latency_regression_start
+        if duration < sustained_sec:
+            return
+
+        critical = (
+            delta >= self.soft_red_threshold
+            or dl_zone in ("SOFT_RED", "RED")
+            or ul_zone == "RED"
+        )
+        severity = "critical" if critical else "warning"
+        self.alert_engine.fire(
+            "latency_regression",
+            severity,
+            self.wan_name,
+            {
+                "dl_zone": dl_zone,
+                "ul_zone": ul_zone,
+                "delta_ms": round(delta, 1),
+                "baseline_rtt_ms": round(self.baseline_rtt, 1),
+                "load_rtt_ms": round(self.load_rtt, 1),
+                "duration_sec": round(duration, 1),
+                "warning_delta_ms": round(self.green_threshold, 1),
+                "critical_delta_ms": round(self.soft_red_threshold, 1),
+            },
+        )
+        self._latency_regression_active = True
+
+    def _check_burst_churn_alert(self) -> None:
+        """Alert on repeated confirmed burst triggers inside a short time window."""
+        now = time.monotonic()
+        trigger_window_sec = self.alert_engine.get_rule_param(
+            "burst_churn_dl", "trigger_window_sec", 300
+        )
+        trigger_threshold = self.alert_engine.get_rule_param(
+            "burst_churn_dl", "trigger_threshold", 3
+        )
+        severity = self.alert_engine.get_rule_param(
+            "burst_churn_dl", "severity", "warning"
+        )
+
+        current_count = int(self._dl_burst_trigger_count)
+        if current_count < self._burst_last_seen_trigger_count:
+            self._burst_transition_timestamps.clear()
+        if current_count > self._burst_last_seen_trigger_count:
+            self._burst_transition_timestamps.extend(
+                now for _ in range(current_count - self._burst_last_seen_trigger_count)
+            )
+        self._burst_last_seen_trigger_count = current_count
+
+        while (
+            self._burst_transition_timestamps
+            and now - self._burst_transition_timestamps[0] > trigger_window_sec
+        ):
+            self._burst_transition_timestamps.popleft()
+
+        if len(self._burst_transition_timestamps) < trigger_threshold:
+            return
+
+        self.alert_engine.fire(
+            "burst_churn_dl",
+            severity,
+            self.wan_name,
+            {
+                "trigger_count": len(self._burst_transition_timestamps),
+                "window_sec": int(trigger_window_sec),
+                "last_delta_ms": (
+                    round(self._dl_burst_last_delta_ms, 1)
+                    if self._dl_burst_last_delta_ms is not None
+                    else None
+                ),
+                "last_accel_ms": (
+                    round(self._dl_burst_last_accel_ms, 1)
+                    if self._dl_burst_last_accel_ms is not None
+                    else None
+                ),
+            },
+        )
+        self._burst_transition_timestamps.clear()
 
     def _check_irtt_loss_alerts(self, irtt_result: IRTTResult) -> None:
         """Check sustained IRTT packet loss and fire alerts (ALRT-01, ALRT-02, ALRT-03).

@@ -2412,6 +2412,242 @@ class TestWanRecovery:
 
 
 # =============================================================================
+# LATENCY REGRESSION / BURST CHURN FIXTURE
+# =============================================================================
+
+
+@pytest.fixture
+def mock_regression_controller():
+    """Create a lightweight WANController stub for latency/burst alert tests."""
+    controller = MagicMock(spec=WANController)
+    controller.wan_name = "spectrum"
+    controller.logger = logging.getLogger("test.latency_burst")
+    controller.alert_engine = AlertEngine(
+        enabled=True,
+        default_cooldown_sec=300,
+        rules={
+            "latency_regression": {
+                "enabled": True,
+                "cooldown_sec": 600,
+                "severity": "warning",
+                "sustained_sec": 30,
+            },
+            "burst_churn_dl": {
+                "enabled": True,
+                "cooldown_sec": 600,
+                "severity": "warning",
+                "trigger_threshold": 3,
+                "trigger_window_sec": 60,
+            },
+        },
+        writer=None,
+    )
+    controller.baseline_rtt = 20.0
+    controller.load_rtt = 20.0
+    controller.green_threshold = 10.0
+    controller.soft_red_threshold = 25.0
+    controller._sustained_sec = 60
+    controller._latency_regression_start = None
+    controller._latency_regression_active = False
+    controller._burst_transition_timestamps = deque()
+    controller._burst_last_seen_trigger_count = 0
+    controller._dl_burst_trigger_count = 0
+    controller._dl_burst_last_delta_ms = None
+    controller._dl_burst_last_accel_ms = None
+    controller._check_latency_regression_alert = (
+        WANController._check_latency_regression_alert.__get__(controller, WANController)
+    )
+    controller._check_burst_churn_alert = WANController._check_burst_churn_alert.__get__(
+        controller, WANController
+    )
+    return controller
+
+
+class TestLatencyRegressionAlerts:
+    """Tests for sustained latency-regression alerting."""
+
+    def test_latency_regression_fires_warning_after_sustained_yellow(
+        self, mock_regression_controller
+    ):
+        """Persistent elevated delta in YELLOW fires warning once sustained."""
+        now = time.monotonic()
+        mock_regression_controller.load_rtt = 33.0
+
+        with patch("time.monotonic", return_value=now):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(
+                mock_regression_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire,
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "latency_regression"
+        assert mock_fire.call_args[0][1] == "warning"
+        details = mock_fire.call_args[0][3]
+        assert details["dl_zone"] == "YELLOW"
+        assert details["ul_zone"] == "GREEN"
+        assert details["delta_ms"] == 13.0
+        assert details["warning_delta_ms"] == 10.0
+        assert details["critical_delta_ms"] == 25.0
+
+    def test_latency_regression_escalates_to_critical_when_delta_is_soft_red(
+        self, mock_regression_controller
+    ):
+        """Large sustained delta escalates to critical severity."""
+        now = time.monotonic()
+        mock_regression_controller.load_rtt = 48.0
+
+        with patch("time.monotonic", return_value=now):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch.object(
+                mock_regression_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire,
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        assert mock_fire.call_args[0][1] == "critical"
+
+    def test_latency_regression_stays_quiet_when_healthy(self, mock_regression_controller):
+        """GREEN with low delta does not start or fire latency regression."""
+        now = time.monotonic()
+        mock_regression_controller.load_rtt = 27.0
+
+        for offset in (0, 15, 45, 90):
+            with (
+                patch("time.monotonic", return_value=now + offset),
+                patch.object(
+                    mock_regression_controller.alert_engine, "fire", return_value=True
+                ) as mock_fire,
+            ):
+                mock_regression_controller._check_latency_regression_alert(
+                    "GREEN", "GREEN"
+                )
+                mock_fire.assert_not_called()
+
+        assert mock_regression_controller._latency_regression_start is None
+        assert mock_regression_controller._latency_regression_active is False
+
+    def test_latency_regression_respects_cooldown_across_repeated_episodes(
+        self, mock_regression_controller
+    ):
+        """A second episode inside cooldown is suppressed by AlertEngine."""
+        now = time.monotonic()
+        mock_regression_controller.load_rtt = 33.0
+
+        with (
+            patch("time.monotonic", return_value=now),
+            patch("wanctl.alert_engine.time.monotonic", return_value=now),
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+        with (
+            patch("time.monotonic", return_value=now + 31),
+            patch("wanctl.alert_engine.time.monotonic", return_value=now + 31),
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        assert mock_regression_controller.alert_engine.fire_count == 1
+
+        with patch("time.monotonic", return_value=now + 32):
+            mock_regression_controller._check_latency_regression_alert("GREEN", "GREEN")
+
+        with (
+            patch("time.monotonic", return_value=now + 60),
+            patch("wanctl.alert_engine.time.monotonic", return_value=now + 60),
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+        with (
+            patch("time.monotonic", return_value=now + 91),
+            patch("wanctl.alert_engine.time.monotonic", return_value=now + 91),
+        ):
+            mock_regression_controller._check_latency_regression_alert("YELLOW", "GREEN")
+
+        assert mock_regression_controller.alert_engine.fire_count == 1
+
+
+class TestBurstChurnAlerts:
+    """Tests for repeated burst-trigger churn alerting."""
+
+    def test_burst_churn_fires_when_triggers_exceed_threshold(
+        self, mock_regression_controller
+    ):
+        """Repeated burst triggers in a short window fire burst_churn_dl."""
+        now = time.monotonic()
+
+        samples = [
+            (1, now, 22.0, 30.0),
+            (2, now + 10, 24.0, 32.0),
+            (3, now + 20, 26.0, 34.0),
+        ]
+        with patch.object(
+            mock_regression_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for count, ts, delta_ms, accel_ms in samples:
+                mock_regression_controller._dl_burst_trigger_count = count
+                mock_regression_controller._dl_burst_last_delta_ms = delta_ms
+                mock_regression_controller._dl_burst_last_accel_ms = accel_ms
+                with patch("time.monotonic", return_value=ts):
+                    mock_regression_controller._check_burst_churn_alert()
+
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "burst_churn_dl"
+        assert mock_fire.call_args[0][1] == "warning"
+        details = mock_fire.call_args[0][3]
+        assert details["trigger_count"] == 3
+        assert details["window_sec"] == 60
+        assert details["last_delta_ms"] == 26.0
+        assert details["last_accel_ms"] == 34.0
+
+    def test_single_burst_trigger_stays_quiet(self, mock_regression_controller):
+        """One isolated burst trigger does not alert."""
+        now = time.monotonic()
+        mock_regression_controller._dl_burst_trigger_count = 1
+        mock_regression_controller._dl_burst_last_delta_ms = 25.0
+        mock_regression_controller._dl_burst_last_accel_ms = 31.0
+
+        with (
+            patch("time.monotonic", return_value=now),
+            patch.object(
+                mock_regression_controller.alert_engine, "fire", return_value=True
+            ) as mock_fire,
+        ):
+            mock_regression_controller._check_burst_churn_alert()
+
+        mock_fire.assert_not_called()
+        assert len(mock_regression_controller._burst_transition_timestamps) == 1
+
+    def test_burst_churn_respects_cooldown(self, mock_regression_controller):
+        """A second burst-churn window inside cooldown is suppressed."""
+        now = time.monotonic()
+
+        for count, ts in ((1, now), (2, now + 10), (3, now + 20)):
+            mock_regression_controller._dl_burst_trigger_count = count
+            with (
+                patch("time.monotonic", return_value=ts),
+                patch("wanctl.alert_engine.time.monotonic", return_value=ts),
+            ):
+                mock_regression_controller._check_burst_churn_alert()
+
+        assert mock_regression_controller.alert_engine.fire_count == 1
+
+        for count, ts in ((4, now + 40), (5, now + 50), (6, now + 60)):
+            mock_regression_controller._dl_burst_trigger_count = count
+            with (
+                patch("time.monotonic", return_value=ts),
+                patch("wanctl.alert_engine.time.monotonic", return_value=ts),
+            ):
+                mock_regression_controller._check_burst_churn_alert()
+
+        assert mock_regression_controller.alert_engine.fire_count == 1
+
+
+# =============================================================================
 # MERGED FROM test_health_alerting.py
 # =============================================================================
 
