@@ -8,26 +8,19 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.33 Detection Threshold Tuning
-
-**Goal:** A/B validate the v1.32 CAKE detection thresholds under production RRUL load and optimize for the DOCSIS cable profile.
-
-**Target features:**
-- A/B test drop_rate_threshold (current: 10.0 drops/sec)
-- A/B test backlog_threshold_bytes (current: 10,000 bytes)
-- A/B test refractory_cycles (current: 40 / 2s)
-- A/B test probe_multiplier_factor (current: 1.5x)
-- Confirmation pass + 24h production soak
-
 ## Current State
 
-**Version:** v1.32.2 (CAKE-Aware Congestion Detection) — shipped 2026-04-10
-**Tests:** 3,683+ passing (78 pre-existing fixture failures, 103 telemetry import errors — not regressions)
-**LOC:** ~34,000 Python (src/)
-**Milestones:** 33 shipped (v1.0-v1.32), 161 phases, 323 plans
+**Version:** v1.33 (Detection Threshold Tuning) — shipped 2026-04-11
+**Tests:** default pytest profile stabilized and Phase 166 hot-path validation completed on production
+**LOC:** ~35,600 Python (src/)
+**Milestones:** 34 shipped (v1.0-v1.33), 166 phases, 333 plans
 
-**Latest:** v1.33 Detection Threshold Tuning — Phase 162 complete (baseline measurement config + analysis script deployed)
+**Latest:** v1.33 Detection Threshold Tuning — baseline, five-parameter RRUL sweep, 24h soak, storage contention observability, and burst-control follow-up all completed
 **Previous:** v1.32 CAKE-Aware Congestion Detection — per-tin CAKE signal infrastructure, drop-rate dwell bypass, backlog recovery suppression, refractory anti-oscillation, exponential probe recovery (1.5x)
+
+## Next Milestone Goals
+
+Not defined yet. Use `$gsd-new-milestone` to set the next milestone goal, requirements, and roadmap.
 
 ## Requirements
 
@@ -636,3 +629,7 @@ This document evolves at phase transitions and milestone boundaries.
 ---
 
 _Last updated: 2026-04-10 after Phase 159 CAKE Signal Infrastructure complete_
+
+
+---
+*Last updated: 2026-04-11 after v1.33 milestone*

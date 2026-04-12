@@ -1,11 +1,10 @@
 {
   "status": "ready",
   "type": "next_step",
-  "question": "Phase 166 is complete. Continue with milestone closeout or commit the implementation batch.",
+  "question": "v1.33 is archived. Start the next milestone?",
   "options": [
-    "run $gsd-complete-milestone",
-    "commit Phase 166 work now"
+    "run $gsd-new-milestone",
+    "stop here"
   ],
-  "since": "2026-04-12T03:10:00.000Z",
-  "phase": "166"
+  "since": "2026-04-12T03:25:00.000Z"
 }
