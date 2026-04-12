@@ -1,5 +1,19 @@
 # Project Milestones: wanctl
 
+## v1.33 Detection Threshold Tuning (Shipped: 2026-04-11)
+
+**Phases completed:** 5 phases, 10 plans, 14 milestone requirements
+
+**Key accomplishments:**
+
+- 24-hour idle baseline captured before any tuning, giving the threshold sweep a real production reference instead of anecdotal load behavior
+- Five CAKE detection and recovery parameters A/B tested under RRUL, with the winning set deployed together and confirmed in a 24-hour production soak
+- Production runtime hardened during the milestone: metrics-history performance, steering health, retention cadence, and shared SQLite maintenance coordination all improved on the live host
+- Storage contention observability added to autorate and steering, and the explicit live decision was to keep the shared SQLite topology for now
+- Burst-aware clamp behavior plus health/Prometheus observability added, then retuned to bring `tcp_12down` p99 back out of the multi-second range without regressing `rrul_be`
+
+---
+
 ## v1.32 CAKE-Aware Congestion Detection (Shipped: 2026-04-10)
 
 **Phases completed:** 3 phases, 5 plans, 9 tasks
