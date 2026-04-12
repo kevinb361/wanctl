@@ -7,7 +7,7 @@ Turn the production lessons from v1.33 into stable operator visibility. The mile
 ## Phases
 
 - [x] **Phase 167: Latency And Burst Regression Alerts** - Add stable alerting rules for sustained latency drift, burst-health churn, and alert cooldown/severity policy
-- [ ] **Phase 168: Storage And Runtime Pressure Monitoring** - Surface DB/WAL pressure, maintenance failures, memory growth, and cycle-budget degradation with bounded operator signals
+- [x] **Phase 168: Storage And Runtime Pressure Monitoring** - Surface DB/WAL pressure, maintenance failures, memory growth, and cycle-budget degradation with bounded operator signals
 - [ ] **Phase 169: Operator Summary Surfaces** - Tighten `/health`, `/metrics`, and CLI/operator summaries around the highest-value production risk signals
 - [ ] **Phase 170: Post-Deploy Canary Checks** - Add a scripted canary path that validates health, storage pressure, and baseline latency signals after deploys
 - [ ] **Phase 171: Threshold Policy And Runbooks** - Document warn-vs-act-now thresholds and operator response flow based on the live signals introduced in v1.34
@@ -37,8 +37,8 @@ Plans:
   3. The added observability stays bounded and low-overhead rather than creating new high-rate persistence load (OPER-03)
 **Plans**: 2 plans
 Plans:
-- [ ] 168-01-PLAN.md — Add storage/runtime pressure summaries and metrics
-- [ ] 168-02-PLAN.md — Validate boundedness and production usefulness of the new signals
+- [x] 168-01-PLAN.md — Add storage/runtime pressure summaries and metrics
+- [x] 168-02-PLAN.md — Validate boundedness and production usefulness of the new signals
 
 ### Phase 169: Operator summary surfaces
 **Goal**: Present the most important production risk signals in the places operators already look
@@ -79,7 +79,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 167. Latency And Burst Regression Alerts | 2/2 | Complete | 2026-04-11 |
-| 168. Storage And Runtime Pressure Monitoring | 0/2 | Planned |  |
+| 168. Storage And Runtime Pressure Monitoring | 2/2 | Complete | 2026-04-11 |
 | 169. Operator Summary Surfaces | 0/2 | Planned |  |
 | 170. Post-Deploy Canary Checks | 0/2 | Planned |  |
 | 171. Threshold Policy And Runbooks | 0/1 | Planned |  |

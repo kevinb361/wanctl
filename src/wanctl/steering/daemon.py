@@ -58,6 +58,7 @@ from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import clear_router_password, get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
 from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from ..runtime_pressure import get_storage_file_snapshot, read_process_resident_memory_bytes
 from ..signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -1046,8 +1047,10 @@ class SteeringDaemon:
         """Initialize metrics history storage (optional)."""
         storage_config = get_storage_config(config.data)
         self._metrics_writer: MetricsWriter | None = None
+        self._storage_db_path: str | None = None
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
+            self._storage_db_path = db_path
             self._metrics_writer = MetricsWriter(Path(db_path))
             self._metrics_writer.set_process_role("steering")
             self.logger.info(f"Metrics storage enabled: {db_path}")
@@ -1267,6 +1270,8 @@ class SteeringDaemon:
             # Disabled mode: include raw zone for staged rollout verification
             wan_awareness["zone"] = self._wan_zone
 
+        storage_snapshot = get_storage_metrics_snapshot("steering")
+        storage_files = get_storage_file_snapshot(self._storage_db_path)
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -1274,7 +1279,12 @@ class SteeringDaemon:
                 "cycle_interval_ms": self._cycle_interval_ms,
             },
             "wan_awareness": wan_awareness,
-            "storage": get_storage_metrics_snapshot("steering"),
+            "runtime": {
+                "process": "steering",
+                "rss_bytes": read_process_resident_memory_bytes(),
+            },
+            "storage": storage_snapshot,
+            "storage_files": storage_files,
         }
 
     def _is_current_state_good(self, current_state: str) -> bool:

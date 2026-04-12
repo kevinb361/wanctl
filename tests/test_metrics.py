@@ -42,11 +42,13 @@ from wanctl.metrics import (
     record_ping_failure,
     record_rate_limit_event,
     record_router_update,
+    record_runtime_pressure,
     record_steering_state,
     record_steering_transition,
     record_storage_checkpoint,
     record_storage_pending_writes,
     record_storage_write_success,
+    register_scrape_callback,
     start_metrics_server,
 )
 from wanctl.signal_processing import SignalResult
@@ -458,6 +460,21 @@ class TestMetricsHandler:
             urllib.request.urlopen(url, timeout=5)
         assert exc_info.value.code == 404
         exc_info.value.close()
+
+
+    def test_metrics_endpoint_invokes_scrape_callbacks(self, running_server):
+        """Test /metrics executes registered scrape callbacks before exposition."""
+        _, port = running_server
+        register_scrape_callback(
+            "test_callback",
+            lambda: metrics.set_gauge("callback_gauge", 7.0, help_text="Callback gauge"),
+        )
+
+        url = f"http://127.0.0.1:{port}/metrics"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            content = response.read().decode("utf-8")
+
+        assert "callback_gauge 7.0" in content
 
 
 # =============================================================================
@@ -1967,3 +1984,33 @@ class TestBurstObservabilityMetrics:
             assert 'wanctl_burst_last_trigger_accel_ms{direction="download",wan="spectrum"} 18.5' in content
         finally:
             server.stop()
+
+
+
+class TestRuntimePressureMetrics:
+    """Tests for scrape-time runtime/storage pressure gauges."""
+
+    def test_record_runtime_pressure_exports_file_sizes(self, tmp_path: Path):
+        db_path = tmp_path / "metrics.db"
+        db_path.write_bytes(b"abcd")
+        wal_path = tmp_path / "metrics.db-wal"
+        wal_path.write_bytes(b"123456")
+        shm_path = tmp_path / "metrics.db-shm"
+        shm_path.write_bytes(b"xy")
+
+        with patch("wanctl.metrics.read_process_resident_memory_bytes", return_value=123_456):
+            record_runtime_pressure("autorate", str(db_path))
+
+        labels = {"process": "autorate"}
+        assert metrics.get_gauge("wanctl_process_resident_memory_bytes", labels) == 123_456
+        assert metrics.get_gauge("wanctl_storage_db_bytes", labels) == 4.0
+        assert metrics.get_gauge("wanctl_storage_wal_bytes", labels) == 6.0
+        assert metrics.get_gauge("wanctl_storage_shm_bytes", labels) == 2.0
+        assert metrics.get_gauge("wanctl_storage_total_bytes", labels) == 12.0
+
+    def test_registry_reset_clears_scrape_callbacks(self):
+        registry = MetricsRegistry()
+        registry.register_scrape_callback("test", lambda: None)
+        registry.reset()
+
+        assert registry._scrape_callbacks == {}

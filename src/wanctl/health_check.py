@@ -23,6 +23,12 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
 from wanctl import __version__
+from wanctl.runtime_pressure import (
+    build_runtime_section as build_runtime_status_section,
+)
+from wanctl.runtime_pressure import (
+    build_storage_section as build_storage_status_section,
+)
 from wanctl.storage.reader import count_metrics, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
@@ -272,6 +278,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
         wan_health["storage"] = self._build_storage_section(health_data)
+        wan_health["runtime"] = self._build_runtime_section(health_data, wan_health.get("cycle_budget"))
 
         return wan_health
 
@@ -648,51 +655,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def _build_storage_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build bounded storage contention status from in-memory telemetry."""
-        storage = health_data.get("storage")
-        if not isinstance(storage, dict):
-            return {
-                "pending_writes": 0,
-                "queue": {"drained_total": 0, "error_total": 0},
-                "writes": {
-                    "success_total": 0,
-                    "failure_total": 0,
-                    "lock_failure_total": 0,
-                    "volume_total": 0,
-                    "last_duration_ms": None,
-                    "max_duration_ms": None,
-                },
-                "checkpoint": {
-                    "busy": 0,
-                    "wal_pages": 0,
-                    "checkpointed_pages": 0,
-                    "maintenance_lock_skipped_total": 0,
-                },
-            }
-        raw_checkpoint = storage.get("checkpoint")
-        checkpoint: dict[str, Any] = raw_checkpoint if isinstance(raw_checkpoint, dict) else {}
-        return {
-            "pending_writes": int(storage.get("pending_writes", 0) or 0),
-            "queue": {
-                "drained_total": int(storage.get("queue_drained_total", 0) or 0),
-                "error_total": int(storage.get("queue_error_total", 0) or 0),
-            },
-            "writes": {
-                "success_total": int(storage.get("write_success_total", 0) or 0),
-                "failure_total": int(storage.get("write_failure_total", 0) or 0),
-                "lock_failure_total": int(storage.get("write_lock_failure_total", 0) or 0),
-                "volume_total": int(storage.get("write_volume_total", 0) or 0),
-                "last_duration_ms": storage.get("write_last_duration_ms"),
-                "max_duration_ms": storage.get("write_max_duration_ms"),
-            },
-            "checkpoint": {
-                "busy": int(checkpoint.get("busy", 0) or 0),
-                "wal_pages": int(checkpoint.get("wal_pages", 0) or 0),
-                "checkpointed_pages": int(checkpoint.get("checkpointed_pages", 0) or 0),
-                "maintenance_lock_skipped_total": int(
-                    checkpoint.get("maintenance_lock_skipped_total", 0) or 0
-                ),
-            },
-        }
+        return build_storage_status_section(
+            health_data.get("storage"),
+            health_data.get("storage_files", {}),
+        )
+
+    def _build_runtime_section(
+        self, health_data: dict[str, Any], cycle_budget: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Build bounded runtime pressure section."""
+        raw_runtime = health_data.get("runtime")
+        runtime: dict[str, Any] = raw_runtime if isinstance(raw_runtime, dict) else {}
+        cycle_status = cycle_budget.get("status") if isinstance(cycle_budget, dict) else None
+        process_role = str(runtime.get("process", "autorate"))
+        return build_runtime_status_section(
+            process_role=process_role,
+            rss_bytes=runtime.get("rss_bytes"),
+            cycle_status=cycle_status,
+        )
 
     def _build_alerting_section(self) -> dict[str, Any]:
         """Build alerting state section."""

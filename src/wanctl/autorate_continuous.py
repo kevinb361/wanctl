@@ -26,8 +26,10 @@ from wanctl.irtt_thread import IRTTThread
 from wanctl.lock_utils import LockAcquisitionError, LockFile, validate_and_acquire_lock
 from wanctl.logging_utils import setup_logging
 from wanctl.metrics import (
+    record_runtime_pressure,
     record_storage_checkpoint,
     record_storage_maintenance_lock_skip,
+    register_scrape_callback,
     start_metrics_server,
 )
 from wanctl.router_client import clear_router_password
@@ -416,6 +418,15 @@ def _start_servers(
             metrics_server = start_metrics_server(
                 host=first_config.metrics_host,
                 port=first_config.metrics_port,
+            )
+            storage_config = get_storage_config(first_config.data)
+            db_path = storage_config.get("db_path")
+            register_scrape_callback(
+                "autorate_runtime_pressure",
+                lambda: record_runtime_pressure(
+                    "autorate",
+                    db_path if isinstance(db_path, str) else None,
+                ),
             )
             for wan_info in controller.wan_controllers:
                 wan_info["logger"].info(

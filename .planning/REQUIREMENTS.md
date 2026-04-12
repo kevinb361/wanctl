@@ -15,9 +15,9 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 ### Storage And Runtime Pressure Monitoring
 
-- [ ] **OPER-01**: Metrics DB, WAL growth, maintenance failures, and shared-storage pressure are exposed clearly enough to alert before service quality slips
-- [ ] **OPER-02**: Memory growth, cycle-budget degradation, and service health drift are exposed through stable operator-visible summaries
-- [ ] **OPER-03**: Operator surfaces remain bounded and low-overhead; new observability does not write noisy high-rate telemetry back into SQLite
+- [x] **OPER-01**: Metrics DB, WAL growth, maintenance failures, and shared-storage pressure are exposed clearly enough to alert before service quality slips
+- [x] **OPER-02**: Memory growth, cycle-budget degradation, and service health drift are exposed through stable operator-visible summaries
+- [x] **OPER-03**: Operator surfaces remain bounded and low-overhead; new observability does not write noisy high-rate telemetry back into SQLite
 
 ### Operator Surfaces And Summaries
 
@@ -43,9 +43,9 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 | ALRT-01 | Phase 167 | Complete |
 | ALRT-02 | Phase 167 | Complete |
 | ALRT-03 | Phase 167 | Complete |
-| OPER-01 | Phase 168 | Pending |
-| OPER-02 | Phase 168 | Pending |
-| OPER-03 | Phase 168 | Pending |
+| OPER-01 | Phase 168 | Complete |
+| OPER-02 | Phase 168 | Complete |
+| OPER-03 | Phase 168 | Complete |
 | SURF-01 | Phase 169 | Pending |
 | SURF-02 | Phase 169 | Pending |
 | CANA-01 | Phase 170 | Pending |
@@ -54,4 +54,4 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after Phase 167 completion*
+*Last updated: 2026-04-11 after Phase 168 completion*
