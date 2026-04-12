@@ -21,8 +21,8 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 
 ### Operator Surfaces And Summaries
 
-- [ ] **SURF-01**: `/health`, `/metrics`, and relevant CLI/operator views present the most important production risk signals without log archaeology
-- [ ] **SURF-02**: Alert and summary payload shapes stay stable enough for operators and future automation to depend on them
+- [x] **SURF-01**: `/health`, `/metrics`, and relevant CLI/operator views present the most important production risk signals without log archaeology
+- [x] **SURF-02**: Alert and summary payload shapes stay stable enough for operators and future automation to depend on them
 
 ### Deploy Validation And Policy
 
@@ -46,12 +46,12 @@ Requirements for Production Observability and Alerting Hardening. Convert the pr
 | OPER-01 | Phase 168 | Complete |
 | OPER-02 | Phase 168 | Complete |
 | OPER-03 | Phase 168 | Complete |
-| SURF-01 | Phase 169 | Pending |
-| SURF-02 | Phase 169 | Pending |
+| SURF-01 | Phase 169 | Complete |
+| SURF-02 | Phase 169 | Complete |
 | CANA-01 | Phase 170 | Pending |
 | CANA-02 | Phase 170 | Pending |
 | POL-01 | Phase 171 | Pending |
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after Phase 168 completion*
+*Last updated: 2026-04-12 after Phase 169 completion*

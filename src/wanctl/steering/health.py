@@ -151,6 +151,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         disk_warning = health["disk_space"]["status"] == "warning"
         is_healthy = self.consecutive_failures < 3 and router_reachable and not disk_warning
         health["status"] = "healthy" if is_healthy else "degraded"
+        health["summary"] = self._build_summary_section(health)
 
         return health
 
@@ -392,6 +393,77 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                     for k, v in cooldowns.items()
                 ],
             }
+
+    def _build_summary_section(self, health: dict[str, Any]) -> dict[str, Any]:
+        """Build compact steering operator summary."""
+        steering = health.get("steering", {})
+        congestion = health.get("congestion", {}).get("primary", {})
+        wan_awareness = health.get("wan_awareness", {})
+        storage = health.get("storage", {})
+        runtime = health.get("runtime", {})
+        router = health.get("router_connectivity", {})
+        router_reachable = bool(router.get("is_reachable", health.get("router_reachable", False)))
+        storage_status = str(storage.get("status", "unknown"))
+        runtime_status = str(runtime.get("status", "unknown"))
+        steering_state = str(steering.get("state", "UNKNOWN"))
+        congestion_state = str(congestion.get("state", "UNKNOWN"))
+        zone = wan_awareness.get("effective_zone") or wan_awareness.get("zone") or "unknown"
+        row = {
+            "name": "steering",
+            "status": self._classify_summary_status(
+                router_reachable=router_reachable,
+                storage_status=storage_status,
+                runtime_status=runtime_status,
+                congestion_state=congestion_state,
+            ),
+            "state": steering_state,
+            "congestion_state": congestion_state,
+            "wan_zone": zone,
+            "router_reachable": router_reachable,
+            "storage_status": storage_status,
+            "runtime_status": runtime_status,
+        }
+        return {
+            "service": "steering",
+            "status": health.get("status", "unknown"),
+            "alerts": self._build_alerting_summary(health.get("alerting")),
+            "rows": [row],
+        }
+
+    def _build_alerting_summary(self, alerting: Any) -> dict[str, Any]:
+        """Build compact alerting summary for operator views."""
+        data = alerting if isinstance(alerting, dict) else {}
+        cooldowns = data.get("active_cooldowns")
+        active_count = len(cooldowns) if isinstance(cooldowns, list) else 0
+        enabled = bool(data.get("enabled", False))
+        status = "disabled"
+        if enabled:
+            status = "active" if active_count > 0 else "idle"
+        return {
+            "enabled": enabled,
+            "fire_count": int(data.get("fire_count", 0) or 0),
+            "active_cooldowns": active_count,
+            "status": status,
+        }
+
+    def _classify_summary_status(
+        self,
+        *,
+        router_reachable: bool,
+        storage_status: str,
+        runtime_status: str,
+        congestion_state: str,
+    ) -> str:
+        """Classify compact steering summary status for operator display."""
+        if not router_reachable or storage_status == "critical" or runtime_status == "critical":
+            return "degraded"
+        if (
+            storage_status == "warning"
+            or runtime_status == "warning"
+            or congestion_state in {"RED", "SOFT_RED"}
+        ):
+            return "warning"
+        return "ok"
 
 
 class SteeringHealthServer:
