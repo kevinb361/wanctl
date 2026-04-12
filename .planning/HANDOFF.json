@@ -1,10 +1,10 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-11T01:25:02.941Z",
-  "phase": "164",
-  "phase_name": "confirmation-soak",
-  "phase_dir": ".planning/phases/164-confirmation-soak",
-  "plan": 2,
+  "timestamp": "2026-04-12T01:10:00.000Z",
+  "phase": "166",
+  "phase_name": "burst-detection-and-multi-flow-ramp-control-for-tcp-12down-p",
+  "phase_dir": ".planning/phases/166-burst-detection-and-multi-flow-ramp-control-for-tcp-12down-p",
+  "plan": 1,
   "task": 1,
   "total_tasks": 2,
   "status": "paused",
@@ -14,53 +14,46 @@
       "name": "Deploy final config, confirm parity, and start the 24h soak",
       "status": "done",
       "commit": "live-only"
+    },
+    {
+      "id": "164-02",
+      "name": "Run the 24h analysis and close the confirmation soak",
+      "status": "done",
+      "commit": "live-only"
     }
   ],
   "remaining_tasks": [
     {
-      "id": "164-02",
-      "name": "Run the 24h analysis, compare against baseline, and decide whether to re-enable the autotuner",
+      "id": "166-01",
+      "name": "Add burst-confirmation tests and bounded fast-clamp behavior",
+      "status": "not_started"
+    },
+    {
+      "id": "166-02",
+      "name": "Expose burst telemetry and run the manual tcp_12down vs RRUL gate",
       "status": "not_started"
     }
   ],
-  "blockers": [
-    {
-      "description": "Phase 164 is waiting for the real T+24h checkpoint at 2026-04-11 19:49:48 CDT",
-      "type": "external",
-      "workaround": "Earlier spot checks are allowed, but formal completion must wait for the uninterrupted 24h window."
-    }
-  ],
-  "human_actions_pending": [
-    {
-      "action": "Resume at or after 2026-04-11 19:49:48 CDT and run the Phase 164 24h analysis/approval gate",
-      "context": "This is the formal VALID-01 checkpoint for the confirmation soak.",
-      "blocking": true
-    }
-  ],
+  "blockers": [],
+  "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Use the existing 2026-04-10 19:49:48 CDT service restart as the Phase 164 soak start instead of forcing another restart",
-      "rationale": "Production config parity with git was already proven, so another restart would only reset the observation window.",
+      "decision": "Phase 164 passed with zero unexpected restarts, zero error-level journal entries, and quiet final CAKE metrics",
+      "rationale": "This satisfied VALID-01 and cleared the milestone soak gate.",
       "phase": "164"
     },
     {
-      "decision": "Keep the shared metrics.db topology after Phase 165 measurement instead of planning a split-db migration",
-      "rationale": "Live contention telemetry did not show sustained lock pressure after the retention and maintenance fixes.",
-      "phase": "165"
-    },
-    {
-      "decision": "Plan burst-detection follow-up work as Phase 166 rather than mixing it into the active soak phase",
-      "rationale": "The tcp_12down p99 spike work is a post-soak tuning change and should not contaminate the 24h validation window.",
+      "decision": "Treat Phase 166 as the next active engineering phase",
+      "rationale": "It is already planned and is the first remaining incomplete phase in v1.33.",
       "phase": "166"
     }
   ],
   "uncommitted_files": [
-    ".planning/HANDOFF.json",
     ".planning/REQUIREMENTS.md",
     ".planning/ROADMAP.md",
     ".planning/STATE.md",
-    ".planning/phases/164-confirmation-soak/.continue-here.md"
+    ".planning/phases/164-confirmation-soak/164-02-SUMMARY.md"
   ],
-  "next_action": "Wait for the T+24h checkpoint, inspect any earlier spot-check output if available, then execute Phase 164 Plan 02 and record the VALID-01 decision.",
-  "context_notes": "Phase 164 is the active milestone gate. A background T+1h spot-check is queued (PID 1688496) and should write to /tmp/phase164-t1-spotcheck.log around 2026-04-10 20:49:48 CDT. Phase 166 is fully planned but must stay parked until the soak decision is complete."
+  "next_action": "Review Phase 166 Plan 01 and begin the burst-detection implementation slice.",
+  "context_notes": "Phase 164 is closed. The remaining v1.33 work is Phase 166, which should stay narrowly focused on burst confirmation, bounded clamp behavior, and operator-visible telemetry."
 }
