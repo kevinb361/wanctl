@@ -7,7 +7,7 @@ Fix the critical storage bloat (925 MB metrics.db), resolve the periodic mainten
 ## Phases
 
 - [x] **Phase 172: Storage Health & Code Fixes** - Shrink metrics DB, fix periodic maintenance error, fix analyze_baseline import path (completed 2026-04-12)
-- [ ] **Phase 173: Clean Deploy & Canary Validation** - Version bump, deploy.sh run, canary-check.sh exit 0
+- [ ] **Phase 173: Clean Deploy & Canary Validation** - Version bump, rolling per-WAN deploy, canary-check.sh exit 0
 - [ ] **Phase 174: Production Soak** - 24h soak validating storage pressure and full observability stack stability
 
 ## Phase Details
@@ -33,12 +33,13 @@ Plans:
 **Depends on**: Phase 172
 **Requirements**: DEPL-01
 **Success Criteria** (what must be TRUE):
-  1. deploy.sh completes without errors and the deployed version reports v1.35.x
+  1. deploy.sh completes without errors and the deployed version reports v1.35.0
   2. canary-check.sh returns exit 0 for both Spectrum and ATT services
-**Plans:** 2 plans
+**Plans:** 3 plans
 Plans:
 - [ ] 173-01-PLAN.md -- Version bump to 1.35.0 in three canonical files
-- [ ] 173-02-PLAN.md -- Rolling deploy, storage migration, canary validation
+- [ ] 173-02-PLAN.md -- Spectrum-first deploy, storage migration, Spectrum health validation
+- [ ] 173-03-PLAN.md -- ATT deploy with steering, full canary validation across both WANs
 
 ### Phase 174: Production Soak
 **Goal**: The full observability stack runs cleanly in production for 24h, proving storage and runtime stability
@@ -55,5 +56,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 172. Storage Health & Code Fixes | 5/5 | Complete    | 2026-04-12 |
-| 173. Clean Deploy & Canary Validation | 0/2 | Not started | - |
+| 173. Clean Deploy & Canary Validation | 0/3 | Not started | - |
 | 174. Production Soak | 0/0 | Not started | - |
