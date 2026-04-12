@@ -22,6 +22,7 @@ from pathlib import Path
 
 from tabulate import tabulate
 
+from wanctl.storage.db_utils import discover_wan_dbs, query_all_wans
 from wanctl.storage.reader import compute_summary, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
@@ -527,8 +528,8 @@ Examples:
         "--db",
         metavar="PATH",
         type=Path,
-        default=DEFAULT_DB_PATH,
-        help=f"Database path (default: {DEFAULT_DB_PATH})",
+        default=None,
+        help=f"Database path (default: auto-discover per-WAN DBs in {DEFAULT_DB_PATH.parent})",
     )
 
     return parser
@@ -551,19 +552,23 @@ def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
 
 
 def _handle_special_query(
-    args: argparse.Namespace, start_ts: int, end_ts: int
+    args: argparse.Namespace, db_paths: list[Path], start_ts: int, end_ts: int
 ) -> int | None:
     """Handle special query modes (tins, tuning, alerts). Returns exit code or None."""
     if args.tins:
         granularity = select_granularity(start_ts, end_ts)
-        results = query_metrics(
-            db_path=args.db,
+        results = query_all_wans(
+            query_metrics,
+            db_paths=db_paths,
             start_ts=start_ts,
             end_ts=end_ts,
             metrics=PER_TIN_METRICS,
             wan=args.wan,
             granularity=granularity,
         )
+        if getattr(results, "all_failed", False):
+            print("All metrics databases failed to read.", file=sys.stderr)
+            return 1
         if not results:
             print("No per-tin data found for the specified time range.")
             return 0
@@ -573,9 +578,16 @@ def _handle_special_query(
     if args.tuning:
         from wanctl.storage.reader import query_tuning_params
 
-        results = query_tuning_params(
-            db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=args.wan
+        results = query_all_wans(
+            query_tuning_params,
+            db_paths=db_paths,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            wan=args.wan,
         )
+        if getattr(results, "all_failed", False):
+            print("All metrics databases failed to read.", file=sys.stderr)
+            return 1
         if not results:
             print("No tuning adjustments found for the specified time range.")
             return 0
@@ -587,9 +599,16 @@ def _handle_special_query(
     if args.alerts:
         from wanctl.storage.reader import query_alerts
 
-        results = query_alerts(
-            db_path=args.db, start_ts=start_ts, end_ts=end_ts, wan=args.wan
+        results = query_all_wans(
+            query_alerts,
+            db_paths=db_paths,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            wan=args.wan,
         )
+        if getattr(results, "all_failed", False):
+            print("All metrics databases failed to read.", file=sys.stderr)
+            return 1
         if not results:
             print("No alerts found for the specified time range.")
             return 0
@@ -610,10 +629,21 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
+    if args.db is not None:
+        if not args.db.exists():
+            print(f"Database not found: {args.db}. Run wanctl to generate data.", file=sys.stderr)
+            return 1
+        db_paths = [args.db]
+    else:
+        db_paths = discover_wan_dbs()
+        if not db_paths:
+            print("No metrics databases found.", file=sys.stderr)
+            return 1
+
     start_ts, end_ts = _resolve_time_range(args)
 
     # Handle special query modes (tins, tuning, alerts)
-    special_result = _handle_special_query(args, start_ts, end_ts)
+    special_result = _handle_special_query(args, db_paths, start_ts, end_ts)
     if special_result is not None:
         return special_result
 
@@ -622,23 +652,22 @@ def main() -> int:
     if args.metrics:
         metrics_list = [m.strip() for m in args.metrics.split(",")]
 
-    # Check database exists
-    if not args.db.exists():
-        print(f"Database not found: {args.db}. Run wanctl to generate data.", file=sys.stderr)
-        return 1
-
     # Select granularity automatically
     granularity = select_granularity(start_ts, end_ts)
 
-    # Query metrics
-    results = query_metrics(
-        db_path=args.db,
+    # Query metrics across the resolved database set.
+    results = query_all_wans(
+        query_metrics,
+        db_paths=db_paths,
         start_ts=start_ts,
         end_ts=end_ts,
         metrics=metrics_list,
         wan=args.wan,
         granularity=granularity,
     )
+    if getattr(results, "all_failed", False):
+        print("All metrics databases failed to read.", file=sys.stderr)
+        return 1
 
     # Handle empty results
     if not results:
