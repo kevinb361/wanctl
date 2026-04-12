@@ -6,7 +6,7 @@ Fix the critical storage bloat (925 MB metrics.db), resolve the periodic mainten
 
 ## Phases
 
-- [ ] **Phase 172: Storage Health & Code Fixes** - Shrink metrics DB, fix periodic maintenance error, fix analyze_baseline import path
+- [x] **Phase 172: Storage Health & Code Fixes** - Shrink metrics DB, fix periodic maintenance error, fix analyze_baseline import path (completed 2026-04-12)
 - [ ] **Phase 173: Clean Deploy & Canary Validation** - Version bump, deploy.sh run, canary-check.sh exit 0
 - [ ] **Phase 174: Production Soak** - 24h soak validating storage pressure and full observability stack stability
 
@@ -20,13 +20,13 @@ Fix the critical storage bloat (925 MB metrics.db), resolve the periodic mainten
   1. Metrics DB size is reduced below the storage-pressure warning threshold and retention settings prevent re-growth
   2. Periodic maintenance runs complete without "error return without exception set" or any other unhandled error
   3. analyze_baseline.py runs successfully on production with correct import paths
-**Plans:** 5 plans (4 complete, 1 gap closure)
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 172-01-PLAN.md -- Per-WAN storage config and SystemError-resilient maintenance
 - [x] 172-02-PLAN.md -- analyze_baseline entry point promotion and CLI multi-DB discovery
 - [x] 172-03-PLAN.md -- One-shot DB migration script and canary storage verification (gap closure)
 - [x] 172-04-PLAN.md -- Top-level storage field in autorate health endpoint (gap closure)
-- [ ] 172-05-PLAN.md -- Fix wrapper bootstrap and deploy path for analyze_baseline (gap closure)
+- [x] 172-05-PLAN.md -- Fix wrapper bootstrap and deploy path for analyze_baseline (gap closure)
 
 ### Phase 173: Clean Deploy & Canary Validation
 **Goal**: Production is running v1.35 with version bump and canary confirms all services healthy
@@ -35,7 +35,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. deploy.sh completes without errors and the deployed version reports v1.35.x
   2. canary-check.sh returns exit 0 for both Spectrum and ATT services
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 173-01-PLAN.md -- Version bump to 1.35.0 in three canonical files
+- [ ] 173-02-PLAN.md -- Rolling deploy, storage migration, canary validation
 
 ### Phase 174: Production Soak
 **Goal**: The full observability stack runs cleanly in production for 24h, proving storage and runtime stability
@@ -51,6 +54,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 172. Storage Health & Code Fixes | 4/5 | Gap closure in progress | - |
-| 173. Clean Deploy & Canary Validation | 0/0 | Not started | - |
+| 172. Storage Health & Code Fixes | 5/5 | Complete    | 2026-04-12 |
+| 173. Clean Deploy & Canary Validation | 0/2 | Not started | - |
 | 174. Production Soak | 0/0 | Not started | - |
