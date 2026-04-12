@@ -46,6 +46,7 @@ from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTMeasurement,
 )
+from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_resident_memory_bytes
 from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.storage import MetricsWriter
 from wanctl.storage.deferred_writer import DeferredIOWorker
@@ -408,8 +409,10 @@ class WANController:
         """Initialize optional SQLite metrics history storage."""
         storage_config = get_storage_config(self.config.data)
         self._metrics_writer: MetricsWriter | None = None
+        self._storage_db_path: str | None = None
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
+            self._storage_db_path = db_path
             self._metrics_writer = MetricsWriter(Path(db_path))
             self.logger.info(f"{self.wan_name}: Metrics history enabled, db={db_path}")
 
@@ -3288,6 +3291,8 @@ class WANController:
         Provides raw values. health_check.py handles presentation formatting.
         Replaces ~25 cross-module private attribute accesses.
         """
+        storage_snapshot = get_storage_metrics_snapshot("autorate")
+        storage_files = get_storage_file_snapshot(self._storage_db_path)
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -3360,7 +3365,12 @@ class WANController:
                     ),
                 },
             },
-            "storage": get_storage_metrics_snapshot("autorate"),
+            "runtime": {
+                "process": "autorate",
+                "rss_bytes": read_process_resident_memory_bytes(),
+            },
+            "storage": storage_snapshot,
+            "storage_files": storage_files,
         }
 
     @handle_errors(error_msg="{self.wan_name}: Could not load state: {exception}")

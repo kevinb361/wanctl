@@ -118,9 +118,19 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 if isinstance(getattr(wan_mock, "_cake_signal_health", None), dict)
                 else None
             ),
+            "runtime": (
+                wan_mock._runtime_health
+                if isinstance(getattr(wan_mock, "_runtime_health", None), dict)
+                else None
+            ),
             "storage": (
                 wan_mock._storage_health
                 if isinstance(getattr(wan_mock, "_storage_health", None), dict)
+                else None
+            ),
+            "storage_files": (
+                wan_mock._storage_files
+                if isinstance(getattr(wan_mock, "_storage_files", None), dict)
                 else None
             ),
         }
@@ -429,6 +439,19 @@ class TestHealthServer:
                 "maintenance_lock_skipped_total": 3,
             },
         }
+        mock_wan_controller._storage_files = {
+            "db_bytes": 2048,
+            "wal_bytes": 4096,
+            "shm_bytes": 512,
+            "total_bytes": 6656,
+            "db_exists": True,
+            "wal_exists": True,
+            "shm_exists": True,
+        }
+        mock_wan_controller._runtime_health = {
+            "process": "autorate",
+            "rss_bytes": 128 * 1024 * 1024,
+        }
         _configure_wan_health_data(mock_wan_controller)
 
         mock_config = MagicMock()
@@ -451,6 +474,13 @@ class TestHealthServer:
         assert storage["writes"]["lock_failure_total"] == 1
         assert storage["checkpoint"]["wal_pages"] == 8
         assert storage["checkpoint"]["maintenance_lock_skipped_total"] == 3
+        assert storage["files"]["wal_bytes"] == 4096
+        assert storage["status"] == "critical"
+        runtime = data["wans"][0]["runtime"]
+        assert runtime["process"] == "autorate"
+        assert runtime["rss_bytes"] == 128 * 1024 * 1024
+        assert runtime["memory_status"] == "ok"
+        assert runtime["status"] == "ok"
 
 
 class TestRouterConnectivityReporting:

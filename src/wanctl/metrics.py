@@ -20,8 +20,11 @@ Usage:
 
 import logging
 import threading
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+
+from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_resident_memory_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class MetricsRegistry:
         self._counters: dict[str, int] = {}
         self._gauge_help: dict[str, str] = {}
         self._counter_help: dict[str, str] = {}
+        self._scrape_callbacks: dict[str, Callable[[], None]] = {}
         self._lock = threading.Lock()
 
     def set_gauge(
@@ -118,6 +122,17 @@ class MetricsRegistry:
         with self._lock:
             return self._counters.get(key)
 
+
+    def register_scrape_callback(self, name: str, callback: Callable[[], None]) -> None:
+        """Register a callback invoked before metrics exposition."""
+        with self._lock:
+            self._scrape_callbacks[name] = callback
+
+    def unregister_scrape_callback(self, name: str) -> None:
+        """Remove a previously registered scrape callback."""
+        with self._lock:
+            self._scrape_callbacks.pop(name, None)
+
     def _make_key(self, name: str, labels: dict[str, str] | None) -> str:
         """Create metric key with optional labels in Prometheus format."""
         if not labels:
@@ -140,6 +155,15 @@ class MetricsRegistry:
         """
         lines: list[str] = []
         emitted_help: set[str] = set()
+
+        with self._lock:
+            callbacks = list(self._scrape_callbacks.values())
+
+        for callback in callbacks:
+            try:
+                callback()
+            except Exception:
+                logger.warning("Metrics scrape callback failed", exc_info=True)
 
         with self._lock:
             # Emit gauges
@@ -169,6 +193,7 @@ class MetricsRegistry:
         with self._lock:
             self._gauges.clear()
             self._counters.clear()
+            self._scrape_callbacks.clear()
 
 
 # Global registry instance
@@ -178,6 +203,16 @@ metrics = MetricsRegistry()
 def reset() -> None:
     """Reset the global metrics registry. Exposed for tests and fixtures."""
     metrics.reset()
+
+
+def register_scrape_callback(name: str, callback: Callable[[], None]) -> None:
+    """Register a global scrape callback on the shared metrics registry."""
+    metrics.register_scrape_callback(name, callback)
+
+
+def unregister_scrape_callback(name: str) -> None:
+    """Remove a previously registered global scrape callback."""
+    metrics.unregister_scrape_callback(name)
 
 
 class MetricsHandler(BaseHTTPRequestHandler):
@@ -646,6 +681,43 @@ def record_storage_maintenance_lock_skip(process_role: str) -> None:
         help_text="Total maintenance runs skipped because another process held the shared lock",
     )
 
+
+def record_runtime_pressure(process_role: str, db_path: str | None) -> None:
+    """Record bounded runtime/storage file size gauges for the current process."""
+    labels = _storage_process_labels(process_role)
+    rss_bytes = read_process_resident_memory_bytes()
+    if rss_bytes is not None:
+        metrics.set_gauge(
+            "wanctl_process_resident_memory_bytes",
+            float(rss_bytes),
+            labels=labels,
+            help_text="Current resident memory size of the wanctl process in bytes",
+        )
+    files = get_storage_file_snapshot(db_path)
+    metrics.set_gauge(
+        "wanctl_storage_db_bytes",
+        float(files["db_bytes"]),
+        labels=labels,
+        help_text="Current SQLite database file size in bytes",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_wal_bytes",
+        float(files["wal_bytes"]),
+        labels=labels,
+        help_text="Current SQLite WAL file size in bytes",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_shm_bytes",
+        float(files["shm_bytes"]),
+        labels=labels,
+        help_text="Current SQLite shared-memory file size in bytes",
+    )
+    metrics.set_gauge(
+        "wanctl_storage_total_bytes",
+        float(files["total_bytes"]),
+        labels=labels,
+        help_text="Current total SQLite storage footprint in bytes",
+    )
 
 
 def get_storage_metrics_snapshot(process_role: str) -> dict[str, Any]:

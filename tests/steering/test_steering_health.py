@@ -34,6 +34,8 @@ def _make_health_data(
     overrun_count: int = 0,
     cycle_interval_ms: float = 50.0,
     storage: dict | None = None,
+    storage_files: dict | None = None,
+    runtime: dict | None = None,
 ) -> dict:
     """Build a get_health_data() return dict for mock SteeringDaemon."""
     if profiler is None:
@@ -53,7 +55,9 @@ def _make_health_data(
             "cycle_interval_ms": cycle_interval_ms,
         },
         "wan_awareness": wan_awareness,
+        "runtime": runtime or {"process": "steering", "rss_bytes": None},
         "storage": storage or {},
+        "storage_files": storage_files or {},
     }
 
 
@@ -132,7 +136,20 @@ class TestSteeringHealthServer:
                     "checkpointed_pages": 0,
                     "maintenance_lock_skipped_total": 1,
                 },
-            }
+            },
+            storage_files={
+                "db_bytes": 1024,
+                "wal_bytes": 0,
+                "shm_bytes": 0,
+                "total_bytes": 1024,
+                "db_exists": True,
+                "wal_exists": False,
+                "shm_exists": False,
+            },
+            runtime={
+                "process": "steering",
+                "rss_bytes": 64 * 1024 * 1024,
+            },
         )
 
         handler = SteeringHealthHandler.__new__(SteeringHealthHandler)
@@ -145,6 +162,10 @@ class TestSteeringHealthServer:
         assert data["storage"]["queue"]["drained_total"] == 9
         assert data["storage"]["writes"]["success_total"] == 9
         assert data["storage"]["checkpoint"]["maintenance_lock_skipped_total"] == 1
+        assert data["storage"]["files"]["db_bytes"] == 1024
+        assert data["storage"]["status"] == "ok"
+        assert data["runtime"]["rss_bytes"] == 64 * 1024 * 1024
+        assert data["runtime"]["memory_status"] == "ok"
 
     def test_health_root_path(self):
         """Test that / endpoint returns same response as /health."""
