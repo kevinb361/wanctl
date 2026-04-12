@@ -8,7 +8,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from wanctl.autorate_continuous import _run_maintenance
-from wanctl.storage.maintenance import maintenance_lock, maintenance_lock_path, run_startup_maintenance
+from wanctl.storage.maintenance import (
+    maintenance_lock,
+    maintenance_lock_path,
+    run_startup_maintenance,
+)
 
 
 def insert_test_metrics(
@@ -371,25 +375,19 @@ def _run_maintenance_with_mocks(
     }
 
     cleanup_mock = MagicMock()
-    if isinstance(cleanup_side_effect, BaseException):
-        cleanup_mock.side_effect = cleanup_side_effect
-    elif isinstance(cleanup_side_effect, list):
+    if isinstance(cleanup_side_effect, (BaseException, list)):
         cleanup_mock.side_effect = cleanup_side_effect
     else:
         cleanup_mock.return_value = cleanup_side_effect
 
     downsample_mock = MagicMock()
-    if isinstance(downsample_side_effect, BaseException):
-        downsample_mock.side_effect = downsample_side_effect
-    elif isinstance(downsample_side_effect, list):
+    if isinstance(downsample_side_effect, (BaseException, list)):
         downsample_mock.side_effect = downsample_side_effect
     else:
         downsample_mock.return_value = downsample_side_effect if downsample_side_effect is not None else {}
 
     vacuum_mock = MagicMock()
-    if isinstance(vacuum_side_effect, BaseException):
-        vacuum_mock.side_effect = vacuum_side_effect
-    elif isinstance(vacuum_side_effect, list):
+    if isinstance(vacuum_side_effect, (BaseException, list)):
         vacuum_mock.side_effect = vacuum_side_effect
     else:
         vacuum_mock.return_value = vacuum_side_effect
