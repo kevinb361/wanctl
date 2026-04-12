@@ -215,3 +215,12 @@ cake_signal:
   recovery:
     probe_multiplier: 1.0 # Phase 163 A/B winner (1.0 vs 1.5 vs 2.0, linear recovery best)
     probe_ceiling_pct: 0.95 # Phase 163 A/B winner (0.95 vs 0.9 vs 0.85, p99 -5%)
+
+# Per-WAN storage (D-05: eliminates cross-service write contention)
+storage:
+  db_path: "/var/lib/wanctl/metrics-spectrum.db"
+  maintenance_interval_seconds: 900
+  retention:
+    raw_age_seconds: 86400           # 24h raw data (D-01)
+    aggregate_1m_age_seconds: 86400  # 24h 1-minute aggregates
+    aggregate_5m_age_seconds: 604800 # 7d 5-minute aggregates

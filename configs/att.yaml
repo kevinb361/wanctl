@@ -203,3 +203,12 @@ cake_signal:
 alerting:
   enabled: true
   webhook_url: "${DISCORD_WEBHOOK_URL}"
+
+# Per-WAN storage (D-05: eliminates cross-service write contention)
+storage:
+  db_path: "/var/lib/wanctl/metrics-att.db"
+  maintenance_interval_seconds: 900
+  retention:
+    raw_age_seconds: 86400           # 24h raw data (D-01)
+    aggregate_1m_age_seconds: 86400  # 24h 1-minute aggregates
+    aggregate_5m_age_seconds: 604800 # 7d 5-minute aggregates
