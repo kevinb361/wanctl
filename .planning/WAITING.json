@@ -1,11 +1,11 @@
 {
   "status": "ready",
   "type": "next_step",
-  "question": "Phase 168 is complete. Start planning Phase 169?",
+  "question": "Phase 169 is complete. Start planning Phase 170?",
   "options": [
-    "run $gsd-plan-phase 169",
+    "run $gsd-plan-phase 170",
     "adjust v1.34 scope"
   ],
-  "since": "2026-04-12T03:55:00.000Z",
-  "phase": "169"
+  "since": "2026-04-12T06:22:08.000Z",
+  "phase": "170"
 }

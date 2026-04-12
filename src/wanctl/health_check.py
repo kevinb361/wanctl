@@ -226,6 +226,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         disk_warning = health["disk_space"]["status"] == "warning"
         is_healthy = self.consecutive_failures < 3 and all_routers_reachable and not disk_warning
         health["status"] = "healthy" if is_healthy else "degraded"
+        health["summary"] = self._build_summary_section(health)
 
         return health
 
@@ -696,6 +697,91 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     ],
                 }
         return alerting
+
+    def _build_summary_section(self, health: dict[str, Any]) -> dict[str, Any]:
+        """Build compact operator-facing summary without altering detailed sections."""
+        rows = [self._build_wan_summary_row(wan) for wan in health.get("wans", [])]
+        return {
+            "service": "autorate",
+            "status": health.get("status", "unknown"),
+            "wan_count": len(rows),
+            "router_reachable": bool(health.get("router_reachable", False)),
+            "alerts": self._build_alerting_summary(health.get("alerting")),
+            "rows": rows,
+            "degraded_wans": [row["name"] for row in rows if row["status"] == "degraded"],
+            "warning_wans": [row["name"] for row in rows if row["status"] == "warning"],
+        }
+
+    def _build_wan_summary_row(self, wan: dict[str, Any]) -> dict[str, Any]:
+        """Build compact per-WAN operator summary row."""
+        router = wan.get("router_connectivity", {})
+        storage = wan.get("storage", {})
+        runtime = wan.get("runtime", {})
+        cake_signal = wan.get("cake_signal", {})
+        burst = cake_signal.get("burst") if isinstance(cake_signal, dict) else {}
+        download = wan.get("download", {})
+        upload = wan.get("upload", {})
+        router_reachable = bool(router.get("is_reachable", False))
+        storage_status = str(storage.get("status", "unknown"))
+        runtime_status = str(runtime.get("status", "unknown"))
+        download_state = str(download.get("state", "UNKNOWN"))
+        upload_state = str(upload.get("state", "UNKNOWN"))
+        return {
+            "name": str(wan.get("name", "unknown")),
+            "status": self._classify_wan_summary_status(
+                router_reachable=router_reachable,
+                storage_status=storage_status,
+                runtime_status=runtime_status,
+                download_state=download_state,
+                upload_state=upload_state,
+            ),
+            "router_reachable": router_reachable,
+            "download_state": download_state,
+            "upload_state": upload_state,
+            "download_rate_mbps": download.get("current_rate_mbps"),
+            "upload_rate_mbps": upload.get("current_rate_mbps"),
+            "storage_status": storage_status,
+            "runtime_status": runtime_status,
+            "burst_active": bool((burst or {}).get("active", False)),
+            "burst_trigger_count": int((burst or {}).get("trigger_count", 0) or 0),
+        }
+
+    def _build_alerting_summary(self, alerting: Any) -> dict[str, Any]:
+        """Build compact alerting summary for operator views."""
+        data = alerting if isinstance(alerting, dict) else {}
+        cooldowns = data.get("active_cooldowns")
+        active_count = len(cooldowns) if isinstance(cooldowns, list) else 0
+        enabled = bool(data.get("enabled", False))
+        status = "disabled"
+        if enabled:
+            status = "active" if active_count > 0 else "idle"
+        return {
+            "enabled": enabled,
+            "fire_count": int(data.get("fire_count", 0) or 0),
+            "active_cooldowns": active_count,
+            "status": status,
+        }
+
+    def _classify_wan_summary_status(
+        self,
+        *,
+        router_reachable: bool,
+        storage_status: str,
+        runtime_status: str,
+        download_state: str,
+        upload_state: str,
+    ) -> str:
+        """Classify compact WAN summary status for operator display."""
+        if not router_reachable or storage_status == "critical" or runtime_status == "critical":
+            return "degraded"
+        if (
+            storage_status == "warning"
+            or runtime_status == "warning"
+            or download_state in {"RED", "SOFT_RED"}
+            or upload_state in {"RED", "SOFT_RED"}
+        ):
+            return "warning"
+        return "ok"
 
     def _handle_metrics_history(self) -> None:
         """Handle /metrics/history requests.

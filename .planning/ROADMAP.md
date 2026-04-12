@@ -8,7 +8,7 @@ Turn the production lessons from v1.33 into stable operator visibility. The mile
 
 - [x] **Phase 167: Latency And Burst Regression Alerts** - Add stable alerting rules for sustained latency drift, burst-health churn, and alert cooldown/severity policy
 - [x] **Phase 168: Storage And Runtime Pressure Monitoring** - Surface DB/WAL pressure, maintenance failures, memory growth, and cycle-budget degradation with bounded operator signals
-- [ ] **Phase 169: Operator Summary Surfaces** - Tighten `/health`, `/metrics`, and CLI/operator summaries around the highest-value production risk signals
+- [x] **Phase 169: Operator Summary Surfaces** - Tighten `/health`, `/metrics`, and CLI/operator summaries around the highest-value production risk signals
 - [ ] **Phase 170: Post-Deploy Canary Checks** - Add a scripted canary path that validates health, storage pressure, and baseline latency signals after deploys
 - [ ] **Phase 171: Threshold Policy And Runbooks** - Document warn-vs-act-now thresholds and operator response flow based on the live signals introduced in v1.34
 
@@ -49,8 +49,8 @@ Plans:
   2. The summary payloads are stable enough for operators and future automation to depend on them (SURF-02)
 **Plans**: 2 plans
 Plans:
-- [ ] 169-01-PLAN.md — Refine health/metrics summary surfaces around production-risk signals
-- [ ] 169-02-PLAN.md — Add or update CLI/operator summaries that consume the same signals
+- [x] 169-01-PLAN.md — Refine health/metrics summary surfaces around production-risk signals
+- [x] 169-02-PLAN.md — Add or update CLI/operator summaries that consume the same signals
 
 ### Phase 170: Post-deploy canary checks
 **Goal**: Replace ad hoc post-deploy validation with a repeatable scripted pass/fail workflow
@@ -80,6 +80,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 167. Latency And Burst Regression Alerts | 2/2 | Complete | 2026-04-11 |
 | 168. Storage And Runtime Pressure Monitoring | 2/2 | Complete | 2026-04-11 |
-| 169. Operator Summary Surfaces | 0/2 | Planned |  |
+| 169. Operator Summary Surfaces | 2/2 | Complete | 2026-04-12 |
 | 170. Post-Deploy Canary Checks | 0/2 | Planned |  |
 | 171. Threshold Policy And Runbooks | 0/1 | Planned |  |
