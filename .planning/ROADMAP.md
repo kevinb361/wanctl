@@ -9,7 +9,7 @@ Fix the critical storage bloat (925 MB metrics.db), resolve the periodic mainten
 - [x] **Phase 172: Storage Health & Code Fixes** - Shrink metrics DB, fix periodic maintenance error, fix analyze_baseline import path (completed 2026-04-12)
 - [x] **Phase 173: Clean Deploy & Canary Validation** - Version bump, rolling per-WAN deploy, canary-check.sh exit 0 (completed 2026-04-12)
 - [x] **Phase 174: Production Soak** - 24h soak validating storage pressure and full observability stack stability (completed 2026-04-13)
-- [ ] **Phase 175: Verification And Evidence Closeout** - Formalize missing phase verification reports and close the remaining audit evidence gaps
+- [x] **Phase 175: Verification And Evidence Closeout** - Formalize missing phase verification reports and close the remaining audit evidence gaps (completed 2026-04-13)
 - [ ] **Phase 176: Deployment And Soak Flow Alignment** - Align deploy/install/soak operator flows with what v1.35 actually required in production
 
 ## Phase Details
@@ -65,7 +65,12 @@ Plans:
   2. `173-VERIFICATION.md` exists and verifies `DEPL-01` using the production deploy and canary evidence already captured in milestone artifacts
   3. `174-VERIFICATION.md` exists and verifies `STOR-03` and `SOAK-01` using the recorded soak evidence, including any missing service coverage explicitly addressed
   4. Validation bookkeeping needed for re-audit exists for Phase 174 and no milestone requirement is orphaned from verification
-**Plans:** 0/0 plans complete
+**Plans:** 4/4 plans complete
+Plans:
+- [x] 175-01-PLAN.md -- Write 173-VERIFICATION.md for DEPL-01
+- [x] 175-02-PLAN.md -- Write 174-VERIFICATION.md for STOR-03 + SOAK-01
+- [x] 175-03-PLAN.md -- Update 172-VERIFICATION.md to close STOR-01 with live evidence
+- [x] 175-04-PLAN.md -- 174-VALIDATION.md + REQUIREMENTS.md orphan coverage sweep
 
 ### Phase 176: Deployment And Soak Flow Alignment
 **Goal**: Make the repo's active operator flow match the deployment and soak steps that v1.35 actually depended on in production
@@ -86,5 +91,5 @@ Plans:
 | 172. Storage Health & Code Fixes | 5/5 | Complete    | 2026-04-12 |
 | 173. Clean Deploy & Canary Validation | 3/3 | Complete    | 2026-04-12 |
 | 174. Production Soak | 1/1 | Complete    | 2026-04-13 |
-| 175. Verification And Evidence Closeout | 0/0 | Pending     | |
+| 175. Verification And Evidence Closeout | 4/4 | Complete    | 2026-04-13 |
 | 176. Deployment And Soak Flow Alignment | 0/0 | Pending     | |
