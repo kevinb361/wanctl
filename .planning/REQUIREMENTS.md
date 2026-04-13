@@ -10,12 +10,12 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 ### Storage Investigation
 
 - [x] **STOR-04**: Active production metrics databases and their dominant storage contributors are identified clearly enough to explain the current 5+ GB per-WAN footprint
-- [ ] **STOR-05**: The runtime role of legacy `/var/lib/wanctl/metrics.db` is explicitly closed out as either active, ignored, or archived/retired
+- [x] **STOR-05**: The runtime role of legacy `/var/lib/wanctl/metrics.db` is explicitly closed out as either active, ignored, or archived/retired
 
 ### Storage Reduction
 
-- [ ] **STOR-06**: Active per-WAN metrics DB footprint is materially reduced from the 2026-04-13 baseline without breaking health, canary, soak-monitor, operator-summary, or history workflows
-- [ ] **STOR-07**: Retention/downsampling/maintenance settings remain bounded and production-safe after the footprint reduction change
+- [x] **STOR-06**: Active per-WAN metrics DB footprint is materially reduced from the 2026-04-13 baseline without breaking health, canary, soak-monitor, operator-summary, or history workflows
+- [x] **STOR-07**: Retention/downsampling/maintenance settings remain bounded and production-safe after the footprint reduction change
 
 ### Verification
 
@@ -32,9 +32,9 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 | Requirement | Planned Phase | Status |
 |-------------|---------------|--------|
 | STOR-04 | Phase 177 | Satisfied |
-| STOR-05 | Phase 178 | Planned |
-| STOR-06 | Phase 178 | Planned |
-| STOR-07 | Phase 178 | Planned |
+| STOR-05 | Phase 178 | Satisfied |
+| STOR-06 | Phase 178 | Satisfied |
+| STOR-07 | Phase 178 | Satisfied |
 | OPER-04 | Phase 179 | Planned |
 
 ---

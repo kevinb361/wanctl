@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Phase 177 complete
-last_updated: "2026-04-13T22:55:00.000Z"
+stopped_at: Phase 178 complete
+last_updated: "2026-04-14T00:10:00.000Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 33
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
+  percent: 67
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Plan Phase 178 from the completed Phase 177 storage findings
+**Current focus:** Plan Phase 179 to gather production evidence for the Phase 178 storage changes
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** 177 of 179 (live storage footprint investigation)
+**Phase:** 178 of 179 (retention tightening and legacy DB cleanup)
 **Plan:** All plans complete
-**Status:** Phase 177 complete — ready for `/gsd-plan-phase 178`
+**Status:** Phase 178 complete — ready for `/gsd-plan-phase 179`
 **Last activity:** 2026-04-13
 
-Progress: [███-------] 33%
+Progress: [███████---] 67%
 
 ## Accumulated Context
 
@@ -45,8 +45,10 @@ Progress: [███-------] 33%
 - Milestone archive accepted non-blocking validation debt in Phases 172-174 plus the 1-hour built-in soak-monitor helper window
 - Live post-ship inspection shows active per-WAN DBs still at roughly 5.44 GB and 5.08 GB, with a legacy `metrics.db` residue still present on host
 - Phase 177 closed STOR-04: active per-WAN DBs are authoritative for autorate, legacy `metrics.db` is still active/shared, and the current multi-GB footprint is mostly live retained content rather than WAL or reclaimable slack
+- Phase 178 is complete: steering now declares the shared `metrics.db` role explicitly, the shipped per-WAN configs keep only 1 hour of raw retention while preserving the 24-hour aggregate window, and `/metrics/history` plus operator docs follow the authoritative per-WAN DB topology
+- Phase 178 verification passed on repo-side must-haves and deferred live production evidence to Phase 179
 
 ## Session Continuity
 
-Stopped at: Phase 177 complete
-Resume file: .planning/phases/177-live-storage-footprint-investigation/177-findings-and-recommendation.md
+Stopped at: Phase 178 complete
+Resume file: .planning/phases/178-retention-tightening-and-legacy-db-cleanup/178-VERIFICATION.md
