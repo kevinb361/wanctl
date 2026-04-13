@@ -47,6 +47,9 @@ smallest single settings change that should still materially reduce the active D
 - The new raw window matches the documented schema default for non-Prometheus-compensated
   deployments, which keeps the shipped production profile inside already-supported retention
   behavior instead of introducing a new storage mode.
+- `docs/CONFIG_SCHEMA.md` now distinguishes code defaults from the currently shipped Spectrum and
+  ATT production values so follow-on operator edits do not confuse schema defaults with one
+  required retention profile for every deployment.
 
 ## Safety Boundary
 

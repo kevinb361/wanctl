@@ -303,9 +303,10 @@ ping_source_ip: "10.10.110.223"
 
 Metrics database storage configuration.
 
-| Field     | Type   | Default                      | Description                     |
-| --------- | ------ | ---------------------------- | ------------------------------- |
-| `db_path` | string | `/var/lib/wanctl/metrics.db` | Path to SQLite metrics database |
+| Field                          | Type   | Default                      | Description                                                       |
+| ------------------------------ | ------ | ---------------------------- | ----------------------------------------------------------------- |
+| `db_path`                      | string | `/var/lib/wanctl/metrics.db` | Path to SQLite metrics database                                   |
+| `maintenance_interval_seconds` | int    | `900`                        | Background maintenance cadence in seconds (15 minutes, bounded)   |
 
 #### `storage.retention` (optional)
 
@@ -320,9 +321,21 @@ Per-granularity data retention thresholds. Controls how long metrics data is kep
 
 When `prometheus_compensated` is `true`, `aggregate_5m_age_seconds` defaults to `172800` (48h) instead of `604800` (7d), since Prometheus retains its own long-term history.
 
+Current shipped production note:
+
+- `configs/spectrum.yaml` and `configs/att.yaml` currently ship the bounded profile
+  `raw_age_seconds: 3600`, `aggregate_1m_age_seconds: 86400`,
+  `aggregate_5m_age_seconds: 604800`, and `maintenance_interval_seconds: 900`.
+- That profile is a production choice for the active WAN configs, not a universal requirement
+  for every deployment. Other deployments may keep the same defaults or set broader retention if
+  their storage budget and operator workflows require it.
+- Tuning-safe history depends on preserving enough 1-minute aggregate data for the configured
+  tuning lookback. The shipped production configs keep the full 24-hour `aggregate_1m` window.
+
 ```yaml
 storage:
   db_path: "/var/lib/wanctl/metrics.db"
+  maintenance_interval_seconds: 900
   retention:
     raw_age_seconds: 3600
     aggregate_1m_age_seconds: 86400
