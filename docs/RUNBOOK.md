@@ -244,6 +244,39 @@ scripts/canary-check.sh --input /tmp/<wan_name>-health.json
 | `wanctl-history --alerts` | Inspect persisted alert history | `wanctl-history --alerts` |
 | `curl .../health` | Inspect full JSON instead of summary view | `ssh <host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'` |
 
+## Storage Topology And History Checks
+
+Phase 178 leaves three active DB files in the production topology:
+
+- `/var/lib/wanctl/metrics-spectrum.db` for Spectrum autorate
+- `/var/lib/wanctl/metrics-att.db` for ATT autorate
+- `/var/lib/wanctl/metrics.db` for shared steering metrics
+
+The older `/var/lib/wanctl/spectrum_metrics.db` and `/var/lib/wanctl/att_metrics.db` names are
+stale zero-byte cleanup candidates, not active runtime targets.
+
+Use read-only checks to confirm the active set and current footprint:
+
+```bash
+ssh <host> 'sudo -n stat -c "%n %s %y" /var/lib/wanctl/metrics-spectrum.db /var/lib/wanctl/metrics-att.db /var/lib/wanctl/metrics.db /var/lib/wanctl/spectrum_metrics.db /var/lib/wanctl/att_metrics.db 2>/dev/null'
+./scripts/soak-monitor.sh --json
+```
+
+`storage.status` remains the production-safe summary signal for footprint/maintenance health.
+Use `./scripts/soak-monitor.sh --json` or the `/health` payload before reaching for direct DB inspection.
+
+For retained history, use the supported readers instead of guessing a single DB path:
+
+```bash
+ssh <host> 'wanctl-history --last 1h --metrics wanctl_rtt_ms --json | python3 -m json.tool | head -n 40'
+ssh <host> 'curl -s http://127.0.0.1:9101/metrics/history?range=1h&limit=5 | python3 -m json.tool'
+```
+
+Both readers prefer the active per-WAN `metrics-*.db` set and only fall back to
+`/var/lib/wanctl/metrics.db` when no per-WAN DBs exist. That keeps autorate history reads aligned
+with the authoritative topology without mixing in the shared steering DB when the per-WAN DBs are
+present.
+
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
 
 ```bash
