@@ -2986,6 +2986,57 @@ class TestMetricsHistoryEndpoint:
             finally:
                 server.shutdown()
 
+    def test_history_prefers_newest_first_after_multi_db_merge(self, tmp_path: Path):
+        """Merged /metrics/history results preserve newest-first ordering and offset semantics."""
+        import sqlite3
+        import time
+
+        from wanctl.storage.schema import create_tables
+
+        now_ts = int(time.time())
+        legacy_db = tmp_path / "metrics.db"
+        spectrum_db = tmp_path / "metrics-spectrum.db"
+        att_db = tmp_path / "metrics-att.db"
+
+        for db_path, row in [
+            (legacy_db, (now_ts - 30, "legacy", "wanctl_rtt_ms", 99.0, "", "raw")),
+            (spectrum_db, (now_ts - 10, "spectrum", "wanctl_rtt_ms", 11.0, "", "raw")),
+            (att_db, (now_ts - 20, "att", "wanctl_rtt_ms", 22.0, "", "raw")),
+        ]:
+            conn = sqlite3.connect(db_path)
+            create_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                row,
+            )
+            conn.commit()
+            conn.close()
+
+        port = find_free_port()
+        with patch("wanctl.health_check.DEFAULT_DB_PATH", legacy_db):
+            server = start_health_server(host="127.0.0.1", port=port, controller=None)
+
+            try:
+                url = f"http://127.0.0.1:{port}/metrics/history?range=1h"
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+
+                timestamps = [record["timestamp"] for record in data["data"]]
+                assert timestamps == sorted(timestamps, reverse=True)
+                assert [record["wan_name"] for record in data["data"]] == ["spectrum", "att"]
+
+                offset_url = f"http://127.0.0.1:{port}/metrics/history?range=1h&offset=1&limit=1"
+                with urllib.request.urlopen(offset_url, timeout=5) as response:
+                    offset_data = json.loads(response.read().decode())
+
+                assert offset_data["metadata"]["offset"] == 1
+                assert [record["wan_name"] for record in offset_data["data"]] == ["att"]
+            finally:
+                server.shutdown()
+
     def test_pagination_metadata(self, sample_db: Path):
         """Response includes total_count and returned_count."""
         port = find_free_port()
@@ -3071,7 +3122,7 @@ class TestMetricsHistoryEndpoint:
                     data = json.loads(response.read().decode())
 
                 wan_names = [record["wan_name"] for record in data["data"]]
-                assert wan_names == ["spectrum", "att"]
+                assert wan_names == ["att", "spectrum"]
                 assert "legacy" not in wan_names
                 assert data["metadata"]["total_count"] == 2
             finally:
