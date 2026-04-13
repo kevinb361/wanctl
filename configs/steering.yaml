@@ -1,0 +1,111 @@
+# Adaptive WAN Steering Configuration
+# Routes latency-sensitive traffic to ATT when Spectrum degrades
+# FHS-compliant paths for systemd deployment
+
+wan_name: "steering"
+
+# Topology - defines which WANs to monitor and steer between
+topology:
+  # Primary WAN - this is the WAN being monitored for congestion (Spectrum)
+  primary_wan: "spectrum"
+  primary_wan_config: "/etc/wanctl/spectrum.yaml"
+  # Alternate WAN - traffic is steered here when primary is congested (ATT)
+  alternate_wan: "att"
+
+# RouterOS connection
+router:
+  transport: "rest"  # "rest" (recommended) or "ssh"
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"  # For SSH transport
+  # REST transport settings
+  password: "${ROUTER_PASSWORD}"  # From /etc/wanctl/secrets
+  port: 443
+  verify_ssl: false
+
+# Source of baseline RTT (LOCAL filesystem - colocated with autorate_continuous)
+# Steering daemon reads baseline_rtt from Spectrum CAKE state file
+# Default: /var/lib/wanctl/{primary_wan}_state.json (matches spectrum.yaml state_file)
+cake_state_sources:
+  primary: "/var/lib/wanctl/spectrum_state.json"
+
+# Mangle rule to toggle (daemon finds this rule by comment)
+mangle_rule:
+  comment: "ADAPTIVE: Steer latency-sensitive to ATT"
+
+# RTT measurement settings
+measurement:
+  interval_seconds: 0.5      # Daemon cycle interval (4x faster response)
+  ping_host: "1.1.1.1"       # Measure Spectrum path latency
+  ping_count: 3              # Pings per measurement (median RTT)
+
+# Keep steering RTT measurement bounded within the 500ms loop budget.
+# Without an explicit override, code defaults allow much longer per-ping waits.
+timeouts:
+  ping: 0.15
+
+# State machine thresholds
+# Hysteresis prevents route flapping
+thresholds:
+  bad_threshold_ms: 25.0     # Delta to trigger DEGRADED state
+  recovery_threshold_ms: 12.0  # Delta to recover to GOOD state
+
+# Operational mode
+mode:
+  reset_counters: false
+  enable_yellow_state: true
+  use_confidence_scoring: true  # Enable confidence-based steering
+
+# Confidence-based steering (LIVE MODE)
+# Multi-signal confidence scoring drives routing decisions (0-100 scale).
+# Replaces binary RED->steer with weighted scoring across RTT, drops, queue depth.
+confidence:
+  steer_threshold: 55
+  recovery_threshold: 20
+  sustain_duration_sec: 2.0
+  recovery_sustain_sec: 3.0
+  hold_down_duration_sec: 30.0
+  flap_detection_enabled: true
+  flap_window_minutes: 5
+  max_toggles: 4
+  penalty_duration_sec: 60.0
+  penalty_threshold_add: 15
+  # Rollback: set dry_run: true and send SIGUSR1 to the steering daemon PID
+  # See docs/STEERING.md for full rollback procedure
+  dry_run: false  # LIVE MODE - confidence scoring drives routing decisions
+
+# WAN-aware steering
+# Feeds autorate's end-to-end RTT congestion zone into steering confidence scoring.
+# Rollback: set enabled: false and send SIGUSR1 to the steering daemon PID
+# See docs/STEERING.md for full WAN-aware rollback procedure
+wan_state:
+  enabled: true               # Set true to activate WAN zone signal
+  red_weight: 25              # Confidence score added for WAN RED zone
+  staleness_threshold_sec: 5  # WAN zone older than this defaults to GREEN
+  grace_period_sec: 30        # Ignore WAN signal for first N seconds after startup
+  wan_override: false         # When true, WAN RED alone can trigger failover
+
+# Capacity awareness (future enhancement)
+capacity_protection:
+  att_upload_reserve_mbps: 2    # Reserve bandwidth for overhead
+  att_download_reserve_mbps: 10  # Reserve bandwidth for overhead
+
+# State persistence (FHS compliant)
+state:
+  file: "/var/lib/wanctl/steering_state.json"
+  history_size: 240          # Keep last 240 measurements (2 minutes @ 0.5s)
+
+# Storage for steering metrics.
+# Phase 178 keeps the shared legacy DB intentionally because steering still writes there
+# today; autorate remains authoritative in the per-WAN metrics-<wan>.db files.
+storage:
+  db_path: "/var/lib/wanctl/metrics.db"
+
+# Logging (FHS compliant)
+logging:
+  main_log: "/var/log/wanctl/steering.log"
+  debug_log: "/var/log/wanctl/steering_debug.log"
+
+# Lock file (FHS compliant - runtime directory)
+lock_file: "/run/wanctl/steering.lock"
+lock_timeout: 60  # 1 minute
