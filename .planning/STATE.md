@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Milestone started; Phase 177 ready for planning
-last_updated: "2026-04-13T22:45:00.000Z"
+stopped_at: Phase 177 complete
+last_updated: "2026-04-13T22:55:00.000Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 33
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Define and execute v1.36 storage-retention work starting at Phase 177
+**Current focus:** Plan Phase 178 from the completed Phase 177 storage findings
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
 **Phase:** 177 of 179 (live storage footprint investigation)
-**Plan:** Not planned yet
-**Status:** Milestone started — ready for `/gsd-plan-phase 177`
+**Plan:** All plans complete
+**Status:** Phase 177 complete — ready for `/gsd-plan-phase 178`
 **Last activity:** 2026-04-13
 
-Progress: [----------] 0%
+Progress: [███-------] 33%
 
 ## Accumulated Context
 
@@ -44,8 +44,9 @@ Progress: [----------] 0%
 - Phase 176 aligned the active deploy/install flow with the storage migration path, surfaced `wanctl-operator-summary` in deploy.sh, and extended soak evidence coverage to ATT plus `steering.service`
 - Milestone archive accepted non-blocking validation debt in Phases 172-174 plus the 1-hour built-in soak-monitor helper window
 - Live post-ship inspection shows active per-WAN DBs still at roughly 5.44 GB and 5.08 GB, with a legacy `metrics.db` residue still present on host
+- Phase 177 closed STOR-04: active per-WAN DBs are authoritative for autorate, legacy `metrics.db` is still active/shared, and the current multi-GB footprint is mostly live retained content rather than WAL or reclaimable slack
 
 ## Session Continuity
 
-Stopped at: Milestone v1.36 created
-Resume file: .planning/ROADMAP.md
+Stopped at: Phase 177 complete
+Resume file: .planning/phases/177-live-storage-footprint-investigation/177-findings-and-recommendation.md
