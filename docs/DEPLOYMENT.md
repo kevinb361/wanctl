@@ -69,6 +69,25 @@ ssh <target_host> 'wanctl-operator-summary http://<health-ip-1>:9101/health http
 ./scripts/soak-monitor.sh
 ```
 
+8. Re-check the Phase 178 storage topology and retained history with read-only commands:
+
+```bash
+ssh <target_host> 'sudo -n stat -c "%n %s %y" /var/lib/wanctl/metrics-spectrum.db /var/lib/wanctl/metrics-att.db /var/lib/wanctl/metrics.db /var/lib/wanctl/spectrum_metrics.db /var/lib/wanctl/att_metrics.db 2>/dev/null'
+./scripts/soak-monitor.sh --json
+ssh <target_host> 'wanctl-history --last 1h --metrics wanctl_rtt_ms --json | python3 -m json.tool | head -n 40'
+ssh <target_host> 'curl -s http://127.0.0.1:9101/metrics/history?range=1h&limit=5 | python3 -m json.tool'
+```
+
+Expected topology after Phase 178:
+
+- `/var/lib/wanctl/metrics-spectrum.db` and `/var/lib/wanctl/metrics-att.db` remain the active autorate DBs
+- `/var/lib/wanctl/metrics.db` remains active for steering
+- `/var/lib/wanctl/spectrum_metrics.db` and `/var/lib/wanctl/att_metrics.db` are not part of the authoritative active DB set
+
+For autorate history validation, use `wanctl-history` or `/metrics/history` rather than targeting
+`/var/lib/wanctl/metrics.db` directly. Those readers prefer the per-WAN `metrics-*.db` set and
+only fall back to the shared DB when no per-WAN DBs exist.
+
 ## Install-Only Mode
 
 To prepare a host without copying code yet:
