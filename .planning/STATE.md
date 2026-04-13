@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Phase 178 complete
-last_updated: "2026-04-14T00:10:00.000Z"
+stopped_at: Phase 179 complete
+last_updated: "2026-04-13T23:50:00.000Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 67
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 9
+  percent: 100
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Plan Phase 179 to gather production evidence for the Phase 178 storage changes
+**Current focus:** Audit milestone v1.36 against the completed storage retention and operator evidence work
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** 178 of 179 (retention tightening and legacy DB cleanup)
-**Plan:** All plans complete
-**Status:** Phase 178 complete — ready for `/gsd-plan-phase 179`
+**Phase:** All planned phases complete
+**Plan:** Audit milestone
+**Status:** Phase 179 complete — ready for `/gsd-audit-milestone`
 **Last activity:** 2026-04-13
 
-Progress: [███████---] 67%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -47,8 +47,10 @@ Progress: [███████---] 67%
 - Phase 177 closed STOR-04: active per-WAN DBs are authoritative for autorate, legacy `metrics.db` is still active/shared, and the current multi-GB footprint is mostly live retained content rather than WAL or reclaimable slack
 - Phase 178 is complete: steering now declares the shared `metrics.db` role explicitly, the shipped per-WAN configs keep only 1 hour of raw retention while preserving the 24-hour aggregate window, and `/metrics/history` plus operator docs follow the authoritative per-WAN DB topology
 - Phase 178 verification passed on repo-side must-haves and deferred live production evidence to Phase 179
+- Phase 179 completed the production footprint re-check, live reader-topology evidence, final operator closeout, and Phase verification for `OPER-04`
+- Phase 179 closed `OPER-04` with a repeatable proof path while recording two explicit operational truths: the per-WAN footprint did not materially shrink, and live `/metrics/history` still drifts from the intended merged cross-WAN topology
 
 ## Session Continuity
 
-Stopped at: Phase 178 complete
-Resume file: .planning/phases/178-retention-tightening-and-legacy-db-cleanup/178-VERIFICATION.md
+Stopped at: Phase 179 complete
+Resume file: .planning/phases/179-verification-and-operator-evidence/179-VERIFICATION.md
