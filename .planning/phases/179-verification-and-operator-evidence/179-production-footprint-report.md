@@ -1,6 +1,6 @@
 # Phase 179 Production Footprint Report
 
-**Captured:** 2026-04-13T23:29:42Z
+**Captured:** 2026-04-13T23:31:23Z
 **Host:** `kevin@10.10.110.223`
 **Scope:** read-only production file inventory and operator-visible storage evidence after Phase 178
 
@@ -22,19 +22,19 @@ ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n stat -c "%n %s %y" /var/lib/wa
 | `metrics-spectrum.db-wal` | `4,268,352` bytes (`~4.27 MB`) | `4,313,672` bytes (`~4.31 MB`) | `+45,320` bytes | slightly larger WAL, not meaningful evidence of reduction |
 | `metrics-att.db` | `5,082,914,816` bytes (`~5.08 GB`) | `5,082,902,528` bytes (`~5.08 GB`) | `-12,288` bytes | unchanged, not materially smaller |
 | `metrics-att.db-wal` | `4,243,632` bytes (`~4.24 MB`) | `4,288,952` bytes (`~4.29 MB`) | `+45,320` bytes | slightly larger WAL, not meaningful evidence of reduction |
-| `metrics.db` | `750,997,504` bytes (`~751 MB`) | `773,423,104` bytes (`~773 MB`) | `+22,425,600` bytes | shared steering DB grew and must be inventoried separately |
+| `metrics.db` | `750,997,504` bytes (`~751 MB`) | `774,041,600` bytes (`~774 MB`) | `+23,044,096` bytes | shared steering DB grew and must be inventoried separately |
 | `metrics.db-wal` | `4,523,792` bytes (`~4.52 MB`) | `4,523,792` bytes (`~4.52 MB`) | `0` bytes | unchanged shared WAL |
 
 ## Live File Inventory
 
 | File | Current live size | Modified time | Role |
 |------|-------------------|---------------|------|
-| `/var/lib/wanctl/metrics-spectrum.db` | `5,441,699,840` bytes | `2026-04-13 18:29:42.789309479 -0500` | Spectrum autorate DB |
-| `/var/lib/wanctl/metrics-spectrum.db-wal` | `4,313,672` bytes | `2026-04-13 18:29:43.121311808 -0500` | Spectrum WAL |
-| `/var/lib/wanctl/metrics-att.db` | `5,082,902,528` bytes | `2026-04-13 18:29:43.109311724 -0500` | ATT autorate DB |
-| `/var/lib/wanctl/metrics-att.db-wal` | `4,288,952` bytes | `2026-04-13 18:29:43.157312061 -0500` | ATT WAL |
-| `/var/lib/wanctl/metrics.db` | `773,423,104` bytes | `2026-04-13 18:29:42.377306588 -0500` | shared steering DB |
-| `/var/lib/wanctl/metrics.db-wal` | `4,523,792` bytes | `2026-04-13 18:29:42.857309956 -0500` | shared steering WAL |
+| `/var/lib/wanctl/metrics-spectrum.db` | `5,441,699,840` bytes | `2026-04-13 18:31:22.166006708 -0500` | Spectrum autorate DB |
+| `/var/lib/wanctl/metrics-spectrum.db-wal` | `4,313,672` bytes | `2026-04-13 18:31:23.166013723 -0500` | Spectrum WAL |
+| `/var/lib/wanctl/metrics-att.db` | `5,082,902,528` bytes | `2026-04-13 18:31:23.002012573 -0500` | ATT autorate DB |
+| `/var/lib/wanctl/metrics-att.db-wal` | `4,288,952` bytes | `2026-04-13 18:31:23.194013920 -0500` | ATT WAL |
+| `/var/lib/wanctl/metrics.db` | `774,041,600` bytes | `2026-04-13 18:31:08.429910334 -0500` | shared steering DB |
+| `/var/lib/wanctl/metrics.db-wal` | `4,523,792` bytes | `2026-04-13 18:31:22.982012433 -0500` | shared steering WAL |
 
 ## Comparison Outcome
 
@@ -67,3 +67,4 @@ Evidence source:
 - That means the storage path is not presently reporting a failure condition through the supported surface.
 - It does not prove the footprint reduction succeeded. The same helper reports DB byte counts that match the `stat` evidence above, and those values remain effectively unchanged from the 2026-04-13 baseline for the per-WAN DBs.
 - The correct operator conclusion is therefore: storage is currently non-failing on the supported surface, but the per-WAN footprint has not materially decreased relative to the fixed baseline.
+- The evidence in this report is a point-in-time snapshot from a live system; the shared steering DB can continue to advance between reads, so the report treats it as an inventory item rather than proof of per-WAN reduction.
