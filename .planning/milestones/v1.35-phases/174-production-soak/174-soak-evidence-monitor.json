@@ -1,0 +1,381 @@
+[{"wan":"spectrum","health":{
+  "status": "healthy",
+  "uptime_seconds": 87781.9,
+  "version": "1.35.0",
+  "consecutive_failures": 0,
+  "wan_count": 1,
+  "wans": [
+    {
+      "name": "spectrum",
+      "baseline_rtt_ms": 23.22,
+      "load_rtt_ms": 23.96,
+      "download": {
+        "current_rate_mbps": 940.0,
+        "state": "GREEN",
+        "hysteresis": {
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "deadband_ms": 3.0,
+          "transitions_suppressed": 22021,
+          "suppressions_per_min": 0,
+          "window_start_epoch": 1776105880.0800343,
+          "alert_threshold_per_min": 60
+        }
+      },
+      "upload": {
+        "current_rate_mbps": 32.0,
+        "state": "GREEN",
+        "hysteresis": {
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "deadband_ms": 3.0,
+          "transitions_suppressed": 22000,
+          "suppressions_per_min": 0,
+          "window_start_epoch": 1776105880.0800352,
+          "alert_threshold_per_min": 60
+        }
+      },
+      "router_connectivity": {
+        "is_reachable": true,
+        "consecutive_failures": 0,
+        "last_failure_type": null,
+        "last_failure_time": null,
+        "outage_duration_seconds": null
+      },
+      "cycle_budget": {
+        "cycle_time_ms": {
+          "avg": 0.7,
+          "p95": 0.9,
+          "p99": 2.3
+        },
+        "utilization_pct": 1.5,
+        "overrun_count": 641,
+        "status": "ok",
+        "warning_threshold_pct": 80.0,
+        "subsystems": {
+          "rtt_measurement": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.1
+          },
+          "signal_processing": {
+            "avg": 0.1,
+            "p95": 0.2,
+            "p99": 0.3
+          },
+          "ewma_spike": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "cake_stats": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.2
+          },
+          "congestion_assess": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "irtt_observation": {
+            "avg": 0.0,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "logging_metrics": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.2
+          },
+          "router_communication": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "post_cycle": {
+            "avg": 0.2,
+            "p95": 0.1,
+            "p99": 3.0
+          }
+        }
+      },
+      "signal_quality": {
+        "jitter_ms": 3.527,
+        "variance_ms2": 30.023,
+        "confidence": 0.947,
+        "outlier_rate": 0.083,
+        "total_outliers": 221335,
+        "warming_up": false
+      },
+      "irtt": {
+        "available": true,
+        "rtt_mean_ms": 22.32,
+        "ipdv_ms": 4.22,
+        "loss_up_pct": 0,
+        "loss_down_pct": 0,
+        "server": "104.200.21.31:2112",
+        "staleness_sec": 0.6,
+        "protocol_correlation": 1.07,
+        "asymmetry_direction": "symmetric",
+        "asymmetry_ratio": 1.41
+      },
+      "reflector_quality": {
+        "available": true,
+        "hosts": {
+          "1.1.1.1": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          },
+          "208.67.222.222": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          },
+          "9.9.9.9": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          }
+        }
+      },
+      "fusion": {
+        "enabled": false,
+        "reason": "disabled",
+        "heal_state": "suspended",
+        "heal_grace_active": false
+      },
+      "asymmetry_gate": {
+        "enabled": false,
+        "active": false,
+        "downstream_streak": 0,
+        "damping_factor": 0.5,
+        "last_result_age_sec": 0.0
+      },
+      "cake_signal": {
+        "download": {
+          "drop_rate": 0.0,
+          "total_drop_rate": 0.0,
+          "backlog_bytes": 0,
+          "peak_delay_us": 13,
+          "cold_start": false,
+          "tins": [
+            {
+              "name": "Bulk",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 17
+            },
+            {
+              "name": "BestEffort",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 8
+            },
+            {
+              "name": "Video",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 13
+            },
+            {
+              "name": "Voice",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 9
+            }
+          ]
+        },
+        "upload": {
+          "drop_rate": 0.0,
+          "total_drop_rate": 0.0,
+          "backlog_bytes": 0,
+          "peak_delay_us": 1680,
+          "cold_start": false,
+          "tins": [
+            {
+              "name": "Bulk",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 63
+            },
+            {
+              "name": "BestEffort",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 39
+            },
+            {
+              "name": "Video",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 1680
+            },
+            {
+              "name": "Voice",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 235
+            }
+          ]
+        },
+        "detection": {
+          "dl_refractory_remaining": 0,
+          "ul_refractory_remaining": 0,
+          "refractory_cycles": 40,
+          "dl_dwell_bypassed_count": 1,
+          "ul_dwell_bypassed_count": 9,
+          "dl_backlog_suppressed_count": 75,
+          "ul_backlog_suppressed_count": 795,
+          "dl_recovery_probe": {
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_ceiling_pct": 0.95,
+            "probe_step_count": 25567,
+            "above_ceiling_pct": true
+          },
+          "ul_recovery_probe": {
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_ceiling_pct": 0.95,
+            "probe_step_count": 3360,
+            "above_ceiling_pct": true
+          }
+        },
+        "burst": {
+          "active": false,
+          "trigger_count": 5,
+          "last_reason": "Burst confirmed from RTT acceleration 17.6ms after 3 consecutive spikes",
+          "last_accel_ms": 17.6,
+          "last_delta_ms": 61.9,
+          "last_trigger_ago_sec": 67289.3
+        }
+      },
+      "tuning": {
+        "enabled": true,
+        "last_run_ago_sec": 1381.3,
+        "parameters": {},
+        "recent_adjustments": [],
+        "safety": {
+          "revert_count": 0,
+          "locked_parameters": [
+            "fusion_icmp_weight"
+          ],
+          "pending_observation": false
+        }
+      },
+      "storage": {
+        "pending_writes": 1,
+        "queue": {
+          "drained_total": 34762438,
+          "error_total": 1406
+        },
+        "writes": {
+          "success_total": 1742291,
+          "failure_total": 12,
+          "lock_failure_total": 0,
+          "volume_total": 34761393,
+          "last_duration_ms": 1.173900964204222,
+          "max_duration_ms": 6457.0228140219115
+        },
+        "checkpoint": {
+          "busy": 0,
+          "wal_pages": 0,
+          "checkpointed_pages": 0,
+          "maintenance_lock_skipped_total": 0
+        },
+        "files": {
+          "db_bytes": 5426155520,
+          "wal_bytes": 4474352,
+          "shm_bytes": 98304,
+          "total_bytes": 5430728176,
+          "db_exists": true,
+          "wal_exists": true,
+          "shm_exists": true
+        },
+        "status": "ok"
+      },
+      "runtime": {
+        "process": "autorate",
+        "rss_bytes": 84193280,
+        "memory_status": "ok",
+        "cycle_status": "ok",
+        "status": "ok"
+      }
+    }
+  ],
+  "storage": {
+    "pending_writes": 1,
+    "queue": {
+      "drained_total": 34762438,
+      "error_total": 1406
+    },
+    "writes": {
+      "success_total": 1742291,
+      "failure_total": 12,
+      "lock_failure_total": 0,
+      "volume_total": 34761393,
+      "last_duration_ms": 1.173900964204222,
+      "max_duration_ms": 6457.0228140219115
+    },
+    "checkpoint": {
+      "busy": 0,
+      "wal_pages": 0,
+      "checkpointed_pages": 0,
+      "maintenance_lock_skipped_total": 0
+    },
+    "files": {
+      "db_bytes": 5426155520,
+      "wal_bytes": 4474352,
+      "shm_bytes": 98304,
+      "total_bytes": 5430728176,
+      "db_exists": true,
+      "wal_exists": true,
+      "shm_exists": true
+    },
+    "status": "ok"
+  },
+  "alerting": {
+    "enabled": true,
+    "fire_count": 68,
+    "active_cooldowns": []
+  },
+  "router_reachable": true,
+  "disk_space": {
+    "path": "/var/lib/wanctl",
+    "free_bytes": 14630350848,
+    "total_bytes": 30878322688,
+    "free_pct": 47.4,
+    "status": "ok"
+  },
+  "summary": {
+    "service": "autorate",
+    "status": "healthy",
+    "wan_count": 1,
+    "router_reachable": true,
+    "alerts": {
+      "enabled": true,
+      "fire_count": 68,
+      "active_cooldowns": 0,
+      "status": "idle"
+    },
+    "rows": [
+      {
+        "name": "spectrum",
+        "status": "ok",
+        "router_reachable": true,
+        "download_state": "GREEN",
+        "upload_state": "GREEN",
+        "download_rate_mbps": 940.0,
+        "upload_rate_mbps": 32.0,
+        "storage_status": "ok",
+        "runtime_status": "ok",
+        "burst_active": false,
+        "burst_trigger_count": 5
+      }
+    ],
+    "degraded_wans": [],
+    "warning_wans": []
+  }
+},"errors_1h":0}]
