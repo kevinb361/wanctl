@@ -1,6 +1,7 @@
 """Tests for the health check HTTP endpoint."""
 
 import json
+import sqlite3
 import time
 import urllib.error
 import urllib.request
@@ -3022,6 +3023,57 @@ class TestMetricsHistoryEndpoint:
 
                 assert data["data"] == []
                 assert data["metadata"]["total_count"] == 0
+            finally:
+                server.shutdown()
+
+    def test_reads_from_authoritative_discovered_db_set(self, tmp_path: Path):
+        """Reads from discovered per-WAN DBs instead of the legacy default path."""
+        from wanctl.storage.schema import create_tables
+
+        legacy_db = tmp_path / "metrics.db"
+        spectrum_db = tmp_path / "metrics-spectrum.db"
+        att_db = tmp_path / "metrics-att.db"
+
+        def _insert_row(db_path: Path, row: tuple[int, str, str, float, str, str]) -> None:
+            conn = sqlite3.connect(db_path)
+            create_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                row,
+            )
+            conn.commit()
+            conn.close()
+
+        now_ts = int(time.time())
+        _insert_row(
+            legacy_db,
+            (now_ts - 30, "legacy", "wanctl_rtt_ms", 99.0, "", "raw"),
+        )
+        _insert_row(
+            spectrum_db,
+            (now_ts - 20, "spectrum", "wanctl_rtt_ms", 11.0, "", "raw"),
+        )
+        _insert_row(
+            att_db,
+            (now_ts - 10, "att", "wanctl_rtt_ms", 22.0, "", "raw"),
+        )
+
+        port = find_free_port()
+        with patch("wanctl.health_check.DEFAULT_DB_PATH", legacy_db):
+            server = start_health_server(host="127.0.0.1", port=port, controller=None)
+
+            try:
+                url = f"http://127.0.0.1:{port}/metrics/history?range=1h"
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+
+                wan_names = [record["wan_name"] for record in data["data"]]
+                assert wan_names == ["spectrum", "att"]
+                assert "legacy" not in wan_names
+                assert data["metadata"]["total_count"] == 2
             finally:
                 server.shutdown()
 

@@ -29,7 +29,8 @@ from wanctl.runtime_pressure import (
 from wanctl.runtime_pressure import (
     build_storage_section as build_storage_status_section,
 )
-from wanctl.storage.reader import count_metrics, query_metrics, select_granularity
+from wanctl.storage.db_utils import discover_wan_dbs, query_all_wans
+from wanctl.storage.reader import query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
 # Default: warn when less than 100MB free on data partition
@@ -811,25 +812,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         offset = params.get("offset", 0)
         limit = params.get("limit", 1000)
 
-        # Query metrics from database with SQL-level pagination.
-        paginated = query_metrics(
-            db_path=DEFAULT_DB_PATH,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            metrics=params.get("metrics"),
-            wan=params.get("wan"),
-            granularity=granularity,
-            limit=limit,
-            offset=offset,
-        )
-        total_count = count_metrics(
-            db_path=DEFAULT_DB_PATH,
+        db_paths = discover_wan_dbs(DEFAULT_DB_PATH.parent)
+        if not db_paths and DEFAULT_DB_PATH.exists():
+            db_paths = [DEFAULT_DB_PATH]
+        merged_results = query_all_wans(
+            query_metrics,
+            db_paths=db_paths,
             start_ts=start_ts,
             end_ts=end_ts,
             metrics=params.get("metrics"),
             wan=params.get("wan"),
             granularity=granularity,
         )
+        if getattr(merged_results, "all_failed", False):
+            self._send_json_error(503, "All metrics databases failed to read")
+            return
+
+        total_count = len(merged_results)
+        paginated = merged_results[offset : offset + limit]
 
         # Format each metric record
         formatted_data = [self._format_metric(row) for row in paginated]
