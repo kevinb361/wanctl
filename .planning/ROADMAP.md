@@ -7,7 +7,7 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 ## Phases
 
 - [x] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production (completed 2026-04-13)
-- [ ] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings
+- [x] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings (completed 2026-04-13)
 - [ ] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path
 
 ## Phase Details
@@ -34,7 +34,11 @@ Plans:
   1. Legacy `metrics.db` ambiguity is removed by code/config/docs and live runtime behavior
   2. Active per-WAN DB files are materially smaller than the 2026-04-13 baseline after the chosen cleanup/retention change
   3. Health, canary, soak-monitor, operator-summary, and history-query paths still work with the updated storage layout
-**Plans:** TBD
+**Plans:** 3/3 plans complete
+Plans:
+- [x] 178-01-PLAN.md -- Make the shared `metrics.db` role explicit and close stale zero-byte file ambiguity
+- [x] 178-02-PLAN.md -- Tighten per-WAN retention conservatively while preserving tuning-safe history
+- [x] 178-03-PLAN.md -- Align `/metrics/history` and operator verification paths with the updated storage layout
 
 ### Phase 179: Verification And Operator Evidence
 **Goal**: Verify in production that the new storage footprint holds and that operators can re-check it without guesswork
@@ -51,5 +55,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 177. Live Storage Footprint Investigation | 3/3 | Complete | 2026-04-13 |
-| 178. Retention Tightening And Legacy DB Cleanup | 0/? | Not Started | - |
+| 178. Retention Tightening And Legacy DB Cleanup | 3/3 | Complete | 2026-04-13 |
 | 179. Verification And Operator Evidence | 0/? | Not Started | - |
