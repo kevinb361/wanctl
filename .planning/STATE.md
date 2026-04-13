@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Phase 179 complete
-last_updated: "2026-04-13T23:50:00.000Z"
+stopped_at: Gap closure phases added after milestone audit
+last_updated: "2026-04-14T00:05:00.000Z"
 last_activity: 2026-04-13
 progress:
-  total_phases: 3
+  total_phases: 5
   completed_phases: 3
   total_plans: 9
   completed_plans: 9
-  percent: 100
+  percent: 60
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Audit milestone v1.36 against the completed storage retention and operator evidence work
+**Current focus:** Plan and execute the new gap-closure phases for v1.36
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** All planned phases complete
-**Plan:** Audit milestone
-**Status:** Phase 179 complete — ready for `/gsd-audit-milestone`
+**Phase:** 180 of 181 (verification backfill and audit closure)
+**Plan:** Gap closure phases created
+**Status:** Ready for `/gsd-plan-phase 180`
 **Last activity:** 2026-04-13
 
-Progress: [██████████] 100%
+Progress: [██████----] 60%
 
 ## Accumulated Context
 
@@ -49,8 +49,10 @@ Progress: [██████████] 100%
 - Phase 178 verification passed on repo-side must-haves and deferred live production evidence to Phase 179
 - Phase 179 completed the production footprint re-check, live reader-topology evidence, final operator closeout, and Phase verification for `OPER-04`
 - Phase 179 closed `OPER-04` with a repeatable proof path while recording two explicit operational truths: the per-WAN footprint did not materially shrink, and live `/metrics/history` still drifts from the intended merged cross-WAN topology
+- The v1.36 milestone audit found two blockers: missing Phase 177 verification for `STOR-04`, and failed production outcome for `STOR-06`
+- Phase 180 and Phase 181 were added to close those audit gaps before re-auditing the milestone
 
 ## Session Continuity
 
-Stopped at: Phase 179 complete
-Resume file: .planning/phases/179-verification-and-operator-evidence/179-VERIFICATION.md
+Stopped at: Gap closure phases added after milestone audit
+Resume file: .planning/ROADMAP.md
