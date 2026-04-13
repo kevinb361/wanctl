@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: none
-status: ready_for_next_milestone
-stopped_at: Milestone v1.35 archived
-last_updated: "2026-04-13T21:15:00.000Z"
+milestone: v1.36
+milestone_name: storage-retention-and-db-footprint
+status: planning
+stopped_at: Milestone started; Phase 177 ready for planning
+last_updated: "2026-04-13T22:45:00.000Z"
 last_activity: 2026-04-13
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Start the next milestone after archiving v1.35
+**Current focus:** Define and execute v1.36 storage-retention work starting at Phase 177
 
 ## Position
 
-**Milestone:** None active
-**Phase:** None
-**Plan:** None
-**Status:** v1.35 archived — ready for `/gsd-new-milestone`
+**Milestone:** v1.36 Storage Retention And DB Footprint
+**Phase:** 177 of 179 (live storage footprint investigation)
+**Plan:** Not planned yet
+**Status:** Milestone started — ready for `/gsd-plan-phase 177`
 **Last activity:** 2026-04-13
 
 Progress: [----------] 0%
@@ -43,8 +43,9 @@ Progress: [----------] 0%
 - ATT/Spectrum parity confirmed on all operator surfaces
 - Phase 176 aligned the active deploy/install flow with the storage migration path, surfaced `wanctl-operator-summary` in deploy.sh, and extended soak evidence coverage to ATT plus `steering.service`
 - Milestone archive accepted non-blocking validation debt in Phases 172-174 plus the 1-hour built-in soak-monitor helper window
+- Live post-ship inspection shows active per-WAN DBs still at roughly 5.44 GB and 5.08 GB, with a legacy `metrics.db` residue still present on host
 
 ## Session Continuity
 
-Stopped at: Milestone v1.35 archived
-Resume file: .planning/PROJECT.md
+Stopped at: Milestone v1.36 created
+Resume file: .planning/ROADMAP.md

@@ -24,11 +24,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 **Delivered:** Storage pressure and maintenance stability fixes, production-safe `analyze_baseline` and operator-summary deploy paths, a clean v1.35.0 dual-WAN deploy with exit-0 canary, 24-hour production soak evidence, and formal verification/flow alignment for the full milestone.
 
+## Current Milestone: v1.36 Storage Retention And DB Footprint
+
+**Goal:** Reduce the live production metrics footprint by validating what is actually consuming space, removing legacy DB ambiguity, and tightening retention/storage behavior without changing core controller logic.
+
+**Target features:**
+- Measure live DB composition and retention shape for the active per-WAN metrics stores
+- Confirm whether legacy `metrics.db` is still part of the runtime path and clean up/archive it safely if not
+- Reduce active DB footprint while preserving health, operator tooling, and history-query contracts
+
 ## Next Milestone Goals
 
-- Define the next milestone scope and requirements with `/gsd-new-milestone`.
-- Review the carried validation debt from Phases 172-174 before it compounds into the next release cycle.
-- Decide whether to automate the 24-hour soak evidence path beyond the current documented `journalctl` workflow.
+- Turn the current 5+ GB per-WAN databases into an explained and bounded storage footprint.
+- Keep storage work scoped to retention, maintenance, and observability contracts rather than queue-control behavior.
+- Carry forward the validation debt from older phases only if it directly blocks storage-footprint verification.
 
 ## Requirements
 

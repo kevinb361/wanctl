@@ -1,9 +1,51 @@
-# Roadmap: wanctl
+# Roadmap: wanctl v1.36 Storage Retention And DB Footprint
 
-## Archived Milestone
+## Overview
 
-- [x] **v1.35: Storage Health & Stabilization** - shipped 2026-04-13, 5 phases / 16 plans, archive: [v1.35-ROADMAP.md](./milestones/v1.35-ROADMAP.md)
+Production storage is still healthy, but the active per-WAN metrics databases remain larger than expected and the legacy `metrics.db` file still exists alongside them. This milestone explains the live footprint, removes legacy DB ambiguity, and reduces retained metrics size without changing the controller’s decision logic or operator-facing contracts.
 
-## Next Milestone
+## Phases
 
-No active milestone. Define the next scope with `/gsd-new-milestone`.
+- [ ] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production
+- [ ] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings
+- [ ] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path
+
+## Phase Details
+
+### Phase 177: Live Storage Footprint Investigation
+**Goal**: Explain what is consuming space in production and which DB files are actually part of the runtime path
+**Depends on**: Phase 176
+**Requirements**: STOR-04
+**Success Criteria** (what must be TRUE):
+  1. Active production DB files are identified and distinguished from stale or legacy residue
+  2. Retention/downsampling behavior is characterized well enough to explain the current retained history shape
+  3. The dominant contributors to the live DB footprint are documented with production evidence
+**Plans:** TBD
+
+### Phase 178: Retention Tightening And Legacy DB Cleanup
+**Goal**: Reduce the active metrics footprint safely and close out any unused legacy DB path
+**Depends on**: Phase 177
+**Requirements**: STOR-05, STOR-06, STOR-07
+**Success Criteria** (what must be TRUE):
+  1. Legacy `metrics.db` ambiguity is removed by code/config/docs and live runtime behavior
+  2. Active per-WAN DB files are materially smaller than the 2026-04-13 baseline after the chosen cleanup/retention change
+  3. Health, canary, soak-monitor, operator-summary, and history-query paths still work with the updated storage layout
+**Plans:** TBD
+
+### Phase 179: Verification And Operator Evidence
+**Goal**: Verify in production that the new storage footprint holds and that operators can re-check it without guesswork
+**Depends on**: Phase 178
+**Requirements**: OPER-04
+**Success Criteria** (what must be TRUE):
+  1. Production evidence shows which DBs are active, their current sizes, and their storage status after the footprint change
+  2. Docs/scripts describe the authoritative operator path for validating storage footprint and legacy DB state
+  3. Milestone requirements are closed with verification-backed evidence rather than assumptions
+**Plans:** TBD
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 177. Live Storage Footprint Investigation | 0/? | Not Started | - |
+| 178. Retention Tightening And Legacy DB Cleanup | 0/? | Not Started | - |
+| 179. Verification And Operator Evidence | 0/? | Not Started | - |
