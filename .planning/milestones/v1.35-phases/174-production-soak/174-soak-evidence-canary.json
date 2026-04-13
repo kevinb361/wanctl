@@ -1,0 +1,3 @@
+[{"target":"spectrum","service":"autorate","result":"pass","detail":"all checks passed"},{"target":"att","service":"autorate","result":"pass","detail":"all checks passed"},{"target":"steering","service":"steering","result":"pass","detail":"all checks passed"}]
+
+EXIT_CODE=0
