@@ -268,14 +268,16 @@ Use `./scripts/soak-monitor.sh --json` or the `/health` payload before reaching 
 For retained history, use the supported readers instead of guessing a single DB path:
 
 ```bash
-ssh <host> 'wanctl-history --last 1h --metrics wanctl_rtt_ms --json | python3 -m json.tool | head -n 40'
-ssh <host> 'curl -s http://127.0.0.1:9101/metrics/history?range=1h&limit=5 | python3 -m json.tool'
+ssh <host> 'sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --metrics wanctl_rtt_ms --json | python3 -m json.tool | head -n 40'
+ssh <host> 'curl -s "http://<health-ip>:9101/metrics/history?range=1h&limit=5" | python3 -m json.tool'
 ```
 
-Both readers prefer the active per-WAN `metrics-*.db` set and only fall back to
-`/var/lib/wanctl/metrics.db` when no per-WAN DBs exist. That keeps autorate history reads aligned
-with the authoritative topology without mixing in the shared steering DB when the per-WAN DBs are
-present.
+On the current production hosts, the module-based CLI invocation above is the authoritative
+cross-WAN proof path. The HTTP endpoint preserves its `{data, metadata}` envelope, but the
+2026-04-13 live verification did not show it returning merged cross-WAN history by itself.
+
+Use the HTTP path to confirm endpoint availability and response shape. Use the CLI plus direct DB
+inventory if you need authoritative cross-WAN verification.
 
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
 

@@ -1,95 +1,57 @@
 ---
 phase: 179-verification-and-operator-evidence
 plan: 02
-subsystem: testing
-tags: [production, history, sqlite, operators, topology]
+subsystem: operators
+tags: [production, history, topology, evidence]
 requires:
   - phase: 178-retention-tightening-and-legacy-db-cleanup
-    provides: operator verification commands and the intended per-WAN history-reader topology
+    provides: intended per-WAN reader topology and operator verification path
 provides:
-  - live reader-topology evidence for the supported CLI and HTTP history readers
-  - direct SQLite separation evidence for per-WAN autorate DBs versus the shared steering DB
-  - operator-facing retention-shape proof for short raw retention plus longer aggregate coverage
-affects: [OPER-04, milestone-audit, operator-evidence]
+  - live proof of which history-reader paths work on the deployed host
+  - explicit record of current HTTP reader drift versus intended merged topology
+affects: [179-03, OPER-04]
 tech-stack:
   added: []
-  patterns: [read-only production verification, live reader-versus-db topology comparison]
+  patterns: [read-only production reader verification, evidence-first operator closeout]
 key-files:
   created:
     - .planning/phases/179-verification-and-operator-evidence/179-live-reader-topology-report.md
-  modified: []
+    - .planning/phases/179-verification-and-operator-evidence/179-02-SUMMARY.md
 key-decisions:
-  - "Use sudo -u wanctl with PYTHONPATH=/opt for live CLI evidence because the deployed host does not expose a wanctl-history wrapper on the SSH user's PATH."
-  - "Use the service-bound 10.10.110.223:9101 and 10.10.110.227:9101 listeners instead of localhost because 127.0.0.1:9101 is not the live autorate history bind on production."
-  - "Document the live /metrics/history ATT mismatch as evidence rather than infer parity from repo code."
+  - "Treat the deployed module invocation as the authoritative CLI proof path because the bare wanctl-history wrapper is absent on host."
+  - "Record the live /metrics/history envelope as working while stating clearly that its current production behavior does not match the intended merged multi-WAN topology."
+  - "Use direct DB inventory and retained-window spot checks to separate active per-WAN DBs from the shared steering DB."
 patterns-established:
-  - "Production-evidence plans can adapt command form as long as the replacement stays read-only and proves the same surface."
-  - "Reader-topology claims must separate CLI behavior, HTTP behavior, and direct DB evidence when the live outputs diverge."
+  - "Phase closeout artifacts distinguish working operator proof paths from documented-but-missing wrappers."
+  - "Live evidence takes precedence over repo intent when documenting operator procedures."
 requirements-completed: [OPER-04]
-duration: 13min
+duration: 20 min
 completed: 2026-04-13
 ---
 
 # Phase 179 Plan 02: Live Reader Topology Summary
 
-**Production proof that `wanctl-history` follows the per-WAN autorate DB set, while live `/metrics/history` keeps its response envelope but does not currently show equivalent ATT evidence**
-
-## Performance
-
-- **Duration:** 13 min
-- **Started:** 2026-04-13T23:28:00Z
-- **Completed:** 2026-04-13T23:40:54Z
-- **Tasks:** 2
-- **Files modified:** 2
+**Read-only production evidence showing the CLI reader sees both WAN DBs while the live HTTP reader keeps its response envelope but does not currently prove merged cross-WAN history**
 
 ## Accomplishments
 
-- Created `.planning/phases/179-verification-and-operator-evidence/179-live-reader-topology-report.md` with live CLI, HTTP, and SQLite production evidence.
-- Proved under the deployed `wanctl` user that `discover_wan_dbs()` resolves `metrics-att.db` and `metrics-spectrum.db`, and that `wanctl.history` returns both WANs over the same 1-hour window.
-- Recorded direct SQLite spot checks showing the per-WAN autorate DBs retain a short raw window plus longer `5m` aggregate coverage while the shared `metrics.db` remains separate steering evidence.
-
-## Task Commits
-
-Each task was committed atomically:
-
-1. **Task 1: Capture live CLI and HTTP history-reader behavior** - `2fa4ae5` (`docs`)
-2. **Task 2: Spot-check retained-window shape and steering separation directly** - `2b30dbf` (`docs`)
-
-## Files Created/Modified
-
-- `.planning/phases/179-verification-and-operator-evidence/179-live-reader-topology-report.md` - live production evidence for reader behavior, DB topology, and retention shape
-- `.planning/phases/179-verification-and-operator-evidence/179-02-SUMMARY.md` - execution summary for plan 179-02
-
-## Decisions Made
-
-- Used the deployed module path and `wanctl` service account for CLI evidence because the SSH user could not read `/var/lib/wanctl/*.db` directly and no `wanctl-history` wrapper was on the remote `PATH`.
-- Treated `10.10.110.223:9101` and `10.10.110.227:9101` as the authoritative live HTTP surfaces after verifying that `127.0.0.1:9101` refused connections and `127.0.0.1:9102` belonged to the separate steering health server.
-- Preserved the actual production finding that `/metrics/history` did not return ATT rows during capture instead of claiming parity with the CLI based only on repo code.
+- Captured a live production report for CLI, HTTP, and direct DB reader behavior in `179-live-reader-topology-report.md`.
+- Proved the underlying CLI reader works on the host through `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history ...` and returns both `att` and `spectrum`.
+- Confirmed the live HTTP endpoint is bound to the WAN IPs, not `127.0.0.1`, and still returns the documented `{data, metadata}` envelope.
+- Recorded the key deployment drift: live `/metrics/history` returned only `spectrum` rows and `wan=att` returned zero rows on both endpoints.
+- Reconfirmed the active DB set and retained-window shape with read-only inventory and spot checks.
 
 ## Deviations from Plan
 
-None in scope, but the live environment required equivalent read-only command forms instead of the plan's example invocations:
+- The documented bare `wanctl-history` command was not available on the host, so the evidence path used the deployed module form instead.
+- The HTTP reader did not match the intended merged topology, so the report records that mismatch instead of claiming success.
 
-- `wanctl-history` had to be executed as `sudo -u wanctl env PYTHONPATH=/opt python3 -m wanctl.history ...`
-- `/metrics/history` had to be queried on `10.10.110.223:9101` and `10.10.110.227:9101` instead of `127.0.0.1:9101`
+## Operator Outcome
 
-These adjustments did not change scope or mutate production state.
-
-## Issues Encountered
-
-- Live `/metrics/history` preserved its `{data, metadata}` envelope but did not return ATT rows during the capture window. Both tested listeners returned Spectrum rows for `wanctl_rtt_ms`, and `wan=att` returned zero rows even though `metrics-att.db` contained current ATT RTT samples.
-
-## User Setup Required
-
-None - no external service configuration required.
-
-## Next Phase Readiness
-
-- The operator evidence artifact now captures the live topology and retention story with direct citations.
-- Plan `179-03` can use this report to synthesize OPER-04 closeout, but it should carry forward the HTTP reader mismatch as a production finding rather than assume full reader parity.
+- Cross-WAN history can still be verified repeatably in production today.
+- The authoritative proof path is currently the module-based CLI plus direct DB inventory, not the bare CLI wrapper and not the live HTTP endpoint by itself.
 
 ## Self-Check: PASSED
 
-- Found `.planning/phases/179-verification-and-operator-evidence/179-live-reader-topology-report.md`
-- Found task commits `2fa4ae5` and `2b30dbf`
-- Summary reflects the actual live evidence gathered during execution
+- Verified `.planning/phases/179-verification-and-operator-evidence/179-live-reader-topology-report.md` exists.
+- Verified the report includes `wanctl.history`, `/metrics/history`, `metrics-spectrum.db`, `metrics-att.db`, and `metrics.db`.

@@ -19,7 +19,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 
 ### Verification
 
-- [ ] **OPER-04**: Operators have a documented and repeatable way to verify which DB files are active, what storage status means, and whether the footprint reduction actually held in production
+- [x] **OPER-04**: Operators have a documented and repeatable way to verify which DB files are active, what storage status means, and whether the footprint reduction actually held in production
 
 ## Out of Scope
 
@@ -35,7 +35,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 | STOR-05 | Phase 178 | Satisfied |
 | STOR-06 | Phase 178 | Satisfied |
 | STOR-07 | Phase 178 | Satisfied |
-| OPER-04 | Phase 179 | Planned |
+| OPER-04 | Phase 179 | Satisfied |
 
 ---
 *Requirements defined: 2026-04-13*
