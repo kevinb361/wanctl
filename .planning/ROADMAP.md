@@ -6,7 +6,7 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 
 ## Phases
 
-- [ ] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production
+- [x] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production (completed 2026-04-13)
 - [ ] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings
 - [ ] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path
 
@@ -20,7 +20,11 @@ Production storage is still healthy, but the active per-WAN metrics databases re
   1. Active production DB files are identified and distinguished from stale or legacy residue
   2. Retention/downsampling behavior is characterized well enough to explain the current retained history shape
   3. The dominant contributors to the live DB footprint are documented with production evidence
-**Plans:** TBD
+**Plans:** 3/3 plans complete
+Plans:
+- [x] 177-01-PLAN.md -- Runtime DB-path closure and production file-role inventory
+- [x] 177-02-PLAN.md -- Live DB composition and retained-history evidence capture
+- [x] 177-03-PLAN.md -- Findings synthesis, operator re-check path, and Phase 178 recommendation
 
 ### Phase 178: Retention Tightening And Legacy DB Cleanup
 **Goal**: Reduce the active metrics footprint safely and close out any unused legacy DB path
@@ -46,6 +50,6 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 177. Live Storage Footprint Investigation | 0/? | Not Started | - |
+| 177. Live Storage Footprint Investigation | 3/3 | Complete | 2026-04-13 |
 | 178. Retention Tightening And Legacy DB Cleanup | 0/? | Not Started | - |
 | 179. Verification And Operator Evidence | 0/? | Not Started | - |
