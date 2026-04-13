@@ -828,6 +828,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._send_json_error(503, "All metrics databases failed to read")
             return
 
+        # Preserve the existing endpoint contract: newest samples first.
+        merged_results.sort(key=lambda row: row.get("timestamp", 0), reverse=True)
         total_count = len(merged_results)
         paginated = merged_results[offset : offset + limit]
 
