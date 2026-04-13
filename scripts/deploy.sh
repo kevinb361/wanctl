@@ -456,32 +456,51 @@ print_next_steps() {
     echo "     Set transport: \"ssh\" in your config file"
     echo ""
 
-    echo -e "${BLUE}3. Enable the service:${NC}"
-    echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
+    echo -e "${BLUE}3. Migrate storage if this host has not already moved to the per-WAN DB layout:${NC}"
+    echo "   Check for the archive marker first:"
+    echo "   ssh $TARGET_HOST 'sudo test -f /var/lib/wanctl/metrics.db.pre-v135-archive && echo migrated || echo needs-migration'"
+    echo ""
+    echo "   If the archive marker is missing, run from your workstation before restart/canary:"
+    echo "   ./scripts/migrate-storage.sh --ssh $TARGET_HOST"
     echo ""
 
-    echo -e "${BLUE}4. Run post-deploy canary:${NC}"
-    echo "   scripts/canary-check.sh --ssh $TARGET_HOST"
+    echo -e "${BLUE}4. Restart the service:${NC}"
+    echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
+    if [[ "$WITH_STEERING" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo systemctl restart steering.service'"
+    fi
     echo ""
-    echo "   The canary validates health, storage, and latency signals."
+
+    echo -e "${BLUE}5. Run post-restart canary:${NC}"
+    echo "   ./scripts/canary-check.sh --ssh $TARGET_HOST"
+    echo ""
+    echo "   The canary validates health, storage, and latency signals after restart."
     echo "   Exit 0 = PASS, 1 = FAIL, 2 = WARN"
     echo "   For threshold details or escalation steps, see: docs/RUNBOOK.md"
-    echo ""
 
-    echo -e "${BLUE}5. Monitor:${NC}"
-    echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name} -f'"
+    echo -e "${BLUE}6. Monitor:${NC}"
+    echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name}.service -f'"
     echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/wanctl/${wan_name}.log'"
     echo "   ssh $TARGET_HOST 'sudo systemctl status wanctl@${wan_name}.service'"
+    if [[ "$WITH_STEERING" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo journalctl -u steering.service -f'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl status steering.service'"
+    fi
+    echo ""
+
+    echo -e "${BLUE}7. Capture operator summary and soak evidence:${NC}"
+    echo "   ssh $TARGET_HOST 'wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health'"
+    echo "   ./scripts/soak-monitor.sh"
     echo ""
 
     if [[ "$WITH_STEERING" == "true" ]]; then
-        echo -e "${BLUE}6. Enable steering (optional):${NC}"
+        echo -e "${BLUE}8. Enable steering (optional):${NC}"
         echo "   Edit $TARGET_CONFIG_DIR/steering.yaml"
         echo "   ssh $TARGET_HOST 'sudo systemctl enable --now steering.service'"
         echo ""
     fi
 
-    echo -e "${BLUE}7. Collect profiling data (Phase 1):${NC}"
+    echo -e "${BLUE}9. Collect profiling data (Phase 1):${NC}"
     echo "   After deployment, let the daemon run for 7-14 days"
     echo "   Then extract profiling statistics:"
     echo "   ssh $TARGET_HOST 'python3 /opt/scripts/profiling_collector.py /var/log/wanctl/${wan_name}.log --all'"
@@ -628,6 +647,18 @@ if [[ -f "$PROJECT_ROOT/scripts/wanctl-history" ]]; then
     print_success "wanctl-history CLI deployed (available as 'wanctl-history' command)"
 else
     print_warning "wanctl-history not found: scripts/wanctl-history"
+fi
+
+# Deploy wanctl-operator-summary CLI tool
+print_step "Deploying wanctl-operator-summary CLI..."
+if [[ -f "$PROJECT_ROOT/scripts/wanctl-operator-summary" ]]; then
+    scp "$PROJECT_ROOT/scripts/wanctl-operator-summary" "$TARGET_HOST:/tmp/wanctl-operator-summary"
+    ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-operator-summary $TARGET_CODE_DIR/scripts/wanctl-operator-summary && sudo chmod 755 $TARGET_CODE_DIR/scripts/wanctl-operator-summary"
+    # Create symlink in /usr/local/bin for easy access
+    ssh "$TARGET_HOST" "sudo ln -sf $TARGET_CODE_DIR/scripts/wanctl-operator-summary /usr/local/bin/wanctl-operator-summary"
+    print_success "wanctl-operator-summary CLI deployed (available as 'wanctl-operator-summary' command)"
+else
+    print_warning "wanctl-operator-summary not found: scripts/wanctl-operator-summary"
 fi
 
 # Run pre-startup validation

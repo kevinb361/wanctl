@@ -237,11 +237,18 @@ scripts/canary-check.sh --input /tmp/<wan_name>-health.json
 | --- | --- | --- |
 | `wanctl-operator-summary` | Render compact summary rows from health JSON | `wanctl-operator-summary http://<host>:9101/health http://<host>:9102/health` |
 | `scripts/canary-check.sh` | Post-deploy pass/warn/fail validation | `scripts/canary-check.sh --ssh <host>` |
+| `scripts/soak-monitor.sh` | Multi-service soak health and journal summary for Spectrum, ATT, and steering | `scripts/soak-monitor.sh` |
 | `wanctl-check-config` | Validate WAN or steering YAML before restart | `wanctl-check-config /etc/wanctl/<wan_name>.yaml` |
 | `wanctl-check-cake` | Audit live CAKE config on the router | `wanctl-check-cake /etc/wanctl/<wan_name>.yaml` |
 | `wanctl-benchmark` | Run benchmark workflow for performance validation | `wanctl-benchmark /etc/wanctl/<wan_name>.yaml` |
 | `wanctl-history --alerts` | Inspect persisted alert history | `wanctl-history --alerts` |
 | `curl .../health` | Inspect full JSON instead of summary view | `ssh <host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'` |
+
+For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
+
+```bash
+ssh <host> 'journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service --since "24 hours ago" -p err --no-pager'
+```
 
 ## Escalation Flow
 

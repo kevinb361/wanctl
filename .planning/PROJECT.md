@@ -10,30 +10,25 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.34 (Production Observability and Alerting Hardening) — shipped 2026-04-12
-**Tests:** default pytest profile stabilized, targeted observability/canary regression slices passed, and operator runbook policy is documented
-**LOC:** ~35,600 Python (src/)
-**Milestones:** 35 shipped (v1.0-v1.34), 171 phases, 342 plans
+**Version:** v1.35 (Storage Health & Stabilization) — shipped 2026-04-13
+**Tests:** 4,200+ passing, targeted v1.35 deploy/operator-flow validation passed, milestone audit at `tech_debt` with 6/6 requirements and 5/5 phase verifications
+**LOC:** ~36,609 Python (src/)
+**Milestones:** 36 shipped (v1.0-v1.35), 176 phases, 358 plans
 
-**Latest:** v1.34 Production Observability and Alerting Hardening — latency/burst alerts, storage/runtime pressure visibility, summary surfaces, scripted canary checks, and a threshold runbook all completed
-**Previous:** v1.33 Detection Threshold Tuning — baseline, five-parameter RRUL sweep, 24h soak, storage contention observability, and burst-control follow-up all completed
+**Latest:** v1.35 Storage Health & Stabilization — storage control restored, v1.35.0 deploy/canary proven, soak evidence closed out, deploy/operator flow aligned to production
+**Previous:** v1.34 Production Observability and Alerting Hardening — latency/burst alerts, storage/runtime pressure visibility, operator summary surfaces, scripted canary checks, threshold runbook
 
-## Current Milestone: v1.34 Production Observability and Alerting Hardening
+## Completed Milestone: v1.35 Storage Health & Stabilization
 
-**Status:** Complete on 2026-04-12
+**Shipped:** 2026-04-13 | 5 phases, 16 plans, 23 tasks, 18 commits in milestone range
 
-**Goal:** turn the production signals surfaced in v1.33 into stable operator alerts, summaries, and post-deploy checks so regressions are caught before they become user-visible.
-
-**Target features:**
-- latency and burst-regression alerts tied to health and metrics signals
-- storage, memory, WAL, and cycle-budget pressure alerts with bounded operator summaries
-- scripted post-deploy canary validation and runbook-backed threshold policy
+**Delivered:** Storage pressure and maintenance stability fixes, production-safe `analyze_baseline` and operator-summary deploy paths, a clean v1.35.0 dual-WAN deploy with exit-0 canary, 24-hour production soak evidence, and formal verification/flow alignment for the full milestone.
 
 ## Next Milestone Goals
 
-- Make latency and burst regressions visible without ad hoc flent runs
-- Catch storage and runtime pressure before service quality degrades
-- Standardize post-deploy validation into a repeatable operator workflow
+- Define the next milestone scope and requirements with `/gsd-new-milestone`.
+- Review the carried validation debt from Phases 172-174 before it compounds into the next release cycle.
+- Decide whether to automate the 24-hour soak evidence path beyond the current documented `journalctl` workflow.
 
 ## Requirements
 
@@ -306,6 +301,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - ✓ CAKE ceiling sweep validated (ul32/dl940 confirmed optimal, daytime vs nighttime analysis) — v1.28
 
 ### Active
+
+**v1.34 Production Observability and Alerting Hardening (Shipped: 2026-04-12):**
+
+- ✓ Sustained latency-regression and burst-churn alerts on existing AlertEngine path — v1.34
+- ✓ Storage/runtime pressure monitoring (DB/WAL/RSS/cycle-budget) on health and metrics — v1.34
+- ✓ Compact operator summary surfaces with ATT/Spectrum parity — v1.34
+- ✓ Post-deploy canary script with pass/fail contract and offline fixtures — v1.34
+- ✓ Threshold policy runbook with deploy-flow cross-reference — v1.34
+- ✓ 11/11 requirements satisfied, 23/23 UAT tests passed — v1.34
 
 **v1.29 Code Health & Cleanup:**
 - [ ] Dead code & cruft removal (unused modules, stale imports, orphaned helpers)

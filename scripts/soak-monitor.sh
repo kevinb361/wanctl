@@ -9,6 +9,12 @@ set -euo pipefail
 # Configuration - cake-shaper VM with WAN-specific health IPs
 TARGETS=(
     "kevin@10.10.110.223|spectrum|10.10.110.223"
+    "kevin@10.10.110.223|att|10.10.110.227"
+)
+SERVICE_UNITS=(
+    "wanctl@spectrum.service"
+    "wanctl@att.service"
+    "steering.service"
 )
 HEALTH_PORT=9101
 CHECK_INTERVAL=60  # seconds for --watch mode
@@ -125,10 +131,17 @@ print(f'peak_delay=\"{cs.get(\"peak_delay_us\", \"-\")}\"')
 # Check for recent errors in journal
 check_errors() {
     local ssh_target=$1
-    local wan_name=$2
+    shift
+    local unit_args=()
+    local unit
     local count
+
+    for unit in "$@"; do
+        unit_args+=(-u "$unit")
+    done
+
     count=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" \
-        "journalctl -u wanctl@${wan_name} --since '1 hour ago' -p err --no-pager 2>/dev/null | grep -v '^-- No entries --$' | grep -c '.' || true" 2>/dev/null)
+        "journalctl ${unit_args[*]} --since '1 hour ago' -p err --no-pager 2>/dev/null | grep -v '^-- No entries --$' | grep -c '.' || true" 2>/dev/null)
     echo "${count:-0}" | tr -d '\n'
 }
 
@@ -160,7 +173,7 @@ run_check() {
         health_data=$(check_target "$ssh_target" "$wan_name" "$health_ip")
 
         if $JSON_MODE; then
-            errors=$(check_errors "$ssh_target" "$wan_name")
+            errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
             [[ $i -gt 0 ]] && json_output+=","
             json_output+="{\"wan\":\"$wan_name\",\"health\":$health_data,\"errors_1h\":$errors}"
             continue
@@ -169,7 +182,7 @@ run_check() {
         # Parse health data
         IFS='|' read -r status version uptime failures state cake_str <<< "$health_data"
 
-        errors=$(check_errors "$ssh_target" "$wan_name")
+        errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
 
         # Colorize values
         local c_status c_fails c_state c_errors c_cake
@@ -224,16 +237,25 @@ run_check() {
     done
 
     if $JSON_MODE; then
+        local service_errors
+        service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
+        if [[ "$json_output" != "[" ]]; then
+            json_output+=","
+        fi
+        json_output+="{\"service_group\":\"all-claimed-services\",\"units\":[\"wanctl@spectrum.service\",\"wanctl@att.service\",\"steering.service\"],\"errors_1h\":$service_errors}"
         echo "${json_output}]"
         return
     fi
 
     # Summary
     echo ""
+    local service_errors
+    service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
+    echo "Service error scan (1h): wanctl@spectrum.service, wanctl@att.service, steering.service => ${service_errors}"
     if $all_healthy; then
         echo -e "${GREEN}${BOLD}✓ All WANs healthy${NC}"
     else
-        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh kevin@10.10.110.223 'journalctl -u wanctl@spectrum -n 50'${NC}"
+        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh kevin@10.10.110.223 'journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service -n 50'${NC}"
     fi
     echo ""
 }

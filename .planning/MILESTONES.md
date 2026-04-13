@@ -1,5 +1,37 @@
 # Project Milestones: wanctl
 
+## v1.35 Storage Health & Stabilization (Shipped: 2026-04-13)
+
+**Phases completed:** 5 phases, 16 plans, 23 tasks
+
+**Key accomplishments:**
+
+- Rebounded v1.34 storage fallout by fixing per-WAN metrics storage handling, hardening periodic SQLite maintenance, and repairing the production `analyze_baseline` deploy path.
+- Deployed v1.35.0 cleanly through the active service flow and validated Spectrum, ATT, and steering with a passing canary.
+- Closed the 24-hour production soak with non-critical storage, healthy operator surfaces, and zero err-level journal entries for the WAN services.
+- Backfilled the missing verification and audit evidence so all six v1.35 requirements are now phase-verified and traceable.
+- Aligned deploy/install/operator-summary/soak documentation and helper scripts with the actual production flow, including steering-aware evidence coverage.
+
+---
+
+## v1.34 Production Observability and Alerting Hardening (Shipped: 2026-04-12)
+
+**Phases completed:** 5 phases, 9 plans, 2 tasks
+
+**Key accomplishments:**
+
+- Added bounded latency-regression and burst-churn alerts to the existing autorate alert path without touching the control algorithm.
+- Validated that the new alert rules stay quiet on the live autorate service and are ready for production use.
+- Added bounded storage and runtime pressure visibility to the existing operator surfaces without touching controller thresholds or adding a new persistence path.
+- Validated that the new storage and runtime pressure signals are healthy, readable, and low-noise on the live host.
+- Added compact operator summary surfaces on top of the existing bounded health contract and locked the shape with focused regression coverage.
+- Validated the new compact summary contract on live services and confirmed ATT/Spectrum parity in the operator-facing view.
+- Built the post-deploy canary script and covered its classification contract with offline pytest fixtures.
+- Validated the canary on live services, fixed a storage-status false positive, and added deploy guidance so operators run the canary after restart.
+- Operator-facing threshold runbook for v1.34 alerts, health summaries, canary exit codes, and escalation guidance
+
+---
+
 ## v1.33 Detection Threshold Tuning (Shipped: 2026-04-11)
 
 **Phases completed:** 5 phases, 10 plans, 14 milestone requirements
