@@ -1,57 +1,43 @@
-# Requirements: wanctl v1.34
+# Requirements: wanctl v1.35
 
-**Defined:** 2026-04-11
+**Defined:** 2026-04-12
 **Core Value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## v1.34 Requirements
+## v1.35 Requirements
 
-Requirements for Production Observability and Alerting Hardening. Convert the production lessons from v1.33 into stable operator signals, alerts, and deploy-time validation.
+Requirements for Storage Health & Stabilization. Fix the 925 MB metrics DB, deploy v1.34 cleanly, investigate the periodic maintenance error, and soak the full observability stack.
 
-### Latency And Burst Regression Alerts
+### Storage Health
 
-- [x] **ALRT-01**: Sustained latency-regression conditions are detectable from existing health/metrics signals without relying on ad hoc flent runs
-- [x] **ALRT-02**: Burst-related regressions and repeated burst-health state changes can trigger bounded operator alerts without chattering under normal load
-- [x] **ALRT-03**: Alert conditions have explicit thresholds, cooldowns, and severity mapping suitable for long-running production use
+- [ ] **STOR-01**: Metrics DB size is reduced to under the warning threshold through retention tuning or manual cleanup
+- [x] **STOR-02**: The periodic maintenance error ("error return without exception set") is diagnosed and fixed so maintenance runs complete cleanly
+- [ ] **STOR-03**: Storage pressure stays at `ok` or `warning` (not `critical`) through a 24h production soak
 
-### Storage And Runtime Pressure Monitoring
+### Deployment
 
-- [x] **OPER-01**: Metrics DB, WAL growth, maintenance failures, and shared-storage pressure are exposed clearly enough to alert before service quality slips
-- [x] **OPER-02**: Memory growth, cycle-budget degradation, and service health drift are exposed through stable operator-visible summaries
-- [x] **OPER-03**: Operator surfaces remain bounded and low-overhead; new observability does not write noisy high-rate telemetry back into SQLite
+- [ ] **DEPL-01**: A clean `deploy.sh` run deploys v1.35 with version bump, and canary-check.sh returns exit 0 on all services
+- [x] **DEPL-02**: `analyze_baseline.py` is deployable and runnable on production (fix import path issue found during UAT)
 
-### Operator Surfaces And Summaries
+### Soak Validation
 
-- [x] **SURF-01**: `/health`, `/metrics`, and relevant CLI/operator views present the most important production risk signals without log archaeology
-- [x] **SURF-02**: Alert and summary payload shapes stay stable enough for operators and future automation to depend on them
-
-### Deploy Validation And Policy
-
-- [x] **CANA-01**: A scripted post-deploy canary check validates core health, storage pressure, and basic latency signals after production changes
-- [x] **CANA-02**: The canary path has a clear pass/fail contract and exits non-zero when the production state is unsafe or unclear
-- [x] **POL-01**: Observability thresholds and operator actions are documented in a runbook with clear warn-vs-act-now guidance
+- [ ] **SOAK-01**: The full v1.34 observability stack (alerts, pressure monitoring, summaries, canary) runs cleanly for 24h with zero unexpected restarts and zero unhandled errors
 
 ## Out of Scope
 
-- Automatic remediation or self-healing deploy rollback — useful, but separate from first-class detection and operator visibility
-- New congestion-control algorithms or threshold retuning — v1.34 is about seeing and validating production behavior, not changing core control logic again
-- Replacing SQLite or re-architecting storage topology — Phase 165 explicitly kept the shared DB, so v1.34 focuses on monitoring it well
+- New alerting rules or threshold changes — v1.34 thresholds are validated, let them soak
+- Prometheus/Grafana integration — infrastructure not ready
+- New features — this is stabilization only
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALRT-01 | Phase 167 | Complete |
-| ALRT-02 | Phase 167 | Complete |
-| ALRT-03 | Phase 167 | Complete |
-| OPER-01 | Phase 168 | Complete |
-| OPER-02 | Phase 168 | Complete |
-| OPER-03 | Phase 168 | Complete |
-| SURF-01 | Phase 169 | Complete |
-| SURF-02 | Phase 169 | Complete |
-| CANA-01 | Phase 170 | Complete |
-| CANA-02 | Phase 170 | Complete |
-| POL-01 | Phase 171 | Complete |
+| STOR-01 | Phase 175 | Pending |
+| STOR-02 | Phase 172 | Satisfied |
+| STOR-03 | Phase 175 | Pending |
+| DEPL-01 | Phase 175 | Pending |
+| DEPL-02 | Phase 172 | Satisfied |
+| SOAK-01 | Phase 176 | Pending |
 
 ---
-*Requirements defined: 2026-04-11*
-*Last updated: 2026-04-12 after Phase 171 completion*
+*Requirements defined: 2026-04-12*
