@@ -9,6 +9,8 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 - [x] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production (completed 2026-04-13)
 - [x] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings (completed 2026-04-13)
 - [x] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path (completed 2026-04-13)
+- [ ] **Phase 180: Verification Backfill And Audit Closure** - Close the missing Phase 177 verification trail and re-anchor STOR-04 to milestone-grade evidence
+- [ ] **Phase 181: Production Footprint Reduction And Reader Parity** - Achieve a real per-WAN footprint reduction in production and close the remaining live history-reader drift
 
 ## Phase Details
 
@@ -61,3 +63,27 @@ Plans:
 | 177. Live Storage Footprint Investigation | 3/3 | Complete | 2026-04-13 |
 | 178. Retention Tightening And Legacy DB Cleanup | 3/3 | Complete | 2026-04-13 |
 | 179. Verification And Operator Evidence | 3/3 | Complete | 2026-04-13 |
+| 180. Verification Backfill And Audit Closure | 0/? | Not Started | - |
+| 181. Production Footprint Reduction And Reader Parity | 0/? | Not Started | - |
+
+### Phase 180: Verification Backfill And Audit Closure
+**Goal**: Close the missing milestone verification trail for Phase 177 and leave STOR-04 audit-safe
+**Depends on**: Phase 179
+**Requirements**: STOR-04
+**Gap Closure:** Closes the `STOR-04` orphaned requirement gap and the missing Phase 177 verification trail identified by the v1.36 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. Phase 177 has a formal verification artifact that maps its evidence and summaries back to STOR-04
+  2. STOR-04 is no longer orphaned in milestone audit cross-references
+  3. The milestone verification trail for the storage-investigation phase is complete without inventing new evidence
+**Plans:** TBD
+
+### Phase 181: Production Footprint Reduction And Reader Parity
+**Goal**: Close the failed production outcome behind STOR-06 and reconcile the remaining live reader-path drift
+**Depends on**: Phase 180
+**Requirements**: STOR-06
+**Gap Closure:** Closes the `STOR-06` unsatisfied requirement, the failed retention->footprint flow, and the live `/metrics/history` parity drift identified by the v1.36 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. The active per-WAN DB footprint is materially smaller than the 2026-04-13 baseline in production terms
+  2. The production operator proof path for history reads is internally consistent, including the deployed CLI/wrapper path and the live HTTP endpoint role
+  3. Any remaining HTTP/CLI reader differences are either eliminated or explicitly narrowed without breaking operator workflows
+**Plans:** TBD
