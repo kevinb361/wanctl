@@ -9,7 +9,7 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 - [x] **Phase 177: Live Storage Footprint Investigation** - Measure active DB composition, retention shape, and legacy DB activity on production (completed 2026-04-13)
 - [x] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings (completed 2026-04-13)
 - [x] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path (completed 2026-04-13)
-- [ ] **Phase 180: Verification Backfill And Audit Closure** - Close the missing Phase 177 verification trail and re-anchor STOR-04 to milestone-grade evidence
+- [x] **Phase 180: Verification Backfill And Audit Closure** - Close the missing Phase 177 verification trail and re-anchor STOR-04 to milestone-grade evidence (completed 2026-04-14)
 - [ ] **Phase 181: Production Footprint Reduction And Reader Parity** - Achieve a real per-WAN footprint reduction in production and close the remaining live history-reader drift
 
 ## Phase Details
@@ -63,7 +63,7 @@ Plans:
 | 177. Live Storage Footprint Investigation | 3/3 | Complete | 2026-04-13 |
 | 178. Retention Tightening And Legacy DB Cleanup | 3/3 | Complete | 2026-04-13 |
 | 179. Verification And Operator Evidence | 3/3 | Complete | 2026-04-13 |
-| 180. Verification Backfill And Audit Closure | 0/? | Not Started | - |
+| 180. Verification Backfill And Audit Closure | 2/2 | Complete | 2026-04-14 |
 | 181. Production Footprint Reduction And Reader Parity | 0/? | Not Started | - |
 
 ### Phase 180: Verification Backfill And Audit Closure
@@ -75,7 +75,10 @@ Plans:
   1. Phase 177 has a formal verification artifact that maps its evidence and summaries back to STOR-04
   2. STOR-04 is no longer orphaned in milestone audit cross-references
   3. The milestone verification trail for the storage-investigation phase is complete without inventing new evidence
-**Plans:** TBD
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 180-01-PLAN.md -- Backfill the missing Phase 177 verification artifact for STOR-04
+- [x] 180-02-PLAN.md -- Re-anchor the STOR-04 audit trail and route the milestone back to re-audit
 
 ### Phase 181: Production Footprint Reduction And Reader Parity
 **Goal**: Close the failed production outcome behind STOR-06 and reconcile the remaining live reader-path drift
