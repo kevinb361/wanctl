@@ -130,7 +130,10 @@ def validate_field(
 # STORAGE CONFIGURATION SCHEMA
 # =============================================================================
 
-# Default storage configuration values
+# Default storage configuration values.
+# The shared metrics.db path remains the compatibility default for components that do not set
+# storage.db_path explicitly. Phase 178 makes steering declare that path in YAML so the shared
+# DB role is an intentional contract rather than an inherited surprise.
 DEFAULT_STORAGE_DB_PATH = "/var/lib/wanctl/metrics.db"
 DEFAULT_STORAGE_RETENTION_DAYS = 7
 DEFAULT_STORAGE_RAW_AGE_SECONDS = 900
@@ -205,7 +208,7 @@ def get_storage_config(data: dict) -> StorageConfig:
     Returns:
         Dict with keys:
         - retention_days: int (backward compat, computed from aggregate_5m_age_seconds)
-        - db_path: str (default /var/lib/wanctl/metrics.db)
+        - db_path: str (default /var/lib/wanctl/metrics.db compatibility path)
         - maintenance_interval_seconds: int (default 900)
         - retention: dict with per-granularity thresholds:
             - raw_age_seconds: int (default 900)
