@@ -39,6 +39,24 @@ Authoritative active DB set:
 This means the authoritative active DB set after this plan is three files, not one:
 the two per-WAN autorate DBs plus the shared steering DB.
 
+## Stale Zero-Byte Artifact Disposition
+
+Phase 177 also found two files that are separate from the authoritative active DB set:
+
+- `/var/lib/wanctl/spectrum_metrics.db`
+- `/var/lib/wanctl/att_metrics.db`
+
+Disposition for Phase 178:
+
+- classify both files as stale zero-byte artifacts
+- they are not part of the authoritative active DB set
+- they may be removed during a host cleanup step because the evidence shows zero-byte size,
+  older mtimes, and no repo-side references
+- any cleanup must stay limited to these two files
+
+This plan does not remove them from a live host directly. It closes the ambiguity by recording
+that they are safe cleanup candidates while leaving active files untouched.
+
 ## What This Plan Does Not Do
 
 - does not redesign storage discovery
@@ -46,6 +64,8 @@ the two per-WAN autorate DBs plus the shared steering DB.
 - does not delete `/var/lib/wanctl/metrics.db`
 - does not mark `/var/lib/wanctl/metrics-spectrum.db` or `/var/lib/wanctl/metrics-att.db`
   for cleanup
+- does not mark `/var/lib/wanctl/metrics.db`, `/var/lib/wanctl/metrics-spectrum.db`, or
+  `/var/lib/wanctl/metrics-att.db` as stale artifacts
 
 Those changes would require additional runtime validation because misclassifying an active DB
 would be destructive.
