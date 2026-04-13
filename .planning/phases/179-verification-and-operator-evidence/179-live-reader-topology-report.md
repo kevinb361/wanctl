@@ -230,3 +230,97 @@ Interpretation:
 - The supported CLI reader and the live DB discovery helper agree on the authoritative per-WAN autorate DB set.
 - The supported HTTP reader preserves its contract shape but does not currently provide equivalent ATT evidence on production.
 - Any milestone claim about live reader topology must distinguish those two outcomes instead of treating the reader surfaces as interchangeable.
+
+## Task 2: Direct SQLite Spot Checks For Retention Shape And Steering Separation
+
+### Read-Only Commands
+
+Per-WAN autorate DB spot checks:
+
+```bash
+ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n sqlite3 -json /var/lib/wanctl/metrics-spectrum.db "SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp ASC LIMIT 1; SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp DESC LIMIT 1; SELECT \"5m\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"5m\" ORDER BY timestamp ASC LIMIT 1; SELECT \"5m\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"5m\" ORDER BY timestamp DESC LIMIT 1;"'
+ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n sqlite3 -json /var/lib/wanctl/metrics-att.db "SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp ASC LIMIT 1; SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp DESC LIMIT 1; SELECT \"5m\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"5m\" ORDER BY timestamp ASC LIMIT 1; SELECT \"5m\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"5m\" ORDER BY timestamp DESC LIMIT 1;"'
+```
+
+Shared steering DB spot check:
+
+```bash
+ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n sqlite3 -json /var/lib/wanctl/metrics.db "SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp ASC LIMIT 1; SELECT \"raw\" AS granularity, timestamp, metric_name FROM metrics WHERE granularity=\"raw\" ORDER BY timestamp DESC LIMIT 1;"'
+```
+
+### Per-WAN Autorate DB Evidence
+
+Observed `metrics-spectrum.db` result:
+
+```json
+[{"granularity":"raw","timestamp":1776036144,"metric_name":"wanctl_rtt_ms"}]
+[{"granularity":"raw","timestamp":1776123398,"metric_name":"wanctl_cake_peak_delay_us"}]
+[{"granularity":"5m","timestamp":1776007800,"metric_name":"wanctl_cake_total_drop_rate"}]
+[{"granularity":"5m","timestamp":1776035700,"metric_name":"wanctl_irtt_asymmetry_direction"}]
+```
+
+Observed `metrics-att.db` result:
+
+```json
+[{"granularity":"raw","timestamp":1776036224,"metric_name":"wanctl_rtt_ms"}]
+[{"granularity":"raw","timestamp":1776123398,"metric_name":"wanctl_cake_peak_delay_us"}]
+[{"granularity":"5m","timestamp":1776007800,"metric_name":"wanctl_cake_total_drop_rate"}]
+[{"granularity":"5m","timestamp":1776035700,"metric_name":"wanctl_irtt_asymmetry_direction"}]
+```
+
+ATT current RTT presence was also confirmed directly:
+
+```bash
+ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n sqlite3 -json /var/lib/wanctl/metrics-att.db "SELECT timestamp, wan_name, metric_name FROM metrics WHERE metric_name=\"wanctl_rtt_ms\" ORDER BY timestamp DESC LIMIT 3;"'
+```
+
+Observed result:
+
+```json
+[{"timestamp":1776123524,"wan_name":"att","metric_name":"wanctl_rtt_ms"},
+{"timestamp":1776123524,"wan_name":"att","metric_name":"wanctl_rtt_ms"},
+{"timestamp":1776123524,"wan_name":"att","metric_name":"wanctl_rtt_ms"}]
+```
+
+Interpretation:
+
+- Both per-WAN autorate DBs contain current raw RTT history.
+- Both also retain a longer-lived `5m` aggregate frontier.
+- The timestamps align with the post-Phase-178 retention profile:
+  - earliest retained raw rows are around `2026-04-12T23:22Z` to `2026-04-12T23:23Z`
+  - latest retained raw rows are at `2026-04-13T23:36:38Z`
+  - earliest retained `5m` rows begin at `2026-04-12T15:30:00Z`
+- That is consistent with a short raw retention window plus longer aggregate coverage, not a 24-hour raw corpus.
+
+### Shared Steering DB Evidence
+
+Observed `metrics.db` result:
+
+```json
+[{"granularity":"raw","timestamp":1776018216,"metric_name":"wanctl_config_snapshot"}]
+[{"granularity":"raw","timestamp":1776123397,"metric_name":"wanctl_cake_tin_backlog_bytes"}]
+```
+
+Interpretation:
+
+- The shared `metrics.db` remains active and current.
+- Its spot check shows only raw rows in this sample, and the metrics are steering/shared-surface data points rather than the retained per-WAN autorate aggregate frontier used above.
+- This DB must therefore be treated separately from `metrics-spectrum.db` and `metrics-att.db` when interpreting reader behavior or retention claims.
+
+### Live Topology Conclusion
+
+- `discover_wan_dbs()` on the deployed host resolves only the per-WAN autorate DBs: `metrics-att.db` and `metrics-spectrum.db`.
+- `wanctl-history` running as the deployed `wanctl` user follows that per-WAN set and returns both WANs over the same live window.
+- `/metrics/history` remains contract-compatible at the response-envelope level, but the live endpoint evidence did not prove ATT reads: both tested listeners returned Spectrum rows and `wan=att` returned zero rows during the capture window.
+- Direct SQLite checks confirm that:
+  - the per-WAN DBs still hold the autorate retained window
+  - the shared `metrics.db` still reflects separate steering activity
+  - the retained shape is consistent with the post-Phase-178 storage profile of short raw retention plus longer aggregate coverage
+
+## Operator Outcome
+
+Operators can safely use this report to distinguish three separate truths on production:
+
+1. The authoritative autorate DB topology on disk is still `metrics-spectrum.db` plus `metrics-att.db`, with `metrics.db` reserved for shared steering activity.
+2. The CLI history reader matches that topology on the live host.
+3. The HTTP history endpoint still preserves its response contract, but its live ATT behavior requires separate follow-up before it can be claimed equivalent to the CLI proof path.
