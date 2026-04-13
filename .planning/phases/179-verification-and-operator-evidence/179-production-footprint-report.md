@@ -42,3 +42,28 @@ ssh -o BatchMode=yes kevin@10.10.110.223 'sudo -n stat -c "%n %s %y" /var/lib/wa
 - The current live per-WAN DBs differ from that baseline by only `12,288` bytes each, which is effectively no change in operator terms.
 - Phase 179 therefore cannot claim that the deployed per-WAN footprint is materially smaller after Phase 178. The live footprint is unchanged for the active autorate DBs.
 - `metrics.db` remains present as the separate shared steering DB and should not be treated as evidence about the per-WAN autorate reduction claim.
+
+## Operator-Visible Storage Status
+
+Evidence source:
+
+```bash
+./scripts/soak-monitor.sh --json
+```
+
+### Current `storage.status` from supported operator surfaces
+
+| Surface | WAN / scope | `storage.status` | Storage-visible fields |
+|---------|-------------|------------------|------------------------|
+| `soak-monitor --json` -> `health.wans[].storage` | `spectrum` | `ok` | `db_bytes=5,441,699,840`, `wal_bytes=4,313,672`, `total_bytes=5,447,586,376`, `pending_writes=1` |
+| `soak-monitor --json` -> top-level `storage` | `spectrum` | `ok` | `db_bytes=5,441,699,840`, `wal_bytes=4,313,672`, `total_bytes=5,447,586,376`, `pending_writes=1` |
+| `soak-monitor --json` -> `health.wans[].storage` | `att` | `ok` | `db_bytes=5,082,902,528`, `wal_bytes=4,288,952`, `total_bytes=5,088,534,968`, `pending_writes=1` |
+| `soak-monitor --json` -> top-level `storage` | `att` | `ok` | `db_bytes=5,082,902,528`, `wal_bytes=4,288,952`, `total_bytes=5,088,534,968`, `pending_writes=1` |
+| `soak-monitor --json` -> `service_group` summary | `all-claimed-services` | not applicable | `units=[wanctl@spectrum.service, wanctl@att.service, steering.service]`, `errors_1h=0` |
+
+### Interpretation boundary
+
+- The supported operator helper currently reports `storage.status: ok` for both autorate WANs.
+- That means the storage path is not presently reporting a failure condition through the supported surface.
+- It does not prove the footprint reduction succeeded. The same helper reports DB byte counts that match the `stat` evidence above, and those values remain effectively unchanged from the 2026-04-13 baseline for the per-WAN DBs.
+- The correct operator conclusion is therefore: storage is currently non-failing on the supported surface, but the per-WAN footprint has not materially decreased relative to the fixed baseline.
