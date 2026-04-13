@@ -9,7 +9,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 
 ### Storage Investigation
 
-- [ ] **STOR-04**: Active production metrics databases and their dominant storage contributors are identified clearly enough to explain the current 5+ GB per-WAN footprint
+- [x] **STOR-04**: Active production metrics databases and their dominant storage contributors are identified clearly enough to explain the current 5+ GB per-WAN footprint
 - [x] **STOR-05**: The runtime role of legacy `/var/lib/wanctl/metrics.db` is explicitly closed out as either active, ignored, or archived/retired
 
 ### Storage Reduction
@@ -31,7 +31,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 
 | Requirement | Planned Phase | Status |
 |-------------|---------------|--------|
-| STOR-04 | Phase 180 | Pending |
+| STOR-04 | Phase 180 | Satisfied |
 | STOR-05 | Phase 178 | Satisfied |
 | STOR-06 | Phase 181 | Pending |
 | STOR-07 | Phase 178 | Satisfied |
