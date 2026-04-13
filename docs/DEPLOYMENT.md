@@ -20,8 +20,54 @@ The deploy script:
 - deploys helper scripts, docs, QoS assets, and systemd units
 - optionally deploys `steering.service` and `/etc/wanctl/steering.yaml`
 - runs a pre-startup validation step on the target host
+- deploys operator helpers such as `wanctl-operator-summary` when present
+
+`deploy.sh` copies files and validates the target layout. It does not silently run
+`migrate-storage.sh` or restart services for you beyond the explicit `systemctl` commands you choose to run afterward.
 
 `./scripts/deploy.sh --dry-run` prints the planned actions without requiring SSH checks.
+
+## Post-Deploy Operator Flow
+
+After `./scripts/deploy.sh <wan_name> <target_host>` finishes:
+
+1. Confirm config and secrets on the target host.
+2. Check whether the storage migration archive exists:
+
+```bash
+ssh <target_host> 'sudo test -f /var/lib/wanctl/metrics.db.pre-v135-archive && echo migrated || echo needs-migration'
+```
+
+3. If the archive marker is missing, run the migration from your workstation before restart/canary:
+
+```bash
+./scripts/migrate-storage.sh --ssh <target_host>
+```
+
+4. Restart the WAN service:
+
+```bash
+ssh <target_host> 'sudo systemctl enable --now wanctl@<wan_name>.service'
+```
+
+5. If steering is enabled, restart or inspect `steering.service`:
+
+```bash
+ssh <target_host> 'sudo systemctl restart steering.service'
+```
+
+6. Run the acceptance gate:
+
+```bash
+./scripts/canary-check.sh --ssh <target_host>
+```
+
+7. Capture operator-facing snapshots:
+
+```bash
+ssh <target_host> 'wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health'
+./scripts/soak-monitor.sh
+```
 
 ## Install-Only Mode
 
@@ -68,6 +114,9 @@ sudo systemctl enable --now steering.service
 ```bash
 systemctl status wanctl@wan1.service
 journalctl -u wanctl@wan1.service -f
+scripts/canary-check.sh --ssh <host>
+scripts/soak-monitor.sh
+wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health
 ```
 
 If steering is enabled:
@@ -75,6 +124,7 @@ If steering is enabled:
 ```bash
 systemctl status steering.service
 journalctl -u steering.service -f
+journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service -n 100 --no-pager
 ```
 
 ## Troubleshooting
@@ -83,6 +133,12 @@ Check recent controller logs:
 
 ```bash
 journalctl -u wanctl@wan1.service -n 100 --no-pager
+```
+
+For the all-services soak evidence path:
+
+```bash
+journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service --since '24 hours ago' -p err --no-pager
 ```
 
 Run the controller manually on the target host:

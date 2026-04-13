@@ -154,12 +154,29 @@ The deploy script expects SSH connectivity and `rsync` on both ends.
 
 ## 8. First Verification Pass
 
+After `deploy.sh` finishes, use the same operator sequence every time:
+
+```bash
+ssh target-host 'sudo test -f /var/lib/wanctl/metrics.db.pre-v135-archive && echo migrated || echo needs-migration'
+./scripts/migrate-storage.sh --ssh target-host   # only when the archive marker is missing
+ssh target-host 'sudo systemctl enable --now wanctl@wan1.service'
+./scripts/canary-check.sh --ssh target-host
+```
+
+If steering is enabled, also inspect the optional service:
+
+```bash
+ssh target-host 'sudo systemctl restart steering.service'
+ssh target-host 'sudo journalctl -u steering.service -f'
+```
+
 After the service is up, confirm:
 
 - `systemctl status wanctl@wan1.service` reports `active (running)`
 - `journalctl -u wanctl@wan1.service` shows successful router connectivity
 - `/var/lib/wanctl/` begins receiving runtime state
 - config validation passes with `wanctl-check-config`
+- `scripts/canary-check.sh --ssh target-host` exits `0`
 
 ## Common Issues
 

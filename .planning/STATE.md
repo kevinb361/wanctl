@@ -1,49 +1,50 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.35
-milestone_name: milestone
-status: planning
-stopped_at: Phase 175 complete
-last_updated: "2026-04-13T19:34:36.000Z"
+milestone: null
+milestone_name: none
+status: ready_for_next_milestone
+stopped_at: Milestone v1.35 archived
+last_updated: "2026-04-13T21:15:00.000Z"
 last_activity: 2026-04-13
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 80
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-12)
+See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 176 planning — deployment-and-soak-flow-alignment
+**Current focus:** Start the next milestone after archiving v1.35
 
 ## Position
 
-**Milestone:** v1.35 Storage Health & Stabilization
-**Phase:** 176 of 176 (deployment and soak flow alignment)
-**Plan:** Not started
-**Status:** Ready to plan
+**Milestone:** None active
+**Phase:** None
+**Plan:** None
+**Status:** v1.35 archived — ready for `/gsd-new-milestone`
 **Last activity:** 2026-04-13
 
-Progress: [████████░░] 80%
+Progress: [----------] 0%
 
 ## Accumulated Context
 
 - v1.34 shipped: latency/burst alerts, storage/runtime pressure monitoring, operator summary surfaces, canary checks, threshold runbook
-- UAT verified 23/23 tests against live production across all 5 phases
+- v1.35 shipped: storage stabilization, clean deploy/canary, 24-hour soak closeout, verification backfill, and operator-flow alignment
 - Phase 174 soak passed: canary exit 0, zero WAN-service errors, operator summaries valid
 - Phase 175 closed the remaining audit blockers: STOR-01, DEPL-01, STOR-03, and SOAK-01 are now verification-backed with no orphaned requirements
 - Storage at soak closeout: Spectrum 5.1G DB / 4.3M WAL, ATT 4.8G DB / 4.3M WAL, both `storage.status: ok`
 - ATT/Spectrum parity confirmed on all operator surfaces
-- Remaining tracked follow-up is Phase 176 alignment work, including `steering.service` soak evidence coverage
+- Phase 176 aligned the active deploy/install flow with the storage migration path, surfaced `wanctl-operator-summary` in deploy.sh, and extended soak evidence coverage to ATT plus `steering.service`
+- Milestone archive accepted non-blocking validation debt in Phases 172-174 plus the 1-hour built-in soak-monitor helper window
 
 ## Session Continuity
 
-Stopped at: Phase 175 complete
-Resume file: .planning/phases/175-verification-and-evidence-closeout/175-VERIFICATION.md
+Stopped at: Milestone v1.35 archived
+Resume file: .planning/PROJECT.md
