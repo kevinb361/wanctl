@@ -193,6 +193,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         if cycle_budget is not None:
             health["cycle_budget"] = cycle_budget
 
+        health["rtt_source"] = self._build_rtt_source_section(health_data)
         health["wan_awareness"] = self._build_wan_awareness_section(health_data)
         health["storage"] = self._build_storage_section(health_data)
         health["runtime"] = self._build_runtime_section(health_data, health.get("cycle_budget"))
@@ -354,6 +355,26 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             # Disabled mode: show raw zone for staged rollout verification
             wan_awareness["zone"] = wa["zone"]
         return wan_awareness
+
+    def _build_rtt_source_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build RTT source observability section for steering."""
+        source = health_data.get("rtt_source", {})
+        counts = source.get("counts", {})
+        age = source.get("last_measurement_age_sec")
+        last_rtt = source.get("last_rtt_ms")
+        return {
+            "current": source.get("current", "unknown"),
+            "last_successful": source.get("last_successful", "unknown"),
+            "last_rtt_ms": round(last_rtt, 2) if isinstance(last_rtt, (int, float)) else None,
+            "last_measurement_age_sec": (
+                round(age, 3) if isinstance(age, (int, float)) else None
+            ),
+            "counts": {
+                "autorate_health": int(counts.get("autorate_health", 0)),
+                "autorate_irtt": int(counts.get("autorate_irtt", 0)),
+                "history_fallback": int(counts.get("history_fallback", 0)),
+            },
+        }
 
     def _resolve_confidence_contribution(self, wa: dict[str, Any]) -> float:
         """Resolve confidence weight for the current effective WAN zone."""

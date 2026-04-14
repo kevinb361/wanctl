@@ -1140,10 +1140,23 @@ class SteeringDaemon:
         self._init_confidence_controller()
         self._init_steering_profiling(config)
         self._init_wan_awareness()
+        self._init_rtt_source_observability()
 
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
+
+    def _init_rtt_source_observability(self) -> None:
+        """Track which RTT source steering is currently using."""
+        self._current_rtt_source = "unknown"
+        self._last_measurement_source = "unknown"
+        self._last_measurement_rtt_ms: float | None = None
+        self._last_measurement_ts: float | None = None
+        self._rtt_source_counts = {
+            "autorate_health": 0,
+            "autorate_irtt": 0,
+            "history_fallback": 0,
+        }
 
     def _init_cake_reader(self, config: SteeringConfig) -> None:
         """Initialize CAKE congestion detection components."""
@@ -1395,6 +1408,17 @@ class SteeringDaemon:
                 "profiler": self._profiler,
                 "overrun_count": self._overrun_count,
                 "cycle_interval_ms": self._cycle_interval_ms,
+            },
+            "rtt_source": {
+                "current": self._current_rtt_source,
+                "last_successful": self._last_measurement_source,
+                "last_rtt_ms": self._last_measurement_rtt_ms,
+                "last_measurement_age_sec": (
+                    time.monotonic() - self._last_measurement_ts
+                    if self._last_measurement_ts is not None
+                    else None
+                ),
+                "counts": dict(self._rtt_source_counts),
             },
             "wan_awareness": wan_awareness,
             "runtime": {
@@ -1720,11 +1744,14 @@ class SteeringDaemon:
         """Measure current RTT from autorate, falling back to fresh autorate IRTT."""
         live_rtt = self.baseline_loader.load_live_rtt()
         if live_rtt is not None:
+            self._record_rtt_source_success("autorate_health", live_rtt)
             return live_rtt
         live_irtt_rtt = self.baseline_loader.load_live_irtt_rtt()
         if live_irtt_rtt is not None:
+            self._record_rtt_source_success("autorate_irtt", live_irtt_rtt)
             self.logger.debug("Using autorate IRTT RTT fallback for steering")
             return live_irtt_rtt
+        self._current_rtt_source = "unavailable"
         return None
 
     def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> float | None:
@@ -1756,11 +1783,13 @@ class SteeringDaemon:
             state = self.state_mgr.state
             if state.get("history_rtt") and len(state["history_rtt"]) > 0:
                 last_rtt = state["history_rtt"][-1]
+                self._record_rtt_source_success("history_fallback", float(last_rtt))
                 self.logger.warning(
                     f"Using last known RTT from state: {last_rtt:.1f}ms "
                     "(no fresh autorate RTT or IRTT available)"
                 )
                 return last_rtt  # type: ignore[no-any-return]
+            self._current_rtt_source = "unavailable"
             self.logger.error("No fresh autorate RTT/IRTT and no RTT history available - cannot proceed")
             return None
 
@@ -1772,6 +1801,15 @@ class SteeringDaemon:
             logger=self.logger,
             operation_name="autorate health RTT",
         )
+
+    def _record_rtt_source_success(self, source: str, rtt_ms: float) -> None:
+        """Record the current/last-successful RTT source for health surfaces."""
+        self._current_rtt_source = source
+        self._last_measurement_source = source
+        self._last_measurement_rtt_ms = float(rtt_ms)
+        self._last_measurement_ts = time.monotonic()
+        if source in self._rtt_source_counts:
+            self._rtt_source_counts[source] += 1
 
     def update_baseline_rtt(self) -> bool:
         """
