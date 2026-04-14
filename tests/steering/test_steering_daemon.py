@@ -12,6 +12,7 @@ import json
 import logging
 import threading
 import time
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1770,7 +1771,6 @@ class TestRouterOSController:
 
         assert result is True
 
-    # =========================================================================
     def test_get_rule_status_rest_json_disabled(self, controller, mock_client):
         """REST JSON output should report disabled rule as False."""
         mock_client.run_cmd.return_value = (
@@ -1795,6 +1795,7 @@ class TestRouterOSController:
 
         assert result is True
 
+    # =========================================================================
     # enable_steering() tests
     # =========================================================================
 
@@ -5781,3 +5782,43 @@ class TestWanStateReload:
 
         daemon._reload_dry_run_config.assert_called()
         daemon._reload_wan_state_config.assert_called()
+
+
+class TestStartupStorage:
+    """Tests for steering startup storage wrapper."""
+
+    def test_startup_storage_passes_watchdog_and_budget(self):
+        from wanctl.steering.daemon import _run_steering_startup_storage, notify_watchdog
+
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.data = {}
+        logger = MagicMock()
+        @contextmanager
+        def _maintenance_lock(*_args, **_kwargs):
+            yield True
+
+        with (
+            patch(
+                "wanctl.steering.daemon.get_storage_config",
+                return_value={
+                    "db_path": "/tmp/metrics.db",
+                    "retention": {
+                        "raw_age_seconds": 3600,
+                        "aggregate_1m_age_seconds": 86400,
+                        "aggregate_5m_age_seconds": 604800,
+                    },
+                },
+            ),
+            patch("wanctl.steering.daemon.validate_retention_tuner_compat"),
+            patch("wanctl.storage.MetricsWriter"),
+            patch("wanctl.storage.record_config_snapshot"),
+            patch("wanctl.storage.run_startup_maintenance", return_value={"error": None}) as mock_startup,
+            patch("wanctl.storage.maintenance.maintenance_lock", _maintenance_lock),
+        ):
+            _run_steering_startup_storage(config, logger)
+
+        assert mock_startup.called
+        _, kwargs = mock_startup.call_args
+        assert kwargs["watchdog_fn"] is notify_watchdog
+        assert kwargs["max_seconds"] == 20

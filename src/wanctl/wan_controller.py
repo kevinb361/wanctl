@@ -46,7 +46,7 @@ from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTMeasurement,
 )
-from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_resident_memory_bytes
+from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_memory_status
 from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.storage import MetricsWriter
 from wanctl.storage.deferred_writer import DeferredIOWorker
@@ -3293,6 +3293,7 @@ class WANController:
         """
         storage_snapshot = get_storage_metrics_snapshot("autorate")
         storage_files = get_storage_file_snapshot(self._storage_db_path)
+        rss_bytes, swap_bytes = read_process_memory_status()
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -3367,7 +3368,8 @@ class WANController:
             },
             "runtime": {
                 "process": "autorate",
-                "rss_bytes": read_process_resident_memory_bytes(),
+                "rss_bytes": rss_bytes,
+                "swap_bytes": swap_bytes,
             },
             "storage": storage_snapshot,
             "storage_files": storage_files,
@@ -3443,4 +3445,3 @@ class WANController:
             congestion={"dl_state": self._dl_zone, "ul_state": self._ul_zone},
             force=force,
         )
-

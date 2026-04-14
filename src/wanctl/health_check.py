@@ -677,6 +677,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return build_runtime_status_section(
             process_role=process_role,
             rss_bytes=runtime.get("rss_bytes"),
+            swap_bytes=runtime.get("swap_bytes"),
             cycle_status=cycle_status,
         )
 

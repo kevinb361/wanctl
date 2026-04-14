@@ -4,6 +4,7 @@ from wanctl.runtime_pressure import (
     build_runtime_section,
     build_storage_section,
     classify_memory_status,
+    classify_swap_status,
     get_storage_file_snapshot,
 )
 
@@ -104,3 +105,20 @@ def test_build_runtime_section_combines_memory_and_cycle_status():
 
 def test_classify_memory_status_handles_unknown():
     assert classify_memory_status(None) == "unknown"
+
+
+def test_classify_swap_status_warns_on_large_swap_usage():
+    assert classify_swap_status(256 * 1024 * 1024) == "warning"
+
+
+def test_build_runtime_section_includes_swap_pressure():
+    runtime = build_runtime_section(
+        process_role="autorate",
+        rss_bytes=128 * 1024 * 1024,
+        swap_bytes=256 * 1024 * 1024,
+        cycle_status="ok",
+    )
+
+    assert runtime["swap_bytes"] == 256 * 1024 * 1024
+    assert runtime["swap_status"] == "warning"
+    assert runtime["status"] == "warning"

@@ -59,7 +59,7 @@ from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import clear_router_password, get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
 from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
-from ..runtime_pressure import get_storage_file_snapshot, read_process_resident_memory_bytes
+from ..runtime_pressure import get_storage_file_snapshot, read_process_memory_status
 from ..signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -1285,6 +1285,7 @@ class SteeringDaemon:
 
         storage_snapshot = get_storage_metrics_snapshot("steering")
         storage_files = get_storage_file_snapshot(self._storage_db_path)
+        rss_bytes, swap_bytes = read_process_memory_status()
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -1294,7 +1295,8 @@ class SteeringDaemon:
             "wan_awareness": wan_awareness,
             "runtime": {
                 "process": "steering",
-                "rss_bytes": read_process_resident_memory_bytes(),
+                "rss_bytes": rss_bytes,
+                "swap_bytes": swap_bytes,
             },
             "storage": storage_snapshot,
             "storage_files": storage_files,
@@ -2259,6 +2261,8 @@ def _run_steering_startup_storage(
                     writer.connection,
                     retention_config=retention_config,
                     log=logger,
+                    watchdog_fn=notify_watchdog,
+                    max_seconds=20,
                 )
                 if maint_result.get("error"):
                     logger.warning(f"Startup maintenance error: {maint_result['error']}")
