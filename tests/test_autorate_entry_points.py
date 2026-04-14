@@ -17,6 +17,7 @@ and signal integration paths.
 """
 
 import signal
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -962,6 +963,54 @@ class TestDaemonControlLoop:
 
         # Watchdog should be notified on success
         assert mock_watchdog.call_count >= 1
+
+    def test_main_uses_startup_watchdog_heartbeat(self, valid_config_yaml, tmp_path):
+        """Daemon startup should be wrapped in startup watchdog heartbeat."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(valid_config_yaml)
+
+        mock_controller = MagicMock()
+        mock_controller.run_cycle.return_value = True
+        mock_controller.get_lock_paths.return_value = [Path("/tmp/test.lock")]
+        mock_controller.wan_controllers = [
+            {
+                "controller": MagicMock(),
+                "config": MagicMock(
+                    lock_timeout=300,
+                    metrics_enabled=False,
+                    health_check_enabled=False,
+                ),
+                "logger": MagicMock(),
+            }
+        ]
+
+        call_count = [0]
+
+        def is_shutdown_after_one():
+            call_count[0] += 1
+            return call_count[0] > 1
+
+        with (
+            patch("sys.argv", ["autorate", "--config", str(config_file)]),
+            patch("wanctl.autorate_continuous.ContinuousAutoRate", return_value=mock_controller),
+            patch("wanctl.autorate_continuous.validate_and_acquire_lock", return_value=True),
+            patch("wanctl.autorate_continuous.register_signal_handlers"),
+            patch(
+                "wanctl.autorate_continuous.is_shutdown_requested",
+                side_effect=is_shutdown_after_one,
+            ),
+            patch("wanctl.autorate_continuous.time.sleep"),
+            patch("wanctl.autorate_continuous.update_health_status"),
+            patch(
+                "wanctl.autorate_continuous.startup_watchdog_heartbeat",
+                return_value=nullcontext(),
+            ) as mock_startup_watchdog,
+        ):
+            from wanctl.autorate_continuous import main
+
+            main()
+
+        mock_startup_watchdog.assert_called_once_with()
 
     def test_control_loop_notifies_degraded_on_max_failures(self, valid_config_yaml, tmp_path):
         """Control loop calls notify_degraded after MAX_CONSECUTIVE_FAILURES."""

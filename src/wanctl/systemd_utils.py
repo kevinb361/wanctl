@@ -30,6 +30,11 @@ All notify functions are no-ops if systemd is not available (graceful fallback).
 This eliminates the need for `if sd_notify:` checks throughout daemon code.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+import threading
+
+
 # Optional systemd integration - graceful fallback if not available
 try:
     from systemd.daemon import notify as _sd_notify
@@ -80,6 +85,43 @@ def notify_watchdog() -> None:
     """
     if _sd_notify is not None:
         _sd_notify("WATCHDOG=1")
+
+
+@contextmanager
+def startup_watchdog_heartbeat(interval_seconds: float = 10.0) -> Iterator[None]:
+    """Send watchdog heartbeats during bounded startup phases.
+
+    Autorate services currently run as ``Type=simple`` with ``WatchdogSec``
+    enabled in systemd, so the watchdog timer starts before the main loop is
+    ready to emit its normal health heartbeats. This helper keeps watchdog
+    notifications flowing only during startup, then hands control back to the
+    normal cycle-based watchdog path once initialization completes.
+
+    Args:
+        interval_seconds: Heartbeat cadence while startup is in progress.
+    """
+    if _sd_notify is None or interval_seconds <= 0:
+        yield
+        return
+
+    stop_event = threading.Event()
+
+    def _heartbeat_loop() -> None:
+        notify_watchdog()
+        while not stop_event.wait(interval_seconds):
+            notify_watchdog()
+
+    thread = threading.Thread(
+        target=_heartbeat_loop,
+        name="systemd-startup-watchdog",
+        daemon=True,
+    )
+    thread.start()
+    try:
+        yield
+    finally:
+        stop_event.set()
+        thread.join(timeout=max(interval_seconds, 1.0))
 
 
 def notify_status(status: str) -> None:
