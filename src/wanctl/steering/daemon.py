@@ -924,6 +924,7 @@ class RouterOSController:
 STALE_BASELINE_THRESHOLD_SECONDS = 300
 STALE_WAN_ZONE_THRESHOLD_SECONDS = 5
 STALE_AUTORATE_MEASUREMENT_THRESHOLD_SECONDS = 2.0
+STALE_AUTORATE_IRTT_THRESHOLD_SECONDS = 30.0
 
 
 class BaselineLoader:
@@ -991,26 +992,7 @@ class BaselineLoader:
 
     def load_live_rtt(self) -> float | None:
         """Load current direct-ICMP RTT from the primary autorate health endpoint."""
-        try:
-            with urllib.request.urlopen(self.config.primary_health_url, timeout=0.2) as response:
-                payload = json.loads(response.read().decode())
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-            self.logger.debug(f"Failed to read autorate health payload: {exc}")
-            return None
-
-        if not isinstance(payload, dict):
-            return None
-        wans = payload.get("wans")
-        if not isinstance(wans, list):
-            return None
-
-        target_wan = None
-        for wan in wans:
-            if isinstance(wan, dict) and wan.get("name") == self.config.primary_wan:
-                target_wan = wan
-                break
-        if target_wan is None and len(wans) == 1 and isinstance(wans[0], dict):
-            target_wan = wans[0]
+        target_wan = self._load_target_wan_health()
         if target_wan is None:
             return None
 
@@ -1033,6 +1015,58 @@ class BaselineLoader:
             )
             return None
         return float(raw_rtt)
+
+    def load_live_irtt_rtt(self) -> float | None:
+        """Load current IRTT RTT from the primary autorate health endpoint."""
+        target_wan = self._load_target_wan_health()
+        if target_wan is None:
+            return None
+
+        irtt = target_wan.get("irtt")
+        if not isinstance(irtt, dict):
+            return None
+
+        if irtt.get("available") is not True:
+            return None
+
+        irtt_rtt = irtt.get("rtt_mean_ms")
+        staleness = irtt.get("staleness_sec")
+        if not isinstance(irtt_rtt, (int, float)) or not isinstance(staleness, (int, float)):
+            return None
+        if staleness > STALE_AUTORATE_IRTT_THRESHOLD_SECONDS:
+            self.logger.debug(
+                "Autorate IRTT snapshot stale: %.3fs > %.1fs",
+                staleness,
+                STALE_AUTORATE_IRTT_THRESHOLD_SECONDS,
+            )
+            return None
+        return float(irtt_rtt)
+
+    def _load_target_wan_health(self) -> dict[str, Any] | None:
+        """Load the primary WAN entry from the autorate health payload."""
+        try:
+            with urllib.request.urlopen(self.config.primary_health_url, timeout=0.2) as response:
+                payload = json.loads(response.read().decode())
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+            self.logger.debug(f"Failed to read autorate health payload: {exc}")
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+        wans = payload.get("wans")
+        if not isinstance(wans, list):
+            return None
+
+        target_wan = None
+        for wan in wans:
+            if isinstance(wan, dict) and wan.get("name") == self.config.primary_wan:
+                target_wan = wan
+                break
+        if target_wan is None and len(wans) == 1 and isinstance(wans[0], dict):
+            target_wan = wans[0]
+        if target_wan is None:
+            return None
+        return target_wan
 
     def get_wan_zone_age(self) -> float | None:
         """Get age of autorate state file in seconds.
@@ -1683,11 +1717,15 @@ class SteeringDaemon:
         return state_changed
 
     def measure_current_rtt(self) -> float | None:
-        """Measure current RTT, preferring autorate's direct ICMP snapshot."""
+        """Measure current RTT from autorate, falling back to fresh autorate IRTT."""
         live_rtt = self.baseline_loader.load_live_rtt()
         if live_rtt is not None:
             return live_rtt
-        return self.rtt_measurement.ping_host(self.config.ping_host, self.config.ping_count)
+        live_irtt_rtt = self.baseline_loader.load_live_irtt_rtt()
+        if live_irtt_rtt is not None:
+            self.logger.debug("Using autorate IRTT RTT fallback for steering")
+            return live_irtt_rtt
+        return None
 
     def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> float | None:
         """
@@ -1699,7 +1737,8 @@ class SteeringDaemon:
             max_retries: Maximum ping attempts
 
         Returns:
-            Current RTT or None if all retries fail and no fallback available
+            Current RTT or None if autorate provides no fresh RTT/IRTT and no
+            historical fallback is available
         """
 
         def fallback_to_history() -> float | None:
@@ -1719,10 +1758,10 @@ class SteeringDaemon:
                 last_rtt = state["history_rtt"][-1]
                 self.logger.warning(
                     f"Using last known RTT from state: {last_rtt:.1f}ms "
-                    f"(ping to {self.config.ping_host} failed after retries)"
+                    "(no fresh autorate RTT or IRTT available)"
                 )
                 return last_rtt  # type: ignore[no-any-return]
-            self.logger.error("No ping response and no RTT history available - cannot proceed")
+            self.logger.error("No fresh autorate RTT/IRTT and no RTT history available - cannot proceed")
             return None
 
         return measure_with_retry(  # type: ignore[no-any-return]
@@ -1731,7 +1770,7 @@ class SteeringDaemon:
             retry_delay=0.5,
             fallback_func=fallback_to_history,
             logger=self.logger,
-            operation_name="ping",
+            operation_name="autorate health RTT",
         )
 
     def update_baseline_rtt(self) -> bool:

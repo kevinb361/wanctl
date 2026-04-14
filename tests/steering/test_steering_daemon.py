@@ -2381,6 +2381,56 @@ class TestBaselineLoader:
         with patch("wanctl.steering.daemon.urllib.request.urlopen", return_value=response):
             assert loader.load_live_rtt() is None
 
+    def test_load_live_irtt_rtt_from_autorate_health(self, mock_config, mock_logger):
+        """Fresh autorate IRTT snapshot returns rtt_mean_ms for steering fallback."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        payload = {
+            "wans": [
+                {
+                    "name": "spectrum",
+                    "irtt": {
+                        "available": True,
+                        "rtt_mean_ms": 31.2,
+                        "staleness_sec": 4.0,
+                    },
+                }
+            ]
+        }
+        response = MagicMock()
+        response.read.return_value = json.dumps(payload).encode()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        with patch("wanctl.steering.daemon.urllib.request.urlopen", return_value=response):
+            assert loader.load_live_irtt_rtt() == 31.2
+
+    def test_load_live_irtt_rtt_rejects_stale_autorate_health(self, mock_config, mock_logger):
+        """Stale autorate IRTT snapshots are ignored."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        payload = {
+            "wans": [
+                {
+                    "name": "spectrum",
+                    "irtt": {
+                        "available": True,
+                        "rtt_mean_ms": 31.2,
+                        "staleness_sec": 45.0,
+                    },
+                }
+            ]
+        }
+        response = MagicMock()
+        response.read.return_value = json.dumps(payload).encode()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        with patch("wanctl.steering.daemon.urllib.request.urlopen", return_value=response):
+            assert loader.load_live_irtt_rtt() is None
+
     def test_derive_primary_health_url_uses_configured_host_and_port(self, tmp_path):
         """Primary autorate health URL should honor configured bind host and port."""
         import yaml
@@ -2432,7 +2482,7 @@ class TestCurrentRTTSource:
         return MagicMock()
 
     def test_measure_current_rtt_prefers_autorate_live_snapshot(self, mock_steering_config):
-        """Steering should consume autorate's live RTT before probing on its own."""
+        """Steering should consume autorate's live RTT before any fallback."""
         from wanctl.steering.daemon import SteeringDaemon
 
         state_mgr = MagicMock()
@@ -2454,6 +2504,7 @@ class TestCurrentRTTSource:
         }
         baseline_loader = MagicMock()
         baseline_loader.load_live_rtt.return_value = 24.5
+        baseline_loader.load_live_irtt_rtt.return_value = 31.2
         router = MagicMock()
         logger = MagicMock()
         rtt_measurement = MagicMock()
@@ -2469,6 +2520,89 @@ class TestCurrentRTTSource:
             )
 
         assert daemon.measure_current_rtt() == 24.5
+        rtt_measurement.ping_host.assert_not_called()
+        baseline_loader.load_live_irtt_rtt.assert_not_called()
+
+    def test_measure_current_rtt_falls_back_to_autorate_irtt(self, mock_steering_config):
+        """Steering should use fresh autorate IRTT when live ICMP RTT is unavailable."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        baseline_loader = MagicMock()
+        baseline_loader.load_live_rtt.return_value = None
+        baseline_loader.load_live_irtt_rtt.return_value = 31.2
+        router = MagicMock()
+        logger = MagicMock()
+        rtt_measurement = MagicMock()
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_steering_config,
+                state=state_mgr,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                baseline_loader=baseline_loader,
+                logger=logger,
+            )
+
+        assert daemon.measure_current_rtt() == 31.2
+        rtt_measurement.ping_host.assert_not_called()
+
+    def test_measure_current_rtt_has_no_self_probe_fallback(self, mock_steering_config):
+        """Steering should not self-ping when autorate offers no fresh RTT source."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        baseline_loader = MagicMock()
+        baseline_loader.load_live_rtt.return_value = None
+        baseline_loader.load_live_irtt_rtt.return_value = None
+        router = MagicMock()
+        logger = MagicMock()
+        rtt_measurement = MagicMock()
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_steering_config,
+                state=state_mgr,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                baseline_loader=baseline_loader,
+                logger=logger,
+            )
+
+        assert daemon.measure_current_rtt() is None
         rtt_measurement.ping_host.assert_not_called()
 
     def test_wan_zone_defaults_green_when_stale(self, tmp_path, mock_config, mock_logger):
