@@ -213,6 +213,53 @@ class TestSelectChangedTriggerseFetch:
 
         asyncio.run(_test())
 
+    def test_compose_mounts_history_framing_block_before_time_range(self):
+        """Mounted widget keeps banner/detail/handoff ahead of the selector."""
+        from textual.widgets import DataTable, Select, Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+
+                banner = app.query_one("#source-banner", Static)
+                detail = app.query_one("#source-detail", Static)
+                handoff = app.query_one("#source-handoff", Static)
+                selector = app.query_one("#time-range", Select)
+                table = app.query_one("#history-table", DataTable)
+                diagnostic = app.query_one("#source-diagnostic", Static)
+
+                child_ids = [child.id for child in widget.children]
+
+                assert banner is not None
+                assert detail is not None
+                assert handoff is not None
+                assert selector is not None
+                assert table is not None
+                assert diagnostic is not None
+                assert child_ids == [
+                    "source-banner",
+                    "source-detail",
+                    "source-handoff",
+                    "time-range",
+                    "summary-stats",
+                    "history-table",
+                    "source-diagnostic",
+                ]
+
+        asyncio.run(_test())
+
 
 class TestHistoryBrowserSourceContract:
     """Regression coverage for Phase 183 contract sections L1, L2, S1-S3,
@@ -270,12 +317,17 @@ class TestHistoryBrowserSourceContract:
                 banner = str(app.query_one("#source-banner", Static).render())
                 detail = str(app.query_one("#source-detail", Static).render())
                 handoff = str(app.query_one("#source-handoff", Static).render())
+                diagnostic = str(app.query_one("#source-diagnostic", Static).render())
 
                 assert HISTORY_COPY.BANNER_SUCCESS in banner
                 assert HISTORY_COPY.MODE_PHRASE_LOCAL in detail
                 assert "/var/lib/wanctl/metrics-att.db" in detail
                 assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
                 assert "python3 -m wanctl.history" in handoff
+                assert (
+                    diagnostic
+                    == "mode=local_configured_db · db_paths=/var/lib/wanctl/metrics-att.db · http=200"
+                )
 
         asyncio.run(_test())
 
@@ -360,12 +412,14 @@ class TestHistoryBrowserSourceContract:
                 detail = str(app.query_one("#source-detail", Static).render())
                 handoff = str(app.query_one("#source-handoff", Static).render())
                 summary = str(app.query_one("#summary-stats", Static).render())
+                diagnostic = str(app.query_one("#source-diagnostic", Static).render())
 
                 assert table.row_count == 0
                 assert HISTORY_COPY.BANNER_FETCH_ERROR in banner
                 assert HISTORY_COPY.DETAIL_FETCH_ERROR in detail
                 assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
                 assert HISTORY_COPY.SUMMARY_NO_DATA in summary
+                assert diagnostic == "mode=? · db_paths=? · http=Exception"
 
         asyncio.run(_test())
 
@@ -403,10 +457,12 @@ class TestHistoryBrowserSourceContract:
                 banner = str(app.query_one("#source-banner", Static).render())
                 detail = str(app.query_one("#source-detail", Static).render())
                 handoff = str(app.query_one("#source-handoff", Static).render())
+                diagnostic = str(app.query_one("#source-diagnostic", Static).render())
 
                 assert HISTORY_COPY.BANNER_SOURCE_MISSING in banner
                 assert HISTORY_COPY.DETAIL_AMBIGUOUS in detail
                 assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+                assert diagnostic == "mode=missing · db_paths=missing · http=200"
 
         asyncio.run(_test())
 
