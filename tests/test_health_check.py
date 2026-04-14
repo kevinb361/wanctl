@@ -78,6 +78,30 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 "icmp_weight": getattr(wan_mock, "_fusion_icmp_weight", 0.7),
                 "healer": getattr(wan_mock, "_fusion_healer", None),
             },
+            "measurement": {
+                "raw_rtt_ms": (
+                    wan_mock._last_raw_rtt
+                    if isinstance(getattr(wan_mock, "_last_raw_rtt", None), (int, float))
+                    else None
+                ),
+                "staleness_sec": (
+                    wan_mock._last_raw_rtt_staleness_sec
+                    if isinstance(
+                        getattr(wan_mock, "_last_raw_rtt_staleness_sec", None), (int, float)
+                    )
+                    else None
+                ),
+                "active_reflector_hosts": (
+                    wan_mock._last_active_reflector_hosts
+                    if isinstance(getattr(wan_mock, "_last_active_reflector_hosts", None), list)
+                    else []
+                ),
+                "successful_reflector_hosts": (
+                    wan_mock._last_successful_reflector_hosts
+                    if isinstance(getattr(wan_mock, "_last_successful_reflector_hosts", None), list)
+                    else []
+                ),
+            },
             "tuning": {
                 "enabled": getattr(wan_mock, "_tuning_enabled", False),
                 "state": getattr(wan_mock, "_tuning_state", None),
@@ -1603,6 +1627,29 @@ class TestSignalQualityHealth:
                 data = json.loads(response.read().decode())
             sq = data["wans"][0]["signal_quality"]
             assert sq["warming_up"] is True
+        finally:
+            server.shutdown()
+
+    def test_measurement_section_present_with_live_snapshot(self, mock_wan_with_signal):
+        """measurement section exposes the latest direct ICMP RTT snapshot."""
+        mock_wan_with_signal._last_raw_rtt = 26.123
+        mock_wan_with_signal._last_raw_rtt_staleness_sec = 0.25
+        mock_wan_with_signal._last_active_reflector_hosts = ["1.1.1.1", "9.9.9.9"]
+        mock_wan_with_signal._last_successful_reflector_hosts = ["1.1.1.1"]
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            measurement = data["wans"][0]["measurement"]
+            assert measurement["available"] is True
+            assert measurement["raw_rtt_ms"] == 26.12
+            assert measurement["staleness_sec"] == 0.25
+            assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
+            assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
         finally:
             server.shutdown()
 

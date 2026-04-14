@@ -499,6 +499,10 @@ class WANController:
         self._fusion_enabled: bool = config.fusion_config["enabled"]
         self._last_fused_rtt: float | None = None
         self._last_icmp_filtered_rtt: float | None = None
+        self._last_raw_rtt: float | None = None
+        self._last_raw_rtt_ts: float | None = None
+        self._last_active_reflector_hosts: list[str] = []
+        self._last_successful_reflector_hosts: list[str] = []
 
         # Fusion healing (Phase 119: FUSE-01 through FUSE-05)
         self._fusion_healer: FusionHealer | None = None
@@ -928,6 +932,12 @@ class WANController:
         for host, rtt_val in snapshot.per_host_results.items():
             self._reflector_scorer.record_result(host, rtt_val is not None)
         self._persist_reflector_events()
+        self._record_live_rtt_snapshot(
+            rtt_ms=snapshot.rtt_ms,
+            timestamp=snapshot.timestamp,
+            active_hosts=list(snapshot.per_host_results.keys()),
+            successful_hosts=[host for host, rtt_val in snapshot.per_host_results.items() if rtt_val is not None],
+        )
 
         return snapshot.rtt_ms
 
@@ -978,7 +988,27 @@ class WANController:
         else:
             rtt = rtts[0]
 
+        self._record_live_rtt_snapshot(
+            rtt_ms=float(rtt),
+            timestamp=time.monotonic(),
+            active_hosts=active_hosts,
+            successful_hosts=[host for host, rtt_val in results.items() if rtt_val is not None],
+        )
         return rtt
+
+    def _record_live_rtt_snapshot(
+        self,
+        *,
+        rtt_ms: float,
+        timestamp: float,
+        active_hosts: list[str],
+        successful_hosts: list[str],
+    ) -> None:
+        """Publish the latest direct ICMP RTT snapshot for observability/steering."""
+        self._last_raw_rtt = float(rtt_ms)
+        self._last_raw_rtt_ts = timestamp
+        self._last_active_reflector_hosts = list(active_hosts)
+        self._last_successful_reflector_hosts = list(successful_hosts)
 
     def _persist_reflector_events(self) -> None:
         """Persist any pending reflector deprioritization/recovery events to SQLite.
@@ -3316,6 +3346,16 @@ class WANController:
                 "fused_rtt": self._last_fused_rtt,
                 "icmp_weight": self._fusion_icmp_weight,
                 "healer": self._fusion_healer,
+            },
+            "measurement": {
+                "raw_rtt_ms": self._last_raw_rtt,
+                "staleness_sec": (
+                    time.monotonic() - self._last_raw_rtt_ts
+                    if self._last_raw_rtt_ts is not None
+                    else None
+                ),
+                "active_reflector_hosts": list(self._last_active_reflector_hosts),
+                "successful_reflector_hosts": list(self._last_successful_reflector_hosts),
             },
             "tuning": {
                 "enabled": self._tuning_enabled,

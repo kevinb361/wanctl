@@ -1885,6 +1885,8 @@ class TestBaselineLoader:
         config = MagicMock()
         config.baseline_rtt_min = 10.0
         config.baseline_rtt_max = 60.0
+        config.primary_wan = "spectrum"
+        config.primary_health_url = "http://127.0.0.1:9101/health"
         return config
 
     @pytest.fixture
@@ -2328,6 +2330,146 @@ class TestBaselineLoader:
 
         assert baseline_rtt is None
         assert wan_zone is None
+
+    def test_load_live_rtt_from_autorate_health(self, mock_config, mock_logger):
+        """Fresh autorate health snapshot returns raw_rtt_ms for steering use."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        payload = {
+            "wans": [
+                {
+                    "name": "spectrum",
+                    "measurement": {
+                        "available": True,
+                        "raw_rtt_ms": 24.5,
+                        "staleness_sec": 0.2,
+                    },
+                }
+            ]
+        }
+        response = MagicMock()
+        response.read.return_value = json.dumps(payload).encode()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        with patch("wanctl.steering.daemon.urllib.request.urlopen", return_value=response):
+            assert loader.load_live_rtt() == 24.5
+
+    def test_load_live_rtt_rejects_stale_autorate_health(self, mock_config, mock_logger):
+        """Stale autorate health snapshots are ignored."""
+        from wanctl.steering.daemon import BaselineLoader
+
+        payload = {
+            "wans": [
+                {
+                    "name": "spectrum",
+                    "measurement": {
+                        "available": True,
+                        "raw_rtt_ms": 24.5,
+                        "staleness_sec": 5.0,
+                    },
+                }
+            ]
+        }
+        response = MagicMock()
+        response.read.return_value = json.dumps(payload).encode()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+
+        loader = BaselineLoader(mock_config, mock_logger)
+        with patch("wanctl.steering.daemon.urllib.request.urlopen", return_value=response):
+            assert loader.load_live_rtt() is None
+
+    def test_derive_primary_health_url_uses_configured_host_and_port(self, tmp_path):
+        """Primary autorate health URL should honor configured bind host and port."""
+        import yaml
+
+        from wanctl.steering.daemon import SteeringConfig
+
+        primary_cfg = tmp_path / "spectrum.yaml"
+        primary_cfg.write_text(
+            yaml.safe_dump(
+                {
+                    "health_check": {
+                        "host": "10.10.110.223",
+                        "port": 9101,
+                    }
+                }
+            )
+        )
+
+        cfg = SteeringConfig.__new__(SteeringConfig)
+        cfg.data = {
+            "topology": {
+                "primary_wan": "spectrum",
+                "primary_wan_config": str(primary_cfg),
+                "alternate_wan": "att",
+            }
+        }
+
+        SteeringConfig._load_topology(cfg)
+
+        assert cfg.primary_health_url == "http://10.10.110.223:9101/health"
+
+
+class TestCurrentRTTSource:
+    """Tests for steering current RTT source selection."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock config for BaselineLoader compatibility tests."""
+        config = MagicMock()
+        config.baseline_rtt_min = 10.0
+        config.baseline_rtt_max = 60.0
+        config.primary_wan = "spectrum"
+        config.primary_health_url = "http://127.0.0.1:9101/health"
+        return config
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    def test_measure_current_rtt_prefers_autorate_live_snapshot(self, mock_steering_config):
+        """Steering should consume autorate's live RTT before probing on its own."""
+        from wanctl.steering.daemon import SteeringDaemon
+
+        state_mgr = MagicMock()
+        state_mgr.state = {
+            "current_state": "SPECTRUM_GOOD",
+            "good_count": 0,
+            "baseline_rtt": 25.0,
+            "history_rtt": [],
+            "history_delta": [],
+            "transitions": [],
+            "last_transition_time": None,
+            "rtt_delta_ewma": 0.0,
+            "queue_ewma": 0.0,
+            "cake_drops_history": [],
+            "queue_depth_history": [],
+            "red_count": 0,
+            "congestion_state": "GREEN",
+            "cake_read_failures": 0,
+        }
+        baseline_loader = MagicMock()
+        baseline_loader.load_live_rtt.return_value = 24.5
+        router = MagicMock()
+        logger = MagicMock()
+        rtt_measurement = MagicMock()
+
+        with patch("wanctl.steering.daemon.CakeStatsReader"):
+            daemon = SteeringDaemon(
+                config=mock_steering_config,
+                state=state_mgr,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                baseline_loader=baseline_loader,
+                logger=logger,
+            )
+
+        assert daemon.measure_current_rtt() == 24.5
+        rtt_measurement.ping_host.assert_not_called()
 
     def test_wan_zone_defaults_green_when_stale(self, tmp_path, mock_config, mock_logger):
         """File mtime > 5s old returns (baseline, 'GREEN') regardless of actual zone."""
