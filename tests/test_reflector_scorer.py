@@ -555,6 +555,42 @@ class TestRecovery:
                 scorer.maybe_probe(now=100.0 + (i * 10.0), rtt_measurement=rtt_mock)
         assert any("recovered" in r.message.lower() for r in caplog.records)
 
+    def test_recovery_resets_window_to_avoid_immediate_reflap(self, logger):
+        """Recovered host stays active until it accumulates fresh post-recovery samples."""
+        scorer = ReflectorScorer(
+            hosts=["8.8.8.8", "1.1.1.1"],
+            min_score=0.8,
+            window_size=20,
+            probe_interval_sec=1.0,
+            recovery_count=3,
+            logger=logger,
+            wan_name="TestWAN",
+        )
+        for _ in range(2):
+            scorer.record_result("8.8.8.8", True)
+        for _ in range(10):
+            scorer.record_result("8.8.8.8", False)
+        assert "8.8.8.8" not in scorer.get_active_hosts()
+
+        rtt_mock = MagicMock()
+        rtt_mock.ping_host.return_value = 20.0
+        for i in range(3):
+            scorer.maybe_probe(now=100.0 + (i * 10.0), rtt_measurement=rtt_mock)
+
+        statuses = {s.host: s for s in scorer.get_all_statuses()}
+        assert statuses["8.8.8.8"].status == "active"
+        assert statuses["8.8.8.8"].measurements == 3
+        assert statuses["8.8.8.8"].score == 1.0
+
+        # A few fresh failures should not immediately push the reflector back
+        # out because the warmup guard now applies to the re-qualified window.
+        for _ in range(6):
+            scorer.record_result("8.8.8.8", False)
+
+        statuses = {s.host: s for s in scorer.get_all_statuses()}
+        assert statuses["8.8.8.8"].status == "active"
+        assert statuses["8.8.8.8"].measurements == 9
+
 
 # =============================================================================
 # TestRecoveryReset
@@ -1114,4 +1150,3 @@ class TestReflectorQualityConfigNonDict:
             )
         rq = config.reflector_quality_config
         assert rq["min_score"] == 0.8
-
