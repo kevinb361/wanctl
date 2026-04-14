@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
-status: executing
+status: planning
 stopped_at: Rerun /gsd-audit-milestone after Phase 180
-last_updated: "2026-04-13T00:00:00.000Z"
+last_updated: "2026-04-14T00:45:00.000Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 9
-  percent: 82
+  completed_plans: 11
+  percent: 80
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 180 — verification-backfill-and-audit-closure
+**Current focus:** Re-audit milestone v1.36 after closing the STOR-04 verification gap
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** 180 of 181 (verification backfill and audit closure)
-**Plan:** 2 plans written
-**Status:** Phase 180 complete; rerun milestone audit next
+**Phase:** 181 of 181 (production footprint reduction and reader parity)
+**Plan:** Re-audit milestone
+**Status:** Phase 180 complete — ready for `/gsd-audit-milestone`
 **Last activity:** 2026-04-13
 
-Progress: [██████----] 60%
+Progress: [████████--] 80%
 
 ## Accumulated Context
 
