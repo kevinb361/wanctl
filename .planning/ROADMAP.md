@@ -33,10 +33,10 @@ Plans:
 
 **Goal**: Lock the new dashboard contract with regression coverage and operator-facing guidance
 **Depends on**: Phase 184
-**Plans**: 3 plans
+**Plans**: 3/3 plans complete
 
 Plans:
 
 - [x] 185-01: Add focused dashboard/history regressions for source labeling and failure behavior
 - [x] 185-02: Align docs and operator workflow guidance with the dashboard’s source semantics
-- [ ] 185-03: Verify the milestone closeout against the UI contract and operator workflow
+- [x] 185-03: Verify the milestone closeout against the UI contract and operator workflow
