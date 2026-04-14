@@ -13,6 +13,7 @@ from wanctl.storage.maintenance import (
     maintenance_lock_path,
     run_startup_maintenance,
 )
+from wanctl.storage.retention import vacuum_if_needed
 
 
 def insert_test_metrics(
@@ -258,11 +259,57 @@ class TestStartupMaintenanceWatchdog:
     def test_watchdog_fn_none_is_safe(self, test_db):
         """Test that watchdog_fn=None (default) doesn't cause errors."""
         insert_test_metrics(test_db, 50, days_old=10)
-
         result = run_startup_maintenance(test_db, retention_days=7, watchdog_fn=None)
 
         assert result["error"] is None
         assert result["cleanup_deleted"] == 50
+
+
+class TestIncrementalVacuum:
+    """Tests for bounded incremental vacuum behavior."""
+
+    def test_incremental_vacuum_reclaims_in_chunks_and_pings_watchdog(self, test_db):
+        class FakeCursor:
+            def __init__(self, row):
+                self._row = row
+
+            def fetchone(self):
+                return self._row
+
+        class FakeConnection:
+            def __init__(self):
+                self.calls = []
+
+            def execute(self, sql):
+                self.calls.append(sql)
+                if sql == "PRAGMA auto_vacuum":
+                    return FakeCursor((2,))
+                if sql == "PRAGMA freelist_count":
+                    return FakeCursor((45000,))
+                if sql.startswith("PRAGMA incremental_vacuum("):
+                    return FakeCursor(None)
+                raise AssertionError(f"Unexpected SQL: {sql}")
+
+        watchdog = MagicMock()
+        conn = FakeConnection()
+        vacuumed = vacuum_if_needed(
+            conn,
+            deleted_rows=200000,
+            max_pages=45000,
+            chunk_pages=20000,
+            watchdog_fn=watchdog,
+        )
+
+        assert vacuumed is True
+        incremental_calls = [
+            sql for sql in conn.calls if sql.startswith("PRAGMA incremental_vacuum(")
+        ]
+        assert incremental_calls == [
+            "PRAGMA incremental_vacuum(20000)",
+            "PRAGMA incremental_vacuum(20000)",
+            "PRAGMA incremental_vacuum(5000)",
+        ]
+        assert watchdog.call_count == 3
 
 
 class TestStartupMaintenanceRetentionConfig:

@@ -7,6 +7,8 @@ from typing import Any
 
 RSS_WARNING_BYTES = 256 * 1024 * 1024
 RSS_CRITICAL_BYTES = 512 * 1024 * 1024
+SWAP_WARNING_BYTES = 128 * 1024 * 1024
+SWAP_CRITICAL_BYTES = 1024 * 1024 * 1024
 WAL_WARNING_BYTES = 128 * 1024 * 1024
 WAL_CRITICAL_BYTES = 256 * 1024 * 1024
 PENDING_WRITES_WARNING = 5
@@ -25,17 +27,27 @@ def _max_status(*statuses: str) -> str:
 
 def read_process_resident_memory_bytes(status_path: str = "/proc/self/status") -> int | None:
     """Read current resident set size from /proc/self/status."""
+    rss_bytes, _ = read_process_memory_status(status_path)
+    return rss_bytes
+
+
+def read_process_memory_status(status_path: str = "/proc/self/status") -> tuple[int | None, int | None]:
+    """Read current resident and swap usage from /proc/self/status."""
     try:
+        rss_bytes: int | None = None
+        swap_bytes: int | None = None
         for line in Path(status_path).read_text().splitlines():
-            if not line.startswith("VmRSS:"):
-                continue
-            parts = line.split()
-            if len(parts) < 2:
-                return None
-            return int(parts[1]) * 1024
+            if line.startswith("VmRSS:"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    rss_bytes = int(parts[1]) * 1024
+            elif line.startswith("VmSwap:"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    swap_bytes = int(parts[1]) * 1024
     except (FileNotFoundError, PermissionError, ValueError, OSError):
-        return None
-    return None
+        return None, None
+    return rss_bytes, swap_bytes
 
 
 def classify_memory_status(rss_bytes: int | None) -> str:
@@ -45,6 +57,17 @@ def classify_memory_status(rss_bytes: int | None) -> str:
     if rss_bytes >= RSS_CRITICAL_BYTES:
         return "critical"
     if rss_bytes >= RSS_WARNING_BYTES:
+        return "warning"
+    return "ok"
+
+
+def classify_swap_status(swap_bytes: int | None) -> str:
+    """Classify swap pressure into ok/warning/critical/unknown."""
+    if swap_bytes is None:
+        return "unknown"
+    if swap_bytes >= SWAP_CRITICAL_BYTES:
+        return "critical"
+    if swap_bytes >= SWAP_WARNING_BYTES:
         return "warning"
     return "ok"
 
@@ -114,15 +137,19 @@ def build_runtime_section(
     *,
     process_role: str,
     rss_bytes: int | None,
+    swap_bytes: int | None = None,
     cycle_status: str | None,
 ) -> dict[str, Any]:
     """Build bounded runtime pressure section."""
     memory_status = classify_memory_status(rss_bytes)
-    overall_status = _max_status(memory_status, cycle_status or "ok")
+    swap_status = classify_swap_status(swap_bytes) if swap_bytes is not None else "ok"
+    overall_status = _max_status(memory_status, swap_status, cycle_status or "ok")
     return {
         "process": process_role,
         "rss_bytes": rss_bytes,
+        "swap_bytes": swap_bytes,
         "memory_status": memory_status,
+        "swap_status": swap_status,
         "cycle_status": cycle_status,
         "status": overall_status,
     }
