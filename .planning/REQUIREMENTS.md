@@ -33,7 +33,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 |-------------|---------------|--------|
 | STOR-04 | Phase 180 | Satisfied |
 | STOR-05 | Phase 178 | Satisfied |
-| STOR-06 | Phase 181 | Unsatisfied |
+| STOR-06 | Phase 182 | Pending |
 | STOR-07 | Phase 178 | Satisfied |
 | OPER-04 | Phase 179 | Satisfied |
 
