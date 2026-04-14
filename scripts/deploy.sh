@@ -661,6 +661,17 @@ else
     print_warning "wanctl-operator-summary not found: scripts/wanctl-operator-summary"
 fi
 
+# Deploy compact-metrics-dbs helper
+print_step "Deploying compact-metrics-dbs helper..."
+if [[ -f "$PROJECT_ROOT/scripts/compact-metrics-dbs.sh" ]]; then
+    scp "$PROJECT_ROOT/scripts/compact-metrics-dbs.sh" "$TARGET_HOST:/tmp/compact-metrics-dbs.sh"
+    ssh "$TARGET_HOST" "sudo mv /tmp/compact-metrics-dbs.sh $TARGET_CODE_DIR/scripts/compact-metrics-dbs.sh && sudo chmod 755 $TARGET_CODE_DIR/scripts/compact-metrics-dbs.sh"
+    ssh "$TARGET_HOST" "sudo ln -sf $TARGET_CODE_DIR/scripts/compact-metrics-dbs.sh /usr/local/bin/compact-metrics-dbs"
+    print_success "compact-metrics-dbs helper deployed (available as 'compact-metrics-dbs' command)"
+else
+    print_warning "compact-metrics-dbs helper not found: scripts/compact-metrics-dbs.sh"
+fi
+
 # Run pre-startup validation
 print_step "Running pre-startup validation..."
 if ssh "$TARGET_HOST" "test -f $TARGET_CODE_DIR/scripts/validate-deployment.sh" && \

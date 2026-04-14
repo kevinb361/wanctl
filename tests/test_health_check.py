@@ -3145,13 +3145,72 @@ class TestMetricsHistoryEndpoint:
                 assert "granularity" in metadata
                 assert "limit" in metadata
                 assert "offset" in metadata
+                assert "source" in metadata
                 assert "query" in metadata
+
+                source = metadata["source"]
+                assert "mode" in source
+                assert "db_paths" in source
 
                 query = metadata["query"]
                 assert "start" in query
                 assert "end" in query
                 assert "metrics" in query
                 assert "wan" in query
+            finally:
+                server.shutdown()
+
+    def test_history_uses_local_configured_db_when_controller_present(self, tmp_path: Path):
+        """A live controller makes /metrics/history endpoint-local instead of merged."""
+        import sqlite3
+        import time
+        from types import SimpleNamespace
+
+        from wanctl.storage.schema import create_tables
+
+        spectrum_db = tmp_path / "metrics-spectrum.db"
+        att_db = tmp_path / "metrics-att.db"
+
+        def _insert_row(db_path: Path, row: tuple[int, str, str, float, str, str]) -> None:
+            conn = sqlite3.connect(db_path)
+            create_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                row,
+            )
+            conn.commit()
+            conn.close()
+
+        now_ts = int(time.time())
+        _insert_row(spectrum_db, (now_ts - 20, "spectrum", "wanctl_rtt_ms", 11.0, "", "raw"))
+        _insert_row(att_db, (now_ts - 10, "att", "wanctl_rtt_ms", 22.0, "", "raw"))
+
+        controller = SimpleNamespace(
+            wan_controllers=[
+                {
+                    "config": SimpleNamespace(
+                        data={"storage": {"db_path": str(att_db)}},
+                    )
+                }
+            ]
+        )
+
+        port = find_free_port()
+        with patch("wanctl.health_check.DEFAULT_DB_PATH", spectrum_db):
+            server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+
+            try:
+                url = f"http://127.0.0.1:{port}/metrics/history?range=1h"
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+
+                wan_names = [record["wan_name"] for record in data["data"]]
+                assert wan_names == ["att"]
+                assert data["metadata"]["source"]["mode"] == "local_configured_db"
+                assert data["metadata"]["source"]["db_paths"] == [str(att_db)]
             finally:
                 server.shutdown()
 
