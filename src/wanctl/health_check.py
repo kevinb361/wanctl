@@ -19,6 +19,7 @@ import threading
 import time
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
@@ -812,9 +813,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         offset = params.get("offset", 0)
         limit = params.get("limit", 1000)
 
-        db_paths = discover_wan_dbs(DEFAULT_DB_PATH.parent)
-        if not db_paths and DEFAULT_DB_PATH.exists():
-            db_paths = [DEFAULT_DB_PATH]
+        db_paths, source_mode = self._resolve_history_db_paths()
         merged_results = query_all_wans(
             query_metrics,
             db_paths=db_paths,
@@ -845,6 +844,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "granularity": granularity,
                 "limit": limit,
                 "offset": offset,
+                "source": {
+                    "mode": source_mode,
+                    "db_paths": [str(path) for path in db_paths],
+                },
                 "query": {
                     "start": datetime.fromtimestamp(start_ts, tz=UTC).isoformat(),
                     "end": datetime.fromtimestamp(end_ts, tz=UTC).isoformat(),
@@ -855,6 +858,32 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }
 
         self._send_json_response(response)
+
+    def _resolve_history_db_paths(self) -> tuple[list[Path], str]:
+        """Resolve the DB set used by /metrics/history.
+
+        When the health server has a live controller, treat /metrics/history as
+        endpoint-local and read only the configured DB for that daemon. This
+        matches the per-service HTTP deployment model and avoids presenting the
+        HTTP endpoint as an authoritative cross-WAN merge surface.
+
+        Without a controller (tests, ad hoc local server use), keep the prior
+        auto-discovery behavior for backwards-compatible standalone inspection.
+        """
+        if self.controller and self.controller.wan_controllers:
+            config = self.controller.wan_controllers[0].get("config")
+            config_data = getattr(config, "data", None)
+            if isinstance(config_data, dict):
+                storage = config_data.get("storage")
+                if isinstance(storage, dict):
+                    db_path = storage.get("db_path")
+                    if isinstance(db_path, str) and db_path:
+                        return [Path(db_path)], "local_configured_db"
+
+        db_paths = discover_wan_dbs(DEFAULT_DB_PATH.parent)
+        if not db_paths and DEFAULT_DB_PATH.exists():
+            db_paths = [DEFAULT_DB_PATH]
+        return db_paths, "merged_discovery"
 
     def _parse_history_params(self) -> dict[str, Any]:
         """Parse and validate query parameters from URL.

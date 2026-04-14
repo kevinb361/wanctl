@@ -69,7 +69,7 @@ ssh <target_host> 'wanctl-operator-summary http://<health-ip-1>:9101/health http
 ./scripts/soak-monitor.sh
 ```
 
-8. Re-check the Phase 178 storage topology and retained history with read-only commands:
+8. Re-check the active storage topology and retained history with read-only commands:
 
 ```bash
 ssh <target_host> 'sudo -n stat -c "%n %s %y" /var/lib/wanctl/metrics-spectrum.db /var/lib/wanctl/metrics-att.db /var/lib/wanctl/metrics.db /var/lib/wanctl/spectrum_metrics.db /var/lib/wanctl/att_metrics.db 2>/dev/null'
@@ -90,8 +90,17 @@ On the current production hosts, the reliable cross-WAN proof path is:
 - `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history ...`
 - direct DB inventory and spot-checks when needed
 
-`/metrics/history` remains useful for endpoint and envelope checks, but the 2026-04-13
-production evidence did not show it returning merged cross-WAN history on its own.
+`/metrics/history` is the endpoint-local history surface for the daemon serving that IP.
+Use it for endpoint availability, response shape, and that WAN's local history view. Use the
+CLI path for authoritative merged cross-WAN reads.
+
+9. If the per-WAN DB files are still above the expected footprint after retention cleanup has had
+time to run, compact them explicitly during a controlled restart window:
+
+```bash
+./scripts/compact-metrics-dbs.sh --ssh <target_host>
+./scripts/canary-check.sh --ssh <target_host> --expect-version 1.35.0
+```
 
 ## Install-Only Mode
 

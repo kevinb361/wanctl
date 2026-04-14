@@ -273,11 +273,18 @@ ssh <host> 'curl -s "http://<health-ip>:9101/metrics/history?range=1h&limit=5" |
 ```
 
 On the current production hosts, the module-based CLI invocation above is the authoritative
-cross-WAN proof path. The HTTP endpoint preserves its `{data, metadata}` envelope, but the
-2026-04-13 live verification did not show it returning merged cross-WAN history by itself.
+cross-WAN proof path. `/metrics/history` is the endpoint-local HTTP history surface for the
+daemon serving that IP. Use the HTTP path to confirm endpoint availability, response shape, and
+that WAN's local history view. Use the CLI plus direct DB inventory if you need authoritative
+cross-WAN verification.
 
-Use the HTTP path to confirm endpoint availability and response shape. Use the CLI plus direct DB
-inventory if you need authoritative cross-WAN verification.
+If the per-WAN DB files stay materially larger than expected after retention cleanup runs,
+compact them explicitly during a controlled restart window:
+
+```bash
+./scripts/compact-metrics-dbs.sh --ssh <host>
+./scripts/canary-check.sh --ssh <host> --expect-version 1.35.0 --json
+```
 
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
 
