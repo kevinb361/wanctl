@@ -15,7 +15,7 @@ Requirements for Dashboard History Source Clarity. Make the dashboard history co
 
 ### Verification And Safety
 
-- [ ] **DASH-04**: Dashboard regressions cover the narrowed history contract, including source labeling, endpoint-local semantics, and failure handling
+- [x] **DASH-04**: Dashboard regressions cover the narrowed history contract, including source labeling, endpoint-local semantics, and failure handling
 - [ ] **OPER-05**: Operator-facing docs and workflow guidance stay aligned with the dashboard behavior and the existing CLI-vs-HTTP history split
 
 ## Out of Scope
@@ -31,5 +31,5 @@ Requirements for Dashboard History Source Clarity. Make the dashboard history co
 | DASH-01 | Phase 184 | Complete |
 | DASH-02 | Phase 184 | Complete |
 | DASH-03 | Phase 184 | Complete |
-| DASH-04 | Phase 185 | Pending |
+| DASH-04 | Phase 185 | Complete |
 | OPER-05 | Phase 185 | Pending |

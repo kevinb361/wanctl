@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
-status: planning
-stopped_at: Completed 184-03-merged-cli-handoff-PLAN.md
-last_updated: "2026-04-14T17:04:05.148Z"
+status: executing
+stopped_at: Completed 185-01-PLAN.md
+last_updated: "2026-04-14T17:59:26.533Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 184 — dashboard-history-source-surfacing
+**Current focus:** Phase 185 — verification-and-operator-alignment
 
 ## Position
 
 **Milestone:** v1.37 Dashboard History Source Clarity
 **Phase:** 185
-**Plan:** Not started
-**Status:** Ready to plan
+**Plan:** 03
+**Status:** Ready for final Phase 185 verification
 **Last activity:** 2026-04-14
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Accumulated Context
 
@@ -72,7 +72,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 184-03-merged-cli-handoff-PLAN.md
+Stopped at: Completed 185-01-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -84,9 +84,12 @@ Resume file: None
 - [Phase 184]: Raw metadata.source mode and db_paths values remain confined to source-diagnostic helpers, while primary history copy stays translated through HISTORY_COPY phrases.
 - [Phase 184]: Exposed the merged CLI handoff text as HistoryBrowserWidget.HANDOFF_TEXT so Phase 185 can assert the exact string without importing HISTORY_COPY.
 - [Phase 184]: Placed the parity-language guard at module scope so invalid dashboard copy fails at import time instead of relying on a mounted widget path.
+- [Phase 185]: Preserved existing browser tests and added a separate contract-focused class for the Phase 183 state matrix.
+- [Phase 185]: Kept Phase 185 scoped to dashboard tests only and asserted against HISTORY_COPY and HANDOFF_TEXT instead of duplicating copy literals.
 
 ## Performance Metrics
 
 - 2026-04-14: Phase 184 Plan 01 completed in 13 min across 3 tasks and 2 source files.
 - 2026-04-14: Phase 184 Plan 02 completed in 11 min across 2 tasks and 1 source file.
 - 2026-04-14: Phase 184 Plan 03 completed in 7 min across 2 tasks and 1 source file.
+- 2026-04-14: Phase 185 Plan 01 completed in 6 min across 3 tasks and 2 source files.
