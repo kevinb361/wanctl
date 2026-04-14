@@ -40,6 +40,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import json
 import re
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -275,6 +276,8 @@ class RouterOSREST:
             return self._handle_queue_reset_counters(cmd, timeout=timeout_val)
         if cmd.startswith("/queue tree print") or cmd.startswith("/queue/tree print"):
             return self._handle_queue_tree_print(cmd, timeout=timeout_val)
+        if cmd.startswith("/ip firewall mangle print"):
+            return self._handle_mangle_print(cmd, timeout=timeout_val)
         if cmd.startswith("/ip firewall mangle"):
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
         self.logger.warning(f"Unsupported command for REST API: {cmd}")
@@ -293,16 +296,24 @@ class RouterOSREST:
         return match.group(1) if match else None
 
     def _parse_find_comment(self, cmd: str) -> str | None:
-        """Extract comment from [find comment="..."] pattern.
+        """Extract comment from [find comment="..."] or [find comment~"..."].
 
         Args:
             cmd: RouterOS command string containing [find comment="..."]
+                or [find comment~"..."]
 
         Returns:
             Extracted comment string, or None if pattern not found
         """
-        match = re.search(r'\[find comment="([^"]+)"\]', cmd)
+        match = re.search(r'\[find comment(?:~|=)"([^"]+)"\]', cmd)
         return match.group(1) if match else None
+
+    def _parse_where_comment(self, cmd: str) -> tuple[str, bool] | None:
+        """Extract comment filter from ``where comment=`` or ``where comment~``."""
+        match = re.search(r'where comment(~|=)"([^"]+)"', cmd)
+        if not match:
+            return None
+        return match.group(2), match.group(1) == "~"
 
     def _parse_parameters(self, cmd: str) -> dict[str, str]:
         """Extract key=value parameters from RouterOS command.
@@ -512,6 +523,38 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
+    def _handle_mangle_print(self, cmd: str, timeout: int | None = None) -> list[dict[str, Any]] | None:
+        """Handle /ip firewall mangle print commands."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        url = f"{self.base_url}/ip/firewall/mangle"
+        filter_spec = self._parse_where_comment(cmd)
+
+        try:
+            resp = self._request("GET", url, timeout=timeout_val)
+            if not resp.ok:
+                self.logger.error(f"Failed to get mangle rules: {resp.status_code}")
+                return None
+
+            items = resp.json()
+            if filter_spec is None:
+                return items  # type: ignore[no-any-return]
+
+            comment_filter, regex_match = filter_spec
+            matched = []
+            for item in items:
+                comment = item.get("comment")
+                if not isinstance(comment, str):
+                    continue
+                if regex_match and comment_filter in comment:
+                    matched.append(item)
+                elif not regex_match and comment == comment_filter:
+                    matched.append(item)
+            return matched
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error: {e}")
+            return None
+
     def _find_resource_id(
         self,
         endpoint: str,
@@ -558,6 +601,23 @@ class RouterOSREST:
                         cache[filter_value] = resource_id
                         self.logger.debug(f"Resource ID cached: {filter_value} -> {resource_id}")
                     return resource_id  # type: ignore[no-any-return]
+
+            # RouterOS REST filtering is not fully reliable for some literal
+            # strings, especially comments with punctuation/spaces. Fall back
+            # to a full listing and perform an exact client-side match.
+            resp = self._request("GET", url, timeout=timeout_val)
+
+            if resp.ok and resp.json():
+                items = resp.json()
+                for item in items:
+                    if item.get(filter_key) == filter_value:
+                        resource_id = item.get(".id")
+                        if resource_id and use_cache:
+                            cache[filter_value] = resource_id
+                            self.logger.debug(
+                                f"Resource ID cached via fallback: {filter_value} -> {resource_id}"
+                            )
+                        return resource_id  # type: ignore[no-any-return]
 
             return None
 

@@ -22,6 +22,7 @@ Colocated with autorate_continuous on primary WAN controller.
 
 import argparse
 import atexit
+import json
 import logging
 import os
 import sys
@@ -798,6 +799,18 @@ class RouterOSController:
 
         if rc != 0:
             self.logger.error("Failed to read mangle rule status")
+            return None
+
+        try:
+            parsed = json.loads(out)
+        except json.JSONDecodeError:
+            parsed = None
+
+        if isinstance(parsed, list):
+            for item in parsed:
+                if item.get("comment") == self.config.mangle_rule_comment:
+                    return item.get("disabled") != "true"
+            self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
             return None
 
         # Parse output - look for X flag in rule line (not in Flags legend)
