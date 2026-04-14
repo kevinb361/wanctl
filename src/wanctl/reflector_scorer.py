@@ -151,13 +151,22 @@ class ReflectorScorer:
 
             # Check for recovery
             if self._consecutive_successes[host] >= self._recovery_count:
+                # Re-qualify recovered hosts on fresh evidence instead of stale
+                # failures in the old rolling window. This prevents immediate
+                # recover/deprioritize flapping after a probe streak.
+                self._windows[host] = deque([True] * self._recovery_count, maxlen=self._window_size)
                 self._deprioritized.discard(host)
                 self._consecutive_successes[host] = 0
                 self._logger.info(
-                    f"{self._wan_name}: Reflector {host} recovered (score={score:.3f})"
+                    f"{self._wan_name}: Reflector {host} recovered "
+                    f"(score reset on {self._recovery_count} successful probes)"
                 )
                 self._pending_events.append(
-                    {"event_type": "recovered", "host": host, "score": score}
+                    {
+                        "event_type": "recovered",
+                        "host": host,
+                        "score": 1.0,
+                    }
                 )
 
     def drain_events(self) -> list[dict]:
