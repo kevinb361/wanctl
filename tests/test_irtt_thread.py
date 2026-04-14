@@ -304,6 +304,8 @@ def _make_controller_harness(
     ctrl.load_rtt = load_rtt
     ctrl._irtt_correlation = None
     ctrl._irtt_deprioritization_logged = False
+    ctrl._irtt_deprioritization_last_transition_ts = 0.0
+    ctrl._irtt_deprioritization_log_cooldown_sec = 5.0
     ctrl.logger = logging.getLogger("test_protocol_correlation")
 
     # Wire up _irtt_thread mock with get_latest + cadence_sec
@@ -384,6 +386,20 @@ class TestProtocolCorrelation:
         with caplog.at_level(logging.INFO, logger="test_protocol_correlation"):
             ctrl._check_protocol_correlation(1.0)  # Back to normal
         assert "Protocol correlation recovered" in caplog.text
+        assert ctrl._irtt_deprioritization_logged is False
+
+    def test_recovery_inside_cooldown_logs_debug(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Rapid detect/recover flaps are suppressed to DEBUG inside cooldown."""
+        ctrl = _make_controller_harness(load_rtt=50.0, irtt_rtt=25.0)
+
+        with patch("wanctl.wan_controller.time.monotonic", side_effect=[100.0, 101.0]):
+            ctrl._check_protocol_correlation(2.0)
+            caplog.clear()
+            with caplog.at_level(logging.DEBUG, logger="test_protocol_correlation"):
+                ctrl._check_protocol_correlation(1.0)
+
+        assert "Protocol correlation recovered" not in caplog.text
+        assert "suppressed by cooldown" in caplog.text
         assert ctrl._irtt_deprioritization_logged is False
 
     def test_correlation_stored_on_controller(self) -> None:
@@ -955,4 +971,3 @@ class TestStalenessReset:
         assert mock_controller._irtt_loss_down_start is None
         assert mock_controller._irtt_loss_up_fired is False
         assert mock_controller._irtt_loss_down_fired is False
-

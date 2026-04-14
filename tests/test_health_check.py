@@ -2310,6 +2310,28 @@ class TestFusionHealth:
         finally:
             server.shutdown()
 
+    def test_fusion_healer_suspended_shows_runtime_reason(self, mock_wan_with_fusion):
+        """Fusion health distinguishes healer suspension from config disablement."""
+        healer = MagicMock()
+        healer.state.value = "suspended"
+        healer.is_grace_active = False
+        mock_wan_with_fusion._fusion_enabled = False
+        mock_wan_with_fusion._fusion_healer = healer
+        controller = self._make_controller(mock_wan_with_fusion)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            fusion = data["wans"][0]["fusion"]
+            assert fusion["enabled"] is False
+            assert fusion["reason"] == "healer_suspended"
+            assert fusion["heal_state"] == "suspended"
+        finally:
+            server.shutdown()
+
     def test_fusion_enabled_active_shows_full_state(self, mock_wan_with_fusion):
         """Fusion enabled with active IRTT shows full fused state."""
         mock_wan_with_fusion._fusion_enabled = True
