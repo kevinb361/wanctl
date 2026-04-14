@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Re-audit milestone after Phase 181 closeout and verification capture
-last_updated: "2026-04-14T12:26:25.000Z"
+stopped_at: Plan Phase 182 to close the remaining ATT footprint reduction gap before re-audit
+last_updated: "2026-04-14T12:40:00.000Z"
 last_activity: 2026-04-14
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
   total_plans: 14
   completed_plans: 14
-  percent: 100
+  percent: 83
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Re-audit v1.36 after the Phase 181 closeout captured the startup fix and final live footprint outcome
+**Current focus:** Plan and execute Phase 182 to close the final ATT footprint reduction gap before re-auditing v1.36
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** 181 of 181 (production footprint reduction and reader parity)
-**Plan:** Phase closeout captured; STOR-06 still unsatisfied on final production evidence
-**Status:** All phase plans executed; milestone still needs re-audit because the final footprint outcome is mixed
+**Phase:** 182 of 182 (ATT footprint closure)
+**Plan:** Not planned yet; roadmap gap-closure phase added from the refreshed milestone audit
+**Status:** Milestone has one remaining blocker: STOR-06 is pending on a production-backed ATT footprint reduction
 **Last activity:** 2026-04-14
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83%
 
 ## Accumulated Context
 
@@ -59,8 +59,9 @@ Progress: [██████████] 100%
 - CLI-vs-HTTP history-reader roles are now explicit and proven in production: CLI merged, HTTP endpoint-local
 - Spectrum is materially smaller than the fixed baseline, but ATT remains effectively unchanged
 - `STOR-06` therefore remains unsatisfied even though the phase execution itself is complete
+- The refreshed milestone audit now routes the remaining work into a single new gap-closure phase: Phase 182 ATT Footprint Closure
 
 ## Session Continuity
 
-Stopped at: Re-run /gsd-audit-milestone after Phase 181 closeout
-Resume file: .planning/phases/181-production-footprint-reduction-and-reader-parity/181-03-SUMMARY.md
+Stopped at: Plan Phase 182 from the refreshed milestone audit
+Resume file: .planning/v1.36-MILESTONE-AUDIT.md
