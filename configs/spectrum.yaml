@@ -90,7 +90,7 @@ continuous_monitoring:
   # 4.2.2.2 (Level3) dropped -- 35% ICMP timeout rate at 20Hz from rate limiting
   # 8.8.8.8 (Google) dropped -- 0% timeout but +13ms RTT skews median vs 1.1.1.1/9.9.9.9
   # 208.67.222.222 (OpenDNS) -- 0% timeout, ~21ms RTT matches cluster, path diversity
-  ping_hosts: ["1.1.1.1", "208.67.222.222", "9.9.9.9"]
+  ping_hosts: ["1.1.1.1", "208.67.222.222", "151.101.1.57"]
   use_median_of_three: true # Handle reflector variation
 
   # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
