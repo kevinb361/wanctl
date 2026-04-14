@@ -89,6 +89,22 @@ class TestNarrowLayout:
 
         asyncio.run(_test())
 
+    def test_narrow_layout_preserves_wan_panel_height(self):
+        """Narrow layout keeps WAN panels tall enough to show key lines."""
+        from wanctl.dashboard.app import DashboardApp
+
+        async def _test():
+            config = DashboardConfig()
+            app = DashboardApp(config)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                wan_1 = app.query_one("#wan-1")
+                wan_2 = app.query_one("#wan-2")
+                assert wan_1.region.height >= 8
+                assert wan_2.region.height >= 8
+
+        asyncio.run(_test())
+
 
 class TestHysteresis:
     """Rapid resize does not immediately switch layout; debounce delay required."""
