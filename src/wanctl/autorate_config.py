@@ -1222,13 +1222,14 @@ class Config(BaseConfig):
             lookback_hours=core["lookback_hours"],
             warmup_hours=core["warmup_hours"],
             max_step_pct=core["max_step_pct"],
+            min_confidence=core["min_confidence"],
             bounds=bounds,
             exclude_params=exclude_params,
         )
         exclude_msg = f", exclude={sorted(exclude_params)}" if exclude_params else ""
         logger.info(
             f"Tuning: enabled (cadence={core['cadence_sec']}s, lookback={core['lookback_hours']}h, "
-            f"{len(bounds)} bounds{exclude_msg})"
+            f"min_confidence={core['min_confidence']:.2f}, {len(bounds)} bounds{exclude_msg})"
         )
 
     def _validate_tuning_core(
@@ -1267,11 +1268,28 @@ class Config(BaseConfig):
             self.tuning_config = None
             return None
 
+        min_confidence = tuning.get("min_confidence", 0.3)
+        if not isinstance(min_confidence, (int, float)) or isinstance(min_confidence, bool):
+            logger.warning(
+                f"tuning.min_confidence must be number, got {type(min_confidence).__name__}; "
+                "disabling tuning"
+            )
+            self.tuning_config = None
+            return None
+        min_confidence = float(min_confidence)
+        if min_confidence < 0.0 or min_confidence > 1.0:
+            logger.warning(
+                f"tuning.min_confidence must be 0.0-1.0, got {min_confidence}; disabling tuning"
+            )
+            self.tuning_config = None
+            return None
+
         return {
             "cadence_sec": cadence_sec,
             "lookback_hours": lookback_hours,
             "warmup_hours": warmup_hours,
             "max_step_pct": max_step_pct,
+            "min_confidence": min_confidence,
         }
 
     def _validate_tuning_int_param(

@@ -12,6 +12,7 @@ from wanctl.tuning.models import SafetyBounds, TuningConfig, TuningResult
 # Helper: build a TuningConfig for tests
 def _make_config(
     max_step_pct: float = 10.0,
+    min_confidence: float = 0.3,
 ) -> TuningConfig:
     return TuningConfig(
         enabled=True,
@@ -19,6 +20,7 @@ def _make_config(
         lookback_hours=24,
         warmup_hours=4,
         max_step_pct=max_step_pct,
+        min_confidence=min_confidence,
         bounds={
             "target_bloat_ms": SafetyBounds(min_value=3.0, max_value=50.0),
         },
@@ -112,6 +114,38 @@ class TestApplyTuningResultsBoundsEnforcement:
         )
         assert len(applied) == 1
         assert applied[0].new_value == 14.5
+
+
+class TestApplyTuningResultsConfidenceGate:
+    """Low-confidence results should be skipped before apply."""
+
+    def test_low_confidence_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
+        from wanctl.tuning.applier import apply_tuning_results
+
+        result = _make_result(confidence=0.091)
+
+        with caplog.at_level(logging.INFO):
+            applied = apply_tuning_results(
+                results=[result],
+                tuning_config=_make_config(min_confidence=0.3),
+                writer=None,
+            )
+
+        assert applied == []
+        assert "skipped low confidence" in caplog.text
+        assert "0.091" in caplog.text
+
+    def test_confidence_at_threshold_applies(self) -> None:
+        from wanctl.tuning.applier import apply_tuning_results
+
+        result = _make_result(confidence=0.3)
+        applied = apply_tuning_results(
+            results=[result],
+            tuning_config=_make_config(min_confidence=0.3),
+            writer=None,
+        )
+
+        assert len(applied) == 1
 
 
 class TestApplyTuningResultsTrivialChange:

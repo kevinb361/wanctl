@@ -109,6 +109,7 @@ continuous_monitoring:
 #   lookback_hours: 24        # How far back to query metrics
 #   warmup_hours: 1           # Minimum data before first tuning
 #   max_step_pct: 10          # Max 10% change per tuning cycle
+#   min_confidence: 0.3       # Skip weak recommendations below this confidence
 #   bounds:
 #     target_bloat_ms: {min: 3, max: 30}
 #     warn_bloat_ms: {min: 10, max: 100}

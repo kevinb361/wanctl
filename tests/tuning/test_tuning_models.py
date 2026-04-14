@@ -103,6 +103,7 @@ class TestTuningConfig:
         assert config.lookback_hours == 24
         assert config.warmup_hours == 1
         assert config.max_step_pct == 10.0
+        assert config.min_confidence == 0.3
         assert "target_bloat_ms" in config.bounds
 
     def test_frozen_immutable(self):
