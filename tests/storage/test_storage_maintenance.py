@@ -232,6 +232,17 @@ class TestStartupMaintenanceWatchdog:
             _, kwargs = mock_cleanup.call_args
             assert kwargs.get("max_seconds") == 15
 
+    def test_max_seconds_defers_downsample(self, test_db):
+        """Startup time budget skips downsampling to keep startup bounded."""
+        with (
+            patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
+            patch("wanctl.storage.maintenance.downsample_metrics") as mock_downsample,
+        ):
+            result = run_startup_maintenance(test_db, max_seconds=15)
+
+        assert result["downsampling"] == {}
+        mock_downsample.assert_not_called()
+
     def test_watchdog_fn_passed_to_cleanup(self, test_db):
         """Test watchdog callback is forwarded to cleanup_old_metrics."""
         watchdog = MagicMock()

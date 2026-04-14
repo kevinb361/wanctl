@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from wanctl.metrics import metrics
-from wanctl.storage.writer import MetricsWriter
+from wanctl.storage.writer import INTEGRITY_CHECK_MAX_BYTES, MetricsWriter
 
 
 @pytest.fixture
@@ -595,3 +595,32 @@ class TestIntegrityCheck:
         # No .corrupt file -- error doesn't trigger rebuild
         corrupt_path = test_db_path.with_suffix(".db.corrupt")
         assert not corrupt_path.exists()
+
+    def test_large_db_skips_full_integrity_check(
+        self, reset_singleton, test_db_path, caplog
+    ):
+        """Large DBs should avoid startup-time full integrity scans."""
+        import logging
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        writer = MetricsWriter(test_db_path)
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        executed_sql: list[str] = []
+
+        def record_execute(sql, *args, **kwargs):
+            executed_sql.append(str(sql))
+            return MagicMock(fetchone=MagicMock(return_value=("metrics",)))
+
+        mock_conn.execute = MagicMock(side_effect=record_execute)
+
+        with patch.object(writer, "_open_connection", return_value=mock_conn):
+            with patch("pathlib.Path.stat") as mock_stat:
+                mock_stat.return_value = SimpleNamespace(st_size=INTEGRITY_CHECK_MAX_BYTES + 1)
+                with caplog.at_level(logging.INFO, logger="wanctl.storage.writer"):
+                    conn = writer._connect_and_validate()
+
+        assert conn is mock_conn
+        assert any("sqlite_master" in sql for sql in executed_sql)
+        assert not any("integrity_check" in sql for sql in executed_sql)
+        assert "Skipping full integrity_check" in caplog.text
