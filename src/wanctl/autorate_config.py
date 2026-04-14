@@ -47,6 +47,7 @@ class FusionHealingConfig(TypedDict):
     suspend_window_sec: float
     recover_window_sec: float
     grace_period_sec: float
+    min_signal_variance: float
 
 
 class FusionConfig(TypedDict):
@@ -1138,12 +1139,25 @@ class Config(BaseConfig):
             )
             grace_period_sec = 1800.0
 
+        min_signal_variance = healing.get("min_signal_variance", 0.1)
+        if (
+            not isinstance(min_signal_variance, (int, float))
+            or isinstance(min_signal_variance, bool)
+            or min_signal_variance < 0.0
+        ):
+            logger.warning(
+                f"fusion.healing.min_signal_variance invalid ({min_signal_variance!r}); "
+                "defaulting to 0.1"
+            )
+            min_signal_variance = 0.1
+
         return {
             "suspend_threshold": float(suspend_threshold),
             "recover_threshold": float(recover_threshold),
             "suspend_window_sec": float(suspend_window_sec),
             "recover_window_sec": float(recover_window_sec),
             "grace_period_sec": float(grace_period_sec),
+            "min_signal_variance": float(min_signal_variance),
         }
 
     def _validate_fusion_threshold(

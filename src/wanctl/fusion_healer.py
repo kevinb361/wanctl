@@ -59,9 +59,9 @@ class FusionHealer:
         grace_period_sec: Duration of SIGUSR1 grace period.
         cycle_interval_sec: Control loop interval (default 50ms).
         min_samples: Minimum samples before Pearson is meaningful.
-        min_signal_variance: Minimum variance (ms²) in both signals for
-            Pearson to be considered valid. Below this, signals are idle
-            noise and correlation is meaningless. Default 0.1ms².
+        min_signal_variance: Minimum variance (ms²) required in each signal
+            for Pearson to be considered valid. If either side is below this,
+            correlation is treated as idle noise and skipped. Default 0.1ms².
         alert_engine: Optional AlertEngine for transition alerts.
         parameter_locks: Optional reference to WANController._parameter_locks dict.
     """
@@ -148,12 +148,12 @@ class FusionHealer:
 
         n = self._n
 
-        # Variance check: if both signals have near-zero variance,
-        # Pearson of noise is statistically meaningless. Skip rather
+        # Variance check: if either signal has near-zero variance,
+        # Pearson of deltas is statistically meaningless. Skip rather
         # than returning ~0.0 which would trigger false suspension.
         var_x = (self._sum_x2 / n) - (self._sum_x / n) ** 2
         var_y = (self._sum_y2 / n) - (self._sum_y / n) ** 2
-        if var_x < self._min_signal_variance and var_y < self._min_signal_variance:
+        if var_x < self._min_signal_variance or var_y < self._min_signal_variance:
             return None
 
         numerator = n * self._sum_xy - self._sum_x * self._sum_y
