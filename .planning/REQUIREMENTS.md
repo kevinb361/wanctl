@@ -11,7 +11,7 @@ Requirements for Dashboard History Source Clarity. Make the dashboard history co
 
 - [x] **DASH-01**: The dashboard history tab makes it explicit that `/metrics/history` is an endpoint-local HTTP surface, not the authoritative merged cross-WAN history reader
 - [x] **DASH-02**: The dashboard history tab surfaces source context from the HTTP payload, including `metadata.source`, in a way operators can understand during normal use
-- [ ] **DASH-03**: The dashboard gives operators a clear path to the authoritative merged history view when they need cross-WAN proof
+- [x] **DASH-03**: The dashboard gives operators a clear path to the authoritative merged history view when they need cross-WAN proof
 
 ### Verification And Safety
 
@@ -30,6 +30,6 @@ Requirements for Dashboard History Source Clarity. Make the dashboard history co
 |-------------|-------|--------|
 | DASH-01 | Phase 184 | Complete |
 | DASH-02 | Phase 184 | Complete |
-| DASH-03 | Phase 184 | Pending |
+| DASH-03 | Phase 184 | Complete |
 | DASH-04 | Phase 185 | Pending |
 | OPER-05 | Phase 185 | Pending |
