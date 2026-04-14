@@ -36,6 +36,7 @@ def _make_health_data(
     storage: dict | None = None,
     storage_files: dict | None = None,
     runtime: dict | None = None,
+    rtt_source: dict | None = None,
 ) -> dict:
     """Build a get_health_data() return dict for mock SteeringDaemon."""
     if profiler is None:
@@ -53,6 +54,18 @@ def _make_health_data(
             "profiler": profiler,
             "overrun_count": overrun_count,
             "cycle_interval_ms": cycle_interval_ms,
+        },
+        "rtt_source": rtt_source
+        or {
+            "current": "autorate_health",
+            "last_successful": "autorate_health",
+            "last_rtt_ms": 24.5,
+            "last_measurement_age_sec": 0.25,
+            "counts": {
+                "autorate_health": 12,
+                "autorate_irtt": 1,
+                "history_fallback": 0,
+            },
         },
         "wan_awareness": wan_awareness,
         "runtime": runtime or {"process": "steering", "rss_bytes": None},
@@ -1269,6 +1282,40 @@ class TestWanAwarenessHealth:
             assert wa["staleness_age_sec"] == 2.3
             assert wa["stale"] is False
             assert "confidence_contribution" in wa
+        finally:
+            server.shutdown()
+
+    def test_health_includes_rtt_source_section(self, mock_daemon):
+        """Steering health should expose the current RTT source and counts."""
+        mock_daemon.get_health_data.return_value = _make_health_data(
+            rtt_source={
+                "current": "autorate_irtt",
+                "last_successful": "autorate_irtt",
+                "last_rtt_ms": 31.25,
+                "last_measurement_age_sec": 1.234,
+                "counts": {
+                    "autorate_health": 10,
+                    "autorate_irtt": 2,
+                    "history_fallback": 1,
+                },
+            }
+        )
+        port = find_free_port()
+        server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            section = data["rtt_source"]
+            assert section["current"] == "autorate_irtt"
+            assert section["last_successful"] == "autorate_irtt"
+            assert section["last_rtt_ms"] == 31.25
+            assert section["last_measurement_age_sec"] == 1.234
+            assert section["counts"]["autorate_health"] == 10
+            assert section["counts"]["autorate_irtt"] == 2
+            assert section["counts"]["history_fallback"] == 1
         finally:
             server.shutdown()
 

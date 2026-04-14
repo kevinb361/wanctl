@@ -2563,6 +2563,9 @@ class TestCurrentRTTSource:
 
         assert daemon.measure_current_rtt() == 31.2
         rtt_measurement.ping_host.assert_not_called()
+        assert daemon._current_rtt_source == "autorate_irtt"
+        assert daemon._last_measurement_source == "autorate_irtt"
+        assert daemon._rtt_source_counts["autorate_irtt"] == 1
 
     def test_measure_current_rtt_has_no_self_probe_fallback(self, mock_steering_config):
         """Steering should not self-ping when autorate offers no fresh RTT source."""
