@@ -3,6 +3,8 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+from wanctl.dashboard.widgets.history_state import HISTORY_COPY
+
 
 class TestHistoryBrowserCompose:
     """Test HistoryBrowserWidget.compose() yields correct children."""
@@ -208,5 +210,373 @@ class TestSelectChangedTriggerseFetch:
                 # Give worker time to start
                 await asyncio.sleep(0.1)
                 widget._fetch_and_populate.assert_called_once_with("6h")
+
+        asyncio.run(_test())
+
+
+class TestHistoryBrowserSourceContract:
+    """Regression coverage for Phase 183 contract sections L1, L2, S1-S3,
+    H1-H3, F1, F2 via HistoryBrowserWidget state matrix.
+
+    Traces to 183-dashboard-source-contract.md §F3 (D-12) and
+    184-CONTEXT.md D-12 state matrix. Phase 185 Plan 01 — DASH-04.
+    """
+
+    def test_success_state_renders_banner_detail_and_handoff(self):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        payload = {
+            "data": [
+                {
+                    "timestamp": "2026-03-11T12:00:00+00:00",
+                    "wan_name": "att",
+                    "metric_name": "dl_rate_mbps",
+                    "value": 245.3,
+                    "granularity": "raw",
+                }
+            ],
+            "metadata": {
+                "source": {
+                    "mode": "local_configured_db",
+                    "db_paths": ["/var/lib/wanctl/metrics-att.db"],
+                }
+            },
+        }
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_resp = MagicMock()
+                mock_resp.raise_for_status = MagicMock()
+                mock_resp.json.return_value = payload
+                mock_client.get = AsyncMock(return_value=mock_resp)
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                banner = str(app.query_one("#source-banner", Static).render())
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+
+                assert HISTORY_COPY.BANNER_SUCCESS in banner
+                assert HISTORY_COPY.MODE_PHRASE_LOCAL in detail
+                assert "/var/lib/wanctl/metrics-att.db" in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+                assert "python3 -m wanctl.history" in handoff
+
+        asyncio.run(_test())
+
+    def test_success_state_merged_discovery_lists_db_basenames(self):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        payload = {
+            "data": [],
+            "metadata": {
+                "source": {
+                    "mode": "merged_discovery",
+                    "db_paths": [
+                        "/x/metrics-spectrum.db",
+                        "/x/metrics-att.db",
+                        "/x/metrics.db",
+                    ],
+                }
+            },
+        }
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_resp = MagicMock()
+                mock_resp.raise_for_status = MagicMock()
+                mock_resp.json.return_value = payload
+                mock_client.get = AsyncMock(return_value=mock_resp)
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+
+                assert HISTORY_COPY.MODE_PHRASE_MERGED in detail
+                assert "3 databases" in detail
+                assert "metrics-spectrum.db" in detail
+                assert "metrics-att.db" in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+
+        asyncio.run(_test())
+
+    def test_fetch_error_state_clears_table_and_shows_unavailable_banner(self):
+        from textual.widgets import DataTable, Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_client.get = AsyncMock(side_effect=Exception("fetch failed"))
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                table = app.query_one("#history-table", DataTable)
+                banner = str(app.query_one("#source-banner", Static).render())
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+                summary = str(app.query_one("#summary-stats", Static).render())
+
+                assert table.row_count == 0
+                assert HISTORY_COPY.BANNER_FETCH_ERROR in banner
+                assert HISTORY_COPY.DETAIL_FETCH_ERROR in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+                assert HISTORY_COPY.SUMMARY_NO_DATA in summary
+
+        asyncio.run(_test())
+
+    def test_source_missing_state_shows_ambiguous_banner_and_preserves_handoff(
+        self,
+    ):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        payload = {"data": [], "metadata": {}}
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_resp = MagicMock()
+                mock_resp.raise_for_status = MagicMock()
+                mock_resp.json.return_value = payload
+                mock_client.get = AsyncMock(return_value=mock_resp)
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                banner = str(app.query_one("#source-banner", Static).render())
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+
+                assert HISTORY_COPY.BANNER_SOURCE_MISSING in banner
+                assert HISTORY_COPY.DETAIL_AMBIGUOUS in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+
+        asyncio.run(_test())
+
+    def test_mode_missing_state_shows_mode_ambiguous_banner(self):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        payload = {
+            "data": [],
+            "metadata": {"source": {"mode": "frankenmode", "db_paths": ["/a.db"]}},
+        }
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_resp = MagicMock()
+                mock_resp.raise_for_status = MagicMock()
+                mock_resp.json.return_value = payload
+                mock_client.get = AsyncMock(return_value=mock_resp)
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                banner = str(app.query_one("#source-banner", Static).render())
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+
+                assert HISTORY_COPY.BANNER_MODE_MISSING in banner
+                assert HISTORY_COPY.DETAIL_AMBIGUOUS in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+
+        asyncio.run(_test())
+
+    def test_db_paths_missing_state_shows_db_paths_ambiguous_banner(self):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        payload = {
+            "data": [],
+            "metadata": {
+                "source": {"mode": "local_configured_db", "db_paths": []}
+            },
+        }
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+                mock_client = AsyncMock()
+                mock_resp = MagicMock()
+                mock_resp.raise_for_status = MagicMock()
+                mock_resp.json.return_value = payload
+                mock_client.get = AsyncMock(return_value=mock_resp)
+                widget._http_client = mock_client
+
+                await widget._fetch_and_populate("1h")
+
+                banner = str(app.query_one("#source-banner", Static).render())
+                detail = str(app.query_one("#source-detail", Static).render())
+                handoff = str(app.query_one("#source-handoff", Static).render())
+
+                assert HISTORY_COPY.BANNER_DB_PATHS_MISSING in banner
+                assert HISTORY_COPY.DETAIL_AMBIGUOUS in detail
+                assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+
+        asyncio.run(_test())
+
+    def test_handoff_text_is_verbatim_across_all_states(self):
+        from textual.widgets import Static
+
+        from wanctl.dashboard.widgets.history_browser import HistoryBrowserWidget
+
+        states = [
+            (
+                "success_local",
+                {
+                    "data": [],
+                    "metadata": {
+                        "source": {
+                            "mode": "local_configured_db",
+                            "db_paths": ["/var/lib/wanctl/metrics-att.db"],
+                        }
+                    },
+                },
+            ),
+            (
+                "success_merged",
+                {
+                    "data": [],
+                    "metadata": {
+                        "source": {
+                            "mode": "merged_discovery",
+                            "db_paths": ["/x/metrics-spectrum.db", "/x/metrics-att.db"],
+                        }
+                    },
+                },
+            ),
+            ("fetch_error", Exception("fetch failed")),
+            ("source_missing", {"data": [], "metadata": {}}),
+            (
+                "mode_missing",
+                {
+                    "data": [],
+                    "metadata": {
+                        "source": {"mode": "frankenmode", "db_paths": ["/a.db"]}
+                    },
+                },
+            ),
+            (
+                "db_paths_missing",
+                {
+                    "data": [],
+                    "metadata": {
+                        "source": {"mode": "local_configured_db", "db_paths": []}
+                    },
+                },
+            ),
+        ]
+
+        async def _test():
+            from textual.app import App, ComposeResult
+
+            class TestApp(App):
+                def compose(self) -> ComposeResult:
+                    yield HistoryBrowserWidget(
+                        autorate_url="http://localhost:9101",
+                        id="history-browser",
+                    )
+
+            app = TestApp()
+            async with app.run_test(size=(120, 40)):
+                widget = app.query_one("#history-browser", HistoryBrowserWidget)
+
+                for _label, payload_or_exc in states:
+                    mock_client = AsyncMock()
+                    if isinstance(payload_or_exc, Exception):
+                        mock_client.get = AsyncMock(side_effect=payload_or_exc)
+                    else:
+                        mock_resp = MagicMock()
+                        mock_resp.raise_for_status = MagicMock()
+                        mock_resp.json.return_value = payload_or_exc
+                        mock_client.get = AsyncMock(return_value=mock_resp)
+                    widget._http_client = mock_client
+
+                    await widget._fetch_and_populate("1h")
+
+                    handoff = str(app.query_one("#source-handoff", Static).render())
+                    assert handoff == HistoryBrowserWidget.HANDOFF_TEXT
+                    assert "python3 -m wanctl.history" in HistoryBrowserWidget.HANDOFF_TEXT
 
         asyncio.run(_test())
