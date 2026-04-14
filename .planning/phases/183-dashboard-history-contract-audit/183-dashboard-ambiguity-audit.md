@@ -37,3 +37,43 @@ The suite explicitly covers the `metadata.source` structure by asserting `metada
 The suite explicitly covers endpoint-local resolution by asserting `data["metadata"]["source"]["mode"] == "local_configured_db"` and that `db_paths` resolves to the configured local DB. `test_health_check.py:3163`
 
 The suite covers the all-databases-failed error path by expecting an HTTP 503 from `/metrics/history` when reads fail. `test_health_check.py:3224`
+
+## Current HistoryBrowserWidget Behavior
+
+The history tab uses `HistoryBrowserWidget`, which fetches only `f"{self._autorate_url}/metrics/history"` through a lazily created `httpx.AsyncClient(timeout=5.0)` and passes the selected range as a query param. `history_browser.py:77`
+
+The widget has no result cache beyond reusing a single `_http_client`; each selection change runs `_fetch_and_populate()` through `run_worker()`. `history_browser.py:48`
+
+The widget reads only `payload.get("data", [])` from the response and assigns that list to `records`; it does not read `payload["metadata"]` at all. `history_browser.py:86`
+
+Rendered table rows use only `timestamp`, `wan_name`, `metric_name`, `value`, and `granularity` from each record. `history_browser.py:90`
+
+The summary line is computed client-side from `metric_name` and `value` only; it does not use any server-provided summary fields or metadata fields. `history_browser.py:99`
+
+The widget does not touch `metadata`, `metadata.source`, `metadata.source.mode`, or `metadata.source.db_paths` anywhere in the render path. The code path from `payload = resp.json()` through both success and error branches references only `data`, per-record fields, and summary text. `history_browser.py:86`
+
+Repo inspection confirms the same absence: `rg -n "metadata|source" src/wanctl/dashboard/widgets/history_browser.py` returns no matches, which is consistent with the cited file body above. `history_browser.py:1`
+
+The operator-visible selector labels are `"1 Hour"`, `"6 Hours"`, `"24 Hours"`, and `"7 Days"`. `history_browser.py:17`
+
+The operator-visible initial summary text is `"Select a time range"`. `history_browser.py:53`
+
+The operator-visible table column labels are `"Time"`, `"WAN"`, `"Metric"`, `"Value"`, and `"Granularity"`. `history_browser.py:59`
+
+The operator-visible loading, empty, and error texts are `"Loading..."`, `"No data"`, and `"Failed to fetch data - No data"`. `history_browser.py:75`
+
+The dashboard app wires the widget into `with TabPane("History", id="history")`, so the tab label presented to the operator is `"History"`. `app.py:199`
+
+The app passes only `autorate_url=self.config.autorate_url` into the widget; no extra source-context or merged-history hint is wired in at the app layer. `app.py:200`
+
+### Widget Test Coverage Today
+
+`tests/dashboard/test_history_browser.py` checks that `compose()` yields a `Select`, a summary `Static`, and a `DataTable`, but it does not assert any source semantics. `test_history_browser.py:10`
+
+The widget tests verify `_compute_summary()` behavior for multiple, empty, and single-value inputs. `test_history_browser.py:43`
+
+The fetch-path test asserts that mocked response rows populate the table, but its fixture payload only uses `data` and a minimal `metadata` count object, not `metadata.source`. `test_history_browser.py:80`
+
+The degraded-path test asserts the widget handles HTTP errors without crashing and renders text containing `"No data"` or `"Failed"`, but it does not assert endpoint-local wording or missing-source messaging. `test_history_browser.py:135`
+
+The select-change test checks that selecting a new range triggers `_fetch_and_populate("6h")`; it does not cover source metadata or operator handoff behavior. `test_history_browser.py:177`
