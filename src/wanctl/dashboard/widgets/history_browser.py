@@ -4,6 +4,17 @@ Provides HistoryBrowserWidget for the History tab -- queries /metrics/history
 endpoint on demand and displays results in a DataTable with summary statistics.
 """
 
+# Contract invariants (Phase 184 / 183-contract L2 + H1):
+#   * The string "python3 -m wanctl.history" MUST appear verbatim via
+#     HISTORY_COPY.HANDOFF and HISTORY_COPY.DETAIL_AMBIGUOUS /
+#     DETAIL_FETCH_ERROR — these are the only operator-facing places the
+#     merged CLI is named.
+#   * The dashboard history tab MUST NOT describe itself as
+#     "authoritative", "merged", "wanctl-history", or "cross-WAN reader".
+#     "authoritative" is reserved for DETAIL_AMBIGUOUS pointing AT the CLI.
+#   * source-handoff text is immutable post-compose (enforced by the absence
+#     of any `#source-handoff` reference inside `_fetch_and_populate`).
+
 from __future__ import annotations
 
 import statistics
@@ -20,6 +31,52 @@ from wanctl.dashboard.widgets.history_state import (
     HistoryState,
     classify_history_state,
 )
+
+
+def _assert_no_parity_language(text: str) -> None:
+    """Raise AssertionError if `text` contains parity language forbidden by L2.
+
+    Phase 185 calls this against every HISTORY_COPY banner/detail string to
+    prove the dashboard never describes itself as the authoritative merged
+    reader. The only legitimate use of "authoritative" is in
+    DETAIL_AMBIGUOUS, which points AT `python3 -m wanctl.history`, so that
+    specific string is whitelisted.
+    """
+    whitelist = {
+        HISTORY_COPY.DETAIL_AMBIGUOUS,
+    }
+    if text in whitelist:
+        return
+
+    forbidden = (
+        "authoritative",
+        "wanctl-history",
+        "merged history reader",
+        "cross-WAN history",
+    )
+    lowered = text.lower()
+    for token in forbidden:
+        if token.lower() in lowered:
+            raise AssertionError(
+                f"L2 parity violation: dashboard copy {text!r} contains forbidden token {token!r}"
+            )
+
+
+for _copy in (
+    HISTORY_COPY.BANNER_SUCCESS,
+    HISTORY_COPY.BANNER_FETCH_ERROR,
+    HISTORY_COPY.BANNER_SOURCE_MISSING,
+    HISTORY_COPY.BANNER_MODE_MISSING,
+    HISTORY_COPY.BANNER_DB_PATHS_MISSING,
+    HISTORY_COPY.DETAIL_FETCH_ERROR,
+    HISTORY_COPY.DETAIL_AMBIGUOUS,
+    HISTORY_COPY.HANDOFF,
+    HISTORY_COPY.MODE_PHRASE_LOCAL,
+    HISTORY_COPY.MODE_PHRASE_MERGED,
+):
+    _assert_no_parity_language(_copy)
+del _copy
+
 
 TIME_RANGES: list[tuple[str, str]] = [
     ("1 Hour", "1h"),
@@ -46,6 +103,10 @@ class HistoryBrowserWidget(Widget):
         color: $text-muted;
     }
     """
+
+    # Exposed so Phase 185 regressions can assert the handoff stays verbatim
+    # across every history tab state. Never mutated post-compose (D-09, D-10).
+    HANDOFF_TEXT: str = HISTORY_COPY.HANDOFF
 
     def __init__(
         self,
