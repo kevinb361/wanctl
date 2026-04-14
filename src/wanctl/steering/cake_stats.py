@@ -45,7 +45,7 @@ class CongestionSignals:
 
     def __str__(self) -> str:
         return (
-            f"rtt={self.rtt_delta:.1f}ms ewma={self.rtt_delta_ewma:.1f}ms "
+            f"delta={self.rtt_delta:.1f}ms ewma={self.rtt_delta_ewma:.1f}ms "
             f"drops={self.cake_drops} q={self.queued_packets}"
         )
 

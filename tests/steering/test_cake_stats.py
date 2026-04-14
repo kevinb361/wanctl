@@ -103,7 +103,7 @@ class TestCongestionSignals:
             baseline_rtt=24.5,
         )
         result = str(signals)
-        assert "rtt=5.5ms" in result
+        assert "delta=5.5ms" in result
         assert "ewma=4.2ms" in result
         assert "drops=3" in result
         assert "q=15" in result
