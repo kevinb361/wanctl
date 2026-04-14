@@ -1475,6 +1475,7 @@ class WANController:
             suspend_window_sec=healing_cfg["suspend_window_sec"],
             recover_window_sec=healing_cfg["recover_window_sec"],
             grace_period_sec=healing_cfg["grace_period_sec"],
+            min_signal_variance=healing_cfg["min_signal_variance"],
             cycle_interval_sec=self.config.irtt_config["cadence_sec"],
             alert_engine=self.alert_engine if isinstance(self.alert_engine, AlertEngine) else None,
             parameter_locks=self._parameter_locks,

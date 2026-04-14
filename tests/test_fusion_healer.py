@@ -148,6 +148,16 @@ class TestPearsonAccuracy:
             healer.tick(float(i), float(i))
         assert healer.pearson_r is None
 
+    def test_returns_none_when_either_signal_variance_too_low(self):
+        """Pearson is skipped when one signal is effectively flat idle noise."""
+        healer = _make_healer(min_samples=50, min_signal_variance=0.1)
+        rng = random.Random(42)
+        for i in range(200):
+            x = 0.01 * math.sin(i * 0.1) + rng.gauss(0, 0.01)
+            y = rng.uniform(-1.0, 1.0)
+            healer.tick(x, y)
+        assert healer.pearson_r is None
+
 
 class TestSuspension:
     """Verify ACTIVE -> SUSPENDED transition on sustained low correlation."""
@@ -1582,6 +1592,7 @@ def _make_integration_controller(mock_autorate_config, fusion_enabled=True, irtt
             "suspend_window_sec": 60.0,
             "recover_window_sec": 300.0,
             "grace_period_sec": 1800.0,
+            "min_signal_variance": 1.0,
         },
     }
     with patch.object(WANController, "load_state"):
@@ -1846,6 +1857,7 @@ class TestConfigLoading:
                     "suspend_window_sec": 120.0,
                     "recover_window_sec": 600.0,
                     "grace_period_sec": 3600.0,
+                    "min_signal_variance": 2.5,
                 },
             }
         }
@@ -1860,6 +1872,7 @@ class TestConfigLoading:
         assert config.fusion_config["healing"]["suspend_window_sec"] == 120.0
         assert config.fusion_config["healing"]["recover_window_sec"] == 600.0
         assert config.fusion_config["healing"]["grace_period_sec"] == 3600.0
+        assert config.fusion_config["healing"]["min_signal_variance"] == 2.5
 
     def test_healing_defaults_when_section_missing(self, tmp_path):
         """Uses defaults when fusion.healing section is absent."""
@@ -1869,6 +1882,7 @@ class TestConfigLoading:
 
         assert config.fusion_config["healing"]["suspend_threshold"] == 0.3
         assert config.fusion_config["healing"]["recover_threshold"] == 0.5
+        assert config.fusion_config["healing"]["min_signal_variance"] == 0.1
 
     def test_healing_invalid_threshold_uses_defaults(self, tmp_path):
         """Invalid suspend_threshold falls back to default 0.3."""
@@ -1883,6 +1897,20 @@ class TestConfigLoading:
         config._load_fusion_config()
 
         assert config.fusion_config["healing"]["suspend_threshold"] == 0.3
+
+    def test_healing_invalid_min_signal_variance_uses_default(self, tmp_path):
+        """Invalid min_signal_variance falls back to default 0.1."""
+        yaml_data = {
+            "fusion": {
+                "enabled": True,
+                "icmp_weight": 0.7,
+                "healing": {"min_signal_variance": -1},
+            }
+        }
+        config = self._make_fusion_config_mock(yaml_data)
+        config._load_fusion_config()
+
+        assert config.fusion_config["healing"]["min_signal_variance"] == 0.1
 
     def test_healing_recover_must_exceed_suspend(self, tmp_path):
         """recover_threshold adjusted when <= suspend_threshold."""
@@ -2155,4 +2183,3 @@ class TestHealthEndpoint:
         assert fusion["heal_state"] == "active"
         assert fusion["pearson_correlation"] is None
         assert fusion["correlation_window_avg"] is None
-
