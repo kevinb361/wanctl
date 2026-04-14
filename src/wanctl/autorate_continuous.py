@@ -344,15 +344,22 @@ def _init_storage(
         from wanctl.storage import MetricsWriter, record_config_snapshot, run_startup_maintenance
         from wanctl.storage.maintenance import maintenance_lock
 
+        startup_logger.info("Startup storage: opening writer connection for %s", db_path)
         writer = MetricsWriter(Path(db_path))
         writer.set_process_role("autorate")
         maintenance_conn = writer.connection
+        startup_logger.info("Startup storage: writer connection ready")
+        startup_logger.info("Startup storage: recording config snapshot")
         record_config_snapshot(writer, first_config.wan_name, first_config.data, "startup")
+        startup_logger.info("Startup storage: config snapshot recorded")
 
         # Run startup maintenance (cleanup + downsampling)
         # Pass watchdog callback and time budget to prevent exceeding WatchdogSec=30s
         with maintenance_lock(db_path, startup_logger) as acquired:
             if acquired:
+                startup_logger.info(
+                    "Startup storage: maintenance lock acquired, running startup maintenance"
+                )
                 maint_result = run_startup_maintenance(
                     maintenance_conn,
                     retention_config=maintenance_retention_config,
@@ -360,9 +367,16 @@ def _init_storage(
                     watchdog_fn=notify_watchdog,
                     max_seconds=20,
                 )
+                startup_logger.info(
+                    "Startup storage: startup maintenance complete (deleted=%s, downsampling=%s, error=%s)",
+                    maint_result.get("cleanup_deleted"),
+                    maint_result.get("downsampling"),
+                    maint_result.get("error"),
+                )
                 if maint_result.get("error"):
                     startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
             else:
+                startup_logger.info("Startup storage: maintenance lock busy, skipping startup maintenance")
                 record_storage_maintenance_lock_skip("autorate")
 
     return maintenance_conn, maintenance_retention_config, maintenance_interval_seconds
@@ -1322,7 +1336,9 @@ def main() -> int | None:
 
     controller = ContinuousAutoRate(args.config, debug=args.debug)
     _configure_controller_flags(controller, args)
+    controller.wan_controllers[0]["logger"].info("Startup stage: entering _init_storage")
     maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = _init_storage(controller)
+    controller.wan_controllers[0]["logger"].info("Startup stage: _init_storage complete")
 
     if args.oneshot:
         controller.run_cycle(use_lock=True)
@@ -1344,7 +1360,9 @@ def main() -> int | None:
     atexit.register(emergency_lock_cleanup)
     register_signal_handlers()
 
+    controller.wan_controllers[0]["logger"].info("Startup stage: starting metrics/health servers")
     metrics_server, health_server = _start_servers(controller)
+    controller.wan_controllers[0]["logger"].info("Startup stage: metrics/health servers started")
     irtt_thread = _start_irtt_thread(controller)
     io_worker = _setup_daemon_state(controller, irtt_thread)
 

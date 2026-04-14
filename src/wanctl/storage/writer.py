@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 # Default database path
 DEFAULT_DB_PATH = Path("/var/lib/wanctl/metrics.db")
 
+# Full PRAGMA integrity_check can scan multi-GB DBs long enough to miss
+# systemd watchdog deadlines during daemon startup. Keep deep validation for
+# smaller databases and use a lightweight schema probe for large ones.
+INTEGRITY_CHECK_MAX_BYTES = 128 * 1024 * 1024
+
 
 class MetricsWriter:
     """Thread-safe singleton for writing metrics to SQLite database.
@@ -179,14 +184,30 @@ class MetricsWriter:
 
         # Check database integrity
         try:
-            result = conn.execute("PRAGMA integrity_check").fetchone()
-            if result[0] != "ok":
-                logger.error(
-                    "Database integrity check failed: %s. Rebuilding database.",
-                    result[0],
+            db_size = self._db_path.stat().st_size
+        except OSError:
+            db_size = None
+
+        try:
+            if db_size is not None and db_size > INTEGRITY_CHECK_MAX_BYTES:
+                # Large DBs are validated via a cheap schema probe to avoid
+                # startup-time full scans that can exceed watchdog budgets.
+                conn.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+                logger.info(
+                    "Skipping full integrity_check for %s (%.1f MiB > %.1f MiB)",
+                    self._db_path,
+                    db_size / (1024 * 1024),
+                    INTEGRITY_CHECK_MAX_BYTES / (1024 * 1024),
                 )
-                conn.close()
-                return self._rebuild_database()
+            else:
+                result = conn.execute("PRAGMA integrity_check").fetchone()
+                if result[0] != "ok":
+                    logger.error(
+                        "Database integrity check failed: %s. Rebuilding database.",
+                        result[0],
+                    )
+                    conn.close()
+                    return self._rebuild_database()
         except Exception as e:
             logger.warning("Integrity check error (proceeding anyway): %s", e)
 

@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.lock_utils import is_process_alive, read_lock_pid
-
 from wanctl.storage.downsampler import downsample_metrics, get_downsample_thresholds
 from wanctl.storage.retention import (
     DEFAULT_RETENTION_DAYS,
@@ -92,12 +91,19 @@ def run_startup_maintenance(
 ) -> dict[str, Any]:
     """Run all maintenance tasks at daemon startup.
 
-    Executes cleanup and downsampling in a single call.
+    Executes startup-safe maintenance in a single call.
     Errors are logged but not raised (daemon should start regardless).
 
     VACUUM is intentionally skipped at startup because it is uninterruptible
     and can exceed the systemd watchdog timeout on large databases. VACUUM
     is deferred to periodic maintenance where time pressure is lower.
+
+    When ``max_seconds`` is provided, startup maintenance treats that as a
+    hard startup budget. Cleanup still runs with the budget because it is
+    batched and can bail out safely. Downsampling is deferred to periodic
+    maintenance because partial downsampling is not currently resumable
+    mid-combination without risking duplicate aggregates or long pre-health
+    startup stalls.
 
     Args:
         conn: SQLite connection (from MetricsWriter.connection)
@@ -147,18 +153,30 @@ def run_startup_maintenance(
         # VACUUM is uninterruptible and can exceed watchdog timeout on large DBs.
         # Deferred to periodic maintenance where pings continue between steps.
 
-        # 3. Downsample metrics at each level
-        if retention_config is not None:
-            custom_thresholds = get_downsample_thresholds(
-                raw_age_seconds=retention_config["raw_age_seconds"],
-                aggregate_1m_age_seconds=retention_config["aggregate_1m_age_seconds"],
-                aggregate_5m_age_seconds=retention_config["aggregate_5m_age_seconds"],
+        # 3. Downsample metrics at each level.
+        # Startup callers may impose a hard time budget to keep health/watchdog
+        # surfaces reachable. Cleanup can honor that budget safely; downsampling
+        # cannot yet stop mid-combination without risking duplicate aggregates,
+        # so defer it to periodic maintenance when a startup budget is active.
+        if max_seconds is not None:
+            log.info(
+                "Startup maintenance: deferring downsampling to periodic maintenance "
+                "because startup time budget %.1fs is active",
+                max_seconds,
             )
-            downsampling = downsample_metrics(
-                conn, watchdog_fn=watchdog_fn, thresholds=custom_thresholds
-            )
+            downsampling = {}
         else:
-            downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
+            if retention_config is not None:
+                custom_thresholds = get_downsample_thresholds(
+                    raw_age_seconds=retention_config["raw_age_seconds"],
+                    aggregate_1m_age_seconds=retention_config["aggregate_1m_age_seconds"],
+                    aggregate_5m_age_seconds=retention_config["aggregate_5m_age_seconds"],
+                )
+                downsampling = downsample_metrics(
+                    conn, watchdog_fn=watchdog_fn, thresholds=custom_thresholds
+                )
+            else:
+                downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
         result["downsampling"] = downsampling
 
         if watchdog_fn is not None:
