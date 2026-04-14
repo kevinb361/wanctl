@@ -37,6 +37,6 @@ Plans:
 
 Plans:
 
-- [ ] 185-01: Add focused dashboard/history regressions for source labeling and failure behavior
-- [ ] 185-02: Align docs and operator workflow guidance with the dashboard’s source semantics
+- [x] 185-01: Add focused dashboard/history regressions for source labeling and failure behavior
+- [x] 185-02: Align docs and operator workflow guidance with the dashboard’s source semantics
 - [ ] 185-03: Verify the milestone closeout against the UI contract and operator workflow
