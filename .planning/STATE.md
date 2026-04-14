@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
-status: planning
-stopped_at: Complete v1.37 milestone after Phase 185 closeout
-last_updated: "2026-04-14T18:05:00.000Z"
+status: complete
+stopped_at: Start next milestone with /gsd-new-milestone
+last_updated: "2026-04-14T18:32:00.000Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Complete v1.37 after Phase 185 verification and operator alignment closeout
+**Current focus:** Milestone archived; define the next milestone
 
 ## Position
 
 **Milestone:** v1.37 Dashboard History Source Clarity
-**Phase:** 185 of 185 (verification-and-operator-alignment)
-**Plan:** All three plans complete with verification and operator alignment
-**Status:** All phase plans executed; milestone is ready for completion
+**Phase:** completed
+**Plan:** archived
+**Status:** v1.37 archived and tagged; ready for next milestone definition
 **Last activity:** 2026-04-14
 
 Progress: [██████████] 100%
@@ -74,8 +74,8 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Run /gsd-complete-milestone for v1.37
-Resume file: .planning/phases/185-verification-and-operator-alignment/185-VERIFICATION.md
+Stopped at: Start the next milestone
+Resume file: .planning/MILESTONES.md
 
 ## Decisions
 
@@ -89,6 +89,7 @@ Resume file: .planning/phases/185-verification-and-operator-alignment/185-VERIFI
 - [Phase 185]: Preserved existing browser tests and added a separate contract-focused class for the Phase 183 state matrix.
 - [Phase 185]: Kept Phase 185 scoped to dashboard tests only and asserted against HISTORY_COPY and HANDOFF_TEXT instead of duplicating copy literals.
 - [Phase 185]: Locked milestone closeout in `185-VERIFICATION.md` and treated repo-side traceability as sufficient evidence for `DASH-04` and `OPER-05`.
+- [Milestone v1.37]: Archived with a `tech_debt` audit rather than a clean pass because mounted/live UI confirmation, Nyquist validation, and a small amount of dashboard regression depth remain deferred.
 
 ## Performance Metrics
 
@@ -98,3 +99,4 @@ Resume file: .planning/phases/185-verification-and-operator-alignment/185-VERIFI
 - 2026-04-14: Phase 185 Plan 01 completed in 6 min across 3 tasks and 2 source files.
 - 2026-04-14: Phase 185 Plan 02 completed in 1 min across 4 tasks and 3 source files.
 - 2026-04-14: Phase 185 Plan 03 completed with repo-side verification evidence and `171` dashboard tests passing.
+- 2026-04-14: Milestone v1.37 archived with 5/5 requirements satisfied, 3/3 phases complete, and a `tech_debt` audit verdict.
