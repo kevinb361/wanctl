@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
-status: planning
-stopped_at: Re-audit milestone after Phase 182 closeout
-last_updated: "2026-04-14T13:42:00.000Z"
+status: complete
+stopped_at: Start next milestone with /gsd-new-milestone
+last_updated: "2026-04-14T13:50:00.000Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 6
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Re-audit v1.36 after Phase 182 closed the final footprint gap
+**Current focus:** Milestone archived; define the next milestone
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** 182 of 182 (ATT footprint closure)
-**Plan:** All three plans complete with production evidence and verification
-**Status:** All phase plans executed; milestone is ready for re-audit
+**Phase:** completed
+**Plan:** archived
+**Status:** v1.36 archived and tagged; ready for next milestone definition
 **Last activity:** 2026-04-14
 
 Progress: [██████████] 100%
@@ -63,8 +63,9 @@ Progress: [██████████] 100%
 - Phase 182 planning is complete with three plans: ATT-specific precheck, ATT-only reduction execution, and final production closeout
 - Phase 182 completed the ATT-only compaction run and reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`
 - Both active per-WAN DBs are now materially smaller than the fixed `2026-04-13` baseline, so `STOR-06` is satisfied
+- v1.36 milestone audit is now clean enough for completion, with only non-blocking dashboard consumer debt remaining
 
 ## Session Continuity
 
-Stopped at: Re-run /gsd-audit-milestone after Phase 182 closeout
-Resume file: .planning/phases/182-att-footprint-closure/182-VERIFICATION.md
+Stopped at: Start the next milestone
+Resume file: .planning/MILESTONES.md
