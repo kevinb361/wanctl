@@ -14,7 +14,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 
 ### Storage Reduction
 
-- [ ] **STOR-06**: Active per-WAN metrics DB footprint is materially reduced from the 2026-04-13 baseline without breaking health, canary, soak-monitor, operator-summary, or history workflows
+- [x] **STOR-06**: Active per-WAN metrics DB footprint is materially reduced from the 2026-04-13 baseline without breaking health, canary, soak-monitor, operator-summary, or history workflows
 - [x] **STOR-07**: Retention/downsampling/maintenance settings remain bounded and production-safe after the footprint reduction change
 
 ### Verification
@@ -33,7 +33,7 @@ Requirements for Storage Retention And DB Footprint. Explain current production 
 |-------------|---------------|--------|
 | STOR-04 | Phase 180 | Satisfied |
 | STOR-05 | Phase 178 | Satisfied |
-| STOR-06 | Phase 182 | Pending |
+| STOR-06 | Phase 182 | Satisfied |
 | STOR-07 | Phase 178 | Satisfied |
 | OPER-04 | Phase 179 | Satisfied |
 

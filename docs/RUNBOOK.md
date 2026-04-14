@@ -286,6 +286,14 @@ compact them explicitly during a controlled restart window:
 ./scripts/canary-check.sh --ssh <host> --expect-version 1.35.0 --json
 ```
 
+If only ATT remains above the expected footprint while Spectrum is already below baseline, use the ATT-only path:
+
+```bash
+./scripts/compact-metrics-dbs.sh --ssh <host> --wan att
+./scripts/canary-check.sh --ssh <host> --expect-version 1.35.0 --json
+./scripts/soak-monitor.sh --ssh <host> --json
+```
+
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
 
 ```bash
