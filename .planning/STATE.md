@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
-status: executing
-stopped_at: Completed 185-01-PLAN.md
-last_updated: "2026-04-14T17:59:26.533Z"
+status: planning
+stopped_at: Complete v1.37 milestone after Phase 185 closeout
+last_updated: "2026-04-14T18:05:00.000Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 185 — verification-and-operator-alignment
+**Current focus:** Complete v1.37 after Phase 185 verification and operator alignment closeout
 
 ## Position
 
 **Milestone:** v1.37 Dashboard History Source Clarity
-**Phase:** 185
-**Plan:** 03
-**Status:** Ready for final Phase 185 verification
+**Phase:** 185 of 185 (verification-and-operator-alignment)
+**Plan:** All three plans complete with verification and operator alignment
+**Status:** All phase plans executed; milestone is ready for completion
 **Last activity:** 2026-04-14
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -69,11 +69,13 @@ Progress: [█████████░] 88%
 - v1.37 will focus on dashboard history source clarity, operator comprehension, and matching tests/docs without changing backend history semantics
 - Phase 184-02 is complete: success-state history detail now translates `metadata.source.mode` into operator wording, DB-path context follows the one-path vs many-path contract, and `source-diagnostic` carries the raw D-08 mode/db_paths/http surface
 - Phase 184-03 is complete: `source-handoff` remains compose-only, `HistoryBrowserWidget.HANDOFF_TEXT` exposes the locked merged-CLI invocation, and import-time parity assertions block dashboard copy from implying `wanctl.history` equivalence
+- Phase 185 added the locked dashboard regression matrix for success, fetch-error, source-missing, mode-missing, and db-paths-missing flows without reopening backend `/metrics/history` behavior
+- Phase 185 aligned `DEPLOYMENT.md`, `RUNBOOK.md`, and `GETTING-STARTED.md` on the same endpoint-local HTTP versus authoritative merged CLI wording, and `185-VERIFICATION.md` now closes both `DASH-04` and `OPER-05`
 
 ## Session Continuity
 
-Stopped at: Completed 185-01-PLAN.md
-Resume file: None
+Stopped at: Run /gsd-complete-milestone for v1.37
+Resume file: .planning/phases/185-verification-and-operator-alignment/185-VERIFICATION.md
 
 ## Decisions
 
@@ -86,6 +88,7 @@ Resume file: None
 - [Phase 184]: Placed the parity-language guard at module scope so invalid dashboard copy fails at import time instead of relying on a mounted widget path.
 - [Phase 185]: Preserved existing browser tests and added a separate contract-focused class for the Phase 183 state matrix.
 - [Phase 185]: Kept Phase 185 scoped to dashboard tests only and asserted against HISTORY_COPY and HANDOFF_TEXT instead of duplicating copy literals.
+- [Phase 185]: Locked milestone closeout in `185-VERIFICATION.md` and treated repo-side traceability as sufficient evidence for `DASH-04` and `OPER-05`.
 
 ## Performance Metrics
 
@@ -93,3 +96,5 @@ Resume file: None
 - 2026-04-14: Phase 184 Plan 02 completed in 11 min across 2 tasks and 1 source file.
 - 2026-04-14: Phase 184 Plan 03 completed in 7 min across 2 tasks and 1 source file.
 - 2026-04-14: Phase 185 Plan 01 completed in 6 min across 3 tasks and 2 source files.
+- 2026-04-14: Phase 185 Plan 02 completed in 1 min across 4 tasks and 3 source files.
+- 2026-04-14: Phase 185 Plan 03 completed with repo-side verification evidence and `171` dashboard tests passing.
