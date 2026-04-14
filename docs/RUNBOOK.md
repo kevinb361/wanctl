@@ -272,11 +272,16 @@ ssh <host> 'sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --me
 ssh <host> 'curl -s "http://<health-ip>:9101/metrics/history?range=1h&limit=5" | python3 -m json.tool'
 ```
 
-On the current production hosts, the module-based CLI invocation above is the authoritative
-cross-WAN proof path. `/metrics/history` is the endpoint-local HTTP history surface for the
-daemon serving that IP. Use the HTTP path to confirm endpoint availability, response shape, and
-that WAN's local history view. Use the CLI plus direct DB inventory if you need authoritative
-cross-WAN verification.
+On the current production hosts:
+
+- `/metrics/history` is the endpoint-local HTTP history view for the connected autorate daemon.
+- `python3 -m wanctl.history` is the authoritative merged cross-WAN proof path.
+
+Use the `curl` command above to confirm endpoint availability, response shape, and that WAN's
+local history view. Use the `python3 -m wanctl.history` command above — falling back to direct
+DB inventory only if the CLI is unavailable — when you need merged cross-WAN verification. The
+dashboard history tab surfaces this same distinction through `metadata.source`, so the rule is
+identical in the TUI and in this runbook.
 
 If the per-WAN DB files stay materially larger than expected after retention cleanup runs,
 compact them explicitly during a controlled restart window:
