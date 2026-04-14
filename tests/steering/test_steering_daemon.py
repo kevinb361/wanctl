@@ -8,6 +8,7 @@ Tests the extracted methods for:
 - _reload_dry_run_config(): SIGUSR1-triggered dry_run flag reload
 """
 
+import json
 import logging
 import threading
 import time
@@ -1770,6 +1771,30 @@ class TestRouterOSController:
         assert result is True
 
     # =========================================================================
+    def test_get_rule_status_rest_json_disabled(self, controller, mock_client):
+        """REST JSON output should report disabled rule as False."""
+        mock_client.run_cmd.return_value = (
+            0,
+            json.dumps([{"comment": controller.config.mangle_rule_comment, "disabled": "true"}]),
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is False
+
+    def test_get_rule_status_rest_json_enabled(self, controller, mock_client):
+        """REST JSON output should report enabled rule as True."""
+        mock_client.run_cmd.return_value = (
+            0,
+            json.dumps([{"comment": controller.config.mangle_rule_comment, "disabled": "false"}]),
+            "",
+        )
+
+        result = controller.get_rule_status()
+
+        assert result is True
+
     # enable_steering() tests
     # =========================================================================
 

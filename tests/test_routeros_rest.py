@@ -416,11 +416,23 @@ class TestParsing:
         result = rest_client._parse_find_comment(cmd)
         assert result == "steering"
 
+    def test_parse_find_comment_extracts_regex_comment(self, rest_client):
+        """'[find comment~"steering"]' -> 'steering'."""
+        cmd = '/ip firewall mangle enable [find comment~"steering"]'
+        result = rest_client._parse_find_comment(cmd)
+        assert result == "steering"
+
     def test_parse_find_comment_no_match(self, rest_client):
         """Returns None when pattern not found."""
         cmd = "/ip firewall mangle print"
         result = rest_client._parse_find_comment(cmd)
         assert result is None
+
+    def test_parse_where_comment_extracts_regex_comment(self, rest_client):
+        """Extracts where comment~ filter and regex flag."""
+        cmd = '/ip firewall mangle print where comment~"steering"'
+        result = rest_client._parse_where_comment(cmd)
+        assert result == ("steering", True)
 
     def test_parse_parameters_extracts_queue(self, rest_client):
         """'queue=cake-down' extracted."""
@@ -705,6 +717,26 @@ class TestMangleRule:
         call_kwargs = mock_session.patch.call_args[1]
         assert call_kwargs["json"]["disabled"] == "false"
 
+    def test_handle_mangle_rule_enable_with_regex_comment(self, rest_client, mock_session):
+        """Accepts the comment~ form emitted by steering."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "steering", ".id": "*1"}]
+        mock_session.get.return_value = get_response
+
+        patch_response = MagicMock()
+        patch_response.ok = True
+        mock_session.patch.return_value = patch_response
+
+        cmd = '/ip firewall mangle enable [find comment~"steering"]'
+        result = rest_client._handle_mangle_rule(cmd)
+
+        assert result is not None
+        assert result["status"] == "ok"
+        assert result["disabled"] == "false"
+        call_kwargs = mock_session.patch.call_args[1]
+        assert call_kwargs["json"]["disabled"] == "false"
+
     def test_handle_mangle_rule_disable(self, rest_client, mock_session):
         """Sets disabled=true."""
         get_response = MagicMock()
@@ -764,6 +796,21 @@ class TestMangleRule:
         result = rest_client._handle_mangle_rule(cmd)
 
         assert result is None
+
+    def test_handle_mangle_print_where_comment_regex(self, rest_client, mock_session):
+        """Returns matched rules for print where comment~ filter."""
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [
+            {"comment": "other", ".id": "*1"},
+            {"comment": "ADAPTIVE: Steer latency-sensitive to ATT", ".id": "*313"},
+        ]
+        mock_session.get.return_value = get_response
+
+        cmd = '/ip firewall mangle print where comment~"ADAPTIVE: Steer latency-sensitive to ATT"'
+        result = rest_client._handle_mangle_print(cmd)
+
+        assert result == [{"comment": "ADAPTIVE: Steer latency-sensitive to ATT", ".id": "*313"}]
 
 
 # =============================================================================
@@ -829,6 +876,26 @@ class TestResourceIdLookup:
         result = rest_client._find_queue_id("NonExistent")
 
         assert result is None
+
+    def test_find_resource_id_falls_back_to_full_list_exact_match(self, rest_client, mock_session):
+        """Falls back to full list when filtered RouterOS lookup returns empty."""
+        filtered_response = MagicMock()
+        filtered_response.ok = True
+        filtered_response.json.return_value = []
+
+        full_list_response = MagicMock()
+        full_list_response.ok = True
+        full_list_response.json.return_value = [
+            {"comment": "other", ".id": "*1"},
+            {"comment": "ADAPTIVE: Steer latency-sensitive to ATT", ".id": "*313"},
+        ]
+
+        mock_session.get.side_effect = [filtered_response, full_list_response]
+
+        result = rest_client.find_mangle_rule_id("ADAPTIVE: Steer latency-sensitive to ATT")
+
+        assert result == "*313"
+        assert mock_session.get.call_count == 2
 
     def test_find_resource_id_network_error(self, rest_client, mock_session):
         """Returns None on RequestException."""
