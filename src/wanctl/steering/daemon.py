@@ -29,6 +29,8 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -187,10 +189,32 @@ class SteeringConfig(BaseConfig):
             topology.get("primary_wan_config", f"/etc/wanctl/{self.primary_wan}.yaml")
         )
         self.alternate_wan = topology.get("alternate_wan", "wan2")
+        self.primary_health_url = self._derive_primary_health_url()
 
         # Derive state names from topology (e.g., "WAN1_GOOD", "WAN1_DEGRADED")
         self.state_good = f"{self.primary_wan.upper()}_GOOD"
         self.state_degraded = f"{self.primary_wan.upper()}_DEGRADED"
+
+    def _derive_primary_health_url(self) -> str:
+        """Derive the colocated autorate health URL from the primary WAN config."""
+        health_host = "127.0.0.1"
+        health_port = 9101
+        try:
+            import yaml
+
+            with self.primary_wan_config.open() as f:
+                primary_cfg = yaml.safe_load(f) or {}
+            health = primary_cfg.get("health_check", {})
+            if isinstance(health, dict):
+                host = health.get("host", health_host)
+                port = health.get("port", health_port)
+                if isinstance(host, str) and host:
+                    health_host = host
+                if isinstance(port, int):
+                    health_port = port
+        except Exception:
+            pass
+        return f"http://{health_host}:{health_port}/health"
 
     def _load_state_sources(self) -> None:
         """Load primary WAN state file path with legacy support."""
@@ -899,6 +923,7 @@ class RouterOSController:
 
 STALE_BASELINE_THRESHOLD_SECONDS = 300
 STALE_WAN_ZONE_THRESHOLD_SECONDS = 5
+STALE_AUTORATE_MEASUREMENT_THRESHOLD_SECONDS = 2.0
 
 
 class BaselineLoader:
@@ -963,6 +988,51 @@ class BaselineLoader:
             return None, wan_zone
         self.logger.warning("Baseline RTT not found in autorate state file")
         return None, wan_zone
+
+    def load_live_rtt(self) -> float | None:
+        """Load current direct-ICMP RTT from the primary autorate health endpoint."""
+        try:
+            with urllib.request.urlopen(self.config.primary_health_url, timeout=0.2) as response:
+                payload = json.loads(response.read().decode())
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+            self.logger.debug(f"Failed to read autorate health payload: {exc}")
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+        wans = payload.get("wans")
+        if not isinstance(wans, list):
+            return None
+
+        target_wan = None
+        for wan in wans:
+            if isinstance(wan, dict) and wan.get("name") == self.config.primary_wan:
+                target_wan = wan
+                break
+        if target_wan is None and len(wans) == 1 and isinstance(wans[0], dict):
+            target_wan = wans[0]
+        if target_wan is None:
+            return None
+
+        measurement = target_wan.get("measurement")
+        if not isinstance(measurement, dict):
+            return None
+
+        raw_rtt = measurement.get("raw_rtt_ms")
+        staleness = measurement.get("staleness_sec")
+        available = measurement.get("available")
+        if available is not True:
+            return None
+        if not isinstance(raw_rtt, (int, float)) or not isinstance(staleness, (int, float)):
+            return None
+        if staleness > STALE_AUTORATE_MEASUREMENT_THRESHOLD_SECONDS:
+            self.logger.debug(
+                "Autorate RTT snapshot stale: %.3fs > %.1fs",
+                staleness,
+                STALE_AUTORATE_MEASUREMENT_THRESHOLD_SECONDS,
+            )
+            return None
+        return float(raw_rtt)
 
     def get_wan_zone_age(self) -> float | None:
         """Get age of autorate state file in seconds.
@@ -1613,7 +1683,10 @@ class SteeringDaemon:
         return state_changed
 
     def measure_current_rtt(self) -> float | None:
-        """Measure current RTT to ping host"""
+        """Measure current RTT, preferring autorate's direct ICMP snapshot."""
+        live_rtt = self.baseline_loader.load_live_rtt()
+        if live_rtt is not None:
+            return live_rtt
         return self.rtt_measurement.ping_host(self.config.ping_host, self.config.ping_count)
 
     def _measure_current_rtt_with_retry(self, max_retries: int = 3) -> float | None:

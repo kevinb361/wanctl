@@ -1993,6 +1993,24 @@ class TestStateLoadSave:
         assert call_kwargs["congestion"]["dl_state"] == "RED"
         assert call_kwargs["congestion"]["ul_state"] == "YELLOW"
 
+    def test_get_health_data_includes_live_measurement_snapshot(self, controller_with_mocks):
+        """get_health_data exposes the latest direct ICMP RTT snapshot."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl._last_raw_rtt = 21.75
+        ctrl._last_raw_rtt_ts = 100.0
+        ctrl._last_active_reflector_hosts = ["1.1.1.1", "9.9.9.9"]
+        ctrl._last_successful_reflector_hosts = ["1.1.1.1"]
+
+        with patch("wanctl.wan_controller.time.monotonic", return_value=100.25):
+            health = ctrl.get_health_data()
+
+        measurement = health["measurement"]
+        assert measurement["raw_rtt_ms"] == 21.75
+        assert measurement["staleness_sec"] == 0.25
+        assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
+        assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
+
     def test_zone_attrs_initialized_green(self, controller_with_mocks):
         """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
         ctrl, _, _, _ = controller_with_mocks

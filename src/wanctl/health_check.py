@@ -273,6 +273,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         if signal_quality is not None:
             wan_health["signal_quality"] = signal_quality
 
+        wan_health["measurement"] = self._build_measurement_section(health_data)
         wan_health["irtt"] = self._build_irtt_section(health_data, config)
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
@@ -377,6 +378,19 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if last_asymmetry_result is not None
                 else None
             ),
+        }
+
+    def _build_measurement_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build current direct-ICMP measurement snapshot for downstream consumers."""
+        measurement = health_data.get("measurement", {})
+        raw_rtt = measurement.get("raw_rtt_ms")
+        staleness = measurement.get("staleness_sec")
+        return {
+            "available": raw_rtt is not None,
+            "raw_rtt_ms": round(raw_rtt, 2) if raw_rtt is not None else None,
+            "staleness_sec": round(staleness, 3) if staleness is not None else None,
+            "active_reflector_hosts": measurement.get("active_reflector_hosts", []),
+            "successful_reflector_hosts": measurement.get("successful_reflector_hosts", []),
         }
 
     def _build_reflector_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
