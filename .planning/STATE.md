@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Plan Phase 182 to close the remaining ATT footprint reduction gap before re-audit
-last_updated: "2026-04-14T12:40:00.000Z"
+stopped_at: Re-audit milestone after Phase 182 closeout
+last_updated: "2026-04-14T13:42:00.000Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
-  percent: 83
+  completed_phases: 6
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Plan and execute Phase 182 to close the final ATT footprint reduction gap before re-auditing v1.36
+**Current focus:** Re-audit v1.36 after Phase 182 closed the final footprint gap
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
 **Phase:** 182 of 182 (ATT footprint closure)
-**Plan:** Not planned yet; roadmap gap-closure phase added from the refreshed milestone audit
-**Status:** Milestone has one remaining blocker: STOR-06 is pending on a production-backed ATT footprint reduction
+**Plan:** All three plans complete with production evidence and verification
+**Status:** All phase plans executed; milestone is ready for re-audit
 **Last activity:** 2026-04-14
 
-Progress: [████████░░] 83%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -60,8 +60,11 @@ Progress: [████████░░] 83%
 - Spectrum is materially smaller than the fixed baseline, but ATT remains effectively unchanged
 - `STOR-06` therefore remains unsatisfied even though the phase execution itself is complete
 - The refreshed milestone audit now routes the remaining work into a single new gap-closure phase: Phase 182 ATT Footprint Closure
+- Phase 182 planning is complete with three plans: ATT-specific precheck, ATT-only reduction execution, and final production closeout
+- Phase 182 completed the ATT-only compaction run and reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`
+- Both active per-WAN DBs are now materially smaller than the fixed `2026-04-13` baseline, so `STOR-06` is satisfied
 
 ## Session Continuity
 
-Stopped at: Plan Phase 182 from the refreshed milestone audit
-Resume file: .planning/v1.36-MILESTONE-AUDIT.md
+Stopped at: Re-run /gsd-audit-milestone after Phase 182 closeout
+Resume file: .planning/phases/182-att-footprint-closure/182-VERIFICATION.md

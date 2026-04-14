@@ -11,7 +11,7 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 - [x] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path (completed 2026-04-13)
 - [x] **Phase 180: Verification Backfill And Audit Closure** - Close the missing Phase 177 verification trail and re-anchor STOR-04 to milestone-grade evidence (completed 2026-04-14)
 - [x] **Phase 181: Production Footprint Reduction And Reader Parity** - Execute the production footprint-reduction attempt, recover the startup regression, and capture final live outcome evidence (completed 2026-04-14; requirement gap remains)
-- [ ] **Phase 182: ATT Footprint Closure** - Finish the remaining ATT footprint reduction and close the final STOR-06 production gap
+- [x] **Phase 182: ATT Footprint Closure** - Finish the remaining ATT footprint reduction and close the final STOR-06 production gap (completed 2026-04-14)
 
 ## Phase Details
 
@@ -66,7 +66,7 @@ Plans:
 | 179. Verification And Operator Evidence | 3/3 | Complete | 2026-04-13 |
 | 180. Verification Backfill And Audit Closure | 2/2 | Complete | 2026-04-14 |
 | 181. Production Footprint Reduction And Reader Parity | 3/3 | Complete | 2026-04-14 |
-| 182. ATT Footprint Closure | 0/0 | Not Started | - |
+| 182. ATT Footprint Closure | 3/3 | Complete | 2026-04-14 |
 
 ### Phase 180: Verification Backfill And Audit Closure
 **Goal**: Close the missing milestone verification trail for Phase 177 and leave STOR-04 audit-safe
@@ -106,4 +106,8 @@ Plans:
   1. ATT is materially smaller than the fixed 2026-04-13 baseline using production evidence, not repo-only intent
   2. Health, canary, soak-monitor, operator-summary, and the documented history-reader proof paths still work after the ATT reduction step
   3. The milestone can be re-audited without leaving STOR-06 in a mixed or partial state
-**Plans:** 0/0 plans complete
+**Plans:** 3/3 plans complete
+Plans:
+- [x] 182-01-PLAN.md -- ATT reduction precheck and exact operator procedure
+- [x] 182-02-PLAN.md -- ATT-only reduction execution and minimal helper alignment
+- [x] 182-03-PLAN.md -- Final production proof, verification, and audit handoff
