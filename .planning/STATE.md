@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
 status: executing
-stopped_at: Completed 184-01-PLAN.md
-last_updated: "2026-04-14T15:33:47.719Z"
+stopped_at: Completed 184-02-PLAN.md
+last_updated: "2026-04-14T15:38:33.428Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Milestone:** v1.37 Dashboard History Source Clarity
 **Phase:** 184
-**Plan:** 01 complete
+**Plan:** 02 complete
 **Status:** Executing Phase 184
 **Last activity:** 2026-04-14
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Accumulated Context
 
@@ -67,18 +67,22 @@ Progress: [██████░░░░] 60%
 - v1.36 is archived and tagged, and the carried-forward debt is now the seed for v1.37
 - The dashboard history widget still queries `/metrics/history` directly and does not surface the endpoint-local versus merged history distinction or `metadata.source`
 - v1.37 will focus on dashboard history source clarity, operator comprehension, and matching tests/docs without changing backend history semantics
+- Phase 184-02 is complete: success-state history detail now translates `metadata.source.mode` into operator wording, DB-path context follows the one-path vs many-path contract, and `source-diagnostic` carries the raw D-08 mode/db_paths/http surface
 
 ## Session Continuity
 
-Stopped at: Completed 184-01-PLAN.md
-Resume file: .planning/phases/184-dashboard-history-source-surfacing/184-02-metadata-source-surfacing-PLAN.md
+Stopped at: Completed 184-02-PLAN.md
+Resume file: .planning/phases/184-dashboard-history-source-surfacing/184-03-merged-cli-handoff-PLAN.md
 
 ## Decisions
 
 - Phase 184-01 keeps history fetch-state classification in `src/wanctl/dashboard/widgets/history_state.py` so future tests can cover the state matrix without mounting Textual.
 - History tab source framing is always mounted in the widget via dedicated banner/detail/handoff/diagnostic `Static` children.
 - Success-state detail and exact diagnostic formatting are intentionally deferred to Plan 184-02; this plan only establishes the shared routing and locked copy surface.
+- [Phase 184]: Phase 184-02 routes success-state source-detail through _format_source_detail so D-06 and D-07 stay testable without mounting Textual.
+- [Phase 184]: Raw metadata.source mode and db_paths values remain confined to source-diagnostic helpers, while primary history copy stays translated through HISTORY_COPY phrases.
 
 ## Performance Metrics
 
 - 2026-04-14: Phase 184 Plan 01 completed in 13 min across 3 tasks and 2 source files.
+- 2026-04-14: Phase 184 Plan 02 completed in 11 min across 2 tasks and 1 source file.
