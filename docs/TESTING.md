@@ -88,6 +88,39 @@ pytest -m "not integration"
 pytest -m "not slow"
 ```
 
+## Live Router Communication Smoke Test
+
+For a real router communication check against production-style config, use
+[`wanctl-check-cake`](/home/kevin/projects/wanctl/src/wanctl/check_cake.py). This is the
+lowest-risk live integration smoke path because it exercises transport,
+authentication, and basic RouterOS reads without changing shaping state unless
+you explicitly pass `--fix`.
+
+Examples:
+
+```bash
+.venv/bin/python -m wanctl.check_cake /etc/wanctl/steering.yaml --type steering
+```
+
+Notes:
+
+- on the current `cake-shaper` deployment, the per-WAN autorate configs use
+  `linux-cake-netlink`, so they are not the right live smoke target for RouterOS
+  communication
+- `steering.yaml` is the correct production smoke path because it still uses the
+  RouterOS REST control path
+
+What it verifies:
+
+- router connectivity and authentication
+- RouterOS queue lookup/read paths
+- mangle rule lookup for steering configs
+- response parsing against a live router instead of pure mocks
+
+Operator rule:
+
+- do not use `--fix` during a soak unless you explicitly intend to change live router state
+
 ## Quality and Security Gates
 
 Additional Makefile targets:

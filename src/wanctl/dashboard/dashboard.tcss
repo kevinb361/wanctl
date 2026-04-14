@@ -33,12 +33,20 @@ TabPane {
     width: 1fr;
 }
 
+#wan-row.narrow-layout .wan-col {
+    min-height: 1fr;
+}
+
 WanPanelWidget {
     height: auto;
     min-height: 5;
     border: solid green;
     padding: 0 1;
     margin: 0 0 1 0;
+}
+
+#wan-row.narrow-layout WanPanelWidget {
+    min-height: 8;
 }
 
 SparklinePanelWidget {
