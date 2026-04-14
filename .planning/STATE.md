@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.36
-milestone_name: storage-retention-and-db-footprint
-status: complete
-stopped_at: Start next milestone with /gsd-new-milestone
-last_updated: "2026-04-14T13:50:00.000Z"
+milestone: v1.37
+milestone_name: dashboard-history-source-clarity
+status: planning
+stopped_at: Plan Phase 183 with /gsd-plan-phase 183
+last_updated: "2026-04-14T14:20:00.000Z"
 last_activity: 2026-04-14
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 8
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-13)
+See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone archived; define the next milestone
+**Current focus:** Define and execute the dashboard history-source clarity milestone without reopening storage or control-loop work
 
 ## Position
 
-**Milestone:** v1.36 Storage Retention And DB Footprint
-**Phase:** completed
-**Plan:** archived
-**Status:** v1.36 archived and tagged; ready for next milestone definition
+**Milestone:** v1.37 Dashboard History Source Clarity
+**Phase:** planning
+**Plan:** Phase 183 not yet planned
+**Status:** Milestone scaffold created; ready to plan the first phase
 **Last activity:** 2026-04-14
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
@@ -64,8 +64,11 @@ Progress: [██████████] 100%
 - Phase 182 completed the ATT-only compaction run and reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`
 - Both active per-WAN DBs are now materially smaller than the fixed `2026-04-13` baseline, so `STOR-06` is satisfied
 - v1.36 milestone audit is now clean enough for completion, with only non-blocking dashboard consumer debt remaining
+- v1.36 is archived and tagged, and the carried-forward debt is now the seed for v1.37
+- The dashboard history widget still queries `/metrics/history` directly and does not surface the endpoint-local versus merged history distinction or `metadata.source`
+- v1.37 will focus on dashboard history source clarity, operator comprehension, and matching tests/docs without changing backend history semantics
 
 ## Session Continuity
 
-Stopped at: Start the next milestone
-Resume file: .planning/MILESTONES.md
+Stopped at: Plan Phase 183
+Resume file: .planning/ROADMAP.md

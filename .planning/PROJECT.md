@@ -10,8 +10,8 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.36 (Storage Retention And DB Footprint) — shipped 2026-04-14
-**Tests:** 4,200+ passing, targeted storage/history/health regressions passing, milestone audit at `tech_debt` with 5/5 requirements and 6/6 phases complete
+**Version:** v1.37 (Dashboard History Source Clarity) — planning started 2026-04-14
+**Tests:** 4,200+ passing, targeted storage/history/health regressions passing, v1.36 shipped and archived with 5/5 requirements and 6/6 phases complete
 **LOC:** ~36,700 Python (src/)
 **Milestones:** 37 shipped (v1.0-v1.36), 182 phases, 375 plans
 
@@ -26,9 +26,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Next Milestone Goals
 
-- Surface the narrowed CLI-vs-endpoint-local HTTP history contract in the dashboard consumer.
-- Keep storage and operator verification contracts aligned without reopening control-loop behavior changes.
-- Start the next milestone from a fresh requirements definition rather than carrying v1.36 planning forward.
+- Make the dashboard history tab explicit about endpoint-local HTTP history versus merged CLI history.
+- Surface `metadata.source` and related source context so operators can tell what they are looking at.
+- Keep the history contract aligned across dashboard, tests, and docs without reopening storage or control-loop work.
 
 ## Requirements
 
