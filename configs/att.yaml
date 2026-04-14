@@ -82,7 +82,7 @@ continuous_monitoring:
     load_time_constant_sec: 0.25     # Fast EWMA for load RTT (250ms = reacts quickly to congestion)
 
   # Ping configuration (3 reflectors with median for resilience)
-  ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
+  ping_hosts: ["1.1.1.1", "8.8.8.8", "151.101.1.57"]
   use_median_of_three: true
 
   # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
