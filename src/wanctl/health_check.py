@@ -416,10 +416,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         fusion_data = health_data["fusion"]
         if not fusion_data["enabled"]:
             healer = fusion_data["healer"]
+            heal_state = healer.state.value if healer is not None else "no_healer"
+            if heal_state == "suspended":
+                reason = "healer_suspended"
+            elif heal_state == "recovering":
+                reason = "healer_recovering"
+            else:
+                reason = "disabled"
             return {
                 "enabled": False,
-                "reason": "disabled",
-                "heal_state": healer.state.value if healer is not None else "no_healer",
+                "reason": reason,
+                "heal_state": heal_state,
                 "heal_grace_active": healer.is_grace_active if healer is not None else False,
             }
 

@@ -472,6 +472,8 @@ class WANController:
         self._irtt_thread: IRTTThread | None = None
         self._irtt_correlation: float | None = None
         self._irtt_deprioritization_logged: bool = False
+        self._irtt_deprioritization_last_transition_ts: float = 0.0
+        self._irtt_deprioritization_log_cooldown_sec: float = 5.0
         self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
         # OWD asymmetry detection (ASYM-01 through ASYM-03)
@@ -1429,6 +1431,11 @@ class WANController:
         - 0.67-1.5: Normal correlation
         """
         deprioritized = ratio > 1.5 or ratio < 0.67
+        now = time.monotonic()
+        cooldown_elapsed = (
+            now - self._irtt_deprioritization_last_transition_ts
+            >= self._irtt_deprioritization_log_cooldown_sec
+        )
 
         if deprioritized:
             if ratio > 1.5:
@@ -1437,22 +1444,36 @@ class WANController:
                 interpretation = "UDP deprioritized"
 
             if not self._irtt_deprioritization_logged:
-                irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
-                udp_rtt = irtt_result.rtt_mean_ms if irtt_result else 0.0
-                self.logger.info(
-                    f"{self.wan_name}: Protocol deprioritization detected: "
-                    f"ICMP/UDP ratio={ratio:.2f} ({interpretation}), "
-                    f"ICMP={self.load_rtt:.1f}ms, UDP={udp_rtt:.1f}ms"
-                )
+                if cooldown_elapsed:
+                    irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
+                    udp_rtt = irtt_result.rtt_mean_ms if irtt_result else 0.0
+                    self.logger.info(
+                        f"{self.wan_name}: Protocol deprioritization detected: "
+                        f"ICMP/UDP ratio={ratio:.2f} ({interpretation}), "
+                        f"ICMP={self.load_rtt:.1f}ms, UDP={udp_rtt:.1f}ms"
+                    )
+                else:
+                    self.logger.debug(
+                        f"{self.wan_name}: Protocol deprioritization transition "
+                        f"suppressed by cooldown, ratio={ratio:.2f} ({interpretation})"
+                    )
                 self._irtt_deprioritization_logged = True
+                self._irtt_deprioritization_last_transition_ts = now
             else:
                 self.logger.debug(f"{self.wan_name}: Protocol ratio={ratio:.2f}")
         else:
             if self._irtt_deprioritization_logged:
-                self.logger.info(
-                    f"{self.wan_name}: Protocol correlation recovered, ratio={ratio:.2f}"
-                )
+                if cooldown_elapsed:
+                    self.logger.info(
+                        f"{self.wan_name}: Protocol correlation recovered, ratio={ratio:.2f}"
+                    )
+                else:
+                    self.logger.debug(
+                        f"{self.wan_name}: Protocol recovery transition suppressed by "
+                        f"cooldown, ratio={ratio:.2f}"
+                    )
                 self._irtt_deprioritization_logged = False
+                self._irtt_deprioritization_last_transition_ts = now
 
         self._irtt_correlation = ratio
 
