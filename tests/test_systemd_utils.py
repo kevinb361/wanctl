@@ -1,5 +1,6 @@
 """Unit tests for systemd utilities."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 from wanctl.systemd_utils import (
@@ -9,6 +10,7 @@ from wanctl.systemd_utils import (
     notify_status,
     notify_stopping,
     notify_watchdog,
+    startup_watchdog_heartbeat,
 )
 
 
@@ -58,6 +60,26 @@ class TestNotifyWatchdog:
         with patch("wanctl.systemd_utils._sd_notify", None):
             # Should not raise
             notify_watchdog()
+
+
+class TestStartupWatchdogHeartbeat:
+    """Tests for startup watchdog heartbeat context manager."""
+
+    def test_emits_watchdog_notifications_while_context_active(self):
+        """Heartbeat context should emit at least one watchdog ping."""
+        mock_notify = MagicMock()
+        with patch("wanctl.systemd_utils._sd_notify", mock_notify):
+            with startup_watchdog_heartbeat(interval_seconds=0.01):
+                time.sleep(0.03)
+
+        assert mock_notify.call_count >= 1
+        assert all(call.args[0] == "WATCHDOG=1" for call in mock_notify.call_args_list)
+
+    def test_noop_when_systemd_unavailable(self):
+        """Heartbeat context should be inert without systemd support."""
+        with patch("wanctl.systemd_utils._sd_notify", None):
+            with startup_watchdog_heartbeat(interval_seconds=0.01):
+                time.sleep(0.01)
 
 
 class TestNotifyStatus:

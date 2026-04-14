@@ -51,6 +51,7 @@ from wanctl.storage.deferred_writer import DeferredIOWorker
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
+    startup_watchdog_heartbeat,
     notify_watchdog,
 )
 from wanctl.tuning.models import TuningConfig
@@ -655,7 +656,11 @@ def _run_maintenance(
                 )
                 notify_watchdog()
 
-                vacuumed = vacuum_if_needed(maintenance_conn, deleted)
+                vacuumed = vacuum_if_needed(
+                    maintenance_conn,
+                    deleted,
+                    watchdog_fn=notify_watchdog,
+                )
                 notify_watchdog()
 
                 wal_result = maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
@@ -1334,37 +1339,40 @@ def main() -> int | None:
     if args.validate_config:
         return validate_config_mode(args.config)
 
-    controller = ContinuousAutoRate(args.config, debug=args.debug)
-    _configure_controller_flags(controller, args)
-    controller.wan_controllers[0]["logger"].info("Startup stage: entering _init_storage")
-    maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = _init_storage(controller)
-    controller.wan_controllers[0]["logger"].info("Startup stage: _init_storage complete")
+    with startup_watchdog_heartbeat():
+        controller = ContinuousAutoRate(args.config, debug=args.debug)
+        _configure_controller_flags(controller, args)
+        controller.wan_controllers[0]["logger"].info("Startup stage: entering _init_storage")
+        maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = _init_storage(
+            controller
+        )
+        controller.wan_controllers[0]["logger"].info("Startup stage: _init_storage complete")
 
-    if args.oneshot:
-        controller.run_cycle(use_lock=True)
-        return None
+        if args.oneshot:
+            controller.run_cycle(use_lock=True)
+            return None
 
-    lock_files, lock_error = _acquire_daemon_locks(controller)
-    if lock_error is not None:
-        return lock_error
+        lock_files, lock_error = _acquire_daemon_locks(controller)
+        if lock_error is not None:
+            return lock_error
 
-    # Register emergency cleanup handler for abnormal termination
-    def emergency_lock_cleanup() -> None:
-        """Emergency cleanup - runs via atexit if finally block doesn't complete."""
-        for lock_path in lock_files:
-            try:
-                lock_path.unlink(missing_ok=True)
-            except OSError:
-                pass  # Best effort
+        # Register emergency cleanup handler for abnormal termination
+        def emergency_lock_cleanup() -> None:
+            """Emergency cleanup - runs via atexit if finally block doesn't complete."""
+            for lock_path in lock_files:
+                try:
+                    lock_path.unlink(missing_ok=True)
+                except OSError:
+                    pass  # Best effort
 
-    atexit.register(emergency_lock_cleanup)
-    register_signal_handlers()
+        atexit.register(emergency_lock_cleanup)
+        register_signal_handlers()
 
-    controller.wan_controllers[0]["logger"].info("Startup stage: starting metrics/health servers")
-    metrics_server, health_server = _start_servers(controller)
-    controller.wan_controllers[0]["logger"].info("Startup stage: metrics/health servers started")
-    irtt_thread = _start_irtt_thread(controller)
-    io_worker = _setup_daemon_state(controller, irtt_thread)
+        controller.wan_controllers[0]["logger"].info("Startup stage: starting metrics/health servers")
+        metrics_server, health_server = _start_servers(controller)
+        controller.wan_controllers[0]["logger"].info("Startup stage: metrics/health servers started")
+        irtt_thread = _start_irtt_thread(controller)
+        io_worker = _setup_daemon_state(controller, irtt_thread)
 
     try:
         _run_daemon_loop(
