@@ -31,7 +31,7 @@ from wanctl.runtime_pressure import (
     build_storage_section as build_storage_status_section,
 )
 from wanctl.storage.db_utils import discover_wan_dbs, query_all_wans
-from wanctl.storage.reader import query_metrics, select_granularity
+from wanctl.storage.reader import count_metrics, query_metrics, select_granularity
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
 # Default: warn when less than 100MB free on data partition
@@ -815,23 +815,43 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         limit = params.get("limit", 1000)
 
         db_paths, source_mode = self._resolve_history_db_paths()
-        merged_results = query_all_wans(
-            query_metrics,
-            db_paths=db_paths,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            metrics=params.get("metrics"),
-            wan=params.get("wan"),
-            granularity=granularity,
-        )
-        if getattr(merged_results, "all_failed", False):
-            self._send_json_error(503, "All metrics databases failed to read")
-            return
+        if len(db_paths) == 1:
+            total_count = count_metrics(
+                db_path=db_paths[0],
+                start_ts=start_ts,
+                end_ts=end_ts,
+                metrics=params.get("metrics"),
+                wan=params.get("wan"),
+                granularity=granularity,
+            )
+            paginated = query_metrics(
+                db_path=db_paths[0],
+                start_ts=start_ts,
+                end_ts=end_ts,
+                metrics=params.get("metrics"),
+                wan=params.get("wan"),
+                granularity=granularity,
+                limit=limit,
+                offset=offset,
+            )
+        else:
+            merged_results = query_all_wans(
+                query_metrics,
+                db_paths=db_paths,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                metrics=params.get("metrics"),
+                wan=params.get("wan"),
+                granularity=granularity,
+            )
+            if getattr(merged_results, "all_failed", False):
+                self._send_json_error(503, "All metrics databases failed to read")
+                return
 
-        # Preserve the existing endpoint contract: newest samples first.
-        merged_results.sort(key=lambda row: row.get("timestamp", 0), reverse=True)
-        total_count = len(merged_results)
-        paginated = merged_results[offset : offset + limit]
+            # Preserve the existing endpoint contract: newest samples first.
+            merged_results.sort(key=lambda row: row.get("timestamp", 0), reverse=True)
+            total_count = len(merged_results)
+            paginated = merged_results[offset : offset + limit]
 
         # Format each metric record
         formatted_data = [self._format_metric(row) for row in paginated]
