@@ -7,6 +7,7 @@ endpoint on demand and displays results in a DataTable with summary statistics.
 from __future__ import annotations
 
 import statistics
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -153,9 +154,12 @@ class HistoryBrowserWidget(Widget):
             summary_widget.update(HISTORY_COPY.SUMMARY_NO_DATA)
 
         if state is HistoryState.SUCCESS:
+            # Classifier guarantees metadata.source is a dict with known mode
+            # and non-empty db_paths list.
+            source = payload["metadata"]["source"]
             banner.update(HISTORY_COPY.BANNER_SUCCESS)
-            detail.update("")
-            diagnostic.update("")
+            detail.update(self._format_source_detail(source))
+            diagnostic.update(self._format_diagnostic_for_payload(payload, http_status=200))
         elif state is HistoryState.SOURCE_MISSING:
             banner.update(HISTORY_COPY.BANNER_SOURCE_MISSING)
             detail.update(HISTORY_COPY.DETAIL_AMBIGUOUS)
@@ -206,16 +210,90 @@ class HistoryBrowserWidget(Widget):
             "p99": p99,
         }
 
-    def _format_diagnostic_for_error(self, exc: Any) -> str:
-        """Format source-diagnostic line for fetch_error state."""
-        return f"mode=? · db_paths=? · http={type(exc).__name__}"
+    def _format_source_detail(self, source: dict[str, Any]) -> str:
+        """Render source-detail text per D-06 (mode phrase) and D-07 (db_paths).
+
+        Primary operator surface. Never exposes raw internals — raw values
+        belong in source-diagnostic. Called only in the SUCCESS branch where
+        the classifier has already confirmed mode is in KNOWN_SOURCE_MODES and
+        db_paths is a non-empty list.
+
+        Contract mapping (184-CONTEXT D-06 / D-07):
+          - mode=local_configured_db → "Connected endpoint local database"
+          - mode=merged_discovery    → "Discovered database set on this endpoint"
+          - len(db_paths) == 1       → "<mode phrase> — <full absolute path>"
+          - len(db_paths) > 1        → "<mode phrase> — N databases: <basename1>, <basename2>, ..."
+        """
+        mode = source.get("mode")
+        db_paths = source.get("db_paths") or []
+
+        if mode == "local_configured_db":
+            phrase = HISTORY_COPY.MODE_PHRASE_LOCAL
+        elif mode == "merged_discovery":
+            phrase = HISTORY_COPY.MODE_PHRASE_MERGED
+        else:  # Defensive — classifier gates this branch, but keep total.
+            phrase = HISTORY_COPY.MODE_PHRASE_LOCAL
+
+        if len(db_paths) == 1:
+            return f"{phrase} — {db_paths[0]}"
+
+        basenames = ", ".join(Path(str(p)).name for p in db_paths)
+        return f"{phrase} — {len(db_paths)} databases: {basenames}"
+
+    def _format_diagnostic_for_error(self, exc: BaseException) -> str:
+        """Render source-diagnostic text on fetch_error.
+
+        Narrows common httpx failure modes so operators can distinguish
+        timeout / connect / status / JSON-parse failures (D-02 discretion:
+        "all four collapse into fetch_error state for banner purposes"; the
+        banner remains HISTORY_COPY.BANNER_FETCH_ERROR, only the diagnostic
+        line narrows).
+        """
+        if isinstance(exc, httpx.TimeoutException):
+            http_label = "timeout"
+        elif isinstance(exc, httpx.HTTPStatusError):
+            http_label = f"{exc.response.status_code}"
+        elif isinstance(exc, httpx.ConnectError):
+            http_label = "connect_error"
+        elif isinstance(exc, httpx.HTTPError):
+            http_label = f"http_error({type(exc).__name__})"
+        elif isinstance(exc, ValueError):
+            # resp.json() raises ValueError / JSONDecodeError subclass on malformed JSON
+            http_label = "invalid_json"
+        else:
+            http_label = type(exc).__name__
+
+        return f"mode=? · db_paths=? · http={http_label}"
 
     def _format_diagnostic_for_payload(
         self, payload: dict[str, Any], *, http_status: int
     ) -> str:
-        """Format source-diagnostic line for success and F2 states."""
-        metadata = payload.get("metadata") or {}
+        """Render source-diagnostic text per D-08 (raw values + http status).
+
+        Used for SUCCESS and all F2 states. Raw mode and raw absolute paths
+        appear here and ONLY here — the primary source-detail surface
+        translates mode into operator wording (see _format_source_detail).
+
+        Format (D-08):
+          "mode=<raw mode string> · db_paths=<joined absolute paths> · http=<status>"
+        """
+        metadata = payload.get("metadata") if isinstance(payload, dict) else None
         source = metadata.get("source") if isinstance(metadata, dict) else None
-        mode = source.get("mode") if isinstance(source, dict) else None
-        db_paths = source.get("db_paths") if isinstance(source, dict) else None
-        return f"mode={mode} · db_paths={db_paths} · http={http_status}"
+
+        if isinstance(source, dict):
+            raw_mode = source.get("mode")
+            raw_paths = source.get("db_paths")
+        else:
+            raw_mode = None
+            raw_paths = None
+
+        mode_str = str(raw_mode) if raw_mode is not None else "missing"
+
+        if isinstance(raw_paths, list):
+            paths_str = ",".join(str(p) for p in raw_paths) if raw_paths else "empty"
+        elif raw_paths is None:
+            paths_str = "missing"
+        else:
+            paths_str = f"malformed({type(raw_paths).__name__})"
+
+        return f"mode={mode_str} · db_paths={paths_str} · http={http_status}"
