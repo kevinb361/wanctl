@@ -20,8 +20,6 @@ from wanctl.dashboard.widgets.history_state import (
     classify_history_state,
 )
 
-_ = (HistoryState, classify_history_state)
-
 TIME_RANGES: list[tuple[str, str]] = [
     ("1 Hour", "1h"),
     ("6 Hours", "6h"),
@@ -79,16 +77,16 @@ class HistoryBrowserWidget(Widget):
             self.run_worker(self._fetch_and_populate(event.value))
 
     async def _fetch_and_populate(self, time_range: str) -> None:
-        """Fetch historical metrics and populate the DataTable.
-
-        Args:
-            time_range: Time range string (1h, 6h, 24h, 7d).
-        """
+        """Fetch historical metrics and populate the History tab."""
+        banner = self.query_one("#source-banner", Static)
+        detail = self.query_one("#source-detail", Static)
+        diagnostic = self.query_one("#source-diagnostic", Static)
         summary_widget = self.query_one("#summary-stats", Static)
         table = self.query_one("#history-table", DataTable)
 
         summary_widget.update("Loading...")
 
+        payload_or_exc: Any
         try:
             if self._http_client is None:
                 self._http_client = httpx.AsyncClient(timeout=5.0)
@@ -98,47 +96,78 @@ class HistoryBrowserWidget(Widget):
                 params={"range": time_range},
             )
             resp.raise_for_status()
-            payload = resp.json()
-            records: list[dict[str, Any]] = payload.get("data", [])
+            payload_or_exc = resp.json()
+        except Exception as exc:  # noqa: BLE001
+            payload_or_exc = exc
 
+        state = classify_history_state(payload_or_exc)
+
+        if state is HistoryState.FETCH_ERROR:
             table.clear()
-            for record in records:
-                table.add_row(
-                    record.get("timestamp", ""),
-                    record.get("wan_name", ""),
-                    record.get("metric_name", ""),
-                    f"{record.get('value', 0):.2f}",
-                    record.get("granularity", ""),
-                )
+            banner.update(HISTORY_COPY.BANNER_FETCH_ERROR)
+            detail.update(HISTORY_COPY.DETAIL_FETCH_ERROR)
+            summary_widget.update(HISTORY_COPY.SUMMARY_NO_DATA)
+            diagnostic.update(self._format_diagnostic_for_error(payload_or_exc))
+            return
 
-            # Compute summary stats grouped by metric
-            values_by_metric: dict[str, list[float]] = {}
-            for record in records:
-                metric = record.get("metric_name", "unknown")
-                val = record.get("value")
-                if val is not None:
-                    values_by_metric.setdefault(metric, []).append(float(val))
+        payload: dict[str, Any] = payload_or_exc
+        raw_records = payload.get("data")
+        records: list[dict[str, Any]] = (
+            raw_records if isinstance(raw_records, list) else []
+        )
 
-            if values_by_metric:
-                parts: list[str] = []
-                for metric, values in values_by_metric.items():
-                    stats = self._compute_summary(values)
-                    if stats:
-                        parts.append(
-                            f"{metric}: "
-                            f"Min={stats['min']:.1f} "
-                            f"Max={stats['max']:.1f} "
-                            f"Avg={stats['avg']:.1f} "
-                            f"P95={stats['p95']:.1f} "
-                            f"P99={stats['p99']:.1f}"
-                        )
-                summary_widget.update(" | ".join(parts) if parts else "No data")
-            else:
-                summary_widget.update("No data")
+        table.clear()
+        for record in records:
+            table.add_row(
+                record.get("timestamp", ""),
+                record.get("wan_name", ""),
+                record.get("metric_name", ""),
+                f"{record.get('value', 0):.2f}",
+                record.get("granularity", ""),
+            )
 
-        except Exception:
-            table.clear()
-            summary_widget.update("Failed to fetch data - No data")
+        values_by_metric: dict[str, list[float]] = {}
+        for record in records:
+            metric = record.get("metric_name", "unknown")
+            val = record.get("value")
+            if val is not None:
+                values_by_metric.setdefault(metric, []).append(float(val))
+
+        if values_by_metric:
+            parts: list[str] = []
+            for metric, values in values_by_metric.items():
+                stats = self._compute_summary(values)
+                if stats:
+                    parts.append(
+                        f"{metric}: "
+                        f"Min={stats['min']:.1f} "
+                        f"Max={stats['max']:.1f} "
+                        f"Avg={stats['avg']:.1f} "
+                        f"P95={stats['p95']:.1f} "
+                        f"P99={stats['p99']:.1f}"
+                    )
+            summary_widget.update(
+                " | ".join(parts) if parts else HISTORY_COPY.SUMMARY_NO_DATA
+            )
+        else:
+            summary_widget.update(HISTORY_COPY.SUMMARY_NO_DATA)
+
+        if state is HistoryState.SUCCESS:
+            banner.update(HISTORY_COPY.BANNER_SUCCESS)
+            detail.update("")
+            diagnostic.update("")
+        elif state is HistoryState.SOURCE_MISSING:
+            banner.update(HISTORY_COPY.BANNER_SOURCE_MISSING)
+            detail.update(HISTORY_COPY.DETAIL_AMBIGUOUS)
+            diagnostic.update(self._format_diagnostic_for_payload(payload, http_status=200))
+        elif state is HistoryState.MODE_MISSING:
+            banner.update(HISTORY_COPY.BANNER_MODE_MISSING)
+            detail.update(HISTORY_COPY.DETAIL_AMBIGUOUS)
+            diagnostic.update(self._format_diagnostic_for_payload(payload, http_status=200))
+        elif state is HistoryState.DB_PATHS_MISSING:
+            banner.update(HISTORY_COPY.BANNER_DB_PATHS_MISSING)
+            detail.update(HISTORY_COPY.DETAIL_AMBIGUOUS)
+            diagnostic.update(self._format_diagnostic_for_payload(payload, http_status=200))
 
     def _compute_summary(self, values: list[float]) -> dict[str, float]:
         """Compute summary statistics from a list of values.
@@ -176,3 +205,17 @@ class HistoryBrowserWidget(Widget):
             "p95": p95,
             "p99": p99,
         }
+
+    def _format_diagnostic_for_error(self, exc: Any) -> str:
+        """Format source-diagnostic line for fetch_error state."""
+        return f"mode=? · db_paths=? · http={type(exc).__name__}"
+
+    def _format_diagnostic_for_payload(
+        self, payload: dict[str, Any], *, http_status: int
+    ) -> str:
+        """Format source-diagnostic line for success and F2 states."""
+        metadata = payload.get("metadata") or {}
+        source = metadata.get("source") if isinstance(metadata, dict) else None
+        mode = source.get("mode") if isinstance(source, dict) else None
+        db_paths = source.get("db_paths") if isinstance(source, dict) else None
+        return f"mode={mode} · db_paths={db_paths} · http={http_status}"
