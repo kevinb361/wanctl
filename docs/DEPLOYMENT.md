@@ -85,14 +85,16 @@ Expected topology after Phase 178:
 - `/var/lib/wanctl/spectrum_metrics.db` and `/var/lib/wanctl/att_metrics.db` are not part of the authoritative active DB set
 
 For autorate history validation, do not target `/var/lib/wanctl/metrics.db` directly.
-On the current production hosts, the reliable cross-WAN proof path is:
+On the current production hosts:
 
-- `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history ...`
-- direct DB inventory and spot-checks when needed
+- `/metrics/history` is the endpoint-local HTTP history view for the connected autorate daemon.
+- `python3 -m wanctl.history` is the authoritative merged cross-WAN proof path.
 
-`/metrics/history` is the endpoint-local history surface for the daemon serving that IP.
-Use it for endpoint availability, response shape, and that WAN's local history view. Use the
-CLI path for authoritative merged cross-WAN reads.
+Use `/metrics/history` (for example via the `curl` command above) to confirm endpoint availability,
+response shape, and that WAN's local history view. Use
+`sudo -n env PYTHONPATH=/opt python3 -m wanctl.history ...` when you need merged cross-WAN proof;
+fall back to direct DB inventory only if the CLI is unavailable. The dashboard history tab
+surfaces this same distinction via `metadata.source` so operators see it in both places.
 
 9. If the per-WAN DB files are still above the expected footprint after retention cleanup has had
 time to run, compact them explicitly during a controlled restart window:
