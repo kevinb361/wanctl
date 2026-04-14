@@ -1,5 +1,17 @@
 # Project Milestones: wanctl
 
+## v1.37 Dashboard History Source Clarity (Planned: 2026-04-14)
+
+**Phases planned:** 3 phases, 8 plans
+
+**Planned focus:**
+
+- Make the dashboard history tab explicit about endpoint-local `/metrics/history` semantics.
+- Surface `metadata.source` and related source context directly in the dashboard history view.
+- Give operators a clear handoff from the dashboard to the authoritative merged CLI history workflow.
+
+---
+
 ## v1.36 Storage Retention And DB Footprint (Shipped: 2026-04-14)
 
 **Phases completed:** 6 phases, 17 plans, 33 tasks
