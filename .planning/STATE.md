@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
-status: executing
+status: planning
 stopped_at: Completed 184-03-merged-cli-handoff-PLAN.md
-last_updated: "2026-04-14T15:42:40.699Z"
+last_updated: "2026-04-14T17:04:05.148Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-14)
 ## Position
 
 **Milestone:** v1.37 Dashboard History Source Clarity
-**Phase:** 184
-**Plan:** 03 complete
-**Status:** Completed Phase 184
+**Phase:** 185
+**Plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-04-14
 
 Progress: [██████████] 100%
