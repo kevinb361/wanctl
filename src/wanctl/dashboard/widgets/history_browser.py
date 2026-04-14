@@ -14,6 +14,14 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Select, Static
 
+from wanctl.dashboard.widgets.history_state import (
+    HISTORY_COPY,
+    HistoryState,
+    classify_history_state,
+)
+
+_ = (HistoryState, classify_history_state)
+
 TIME_RANGES: list[tuple[str, str]] = [
     ("1 Hour", "1h"),
     ("6 Hours", "6h"),
@@ -35,6 +43,9 @@ class HistoryBrowserWidget(Widget):
         height: 100%;
         padding: 0 1;
     }
+    HistoryBrowserWidget .dim {
+        color: $text-muted;
+    }
     """
 
     def __init__(
@@ -48,10 +59,14 @@ class HistoryBrowserWidget(Widget):
         self._http_client: httpx.AsyncClient | None = None
 
     def compose(self) -> ComposeResult:
-        """Yield time range selector, summary stats display, and data table."""
+        """Yield framing block, time range selector, summary stats, data table, and diagnostic surface."""
+        yield Static(HISTORY_COPY.BANNER_SUCCESS, id="source-banner")
+        yield Static("", id="source-detail")
+        yield Static(HISTORY_COPY.HANDOFF, id="source-handoff")
         yield Select(options=TIME_RANGES, value="1h", id="time-range")
         yield Static("Select a time range", id="summary-stats")
         yield DataTable(id="history-table")
+        yield Static("", id="source-diagnostic", classes="dim")
 
     def on_mount(self) -> None:
         """Set up DataTable columns on mount."""
