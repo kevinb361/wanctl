@@ -27,7 +27,7 @@ Plans:
 
 - [x] 184-01: Surface source scope and endpoint-local labeling in the history tab
 - [x] 184-02: Expose `metadata.source` and related source context in the history UI
-- [ ] 184-03: Add a clear operator path from the dashboard to the authoritative merged CLI history workflow
+- [x] 184-03: Add a clear operator path from the dashboard to the authoritative merged CLI history workflow
 
 ### Phase 185: Verification And Operator Alignment
 
