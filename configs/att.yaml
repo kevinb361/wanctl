@@ -13,6 +13,12 @@ health_check:
   host: "10.10.110.227"
   port: 9101
 
+# Prometheus metrics endpoint for operator parity with Spectrum
+metrics:
+  enabled: true
+  host: "10.10.110.227"
+  port: 9100
+
 # RouterOS connection (kept for steering REST access)
 router:
   transport: "linux-cake-netlink"  # Netlink backend — no subprocess fork (p99 16ms→<1ms)
