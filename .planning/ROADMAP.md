@@ -14,8 +14,8 @@ Make the dashboard history tab reflect the current history contract so operators
 
 Plans:
 
-- [ ] 183-01: Audit dashboard history behavior, payload usage, and operator ambiguity points
-- [ ] 183-02: Define the dashboard-facing source contract and acceptance criteria for UI, tests, and docs
+- [x] 183-01: Audit dashboard history behavior, payload usage, and operator ambiguity points
+- [x] 183-02: Define the dashboard-facing source contract and acceptance criteria for UI, tests, and docs
 
 ### Phase 184: Dashboard History Source Surfacing
 
