@@ -857,8 +857,8 @@ class WANController:
         """Start background RTT measurement thread (Phase 132: D-01, D-05).
 
         Creates a persistent ThreadPoolExecutor and BackgroundRTTThread that
-        runs ICMP pings continuously. The control loop reads from the shared
-        variable via measure_rtt() instead of blocking on ICMP I/O.
+        runs ICMP pings on the controller cadence. The control loop reads from
+        the shared variable via measure_rtt() instead of blocking on ICMP I/O.
         """
         self._rtt_pool = concurrent.futures.ThreadPoolExecutor(
             max_workers=3,
@@ -870,6 +870,7 @@ class WANController:
             shutdown_event=shutdown_event,
             logger=self.logger,
             pool=self._rtt_pool,
+            cadence_sec=self._cycle_interval_ms / 1000.0,
         )
         self._rtt_thread.start()
 
