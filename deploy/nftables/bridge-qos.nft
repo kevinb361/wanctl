@@ -20,6 +20,7 @@
 #
 # Connection marks:
 #   0x00000004 = Voice (EF)
+#   0x00000002 = Video (AF41)
 #   0x00000001 = Bulk  (CS1)
 #   0x00000000 = unclassified (Best Effort, default)
 #
@@ -44,6 +45,7 @@ table bridge qos {
         # Previously classified flows get their DSCP re-applied without
         # re-running classification rules on every packet
         ether type ip ct mark 0x00000004 ip dscp set ef accept
+        ether type ip ct mark 0x00000002 ip dscp set af41 accept
         ether type ip ct mark 0x00000001 ip dscp set cs1 accept
 
         # --- Voice classification (new connections only, D-02) ---
@@ -54,16 +56,33 @@ table bridge qos {
         ether type ip ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
         # RTP media (standard dynamic port range)
         ether type ip ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+        # Interactive control / tunneling / NAT traversal
+        ether type ip ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp dport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 4500 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 500 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 9993 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp dport 9993 ip dscp set ef ct mark set 0x00000004 accept
+
+        # --- Video classification (new connections only) ---
+        # QUIC/HTTPS media and large adaptive streaming flows land in Video first.
+        ether type ip ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
 
         # --- Bulk classification (new connections only, D-03) ---
         # BitTorrent
         ether type ip ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
         # Usenet NNTPS
         ether type ip ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+        # NNTP
+        ether type ip ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
 
-        # --- Large-flow demotion (D-03) ---
-        # Unclassified flows exceeding 10MB are demoted to Bulk
-        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        # --- Large-flow demotion ---
+        # Unclassified flows move to Video after 10MB, then Bulk after 100MB.
+        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
 
         # Unmatched packets fall through with DSCP 0 (Best Effort, D-04)
     }
@@ -78,6 +97,7 @@ table bridge qos {
 
         # --- Restore DSCP from connection mark (D-05) ---
         ether type ip ct mark 0x00000004 ip dscp set ef accept
+        ether type ip ct mark 0x00000002 ip dscp set af41 accept
         ether type ip ct mark 0x00000001 ip dscp set cs1 accept
 
         # --- Voice classification (new connections only, D-02) ---
@@ -85,13 +105,21 @@ table bridge qos {
         ether type ip ct state new tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+
+        # --- Video classification (new connections only) ---
+        ether type ip ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
 
         # --- Bulk classification (new connections only, D-03) ---
         ether type ip ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
         ether type ip ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+        ether type ip ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
 
-        # --- Large-flow demotion (D-03) ---
-        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        # --- Large-flow demotion ---
+        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
     }
 
     # -----------------------------------------------------------------------
