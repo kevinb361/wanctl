@@ -13,7 +13,8 @@ The steering daemon monitors your primary WAN for congestion and automatically r
 The steering daemon runs continuously with a 50ms cycle (configurable):
 
 1. **Collect signals** from primary WAN:
-   - RTT delta (from autorate state file)
+   - RTT delta from autorate baseline state
+   - Current RTT from the primary autorate health endpoint when available
    - CAKE drops (from RouterOS queue stats)
    - Queue depth (from RouterOS queue stats)
 
@@ -31,6 +32,21 @@ The steering daemon runs continuously with a 50ms cycle (configurable):
    - GREEN: Disable steering rule
 
 The daemon includes systemd watchdog integration for automatic recovery from hangs.
+
+## RTT Source Contract
+
+Steering now prefers the colocated autorate daemon's live ICMP measurement feed
+instead of running an independent steady-state ping loop.
+
+- Autorate publishes the current direct-ICMP snapshot in the WAN `/health` payload
+  under `wans[].measurement`
+- Steering reads that live RTT from the primary WAN health endpoint derived from
+  `topology.primary_wan_config`
+- If the autorate measurement is missing or stale, steering falls back to its
+  existing self-probe path
+
+This keeps steering aligned with the same reflector set autorate is already
+using and avoids duplicate probe noise during congestion investigations.
 
 ## Traffic Classification
 
