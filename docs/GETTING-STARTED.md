@@ -178,6 +178,15 @@ After the service is up, confirm:
 - config validation passes with `wanctl-check-config`
 - `scripts/canary-check.sh --ssh target-host` exits `0`
 
+## Monitoring And History
+
+Once `wanctl` is running, two complementary history surfaces are available for any deployed WAN:
+
+- `/metrics/history` (HTTP) is the endpoint-local HTTP history view for the connected autorate daemon. Query it with `curl` against `http://<health-ip>:9101/metrics/history?range=1h&limit=5` to confirm endpoint availability, response shape, and that WAN's local history view.
+- `python3 -m wanctl.history` (CLI) is the authoritative merged cross-WAN proof path. Run it as `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --metrics wanctl_rtt_ms --json` when you need merged cross-WAN proof across all deployed autorate instances on the host.
+
+The dashboard history tab surfaces the same distinction via `metadata.source`, so the rule is identical in the TUI, in the runbook, and in the deployment workflow. For deeper operator detail see [`RUNBOOK.md`](RUNBOOK.md) and [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
 ## Common Issues
 
 ### Config validation fails
