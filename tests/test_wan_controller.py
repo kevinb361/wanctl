@@ -1,5 +1,6 @@
 """Tests for WANController class in autorate_continuous module."""
 
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -2708,3 +2709,43 @@ class TestBurstDetection:
 
         assert controller._dl_burst_pending is False
         assert controller._dl_burst_reason is None
+
+
+class TestBackgroundRttWiring:
+    """Tests for background RTT thread cadence wiring."""
+
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        """Create a WANController with mocked dependencies."""
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+        return ctrl
+
+    def test_start_background_rtt_uses_controller_cycle_interval(self, controller):
+        """Background RTT cadence should match the autorate controller interval."""
+        shutdown_event = threading.Event()
+
+        with patch("wanctl.wan_controller.BackgroundRTTThread") as mock_thread_cls:
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            controller.start_background_rtt(shutdown_event)
+
+        _, kwargs = mock_thread_cls.call_args
+        assert kwargs["cadence_sec"] == pytest.approx(controller._cycle_interval_ms / 1000.0)
+        mock_thread.start.assert_called_once()

@@ -358,8 +358,9 @@ class BackgroundRTTThread:
         shutdown_event: :class:`threading.Event` that signals graceful shutdown.
         logger: Logger for lifecycle and error messages.
         pool: Persistent :class:`ThreadPoolExecutor` for concurrent pings.
-        cadence_sec: Minimum seconds between measurement cycles (default 0.0 =
-            measure as fast as ICMP allows).
+        cadence_sec: Minimum seconds between measurement cycles. Autorate
+            binds this to the controller interval so the background probe rate
+            cannot outrun the control loop.
     """
 
     def __init__(
