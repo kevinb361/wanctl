@@ -10,34 +10,25 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.35 (Storage Health & Stabilization) — shipped 2026-04-13
-**Tests:** 4,200+ passing, targeted v1.35 deploy/operator-flow validation passed, milestone audit at `tech_debt` with 6/6 requirements and 5/5 phase verifications
-**LOC:** ~36,609 Python (src/)
-**Milestones:** 36 shipped (v1.0-v1.35), 176 phases, 358 plans
+**Version:** v1.36 (Storage Retention And DB Footprint) — shipped 2026-04-14
+**Tests:** 4,200+ passing, targeted storage/history/health regressions passing, milestone audit at `tech_debt` with 5/5 requirements and 6/6 phases complete
+**LOC:** ~36,700 Python (src/)
+**Milestones:** 37 shipped (v1.0-v1.36), 182 phases, 375 plans
 
-**Latest:** v1.35 Storage Health & Stabilization — storage control restored, v1.35.0 deploy/canary proven, soak evidence closed out, deploy/operator flow aligned to production
-**Previous:** v1.34 Production Observability and Alerting Hardening — latency/burst alerts, storage/runtime pressure visibility, operator summary surfaces, scripted canary checks, threshold runbook
+**Latest:** v1.36 Storage Retention And DB Footprint — production DB topology explained, retention/operator paths aligned, startup storage regression fixed, and ATT compaction closed the last footprint blocker
+**Previous:** v1.35 Storage Health & Stabilization — storage control restored, v1.35.0 deploy/canary proven, soak evidence closed out, deploy/operator flow aligned to production
 
-## Completed Milestone: v1.35 Storage Health & Stabilization
+## Completed Milestone: v1.36 Storage Retention And DB Footprint
 
-**Shipped:** 2026-04-13 | 5 phases, 16 plans, 23 tasks, 18 commits in milestone range
+**Shipped:** 2026-04-14 | 6 phases, 17 plans, 33 tasks, 9 milestone commits
 
-**Delivered:** Storage pressure and maintenance stability fixes, production-safe `analyze_baseline` and operator-summary deploy paths, a clean v1.35.0 dual-WAN deploy with exit-0 canary, 24-hour production soak evidence, and formal verification/flow alignment for the full milestone.
-
-## Current Milestone: v1.36 Storage Retention And DB Footprint
-
-**Goal:** Reduce the live production metrics footprint by validating what is actually consuming space, removing legacy DB ambiguity, and tightening retention/storage behavior without changing core controller logic.
-
-**Target features:**
-- Measure live DB composition and retention shape for the active per-WAN metrics stores
-- Confirm whether legacy `metrics.db` is still part of the runtime path and clean up/archive it safely if not
-- Reduce active DB footprint while preserving health, operator tooling, and history-query contracts
+**Delivered:** Production DB topology and retained-history shape were explained with live evidence, the shared `metrics.db` role and history-reader contracts were made explicit, startup storage work was bounded to restore watchdog-safe restarts, and the ATT-only compaction pass reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`, closing the final footprint requirement.
 
 ## Next Milestone Goals
 
-- Turn the current 5+ GB per-WAN databases into an explained and bounded storage footprint.
-- Keep storage work scoped to retention, maintenance, and observability contracts rather than queue-control behavior.
-- Carry forward the validation debt from older phases only if it directly blocks storage-footprint verification.
+- Surface the narrowed CLI-vs-endpoint-local HTTP history contract in the dashboard consumer.
+- Keep storage and operator verification contracts aligned without reopening control-loop behavior changes.
+- Start the next milestone from a fresh requirements definition rather than carrying v1.36 planning forward.
 
 ## Requirements
 

@@ -1,5 +1,19 @@
 # Project Milestones: wanctl
 
+## v1.36 Storage Retention And DB Footprint (Shipped: 2026-04-14)
+
+**Phases completed:** 6 phases, 17 plans, 33 tasks
+
+**Key accomplishments:**
+
+- Identified the real production DB topology and explained why the per-WAN footprint stayed multi-GB.
+- Tightened per-WAN retention and aligned history-reader/operator docs to the authoritative storage layout without changing controller logic.
+- Closed `OPER-04` with a repeatable operator proof path for DB inventory, storage status, and merged CLI history checks.
+- Repaired the startup/watchdog regression caused by heavy pre-health storage work during footprint-reduction rollout.
+- Finished the ATT-only compaction pass and reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`, closing `STOR-06`.
+
+---
+
 ## v1.35 Storage Health & Stabilization (Shipped: 2026-04-13)
 
 **Phases completed:** 5 phases, 16 plans, 23 tasks
