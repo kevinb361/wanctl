@@ -88,6 +88,7 @@ class TestLoadTuningConfigEnabled:
         assert tc.lookback_hours == 24
         assert tc.warmup_hours == 1
         assert tc.max_step_pct == 10.0
+        assert tc.min_confidence == 0.3
         assert tc.bounds == {}
 
     def test_valid_with_bounds(self):
@@ -119,6 +120,7 @@ class TestLoadTuningConfigEnabled:
                 "lookback_hours": 48,
                 "warmup_hours": 2,
                 "max_step_pct": 5.0,
+                "min_confidence": 0.6,
             }
         }
         config = self._make_config_obj(data)
@@ -128,6 +130,7 @@ class TestLoadTuningConfigEnabled:
         assert tc.lookback_hours == 48
         assert tc.warmup_hours == 2
         assert tc.max_step_pct == 5.0
+        assert tc.min_confidence == 0.6
 
 
 class TestLoadTuningConfigValidation:
@@ -201,6 +204,22 @@ class TestLoadTuningConfigValidation:
             Config._load_tuning_config(config)
         assert config.tuning_config is None
         assert "600" in caplog.text or "minimum" in caplog.text.lower()
+
+    def test_min_confidence_out_of_range(self, caplog):
+        """min_confidence outside [0.0, 1.0] warns and disables."""
+        from wanctl.autorate_config import Config
+
+        data = {
+            "tuning": {
+                "enabled": True,
+                "min_confidence": 1.5,
+            }
+        }
+        config = self._make_config_obj(data)
+        with caplog.at_level(logging.WARNING):
+            Config._load_tuning_config(config)
+        assert config.tuning_config is None
+        assert "min_confidence" in caplog.text
 
 
 class TestExcludeParams:

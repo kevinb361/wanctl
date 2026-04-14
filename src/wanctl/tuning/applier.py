@@ -117,11 +117,12 @@ def apply_tuning_results(
     """Apply tuning results with bounds enforcement and persistence.
 
     For each result:
-    1. Clamp new_value to safety bounds + max_step_pct
-    2. Skip trivial changes (abs difference < 0.1)
-    3. Log at WARNING with old->new and rationale
-    4. Persist to SQLite
-    5. Return list of actually-applied results (post-clamp)
+    1. Skip low-confidence results below min_confidence
+    2. Clamp new_value to safety bounds + max_step_pct
+    3. Skip trivial changes (abs difference < 0.1)
+    4. Log at WARNING with old->new and rationale
+    5. Persist to SQLite
+    6. Return list of actually-applied results (post-clamp)
 
     Args:
         results: TuningResult list from analyzer
@@ -137,6 +138,16 @@ def apply_tuning_results(
     applied: list[TuningResult] = []
 
     for result in results:
+        if result.confidence < tuning_config.min_confidence:
+            logger.info(
+                "[TUNING] %s: %s skipped low confidence %.3f < %.3f",
+                result.wan_name,
+                result.parameter,
+                result.confidence,
+                tuning_config.min_confidence,
+            )
+            continue
+
         bounds = tuning_config.bounds.get(result.parameter)
         if bounds is None:
             logger.debug(

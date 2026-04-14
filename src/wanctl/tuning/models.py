@@ -58,6 +58,7 @@ class TuningConfig:
         lookback_hours: Hours of metrics to analyze (1-168).
         warmup_hours: Hours to wait before first tuning run (1-24).
         max_step_pct: Maximum change per tuning cycle as percentage (1.0-50.0).
+        min_confidence: Minimum analyzer confidence required to apply a change.
         bounds: Per-parameter safety bounds.
     """
 
@@ -67,6 +68,7 @@ class TuningConfig:
     warmup_hours: int
     max_step_pct: float
     bounds: dict[str, SafetyBounds]
+    min_confidence: float = 0.3
     exclude_params: frozenset[str] = frozenset()
 
 
