@@ -10,7 +10,7 @@ Production storage is still healthy, but the active per-WAN metrics databases re
 - [x] **Phase 178: Retention Tightening And Legacy DB Cleanup** - Apply the smallest safe storage-footprint reduction that closes the live findings (completed 2026-04-13)
 - [x] **Phase 179: Verification And Operator Evidence** - Prove the new storage footprint holds in production and document the operator verification path (completed 2026-04-13)
 - [x] **Phase 180: Verification Backfill And Audit Closure** - Close the missing Phase 177 verification trail and re-anchor STOR-04 to milestone-grade evidence (completed 2026-04-14)
-- [ ] **Phase 181: Production Footprint Reduction And Reader Parity** - Achieve a real per-WAN footprint reduction in production and close the remaining live history-reader drift
+- [x] **Phase 181: Production Footprint Reduction And Reader Parity** - Execute the production footprint-reduction attempt, recover the startup regression, and capture final live outcome evidence (completed 2026-04-14; requirement gap remains)
 
 ## Phase Details
 
@@ -64,7 +64,7 @@ Plans:
 | 178. Retention Tightening And Legacy DB Cleanup | 3/3 | Complete | 2026-04-13 |
 | 179. Verification And Operator Evidence | 3/3 | Complete | 2026-04-13 |
 | 180. Verification Backfill And Audit Closure | 2/2 | Complete | 2026-04-14 |
-| 181. Production Footprint Reduction And Reader Parity | 0/? | Not Started | - |
+| 181. Production Footprint Reduction And Reader Parity | 3/3 | Complete | 2026-04-14 |
 
 ### Phase 180: Verification Backfill And Audit Closure
 **Goal**: Close the missing milestone verification trail for Phase 177 and leave STOR-04 audit-safe
@@ -89,4 +89,8 @@ Plans:
   1. The active per-WAN DB footprint is materially smaller than the 2026-04-13 baseline in production terms
   2. The production operator proof path for history reads is internally consistent, including the deployed CLI/wrapper path and the live HTTP endpoint role
   3. Any remaining HTTP/CLI reader differences are either eliminated or explicitly narrowed without breaking operator workflows
-**Plans:** TBD
+**Plans:** 3/3 plans complete
+Plans:
+- [x] 181-01-PLAN.md -- Implement a concrete storage-only reduction path that can materially shrink live per-WAN DB files
+- [x] 181-02-PLAN.md -- Close or explicitly narrow live CLI/HTTP history-reader parity drift without breaking the HTTP contract
+- [x] 181-03-PLAN.md -- Capture final production footprint and reader-parity evidence against the fixed 2026-04-13 baseline

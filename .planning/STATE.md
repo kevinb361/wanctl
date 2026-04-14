@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.36
 milestone_name: storage-retention-and-db-footprint
 status: planning
-stopped_at: Rerun /gsd-audit-milestone after Phase 180
-last_updated: "2026-04-14T00:45:00.000Z"
-last_activity: 2026-04-13
+stopped_at: Re-audit milestone after Phase 181 closeout and verification capture
+last_updated: "2026-04-14T12:26:25.000Z"
+last_activity: 2026-04-14
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
-  percent: 80
+  completed_phases: 5
+  total_plans: 14
+  completed_plans: 14
+  percent: 100
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Re-audit milestone v1.36 after closing the STOR-04 verification gap
+**Current focus:** Re-audit v1.36 after the Phase 181 closeout captured the startup fix and final live footprint outcome
 
 ## Position
 
 **Milestone:** v1.36 Storage Retention And DB Footprint
 **Phase:** 181 of 181 (production footprint reduction and reader parity)
-**Plan:** Re-audit milestone
-**Status:** Phase 180 complete — ready for `/gsd-audit-milestone`
-**Last activity:** 2026-04-13
+**Plan:** Phase closeout captured; STOR-06 still unsatisfied on final production evidence
+**Status:** All phase plans executed; milestone still needs re-audit because the final footprint outcome is mixed
+**Last activity:** 2026-04-14
 
-Progress: [████████--] 80%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -51,10 +51,16 @@ Progress: [████████--] 80%
 - Phase 179 closed `OPER-04` with a repeatable proof path while recording two explicit operational truths: the per-WAN footprint did not materially shrink, and live `/metrics/history` still drifts from the intended merged cross-WAN topology
 - The v1.36 milestone audit found two blockers: missing Phase 177 verification for `STOR-04`, and failed production outcome for `STOR-06`
 - Phase 180 and Phase 181 were added to close those audit gaps before re-auditing the milestone
-- Phase 180 is now planned in two parts: backfill `177-VERIFICATION.md` from existing evidence, then re-anchor the `STOR-04` audit trail and reroute the milestone to re-audit
-- Phase 180 completed the `STOR-04` re-audit handoff: the missing Phase 177 verification artifact now exists, the requirement is re-satisfied in planning state, and the next action is to rerun `/gsd-audit-milestone`
+- Phase 180 completed the `STOR-04` re-audit handoff: the missing Phase 177 verification artifact now exists, and that requirement is back to satisfied state
+- The refreshed milestone audit now shows only one remaining blocker: `STOR-06`
+- Phase 181 executed all three plans and captured the final production outcome
+- The startup/watchdog blocker was traced to pre-health storage work and fixed with bounded startup maintenance plus large-DB validation changes
+- Production is stable again under the repo-default `WatchdogSec=30s`, and `/health`, canary, and soak-monitor are usable again
+- CLI-vs-HTTP history-reader roles are now explicit and proven in production: CLI merged, HTTP endpoint-local
+- Spectrum is materially smaller than the fixed baseline, but ATT remains effectively unchanged
+- `STOR-06` therefore remains unsatisfied even though the phase execution itself is complete
 
 ## Session Continuity
 
-Stopped at: Rerun /gsd-audit-milestone after Phase 180
-Resume file: .planning/v1.36-MILESTONE-AUDIT.md
+Stopped at: Re-run /gsd-audit-milestone after Phase 181 closeout
+Resume file: .planning/phases/181-production-footprint-reduction-and-reader-parity/181-03-SUMMARY.md
