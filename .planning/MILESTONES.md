@@ -1,14 +1,16 @@
 # Project Milestones: wanctl
 
-## v1.37 Dashboard History Source Clarity (Planned: 2026-04-14)
+## v1.37 Dashboard History Source Clarity (Shipped: 2026-04-14)
 
-**Phases planned:** 3 phases, 8 plans
+**Phases completed:** 3 phases, 8 plans, 23 tasks
 
-**Planned focus:**
+**Key accomplishments:**
 
-- Make the dashboard history tab explicit about endpoint-local `/metrics/history` semantics.
-- Surface `metadata.source` and related source context directly in the dashboard history view.
-- Give operators a clear handoff from the dashboard to the authoritative merged CLI history workflow.
+- Locked the dashboard-facing source contract so endpoint-local HTTP history, merged CLI proof, and degraded-source behavior are explicit and stable.
+- Surfaced endpoint-local framing, translated source detail, and an immutable merged-CLI handoff in the History tab without changing backend history semantics.
+- Added focused regressions for success, fetch-error, source-missing, mode-missing, and db-paths-missing history states.
+- Aligned deployment, runbook, and getting-started docs to the same endpoint-local HTTP versus authoritative merged CLI history rule.
+- Closed all five milestone requirements and completed a `tech_debt` audit with no blocker-level requirement, integration, or E2E flow gaps.
 
 ---
 

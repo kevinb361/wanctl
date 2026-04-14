@@ -10,25 +10,25 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.37 (Dashboard History Source Clarity) — planning started 2026-04-14
-**Tests:** 4,200+ passing, targeted storage/history/health regressions passing, v1.36 shipped and archived with 5/5 requirements and 6/6 phases complete
-**LOC:** ~36,700 Python (src/)
-**Milestones:** 37 shipped (v1.0-v1.36), 182 phases, 375 plans
+**Version:** v1.37 (Dashboard History Source Clarity) — shipped 2026-04-14
+**Tests:** 4,200+ passing, targeted dashboard regressions green, milestone audit at `tech_debt` with 5/5 requirements and 3/3 phases complete
+**LOC:** ~37,100 Python (src/)
+**Milestones:** 38 shipped (v1.0-v1.37), 185 phases, 383 plans
 
-**Latest:** v1.36 Storage Retention And DB Footprint — production DB topology explained, retention/operator paths aligned, startup storage regression fixed, and ATT compaction closed the last footprint blocker
-**Previous:** v1.35 Storage Health & Stabilization — storage control restored, v1.35.0 deploy/canary proven, soak evidence closed out, deploy/operator flow aligned to production
+**Latest:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
+**Previous:** v1.36 Storage Retention And DB Footprint — production DB topology explained, retention/operator paths aligned, startup storage regression fixed, and ATT compaction closed the last footprint blocker
 
-## Completed Milestone: v1.36 Storage Retention And DB Footprint
+## Completed Milestone: v1.37 Dashboard History Source Clarity
 
-**Shipped:** 2026-04-14 | 6 phases, 17 plans, 33 tasks, 9 milestone commits
+**Shipped:** 2026-04-14 | 3 phases, 8 plans, 23 tasks, 22 milestone commits
 
-**Delivered:** Production DB topology and retained-history shape were explained with live evidence, the shared `metrics.db` role and history-reader contracts were made explicit, startup storage work was bounded to restore watchdog-safe restarts, and the ATT-only compaction pass reduced `metrics-att.db` from about `5.08 GB` to about `202 MB`, closing the final footprint requirement.
+**Delivered:** The dashboard History tab now makes endpoint-local HTTP history explicit, surfaces `metadata.source` in operator-facing wording, and provides a stable merged-CLI handoff. Focused regressions and aligned operator docs close the contract repo-side, while the milestone audit records only non-blocking human-validation and test-depth debt.
 
 ## Next Milestone Goals
 
-- Make the dashboard history tab explicit about endpoint-local HTTP history versus merged CLI history.
-- Surface `metadata.source` and related source context so operators can tell what they are looking at.
-- Keep the history contract aligned across dashboard, tests, and docs without reopening storage or control-loop work.
+- Start from a fresh requirements definition instead of carrying v1.37 planning forward.
+- Decide whether the next milestone should pay down the recorded dashboard validation debt (`source-diagnostic` assertions, app-level History-tab mount regression, Nyquist validation, mounted/live UI confirmation).
+- Preserve the locked endpoint-local HTTP versus merged CLI history contract unless a future milestone explicitly reopens it.
 
 ## Requirements
 
@@ -645,8 +645,8 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-12 after Phase 171 Threshold Policy And Runbooks complete_
+_Last updated: 2026-04-14 after completing v1.37 milestone_
 
 
 ---
-*Last updated: 2026-04-12 after completing v1.34 milestone*
+*Last updated: 2026-04-14 after completing v1.37 milestone*
