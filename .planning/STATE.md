@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.37
 milestone_name: dashboard-history-source-clarity
-status: planning
-stopped_at: Phase 183 complete
-last_updated: "2026-04-14T14:42:05.350Z"
+status: executing
+stopped_at: Completed 184-01-PLAN.md
+last_updated: "2026-04-14T15:33:47.719Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 8
-  completed_plans: 2
-  percent: 25
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Plan Phase 184 dashboard-history-source-surfacing without reopening backend history semantics
+**Current focus:** Phase 184 — dashboard-history-source-surfacing
 
 ## Position
 
 **Milestone:** v1.37 Dashboard History Source Clarity
 **Phase:** 184
-**Plan:** Not started
-**Status:** Ready to plan
+**Plan:** 01 complete
+**Status:** Executing Phase 184
 **Last activity:** 2026-04-14
 
-Progress: [##░░░░░░░░] 25%
+Progress: [██████░░░░] 60%
 
 ## Accumulated Context
 
@@ -70,5 +70,15 @@ Progress: [##░░░░░░░░] 25%
 
 ## Session Continuity
 
-Stopped at: Phase 183 complete
-Resume file: .planning/ROADMAP.md
+Stopped at: Completed 184-01-PLAN.md
+Resume file: .planning/phases/184-dashboard-history-source-surfacing/184-02-metadata-source-surfacing-PLAN.md
+
+## Decisions
+
+- Phase 184-01 keeps history fetch-state classification in `src/wanctl/dashboard/widgets/history_state.py` so future tests can cover the state matrix without mounting Textual.
+- History tab source framing is always mounted in the widget via dedicated banner/detail/handoff/diagnostic `Static` children.
+- Success-state detail and exact diagnostic formatting are intentionally deferred to Plan 184-02; this plan only establishes the shared routing and locked copy surface.
+
+## Performance Metrics
+
+- 2026-04-14: Phase 184 Plan 01 completed in 13 min across 3 tasks and 2 source files.
