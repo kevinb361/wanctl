@@ -17,6 +17,7 @@ from wanctl.health_check import (
     HealthCheckServer,
     _build_cycle_budget,
     _get_current_state,
+    _get_current_state_reason,
     _get_disk_space_status,
     start_health_server,
     update_health_status,
@@ -42,6 +43,11 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
                 "transitions_suppressed": qc_mock._transitions_suppressed,
                 "suppressions_per_min": qc_mock._window_suppressions,
                 "window_start_epoch": qc_mock._window_start_time,
+            },
+            "cake_detection": {
+                "backlog_suppressed_this_cycle": getattr(
+                    qc_mock, "_backlog_suppressed_this_cycle", False
+                ),
             },
         }
     qc_mock.get_health_data.side_effect = _qc_health_data
@@ -230,6 +236,25 @@ class TestHealthCheckHandler:
         controller.green_required = 5
 
         assert _get_current_state(controller) == "YELLOW"
+
+    def test_get_current_state_reason_backlog_held(self):
+        """Backlog-suppressed recovery is reported explicitly."""
+        controller = MagicMock()
+        controller.red_streak = 0
+        controller.soft_red_streak = 0
+        controller.soft_red_required = 3
+        controller.green_streak = 0
+        controller.green_required = 5
+        controller._yellow_dwell = 0
+        controller._last_zone = "YELLOW"
+
+        assert (
+            _get_current_state_reason(
+                controller,
+                {"cake_detection": {"backlog_suppressed_this_cycle": True}},
+            )
+            == "recovery_held_by_backlog"
+        )
 
 
 @pytest.mark.timeout(5)
@@ -2604,7 +2629,7 @@ class TestHysteresisHealth:
             server.shutdown()
 
     def test_health_hysteresis_keys_complete(self, mock_wan_with_hysteresis):
-        """Both download and upload hysteresis dicts have all 4 required keys."""
+        """Both download and upload hysteresis dicts expose full recovery context."""
         controller = self._make_controller(mock_wan_with_hysteresis)
         port = find_free_port()
         server = start_health_server(host="127.0.0.1", port=port, controller=controller)
@@ -2615,11 +2640,28 @@ class TestHysteresisHealth:
             expected_keys = {
                 "dwell_counter", "dwell_cycles", "deadband_ms", "transitions_suppressed",
                 "suppressions_per_min", "window_start_epoch", "alert_threshold_per_min",
+                "green_streak", "green_required", "last_zone",
             }
             dl_keys = set(data["wans"][0]["download"]["hysteresis"].keys())
             ul_keys = set(data["wans"][0]["upload"]["hysteresis"].keys())
             assert dl_keys == expected_keys
             assert ul_keys == expected_keys
+        finally:
+            server.shutdown()
+
+    def test_health_rate_section_has_state_reason(self, mock_wan_with_hysteresis):
+        """Rate sections expose why GREEN/YELLOW is being reported."""
+        mock_wan_with_hysteresis.download.green_streak = 0
+        mock_wan_with_hysteresis.download._last_zone = "YELLOW"
+        mock_wan_with_hysteresis.download._backlog_suppressed_this_cycle = True
+        controller = self._make_controller(mock_wan_with_hysteresis)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            assert data["wans"][0]["download"]["state_reason"] == "recovery_held_by_backlog"
         finally:
             server.shutdown()
 

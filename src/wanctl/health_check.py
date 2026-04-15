@@ -295,9 +295,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         """Build rate and hysteresis status for a queue controller."""
         qc_health = qc.get_health_data()
         hyst = qc_health["hysteresis"]
+        last_zone = getattr(qc, "_last_zone", "GREEN")
+        if not isinstance(last_zone, str):
+            last_zone = "GREEN"
         return {
             "current_rate_mbps": round(qc.current_rate / 1e6, 1),
             "state": _get_current_state(qc),
+            "state_reason": _get_current_state_reason(qc, qc_health),
             "hysteresis": {
                 "dwell_counter": hyst["dwell_counter"],
                 "dwell_cycles": hyst["dwell_cycles"],
@@ -306,6 +310,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "suppressions_per_min": hyst["suppressions_per_min"],
                 "window_start_epoch": hyst["window_start_epoch"],
                 "alert_threshold_per_min": health_data["suppression_alert"]["threshold"],
+                "green_streak": qc.green_streak,
+                "green_required": qc.green_required,
+                "last_zone": last_zone,
             },
         }
 
@@ -1199,6 +1206,36 @@ def _get_current_state(queue_controller: Any) -> str:
     if queue_controller.green_streak > 0:
         return "GREEN"  # Building towards sustained GREEN
     return "YELLOW"
+
+
+def _get_current_state_reason(
+    queue_controller: Any, qc_health: dict[str, Any] | None = None
+) -> str:
+    """Explain why the current health state is being reported.
+
+    This is intentionally more specific than `_get_current_state()`, which
+    compresses multiple recovery-hold cases into a generic YELLOW.
+    """
+    qc_health = qc_health or {}
+    detection = qc_health.get("cake_detection", {})
+
+    if queue_controller.red_streak > 0:
+        return "red_active"
+    if queue_controller.soft_red_streak >= queue_controller.soft_red_required:
+        return "soft_red_active"
+    if queue_controller.green_streak >= queue_controller.green_required:
+        return "green_stable"
+    if queue_controller.green_streak > 0:
+        return "green_recovering"
+    if detection.get("backlog_suppressed_this_cycle"):
+        return "recovery_held_by_backlog"
+    if getattr(queue_controller, "_yellow_dwell", 0) > 0 and getattr(
+        queue_controller, "_last_zone", "GREEN"
+    ) == "GREEN":
+        return "yellow_dwell_hold"
+    if getattr(queue_controller, "_last_zone", "GREEN") == "YELLOW":
+        return "yellow_active"
+    return "yellow_idle"
 
 
 class HealthCheckServer:
