@@ -69,7 +69,7 @@ continuous_monitoring:
 
   # RTT thresholds (Phase 2A: 4-state for download)
   thresholds:
-    target_bloat_ms: 15 # 2026-04-15: best RRUL balance found across 12/15/18ms sweep
+    target_bloat_ms: 15 # 2026-04-15: best RRUL balance found across 12/15/18ms and 13/14/16/17ms sweeps
     warn_bloat_ms: 75 # p158 A/B validated 2026-04-09 (was 60, confirmed in pass)
     hard_red_bloat_ms: 100 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
     dwell_cycles: 5 # linux-cake confirmed 2026-04-02 (unchanged from REST)
