@@ -8,13 +8,13 @@
 ### Measurement Integrity
 
 - [ ] **MEAS-01**: Autorate exposes current reflector measurement quorum in a machine-readable form that distinguishes 3/2/1/0 successful reflectors.
-- [ ] **MEAS-02**: A background RTT cycle with zero successful reflectors does not continue to present the last cached RTT as a healthy current measurement.
+- [x] **MEAS-02**: A background RTT cycle with zero successful reflectors does not continue to present the last cached RTT as a healthy current measurement.
 - [ ] **MEAS-03**: Autorate `/health` explicitly surfaces degraded measurement quality when current reflector success is insufficient or current RTT data is stale.
 - [ ] **MEAS-04**: Operator-visible health data makes current reflector availability and measurement staleness easy to correlate with live latency behavior.
 
 ### Control Safety
 
-- [ ] **SAFE-01**: When measurement quality degrades, controller behavior follows explicit bounded semantics instead of silently acting on stale RTT as if it were current.
+- [x] **SAFE-01**: When measurement quality degrades, controller behavior follows explicit bounded semantics instead of silently acting on stale RTT as if it were current.
 - [ ] **SAFE-02**: Existing ICMP failure fallback and total-connectivity-loss handling remain intact for real outages and do not regress while adding measurement-degradation handling.
 
 ### Verification And Operations
@@ -43,10 +43,10 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MEAS-01 | Phase 186 | Pending |
-| MEAS-02 | Phase 187 | Pending |
+| MEAS-02 | Phase 187 | Complete |
 | MEAS-03 | Phase 186 | Pending |
 | MEAS-04 | Phase 188 | Pending |
-| SAFE-01 | Phase 187 | Pending |
+| SAFE-01 | Phase 187 | Complete |
 | SAFE-02 | Phase 187 | Pending |
 | OPER-01 | Phase 188 | Pending |
 | VALN-01 | Phase 188 | Pending |
