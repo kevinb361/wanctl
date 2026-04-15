@@ -13,6 +13,7 @@ from tests.helpers import make_host_result
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTAggregationStrategy,
+    RTTCycleStatus,
     RTTMeasurement,
     RTTSnapshot,
     parse_ping_output,
@@ -680,6 +681,19 @@ class TestBackgroundRTTThread:
         )
         assert thread.get_latest() is None
 
+    def test_cycle_status_is_none_before_first_cycle(
+        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
+    ):
+        """get_cycle_status() returns None before any measurement cycle runs."""
+        thread = BackgroundRTTThread(
+            rtt_measurement=mock_rtt_measurement,
+            hosts_fn=lambda: ["8.8.8.8"],
+            shutdown_event=shutdown_event,
+            logger=mock_logger,
+            pool=mock_pool,
+        )
+        assert thread.get_cycle_status() is None
+
     def test_lifecycle_start_stop(
         self, mock_rtt_measurement, shutdown_event, mock_logger
     ):
@@ -753,6 +767,52 @@ class TestBackgroundRTTThread:
         assert snap.timestamp > 0
         assert snap.measurement_ms >= 0
 
+    def test_cycle_status_published_on_successful_cycle(
+        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
+    ):
+        """Successful cycles publish the latest RTTCycleStatus fields."""
+        future_a = MagicMock()
+        future_a.result.return_value = 10.0
+        future_b = MagicMock()
+        future_b.result.return_value = 12.0
+        future_c = MagicMock()
+        future_c.result.return_value = 11.0
+
+        mock_pool.submit.side_effect = [future_a, future_b, future_c]
+
+        thread = BackgroundRTTThread(
+            rtt_measurement=mock_rtt_measurement,
+            hosts_fn=lambda: ["8.8.8.8", "1.1.1.1", "9.9.9.9"],
+            shutdown_event=shutdown_event,
+            logger=mock_logger,
+            pool=mock_pool,
+        )
+
+        def wait_then_stop(timeout=None):
+            """Allow one iteration then signal shutdown."""
+            shutdown_event.set()
+            return True
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b, future_c}, set()),
+        ):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
+
+        status = thread.get_cycle_status()
+        assert status is not None
+        assert isinstance(status, RTTCycleStatus)
+        assert status.successful_count == 3
+        assert status.active_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
+        assert status.successful_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
+        assert status.cycle_timestamp > 0
+
+        snap = thread.get_latest()
+        assert snap is not None
+        assert status.active_hosts == snap.active_hosts
+        assert status.successful_hosts == snap.successful_hosts
+
     def test_stale_data_preserved_on_all_failures(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
     ):
@@ -792,6 +852,53 @@ class TestBackgroundRTTThread:
 
         # Should still be the same object
         assert thread._cached is known_snap
+
+    def test_cycle_status_published_on_zero_success_preserves_cached(
+        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
+    ):
+        """Zero-success cycles publish status without overwriting cached RTT data."""
+        known_snap = RTTSnapshot(
+            rtt_ms=10.0,
+            per_host_results={"8.8.8.8": 10.0},
+            timestamp=time.monotonic(),
+            measurement_ms=5.0,
+        )
+        thread = BackgroundRTTThread(
+            rtt_measurement=mock_rtt_measurement,
+            hosts_fn=lambda: ["8.8.8.8", "1.1.1.1"],
+            shutdown_event=shutdown_event,
+            logger=mock_logger,
+            pool=mock_pool,
+        )
+        thread._cached = known_snap
+
+        future_a = MagicMock()
+        future_a.result.return_value = None
+        future_b = MagicMock()
+        future_b.result.return_value = None
+        mock_pool.submit.side_effect = [future_a, future_b]
+
+        def wait_then_stop(timeout=None):
+            shutdown_event.set()
+            return True
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b}, set()),
+        ):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
+
+        assert thread._cached is known_snap
+        assert thread.get_latest() is known_snap
+
+        status = thread.get_cycle_status()
+        assert status is not None
+        assert isinstance(status, RTTCycleStatus)
+        assert status.successful_count == 0
+        assert status.active_hosts == ("8.8.8.8", "1.1.1.1")
+        assert status.successful_hosts == ()
+        assert status.cycle_timestamp > 0
 
     def test_cadence_adjustment(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
