@@ -57,7 +57,7 @@ continuous_monitoring:
     step_up_mbps: 10 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
     factor_down: 0.85 # linux-cake validated 2026-04-02 (was 0.90, confirmed in pass)
     factor_down_yellow: 0.92 # linux-cake confirmed 2026-04-02 (unchanged from REST)
-    green_required: 3 # linux-cake validated 2026-04-02 (was 5, confirmed in pass)
+    green_required: 5 # 2026-04-15: slow DL recovery to reduce post-burst re-acceleration churn on Spectrum
 
   # Upload parameters (Phase 2A: unchanged, 3-state)
   upload:
