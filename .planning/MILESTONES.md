@@ -10,7 +10,7 @@
 - Surfaced endpoint-local framing, translated source detail, and an immutable merged-CLI handoff in the History tab without changing backend history semantics.
 - Added focused regressions for success, fetch-error, source-missing, mode-missing, and db-paths-missing history states.
 - Aligned deployment, runbook, and getting-started docs to the same endpoint-local HTTP versus authoritative merged CLI history rule.
-- Closed all five milestone requirements and completed a `tech_debt` audit with no blocker-level requirement, integration, or E2E flow gaps.
+- Closed all five milestone requirements and refreshed the milestone audit to `passed` after validation backfill and integration re-check.
 
 ---
 
