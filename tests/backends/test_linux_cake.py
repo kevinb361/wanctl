@@ -581,6 +581,7 @@ class TestInitializeCake:
         )
         result = backend.initialize_cake({"bandwidth": "500000kbit"})
         assert result is True
+        assert backend._last_bandwidth_bps == 500_000_000
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_failure(self, mock_run, backend):
@@ -589,6 +590,31 @@ class TestInitializeCake:
         )
         result = backend.initialize_cake({"bandwidth": "500000kbit"})
         assert result is False
+        assert backend._last_bandwidth_bps is None
+
+
+class TestSetBandwidthCaching:
+    """set_bandwidth no-op skip tests."""
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_set_bandwidth_skips_noop_after_success(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+
+        assert backend.set_bandwidth("", 500_000_000) is True
+        assert backend.set_bandwidth("", 500_000_000) is True
+
+        assert mock_run.call_count == 1
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_set_bandwidth_updates_cache_on_success(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+
+        assert backend.set_bandwidth("", 500_000_000) is True
+        assert backend._last_bandwidth_bps == 500_000_000
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_bandwidth_param(self, mock_run, backend):

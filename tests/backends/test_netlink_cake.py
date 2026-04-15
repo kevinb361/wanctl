@@ -220,6 +220,19 @@ class TestSetBandwidth:
         backend.set_bandwidth("q", 500_000_000)
         backend.logger.debug.assert_called()
 
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_set_bandwidth_skips_noop_after_success(self, MockIPRoute, backend):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        assert backend.set_bandwidth("q", 500_000_000) is True
+
+        mock_instance.tc.assert_called_once_with(
+            "change", kind="cake", index=42, bandwidth="500000kbit"
+        )
+
 
 # =============================================================================
 # TestSetBandwidthFallback (NLNK-03)
@@ -367,6 +380,7 @@ class TestInitializeCake:
         assert call_args[1]["kind"] == "cake"
         assert call_args[1]["index"] == 42
         assert call_args[1]["bandwidth"] == "500000kbit"
+        assert backend._last_bandwidth_bps == 500_000_000
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_initialize_cake_maps_diffserv(self, MockIPRoute, backend):

@@ -78,6 +78,7 @@ class LinuxCakeBackend(RouterBackend):
         super().__init__(logger)
         self.interface = interface
         self.tc_timeout = tc_timeout
+        self._last_bandwidth_bps: int | None = None
 
     @property
     def needs_rate_limiting(self) -> bool:
@@ -155,6 +156,14 @@ class LinuxCakeBackend(RouterBackend):
         Returns:
             True if tc command succeeded, False otherwise.
         """
+        if rate_bps == self._last_bandwidth_bps:
+            self.logger.debug(
+                "Skipping no-op bandwidth update on %s: %sbps",
+                self.interface,
+                rate_bps,
+            )
+            return True
+
         rate_kbit = rate_bps // 1000
         rc, _, err = self._run_tc(
             [
@@ -170,6 +179,7 @@ class LinuxCakeBackend(RouterBackend):
             timeout=self.tc_timeout,
         )
         if rc == 0:
+            self._last_bandwidth_bps = rate_bps
             self.logger.debug("Set %s bandwidth to %skbit", self.interface, rate_kbit)
             return True
         self.logger.warning("tc qdisc change failed on %s: %s", self.interface, err)
@@ -375,6 +385,11 @@ class LinuxCakeBackend(RouterBackend):
 
         rc, _, err = self._run_tc(cmd_args, timeout=10.0)
         if rc == 0:
+            bandwidth = params.get("bandwidth")
+            if bandwidth is not None:
+                bandwidth_str = str(bandwidth)
+                if bandwidth_str.endswith("kbit"):
+                    self._last_bandwidth_bps = int(bandwidth_str[:-4]) * 1000
             self.logger.info("Initialized CAKE on %s: %s", self.interface, " ".join(cmd_args[6:]))
             return True
         self.logger.error("Failed to initialize CAKE on %s: %s", self.interface, err)

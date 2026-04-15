@@ -154,10 +154,19 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         Returns:
             True if bandwidth was set successfully (via netlink or fallback).
         """
+        if rate_bps == self._last_bandwidth_bps:
+            self.logger.debug(
+                "Netlink: skipping no-op bandwidth update on %s: %sbps",
+                self.interface,
+                rate_bps,
+            )
+            return True
+
         rate_kbit = rate_bps // 1000
         try:
             ipr = self._get_ipr()
             ipr.tc("change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit")
+            self._last_bandwidth_bps = rate_bps
             self.logger.debug("Netlink: set %s bandwidth to %skbit", self.interface, rate_kbit)
             return True
         except (NetlinkError, OSError, ImportError) as e:
@@ -344,13 +353,12 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             if "diffserv" in params:
                 kwargs["diffserv_mode"] = str(params["diffserv"])
             if "overhead_keyword" in params:
-                kw = str(params["overhead_keyword"])
                 # pyroute2 doesn't correctly handle overhead keywords like "docsis" —
                 # the kernel expects specific netlink attrs that pyroute2 doesn't set.
                 # Fall back to subprocess tc for initialization (one-time at startup).
                 # Netlink is still used for the hot path (set_bandwidth, get_queue_stats).
                 return super().initialize_cake(params)
-            elif "overhead" in params:
+            if "overhead" in params:
                 kwargs["overhead"] = int(params["overhead"])
             if "mpu" in params:
                 kwargs["mpu"] = int(params["mpu"])
@@ -388,6 +396,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                     kwargs[pyroute2_kwarg] = True
 
             ipr.tc("replace", kind="cake", index=self._ifindex, **kwargs)
+            bandwidth = params.get("bandwidth")
+            if bandwidth is not None:
+                bandwidth_str = str(bandwidth)
+                if bandwidth_str.endswith("kbit"):
+                    self._last_bandwidth_bps = int(bandwidth_str[:-4]) * 1000
             self.logger.info(
                 "Netlink: initialized CAKE on %s: %s",
                 self.interface,
