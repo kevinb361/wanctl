@@ -18,6 +18,17 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
 **Previous:** v1.36 Storage Retention And DB Footprint — production DB topology explained, retention/operator paths aligned, startup storage regression fixed, and ATT compaction closed the last footprint blocker
 
+## Current Milestone: v1.38 Measurement Resilience Under Load
+
+**Goal:** Keep autorate honest under multi-flow download stress by treating reflector-quorum collapse and stale RTT masking as first-class degraded measurement states instead of silently presenting them as healthy operation.
+
+**Target features:**
+
+- Reflector quorum and zero-success RTT cycles become explicit machine-readable measurement-health signals.
+- Background RTT caching stops masking current reflector collapse as a healthy current measurement.
+- Autorate health and operator surfaces make it obvious when control is running on degraded measurement quality.
+- Verification focuses on real `tcp_12down` failure characteristics without reopening core congestion thresholds or unrelated steering behavior.
+
 ## Completed Milestone: v1.37 Dashboard History Source Clarity
 
 **Shipped:** 2026-04-14 | 3 phases, 8 plans, 23 tasks, 22 milestone commits
@@ -26,9 +37,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Next Milestone Goals
 
-- Start from a fresh requirements definition instead of carrying v1.37 planning forward.
-- Decide whether the next milestone should add deeper end-to-end coverage on top of the now-audit-clean dashboard history contract.
-- Preserve the locked endpoint-local HTTP versus merged CLI history contract unless a future milestone explicitly reopens it.
+- Close the production gap where reflector collapse under `tcp_12down` can coexist with superficially healthy autorate status.
+- Make reduced reflector quorum, stale cached RTT, and measurement degradation visible enough for operators and future phases to reason about them correctly.
+- Preserve existing congestion thresholds, fallback semantics, and steering architecture unless measurement-resilience work proves a narrower change is required.
 
 ## Requirements
 
@@ -302,22 +313,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ### Active
 
-**v1.34 Production Observability and Alerting Hardening (Shipped: 2026-04-12):**
-
-- ✓ Sustained latency-regression and burst-churn alerts on existing AlertEngine path — v1.34
-- ✓ Storage/runtime pressure monitoring (DB/WAL/RSS/cycle-budget) on health and metrics — v1.34
-- ✓ Compact operator summary surfaces with ATT/Spectrum parity — v1.34
-- ✓ Post-deploy canary script with pass/fail contract and offline fixtures — v1.34
-- ✓ Threshold policy runbook with deploy-flow cross-reference — v1.34
-- ✓ 11/11 requirements satisfied, 23/23 UAT tests passed — v1.34
-
-**v1.29 Code Health & Cleanup:**
-- [ ] Dead code & cruft removal (unused modules, stale imports, orphaned helpers)
-- [ ] Module complexity reduction (large files, nested logic, responsibility extraction)
-- [ ] Test quality improvements (redundant tests, brittle mocks, slow tests, organization)
-- [ ] Type safety & linting strictness (type annotations, mypy, ruff rules)
-
-**Deferred:** Prometheus/Grafana export (infrastructure not yet deployed)
+- [ ] Reflector success quorum is exposed as an explicit measurement-health contract instead of passive metadata.
+- [ ] Zero-success background RTT cycles cannot silently reuse cached RTT as if it were a healthy current sample.
+- [ ] Autorate `/health` distinguishes measurement degradation from router-down and disk-pressure cases.
+- [ ] Operators can correlate `tcp_12down` latency collapse with reflector loss and protocol churn from one bounded investigation path.
+- [ ] Regression coverage protects reduced-quorum, stale-cache, and degraded-health behavior without changing core congestion thresholds.
 
 ### Deferred
 
@@ -335,6 +335,10 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 ## Context
 
 wanctl is a production dual-WAN controller deployed in a home network environment. Reliability and backward compatibility are critical.
+
+**Current production issue (2026-04-15):** a live 30-second `flent tcp_12down` run to Dallas reproduced multi-second tail latency (`p99 3059.16ms`) while Spectrum still reported `healthy`, stayed `GREEN`, and did not fire burst detection. The same run showed repeated three-reflector miss bursts plus protocol-correlation churn, while steering remained healthy and VM steal stayed low.
+
+**Current engineering hypothesis:** the active gap is measurement resilience rather than core congestion-state logic. The background RTT path can degrade from 3 reflectors to 2 to 1 with no confidence penalty, and on zero-success cycles it preserves stale cached RTT until the hard stale threshold trips.
 
 **Architecture:** Layered design (Router Control → Measurement → Congestion Assessment → State Management → Control Logic). Python 3.12 with Ruff linting, pytest testing, proper error handling.
 
@@ -529,6 +533,7 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 - **Dual transport**: Must maintain both REST API (preferred) and SSH (fallback) support
 - **No external monitoring**: Keep self-contained for core operation (Prometheus export is optional, not required for function)
 - **Backward compatibility**: Existing state files and configuration must remain compatible
+- **Scope**: Do not retune congestion thresholds, change CAKE control semantics, or reopen steering policy unless measurement-resilience work proves a direct dependency
 
 ## Key Decisions
 
@@ -623,6 +628,7 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | ZeroTier interface restriction (WAN/LAN only) | ZT binding to wireguard1 caused 850K+ TX errors | ✓ Error rate 43K/day → 0 | 2026-04-05 |
 | nftables create-then-delete for idempotent reload | flush fails on first boot (table doesn't exist) | ✓ Safe on boot and reload | 2026-04-04 |
 | Bridge DSCP via conntrack marks (not direct DSCP set) | nftables bridge hooks can't set DSCP directly on forwarded packets | ✓ Voice/Bulk/BE tin separation | 2026-04-04 |
+| Measurement degradation must be explicit, not inferred from cached RTT | Production `tcp_12down` can show catastrophic latency while autorate still reports healthy/GREEN | — Pending | 2026-04-15 |
 
 ## Evolution
 
@@ -645,8 +651,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-14 after completing v1.37 milestone_
-
-
----
-*Last updated: 2026-04-14 after completing v1.37 milestone*
+_Last updated: 2026-04-15 after starting v1.38 milestone_

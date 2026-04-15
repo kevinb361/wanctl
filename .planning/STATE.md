@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.37
-milestone_name: dashboard-history-source-clarity
-status: complete
-stopped_at: Start next milestone with /gsd-new-milestone
-last_updated: "2026-04-15T00:05:00.000Z"
+milestone: v1.38
+milestone_name: measurement-resilience-under-load
+status: active
+stopped_at: Plan Phase 186 with /gsd-plan-phase 186
+last_updated: "2026-04-15T08:00:00.000Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 0
   total_plans: 8
-  completed_plans: 8
-  percent: 100
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-14)
+See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone archived; define the next milestone
+**Current focus:** v1.38 measurement resilience under multi-flow load
 
 ## Position
 
-**Milestone:** v1.37 Dashboard History Source Clarity
-**Phase:** completed
-**Plan:** archived
-**Status:** v1.37 archived and tagged; ready for next milestone definition
-**Last activity:** 2026-04-14
+**Milestone:** v1.38 Measurement Resilience Under Load
+**Phase:** Not started (requirements and roadmap defined)
+**Plan:** —
+**Status:** Ready to plan Phase 186
+**Last activity:** 2026-04-15
 
-Progress: [██████████] 100%
+Progress: [----------] 0%
 
 ## Accumulated Context
 
@@ -71,11 +71,14 @@ Progress: [██████████] 100%
 - Phase 184-03 is complete: `source-handoff` remains compose-only, `HistoryBrowserWidget.HANDOFF_TEXT` exposes the locked merged-CLI invocation, and import-time parity assertions block dashboard copy from implying `wanctl.history` equivalence
 - Phase 185 added the locked dashboard regression matrix for success, fetch-error, source-missing, mode-missing, and db-paths-missing flows without reopening backend `/metrics/history` behavior
 - Phase 185 aligned `DEPLOYMENT.md`, `RUNBOOK.md`, and `GETTING-STARTED.md` on the same endpoint-local HTTP versus authoritative merged CLI wording, and `185-VERIFICATION.md` now closes both `DASH-04` and `OPER-05`
+- Live production investigation on 2026-04-15 reproduced catastrophic `tcp_12down` tail latency (`p99 3059.16ms`) while Spectrum still reported `healthy` and `GREEN`
+- The same run showed repeated three-reflector miss bursts and protocol-correlation churn, while steering remained healthy and VM steal stayed low
+- Code investigation points to a measurement-resilience gap: reduced reflector quorum carries no explicit confidence penalty, and zero-success background RTT cycles preserve stale cached RTT until the hard stale cutoff
 
 ## Session Continuity
 
-Stopped at: Start the next milestone
-Resume file: .planning/MILESTONES.md
+Stopped at: Plan Phase 186
+Resume file: .planning/ROADMAP.md
 
 ## Decisions
 
