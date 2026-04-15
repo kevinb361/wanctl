@@ -342,6 +342,14 @@ class TestProfilingInstrumentation:
         assert stats, "Expected autorate_router_communication to have recorded samples"
         assert stats["count"] >= 1
 
+    def test_run_cycle_records_router_apply_primary_timing(self, profiled_controller):
+        """run_cycle should record timing for autorate_router_apply_primary label."""
+        with patch.object(profiled_controller, "save_state"):
+            profiled_controller.run_cycle()
+        stats = profiled_controller._profiler.stats("autorate_router_apply_primary")
+        assert stats, "Expected autorate_router_apply_primary to have recorded samples"
+        assert stats["count"] >= 1
+
     def test_run_cycle_records_state_management_timing(self, profiled_controller):
         """run_cycle should record timing for autorate_state_management label."""
         with patch.object(profiled_controller, "save_state"):

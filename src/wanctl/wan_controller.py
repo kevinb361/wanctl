@@ -2069,6 +2069,12 @@ class WANController:
         congestion_assess_ms: float = 0.0,
         irtt_observation_ms: float = 0.0,
         logging_metrics_ms: float = 0.0,
+        router_apply_primary_ms: float = 0.0,
+        router_apply_pending_ms: float = 0.0,
+        router_write_download_ms: float = 0.0,
+        router_write_upload_ms: float = 0.0,
+        router_write_skipped_ms: float = 0.0,
+        router_write_fallback_ms: float = 0.0,
     ) -> None:
         """Record subsystem timing to profiler, emit structured log, and detect overruns.
 
@@ -2086,6 +2092,12 @@ class WANController:
             "autorate_congestion_assess": congestion_assess_ms,
             "autorate_irtt_observation": irtt_observation_ms,
             "autorate_logging_metrics": logging_metrics_ms,
+            "autorate_router_apply_primary": router_apply_primary_ms,
+            "autorate_router_apply_pending": router_apply_pending_ms,
+            "autorate_router_write_download": router_write_download_ms,
+            "autorate_router_write_upload": router_write_upload_ms,
+            "autorate_router_write_skipped": router_write_skipped_ms,
+            "autorate_router_write_fallback": router_write_fallback_ms,
         }
         self._overrun_count, self._profile_cycle_count = record_cycle_profiling(
             profiler=self._profiler,
@@ -2212,9 +2224,10 @@ class WANController:
         )
         with PerfTimer("autorate_router_communication", self.logger) as router_timer:
             if rates_changed:
-                router_failed = self._run_router_communication(dl_rate, ul_rate)
+                router_failed, router_breakdown = self._run_router_communication(dl_rate, ul_rate)
             else:
                 router_failed = False
+                router_breakdown = {}
         self._record_profiling(
             rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start,
             signal_processing_ms=signal_timer.elapsed_ms,
@@ -2223,6 +2236,12 @@ class WANController:
             congestion_assess_ms=congestion_timer.elapsed_ms,
             irtt_observation_ms=irtt_timer.elapsed_ms,
             logging_metrics_ms=metrics_timer.elapsed_ms,
+            router_apply_primary_ms=router_breakdown.get("autorate_router_apply_primary", 0.0),
+            router_apply_pending_ms=router_breakdown.get("autorate_router_apply_pending", 0.0),
+            router_write_download_ms=router_breakdown.get("autorate_router_write_download", 0.0),
+            router_write_upload_ms=router_breakdown.get("autorate_router_write_upload", 0.0),
+            router_write_skipped_ms=router_breakdown.get("autorate_router_write_skipped", 0.0),
+            router_write_fallback_ms=router_breakdown.get("autorate_router_write_fallback", 0.0),
         )
         if router_failed:
             return False
@@ -2723,14 +2742,36 @@ class WANController:
                     granularity="raw",
                 )
 
-    def _run_router_communication(self, dl_rate: int, ul_rate: int) -> bool:
+    def _consume_router_write_timings(self) -> dict[str, float]:
+        """Return one-cycle write breakdown from Linux CAKE adapter when available."""
+        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
+
+        if not isinstance(self.router, LinuxCakeAdapter):
+            return {}
+        return self.router.consume_last_set_limits_stats()
+
+    def _run_router_communication(self, dl_rate: int, ul_rate: int) -> tuple[bool, dict[str, float]]:
         """Router communication subsystem: apply rates with flash wear and rate limiting."""
+        breakdown = {
+            "autorate_router_apply_primary": 0.0,
+            "autorate_router_apply_pending": 0.0,
+            "autorate_router_write_download": 0.0,
+            "autorate_router_write_upload": 0.0,
+            "autorate_router_write_skipped": 0.0,
+            "autorate_router_write_fallback": 0.0,
+        }
         try:
-            if not self.apply_rate_changes_if_needed(dl_rate, ul_rate):
+            with PerfTimer("autorate_router_apply_primary") as primary_timer:
+                primary_ok = self.apply_rate_changes_if_needed(dl_rate, ul_rate)
+            breakdown["autorate_router_apply_primary"] = primary_timer.elapsed_ms
+            for key, value in self._consume_router_write_timings().items():
+                breakdown[key] += value
+
+            if not primary_ok:
                 self.router_connectivity.record_failure(
                     ConnectionError("Failed to apply rate limits to router")
                 )
-                return True  # router_failed = True
+                return True, breakdown  # router_failed = True
 
             self.router_connectivity.record_success()
 
@@ -2751,7 +2792,11 @@ class WANController:
                             f"(DL={pending_dl / 1e6:.1f}Mbps, "
                             f"UL={pending_ul / 1e6:.1f}Mbps)"
                         )
-                        self.apply_rate_changes_if_needed(pending_dl, pending_ul)
+                        with PerfTimer("autorate_router_apply_pending") as pending_timer:
+                            self.apply_rate_changes_if_needed(pending_dl, pending_ul)
+                        breakdown["autorate_router_apply_pending"] = pending_timer.elapsed_ms
+                        for key, value in self._consume_router_write_timings().items():
+                            breakdown[key] += value
         except Exception as e:
             failure_type = self.router_connectivity.record_failure(e)
             failures = self.router_connectivity.consecutive_failures
@@ -2760,9 +2805,9 @@ class WANController:
                     f"{self.wan_name}: Router communication failed ({failure_type}, "
                     f"{failures} consecutive)"
                 )
-            return True  # router_failed = True
+            return True, breakdown  # router_failed = True
 
-        return False  # router_failed = False
+        return False, breakdown  # router_failed = False
 
     def _run_post_cycle(
         self, cycle_start: float, dl_rate: int, ul_rate: int, dl_zone: str, ul_zone: str,

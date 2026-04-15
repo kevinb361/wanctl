@@ -23,6 +23,7 @@ Config schema:
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
@@ -154,7 +155,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         Returns:
             True if bandwidth was set successfully (via netlink or fallback).
         """
+        start = time.perf_counter()
         if rate_bps == self._last_bandwidth_bps:
+            self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+            self._last_write_skipped = True
+            self._last_write_used_fallback = False
             self.logger.debug(
                 "Netlink: skipping no-op bandwidth update on %s: %sbps",
                 self.interface,
@@ -167,6 +172,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             ipr = self._get_ipr()
             ipr.tc("change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit")
             self._last_bandwidth_bps = rate_bps
+            self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+            self._last_write_skipped = False
+            self._last_write_used_fallback = False
             self.logger.debug("Netlink: set %s bandwidth to %skbit", self.interface, rate_kbit)
             return True
         except (NetlinkError, OSError, ImportError) as e:
@@ -176,7 +184,11 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 e,
             )
             self._reset_ipr()
-            return super().set_bandwidth(queue, rate_bps)
+            result = super().set_bandwidth(queue, rate_bps)
+            self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+            self._last_write_skipped = False
+            self._last_write_used_fallback = True
+            return result
 
     def get_bandwidth(self, queue: str) -> int | None:
         """Get current CAKE bandwidth via netlink. Falls back to subprocess on failure.

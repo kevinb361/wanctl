@@ -22,6 +22,7 @@ Usage in daemon (ContinuousAutoRate.__init__):
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
@@ -60,6 +61,12 @@ class LinuxCakeAdapter:
         self.logger = logger
         self._last_set_down_bps = last_set_down_bps
         self._last_set_up_bps = last_set_up_bps
+        self._last_set_limits_stats: dict[str, float] = {
+            "autorate_router_write_download": 0.0,
+            "autorate_router_write_upload": 0.0,
+            "autorate_router_write_skipped": 0.0,
+            "autorate_router_write_fallback": 0.0,
+        }
 
     @property
     def needs_rate_limiting(self) -> bool:
@@ -87,16 +94,46 @@ class LinuxCakeAdapter:
         dl_changed = down_bps != self._last_set_down_bps
         ul_changed = up_bps != self._last_set_up_bps
 
+        self._last_set_limits_stats = {
+            "autorate_router_write_download": 0.0,
+            "autorate_router_write_upload": 0.0,
+            "autorate_router_write_skipped": 0.0,
+            "autorate_router_write_fallback": 0.0,
+        }
         dl_ok = True
         ul_ok = True
 
         if dl_changed:
+            start = time.perf_counter()
             dl_ok = self.dl_backend.set_bandwidth(queue="", rate_bps=down_bps)
+            elapsed_ms = getattr(
+                self.dl_backend,
+                "_last_write_elapsed_ms",
+                (time.perf_counter() - start) * 1000.0,
+            )
+            if getattr(self.dl_backend, "_last_write_used_fallback", False):
+                self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
+            elif getattr(self.dl_backend, "_last_write_skipped", False):
+                self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+            else:
+                self._last_set_limits_stats["autorate_router_write_download"] += elapsed_ms
             if dl_ok:
                 self._last_set_down_bps = down_bps
 
         if ul_changed:
+            start = time.perf_counter()
             ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
+            elapsed_ms = getattr(
+                self.ul_backend,
+                "_last_write_elapsed_ms",
+                (time.perf_counter() - start) * 1000.0,
+            )
+            if getattr(self.ul_backend, "_last_write_used_fallback", False):
+                self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
+            elif getattr(self.ul_backend, "_last_write_skipped", False):
+                self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+            else:
+                self._last_set_limits_stats["autorate_router_write_upload"] += elapsed_ms
             if ul_ok:
                 self._last_set_up_bps = up_bps
 
@@ -110,6 +147,12 @@ class LinuxCakeAdapter:
             )
 
         return dl_ok and ul_ok
+
+    def consume_last_set_limits_stats(self) -> dict[str, float]:
+        """Return and clear the most recent per-direction write timings."""
+        stats = dict(self._last_set_limits_stats)
+        self._last_set_limits_stats = {key: 0.0 for key in stats}
+        return stats
 
     def get_both_queue_stats(self) -> tuple[dict | None, dict | None]:
         """Read CAKE stats for both DL and UL in a single netlink dump.
