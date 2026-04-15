@@ -177,6 +177,12 @@ After the service is up, confirm:
 - `/var/lib/wanctl/` begins receiving runtime state
 - config validation passes with `wanctl-check-config`
 - `scripts/canary-check.sh --ssh target-host` exits `0`
+- `wan_health[wan].measurement.state` is `healthy`, `wan_health[wan].measurement.successful_count` is `3`, and `wan_health[wan].measurement.stale` is `false` before you sign off on a v1.38 deploy
+
+For the bounded measurement-health check, follow
+[`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection`. That
+section is the canonical operator recipe for correlating `tcp_12down`-style
+latency spikes with `/health` measurement honesty.
 
 ## Monitoring And History
 
@@ -186,6 +192,12 @@ Once `wanctl` is running, two complementary history surfaces are available for a
 - `python3 -m wanctl.history` (CLI) is the authoritative merged cross-WAN proof path. Run it as `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --metrics wanctl_rtt_ms --json` when you need merged cross-WAN proof across all deployed autorate instances on the host.
 
 The dashboard history tab surfaces the same distinction via `metadata.source`, so the rule is identical in the TUI, in the runbook, and in the deployment workflow. For deeper operator detail see [`RUNBOOK.md`](RUNBOOK.md) and [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+On v1.38 and later, add the measurement-health inspection pass before treating
+an endpoint as healthy under load: check `measurement.state`,
+`measurement.successful_count`, and `measurement.stale` in `/health`, then use
+the rubric in [`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection`
+to decide whether the RTT view is current, reduced, or collapsed.
 
 ## Common Issues
 

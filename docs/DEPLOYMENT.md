@@ -69,7 +69,23 @@ ssh <target_host> 'wanctl-operator-summary http://<health-ip-1>:9101/health http
 ./scripts/soak-monitor.sh
 ```
 
-8. Re-check the active storage topology and retained history with read-only commands:
+8. Inspect the measurement-health contract:
+
+```bash
+ssh <target_host> 'curl -s http://<health-ip-1>:9101/health' \
+  | jq '.wans[] | {name, download: .download.state, upload: .upload.state, measurement: {state: .measurement.state, successful_count: .measurement.successful_count, stale: .measurement.stale}}'
+```
+
+On a freshly deployed v1.38 host with healthy reflectors, `state` should be
+`"healthy"`, `successful_count` should be `3`, and `stale` should be `false`.
+Any other combination must be correlated against the rubric in
+[`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection` before
+signing off on the deploy. Inspect these literal paths in the payload:
+`wan_health[wan].measurement.state`,
+`wan_health[wan].measurement.successful_count`,
+`wan_health[wan].measurement.stale`.
+
+9. Re-check the active storage topology and retained history with read-only commands:
 
 ```bash
 ssh <target_host> 'sudo -n stat -c "%n %s %y" /var/lib/wanctl/metrics-spectrum.db /var/lib/wanctl/metrics-att.db /var/lib/wanctl/metrics.db /var/lib/wanctl/spectrum_metrics.db /var/lib/wanctl/att_metrics.db 2>/dev/null'
@@ -96,7 +112,7 @@ response shape, and that WAN's local history view. Use
 fall back to direct DB inventory only if the CLI is unavailable. The dashboard history tab
 surfaces this same distinction via `metadata.source` so operators see it in both places.
 
-9. If the per-WAN DB files are still above the expected footprint after retention cleanup has had
+10. If the per-WAN DB files are still above the expected footprint after retention cleanup has had
 time to run, compact them explicitly during a controlled restart window:
 
 ```bash
