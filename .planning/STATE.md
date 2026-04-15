@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.38
 milestone_name: milestone
 status: executing
-stopped_at: Completed 187-01-PLAN.md
-last_updated: "2026-04-15T10:35:54.491Z"
+stopped_at: Completed 187-02-PLAN.md
+last_updated: "2026-04-15T10:41:19.618Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Milestone:** v1.38 Measurement Resilience Under Load
 **Phase:** 187 — rtt-cache-and-fallback-safety
-**Plan:** 187-01 complete; next up 187-02
+**Plan:** 187-02 complete; next up 187-03
 **Status:** Executing Phase 187
 **Last activity:** 2026-04-15
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Accumulated Context
 
@@ -77,8 +77,8 @@ Progress: [███████░░░] 67%
 
 ## Session Continuity
 
-Stopped at: Completed 187-01-PLAN.md
-Resume file: .planning/phases/187-rtt-cache-and-fallback-safety/187-02-PLAN.md
+Stopped at: Completed 187-02-PLAN.md
+Resume file: .planning/phases/187-rtt-cache-and-fallback-safety/187-03-PLAN.md
 
 ## Decisions
 
@@ -98,9 +98,12 @@ Resume file: .planning/phases/187-rtt-cache-and-fallback-safety/187-02-PLAN.md
 - [Phase 187]: Kept RTTCycleStatus parallel to RTTSnapshot so get_latest() and stale-cache consumers remain unchanged.
 - [Phase 187]: Published cycle status before the existing success branch so zero-success cycles report current quorum without overwriting _cached.
 - [Phase 187]: _last_raw_rtt_ts was intentionally left untouched in Plan 187-01; honesty wiring is deferred to Plan 187-02.
+- [Phase 187]: Plan 187-02 preserves timestamp=snapshot.timestamp on both measure_rtt() branches so measurement staleness remains honest during cached RTT reuse.
+- [Phase 187]: Plan 187-02 keeps the 5s stale cutoff and fallback path byte-identical while wiring zero-success cycle status into measure_rtt().
 
 ## Performance Metrics
 
+- 2026-04-15: Phase 187 Plan 02 completed in 15 min across 1 task and 1 source file.
 - 2026-04-15: Phase 187 Plan 01 completed in 10 min across 2 tasks and 1 source file.
 - 2026-04-15: Phase 186 Plan 01 completed in 8 min across 2 tasks and 2 planning files.
 - 2026-04-14: Phase 184 Plan 01 completed in 13 min across 3 tasks and 2 source files.

@@ -15,7 +15,7 @@
 ### Control Safety
 
 - [x] **SAFE-01**: When measurement quality degrades, controller behavior follows explicit bounded semantics instead of silently acting on stale RTT as if it were current.
-- [ ] **SAFE-02**: Existing ICMP failure fallback and total-connectivity-loss handling remain intact for real outages and do not regress while adding measurement-degradation handling.
+- [x] **SAFE-02**: Existing ICMP failure fallback and total-connectivity-loss handling remain intact for real outages and do not regress while adding measurement-degradation handling.
 
 ### Verification And Operations
 
@@ -47,7 +47,7 @@
 | MEAS-03 | Phase 186 | Pending |
 | MEAS-04 | Phase 188 | Pending |
 | SAFE-01 | Phase 187 | Complete |
-| SAFE-02 | Phase 187 | Pending |
+| SAFE-02 | Phase 187 | Complete |
 | OPER-01 | Phase 188 | Pending |
 | VALN-01 | Phase 188 | Pending |
 
