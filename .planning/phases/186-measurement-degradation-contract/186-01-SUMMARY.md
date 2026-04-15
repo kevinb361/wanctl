@@ -22,7 +22,7 @@ key-decisions:
 patterns-established:
   - "Contract phases can pin exact file:line anchors inline in PLAN.md instead of separate audit artifacts."
   - "Measurement contract terminology is locked to 6 legal cross-product combinations plus a boundary partition."
-requirements-completed: []
+requirements-completed: [MEAS-01, MEAS-03]
 duration: 8 min
 completed: 2026-04-15
 ---

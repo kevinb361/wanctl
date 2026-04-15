@@ -10,36 +10,35 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.37 (Dashboard History Source Clarity) — shipped 2026-04-14
-**Tests:** 4,200+ passing, targeted dashboard regressions green, milestone audit `passed` with 5/5 requirements and 3/3 phases complete
-**LOC:** ~37,100 Python (src/)
-**Milestones:** 38 shipped (v1.0-v1.37), 185 phases, 383 plans
+**Version:** v1.38 (Measurement Resilience Under Load) — shipped 2026-04-15
+**Tests:** Replayable v1.38 verification slices green; all 8/8 milestone requirements satisfied; milestone audit `tech_debt`
+**LOC:** ~37,900 Python (src/)
+**Milestones:** 39 shipped (v1.0-v1.38), 190 phases, 395 plans
 
-**Latest:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
-**Previous:** v1.36 Storage Retention And DB Footprint — production DB topology explained, retention/operator paths aligned, startup storage regression fixed, and ATT compaction closed the last footprint blocker
+**Latest:** v1.38 Measurement Resilience Under Load — measurement degradation is now surfaced explicitly via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability
+**Previous:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
 
-## Current Milestone: v1.38 Measurement Resilience Under Load
+## No Active Milestone
 
-**Goal:** Keep autorate honest under multi-flow download stress by treating reflector-quorum collapse and stale RTT masking as first-class degraded measurement states instead of silently presenting them as healthy operation.
+The v1.38 archive is complete. Define the next milestone with fresh requirements
+and roadmap scope before resuming phase work.
 
-**Target features:**
+## Completed Milestone: v1.38 Measurement Resilience Under Load
 
-- Reflector quorum and zero-success RTT cycles become explicit machine-readable measurement-health signals.
-- Background RTT caching stops masking current reflector collapse as a healthy current measurement.
-- Autorate health and operator surfaces make it obvious when control is running on degraded measurement quality.
-- Verification focuses on real `tcp_12down` failure characteristics without reopening core congestion thresholds or unrelated steering behavior.
+**Shipped:** 2026-04-15 | 5 phases, 12 plans, 26 tasks, 30 milestone commits
 
-## Completed Milestone: v1.37 Dashboard History Source Clarity
-
-**Shipped:** 2026-04-14 | 3 phases, 8 plans, 23 tasks, 22 milestone commits
-
-**Delivered:** The dashboard History tab now makes endpoint-local HTTP history explicit, surfaces `metadata.source` in operator-facing wording, and provides a stable merged-CLI handoff. Focused regressions, validation backfill, and aligned operator docs close the contract repo-side, and the refreshed milestone audit is `passed`.
+**Delivered:** `/health` now exposes degraded measurement truth via `state`,
+`successful_count`, and `stale`; zero-success RTT cycles no longer masquerade
+as healthy current measurement; replayable regression evidence and operator
+guidance close the milestone contract; and the later backfill/traceability
+phases repaired the final audit bookkeeping without reopening controller
+thresholds or steering behavior.
 
 ## Next Milestone Goals
 
-- Close the production gap where reflector collapse under `tcp_12down` can coexist with superficially healthy autorate status.
-- Make reduced reflector quorum, stale cached RTT, and measurement degradation visible enough for operators and future phases to reason about them correctly.
-- Preserve existing congestion thresholds, fallback semantics, and steering architecture unless measurement-resilience work proves a narrower change is required.
+- Decide whether the next milestone should build on v1.38 with alerting/history follow-up (`ALRT-01`, `ANLY-01`) or pivot to a different operational priority.
+- Define fresh milestone-scoped requirements instead of carrying v1.38 traceability files forward.
+- Keep the next roadmap explicit about whether it requires live production validation or can close on replayable proof.
 
 ## Requirements
 
@@ -651,4 +650,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-15 after starting v1.38 milestone_
+_Last updated: 2026-04-15 after archiving v1.38 milestone_

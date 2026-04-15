@@ -21,7 +21,7 @@ key-decisions:
   - "Used explicit pytest IDs so the six legal cross-product combinations are grep-verifiable."
 patterns-established:
   - "Phase contract tests can pin legal state/stale combinations without adding duplicate HTTP round-trip coverage."
-requirements-completed: []
+requirements-completed: [MEAS-01, MEAS-03]
 duration: 20 min
 completed: 2026-04-15
 ---

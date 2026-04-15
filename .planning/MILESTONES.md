@@ -1,5 +1,19 @@
 # Project Milestones: wanctl
 
+## v1.38 Measurement Resilience Under Load (Shipped: 2026-04-15)
+
+**Phases completed:** 5 phases, 12 plans, 26 tasks
+
+**Key accomplishments:**
+
+- Defined and shipped an explicit measurement-health contract so reflector quorum and stale/current RTT status are machine-readable.
+- Fixed the zero-success cached-RTT honesty gap without retuning congestion thresholds or disturbing existing outage fallback behavior.
+- Added regression coverage across controller behavior, health payloads, fallback safety, and producer-side RTT status publication.
+- Aligned runbook, deployment, and replayable verification evidence with the new measurement-resilience contract.
+- Backfilled Phase 186 verification and closed the final traceability drift so all eight v1.38 requirements are now satisfied and archive-ready.
+
+---
+
 ## v1.37 Dashboard History Source Clarity (Shipped: 2026-04-14)
 
 **Phases completed:** 3 phases, 8 plans, 23 tasks
