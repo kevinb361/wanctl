@@ -76,14 +76,15 @@ ssh <target_host> 'curl -s http://<health-ip-1>:9101/health' \
   | jq '.wans[] | {name, download: .download.state, upload: .upload.state, measurement: {state: .measurement.state, successful_count: .measurement.successful_count, stale: .measurement.stale}}'
 ```
 
-On a freshly deployed v1.38 host with healthy reflectors, `state` should be
+On a freshly deployed host that includes the measurement-resilience changes,
+`state` should be
 `"healthy"`, `successful_count` should be `3`, and `stale` should be `false`.
 Any other combination must be correlated against the rubric in
 [`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection` before
 signing off on the deploy. Inspect these literal paths in the payload:
-`wan_health[wan].measurement.state`,
-`wan_health[wan].measurement.successful_count`,
-`wan_health[wan].measurement.stale`.
+`.wans[].measurement.state`,
+`.wans[].measurement.successful_count`,
+`.wans[].measurement.stale`.
 
 9. Re-check the active storage topology and retained history with read-only commands:
 
@@ -125,7 +126,7 @@ If only ATT remains above the expected footprint while Spectrum is already below
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <target_host> --wan att
 ./scripts/canary-check.sh --ssh <target_host> --expect-version 1.37.0 --json
-./scripts/soak-monitor.sh --ssh <target_host> --json
+./scripts/soak-monitor.sh --json
 ```
 
 ## Install-Only Mode

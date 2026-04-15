@@ -210,9 +210,9 @@ Alerting summary status is separate again:
 ## Measurement Health Inspection
 
 Multi-flow download reproduction such as `tcp_12down` can collapse reflector
-measurement quality while autorate otherwise appears `healthy`/`GREEN`. v1.38
-surfaces that measurement-honesty signal on `/health` inside the existing
-`wan_health[wan].measurement` block so operators can see when current RTT is
+measurement quality while autorate otherwise appears `healthy`/`GREEN`. The
+measurement-resilience milestone surfaces that honesty signal on `/health`
+inside each WAN entry under `.wans[].measurement` so operators can see when current RTT is
 degraded instead of silently treating stale cached RTT as fresh. Phase 187
 keeps the SAFE-02 ICMP-failure fallback path unchanged; this is additive
 inspection guidance, not a behavior change for real outages.
@@ -270,7 +270,8 @@ wanctl-operator-summary http://10.10.110.223:9101/health http://10.10.110.227:91
 | any `state` with `successful_count=0` | zero-success cycle; Phase 187 keeps bounded controller behavior but the operator reading is "do not tune on this window." |
 
 > What This Does Not Change: SAFE-02 ICMP-failure fallback, total-connectivity
-> handling, controller thresholds, and steering policy are unchanged in v1.38.
+> handling, controller thresholds, and steering policy are unchanged by the
+> measurement-resilience milestone.
 > This section is inspection-only and must not be read as a tuning instruction.
 > Follow the post-deploy flow in [DEPLOYMENT.md](/home/kevin/projects/wanctl/docs/DEPLOYMENT.md)
 > and escalate through [Escalation Flow](#escalation-flow) when the rubric
@@ -365,7 +366,7 @@ If only ATT remains above the expected footprint while Spectrum is already below
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <host> --wan att
 ./scripts/canary-check.sh --ssh <host> --expect-version 1.37.0 --json
-./scripts/soak-monitor.sh --ssh <host> --json
+./scripts/soak-monitor.sh --json
 ```
 
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
