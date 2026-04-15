@@ -18,7 +18,7 @@ verification without retuning the core congestion algorithm.
 
 Plans:
 
-- [ ] 186-01: Audit the current measurement-collapse path and lock the v1.38 contract for degraded measurement states
+- [x] 186-01: Audit the current measurement-collapse path and lock the v1.38 contract for degraded measurement states
 - [ ] 186-02: Add machine-readable health surfacing for reflector quorum, staleness, and degraded measurement quality
 - [ ] 186-03: Add focused contract tests for the new measurement-health surface
 
