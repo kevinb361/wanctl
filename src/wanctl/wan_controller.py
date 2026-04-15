@@ -921,6 +921,7 @@ class WANController:
             return self._measure_rtt_blocking()
 
         snapshot = self._rtt_thread.get_latest()
+        cycle_status = self._rtt_thread.get_cycle_status()
         if snapshot is None:
             self.logger.warning(
                 f"{self.wan_name}: No RTT data available (background thread starting)"
@@ -941,14 +942,26 @@ class WANController:
             {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
         )
         self._persist_reflector_events()
-        self._record_live_rtt_snapshot(
-            rtt_ms=snapshot.rtt_ms,
-            timestamp=snapshot.timestamp,
-            active_hosts=list(snapshot.active_hosts or snapshot.per_host_results.keys()),
-            successful_hosts=list(
+        if cycle_status is not None and cycle_status.successful_count == 0:
+            active_hosts = list(cycle_status.active_hosts)
+            successful_hosts: list[str] = []
+            self.logger.warning(
+                f"{self.wan_name}: Zero-success RTT cycle; measurement "
+                f"collapsed. Reusing cached rtt_ms={snapshot.rtt_ms:.1f} "
+                f"(age={age:.2f}s) for bounded controller behavior."
+            )
+        else:
+            active_hosts = list(snapshot.active_hosts or snapshot.per_host_results.keys())
+            successful_hosts = list(
                 snapshot.successful_hosts
                 or (host for host, rtt_val in snapshot.per_host_results.items() if rtt_val is not None)
-            ),
+            )
+
+        self._record_live_rtt_snapshot(
+            rtt_ms=snapshot.rtt_ms,
+            timestamp=snapshot.timestamp,  # NOT time.monotonic() — staleness_sec must stay honest (Phase 186 D-11)
+            active_hosts=active_hosts,
+            successful_hosts=successful_hosts,
         )
 
         return snapshot.rtt_ms
