@@ -400,7 +400,6 @@ class TestHealthServer:
         finally:
             server.shutdown()
 
-
     def test_health_includes_storage_section(self):
         """Storage contention telemetry should be exposed in WAN health output."""
         mock_controller = MagicMock()
@@ -3898,7 +3897,6 @@ class TestBuildCakeSignalSection:
         assert result is None
 
 
-
 class TestOperatorSummaryContract:
     """Tests for compact operator-facing health summaries."""
 
@@ -4124,3 +4122,220 @@ class TestOperatorSummaryContract:
         row = result["summary"]["rows"][0]
         assert row["storage_status"] == "ok"
         assert row["status"] == "ok"
+class TestMeasurementContract:
+    """Contract tests for Phase 186 measurement health fields in 186-01-PLAN."""
+
+    @staticmethod
+    def _make_handler() -> HealthCheckHandler:
+        return HealthCheckHandler.__new__(HealthCheckHandler)
+
+    @staticmethod
+    def _make_health_data(
+        *,
+        successful_hosts: list[str] | None = None,
+        active_hosts: list[str] | None = None,
+        raw_rtt_ms: float | None = 26.123,
+        staleness_sec: float | None = 0.05,
+        cadence_sec: float | None = 0.05,
+    ) -> dict[str, object]:
+        measurement: dict[str, object] = {
+            "raw_rtt_ms": raw_rtt_ms,
+            "staleness_sec": staleness_sec,
+            "cadence_sec": cadence_sec,
+            "active_reflector_hosts": list(active_hosts or successful_hosts or []),
+        }
+        if successful_hosts is not None:
+            measurement["successful_reflector_hosts"] = list(successful_hosts)
+        return {"measurement": measurement}
+
+    @pytest.mark.parametrize(
+        ("hosts", "staleness", "cadence", "expected_state", "expected_count", "expected_stale"),
+        [
+            pytest.param(
+                ["a", "b", "c"],
+                0.05,
+                0.05,
+                "healthy",
+                3,
+                False,
+                id="test_contract_combination_healthy_fresh",
+            ),
+            pytest.param(
+                ["a", "b", "c"],
+                0.20,
+                0.05,
+                "healthy",
+                3,
+                True,
+                id="test_contract_combination_healthy_stale",
+            ),
+            pytest.param(
+                ["a", "b"],
+                0.05,
+                0.05,
+                "reduced",
+                2,
+                False,
+                id="test_contract_combination_reduced_fresh",
+            ),
+            pytest.param(
+                ["a", "b"],
+                0.20,
+                0.05,
+                "reduced",
+                2,
+                True,
+                id="test_contract_combination_reduced_stale",
+            ),
+            pytest.param(
+                ["a"],
+                0.05,
+                0.05,
+                "collapsed",
+                1,
+                False,
+                id="test_contract_combination_collapsed_fresh",
+            ),
+            pytest.param(
+                ["a"],
+                0.20,
+                0.05,
+                "collapsed",
+                1,
+                True,
+                id="test_contract_combination_collapsed_stale",
+            ),
+        ],
+    )
+    def test_contract_combination(
+        self,
+        hosts,
+        staleness,
+        cadence,
+        expected_state,
+        expected_count,
+        expected_stale,
+    ):
+        handler = self._make_handler()
+        health_data = self._make_health_data(
+            successful_hosts=hosts,
+            staleness_sec=staleness,
+            cadence_sec=cadence,
+        )
+
+        measurement = handler._build_measurement_section(health_data)
+
+        assert measurement["state"] == expected_state
+        assert measurement["successful_count"] == expected_count
+        assert measurement["stale"] is expected_stale
+
+    @pytest.mark.parametrize(
+        ("count", "expected_state"),
+        [
+            (0, "collapsed"),
+            (1, "collapsed"),
+            (2, "reduced"),
+            (3, "healthy"),
+        ],
+    )
+    def test_successful_count_boundary_partition(self, count, expected_state):
+        """Boundary partition within collapsed/reduced/healthy, not a third axis."""
+        handler = self._make_handler()
+        health_data = self._make_health_data(
+            successful_hosts=[f"h{idx}" for idx in range(count)],
+            staleness_sec=0.05,
+            cadence_sec=0.05,
+        )
+
+        measurement = handler._build_measurement_section(health_data)
+
+        assert measurement["successful_count"] == count
+        assert measurement["state"] == expected_state
+        assert measurement["stale"] is False
+
+    def test_stale_boundary_inclusive_lower(self):
+        handler = self._make_handler()
+
+        fresh_measurement = handler._build_measurement_section(
+            self._make_health_data(
+                successful_hosts=["a", "b", "c"],
+                staleness_sec=0.15,
+                cadence_sec=0.05,
+            )
+        )
+        stale_measurement = handler._build_measurement_section(
+            self._make_health_data(
+                successful_hosts=["a", "b", "c"],
+                staleness_sec=0.15000001,
+                cadence_sec=0.05,
+            )
+        )
+
+        assert fresh_measurement["stale"] is False
+        assert stale_measurement["stale"] is True
+
+    @pytest.mark.parametrize(
+        ("cadence_sec", "staleness_sec"),
+        [
+            (None, 99.0),
+            (0, 99.0),
+            (-1.0, 99.0),
+            (0.05, None),
+        ],
+    )
+    def test_stale_default_on_missing_cadence(self, cadence_sec, staleness_sec):
+        handler = self._make_handler()
+        measurement = handler._build_measurement_section(
+            self._make_health_data(
+                successful_hosts=["a", "b", "c"],
+                staleness_sec=staleness_sec,
+                cadence_sec=cadence_sec,
+            )
+        )
+
+        assert measurement["stale"] is True
+
+    def test_malformed_input_none_hosts(self):
+        handler = self._make_handler()
+
+        none_hosts_measurement = handler._build_measurement_section(
+            {
+                "measurement": {
+                    "successful_reflector_hosts": None,
+                    "raw_rtt_ms": 20.0,
+                    "staleness_sec": 0.05,
+                    "cadence_sec": 0.05,
+                }
+            }
+        )
+        missing_measurement = handler._build_measurement_section({})
+
+        assert none_hosts_measurement["successful_count"] == 0
+        assert none_hosts_measurement["state"] == "collapsed"
+        assert none_hosts_measurement["successful_reflector_hosts"] == []
+        assert missing_measurement["available"] is False
+        assert missing_measurement["raw_rtt_ms"] is None
+        assert missing_measurement["staleness_sec"] is None
+        assert missing_measurement["active_reflector_hosts"] == []
+        assert missing_measurement["successful_reflector_hosts"] == []
+        assert missing_measurement["state"] == "collapsed"
+        assert missing_measurement["successful_count"] == 0
+        assert missing_measurement["stale"] is True
+
+    def test_existing_fields_preserved(self):
+        handler = self._make_handler()
+        measurement = handler._build_measurement_section(
+            self._make_health_data(
+                successful_hosts=["1.1.1.1"],
+                active_hosts=["1.1.1.1", "9.9.9.9"],
+                raw_rtt_ms=26.123,
+                staleness_sec=0.2512,
+                cadence_sec=0.05,
+            )
+        )
+
+        assert measurement["available"] is True
+        assert measurement["raw_rtt_ms"] == 26.12
+        assert measurement["staleness_sec"] == 0.251
+        assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
+        assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
