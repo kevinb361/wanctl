@@ -453,6 +453,15 @@ class BackgroundRTTThread:
                 elapsed_s = time.perf_counter() - t0
                 elapsed_ms = elapsed_s * 1000.0
 
+                # Phase 187: always publish current-cycle status, even on zero-success.
+                # This is orthogonal to _cached, which still uses stale-prefer-none.
+                self._last_cycle_status = RTTCycleStatus(
+                    successful_count=len(successful_rtts),
+                    active_hosts=tuple(hosts),
+                    successful_hosts=tuple(successful_hosts),
+                    cycle_timestamp=time.monotonic(),
+                )
+
                 if successful_rtts:
                     # Same aggregation as WANController.measure_rtt():
                     # median-of-3+, average-of-2, single pass-through
