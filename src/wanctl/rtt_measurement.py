@@ -104,6 +104,22 @@ class RTTSnapshot:
     successful_hosts: tuple[str, ...] = ()
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class RTTCycleStatus:
+    """Snapshot of the most recent background RTT cycle's outcome.
+
+    Distinct from RTTSnapshot: this is updated every cycle, including
+    zero-success cycles. Consumers that want the last known good rtt_ms
+    continue to read get_latest(); consumers that want the current-cycle
+    quorum signal read get_cycle_status().
+    """
+
+    successful_count: int
+    active_hosts: tuple[str, ...]
+    successful_hosts: tuple[str, ...]
+    cycle_timestamp: float  # time.monotonic() of cycle completion
+
+
 class RTTMeasurement:
     """
     Unified RTT measurement via icmplib raw ICMP sockets.
@@ -381,6 +397,7 @@ class BackgroundRTTThread:
         self._pool = pool
         self._cadence_sec = cadence_sec
         self._cached: RTTSnapshot | None = None
+        self._last_cycle_status: RTTCycleStatus | None = None
         self._thread: threading.Thread | None = None
 
     # ------------------------------------------------------------------
@@ -390,6 +407,16 @@ class BackgroundRTTThread:
     def get_latest(self) -> RTTSnapshot | None:
         """Return the most recent successful measurement, or ``None``."""
         return self._cached
+
+    def get_cycle_status(self) -> RTTCycleStatus | None:
+        """Return the most recent background cycle status, or ``None`` if no cycle has completed yet.
+
+        Updated on every cycle including zero-success, unlike :meth:`get_latest`
+        which preserves the last successful snapshot. ``None`` is the explicit
+        first-cycle sentinel; consumers must treat it as "fall back to today's
+        behavior."
+        """
+        return self._last_cycle_status
 
     def start(self) -> None:
         """Create and start the background daemon thread."""
