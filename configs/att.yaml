@@ -122,8 +122,8 @@ signal_processing:
 
 # IRTT UDP RTT measurement (v1.18+)
 irtt:
-  enabled: false  # Disabled pending same-target IRTT contention fix verification on cake-shaper
-  server: "104.200.21.31"
+  enabled: true
+  server: "zylone.org"
   port: 2112
   duration_ms: 1000
   packet_size: 48
@@ -136,9 +136,9 @@ reflector_quality:
   recovery_count: 3
 
 # Dual-signal fusion (v1.19+)
-# Config says enabled=true but healer auto-suspends fusion due to IRTT-ICMP RTT
-# divergence (IRTT 24.7ms to Dallas vs ICMP 28.3ms to CDN = permanent delta).
-# Healer will re-enable if correlation recovers. ICMP alone at 20Hz is sufficient.
+# Production note: ATT IRTT now uses a dedicated server on zylone.org. Fusion
+# remains enabled, but WANController bypasses blending whenever absolute ICMP
+# and IRTT RTT disagreement exceeds ATT's green-threshold budget.
 fusion:
   enabled: true    # Healer manages actual state (currently suspended)
   icmp_weight: 0.7

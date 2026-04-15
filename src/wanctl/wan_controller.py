@@ -1550,6 +1550,7 @@ class WANController:
         - No IRTT result available (get_latest() returns None)
         - IRTT result is stale (age > 3x cadence)
         - IRTT rtt_mean_ms is zero or negative (total packet loss)
+        - IRTT and ICMP disagree by more than the GREEN RTT budget
 
         Returns weighted average when IRTT is fresh and valid.
 
@@ -1576,6 +1577,13 @@ class WANController:
 
         irtt_rtt = irtt_result.rtt_mean_ms
         if irtt_rtt <= 0:
+            return filtered_rtt
+        if abs(irtt_rtt - filtered_rtt) > self.green_threshold:
+            self.logger.debug(
+                f"{self.wan_name}: fusion bypassed due to ICMP/IRTT offset "
+                f"(icmp={filtered_rtt:.1f}ms, irtt={irtt_rtt:.1f}ms, "
+                f"threshold={self.green_threshold:.1f}ms)"
+            )
             return filtered_rtt
 
         fused = (

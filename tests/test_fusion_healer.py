@@ -690,6 +690,7 @@ def mock_controller():
     # Fusion config (default weights, enabled for computation tests)
     controller._fusion_icmp_weight = 0.7
     controller._fusion_enabled = True
+    controller.green_threshold = 15.0
 
     # IRTT thread (default: None / disabled)
     controller._irtt_thread = None
@@ -822,6 +823,30 @@ class TestFusionFallback:
 
         result = mock_controller._compute_fused_rtt(30.0)
         assert result == 30.0
+
+    def test_irtt_offset_beyond_green_threshold_returns_filtered_rtt(self, mock_controller):
+        """Large absolute ICMP/IRTT disagreement bypasses fusion."""
+        irtt_thread = MagicMock()
+        irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=39.5, age_offset=1.0)
+        irtt_thread.cadence_sec = 10.0
+        mock_controller._irtt_thread = irtt_thread
+        mock_controller.green_threshold = 3.0
+
+        result = mock_controller._compute_fused_rtt(30.0)
+
+        assert result == 30.0
+
+    def test_irtt_offset_within_green_threshold_still_fuses(self, mock_controller):
+        """Small absolute ICMP/IRTT disagreement still allows fusion."""
+        irtt_thread = MagicMock()
+        irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=32.0, age_offset=1.0)
+        irtt_thread.cadence_sec = 10.0
+        mock_controller._irtt_thread = irtt_thread
+        mock_controller.green_threshold = 3.0
+
+        result = mock_controller._compute_fused_rtt(30.0)
+
+        assert result == pytest.approx(30.6)
 
     def test_staleness_boundary_just_within(self, mock_controller):
         """IRTT at exactly 3x cadence boundary (age=29.9, cadence=10) -> fused value."""
