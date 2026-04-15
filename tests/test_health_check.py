@@ -4229,6 +4229,23 @@ class TestMeasurementContract:
         assert measurement["successful_count"] == expected_count
         assert measurement["stale"] is expected_stale
 
+    def test_zero_success_cycle_reports_collapsed(self):
+        """Phase 187: cached rtt + zero-success current cycle => state='collapsed'."""
+        handler = self._make_handler()
+        health_data = self._make_health_data(
+            successful_hosts=[],
+            active_hosts=["a", "b", "c"],
+            staleness_sec=0.20,
+            cadence_sec=0.05,
+        )
+
+        measurement = handler._build_measurement_section(health_data)
+
+        assert measurement["state"] == "collapsed"
+        assert measurement["successful_count"] == 0
+        assert measurement["stale"] is True
+        assert measurement["raw_rtt_ms"] is not None
+
     @pytest.mark.parametrize(
         ("count", "expected_state"),
         [
