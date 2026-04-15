@@ -217,6 +217,11 @@ degraded instead of silently treating stale cached RTT as fresh. Phase 187
 keeps the SAFE-02 ICMP-failure fallback path unchanged; this is additive
 inspection guidance, not a behavior change for real outages.
 
+On shared multi-WAN hosts, treat concurrent same-target IRTT as a separate risk from ICMP reflector collapse. Current production guidance is:
+- keep each WAN on a distinct IRTT target when possible
+- otherwise disable IRTT on the secondary WAN instead of pointing both daemons at the same server
+- do not read a `collapsed` measurement window as proof of router failure by itself
+
 ### Measurement Contract
 
 | Field | Values | What it means for the operator |
@@ -268,6 +273,10 @@ wanctl-operator-summary http://10.10.110.223:9101/health http://10.10.110.227:91
 | `state="collapsed"`, `successful_count<=1`, `stale=false` | measurement has collapsed on the current cycle; recent latency spikes on this WAN are NOT trustworthy as a controller signal and match the Phase 187 honesty path. |
 | `state="healthy"`, `stale=true` | quorum is nominally present but the last raw RTT sample is older than `3 * cadence_sec`; treat as measurement-degraded, not as a fresh healthy sample. |
 | any `state` with `successful_count=0` | zero-success cycle; Phase 187 keeps bounded controller behavior but the operator reading is "do not tune on this window." |
+
+Production note from `cake-shaper`:
+- If RRUL reproduces repeated `collapsed` windows on one WAN while another WAN shares the host, first check whether both WANs are configured against the same IRTT server.
+- If the secondary WAN stays green after disabling its IRTT, leave that safer setting in place until a distinct IRTT target exists.
 
 > What This Does Not Change: SAFE-02 ICMP-failure fallback, total-connectivity
 > handling, controller thresholds, and steering policy are unchanged by the

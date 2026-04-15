@@ -76,6 +76,10 @@ continuous_monitoring:
   ping_hosts: ["1.1.1.1", "8.8.8.8", "9.9.9.9"]
   use_median_of_three: true # Use median for noise reduction
 
+  # Production note: background ICMP reflector sampling is bounded separately
+  # from the 50ms control loop. Current builds cap reflector probing at 250ms
+  # cadence to avoid collapsing public reflectors under heavy RRUL load.
+
 # Logging
 logging:
   main_log: "/var/log/wanctl/wan1.log"
