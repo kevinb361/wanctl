@@ -38,7 +38,7 @@ Plans:
 
 - [x] 187-01: Change background RTT behavior so zero-success cycles follow explicit degraded semantics
 - [x] 187-02: Preserve bounded controller behavior and existing real-outage fallback handling while measurement quality is degraded
-- [ ] 187-03: Add regression coverage around zero-success cycles, reduced quorum, and non-regression of existing fallback behavior
+- [x] 187-03: Add regression coverage around zero-success cycles, reduced quorum, and non-regression of existing fallback behavior
 
 **Details:**
 Phase 187 addresses the most concrete code-path gap from the live
