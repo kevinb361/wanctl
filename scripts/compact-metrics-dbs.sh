@@ -140,7 +140,7 @@ run_compaction() {
 
     echo
     echo "Next step:"
-    echo "  ./scripts/canary-check.sh --ssh ${SSH_TARGET:-<host>} --expect-version 1.35.0 --json"
+    echo "  ./scripts/canary-check.sh --ssh ${SSH_TARGET:-<host>} --expect-version 1.37.0 --json"
 }
 
 run_remote() {
