@@ -1,9 +1,12 @@
 """Tests for WANController class in autorate_continuous module."""
 
 import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot
 
 
 class TestHandleIcmpFailure:
@@ -2391,8 +2394,8 @@ class TestRefractoryPeriod:
         )
 
         # Write a YAML file that disables cake_signal
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump({"cake_signal": {"enabled": False}}, f)
@@ -2754,3 +2757,178 @@ class TestBackgroundRttWiring:
         assert pool_kwargs["max_workers"] == max(3, len(controller.config.ping_hosts))
         assert kwargs["cadence_sec"] == pytest.approx(controller._cycle_interval_ms / 1000.0)
         mock_thread.start.assert_called_once()
+
+
+class TestZeroSuccessCycle:
+    """Phase 187 zero-success cycle coverage for WANController.measure_rtt()."""
+
+    @pytest.fixture
+    def mock_wan_controller(self):
+        wc = MagicMock()
+        wc.wan_name = "spectrum"
+        wc.logger = MagicMock()
+        wc._reflector_scorer = MagicMock()
+        wc._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        wc._persist_reflector_events = MagicMock()
+        wc._last_raw_rtt = None
+        wc._last_raw_rtt_ts = None
+        wc._last_active_reflector_hosts = []
+        wc._last_successful_reflector_hosts = []
+        wc._record_live_rtt_snapshot = MagicMock()
+        wc.handle_icmp_failure = MagicMock()
+        wc.icmp_unavailable_cycles = 0
+        return wc
+
+    def test_zero_success_preserves_cached_rtt_within_5s(self, mock_wan_controller):
+        """Zero-success current cycle + cached snapshot <5s => return cached rtt_ms."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic() - 2.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        result = WANController.measure_rtt(mock_wan_controller)
+
+        assert result == 11.0
+
+    def test_zero_success_overrides_successful_hosts(self, mock_wan_controller):
+        """Zero-success current cycle => empty successful_hosts and current active_hosts."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic() - 1.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        WANController.measure_rtt(mock_wan_controller)
+
+        mock_wan_controller._record_live_rtt_snapshot.assert_called_once()
+        kwargs = mock_wan_controller._record_live_rtt_snapshot.call_args.kwargs
+        assert kwargs["successful_hosts"] == []
+        assert kwargs["active_hosts"] == ["a", "b", "c"]
+
+    def test_zero_success_does_not_touch_raw_rtt_timestamp(self, mock_wan_controller):
+        """Phase 186 D-11 guardrail: timestamp must equal snap.timestamp."""
+        from wanctl.wan_controller import WANController
+
+        cached_ts = time.monotonic() - 1.5
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=cached_ts,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        WANController.measure_rtt(mock_wan_controller)
+
+        kwargs = mock_wan_controller._record_live_rtt_snapshot.call_args.kwargs
+        assert kwargs["timestamp"] == cached_ts
+        assert kwargs["rtt_ms"] == 11.0
+
+    def test_zero_success_does_not_invoke_handle_icmp_failure(self, mock_wan_controller):
+        """SAFE-02: zero-success cycle does not escalate into ICMP fallback."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic() - 1.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        WANController.measure_rtt(mock_wan_controller)
+
+        mock_wan_controller.handle_icmp_failure.assert_not_called()
+        assert mock_wan_controller.icmp_unavailable_cycles == 0
+
+    def test_cycle_status_none_matches_today_behavior(self, mock_wan_controller):
+        """First-cycle sentinel keeps pre-187 cached-host behavior intact."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic(),
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = None
+
+        result = WANController.measure_rtt(mock_wan_controller)
+
+        assert result == 11.0
+        kwargs = mock_wan_controller._record_live_rtt_snapshot.call_args.kwargs
+        assert kwargs["successful_hosts"] == ["a", "b", "c"]
+        assert kwargs["active_hosts"] == ["a", "b", "c"]
+
+    def test_reflector_scorer_not_double_counted_on_zero_success(self, mock_wan_controller):
+        """Scorer should still record cached per-host results exactly once."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=time.monotonic() - 1.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        WANController.measure_rtt(mock_wan_controller)
+
+        assert mock_wan_controller._reflector_scorer.record_results.call_count == 1

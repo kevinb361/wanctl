@@ -37,7 +37,7 @@ healthy current RTT from degraded or masked measurement quality.
 Plans:
 
 - [x] 187-01: Change background RTT behavior so zero-success cycles follow explicit degraded semantics
-- [ ] 187-02: Preserve bounded controller behavior and existing real-outage fallback handling while measurement quality is degraded
+- [x] 187-02: Preserve bounded controller behavior and existing real-outage fallback handling while measurement quality is degraded
 - [ ] 187-03: Add regression coverage around zero-success cycles, reduced quorum, and non-regression of existing fallback behavior
 
 **Details:**
