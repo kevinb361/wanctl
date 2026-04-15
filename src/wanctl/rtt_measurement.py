@@ -100,6 +100,8 @@ class RTTSnapshot:
     per_host_results: dict[str, float | None]
     timestamp: float  # time.monotonic() when measured
     measurement_ms: float  # How long measurement took (ms)
+    active_hosts: tuple[str, ...] = ()
+    successful_hosts: tuple[str, ...] = ()
 
 
 class RTTMeasurement:
@@ -420,26 +422,25 @@ class BackgroundRTTThread:
                     continue
 
                 t0 = time.perf_counter()
-                per_host = self._ping_with_persistent_pool(hosts)
+                per_host, successful_hosts, successful_rtts = self._ping_with_persistent_pool(hosts)
                 elapsed_s = time.perf_counter() - t0
                 elapsed_ms = elapsed_s * 1000.0
 
-                # Extract successful RTTs for aggregation
-                successful = [v for v in per_host.values() if v is not None]
-
-                if successful:
+                if successful_rtts:
                     # Same aggregation as WANController.measure_rtt():
                     # median-of-3+, average-of-2, single pass-through
-                    if len(successful) >= 3:
-                        rtt_ms = statistics.median(successful)
-                    elif len(successful) == 2:
-                        rtt_ms = statistics.mean(successful)
+                    if len(successful_rtts) >= 3:
+                        rtt_ms = statistics.median(successful_rtts)
+                    elif len(successful_rtts) == 2:
+                        rtt_ms = statistics.mean(successful_rtts)
                     else:
-                        rtt_ms = successful[0]
+                        rtt_ms = successful_rtts[0]
 
                     self._cached = RTTSnapshot(
                         rtt_ms=rtt_ms,
                         per_host_results=per_host,
+                        active_hosts=tuple(hosts),
+                        successful_hosts=successful_hosts,
                         timestamp=time.monotonic(),
                         measurement_ms=elapsed_ms,
                     )
@@ -457,7 +458,7 @@ class BackgroundRTTThread:
 
     def _ping_with_persistent_pool(
         self, hosts: list[str], timeout: float = 3.0
-    ) -> dict[str, float | None]:
+    ) -> tuple[dict[str, float | None], tuple[str, ...], list[float]]:
         """Ping hosts concurrently using the persistent ThreadPoolExecutor.
 
         Same logic as :meth:`RTTMeasurement.ping_hosts_with_results` but uses
@@ -468,24 +469,35 @@ class BackgroundRTTThread:
             timeout: Total timeout for all concurrent pings in seconds.
 
         Returns:
-            Dict mapping host -> RTT in ms (or None if ping failed/timed out).
+            Tuple of:
+            - Dict mapping host -> RTT in ms (or None if ping failed/timed out)
+            - Successful host tuple in completion order
+            - Successful RTT values for immediate aggregation
         """
         results: dict[str, float | None] = {}
-        future_to_host = {
-            self._pool.submit(self._rtt_measurement.ping_host, host, 1): host
+        successful_hosts: list[str] = []
+        successful_rtts: list[float] = []
+        submitted = [
+            (host, self._pool.submit(self._rtt_measurement.ping_host, host, 1))
             for host in hosts
-        }
-        try:
-            for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
-                host = future_to_host[future]
-                try:
-                    results[host] = future.result()
-                except Exception:
-                    self._logger.debug("Concurrent ping to %s failed", host, exc_info=True)
-                    results[host] = None
-        except concurrent.futures.TimeoutError:
-            for host in future_to_host.values():
-                if host not in results:
-                    results[host] = None
+        ]
+        done, _ = concurrent.futures.wait(
+            [future for _, future in submitted],
+            timeout=timeout,
+        )
 
-        return results
+        for host, future in submitted:
+            if future not in done:
+                results[host] = None
+                continue
+            try:
+                rtt = future.result()
+                results[host] = rtt
+                if rtt is not None:
+                    successful_hosts.append(host)
+                    successful_rtts.append(rtt)
+            except Exception:
+                self._logger.debug("Concurrent ping to %s failed", host, exc_info=True)
+                results[host] = None
+
+        return results, tuple(successful_hosts), successful_rtts

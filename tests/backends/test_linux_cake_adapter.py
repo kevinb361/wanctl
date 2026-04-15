@@ -74,6 +74,38 @@ class TestSetLimits:
             self.logger.error.call_args
         )
 
+    def test_set_limits_skips_unchanged_download(self):
+        self.dl_backend.set_bandwidth.return_value = True
+        self.ul_backend.set_bandwidth.return_value = True
+
+        result = self.adapter.set_limits("att", 50_000_000, 10_000_000)
+        assert result is True
+
+        self.dl_backend.set_bandwidth.reset_mock()
+        self.ul_backend.set_bandwidth.reset_mock()
+
+        result = self.adapter.set_limits("att", 50_000_000, 12_000_000)
+
+        assert result is True
+        self.dl_backend.set_bandwidth.assert_not_called()
+        self.ul_backend.set_bandwidth.assert_called_once_with(queue="", rate_bps=12_000_000)
+
+    def test_set_limits_skips_unchanged_upload(self):
+        self.dl_backend.set_bandwidth.return_value = True
+        self.ul_backend.set_bandwidth.return_value = True
+
+        result = self.adapter.set_limits("att", 50_000_000, 10_000_000)
+        assert result is True
+
+        self.dl_backend.set_bandwidth.reset_mock()
+        self.ul_backend.set_bandwidth.reset_mock()
+
+        result = self.adapter.set_limits("att", 55_000_000, 10_000_000)
+
+        assert result is True
+        self.dl_backend.set_bandwidth.assert_called_once_with(queue="", rate_bps=55_000_000)
+        self.ul_backend.set_bandwidth.assert_not_called()
+
 
 class TestFromConfig:
     """Test from_config() factory creates backends and initializes CAKE."""
@@ -204,6 +236,32 @@ class TestFromConfig:
         assert build_calls[0][1]["bandwidth_kbit"] == 95000
         # Upload: 18_000_000 // 1000 = 18000
         assert build_calls[1][1]["bandwidth_kbit"] == 18000
+
+    @patch("wanctl.backends.linux_cake_adapter.LinuxCakeBackend")
+    @patch("wanctl.backends.linux_cake_adapter.build_cake_params")
+    @patch("wanctl.backends.linux_cake_adapter.build_expected_readback")
+    def test_from_config_seeds_last_set_rates(self, mock_readback, mock_build, mock_backend_cls):
+        config = self._make_config()
+        logger = MagicMock()
+
+        mock_dl = MagicMock()
+        mock_dl.interface = "ens28"
+        mock_dl.initialize_cake.return_value = True
+        mock_dl.validate_cake.return_value = True
+
+        mock_ul = MagicMock()
+        mock_ul.interface = "ens27"
+        mock_ul.initialize_cake.return_value = True
+        mock_ul.validate_cake.return_value = True
+
+        mock_backend_cls.from_config.side_effect = [mock_dl, mock_ul]
+        mock_build.return_value = {"bandwidth": "95000kbit"}
+        mock_readback.return_value = {}
+
+        adapter = LinuxCakeAdapter.from_config(config, logger)
+
+        assert adapter._last_set_down_bps == 95_000_000
+        assert adapter._last_set_up_bps == 18_000_000
 
 
 class TestDaemonWiring:

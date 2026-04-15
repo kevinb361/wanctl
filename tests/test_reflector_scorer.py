@@ -756,6 +756,40 @@ class TestDrainEvents:
         assert events == []
 
 
+class TestRecordResults:
+    """Tests for batched record_results()."""
+
+    def test_record_results_matches_single_recording_behavior(self, logger):
+        """Batch recording should match single-result recording for one-cycle inputs."""
+        batch = {"8.8.8.8": True, "1.1.1.1": False}
+        scorer_single = ReflectorScorer(
+            hosts=["8.8.8.8", "1.1.1.1"],
+            min_score=0.8,
+            window_size=20,
+            logger=logger,
+            wan_name="TestWAN",
+        )
+        scorer_batch = ReflectorScorer(
+            hosts=["8.8.8.8", "1.1.1.1"],
+            min_score=0.8,
+            window_size=20,
+            logger=logger,
+            wan_name="TestWAN",
+        )
+
+        for host, success in batch.items():
+            scorer_single.record_result(host, success)
+
+        scorer_batch.record_results(batch)
+
+        statuses_single = {s.host: s for s in scorer_single.get_all_statuses()}
+        statuses_batch = {s.host: s for s in scorer_batch.get_all_statuses()}
+        assert statuses_batch["8.8.8.8"].score == statuses_single["8.8.8.8"].score
+        assert statuses_batch["1.1.1.1"].score == statuses_single["1.1.1.1"].score
+        assert statuses_batch["8.8.8.8"].measurements == statuses_single["8.8.8.8"].measurements
+        assert statuses_batch["1.1.1.1"].measurements == statuses_single["1.1.1.1"].measurements
+
+
 # =============================================================================
 # TestGetBestHost
 # =============================================================================

@@ -75,6 +75,7 @@ class MetricsWriter:
         self._conn: sqlite3.Connection | None = None
         self._write_lock = threading.Lock()
         self._process_role = "unknown"
+        self._labels_json_cache: dict[tuple[tuple[str, str], ...], str] = {}
         self._initialized = True
 
     # =========================================================================
@@ -121,6 +122,22 @@ class MetricsWriter:
         """Record failed write observability metrics."""
         lock_failure = isinstance(error, sqlite3.OperationalError) and "locked" in str(error).lower()
         record_storage_write_failure(process_role, lock_failure=lock_failure)
+
+    def _serialize_labels(self, labels: dict[str, Any] | None) -> str | None:
+        """Serialize labels with a small cache for reused content."""
+        if not labels:
+            return None
+
+        cache_key = tuple(
+            sorted((str(key), json.dumps(value, sort_keys=True)) for key, value in labels.items())
+        )
+        cached = self._labels_json_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        labels_json = json.dumps(labels)
+        self._labels_json_cache[cache_key] = labels_json
+        return labels_json
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get or create database connection.
@@ -234,7 +251,7 @@ class MetricsWriter:
             labels: Optional JSON-serializable labels dict
             granularity: Data granularity (raw, 1m, 5m, 1h)
         """
-        labels_json = json.dumps(labels) if labels else None
+        labels_json = self._serialize_labels(labels)
         process_role = self._resolve_process_role(labels)
         started_at = time.monotonic()
 
@@ -281,7 +298,7 @@ class MetricsWriter:
 
         # Serialize labels
         rows = [
-            (ts, wan, name, val, json.dumps(labels) if labels else None, gran)
+            (ts, wan, name, val, self._serialize_labels(labels), gran)
             for ts, wan, name, val, labels, gran in metrics
         ]
         started_at = time.monotonic()

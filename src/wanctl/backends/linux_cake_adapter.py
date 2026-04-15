@@ -52,10 +52,14 @@ class LinuxCakeAdapter:
         dl_backend: LinuxCakeBackend,
         ul_backend: LinuxCakeBackend,
         logger: logging.Logger,
+        last_set_down_bps: int | None = None,
+        last_set_up_bps: int | None = None,
     ):
         self.dl_backend = dl_backend
         self.ul_backend = ul_backend
         self.logger = logger
+        self._last_set_down_bps = last_set_down_bps
+        self._last_set_up_bps = last_set_up_bps
 
     @property
     def needs_rate_limiting(self) -> bool:
@@ -80,8 +84,21 @@ class LinuxCakeAdapter:
         Returns:
             True if both set_bandwidth() calls succeeded, False if either failed.
         """
-        dl_ok = self.dl_backend.set_bandwidth(queue="", rate_bps=down_bps)
-        ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
+        dl_changed = down_bps != self._last_set_down_bps
+        ul_changed = up_bps != self._last_set_up_bps
+
+        dl_ok = True
+        ul_ok = True
+
+        if dl_changed:
+            dl_ok = self.dl_backend.set_bandwidth(queue="", rate_bps=down_bps)
+            if dl_ok:
+                self._last_set_down_bps = down_bps
+
+        if ul_changed:
+            ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
+            if ul_ok:
+                self._last_set_up_bps = up_bps
 
         if not dl_ok:
             self.logger.error(
@@ -155,6 +172,7 @@ class LinuxCakeAdapter:
         ul_backend.logger = logger
 
         cake_config = config.data.get("cake_params", {})
+        initial_rates_bps: dict[str, int] = {}
 
         # Build direction-aware params and initialize CAKE on each interface
         for direction, backend in [("download", dl_backend), ("upload", ul_backend)]:
@@ -167,6 +185,7 @@ class LinuxCakeAdapter:
                 cm = config.data.get("continuous_monitoring", {})
                 ceiling_mbps = cm.get("upload", {}).get("ceiling_mbps", 40)
                 initial_bw_kbit = int(ceiling_mbps * 1000)
+            initial_rates_bps[direction] = initial_bw_kbit * 1000
 
             params = build_cake_params(
                 direction=direction,
@@ -201,4 +220,10 @@ class LinuxCakeAdapter:
             ul_backend.interface,
         )
 
-        return cls(dl_backend=dl_backend, ul_backend=ul_backend, logger=logger)
+        return cls(
+            dl_backend=dl_backend,
+            ul_backend=ul_backend,
+            logger=logger,
+            last_set_down_bps=initial_rates_bps["download"],
+            last_set_up_bps=initial_rates_bps["upload"],
+        )

@@ -624,6 +624,21 @@ class TestRTTSnapshot:
         assert snap.per_host_results == hosts
         assert snap.timestamp == 500.0
         assert snap.measurement_ms == 35.0
+        assert snap.active_hosts == ()
+        assert snap.successful_hosts == ()
+
+    def test_optional_host_tuples_accessible(self):
+        """Precomputed host tuples are exposed when producer populates them."""
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"8.8.8.8": 10.0, "1.1.1.1": None},
+            timestamp=500.0,
+            measurement_ms=35.0,
+            active_hosts=("8.8.8.8", "1.1.1.1"),
+            successful_hosts=("8.8.8.8",),
+        )
+        assert snap.active_hosts == ("8.8.8.8", "1.1.1.1")
+        assert snap.successful_hosts == ("8.8.8.8",)
 
 
 class TestBackgroundRTTThread:
@@ -715,13 +730,6 @@ class TestBackgroundRTTThread:
             pool=mock_pool,
         )
 
-        # Mock as_completed to return our futures, then set shutdown
-        # so loop exits after first iteration
-        def fake_as_completed(fs, timeout=None):
-            yield future_a
-            yield future_b
-            yield future_c
-
         _original_wait = shutdown_event.wait  # noqa: F841
 
         def wait_then_stop(timeout=None):
@@ -729,7 +737,10 @@ class TestBackgroundRTTThread:
             shutdown_event.set()
             return True
 
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b, future_c}, set()),
+        ):
             with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
                 thread._run()
 
@@ -737,6 +748,8 @@ class TestBackgroundRTTThread:
         assert snap is not None
         assert snap.rtt_ms == statistics.median([10.0, 12.0, 11.0])
         assert len(snap.per_host_results) == 3
+        assert snap.active_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
+        assert set(snap.successful_hosts) == {"8.8.8.8", "1.1.1.1", "9.9.9.9"}
         assert snap.timestamp > 0
         assert snap.measurement_ms >= 0
 
@@ -766,15 +779,14 @@ class TestBackgroundRTTThread:
         future_b.result.return_value = None
         mock_pool.submit.side_effect = [future_a, future_b]
 
-        def fake_as_completed(fs, timeout=None):
-            yield future_a
-            yield future_b
-
         def wait_then_stop(timeout=None):
             shutdown_event.set()
             return True
 
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b}, set()),
+        ):
             with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
                 thread._run()
 
@@ -808,10 +820,10 @@ class TestBackgroundRTTThread:
             shutdown_event.set()
             return True
 
-        def fake_as_completed(fs, timeout=None):
-            yield future
-
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed", side_effect=fake_as_completed):
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future}, set()),
+        ):
             # Mock perf_counter to simulate 30ms measurement
             with patch("wanctl.rtt_measurement.time.perf_counter", side_effect=[0.0, 0.030]):
                 with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
@@ -837,8 +849,10 @@ class TestBackgroundRTTThread:
         future.result.return_value = 10.0
         mock_pool.submit.return_value = future
 
-        with patch("wanctl.rtt_measurement.concurrent.futures.as_completed") as mock_ac:
-            mock_ac.return_value = iter([future])
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future}, set()),
+        ):
             thread._ping_with_persistent_pool(["8.8.8.8"])
 
         # Should have used the provided pool
@@ -874,7 +888,9 @@ class TestMeasureRTTNonBlocking:
         result = WANController.measure_rtt(mock_wan_controller)
         assert result == 11.0
         # Should record per-host results for quality scoring
-        assert mock_wan_controller._reflector_scorer.record_result.call_count == 3
+        mock_wan_controller._reflector_scorer.record_results.assert_called_once_with(
+            {"a": True, "b": True, "c": True}
+        )
 
     def test_measure_rtt_stale_hard_fail(self, mock_wan_controller):
         """RTT data >5s old returns None (hard fail per D-04)."""

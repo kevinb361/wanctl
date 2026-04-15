@@ -59,8 +59,8 @@ class PerfTimer:
         end_time = time.perf_counter()
         self.elapsed_ms = (end_time - self.start_time) * 1000.0
 
-        if self.logger:
-            self.logger.debug(f"{self.label}: {self.elapsed_ms:.1f}ms")
+        if self.logger and self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug("%s: %.1fms", self.label, self.elapsed_ms)
 
 
 class OperationProfiler:
@@ -283,14 +283,15 @@ def record_cycle_profiling(
                 f"{cycle_interval_ms:.0f}ms (total: {overrun_count})"
             )
 
-    # Structured DEBUG log every cycle -- build extra dict from timing keys
-    extra: dict[str, Any] = {"cycle_total_ms": round(total_ms, 1), "overrun": is_overrun}
-    for label, elapsed_ms in timings.items():
-        # Convert "autorate_rtt_measurement" -> "rtt_measurement_ms"
-        # Convert "steering_cake_stats" -> "cake_stats_ms"
-        suffix = label.split("_", 1)[1] if "_" in label else label
-        extra[f"{suffix}_ms"] = round(elapsed_ms, 1)
-    logger.debug("Cycle timing", extra=extra)
+    # Structured DEBUG log every cycle -- skip dict construction when DEBUG is off.
+    if logger.isEnabledFor(logging.DEBUG):
+        extra: dict[str, Any] = {"cycle_total_ms": round(total_ms, 1), "overrun": is_overrun}
+        for label, elapsed_ms in timings.items():
+            # Convert "autorate_rtt_measurement" -> "rtt_measurement_ms"
+            # Convert "steering_cake_stats" -> "cake_stats_ms"
+            suffix = label.split("_", 1)[1] if "_" in label else label
+            extra[f"{suffix}_ms"] = round(elapsed_ms, 1)
+        logger.debug("Cycle timing", extra=extra)
 
     # Periodic profiling report (deque maxlen handles eviction, no clear needed)
     profile_cycle_count += 1

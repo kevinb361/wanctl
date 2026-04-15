@@ -6,6 +6,7 @@ adjustments for a single WAN interface.
 """
 
 import concurrent.futures
+import json
 import logging
 import socket
 import statistics
@@ -76,6 +77,7 @@ from wanctl.wan_controller_state import WANControllerState
 CYCLE_INTERVAL_SECONDS = 0.05
 
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
+STATE_ENCODING = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
 
 
 # =============================================================================
@@ -410,6 +412,8 @@ class WANController:
         storage_config = get_storage_config(self.config.data)
         self._metrics_writer: MetricsWriter | None = None
         self._storage_db_path: str | None = None
+        self._download_labels = {"direction": "download"}
+        self._upload_labels = {"direction": "upload"}
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
             self._storage_db_path = db_path
@@ -862,8 +866,9 @@ class WANController:
         runs ICMP pings on the controller cadence. The control loop reads from
         the shared variable via measure_rtt() instead of blocking on ICMP I/O.
         """
+        max_workers = max(3, len(self.config.ping_hosts))
         self._rtt_pool = concurrent.futures.ThreadPoolExecutor(
-            max_workers=3,
+            max_workers=max_workers,
             thread_name_prefix="wanctl-rtt-ping",
         )
         self._rtt_thread = BackgroundRTTThread(
@@ -932,14 +937,18 @@ class WANController:
             self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
 
         # Record per-host results for quality scoring (same as before)
-        for host, rtt_val in snapshot.per_host_results.items():
-            self._reflector_scorer.record_result(host, rtt_val is not None)
+        self._reflector_scorer.record_results(
+            {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
+        )
         self._persist_reflector_events()
         self._record_live_rtt_snapshot(
             rtt_ms=snapshot.rtt_ms,
             timestamp=snapshot.timestamp,
-            active_hosts=list(snapshot.per_host_results.keys()),
-            successful_hosts=[host for host, rtt_val in snapshot.per_host_results.items() if rtt_val is not None],
+            active_hosts=list(snapshot.active_hosts or snapshot.per_host_results.keys()),
+            successful_hosts=list(
+                snapshot.successful_hosts
+                or (host for host, rtt_val in snapshot.per_host_results.items() if rtt_val is not None)
+            ),
         )
 
         return snapshot.rtt_ms
@@ -968,8 +977,9 @@ class WANController:
         )
 
         # Record per-host results for quality scoring
-        for host, rtt_val in results.items():
-            self._reflector_scorer.record_result(host, rtt_val is not None)
+        self._reflector_scorer.record_results(
+            {host: rtt_val is not None for host, rtt_val in results.items()}
+        )
 
         # Persist any deprioritization/recovery events
         self._persist_reflector_events()
@@ -1021,14 +1031,15 @@ class WANController:
         """
         if self._metrics_writer is None:
             return
+        if not self._reflector_scorer.has_pending_events():
+            return
 
         events = self._reflector_scorer.drain_events()
+        if not events:
+            return
+        timestamp = int(time.time())
         for event in events:
             try:
-                import json
-                import time as time_mod
-
-                timestamp = int(time_mod.time())
                 details_json = json.dumps(
                     {
                         "host": event["host"],
@@ -2594,17 +2605,27 @@ class WANController:
         irtt_result: IRTTResult | None,
     ) -> None:
         """Logging and metrics subsystem: cycle log, SQLite history recording."""
-        self.logger.debug(
-            f"{self.wan_name}: [{dl_zone}/{ul_zone}] "
-            f"RTT={measured_rtt:.1f}ms, load_ewma={self.load_rtt:.1f}ms, "
-            f"baseline={self.baseline_rtt:.1f}ms, delta={delta:.1f}ms | "
-            f"DL={dl_rate / 1e6:.0f}M, UL={ul_rate / 1e6:.0f}M"
-        )
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(
+                "%s: [%s/%s] RTT=%.1fms, load_ewma=%.1fms, baseline=%.1fms, "
+                "delta=%.1fms | DL=%.0fM, UL=%.0fM",
+                self.wan_name,
+                dl_zone,
+                ul_zone,
+                measured_rtt,
+                self.load_rtt,
+                self.baseline_rtt,
+                delta,
+                dl_rate / 1e6,
+                ul_rate / 1e6,
+            )
 
         if self._metrics_writer is None:
             return
 
         ts = int(time.time())
+        dl_state = float(STATE_ENCODING.get(dl_zone, 0))
+        ul_state = float(STATE_ENCODING.get(ul_zone, 0))
         metrics_batch = [
             (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
             (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
@@ -2613,11 +2634,7 @@ class WANController:
             (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
             (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
             (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
-            (
-                ts, self.wan_name, "wanctl_state",
-                float(self._encode_state(dl_zone)),
-                {"direction": "download"}, "raw",
-            ),
+            (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw"),
         ]
 
         if self._last_signal_result is not None:
@@ -2649,26 +2666,26 @@ class WANController:
             if not snap.cold_start:
                 metrics_batch.extend([
                     (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
-                     {"direction": "download"}, "raw"),
+                     self._download_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
-                     {"direction": "download"}, "raw"),
+                     self._download_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
-                     {"direction": "download"}, "raw"),
+                     self._download_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
-                     {"direction": "download"}, "raw"),
+                     self._download_labels, "raw"),
                 ])
         if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
             snap = self._ul_cake_snapshot
             if not snap.cold_start:
                 metrics_batch.extend([
                     (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
-                     {"direction": "upload"}, "raw"),
+                     self._upload_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
-                     {"direction": "upload"}, "raw"),
+                     self._upload_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
-                     {"direction": "upload"}, "raw"),
+                     self._upload_labels, "raw"),
                     (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
-                     {"direction": "upload"}, "raw"),
+                     self._upload_labels, "raw"),
                 ])
 
         if self._io_worker is not None:
@@ -2680,14 +2697,14 @@ class WANController:
             if self._io_worker is not None:
                 self._io_worker.enqueue_write(
                     timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                    value=float(self._encode_state(dl_zone)),
+                    value=dl_state,
                     labels={"direction": "download", "reason": dl_transition_reason},
                     granularity="raw",
                 )
             else:
                 self._metrics_writer.write_metric(
                     timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                    value=float(self._encode_state(dl_zone)),
+                    value=dl_state,
                     labels={"direction": "download", "reason": dl_transition_reason},
                     granularity="raw",
                 )
@@ -2695,14 +2712,14 @@ class WANController:
             if self._io_worker is not None:
                 self._io_worker.enqueue_write(
                     timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                    value=float(self._encode_state(ul_zone)),
+                    value=ul_state,
                     labels={"direction": "upload", "reason": ul_transition_reason},
                     granularity="raw",
                 )
             else:
                 self._metrics_writer.write_metric(
                     timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
-                    value=float(self._encode_state(ul_zone)),
+                    value=ul_state,
                     labels={"direction": "upload", "reason": ul_transition_reason},
                     granularity="raw",
                 )
@@ -3345,6 +3362,8 @@ class WANController:
         Replaces ~25 cross-module private attribute accesses.
         """
         storage_snapshot = get_storage_metrics_snapshot("autorate")
+        if self._io_worker is not None:
+            storage_snapshot["pending_writes"] = self._io_worker.pending_count
         storage_files = get_storage_file_snapshot(self._storage_db_path)
         rss_bytes, swap_bytes = read_process_memory_status()
         return {
@@ -3477,8 +3496,7 @@ class WANController:
 
         Matches STORED_METRICS schema: 0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED
         """
-        state_map = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
-        return state_map.get(state, 0)
+        return STATE_ENCODING.get(state, 0)
 
     @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
     def save_state(self, force: bool = False) -> None:

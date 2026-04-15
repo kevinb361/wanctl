@@ -2740,12 +2740,17 @@ class TestBackgroundRttWiring:
         """Background RTT cadence should match the autorate controller interval."""
         shutdown_event = threading.Event()
 
-        with patch("wanctl.wan_controller.BackgroundRTTThread") as mock_thread_cls:
+        with (
+            patch("wanctl.wan_controller.BackgroundRTTThread") as mock_thread_cls,
+            patch("wanctl.wan_controller.concurrent.futures.ThreadPoolExecutor") as mock_pool_cls,
+        ):
             mock_thread = MagicMock()
             mock_thread_cls.return_value = mock_thread
 
             controller.start_background_rtt(shutdown_event)
 
+        _, pool_kwargs = mock_pool_cls.call_args
         _, kwargs = mock_thread_cls.call_args
+        assert pool_kwargs["max_workers"] == max(3, len(controller.config.ping_hosts))
         assert kwargs["cadence_sec"] == pytest.approx(controller._cycle_interval_ms / 1000.0)
         mock_thread.start.assert_called_once()
