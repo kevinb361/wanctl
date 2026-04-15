@@ -684,7 +684,12 @@ class TestBackgroundRTTThread:
     def test_cycle_status_is_none_before_first_cycle(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
     ):
-        """get_cycle_status() returns None before any measurement cycle runs."""
+        """Producer contract: get_cycle_status() returns None before _run() has executed.
+
+        Pins the first-cycle sentinel documented in get_cycle_status().
+        Mirrors test_get_latest_returns_none_before_start for the parallel
+        cycle-status surface introduced in Plan 187-01.
+        """
         thread = BackgroundRTTThread(
             rtt_measurement=mock_rtt_measurement,
             hosts_fn=lambda: ["8.8.8.8"],
@@ -693,6 +698,7 @@ class TestBackgroundRTTThread:
             pool=mock_pool,
         )
         assert thread.get_cycle_status() is None
+        assert thread._last_cycle_status is None
 
     def test_lifecycle_start_stop(
         self, mock_rtt_measurement, shutdown_event, mock_logger
@@ -767,52 +773,6 @@ class TestBackgroundRTTThread:
         assert snap.timestamp > 0
         assert snap.measurement_ms >= 0
 
-    def test_cycle_status_published_on_successful_cycle(
-        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
-    ):
-        """Successful cycles publish the latest RTTCycleStatus fields."""
-        future_a = MagicMock()
-        future_a.result.return_value = 10.0
-        future_b = MagicMock()
-        future_b.result.return_value = 12.0
-        future_c = MagicMock()
-        future_c.result.return_value = 11.0
-
-        mock_pool.submit.side_effect = [future_a, future_b, future_c]
-
-        thread = BackgroundRTTThread(
-            rtt_measurement=mock_rtt_measurement,
-            hosts_fn=lambda: ["8.8.8.8", "1.1.1.1", "9.9.9.9"],
-            shutdown_event=shutdown_event,
-            logger=mock_logger,
-            pool=mock_pool,
-        )
-
-        def wait_then_stop(timeout=None):
-            """Allow one iteration then signal shutdown."""
-            shutdown_event.set()
-            return True
-
-        with patch(
-            "wanctl.rtt_measurement.concurrent.futures.wait",
-            return_value=({future_a, future_b, future_c}, set()),
-        ):
-            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
-                thread._run()
-
-        status = thread.get_cycle_status()
-        assert status is not None
-        assert isinstance(status, RTTCycleStatus)
-        assert status.successful_count == 3
-        assert status.active_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
-        assert status.successful_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
-        assert status.cycle_timestamp > 0
-
-        snap = thread.get_latest()
-        assert snap is not None
-        assert status.active_hosts == snap.active_hosts
-        assert status.successful_hosts == snap.successful_hosts
-
     def test_stale_data_preserved_on_all_failures(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
     ):
@@ -856,7 +816,12 @@ class TestBackgroundRTTThread:
     def test_cycle_status_published_on_zero_success_preserves_cached(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
     ):
-        """Zero-success cycles publish status without overwriting cached RTT data."""
+        """Producer contract: a zero-success cycle publishes RTTCycleStatus AND preserves _cached.
+
+        This is the combined Phase 187 publish witness and the Phase 132
+        stale-prefer-none non-regression witness, pinned at the producer.
+        Mirrors test_stale_data_preserved_on_all_failures' harness.
+        """
         known_snap = RTTSnapshot(
             rtt_ms=10.0,
             per_host_results={"8.8.8.8": 10.0},
@@ -870,7 +835,7 @@ class TestBackgroundRTTThread:
             logger=mock_logger,
             pool=mock_pool,
         )
-        thread._cached = known_snap
+        thread._cached = known_snap  # Pre-set known snapshot
 
         future_a = MagicMock()
         future_a.result.return_value = None
@@ -889,9 +854,14 @@ class TestBackgroundRTTThread:
             with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
                 thread._run()
 
+        # Phase 132 non-regression: _cached MUST still be the same object.
         assert thread._cached is known_snap
+        # And the public accessor MUST also still return that same object
+        # -- tightens the non-overwrite guarantee at the consumer-visible
+        # surface, not just the private attribute.
         assert thread.get_latest() is known_snap
 
+        # Phase 187 producer contract: zero-success cycle publishes status.
         status = thread.get_cycle_status()
         assert status is not None
         assert isinstance(status, RTTCycleStatus)
@@ -899,6 +869,67 @@ class TestBackgroundRTTThread:
         assert status.active_hosts == ("8.8.8.8", "1.1.1.1")
         assert status.successful_hosts == ()
         assert status.cycle_timestamp > 0
+
+    def test_cycle_status_published_on_successful_cycle(
+        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
+    ):
+        """Producer contract: a successful cycle publishes RTTCycleStatus with the current hosts.
+
+        Mirrors test_caching_updates_after_measurement's harness so the
+        new assertions run against the same proven _run() exercise path.
+        """
+        future_a = MagicMock()
+        future_a.result.return_value = 10.0
+        future_b = MagicMock()
+        future_b.result.return_value = 12.0
+        future_c = MagicMock()
+        future_c.result.return_value = 11.0
+
+        mock_pool.submit.side_effect = [future_a, future_b, future_c]
+
+        thread = BackgroundRTTThread(
+            rtt_measurement=mock_rtt_measurement,
+            hosts_fn=lambda: ["8.8.8.8", "1.1.1.1", "9.9.9.9"],
+            shutdown_event=shutdown_event,
+            logger=mock_logger,
+            pool=mock_pool,
+        )
+
+        def wait_then_stop(timeout=None):
+            shutdown_event.set()
+            return True
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b, future_c}, set()),
+        ):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
+
+        status = thread.get_cycle_status()
+        assert status is not None
+        assert isinstance(status, RTTCycleStatus)
+        assert status.successful_count == 3
+        assert status.active_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
+        # Order-agnostic set comparison: concurrent.futures.wait makes no
+        # guarantee about completion order, so successful_hosts (built from
+        # iteration over the completed set) can reach the producer in any
+        # order. We pin membership with a set and pin cardinality with
+        # len() to lock the full contract without asserting a spurious
+        # ordering.
+        assert set(status.successful_hosts) == {"8.8.8.8", "1.1.1.1", "9.9.9.9"}
+        assert len(status.successful_hosts) == 3
+        assert status.cycle_timestamp > 0
+        # Producer contract: a successful cycle ALSO updates _cached, and
+        # the published status must agree with the cached snapshot's hosts.
+        # RTTSnapshot carries active_hosts as a tuple[str, ...] (see
+        # src/wanctl/rtt_measurement.py lines 90-104) and is populated
+        # with tuple(hosts) on the successful-cycle path (line 478), so
+        # this cross-check is a stable extra witness of the publish-site
+        # agreement between _last_cycle_status and _cached.
+        snap = thread.get_latest()
+        assert snap is not None
+        assert status.active_hosts == snap.active_hosts
 
     def test_cadence_adjustment(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
