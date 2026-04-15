@@ -487,6 +487,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "reason": reason,
                 "heal_state": heal_state,
                 "heal_grace_active": healer.is_grace_active if healer is not None else False,
+                "bypass_active": bool(fusion_data.get("bypass_active")),
+                "bypass_reason": fusion_data.get("bypass_reason"),
+                "bypass_offset_ms": (
+                    round(fusion_data["bypass_offset_ms"], 2)
+                    if fusion_data.get("bypass_offset_ms") is not None
+                    else None
+                ),
+                "bypass_count": int(fusion_data.get("bypass_count", 0)),
             }
 
         irtt_rtt_val, active_source = self._resolve_fusion_rtt_sources(health_data)
@@ -513,6 +521,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "fused_rtt_ms": fused_rtt_val,
             "icmp_rtt_ms": icmp_rtt_val,
             "irtt_rtt_ms": irtt_rtt_val,
+            "bypass_active": bool(fusion_data.get("bypass_active")),
+            "bypass_reason": fusion_data.get("bypass_reason"),
+            "bypass_offset_ms": (
+                round(fusion_data["bypass_offset_ms"], 2)
+                if fusion_data.get("bypass_offset_ms") is not None
+                else None
+            ),
+            "bypass_count": int(fusion_data.get("bypass_count", 0)),
         }
 
         self._add_fusion_healer_state(fusion, health_data)

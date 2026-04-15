@@ -76,6 +76,26 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 "icmp_filtered_rtt": getattr(wan_mock, "_last_icmp_filtered_rtt", None),
                 "fused_rtt": getattr(wan_mock, "_last_fused_rtt", None),
                 "icmp_weight": getattr(wan_mock, "_fusion_icmp_weight", 0.7),
+                "bypass_active": (
+                    wan_mock._fusion_bypass_active
+                    if isinstance(getattr(wan_mock, "_fusion_bypass_active", False), bool)
+                    else False
+                ),
+                "bypass_reason": (
+                    wan_mock._fusion_bypass_reason
+                    if isinstance(getattr(wan_mock, "_fusion_bypass_reason", None), str)
+                    else None
+                ),
+                "bypass_offset_ms": (
+                    wan_mock._fusion_bypass_offset_ms
+                    if isinstance(getattr(wan_mock, "_fusion_bypass_offset_ms", None), (int, float))
+                    else None
+                ),
+                "bypass_count": (
+                    wan_mock._fusion_bypass_count
+                    if isinstance(getattr(wan_mock, "_fusion_bypass_count", None), int)
+                    else 0
+                ),
                 "healer": getattr(wan_mock, "_fusion_healer", None),
             },
             "measurement": {
@@ -2337,6 +2357,10 @@ class TestFusionHealth:
         mock_wan_with_fusion._fusion_icmp_weight = 0.7
         mock_wan_with_fusion._last_fused_rtt = 27.0
         mock_wan_with_fusion._last_icmp_filtered_rtt = 30.0
+        mock_wan_with_fusion._fusion_bypass_active = False
+        mock_wan_with_fusion._fusion_bypass_reason = None
+        mock_wan_with_fusion._fusion_bypass_offset_ms = None
+        mock_wan_with_fusion._fusion_bypass_count = 0
 
         irtt_thread = MagicMock()
         irtt_result = IRTTResult(
@@ -2372,6 +2396,10 @@ class TestFusionHealth:
             assert fusion["fused_rtt_ms"] == 27.0
             assert fusion["icmp_rtt_ms"] == 30.0
             assert fusion["irtt_rtt_ms"] == 20.0
+            assert fusion["bypass_active"] is False
+            assert fusion["bypass_reason"] is None
+            assert fusion["bypass_offset_ms"] is None
+            assert fusion["bypass_count"] == 0
         finally:
             server.shutdown()
 
@@ -2382,6 +2410,10 @@ class TestFusionHealth:
         mock_wan_with_fusion._irtt_thread = None
         mock_wan_with_fusion._last_icmp_filtered_rtt = 30.0
         mock_wan_with_fusion._last_fused_rtt = None
+        mock_wan_with_fusion._fusion_bypass_active = True
+        mock_wan_with_fusion._fusion_bypass_reason = "absolute_disagreement"
+        mock_wan_with_fusion._fusion_bypass_offset_ms = 9.5
+        mock_wan_with_fusion._fusion_bypass_count = 4
 
         controller = self._make_controller(mock_wan_with_fusion)
 
@@ -2397,6 +2429,10 @@ class TestFusionHealth:
             assert fusion["fused_rtt_ms"] is None
             assert fusion["irtt_rtt_ms"] is None
             assert fusion["icmp_rtt_ms"] == 30.0
+            assert fusion["bypass_active"] is True
+            assert fusion["bypass_reason"] == "absolute_disagreement"
+            assert fusion["bypass_offset_ms"] == 9.5
+            assert fusion["bypass_count"] == 4
         finally:
             server.shutdown()
 
