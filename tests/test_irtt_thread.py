@@ -378,13 +378,14 @@ class TestProtocolCorrelation:
     def test_recovery_logged_at_info(self, caplog: pytest.LogCaptureFixture) -> None:
         """Recovery from deprioritization logs at INFO."""
         ctrl = _make_controller_harness(load_rtt=50.0, irtt_rtt=25.0)
-        # Trigger deprioritization first
-        ctrl._check_protocol_correlation(2.0)
-        assert ctrl._irtt_deprioritization_logged is True
+        with patch("wanctl.wan_controller.time.monotonic", side_effect=[100.0, 106.0]):
+            # Trigger deprioritization first
+            ctrl._check_protocol_correlation(2.0)
+            assert ctrl._irtt_deprioritization_logged is True
 
-        caplog.clear()
-        with caplog.at_level(logging.INFO, logger="test_protocol_correlation"):
-            ctrl._check_protocol_correlation(1.0)  # Back to normal
+            caplog.clear()
+            with caplog.at_level(logging.INFO, logger="test_protocol_correlation"):
+                ctrl._check_protocol_correlation(1.0)  # Back to normal
         assert "Protocol correlation recovered" in caplog.text
         assert ctrl._irtt_deprioritization_logged is False
 

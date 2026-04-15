@@ -75,6 +75,7 @@ from wanctl.wan_controller_state import WANControllerState
 # With 0.05s cycles and 0.85 factor_down, recovery from 920M to floor
 # takes ~80 cycles = 4 seconds
 CYCLE_INTERVAL_SECONDS = 0.05
+BACKGROUND_RTT_MIN_CADENCE_SECONDS = 0.25
 
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 STATE_ENCODING = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
@@ -863,8 +864,11 @@ class WANController:
         """Start background RTT measurement thread (Phase 132: D-01, D-05).
 
         Creates a persistent ThreadPoolExecutor and BackgroundRTTThread that
-        runs ICMP pings on the controller cadence. The control loop reads from
-        the shared variable via measure_rtt() instead of blocking on ICMP I/O.
+        runs ICMP pings on a bounded cadence. The control loop still runs at
+        50 ms; only the background reflector probe rate is capped so RTT
+        sampling cannot hammer public ICMP reflectors under sustained load.
+        The control loop reads from the shared variable via measure_rtt()
+        instead of blocking on ICMP I/O.
         """
         max_workers = max(3, len(self.config.ping_hosts))
         self._rtt_pool = concurrent.futures.ThreadPoolExecutor(
@@ -877,9 +881,16 @@ class WANController:
             shutdown_event=shutdown_event,
             logger=self.logger,
             pool=self._rtt_pool,
-            cadence_sec=self._cycle_interval_ms / 1000.0,
+            cadence_sec=self._background_rtt_cadence_sec(),
         )
         self._rtt_thread.start()
+
+    def _background_rtt_cadence_sec(self) -> float:
+        """Return the capped cadence used by the ICMP background thread."""
+        controller_cadence = self._cycle_interval_ms / 1000.0
+        if controller_cadence <= 0:
+            return BACKGROUND_RTT_MIN_CADENCE_SECONDS
+        return max(controller_cadence, BACKGROUND_RTT_MIN_CADENCE_SECONDS)
 
     def start_background_cake_stats(self, shutdown_event: threading.Event) -> None:
         """Start background CAKE stats thread if transport supports it.
@@ -3505,9 +3516,9 @@ class WANController:
                 "active_reflector_hosts": list(self._last_active_reflector_hosts),
                 "successful_reflector_hosts": list(self._last_successful_reflector_hosts),
                 "cadence_sec": (
-                    self._cycle_interval_ms / 1000.0
-                    if self._cycle_interval_ms and self._cycle_interval_ms > 0
-                    else None
+                    self._rtt_thread.cadence_sec
+                    if self._rtt_thread is not None
+                    else self._background_rtt_cadence_sec()
                 ),
             },
             "tuning": {

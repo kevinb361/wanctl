@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot
+from wanctl.wan_controller import BACKGROUND_RTT_MIN_CADENCE_SECONDS
 
 
 class TestHandleIcmpFailure:
@@ -2005,6 +2006,8 @@ class TestStateLoadSave:
         ctrl._last_raw_rtt_ts = 100.0
         ctrl._last_active_reflector_hosts = ["1.1.1.1", "9.9.9.9"]
         ctrl._last_successful_reflector_hosts = ["1.1.1.1"]
+        ctrl._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        ctrl._rtt_thread.cadence_sec = 0.25
 
         with patch("wanctl.wan_controller.time.monotonic", return_value=100.25):
             health = ctrl.get_health_data()
@@ -2014,6 +2017,7 @@ class TestStateLoadSave:
         assert measurement["staleness_sec"] == 0.25
         assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
         assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
+        assert measurement["cadence_sec"] == pytest.approx(0.25)
 
     def test_zone_attrs_initialized_green(self, controller_with_mocks):
         """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
@@ -2739,8 +2743,8 @@ class TestBackgroundRttWiring:
             )
         return ctrl
 
-    def test_start_background_rtt_uses_controller_cycle_interval(self, controller):
-        """Background RTT cadence should match the autorate controller interval."""
+    def test_start_background_rtt_caps_probe_cadence(self, controller):
+        """Background RTT cadence should not outrun the reflector probe floor."""
         shutdown_event = threading.Event()
 
         with (
@@ -2755,8 +2759,14 @@ class TestBackgroundRttWiring:
         _, pool_kwargs = mock_pool_cls.call_args
         _, kwargs = mock_thread_cls.call_args
         assert pool_kwargs["max_workers"] == max(3, len(controller.config.ping_hosts))
-        assert kwargs["cadence_sec"] == pytest.approx(controller._cycle_interval_ms / 1000.0)
+        assert kwargs["cadence_sec"] == pytest.approx(BACKGROUND_RTT_MIN_CADENCE_SECONDS)
         mock_thread.start.assert_called_once()
+
+    def test_background_rtt_cadence_uses_controller_interval_when_slower(self, controller):
+        """Controllers slower than the floor keep their own measurement cadence."""
+        controller._cycle_interval_ms = 1000.0
+
+        assert controller._background_rtt_cadence_sec() == pytest.approx(1.0)
 
 
 class TestZeroSuccessCycle:
