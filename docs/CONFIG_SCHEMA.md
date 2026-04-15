@@ -622,6 +622,8 @@ When enabled, IRTT runs short measurement bursts against a configured IRTT serve
 
 **Graceful fallback:** When IRTT is unavailable (binary missing, server unreachable, timeout), the controller continues operating normally using ICMP measurements only. No errors, no degradation.
 
+**Multi-WAN production note:** On a shared host, do not point multiple WAN daemons at the same IRTT server unless you intentionally accept serialized same-target measurements. Prefer one IRTT server per WAN, or disable IRTT on the secondary WAN until a separate target is available.
+
 ```yaml
 # Example: enable IRTT measurement
 irtt:
@@ -638,6 +640,8 @@ irtt:
 ```
 
 **Note:** IRTT measurements run on a background thread at the configured `cadence_sec` interval, independent of the 50ms control loop. The `duration_sec` and `interval_ms` settings control the measurement burst parameters, not the measurement frequency.
+
+**ICMP reflector cadence:** Direct ICMP reflector sampling also runs on a background thread, but it is bounded independently of the 50ms control loop. On current production builds the reflector thread will not probe faster than every `250ms`, even when the controller itself still evaluates congestion every `50ms`.
 
 ---
 
