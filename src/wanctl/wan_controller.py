@@ -251,7 +251,6 @@ def _apply_tuning_to_controller(
     _update_tuning_state(wc, results)
 
 
-
 # =============================================================================
 # WAN CONTROLLER
 # =============================================================================
@@ -3398,6 +3397,11 @@ class WANController:
                 ),
                 "active_reflector_hosts": list(self._last_active_reflector_hosts),
                 "successful_reflector_hosts": list(self._last_successful_reflector_hosts),
+                "cadence_sec": (
+                    self._cycle_interval_ms / 1000.0
+                    if self._cycle_interval_ms and self._cycle_interval_ms > 0
+                    else None
+                ),
             },
             "tuning": {
                 "enabled": self._tuning_enabled,
