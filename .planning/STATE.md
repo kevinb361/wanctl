@@ -4,8 +4,8 @@ milestone: v1.37
 milestone_name: dashboard-history-source-clarity
 status: complete
 stopped_at: Start next milestone with /gsd-new-milestone
-last_updated: "2026-04-14T18:32:00.000Z"
-last_activity: 2026-04-14
+last_updated: "2026-04-15T00:05:00.000Z"
+last_activity: 2026-04-15
 progress:
   total_phases: 3
   completed_phases: 3
@@ -89,7 +89,7 @@ Resume file: .planning/MILESTONES.md
 - [Phase 185]: Preserved existing browser tests and added a separate contract-focused class for the Phase 183 state matrix.
 - [Phase 185]: Kept Phase 185 scoped to dashboard tests only and asserted against HISTORY_COPY and HANDOFF_TEXT instead of duplicating copy literals.
 - [Phase 185]: Locked milestone closeout in `185-VERIFICATION.md` and treated repo-side traceability as sufficient evidence for `DASH-04` and `OPER-05`.
-- [Milestone v1.37]: Archived with a `tech_debt` audit rather than a clean pass because mounted/live UI confirmation, Nyquist validation, and a small amount of dashboard regression depth remain deferred.
+- [Milestone v1.37]: Audit refreshed to `passed` after Phase 183-185 validation backfill and integration re-check closed the earlier non-blocking dashboard debt.
 
 ## Performance Metrics
 
@@ -99,4 +99,5 @@ Resume file: .planning/MILESTONES.md
 - 2026-04-14: Phase 185 Plan 01 completed in 6 min across 3 tasks and 2 source files.
 - 2026-04-14: Phase 185 Plan 02 completed in 1 min across 4 tasks and 3 source files.
 - 2026-04-14: Phase 185 Plan 03 completed with repo-side verification evidence and `171` dashboard tests passing.
-- 2026-04-14: Milestone v1.37 archived with 5/5 requirements satisfied, 3/3 phases complete, and a `tech_debt` audit verdict.
+- 2026-04-14: Milestone v1.37 archived with 5/5 requirements satisfied and 3/3 phases complete.
+- 2026-04-14: Milestone v1.37 audit refreshed to `passed`; all three milestone phases now have Nyquist-compliant validation artifacts and no blocker-level integration or flow gaps remain.

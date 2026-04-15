@@ -11,7 +11,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 ## Current State
 
 **Version:** v1.37 (Dashboard History Source Clarity) — shipped 2026-04-14
-**Tests:** 4,200+ passing, targeted dashboard regressions green, milestone audit at `tech_debt` with 5/5 requirements and 3/3 phases complete
+**Tests:** 4,200+ passing, targeted dashboard regressions green, milestone audit `passed` with 5/5 requirements and 3/3 phases complete
 **LOC:** ~37,100 Python (src/)
 **Milestones:** 38 shipped (v1.0-v1.37), 185 phases, 383 plans
 
@@ -22,12 +22,12 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 **Shipped:** 2026-04-14 | 3 phases, 8 plans, 23 tasks, 22 milestone commits
 
-**Delivered:** The dashboard History tab now makes endpoint-local HTTP history explicit, surfaces `metadata.source` in operator-facing wording, and provides a stable merged-CLI handoff. Focused regressions and aligned operator docs close the contract repo-side, while the milestone audit records only non-blocking human-validation and test-depth debt.
+**Delivered:** The dashboard History tab now makes endpoint-local HTTP history explicit, surfaces `metadata.source` in operator-facing wording, and provides a stable merged-CLI handoff. Focused regressions, validation backfill, and aligned operator docs close the contract repo-side, and the refreshed milestone audit is `passed`.
 
 ## Next Milestone Goals
 
 - Start from a fresh requirements definition instead of carrying v1.37 planning forward.
-- Decide whether the next milestone should pay down the recorded dashboard validation debt (`source-diagnostic` assertions, app-level History-tab mount regression, Nyquist validation, mounted/live UI confirmation).
+- Decide whether the next milestone should add deeper end-to-end coverage on top of the now-audit-clean dashboard history contract.
 - Preserve the locked endpoint-local HTTP versus merged CLI history contract unless a future milestone explicitly reopens it.
 
 ## Requirements
