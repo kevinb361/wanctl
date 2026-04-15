@@ -9,12 +9,14 @@ This module tests:
 - run_cycle and ContinuousAutoRate error handling
 """
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from wanctl.lock_utils import LockAcquisitionError
 from wanctl.routeros_interface import RouterOS
+from wanctl.rtt_measurement import RTTCycleStatus, RTTSnapshot
 from wanctl.wan_controller import WANController
 
 # =============================================================================
@@ -353,6 +355,44 @@ class TestMeasurementFailureRecovery:
             should_continue, rtt = ctrl.handle_icmp_failure()
         assert should_continue is False
         assert rtt is None
+
+    def test_zero_success_cycle_does_not_invoke_icmp_failure_fallback(
+        self, controller_with_mocks
+    ):
+        """Phase 187 SAFE-02: zero-success cached cycles stay out of fallback."""
+        controller, _, _ = controller_with_mocks
+        hosts = tuple(controller.config.ping_hosts[:3])
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={host: 11.0 for host in hosts},
+            timestamp=time.monotonic() - 1.0,
+            measurement_ms=30.0,
+            active_hosts=hosts,
+            successful_hosts=hosts,
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=hosts,
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        controller._rtt_thread = MagicMock()
+        controller._rtt_thread.get_latest.return_value = snap
+        controller._rtt_thread.get_cycle_status.return_value = status
+        controller._reflector_scorer.record_results = MagicMock()
+        controller._persist_reflector_events = MagicMock()
+
+        baseline_cycles = getattr(controller, "icmp_unavailable_cycles", 0)
+
+        with patch.object(
+            controller, "handle_icmp_failure", wraps=controller.handle_icmp_failure
+        ) as spy:
+            result = controller.measure_rtt()
+
+        assert result == 11.0
+        spy.assert_not_called()
+        assert getattr(controller, "icmp_unavailable_cycles", 0) == baseline_cycles
 
 
 # =============================================================================
