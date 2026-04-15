@@ -31,11 +31,14 @@ def test_background_thread_reads_both_directions_from_single_dump() -> None:
         return {"direction": "upload"}
 
     ul_backend = MagicMock()
+    ul_backend._get_ipr.return_value = MagicMock()
     ul_backend._parse_cake_msg.side_effect = parse_ul
 
     with patch("wanctl.backends.netlink_cake.NetlinkCakeBackend", side_effect=[dl_backend, ul_backend]):
         thread._run()
 
+    dl_backend._get_ipr.assert_called()
+    ul_backend._get_ipr.assert_called()
     mock_ipr.tc.assert_called_once_with("dump")
     dl_backend._parse_cake_msg.assert_called_once_with(dump_messages)
     ul_backend._parse_cake_msg.assert_called_once_with(dump_messages)
