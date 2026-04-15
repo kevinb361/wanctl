@@ -11,10 +11,14 @@ The class is always instantiated -- even when disabled -- and
 
 from __future__ import annotations
 
+import fcntl
+import hashlib
 import json
 import logging
+import os
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 
@@ -60,6 +64,8 @@ class IRTTMeasurement:
         self._timeout: float = self._duration_sec + 5  # Grace period
         self._binary_path: str | None = shutil.which("irtt")
         self._logger = logger
+        self._lock_timeout: float = min(5.0, self._timeout)
+        self._lock_path: str | None = self._build_lock_path()
 
         # Failure tracking for log-level management.
         self._consecutive_failures: int = 0
@@ -87,12 +93,12 @@ class IRTTMeasurement:
 
         try:
             cmd = self._build_command()
-            result = subprocess.run(  # noqa: S603 -- hardcoded irtt invocation
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout,
-            )
+            result = self._run_serialized(cmd)
+            if result is None:
+                self._log_failure(
+                    f"lock timeout after {self._lock_timeout:.1f}s for {self._server}:{self._port}"
+                )
+                return None
             # Try JSON parsing even on non-zero exit (Pitfall 4: IRTT returns
             # non-zero on 100 % packet loss but stdout may still be valid).
             parsed = self._parse_json(result.stdout)
@@ -136,6 +142,51 @@ class IRTTMeasurement:
             "48",  # 48-byte payload (hardcoded)
             f"{self._server}:{self._port}",  # server:port positional arg
         ]
+
+    def _build_lock_path(self) -> str | None:
+        """Return a process-shared lock path for the current IRTT target."""
+        if not self._server:
+            return None
+
+        lock_key = hashlib.sha256(f"{self._server}:{self._port}".encode()).hexdigest()[:16]
+        lock_dir = os.environ.get("WANCTL_RUN_DIR", "/run/wanctl")
+        try:
+            os.makedirs(lock_dir, exist_ok=True)
+        except OSError:
+            lock_dir = os.path.join(tempfile.gettempdir(), "wanctl")
+            os.makedirs(lock_dir, exist_ok=True)
+        return os.path.join(lock_dir, f"irtt-{lock_key}.lock")
+
+    def _run_serialized(self, cmd: list[str]) -> subprocess.CompletedProcess[str] | None:
+        """Run the IRTT subprocess under a same-target advisory file lock."""
+        if self._lock_path is None:
+            return subprocess.run(  # noqa: S603 -- hardcoded irtt invocation
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self._timeout,
+            )
+
+        deadline = time.monotonic() + self._lock_timeout
+        with open(self._lock_path, "a+", encoding="utf-8") as lock_file:
+            while True:
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        return None
+                    time.sleep(0.05)
+
+            try:
+                return subprocess.run(  # noqa: S603 -- hardcoded irtt invocation
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=self._timeout,
+                )
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def _parse_json(self, raw_json: str) -> IRTTResult | None:
         """Parse IRTT JSON output into an :class:`IRTTResult`.

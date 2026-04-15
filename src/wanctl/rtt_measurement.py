@@ -408,6 +408,11 @@ class BackgroundRTTThread:
         """Return the most recent successful measurement, or ``None``."""
         return self._cached
 
+    @property
+    def cadence_sec(self) -> float:
+        """Return the configured background measurement cadence in seconds."""
+        return self._cadence_sec
+
     def get_cycle_status(self) -> RTTCycleStatus | None:
         """Return the most recent background cycle status, or ``None`` if no cycle has completed yet.
 
