@@ -78,6 +78,7 @@ CYCLE_INTERVAL_SECONDS = 0.05
 
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 STATE_ENCODING = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
+SLOW_ROUTER_APPLY_LOG_MS = 10.0
 
 
 # =============================================================================
@@ -2750,6 +2751,52 @@ class WANController:
             return {}
         return self.router.consume_last_set_limits_stats()
 
+    def _format_cake_snapshot_summary(self, snapshot: Any) -> dict[str, Any] | None:
+        """Build a compact CAKE snapshot summary for slow-write diagnostics."""
+        if snapshot is None:
+            return None
+        return {
+            "drop_rate": round(snapshot.drop_rate, 1),
+            "total_drop_rate": round(snapshot.total_drop_rate, 1),
+            "backlog_bytes": snapshot.backlog_bytes,
+            "peak_delay_us": snapshot.peak_delay_us,
+            "cold_start": snapshot.cold_start,
+        }
+
+    def _log_slow_router_apply(
+        self,
+        elapsed_ms: float,
+        dl_rate: int,
+        ul_rate: int,
+        breakdown: dict[str, float],
+    ) -> None:
+        """Emit a diagnostic event for unusually slow primary CAKE writes."""
+        self.logger.warning(
+            "%s: Slow CAKE apply %.1fms (dl_rate=%.1fMbps ul_rate=%.1fMbps breakdown=%s "
+            "dl_cake=%s ul_cake=%s)",
+            self.wan_name,
+            elapsed_ms,
+            dl_rate / 1e6,
+            ul_rate / 1e6,
+            {
+                "apply_primary_ms": round(breakdown.get("autorate_router_apply_primary", 0.0), 3),
+                "write_download_ms": round(
+                    breakdown.get("autorate_router_write_download", 0.0), 3
+                ),
+                "write_upload_ms": round(
+                    breakdown.get("autorate_router_write_upload", 0.0), 3
+                ),
+                "write_skipped_ms": round(
+                    breakdown.get("autorate_router_write_skipped", 0.0), 3
+                ),
+                "write_fallback_ms": round(
+                    breakdown.get("autorate_router_write_fallback", 0.0), 3
+                ),
+            },
+            self._format_cake_snapshot_summary(self._dl_cake_snapshot),
+            self._format_cake_snapshot_summary(self._ul_cake_snapshot),
+        )
+
     def _run_router_communication(self, dl_rate: int, ul_rate: int) -> tuple[bool, dict[str, float]]:
         """Router communication subsystem: apply rates with flash wear and rate limiting."""
         breakdown = {
@@ -2766,6 +2813,8 @@ class WANController:
             breakdown["autorate_router_apply_primary"] = primary_timer.elapsed_ms
             for key, value in self._consume_router_write_timings().items():
                 breakdown[key] += value
+            if primary_timer.elapsed_ms >= SLOW_ROUTER_APPLY_LOG_MS:
+                self._log_slow_router_apply(primary_timer.elapsed_ms, dl_rate, ul_rate, breakdown)
 
             if not primary_ok:
                 self.router_connectivity.record_failure(

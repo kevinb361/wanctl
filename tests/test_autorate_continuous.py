@@ -350,6 +350,41 @@ class TestProfilingInstrumentation:
         assert stats, "Expected autorate_router_apply_primary to have recorded samples"
         assert stats["count"] >= 1
 
+    def test_log_slow_router_apply_includes_cake_snapshot_context(self, profiled_controller):
+        """Slow CAKE apply log should include rate and latest CAKE snapshot context."""
+        profiled_controller._dl_cake_snapshot = MagicMock(
+            drop_rate=12.3,
+            total_drop_rate=14.5,
+            backlog_bytes=4096,
+            peak_delay_us=250,
+            cold_start=False,
+        )
+        profiled_controller._ul_cake_snapshot = MagicMock(
+            drop_rate=1.2,
+            total_drop_rate=1.8,
+            backlog_bytes=512,
+            peak_delay_us=25,
+            cold_start=False,
+        )
+
+        profiled_controller._log_slow_router_apply(
+            12.5,
+            95_000_000,
+            18_000_000,
+            {
+                "autorate_router_apply_primary": 12.5,
+                "autorate_router_write_download": 9.0,
+                "autorate_router_write_upload": 3.0,
+                "autorate_router_write_skipped": 0.0,
+                "autorate_router_write_fallback": 0.0,
+            },
+        )
+
+        profiled_controller.logger.warning.assert_called_once()
+        args = profiled_controller.logger.warning.call_args[0]
+        assert "Slow CAKE apply" in args[0]
+        assert args[1] == "TestWAN"
+
     def test_run_cycle_records_state_management_timing(self, profiled_controller):
         """run_cycle should record timing for autorate_state_management label."""
         with patch.object(profiled_controller, "save_state"):
