@@ -89,6 +89,15 @@ class BackgroundCakeStatsThread:
         dl_backend = NetlinkCakeBackend(interface=self._dl_interface)
         ul_backend = NetlinkCakeBackend(interface=self._ul_interface)
 
+        # Prime both backends so each has its interface index resolved before
+        # parsing shared dumps. Without this, UL parsing can miss because
+        # _ifindex is still unset while DL has already initialized its backend.
+        try:
+            dl_backend._get_ipr()
+            ul_backend._get_ipr()
+        except Exception:
+            logger.debug("Background CAKE stats backend init error", exc_info=True)
+
         while not self._shutdown_event.is_set():
             elapsed_s = 0.0
             try:
