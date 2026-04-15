@@ -24,6 +24,7 @@ import json
 import logging
 import shutil
 import subprocess
+import time
 from typing import TYPE_CHECKING, Any
 
 from wanctl.backends.base import RouterBackend
@@ -79,6 +80,9 @@ class LinuxCakeBackend(RouterBackend):
         self.interface = interface
         self.tc_timeout = tc_timeout
         self._last_bandwidth_bps: int | None = None
+        self._last_write_elapsed_ms: float = 0.0
+        self._last_write_skipped: bool = False
+        self._last_write_used_fallback: bool = False
 
     @property
     def needs_rate_limiting(self) -> bool:
@@ -156,7 +160,11 @@ class LinuxCakeBackend(RouterBackend):
         Returns:
             True if tc command succeeded, False otherwise.
         """
+        start = time.perf_counter()
         if rate_bps == self._last_bandwidth_bps:
+            self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+            self._last_write_skipped = True
+            self._last_write_used_fallback = False
             self.logger.debug(
                 "Skipping no-op bandwidth update on %s: %sbps",
                 self.interface,
@@ -178,6 +186,9 @@ class LinuxCakeBackend(RouterBackend):
             ],
             timeout=self.tc_timeout,
         )
+        self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._last_write_skipped = False
+        self._last_write_used_fallback = False
         if rc == 0:
             self._last_bandwidth_bps = rate_bps
             self.logger.debug("Set %s bandwidth to %skbit", self.interface, rate_kbit)

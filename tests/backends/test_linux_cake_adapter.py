@@ -106,6 +106,49 @@ class TestSetLimits:
         self.dl_backend.set_bandwidth.assert_called_once_with(queue="", rate_bps=55_000_000)
         self.ul_backend.set_bandwidth.assert_not_called()
 
+    def test_consume_last_set_limits_stats_reports_directional_writes(self):
+        self.dl_backend.set_bandwidth.return_value = True
+        self.ul_backend.set_bandwidth.return_value = True
+        self.dl_backend._last_write_elapsed_ms = 1.25
+        self.ul_backend._last_write_elapsed_ms = 0.75
+        self.dl_backend._last_write_used_fallback = False
+        self.ul_backend._last_write_used_fallback = False
+        self.dl_backend._last_write_skipped = False
+        self.ul_backend._last_write_skipped = False
+
+        assert self.adapter.set_limits("att", 50_000_000, 10_000_000) is True
+
+        stats = self.adapter.consume_last_set_limits_stats()
+
+        assert stats["autorate_router_write_download"] == 1.25
+        assert stats["autorate_router_write_upload"] == 0.75
+        assert stats["autorate_router_write_skipped"] == 0.0
+        assert stats["autorate_router_write_fallback"] == 0.0
+        assert self.adapter.consume_last_set_limits_stats() == {
+            "autorate_router_write_download": 0.0,
+            "autorate_router_write_upload": 0.0,
+            "autorate_router_write_skipped": 0.0,
+            "autorate_router_write_fallback": 0.0,
+        }
+
+    def test_consume_last_set_limits_stats_reports_fallback_time(self):
+        self.dl_backend.set_bandwidth.return_value = True
+        self.ul_backend.set_bandwidth.return_value = True
+        self.dl_backend._last_write_elapsed_ms = 2.5
+        self.ul_backend._last_write_elapsed_ms = 0.5
+        self.dl_backend._last_write_used_fallback = True
+        self.ul_backend._last_write_used_fallback = False
+        self.dl_backend._last_write_skipped = False
+        self.ul_backend._last_write_skipped = False
+
+        assert self.adapter.set_limits("att", 50_000_000, 10_000_000) is True
+
+        stats = self.adapter.consume_last_set_limits_stats()
+
+        assert stats["autorate_router_write_download"] == 0.0
+        assert stats["autorate_router_write_upload"] == 0.5
+        assert stats["autorate_router_write_fallback"] == 2.5
+
 
 class TestFromConfig:
     """Test from_config() factory creates backends and initializes CAKE."""
