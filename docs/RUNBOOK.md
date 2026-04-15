@@ -207,6 +207,75 @@ Alerting summary status is separate again:
 - `idle`: enabled with no active cooldowns
 - `active`: enabled with one or more active cooldowns
 
+## Measurement Health Inspection
+
+Multi-flow download reproduction such as `tcp_12down` can collapse reflector
+measurement quality while autorate otherwise appears `healthy`/`GREEN`. v1.38
+surfaces that measurement-honesty signal on `/health` inside the existing
+`wan_health[wan].measurement` block so operators can see when current RTT is
+degraded instead of silently treating stale cached RTT as fresh. Phase 187
+keeps the SAFE-02 ICMP-failure fallback path unchanged; this is additive
+inspection guidance, not a behavior change for real outages.
+
+### Measurement Contract
+
+| Field | Values | What it means for the operator |
+| --- | --- | --- |
+| `measurement.state` | `healthy` / `reduced` / `collapsed` | Derived from the count of reflectors that produced a successful RTT sample in the most recent background cycle. |
+| `measurement.successful_count` | integer `>= 0` (practical range `0..3` on the current 3-reflector deployment) | Raw reflector-success count behind `state`. |
+| `measurement.stale` | `true` / `false` | `true` when the last raw RTT sample age exceeds `3 * cadence_sec`, or when cadence is unknown (startup, failed thread). |
+
+`state` and `stale` are orthogonal. A WAN can be `state="healthy"` and
+`stale=true` simultaneously, so operator judgement must handle the
+cross-product rather than assuming a single severity axis.
+
+### Bounded Inspection Recipe
+
+Direct `/health` inspection:
+
+```bash
+curl -s http://10.10.110.223:9101/health \
+  | python3 -m json.tool \
+  | grep -A6 '"measurement"'
+```
+
+Direct `/health` inspection with a narrowed measurement view:
+
+```bash
+ssh kevin@10.10.110.223 'curl -s http://10.10.110.223:9101/health' \
+  | jq '.wans[] | {name, download: .download.state, upload: .upload.state, measurement: .measurement}'
+```
+
+Bounded collector via `soak-monitor`:
+
+```bash
+./scripts/soak-monitor.sh --json \
+  | jq '.[] | select(.wan) | {wan, state: .health.summary.rows[0].status, measurement: .health.wans[0].measurement}'
+```
+
+Operator summary entry point:
+
+```bash
+wanctl-operator-summary http://10.10.110.223:9101/health http://10.10.110.227:9101/health
+```
+
+### Pass / Fail Correlation Rubric
+
+| Observed `/health` measurement | Operator reading |
+| --- | --- |
+| `state="healthy"`, `stale=false`, `successful_count=3` | measurement honest, any latency regression is a real congestion or path event, not a measurement collapse. |
+| `state="reduced"`, `successful_count=2` | single reflector drop; watch for correlation with latency spikes. Not a controller action on its own. |
+| `state="collapsed"`, `successful_count<=1`, `stale=false` | measurement has collapsed on the current cycle; recent latency spikes on this WAN are NOT trustworthy as a controller signal and match the Phase 187 honesty path. |
+| `state="healthy"`, `stale=true` | quorum is nominally present but the last raw RTT sample is older than `3 * cadence_sec`; treat as measurement-degraded, not as a fresh healthy sample. |
+| any `state` with `successful_count=0` | zero-success cycle; Phase 187 keeps bounded controller behavior but the operator reading is "do not tune on this window." |
+
+> What This Does Not Change: SAFE-02 ICMP-failure fallback, total-connectivity
+> handling, controller thresholds, and steering policy are unchanged in v1.38.
+> This section is inspection-only and must not be read as a tuning instruction.
+> Follow the post-deploy flow in [DEPLOYMENT.md](/home/kevin/projects/wanctl/docs/DEPLOYMENT.md)
+> and escalate through [Escalation Flow](#escalation-flow) when the rubric
+> shows degraded measurement.
+
 ## Canary Check
 
 `scripts/canary-check.sh` is the post-deploy gate. It waits for `/health`, checks the compact summary contract, and exits with one of three codes:
