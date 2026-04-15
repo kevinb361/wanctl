@@ -450,7 +450,7 @@ class TestMeasureRTTReflectorScoring:
         }
 
     def test_measure_rtt_records_results(self, controller, mock_rtt_measurement):
-        """measure_rtt should call record_result for each host with correct success/failure."""
+        """measure_rtt should batch reflector results with correct success/failure."""
         controller._reflector_scorer = MagicMock()
         controller._reflector_scorer.get_active_hosts.return_value = ["1.1.1.1", "8.8.8.8"]
         controller._reflector_scorer.drain_events.return_value = []
@@ -461,13 +461,12 @@ class TestMeasureRTTReflectorScoring:
 
         controller.measure_rtt()
 
-        # Check record_result calls
-        calls = controller._reflector_scorer.record_result.call_args_list
-        assert len(calls) == 2
-        # Find calls by host
-        call_dict = {c[0][0]: c[0][1] for c in calls}
-        assert call_dict["1.1.1.1"] is True  # success
-        assert call_dict["8.8.8.8"] is False  # failure
+        controller._reflector_scorer.record_results.assert_called_once_with(
+            {
+                "1.1.1.1": True,
+                "8.8.8.8": False,
+            }
+        )
 
     def test_measure_rtt_graceful_degradation_two_hosts(self, controller, mock_rtt_measurement):
         """With 2 active hosts and use_median_of_three=True, uses average."""
@@ -547,6 +546,7 @@ class TestMeasureRTTReflectorScoring:
     def test_persist_reflector_events_writes_sqlite(self, controller):
         """_persist_reflector_events should write events to SQLite via MetricsWriter."""
         controller._reflector_scorer = MagicMock()
+        controller._reflector_scorer.has_pending_events.return_value = True
         controller._reflector_scorer.drain_events.return_value = [
             {"event_type": "deprioritized", "host": "8.8.8.8", "score": 0.6},
         ]
@@ -748,4 +748,3 @@ def _extract_retry_closure_vars(method) -> dict:
         )
 
     return result
-

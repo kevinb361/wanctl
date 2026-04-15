@@ -93,8 +93,10 @@ class BackgroundCakeStatsThread:
             elapsed_s = 0.0
             try:
                 t0 = time.perf_counter()
-                dl_stats = dl_backend.get_queue_stats("")
-                ul_stats = ul_backend.get_queue_stats("")
+                ipr = dl_backend._get_ipr()
+                msgs = ipr.tc("dump")
+                dl_stats = dl_backend._parse_cake_msg(msgs)
+                ul_stats = ul_backend._parse_cake_msg(msgs)
                 elapsed_s = time.perf_counter() - t0
 
                 self._cached = CakeStatsSnapshot(

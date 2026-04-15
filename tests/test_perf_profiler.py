@@ -45,19 +45,20 @@ class TestPerfTimer:
         with PerfTimer("test_operation", mock_logger):
             time.sleep(0.001)
         mock_logger.debug.assert_called_once()
-        call_arg = mock_logger.debug.call_args[0][0]
-        assert "test_operation:" in call_arg
-        assert "ms" in call_arg
+        args = mock_logger.debug.call_args[0]
+        assert args[0] == "%s: %.1fms"
+        assert args[1] == "test_operation"
+        assert isinstance(args[2], float)
 
     def test_timer_logs_correct_format(self) -> None:
         """Timer should log in format '{label}: {X.X}ms'."""
         mock_logger = MagicMock(spec=logging.Logger)
         with PerfTimer("test_op", mock_logger):
             pass
-        call_arg = mock_logger.debug.call_args[0][0]
-        # Format should be "test_op: X.Xms"
-        assert call_arg.startswith("test_op: ")
-        assert call_arg.endswith("ms")
+        args = mock_logger.debug.call_args[0]
+        assert args[0] == "%s: %.1fms"
+        assert args[1] == "test_op"
+        assert isinstance(args[2], float)
 
     def test_timer_returns_self(self) -> None:
         """Timer context manager should return self."""
@@ -230,7 +231,9 @@ class TestMeasureOperationDecorator:
 
         assert result == "done"
         mock_logger.debug.assert_called_once()
-        assert "slow_op:" in mock_logger.debug.call_args[0][0]
+        args = mock_logger.debug.call_args[0]
+        assert args[0] == "%s: %.1fms"
+        assert args[1] == "slow_op"
 
     def test_decorator_without_logger(self) -> None:
         """Decorator should work without logger (no exception)."""

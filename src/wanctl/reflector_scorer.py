@@ -12,6 +12,7 @@ Components:
 
 Signal flow:
     record_result(host, success) -> updates per-host deque, checks thresholds
+    record_results(results) -> batch wrapper applying host results in order
     get_active_hosts() -> returns non-deprioritized hosts (or best-scoring fallback)
     maybe_probe(now, rtt_measurement) -> probes one deprioritized host if interval elapsed
     drain_events() -> returns buffered transition events for SQLite persistence
@@ -92,6 +93,8 @@ class ReflectorScorer:
 
         # Per-host rolling windows of bool success/failure
         self._windows: dict[str, deque[bool]] = {h: deque(maxlen=window_size) for h in hosts}
+        # Cached rolling success counts to avoid repeated deque summation
+        self._success_counts: dict[str, int] = {h: 0 for h in hosts}
         # Recovery counter per host
         self._consecutive_successes: dict[str, int] = {h: 0 for h in hosts}
         # Set of deprioritized host strings
@@ -126,10 +129,30 @@ class ReflectorScorer:
             host: Reflector IP/hostname.
             success: True if ping succeeded, False if failed/timed out.
         """
-        window = self._windows[host]
-        window.append(success)
+        self._record_result(host, success)
 
-        score = sum(window) / len(window)
+    def record_results(self, results: dict[str, bool]) -> None:
+        """Record a batch of ping results in input order.
+
+        This preserves the existing per-host transition semantics while
+        reducing Python call overhead in the controller hot path.
+
+        Args:
+            results: Mapping of host -> success flag.
+        """
+        for host, success in results.items():
+            self._record_result(host, success)
+
+    def _record_result(self, host: str, success: bool) -> None:
+        """Shared single-result implementation for record APIs."""
+        window = self._windows[host]
+        if len(window) == window.maxlen and window[0]:
+            self._success_counts[host] -= 1
+        window.append(success)
+        if success:
+            self._success_counts[host] += 1
+
+        score = self._score_for_host(host)
 
         if host not in self._deprioritized:
             # Check for deprioritization (warmup guard: need >= 10 measurements)
@@ -155,6 +178,7 @@ class ReflectorScorer:
                 # failures in the old rolling window. This prevents immediate
                 # recover/deprioritize flapping after a probe streak.
                 self._windows[host] = deque([True] * self._recovery_count, maxlen=self._window_size)
+                self._success_counts[host] = self._recovery_count
                 self._deprioritized.discard(host)
                 self._consecutive_successes[host] = 0
                 self._logger.info(
@@ -168,6 +192,17 @@ class ReflectorScorer:
                         "score": 1.0,
                     }
                 )
+
+    def has_pending_events(self) -> bool:
+        """Whether there are transition events waiting to be persisted."""
+        return bool(self._pending_events)
+
+    def _score_for_host(self, host: str) -> float:
+        """Return cached rolling score for a host."""
+        measurement_count = len(self._windows[host])
+        if measurement_count == 0:
+            return 1.0
+        return self._success_counts[host] / measurement_count
 
     def drain_events(self) -> list[dict]:
         """Return and clear buffered transition events.
@@ -211,11 +246,7 @@ class ReflectorScorer:
         best_score = -1.0
 
         for h in self._hosts:
-            window = self._windows[h]
-            if not window:
-                score = 1.0
-            else:
-                score = sum(window) / len(window)
+            score = self._score_for_host(h)
             if score > best_score:
                 best_score = score
                 best_host = h
@@ -231,10 +262,7 @@ class ReflectorScorer:
         statuses: list[ReflectorStatus] = []
         for h in self._hosts:
             window = self._windows[h]
-            if not window:
-                score = 1.0
-            else:
-                score = sum(window) / len(window)
+            score = self._score_for_host(h)
             statuses.append(
                 ReflectorStatus(
                     host=h,

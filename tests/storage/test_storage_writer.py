@@ -290,6 +290,24 @@ class TestWriteMetricsBatch:
         assert labels1["state"] == "GREEN"
         assert labels2["state"] == "YELLOW"
 
+    def test_write_batch_reuses_cached_label_serialization(self, reset_singleton, test_db_path):
+        """Equivalent label dicts should share one cached JSON serialization."""
+        writer = MetricsWriter(test_db_path)
+        metrics = [
+            (1706200000, "spectrum", "wanctl_state", 0.0, {"direction": "download"}, "raw"),
+            (1706200001, "spectrum", "wanctl_cake_drop_rate", 1.0, {"direction": "download"}, "raw"),
+            (1706200002, "spectrum", "wanctl_cake_backlog_bytes", 2.0, {"direction": "download"}, "raw"),
+        ]
+
+        writer.write_metrics_batch(metrics)
+
+        assert len(writer._labels_json_cache) == 1
+        cached_json = next(iter(writer._labels_json_cache.values()))
+
+        conn = writer._get_connection()
+        rows = conn.execute("SELECT labels FROM metrics ORDER BY timestamp").fetchall()
+        assert all(row["labels"] == cached_json for row in rows)
+
     def test_write_batch_records_process_label(self, reset_singleton, test_db_path):
         """Batched writes expose process-labeled success telemetry."""
         writer = MetricsWriter(test_db_path)

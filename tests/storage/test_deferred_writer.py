@@ -242,6 +242,21 @@ class TestHealth:
             gate.set()
             worker.stop()
 
+    def test_pending_writes_gauge_publishes_on_scrape(self) -> None:
+        worker, writer, shutdown = self._make_worker()
+        gate = threading.Event()
+        writer.write_metrics_batch.side_effect = lambda x: gate.wait(timeout=2.0)
+        worker.start()
+        try:
+            worker.enqueue_batch([(1, "s", "m", 1.0, None, "raw")])
+            time.sleep(0.05)
+            content = metrics.exposition()
+            assert 'wanctl_storage_pending_writes{process="autorate"}' in content
+            assert 'wanctl_storage_pending_writes{process="autorate"} 1.0' in content
+        finally:
+            gate.set()
+            worker.stop()
+
     def test_is_alive_when_running(self) -> None:
         worker, writer, shutdown = self._make_worker()
         assert not worker.is_alive

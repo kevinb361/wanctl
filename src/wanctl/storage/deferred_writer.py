@@ -17,6 +17,8 @@ from wanctl.metrics import (
     record_storage_pending_writes,
     record_storage_queue_drain,
     record_storage_queue_error,
+    register_scrape_callback,
+    unregister_scrape_callback,
 )
 
 _SENTINEL = object()
@@ -87,6 +89,7 @@ class DeferredIOWorker:
         self._pending_count: int = 0
         self._process_role = process_role
         self._count_lock = threading.Lock()
+        self._scrape_callback_name = f"wanctl-io-pending-{process_role}-{id(self)}"
 
     # ------------------------------------------------------------------
     # Public API (called from hot path -- must never block)
@@ -100,7 +103,8 @@ class DeferredIOWorker:
             daemon=True,
         )
         self._thread.start()
-        record_storage_pending_writes(self._process_role, self.pending_count)
+        register_scrape_callback(self._scrape_callback_name, self._publish_pending_count)
+        self._publish_pending_count()
         self._logger.info("Deferred I/O worker started")
 
     def stop(self) -> None:
@@ -108,6 +112,8 @@ class DeferredIOWorker:
         self._queue.put(_SENTINEL)
         if self._thread is not None:
             self._thread.join(timeout=5.0)
+            self._publish_pending_count()
+            unregister_scrape_callback(self._scrape_callback_name)
             self._logger.info("Deferred I/O worker stopped")
 
     def enqueue_batch(
@@ -186,17 +192,19 @@ class DeferredIOWorker:
         self._update_pending_count(1)
 
     def _update_pending_count(self, delta: int) -> None:
-        """Update pending count and publish queue depth telemetry."""
+        """Update pending count."""
         with self._count_lock:
             self._pending_count = max(0, self._pending_count + delta)
-            current = self._pending_count
-        record_storage_pending_writes(self._process_role, current)
 
     @property
     def pending_count(self) -> int:
         """Number of items queued but not yet processed."""
         with self._count_lock:
             return self._pending_count
+
+    def _publish_pending_count(self) -> None:
+        """Publish current queue depth for Prometheus scraping."""
+        record_storage_pending_writes(self._process_role, self.pending_count)
 
     @property
     def is_alive(self) -> bool:
