@@ -506,6 +506,10 @@ class WANController:
         self._fusion_enabled: bool = config.fusion_config["enabled"]
         self._last_fused_rtt: float | None = None
         self._last_icmp_filtered_rtt: float | None = None
+        self._fusion_bypass_active: bool = False
+        self._fusion_bypass_reason: str | None = None
+        self._fusion_bypass_offset_ms: float | None = None
+        self._fusion_bypass_count: int = 0
         self._last_raw_rtt: float | None = None
         self._last_raw_rtt_ts: float | None = None
         self._last_active_reflector_hosts: list[str] = []
@@ -1559,6 +1563,9 @@ class WANController:
         """
         self._last_icmp_filtered_rtt = filtered_rtt
         self._last_fused_rtt = None
+        self._fusion_bypass_active = False
+        self._fusion_bypass_reason = None
+        self._fusion_bypass_offset_ms = None
 
         if not self._fusion_enabled:
             return filtered_rtt
@@ -1578,7 +1585,12 @@ class WANController:
         irtt_rtt = irtt_result.rtt_mean_ms
         if irtt_rtt <= 0:
             return filtered_rtt
-        if abs(irtt_rtt - filtered_rtt) > self.green_threshold:
+        offset_ms = abs(irtt_rtt - filtered_rtt)
+        if offset_ms > self.green_threshold:
+            self._fusion_bypass_active = True
+            self._fusion_bypass_reason = "absolute_disagreement"
+            self._fusion_bypass_offset_ms = offset_ms
+            self._fusion_bypass_count += 1
             self.logger.debug(
                 f"{self.wan_name}: fusion bypassed due to ICMP/IRTT offset "
                 f"(icmp={filtered_rtt:.1f}ms, irtt={irtt_rtt:.1f}ms, "
@@ -2683,6 +2695,9 @@ class WANController:
             (ts, self.wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
             (ts, self.wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
             (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
+            (ts, self.wan_name, "wanctl_fusion_bypass_active", 1.0 if self._fusion_bypass_active else 0.0, None, "raw"),
+            (ts, self.wan_name, "wanctl_fusion_bypass_offset_ms", self._fusion_bypass_offset_ms or 0.0, None, "raw"),
+            (ts, self.wan_name, "wanctl_fusion_bypass_count", float(self._fusion_bypass_count), None, "raw"),
             (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
             (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
             (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw"),
@@ -3512,6 +3527,10 @@ class WANController:
                 "icmp_filtered_rtt": self._last_icmp_filtered_rtt,
                 "fused_rtt": self._last_fused_rtt,
                 "icmp_weight": self._fusion_icmp_weight,
+                "bypass_active": self._fusion_bypass_active,
+                "bypass_reason": self._fusion_bypass_reason,
+                "bypass_offset_ms": self._fusion_bypass_offset_ms,
+                "bypass_count": self._fusion_bypass_count,
                 "healer": self._fusion_healer,
             },
             "measurement": {
