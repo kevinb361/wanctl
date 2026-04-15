@@ -55,8 +55,8 @@ path and avoiding threshold retuning.
 
 Plans:
 
-- [ ] 188-01: Add operator-facing verification guidance and bounded reproduction steps for measurement degradation
-- [ ] 188-02: Verify the milestone against live or replayable evidence and close the requirement traceability
+- [x] 188-01: Add operator-facing verification guidance and bounded reproduction steps for measurement degradation
+- [x] 188-02: Verify the milestone against live or replayable evidence and close the requirement traceability
 
 **Details:**
 Phase 188 connects the code and health changes back to the real production
