@@ -381,16 +381,75 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }
 
     def _build_measurement_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
-        """Build current direct-ICMP measurement snapshot for downstream consumers."""
-        measurement = health_data.get("measurement", {})
+        """Build current direct-ICMP measurement snapshot for downstream consumers.
+
+        Phase 186 (v1.38) augments this section with a machine-readable
+        measurement-health contract:
+
+        - ``state``: one of ``"healthy"``, ``"reduced"``, ``"collapsed"``
+          derived from the count of reflectors that produced a successful
+          measurement in the most recent background RTT cycle.
+        - ``successful_count``: raw integer count derived from
+          ``len(successful_reflector_hosts)`` after None-coercion.
+          Under the current 3-reflector deployment the practical range
+          is ``[0, 3]``; the contract permits any ``int >= 0`` so future
+          N-reflector configurations do not require a contract revision
+          (D-15). The range is a deployment assumption, not an enforced
+          invariant.
+        - ``stale``: ``True`` when the age of the last raw RTT sample
+          exceeds ``3 * cadence_sec``, reusing the existing fusion
+          staleness pattern at ``health_check.py::_resolve_fusion_rtt_sources``.
+          When ``cadence_sec`` is missing, ``None``, or non-positive,
+          ``stale`` defaults to ``True`` per D-14: unknown cadence is
+          itself a degraded signal and must NOT be silently reported as
+          fresh. Likewise a missing ``staleness_sec`` defaults to
+          ``stale=True``.
+
+        ``state`` and ``stale`` are orthogonal axes; there are exactly
+        six legal cross-product combinations of
+        ``{healthy, reduced, collapsed} x {stale, fresh}`` and downstream
+        consumers must handle all six. The ``successful_count`` boundary
+        over ``{0, 1, 2, 3}`` is a separate partition within the
+        ``collapsed`` state, not a third axis (D-03).
+
+        Existing fields (``available``, ``raw_rtt_ms``, ``staleness_sec``,
+        ``active_reflector_hosts``, ``successful_reflector_hosts``) are
+        preserved verbatim (D-10, D-11, D-12). The function is resilient
+        to malformed producers: ``successful_reflector_hosts=None`` and
+        missing ``measurement`` key are both coerced to safe defaults
+        rather than raising (D-16).
+        """
+        measurement = health_data.get("measurement", {}) or {}
         raw_rtt = measurement.get("raw_rtt_ms")
         staleness = measurement.get("staleness_sec")
+        cadence_sec = measurement.get("cadence_sec")
+        successful_hosts = measurement.get("successful_reflector_hosts") or []
+        active_hosts = measurement.get("active_reflector_hosts") or []
+
+        successful_count = len(successful_hosts)
+        if successful_count == 3:
+            state = "healthy"
+        elif successful_count == 2:
+            state = "reduced"
+        else:
+            state = "collapsed"
+
+        # D-14: unknown cadence or unknown sample age is itself a degraded
+        # signal. Default stale=True rather than silently reporting fresh.
+        if staleness is not None and cadence_sec is not None and cadence_sec > 0:
+            stale = staleness > 3 * cadence_sec
+        else:
+            stale = True
+
         return {
             "available": raw_rtt is not None,
             "raw_rtt_ms": round(raw_rtt, 2) if raw_rtt is not None else None,
             "staleness_sec": round(staleness, 3) if staleness is not None else None,
-            "active_reflector_hosts": measurement.get("active_reflector_hosts", []),
-            "successful_reflector_hosts": measurement.get("successful_reflector_hosts", []),
+            "active_reflector_hosts": list(active_hosts),
+            "successful_reflector_hosts": list(successful_hosts),
+            "state": state,
+            "successful_count": successful_count,
+            "stale": stale,
         }
 
     def _build_reflector_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
