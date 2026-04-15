@@ -71,7 +71,7 @@ continuous_monitoring:
 
   # RTT thresholds (A/B validated 2026-04-10)
   thresholds:
-    target_bloat_ms: 1.4      # A/B confirmed (1.4/3.0/5.0 within 2%)
+    target_bloat_ms: 3.0      # Raised from 1.4 to reduce nuisance YELLOW oscillation; autotune excludes this
     warn_bloat_ms: 10.0       # A/B winner (was 5.0, p99 -15%, zero transitions)
     hard_red_bloat_ms: 80     # A/B confirmed (40/80/120 within 4%), explicit for 4-state
     dwell_cycles: 5           # A/B winner (was 3 default, p99 -5%)
