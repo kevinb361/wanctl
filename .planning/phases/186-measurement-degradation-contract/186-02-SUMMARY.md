@@ -22,7 +22,7 @@ key-decisions:
   - "Augmented only _build_measurement_section; _build_reflector_section remained unchanged."
 patterns-established:
   - "Measurement health now exposes state, successful_count, and stale without redefining existing fields."
-requirements-completed: []
+requirements-completed: [MEAS-01, MEAS-03]
 duration: 35 min
 completed: 2026-04-15
 ---
