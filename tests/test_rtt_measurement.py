@@ -971,6 +971,50 @@ class TestBackgroundRTTThread:
         assert len(wait_timeouts) == 1
         assert wait_timeouts[0] == pytest.approx(0.02, abs=0.005)
 
+    def test_zero_success_uses_blackout_backoff_when_cached(
+        self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
+    ):
+        """Zero-success with cached RTT backs off probing instead of repinging at hot cadence."""
+        known_snap = RTTSnapshot(
+            rtt_ms=10.0,
+            per_host_results={"8.8.8.8": 10.0},
+            timestamp=time.monotonic(),
+            measurement_ms=5.0,
+        )
+        thread = BackgroundRTTThread(
+            rtt_measurement=mock_rtt_measurement,
+            hosts_fn=lambda: ["8.8.8.8", "1.1.1.1"],
+            shutdown_event=shutdown_event,
+            logger=mock_logger,
+            pool=mock_pool,
+            cadence_sec=0.25,
+        )
+        thread._cached = known_snap
+
+        future_a = MagicMock()
+        future_a.result.return_value = None
+        future_b = MagicMock()
+        future_b.result.return_value = None
+        mock_pool.submit.side_effect = [future_a, future_b]
+
+        wait_timeouts: list[float] = []
+
+        def wait_then_stop(timeout=None):
+            if timeout is not None:
+                wait_timeouts.append(timeout)
+            shutdown_event.set()
+            return True
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.wait",
+            return_value=({future_a, future_b}, set()),
+        ):
+            with patch.object(shutdown_event, "wait", side_effect=wait_then_stop):
+                thread._run()
+
+        assert len(wait_timeouts) == 1
+        assert wait_timeouts[0] == pytest.approx(1.0, abs=0.01)
+
     def test_persistent_pool_not_recreated(
         self, mock_rtt_measurement, shutdown_event, mock_logger, mock_pool
     ):

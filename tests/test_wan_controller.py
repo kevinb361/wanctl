@@ -2787,6 +2787,11 @@ class TestZeroSuccessCycle:
         wc._record_live_rtt_snapshot = MagicMock()
         wc.handle_icmp_failure = MagicMock()
         wc.icmp_unavailable_cycles = 0
+        wc._zero_success_blackout_active = False
+        wc._zero_success_blackout_started_ts = None
+        wc._zero_success_blackout_cycles = 0
+        wc._zero_success_last_log_ts = 0.0
+        wc._zero_success_log_cooldown_sec = 1.0
         return wc
 
     def test_zero_success_preserves_cached_rtt_within_5s(self, mock_wan_controller):
@@ -2942,3 +2947,66 @@ class TestZeroSuccessCycle:
         WANController.measure_rtt(mock_wan_controller)
 
         assert mock_wan_controller._reflector_scorer.record_results.call_count == 1
+
+    def test_zero_success_log_is_rate_limited_during_blackout(self, mock_wan_controller):
+        """Repeated zero-success cycles should not spam warning logs every controller cycle."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=100.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=101.0,
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
+
+        with patch("wanctl.wan_controller.time.monotonic", side_effect=[101.0, 101.0, 101.2, 101.2]):
+            WANController.measure_rtt(mock_wan_controller)
+            WANController.measure_rtt(mock_wan_controller)
+
+        assert mock_wan_controller.logger.warning.call_count == 1
+        assert mock_wan_controller._zero_success_blackout_cycles == 2
+
+    def test_success_after_zero_success_logs_recovery(self, mock_wan_controller):
+        """First successful cycle after blackout should log a single recovery message."""
+        from wanctl.wan_controller import WANController
+
+        snap = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"a": 10.0, "b": 12.0, "c": 11.0},
+            timestamp=100.0,
+            measurement_ms=30.0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+        )
+        zero_status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=(),
+            cycle_timestamp=101.0,
+        )
+        ok_status = RTTCycleStatus(
+            successful_count=3,
+            active_hosts=("a", "b", "c"),
+            successful_hosts=("a", "b", "c"),
+            cycle_timestamp=102.0,
+        )
+        mock_wan_controller._rtt_thread.get_latest.return_value = snap
+        mock_wan_controller._rtt_thread.get_cycle_status.side_effect = [zero_status, ok_status]
+
+        with patch("wanctl.wan_controller.time.monotonic", side_effect=[101.0, 101.0, 102.5, 102.5]):
+            WANController.measure_rtt(mock_wan_controller)
+            WANController.measure_rtt(mock_wan_controller)
+
+        mock_wan_controller.logger.info.assert_called_once()
+        assert mock_wan_controller._zero_success_blackout_active is False
+        assert mock_wan_controller._zero_success_blackout_cycles == 0

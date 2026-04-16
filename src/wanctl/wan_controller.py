@@ -514,6 +514,11 @@ class WANController:
         self._last_raw_rtt_ts: float | None = None
         self._last_active_reflector_hosts: list[str] = []
         self._last_successful_reflector_hosts: list[str] = []
+        self._zero_success_blackout_active: bool = False
+        self._zero_success_blackout_started_ts: float | None = None
+        self._zero_success_blackout_cycles: int = 0
+        self._zero_success_last_log_ts: float = 0.0
+        self._zero_success_log_cooldown_sec: float = 1.0
 
         # Fusion healing (Phase 119: FUSE-01 through FUSE-05)
         self._fusion_healer: FusionHealer | None = None
@@ -957,15 +962,55 @@ class WANController:
             {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
         )
         self._persist_reflector_events()
+        now = time.monotonic()
         if cycle_status is not None and cycle_status.successful_count == 0:
             active_hosts = list(cycle_status.active_hosts)
             successful_hosts: list[str] = []
-            self.logger.warning(
-                f"{self.wan_name}: Zero-success RTT cycle; measurement "
-                f"collapsed. Reusing cached rtt_ms={snapshot.rtt_ms:.1f} "
-                f"(age={age:.2f}s) for bounded controller behavior."
+            blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0)) + 1
+            blackout_active = bool(getattr(self, "_zero_success_blackout_active", False))
+            blackout_started_ts = getattr(self, "_zero_success_blackout_started_ts", None)
+            last_log_ts = float(getattr(self, "_zero_success_last_log_ts", 0.0))
+            log_cooldown_sec = float(getattr(self, "_zero_success_log_cooldown_sec", 1.0))
+            self._zero_success_blackout_cycles = blackout_cycles
+            if not blackout_active:
+                self._zero_success_blackout_active = True
+                self._zero_success_blackout_started_ts = now
+                blackout_started_ts = now
+            should_log = (
+                blackout_cycles == 1
+                or (now - last_log_ts) >= log_cooldown_sec
             )
+            if should_log:
+                duration_sec = (
+                    now - blackout_started_ts
+                    if blackout_started_ts is not None
+                    else 0.0
+                )
+                self.logger.warning(
+                    f"{self.wan_name}: Zero-success RTT cycle; measurement "
+                    f"collapsed. Reusing cached rtt_ms={snapshot.rtt_ms:.1f} "
+                    f"(age={age:.2f}s, blackout={duration_sec:.2f}s, "
+                    f"cycles={blackout_cycles}) for bounded controller behavior."
+                )
+                self._zero_success_last_log_ts = now
         else:
+            blackout_active = bool(getattr(self, "_zero_success_blackout_active", False))
+            blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0))
+            blackout_started_ts = getattr(self, "_zero_success_blackout_started_ts", None)
+            if blackout_active and blackout_cycles > 0:
+                duration_sec = (
+                    now - blackout_started_ts
+                    if isinstance(blackout_started_ts, (int, float))
+                    else 0.0
+                )
+                self.logger.info(
+                    f"{self.wan_name}: RTT blackout recovered after "
+                    f"{blackout_cycles} zero-success cycles "
+                    f"({duration_sec:.2f}s)"
+                )
+                self._zero_success_blackout_active = False
+                self._zero_success_blackout_started_ts = None
+                self._zero_success_blackout_cycles = 0
             active_hosts = list(snapshot.active_hosts or snapshot.per_host_results.keys())
             successful_hosts = list(
                 snapshot.successful_hosts
