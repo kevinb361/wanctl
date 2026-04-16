@@ -15,6 +15,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from wanctl.perf_profiler import OperationProfiler
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,11 +56,16 @@ class BackgroundCakeStatsThread:
         self._shutdown_event = shutdown_event
         self._cadence_sec = cadence_sec
         self._cached: CakeStatsSnapshot | None = None
+        self._profiler = OperationProfiler(max_samples=1200)
         self._thread: threading.Thread | None = None
 
     def get_latest(self) -> CakeStatsSnapshot | None:
         """Return the most recent stats snapshot, or None if not yet available."""
         return self._cached
+
+    def get_profile_stats(self) -> dict[str, object]:
+        """Return background CAKE stats timing stats."""
+        return self._profiler.stats("cake_stats_background_cycle")
 
     def start(self) -> None:
         """Create and start the background daemon thread."""
@@ -114,6 +121,7 @@ class BackgroundCakeStatsThread:
                     timestamp=time.monotonic(),
                     measurement_ms=elapsed_s * 1000.0,
                 )
+                self._profiler.record("cake_stats_background_cycle", elapsed_s * 1000.0)
             except Exception:
                 logger.debug("Background CAKE stats error", exc_info=True)
 

@@ -128,6 +128,11 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                     else []
                 ),
             },
+            "background_workers": (
+                wan_mock._background_workers_health
+                if isinstance(getattr(wan_mock, "_background_workers_health", None), dict)
+                else None
+            ),
             "tuning": {
                 "enabled": getattr(wan_mock, "_tuning_enabled", False),
                 "state": getattr(wan_mock, "_tuning_state", None),
@@ -1249,6 +1254,7 @@ class TestCycleBudgetInHealthEndpoint:
         wan._overrun_count = overrun_count
         wan._cycle_interval_ms = 50.0
         wan._warning_threshold_pct = 80.0
+        wan._background_workers_health = None
 
         if with_profiler_data:
             for val in [37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0]:
@@ -1348,6 +1354,63 @@ class TestCycleBudgetInHealthEndpoint:
             assert "download" in wan_data
             assert "upload" in wan_data
             assert "router_connectivity" in wan_data
+        finally:
+            server.shutdown()
+
+    def test_background_workers_present_when_health_data_provides_them(self):
+        """Health response includes additive background worker timing section."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True)
+        wan._background_workers_health = {
+            "rtt": {
+                "cadence_sec": 0.25,
+                "stats": {
+                    "avg_ms": 12.34,
+                    "p95_ms": 20.0,
+                    "p99_ms": 25.0,
+                    "max_ms": 30.0,
+                },
+                "staleness_sec": 0.1,
+            },
+            "cake_stats": {
+                "cadence_sec": 0.05,
+                "stats": {
+                    "avg_ms": 7.0,
+                    "p95_ms": 10.0,
+                    "p99_ms": 12.0,
+                    "max_ms": 15.0,
+                },
+                "staleness_sec": 0.02,
+            },
+            "irtt": {
+                "cadence_sec": 10.0,
+                "stats": {},
+                "staleness_sec": None,
+            },
+        }
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            workers = data["wans"][0]["background_workers"]
+            assert workers["rtt"]["available"] is True
+            assert workers["rtt"]["utilization_pct"] == 4.9
+            assert workers["rtt"]["cycle_time_ms"]["avg"] == 12.3
+            assert workers["cake_stats"]["available"] is True
+            assert workers["cake_stats"]["utilization_pct"] == 14.0
+            assert workers["irtt"]["available"] is False
+            assert workers["irtt"]["cadence_sec"] == 10.0
         finally:
             server.shutdown()
 

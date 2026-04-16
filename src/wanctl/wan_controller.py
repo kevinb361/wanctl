@@ -3593,6 +3593,57 @@ class WANController:
                     else self._background_rtt_cadence_sec()
                 ),
             },
+            "background_workers": {
+                "rtt": {
+                    "cadence_sec": (
+                        self._rtt_thread.cadence_sec
+                        if self._rtt_thread is not None
+                        else self._background_rtt_cadence_sec()
+                    ),
+                    "stats": (
+                        self._rtt_thread.get_profile_stats()
+                        if self._rtt_thread is not None
+                        else {}
+                    ),
+                    "staleness_sec": (
+                        time.monotonic() - self._last_raw_rtt_ts
+                        if self._last_raw_rtt_ts is not None
+                        else None
+                    ),
+                },
+                "cake_stats": {
+                    "cadence_sec": self._cycle_interval_ms / 1000.0,
+                    "stats": (
+                        self._cake_stats_thread.get_profile_stats()
+                        if self._cake_stats_thread is not None
+                        else {}
+                    ),
+                    "staleness_sec": (
+                        time.monotonic() - self._cake_stats_thread.get_latest().timestamp
+                        if self._cake_stats_thread is not None
+                        and self._cake_stats_thread.get_latest() is not None
+                        else None
+                    ),
+                },
+                "irtt": {
+                    "cadence_sec": (
+                        self._irtt_thread.cadence_sec
+                        if self._irtt_thread is not None
+                        else None
+                    ),
+                    "stats": (
+                        self._irtt_thread.get_profile_stats()
+                        if self._irtt_thread is not None
+                        else {}
+                    ),
+                    "staleness_sec": (
+                        time.monotonic() - self._irtt_thread.get_latest().timestamp
+                        if self._irtt_thread is not None
+                        and self._irtt_thread.get_latest() is not None
+                        else None
+                    ),
+                },
+            },
             "tuning": {
                 "enabled": self._tuning_enabled,
                 "state": self._tuning_state,

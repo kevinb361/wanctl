@@ -18,6 +18,8 @@ from enum import Enum
 
 import icmplib
 
+from wanctl.perf_profiler import OperationProfiler
+
 # Pre-compiled regex for RTT parsing (avoids per-call compilation overhead)
 _RTT_PATTERN = re.compile(r"time=([0-9.]+)")
 
@@ -398,6 +400,7 @@ class BackgroundRTTThread:
         self._cadence_sec = cadence_sec
         self._cached: RTTSnapshot | None = None
         self._last_cycle_status: RTTCycleStatus | None = None
+        self._profiler = OperationProfiler(max_samples=1200)
         self._thread: threading.Thread | None = None
         # Briefly back off reflector probing during a live all-host ICMP blackout
         # so the controller can ride on cached RTT without hammering public targets.
@@ -428,6 +431,10 @@ class BackgroundRTTThread:
         behavior."
         """
         return self._last_cycle_status
+
+    def get_profile_stats(self) -> dict[str, object]:
+        """Return background RTT timing stats."""
+        return self._profiler.stats("rtt_background_cycle")
 
     def start(self) -> None:
         """Create and start the background daemon thread."""
@@ -463,6 +470,7 @@ class BackgroundRTTThread:
                 per_host, successful_hosts, successful_rtts = self._ping_with_persistent_pool(hosts)
                 elapsed_s = time.perf_counter() - t0
                 elapsed_ms = elapsed_s * 1000.0
+                self._profiler.record("rtt_background_cycle", elapsed_ms)
 
                 # Phase 187: always publish current-cycle status, even on zero-success.
                 # This is orthogonal to _cached, which still uses stale-prefer-none.

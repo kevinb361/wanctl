@@ -13,6 +13,7 @@ import logging
 import threading
 
 from wanctl.irtt_measurement import IRTTMeasurement, IRTTResult
+from wanctl.perf_profiler import OperationProfiler
 
 
 class IRTTThread:
@@ -37,6 +38,7 @@ class IRTTThread:
         self._shutdown_event = shutdown_event
         self._logger = logger
         self._cached_result: IRTTResult | None = None
+        self._profiler = OperationProfiler(max_samples=1200)
         self._thread: threading.Thread | None = None
 
     # ------------------------------------------------------------------
@@ -51,6 +53,10 @@ class IRTTThread:
     def get_latest(self) -> IRTTResult | None:
         """Return the most recent successful measurement, or ``None``."""
         return self._cached_result
+
+    def get_profile_stats(self) -> dict[str, object]:
+        """Return background IRTT timing stats."""
+        return self._profiler.stats("irtt_background_cycle")
 
     def start(self) -> None:
         """Create and start the background daemon thread."""
@@ -76,7 +82,12 @@ class IRTTThread:
         """Measurement loop -- runs until *shutdown_event* is set."""
         while not self._shutdown_event.is_set():
             try:
+                import time
+
+                t0 = time.perf_counter()
                 result = self._measurement.measure()
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                self._profiler.record("irtt_background_cycle", elapsed_ms)
                 if result is not None:
                     self._cached_result = result
             except Exception:
