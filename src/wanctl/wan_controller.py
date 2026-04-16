@@ -395,6 +395,9 @@ class WANController:
         else:
             self.rate_limiter = None
         self._rate_limit_logged = False
+        self._slow_router_apply_last_log_ts: float = 0.0
+        self._slow_router_apply_suppressed_count: int = 0
+        self._slow_router_apply_log_cooldown_sec: float = 1.0
 
         # Fallback connectivity tracking (ICMP filtered but WAN works)
         self.icmp_unavailable_cycles = 0
@@ -2863,6 +2866,22 @@ class WANController:
         breakdown: dict[str, float],
     ) -> None:
         """Emit a diagnostic event for unusually slow primary CAKE writes."""
+        now = time.monotonic()
+        cooldown_sec = getattr(self, "_slow_router_apply_log_cooldown_sec", 1.0)
+        last_log_ts = getattr(self, "_slow_router_apply_last_log_ts", 0.0)
+        suppressed_count = getattr(self, "_slow_router_apply_suppressed_count", 0)
+        if last_log_ts > 0 and (now - last_log_ts) < cooldown_sec:
+            self._slow_router_apply_suppressed_count = suppressed_count + 1
+            return
+
+        if suppressed_count > 0:
+            self.logger.warning(
+                "%s: Suppressed %d additional Slow CAKE apply warnings in the last %.1fs",
+                self.wan_name,
+                suppressed_count,
+                now - last_log_ts if last_log_ts > 0 else cooldown_sec,
+            )
+
         self.logger.warning(
             "%s: Slow CAKE apply %.1fms (dl_rate=%.1fMbps ul_rate=%.1fMbps breakdown=%s "
             "dl_cake=%s ul_cake=%s)",
@@ -2888,6 +2907,8 @@ class WANController:
             self._format_cake_snapshot_summary(self._dl_cake_snapshot),
             self._format_cake_snapshot_summary(self._ul_cake_snapshot),
         )
+        self._slow_router_apply_last_log_ts = now
+        self._slow_router_apply_suppressed_count = 0
 
     def _run_router_communication(self, dl_rate: int, ul_rate: int) -> tuple[bool, dict[str, float]]:
         """Router communication subsystem: apply rates with flash wear and rate limiting."""
