@@ -90,6 +90,12 @@ class LinuxCakeAdapter:
         """Return the most recent rates actually applied to the kernel."""
         return self._last_set_down_bps, self._last_set_up_bps
 
+    @staticmethod
+    def _backend_applied_rate_or_default(backend: LinuxCakeBackend, requested_bps: int) -> int:
+        """Use backend-applied rate only when it is a concrete integer."""
+        applied_bps = getattr(backend, "_last_bandwidth_bps", requested_bps)
+        return applied_bps if isinstance(applied_bps, int) else requested_bps
+
     def _should_coalesce_increase(
         self,
         requested_bps: int,
@@ -169,7 +175,10 @@ class LinuxCakeAdapter:
                 else:
                     self._last_set_limits_stats["autorate_router_write_download"] += elapsed_ms
                 if dl_ok:
-                    self._last_set_down_bps = down_bps
+                    self._last_set_down_bps = self._backend_applied_rate_or_default(
+                        self.dl_backend,
+                        down_bps,
+                    )
                     self._last_dl_write_ts = now
 
         if ul_changed:
@@ -203,7 +212,10 @@ class LinuxCakeAdapter:
                 else:
                     self._last_set_limits_stats["autorate_router_write_upload"] += elapsed_ms
                 if ul_ok:
-                    self._last_set_up_bps = up_bps
+                    self._last_set_up_bps = self._backend_applied_rate_or_default(
+                        self.ul_backend,
+                        up_bps,
+                    )
                     self._last_ul_write_ts = now
 
         if not dl_ok:

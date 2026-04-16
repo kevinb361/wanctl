@@ -156,22 +156,23 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             True if bandwidth was set successfully (via netlink or fallback).
         """
         start = time.perf_counter()
-        if rate_bps == self._last_bandwidth_bps:
+        rate_kbit = rate_bps // 1000
+        applied_rate_bps = rate_kbit * 1000
+        if applied_rate_bps == self._last_bandwidth_bps:
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = True
             self._last_write_used_fallback = False
             self.logger.debug(
                 "Netlink: skipping no-op bandwidth update on %s: %sbps",
                 self.interface,
-                rate_bps,
+                applied_rate_bps,
             )
             return True
 
-        rate_kbit = rate_bps // 1000
         try:
             ipr = self._get_ipr()
             ipr.tc("change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit")
-            self._last_bandwidth_bps = rate_bps
+            self._last_bandwidth_bps = applied_rate_bps
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = False
             self._last_write_used_fallback = False
