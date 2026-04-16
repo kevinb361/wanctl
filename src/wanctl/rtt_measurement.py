@@ -399,6 +399,12 @@ class BackgroundRTTThread:
         self._cached: RTTSnapshot | None = None
         self._last_cycle_status: RTTCycleStatus | None = None
         self._thread: threading.Thread | None = None
+        # Briefly back off reflector probing during a live all-host ICMP blackout
+        # so the controller can ride on cached RTT without hammering public targets.
+        self._blackout_backoff_sec = max(
+            self._cadence_sec,
+            min(1.0, max(self._cadence_sec * 4.0, 0.5)),
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -495,6 +501,12 @@ class BackgroundRTTThread:
                 sleep_s = max(0.0, self._cadence_sec - elapsed_s)
             else:
                 sleep_s = 0.0
+            if (
+                self._last_cycle_status is not None
+                and self._last_cycle_status.successful_count == 0
+                and self._cached is not None
+            ):
+                sleep_s = max(sleep_s, self._blackout_backoff_sec)
             self._shutdown_event.wait(timeout=sleep_s)
 
     def _ping_with_persistent_pool(
