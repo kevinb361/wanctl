@@ -207,42 +207,53 @@ class RTTMeasurement:
             )
 
             if not result.is_alive:
-                self.logger.warning(f"Ping to {host} failed (no response)")
+                self.logger.warning("Ping to %s failed (no response)", host)
                 return None
 
             if not result.rtts:
-                self.logger.warning(f"No RTT samples from {host}")
+                self.logger.warning("No RTT samples from %s", host)
                 return None
 
             # Aggregate RTT samples based on strategy
             aggregated_rtt = self._aggregate_rtts(result.rtts)
 
             # Log result with sample statistics if requested
-            if self.log_sample_stats and len(result.rtts) > 1:
+            if (
+                self.logger.isEnabledFor(logging.DEBUG)
+                and self.log_sample_stats
+                and len(result.rtts) > 1
+            ):
                 self.logger.debug(
-                    f"Ping {host}: {aggregated_rtt:.2f}ms ({self.aggregation_strategy.value}) "
-                    f"(min={min(result.rtts):.2f}, max={max(result.rtts):.2f}, "
-                    f"count={len(result.rtts)})"
+                    "Ping %s: %.2fms (%s) (min=%.2f, max=%.2f, count=%d)",
+                    host,
+                    aggregated_rtt,
+                    self.aggregation_strategy.value,
+                    min(result.rtts),
+                    max(result.rtts),
+                    len(result.rtts),
                 )
-            else:
+            elif self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug(
-                    f"Ping {host}: {aggregated_rtt:.2f}ms ({self.aggregation_strategy.value}, "
-                    f"count={len(result.rtts)})"
+                    "Ping %s: %.2fms (%s, count=%d)",
+                    host,
+                    aggregated_rtt,
+                    self.aggregation_strategy.value,
+                    len(result.rtts),
                 )
 
             return aggregated_rtt
 
         except icmplib.NameLookupError:
-            self.logger.warning(f"DNS lookup failed for {host}")
+            self.logger.warning("DNS lookup failed for %s", host)
             return None
         except icmplib.SocketPermissionError:
             self.logger.error("Insufficient privileges for ICMP (need CAP_NET_RAW)")
             return None
         except icmplib.ICMPLibError as e:
-            self.logger.error(f"Ping error to {host}: {e}")
+            self.logger.error("Ping error to %s: %s", host, e)
             return None
         except Exception as e:
-            self.logger.error(f"Ping error to {host}: {e}")
+            self.logger.error("Ping error to %s: %s", host, e)
             return None
 
     def _aggregate_rtts(self, rtts: list) -> float:
@@ -355,9 +366,9 @@ class RTTMeasurement:
                         if rtt is not None:
                             rtts.append(rtt)
                     except Exception as e:
-                        self.logger.debug(f"Concurrent ping to {host} failed: {e}")
+                        self.logger.debug("Concurrent ping to %s failed: %s", host, e)
             except concurrent.futures.TimeoutError:
-                self.logger.debug(f"Concurrent ping timeout after {timeout}s")
+                self.logger.debug("Concurrent ping timeout after %ss", timeout)
 
         return rtts
 
