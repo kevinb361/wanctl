@@ -161,18 +161,19 @@ class LinuxCakeBackend(RouterBackend):
             True if tc command succeeded, False otherwise.
         """
         start = time.perf_counter()
-        if rate_bps == self._last_bandwidth_bps:
+        rate_kbit = rate_bps // 1000
+        applied_rate_bps = rate_kbit * 1000
+        if applied_rate_bps == self._last_bandwidth_bps:
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = True
             self._last_write_used_fallback = False
             self.logger.debug(
                 "Skipping no-op bandwidth update on %s: %sbps",
                 self.interface,
-                rate_bps,
+                applied_rate_bps,
             )
             return True
 
-        rate_kbit = rate_bps // 1000
         rc, _, err = self._run_tc(
             [
                 "qdisc",
@@ -190,7 +191,7 @@ class LinuxCakeBackend(RouterBackend):
         self._last_write_skipped = False
         self._last_write_used_fallback = False
         if rc == 0:
-            self._last_bandwidth_bps = rate_bps
+            self._last_bandwidth_bps = applied_rate_bps
             self.logger.debug("Set %s bandwidth to %skbit", self.interface, rate_kbit)
             return True
         self.logger.warning("tc qdisc change failed on %s: %s", self.interface, err)

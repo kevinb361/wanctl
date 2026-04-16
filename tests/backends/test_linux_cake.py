@@ -617,6 +617,18 @@ class TestSetBandwidthCaching:
         assert backend._last_bandwidth_bps == 500_000_000
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_set_bandwidth_skips_same_kbit_rate(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+
+        assert backend.set_bandwidth("", 500_000_100) is True
+        assert backend.set_bandwidth("", 500_000_900) is True
+
+        assert mock_run.call_count == 1
+        assert backend._last_bandwidth_bps == 500_000_000
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_bandwidth_param(self, mock_run, backend):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""

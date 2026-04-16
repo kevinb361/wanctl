@@ -233,6 +233,20 @@ class TestSetBandwidth:
             "change", kind="cake", index=42, bandwidth="500000kbit"
         )
 
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_set_bandwidth_skips_same_kbit_rate(self, MockIPRoute, backend):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_100) is True
+        assert backend.set_bandwidth("q", 500_000_900) is True
+
+        mock_instance.tc.assert_called_once_with(
+            "change", kind="cake", index=42, bandwidth="500000kbit"
+        )
+        assert backend._last_bandwidth_bps == 500_000_000
+
 
 # =============================================================================
 # TestSetBandwidthFallback (NLNK-03)
