@@ -55,12 +55,20 @@ class LinuxCakeAdapter:
         logger: logging.Logger,
         last_set_down_bps: int | None = None,
         last_set_up_bps: int | None = None,
+        dl_increase_coalesce_bps: int = 0,
+        ul_increase_coalesce_bps: int = 0,
+        increase_coalesce_window_sec: float = 0.0,
     ):
         self.dl_backend = dl_backend
         self.ul_backend = ul_backend
         self.logger = logger
         self._last_set_down_bps = last_set_down_bps
         self._last_set_up_bps = last_set_up_bps
+        self._dl_increase_coalesce_bps = max(0, int(dl_increase_coalesce_bps))
+        self._ul_increase_coalesce_bps = max(0, int(ul_increase_coalesce_bps))
+        self._increase_coalesce_window_sec = max(0.0, float(increase_coalesce_window_sec))
+        self._last_dl_write_ts: float | None = None
+        self._last_ul_write_ts: float | None = None
         self._last_set_limits_stats: dict[str, float] = {
             "autorate_router_write_download": 0.0,
             "autorate_router_write_upload": 0.0,
@@ -78,6 +86,32 @@ class LinuxCakeAdapter:
         """No rate limit params needed for linux-cake."""
         return {}
 
+    def get_last_applied_limits(self) -> tuple[int | None, int | None]:
+        """Return the most recent rates actually applied to the kernel."""
+        return self._last_set_down_bps, self._last_set_up_bps
+
+    def _should_coalesce_increase(
+        self,
+        requested_bps: int,
+        last_applied_bps: int | None,
+        last_write_ts: float | None,
+        threshold_bps: int,
+        now: float,
+    ) -> bool:
+        """Return True when a small upward nudge should wait for the next cycle."""
+        if (
+            last_applied_bps is None
+            or requested_bps <= last_applied_bps
+            or threshold_bps <= 0
+            or self._increase_coalesce_window_sec <= 0.0
+            or last_write_ts is None
+        ):
+            return False
+        delta_bps = requested_bps - last_applied_bps
+        if delta_bps > threshold_bps:
+            return False
+        return (now - last_write_ts) < self._increase_coalesce_window_sec
+
     def set_limits(self, wan: str, down_bps: int, up_bps: int) -> bool:
         """Set CAKE bandwidth on both download and upload interfaces.
 
@@ -91,6 +125,7 @@ class LinuxCakeAdapter:
         Returns:
             True if both set_bandwidth() calls succeeded, False if either failed.
         """
+        now = time.monotonic()
         dl_changed = down_bps != self._last_set_down_bps
         ul_changed = up_bps != self._last_set_up_bps
 
@@ -104,38 +139,72 @@ class LinuxCakeAdapter:
         ul_ok = True
 
         if dl_changed:
-            start = time.perf_counter()
-            dl_ok = self.dl_backend.set_bandwidth(queue="", rate_bps=down_bps)
-            elapsed_ms = getattr(
-                self.dl_backend,
-                "_last_write_elapsed_ms",
-                (time.perf_counter() - start) * 1000.0,
-            )
-            if getattr(self.dl_backend, "_last_write_used_fallback", False):
-                self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
-            elif getattr(self.dl_backend, "_last_write_skipped", False):
-                self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+            if self._should_coalesce_increase(
+                requested_bps=down_bps,
+                last_applied_bps=self._last_set_down_bps,
+                last_write_ts=self._last_dl_write_ts,
+                threshold_bps=self._dl_increase_coalesce_bps,
+                now=now,
+            ):
+                self._last_set_limits_stats["autorate_router_write_skipped"] += 0.0
+                self.logger.debug(
+                    "%s: Coalescing small download increase on %s (%s -> %sbps)",
+                    wan,
+                    self.dl_backend.interface,
+                    self._last_set_down_bps,
+                    down_bps,
+                )
             else:
-                self._last_set_limits_stats["autorate_router_write_download"] += elapsed_ms
-            if dl_ok:
-                self._last_set_down_bps = down_bps
+                start = time.perf_counter()
+                dl_ok = self.dl_backend.set_bandwidth(queue="", rate_bps=down_bps)
+                elapsed_ms = getattr(
+                    self.dl_backend,
+                    "_last_write_elapsed_ms",
+                    (time.perf_counter() - start) * 1000.0,
+                )
+                if getattr(self.dl_backend, "_last_write_used_fallback", False):
+                    self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
+                elif getattr(self.dl_backend, "_last_write_skipped", False):
+                    self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+                else:
+                    self._last_set_limits_stats["autorate_router_write_download"] += elapsed_ms
+                if dl_ok:
+                    self._last_set_down_bps = down_bps
+                    self._last_dl_write_ts = now
 
         if ul_changed:
-            start = time.perf_counter()
-            ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
-            elapsed_ms = getattr(
-                self.ul_backend,
-                "_last_write_elapsed_ms",
-                (time.perf_counter() - start) * 1000.0,
-            )
-            if getattr(self.ul_backend, "_last_write_used_fallback", False):
-                self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
-            elif getattr(self.ul_backend, "_last_write_skipped", False):
-                self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+            if self._should_coalesce_increase(
+                requested_bps=up_bps,
+                last_applied_bps=self._last_set_up_bps,
+                last_write_ts=self._last_ul_write_ts,
+                threshold_bps=self._ul_increase_coalesce_bps,
+                now=now,
+            ):
+                self._last_set_limits_stats["autorate_router_write_skipped"] += 0.0
+                self.logger.debug(
+                    "%s: Coalescing small upload increase on %s (%s -> %sbps)",
+                    wan,
+                    self.ul_backend.interface,
+                    self._last_set_up_bps,
+                    up_bps,
+                )
             else:
-                self._last_set_limits_stats["autorate_router_write_upload"] += elapsed_ms
-            if ul_ok:
-                self._last_set_up_bps = up_bps
+                start = time.perf_counter()
+                ul_ok = self.ul_backend.set_bandwidth(queue="", rate_bps=up_bps)
+                elapsed_ms = getattr(
+                    self.ul_backend,
+                    "_last_write_elapsed_ms",
+                    (time.perf_counter() - start) * 1000.0,
+                )
+                if getattr(self.ul_backend, "_last_write_used_fallback", False):
+                    self._last_set_limits_stats["autorate_router_write_fallback"] += elapsed_ms
+                elif getattr(self.ul_backend, "_last_write_skipped", False):
+                    self._last_set_limits_stats["autorate_router_write_skipped"] += elapsed_ms
+                else:
+                    self._last_set_limits_stats["autorate_router_write_upload"] += elapsed_ms
+                if ul_ok:
+                    self._last_set_up_bps = up_bps
+                    self._last_ul_write_ts = now
 
         if not dl_ok:
             self.logger.error(
@@ -269,4 +338,17 @@ class LinuxCakeAdapter:
             logger=logger,
             last_set_down_bps=initial_rates_bps["download"],
             last_set_up_bps=initial_rates_bps["upload"],
+            dl_increase_coalesce_bps=int(
+                config.data.get("continuous_monitoring", {})
+                .get("download", {})
+                .get("step_up_mbps", 0)
+                * 1_000_000
+            ),
+            ul_increase_coalesce_bps=int(
+                config.data.get("continuous_monitoring", {})
+                .get("upload", {})
+                .get("step_up_mbps", 0)
+                * 1_000_000
+            ),
+            increase_coalesce_window_sec=0.2,
         )

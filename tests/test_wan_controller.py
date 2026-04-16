@@ -882,6 +882,42 @@ class TestApplyRateChangesIfNeeded:
         assert controller.last_applied_dl_rate == 90_000_000
         assert controller.last_applied_ul_rate == 18_000_000
 
+    def test_linux_cake_apply_uses_actual_applied_rates_when_router_exposes_them(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
+        """Tracking should follow the kernel-applied rates, not only requested rates."""
+        from wanctl.wan_controller import WANController
+
+        class FakeLinuxCakeRouter:
+            needs_rate_limiting = False
+            rate_limit_params = {}
+
+            def __init__(self):
+                self.set_limits = MagicMock(return_value=True)
+
+            def get_last_applied_limits(self):
+                return (100_000_000, 18_000_000)
+
+        router = FakeLinuxCakeRouter()
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        controller.last_applied_dl_rate = 100_000_000
+        controller.last_applied_ul_rate = 18_000_000
+
+        result = controller.apply_rate_changes_if_needed(105_000_000, 18_000_000)
+
+        assert result is True
+        assert controller.last_applied_dl_rate == 100_000_000
+        assert controller.last_applied_ul_rate == 18_000_000
+
 
 class TestUpdateBaselineIfIdle:
     """Tests for WANController._update_baseline_if_idle() baseline protection.
