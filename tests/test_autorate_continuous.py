@@ -385,6 +385,68 @@ class TestProfilingInstrumentation:
         assert "Slow CAKE apply" in args[0]
         assert args[1] == "TestWAN"
 
+    def test_log_slow_router_apply_is_rate_limited(self, profiled_controller):
+        """Repeated slow-write warnings within cooldown should be suppressed."""
+        profiled_controller._slow_router_apply_last_log_ts = 0.0
+        profiled_controller._slow_router_apply_suppressed_count = 0
+        profiled_controller._slow_router_apply_log_cooldown_sec = 1.0
+
+        with patch("wanctl.wan_controller.time.monotonic", side_effect=[100.0, 100.2]):
+            profiled_controller._log_slow_router_apply(
+                12.5,
+                95_000_000,
+                18_000_000,
+                {
+                    "autorate_router_apply_primary": 12.5,
+                    "autorate_router_write_download": 9.0,
+                    "autorate_router_write_upload": 3.0,
+                    "autorate_router_write_skipped": 0.0,
+                    "autorate_router_write_fallback": 0.0,
+                },
+            )
+            profiled_controller._log_slow_router_apply(
+                14.0,
+                96_000_000,
+                18_000_000,
+                {
+                    "autorate_router_apply_primary": 14.0,
+                    "autorate_router_write_download": 10.0,
+                    "autorate_router_write_upload": 4.0,
+                    "autorate_router_write_skipped": 0.0,
+                    "autorate_router_write_fallback": 0.0,
+                },
+            )
+
+        assert profiled_controller.logger.warning.call_count == 1
+        assert profiled_controller._slow_router_apply_suppressed_count == 1
+
+    def test_log_slow_router_apply_emits_suppressed_summary_after_cooldown(self, profiled_controller):
+        """First post-cooldown slow-write warning should emit a suppressed-count summary."""
+        profiled_controller._slow_router_apply_last_log_ts = 100.0
+        profiled_controller._slow_router_apply_suppressed_count = 2
+        profiled_controller._slow_router_apply_log_cooldown_sec = 1.0
+
+        with patch("wanctl.wan_controller.time.monotonic", return_value=101.5):
+            profiled_controller._log_slow_router_apply(
+                12.5,
+                95_000_000,
+                18_000_000,
+                {
+                    "autorate_router_apply_primary": 12.5,
+                    "autorate_router_write_download": 9.0,
+                    "autorate_router_write_upload": 3.0,
+                    "autorate_router_write_skipped": 0.0,
+                    "autorate_router_write_fallback": 0.0,
+                },
+            )
+
+        assert profiled_controller.logger.warning.call_count == 2
+        summary_args = profiled_controller.logger.warning.call_args_list[0][0]
+        assert "Suppressed" in summary_args[0]
+        slow_args = profiled_controller.logger.warning.call_args_list[1][0]
+        assert "Slow CAKE apply" in slow_args[0]
+        assert profiled_controller._slow_router_apply_suppressed_count == 0
+
     def test_run_cycle_records_state_management_timing(self, profiled_controller):
         """run_cycle should record timing for autorate_state_management label."""
         with patch.object(profiled_controller, "save_state"):
