@@ -2019,6 +2019,51 @@ class TestStateLoadSave:
         assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
         assert measurement["cadence_sec"] == pytest.approx(0.25)
 
+    def test_get_health_data_includes_background_worker_stats(self, controller_with_mocks):
+        """get_health_data exposes async worker timing and staleness surfaces."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl._last_raw_rtt_ts = 100.0
+        ctrl._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        ctrl._rtt_thread.cadence_sec = 0.25
+        ctrl._rtt_thread.get_profile_stats.return_value = {
+            "avg_ms": 12.34,
+            "p95_ms": 20.0,
+            "p99_ms": 25.0,
+            "max_ms": 30.0,
+        }
+        ctrl._cake_stats_thread = MagicMock()
+        ctrl._cake_stats_thread.get_profile_stats.return_value = {
+            "avg_ms": 7.0,
+            "p95_ms": 10.0,
+            "p99_ms": 12.0,
+            "max_ms": 15.0,
+        }
+        ctrl._cake_stats_thread.get_latest.return_value = MagicMock(timestamp=100.1)
+        ctrl._irtt_thread = MagicMock()
+        ctrl._irtt_thread.cadence_sec = 10.0
+        ctrl._irtt_thread.get_profile_stats.return_value = {
+            "avg_ms": 40.0,
+            "p95_ms": 50.0,
+            "p99_ms": 60.0,
+            "max_ms": 80.0,
+        }
+        ctrl._irtt_thread.get_latest.return_value = MagicMock(timestamp=95.0)
+
+        with patch("wanctl.wan_controller.time.monotonic", return_value=100.25):
+            health = ctrl.get_health_data()
+
+        workers = health["background_workers"]
+        assert workers["rtt"]["cadence_sec"] == pytest.approx(0.25)
+        assert workers["rtt"]["stats"]["avg_ms"] == pytest.approx(12.34)
+        assert workers["rtt"]["staleness_sec"] == pytest.approx(0.25)
+        assert workers["cake_stats"]["cadence_sec"] == pytest.approx(0.05)
+        assert workers["cake_stats"]["stats"]["avg_ms"] == pytest.approx(7.0)
+        assert workers["cake_stats"]["staleness_sec"] == pytest.approx(0.15)
+        assert workers["irtt"]["cadence_sec"] == pytest.approx(10.0)
+        assert workers["irtt"]["stats"]["avg_ms"] == pytest.approx(40.0)
+        assert workers["irtt"]["staleness_sec"] == pytest.approx(5.25)
+
     def test_zone_attrs_initialized_green(self, controller_with_mocks):
         """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
         ctrl, _, _, _ = controller_with_mocks

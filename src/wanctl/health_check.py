@@ -274,6 +274,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             wan_health["signal_quality"] = signal_quality
 
         wan_health["measurement"] = self._build_measurement_section(health_data)
+        background_workers = self._build_background_workers_section(health_data)
+        if background_workers is not None:
+            wan_health["background_workers"] = background_workers
         wan_health["irtt"] = self._build_irtt_section(health_data, config)
         wan_health["reflector_quality"] = self._build_reflector_section(health_data)
         wan_health["fusion"] = self._build_fusion_section(health_data)
@@ -458,6 +461,40 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "successful_count": successful_count,
             "stale": stale,
         }
+
+    def _build_background_workers_section(
+        self, health_data: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Build background worker timing/status section for async measurement threads."""
+        workers = health_data.get("background_workers")
+        if not isinstance(workers, dict):
+            return None
+
+        result: dict[str, Any] = {}
+        for name, worker in workers.items():
+            if not isinstance(worker, dict):
+                continue
+            stats = worker.get("stats")
+            cadence_sec = worker.get("cadence_sec")
+            staleness_sec = worker.get("staleness_sec")
+            entry: dict[str, Any] = {
+                "cadence_sec": round(cadence_sec, 3) if isinstance(cadence_sec, (int, float)) else None,
+                "staleness_sec": round(staleness_sec, 3) if isinstance(staleness_sec, (int, float)) else None,
+                "available": isinstance(stats, dict) and "avg_ms" in stats,
+            }
+            if isinstance(stats, dict) and "avg_ms" in stats:
+                entry["cycle_time_ms"] = {
+                    "avg": round(stats["avg_ms"], 1),
+                    "p95": round(stats["p95_ms"], 1),
+                    "p99": round(stats["p99_ms"], 1),
+                    "max": round(stats["max_ms"], 1),
+                }
+                if isinstance(cadence_sec, (int, float)) and cadence_sec > 0:
+                    cadence_ms = cadence_sec * 1000.0
+                    entry["utilization_pct"] = round((stats["avg_ms"] / cadence_ms) * 100.0, 1)
+            result[name] = entry
+
+        return result or None
 
     def _build_reflector_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build reflector quality status (REFL-04). Always present."""
