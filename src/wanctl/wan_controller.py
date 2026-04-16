@@ -1424,9 +1424,22 @@ class WANController:
         if self.config.metrics_enabled:
             record_router_update(self.wan_name)
 
-        # Update tracking after successful write
-        self.last_applied_dl_rate = dl_rate
-        self.last_applied_ul_rate = ul_rate
+        # Linux CAKE adapters may coalesce small increases and report the actual
+        # applied kernel rates separately. Fall back to the requested values for
+        # backends that do not expose that detail.
+        applied_dl_rate, applied_ul_rate = dl_rate, ul_rate
+        applied_rates = getattr(type(self.router), "get_last_applied_limits", None)
+        if callable(applied_rates):
+            applied = self.router.get_last_applied_limits()
+            if (
+                isinstance(applied, tuple)
+                and len(applied) == 2
+            ):
+                applied_dl_rate, applied_ul_rate = applied
+
+        # Update tracking after successful write/coalesced apply
+        self.last_applied_dl_rate = applied_dl_rate
+        self.last_applied_ul_rate = applied_ul_rate
         self.pending_rates.clear()
         self.logger.debug(f"{self.wan_name}: Applied new limits to router")
         return True

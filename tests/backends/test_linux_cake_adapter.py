@@ -1,5 +1,6 @@
 """Tests for LinuxCakeAdapter -- bridges LinuxCakeBackend to set_limits() API."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -148,6 +149,60 @@ class TestSetLimits:
         assert stats["autorate_router_write_download"] == 0.0
         assert stats["autorate_router_write_upload"] == 0.5
         assert stats["autorate_router_write_fallback"] == 2.5
+
+    def test_set_limits_coalesces_small_download_increase_within_window(self):
+        adapter = LinuxCakeAdapter(
+            self.dl_backend,
+            self.ul_backend,
+            self.logger,
+            last_set_down_bps=50_000_000,
+            last_set_up_bps=10_000_000,
+            dl_increase_coalesce_bps=10_000_000,
+            increase_coalesce_window_sec=0.2,
+        )
+        adapter._last_dl_write_ts = time.monotonic()
+        self.ul_backend.set_bandwidth.return_value = True
+
+        assert adapter.set_limits("att", 55_000_000, 10_000_000) is True
+
+        self.dl_backend.set_bandwidth.assert_not_called()
+        assert adapter.get_last_applied_limits() == (50_000_000, 10_000_000)
+
+    def test_set_limits_applies_download_decrease_immediately_even_with_window(self):
+        adapter = LinuxCakeAdapter(
+            self.dl_backend,
+            self.ul_backend,
+            self.logger,
+            last_set_down_bps=50_000_000,
+            last_set_up_bps=10_000_000,
+            dl_increase_coalesce_bps=10_000_000,
+            increase_coalesce_window_sec=0.2,
+        )
+        adapter._last_dl_write_ts = time.monotonic()
+        self.dl_backend.set_bandwidth.return_value = True
+
+        assert adapter.set_limits("att", 45_000_000, 10_000_000) is True
+
+        self.dl_backend.set_bandwidth.assert_called_once_with(queue="", rate_bps=45_000_000)
+        assert adapter.get_last_applied_limits() == (45_000_000, 10_000_000)
+
+    def test_set_limits_applies_after_coalesce_window_expires(self):
+        adapter = LinuxCakeAdapter(
+            self.dl_backend,
+            self.ul_backend,
+            self.logger,
+            last_set_down_bps=50_000_000,
+            last_set_up_bps=10_000_000,
+            dl_increase_coalesce_bps=10_000_000,
+            increase_coalesce_window_sec=0.2,
+        )
+        adapter._last_dl_write_ts = time.monotonic() - 0.25
+        self.dl_backend.set_bandwidth.return_value = True
+
+        assert adapter.set_limits("att", 55_000_000, 10_000_000) is True
+
+        self.dl_backend.set_bandwidth.assert_called_once_with(queue="", rate_bps=55_000_000)
+        assert adapter.get_last_applied_limits() == (55_000_000, 10_000_000)
 
 
 class TestFromConfig:
