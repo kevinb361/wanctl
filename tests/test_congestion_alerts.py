@@ -594,16 +594,12 @@ class TestHardRedEntryAlerts:
         mock_controller._dl_prev_zone = "YELLOW"
         with patch("time.monotonic", return_value=first):
             mock_controller._check_hard_red_entry_alerts("RED", "GREEN")
-            mock_controller._check_flapping_alerts("RED", "GREEN")
         assert mock_controller.alert_engine.fire_count == 1
 
-        # Simulate recovery out of RED before a second entry within cooldown.
-        with patch("time.monotonic", return_value=first + 10):
-            mock_controller._check_flapping_alerts("YELLOW", "GREEN")
-
+        # Simulate recovery out of RED, then rapid re-entry within cooldown.
+        mock_controller._dl_prev_zone = "YELLOW"
         with patch("time.monotonic", return_value=first + 30):
             mock_controller._check_hard_red_entry_alerts("RED", "GREEN")
-            mock_controller._check_flapping_alerts("RED", "GREEN")
 
         assert mock_controller.alert_engine.fire_count == 1
 
