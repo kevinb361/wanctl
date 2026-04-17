@@ -193,6 +193,9 @@ tuning:
 alerting:
   enabled: true
   webhook_url: "${DISCORD_WEBHOOK_URL}"
+  rules:
+    congestion_flapping:
+      cooldown_sec: 600  # Raised from default on 2026-04-17: 2026-04-16 DOCSIS event produced 16 alerts (8 DL + 8 UL) for one 30-min oscillation. 600s caps firings at ~3 per event while preserving detection.
 
 # CAKE signal processing — baseline measurement (v1.33, Phase 162)
 # Master switch + metrics enabled for 24h idle data collection
