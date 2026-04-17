@@ -103,6 +103,10 @@ from .steering_confidence import (
 # Default sample counts for state transitions
 DEFAULT_GREEN_SAMPLES_REQUIRED = 15  # Consecutive GREEN samples before steering off
 
+# Default cadence for periodic DB maintenance (cleanup + downsample + vacuum).
+# Matches autorate_continuous.DEFAULT_MAINTENANCE_INTERVAL.
+DEFAULT_MAINTENANCE_INTERVAL = 900
+
 # Default RTT thresholds for congestion states (milliseconds)
 DEFAULT_GREEN_RTT_MS = 5.0  # Below this = GREEN
 DEFAULT_YELLOW_RTT_MS = 15.0  # Above this = YELLOW
@@ -2282,6 +2286,9 @@ def run_daemon_loop(
     config: SteeringConfig,
     logger: logging.Logger,
     shutdown_event: threading.Event,
+    maintenance_conn: Any = None,
+    maintenance_retention_config: Any = None,
+    maintenance_interval_seconds: int = DEFAULT_MAINTENANCE_INTERVAL,
 ) -> int:
     """
     Run continuous daemon loop with watchdog and failure tracking.
@@ -2295,6 +2302,10 @@ def run_daemon_loop(
         config: Steering configuration (for measurement_interval)
         logger: Logger for status messages
         shutdown_event: Event signaling shutdown request
+        maintenance_conn: Shared DB connection for periodic maintenance
+            (None disables periodic maintenance; startup maintenance still ran).
+        maintenance_retention_config: Retention policy for cleanup/downsample.
+        maintenance_interval_seconds: Cadence between maintenance passes.
 
     Returns:
         Exit code: 0 for graceful shutdown
@@ -2306,6 +2317,10 @@ def run_daemon_loop(
     logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
     if is_systemd_available():
         logger.info("Systemd watchdog support enabled")
+
+    storage_config = get_storage_config(config.data)
+    maintenance_db_path = storage_config.get("db_path") if maintenance_conn is not None else None
+    last_maintenance = time.monotonic()
 
     # Main event loop - runs continuously until shutdown signal
     while not shutdown_event.is_set():
@@ -2340,6 +2355,20 @@ def run_daemon_loop(
 
         # Update health server with current failure state (INTG-03)
         update_steering_health_status(consecutive_failures)
+
+        # Periodic maintenance: cleanup + downsample + vacuum on configured cadence.
+        # Without this, retention only runs at restart — pages allocated between
+        # restarts never get reclaimed, growing the DB unbounded on long uptimes.
+        if maintenance_conn is not None and isinstance(maintenance_db_path, str):
+            now = time.monotonic()
+            if now - last_maintenance >= maintenance_interval_seconds:
+                _run_steering_maintenance(
+                    maintenance_conn,
+                    maintenance_retention_config,
+                    maintenance_db_path,
+                    logger,
+                )
+                last_maintenance = now
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
@@ -2383,13 +2412,22 @@ def _parse_steering_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _run_steering_startup_storage(
+def _init_steering_storage(
     config: SteeringConfig, logger: logging.Logger
-) -> None:
-    """Record config snapshot and run startup maintenance if storage enabled."""
+) -> tuple[Any, Any, int]:
+    """Open storage, snapshot config, run startup maintenance.
+
+    Returns (maintenance_conn, retention_config, interval_seconds). The
+    connection is retained so the daemon loop can run periodic
+    cleanup/downsample/vacuum — without it, retention would only run on
+    restarts and allocated pages would never be reclaimed.
+    """
     storage_config = get_storage_config(config.data)
     db_path = storage_config.get("db_path")
     retention_config = storage_config.get("retention")
+    interval_seconds = int(
+        storage_config.get("maintenance_interval_seconds", DEFAULT_MAINTENANCE_INTERVAL)
+    )
 
     validate_retention_tuner_compat(
         retention_config,
@@ -2397,29 +2435,93 @@ def _run_steering_startup_storage(
         logger=logger,
     )
 
-    if db_path and isinstance(db_path, str):
-        from wanctl.storage import record_config_snapshot, run_startup_maintenance
-        from wanctl.storage.maintenance import maintenance_lock
+    if not (db_path and isinstance(db_path, str)):
+        return None, retention_config, interval_seconds
 
-        writer = MetricsWriter(Path(db_path))
-        writer.set_process_role("steering")
-        record_config_snapshot(writer, config.primary_wan, config.data, "startup")
+    from wanctl.storage import record_config_snapshot, run_startup_maintenance
+    from wanctl.storage.maintenance import maintenance_lock
 
-        with maintenance_lock(db_path, logger) as acquired:
-            if acquired:
-                maint_result = run_startup_maintenance(
-                    writer.connection,
-                    retention_config=retention_config,
-                    log=logger,
-                    watchdog_fn=notify_watchdog,
-                    max_seconds=20,
+    writer = MetricsWriter(Path(db_path))
+    writer.set_process_role("steering")
+    record_config_snapshot(writer, config.primary_wan, config.data, "startup")
+
+    with maintenance_lock(db_path, logger) as acquired:
+        if acquired:
+            maint_result = run_startup_maintenance(
+                writer.connection,
+                retention_config=retention_config,
+                log=logger,
+                watchdog_fn=notify_watchdog,
+                max_seconds=20,
+            )
+            if maint_result.get("error"):
+                logger.warning(f"Startup maintenance error: {maint_result['error']}")
+        else:
+            record_storage_maintenance_lock_skip("steering")
+
+    logger.info(f"Config snapshot recorded to {db_path}")
+    return writer.connection, retention_config, interval_seconds
+
+
+def _run_steering_maintenance(
+    maintenance_conn: Any,
+    retention_config: Any,
+    db_path: str,
+    logger: logging.Logger,
+) -> None:
+    """Periodic cleanup + downsample + vacuum + WAL truncate.
+
+    Mirrors autorate_continuous._run_maintenance. Steering restarts used to
+    be the only time DB pages got reclaimed; this closes that gap.
+    """
+    from wanctl.storage.downsampler import downsample_metrics, get_downsample_thresholds
+    from wanctl.storage.maintenance import maintenance_lock
+    from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
+
+    with maintenance_lock(db_path, logger) as acquired:
+        if not acquired:
+            record_storage_maintenance_lock_skip("steering")
+            return
+
+        try:
+            deleted = cleanup_old_metrics(
+                maintenance_conn,
+                retention_config=retention_config,
+                watchdog_fn=notify_watchdog,
+            )
+            notify_watchdog()
+
+            if isinstance(retention_config, dict):
+                thresholds = get_downsample_thresholds(
+                    raw_age_seconds=retention_config["raw_age_seconds"],
+                    aggregate_1m_age_seconds=retention_config["aggregate_1m_age_seconds"],
+                    aggregate_5m_age_seconds=retention_config["aggregate_5m_age_seconds"],
                 )
-                if maint_result.get("error"):
-                    logger.warning(f"Startup maintenance error: {maint_result['error']}")
+                downsampled = downsample_metrics(
+                    maintenance_conn,
+                    watchdog_fn=notify_watchdog,
+                    thresholds=thresholds,
+                )
             else:
-                record_storage_maintenance_lock_skip("steering")
+                downsampled = downsample_metrics(maintenance_conn, watchdog_fn=notify_watchdog)
+            notify_watchdog()
 
-        logger.info(f"Config snapshot recorded to {db_path}")
+            vacuumed = vacuum_if_needed(maintenance_conn, deleted, watchdog_fn=notify_watchdog)
+            notify_watchdog()
+
+            maintenance_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            notify_watchdog()
+
+            total_ds = sum(downsampled.values()) if isinstance(downsampled, dict) else 0
+            if deleted > 0 or total_ds > 0 or vacuumed:
+                logger.info(
+                    "Periodic maintenance: deleted=%d, downsampled=%d, vacuumed=%s",
+                    deleted,
+                    total_ds,
+                    vacuumed,
+                )
+        except Exception as exc:
+            logger.warning(f"Periodic maintenance error: {exc}")
 
 
 def _create_steering_components(
@@ -2594,7 +2696,9 @@ def main() -> int | None:
     )
     logger.info("=" * 60)
 
-    _run_steering_startup_storage(config, logger)
+    maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = (
+        _init_steering_storage(config, logger)
+    )
 
     if is_shutdown_requested():
         logger.info("Shutdown requested during startup, exiting gracefully")
@@ -2606,7 +2710,15 @@ def main() -> int | None:
         return int(e.code) if e.code is not None else 0
 
     try:
-        return run_daemon_loop(daemon, config, logger, get_shutdown_event())
+        return run_daemon_loop(
+            daemon,
+            config,
+            logger,
+            get_shutdown_event(),
+            maintenance_conn=maintenance_conn,
+            maintenance_retention_config=maintenance_retention_config,
+            maintenance_interval_seconds=maintenance_interval_seconds,
+        )
     except KeyboardInterrupt:
         logger.info("Interrupted by user (KeyboardInterrupt)")
         return 130

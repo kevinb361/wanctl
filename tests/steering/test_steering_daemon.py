@@ -6067,7 +6067,7 @@ class TestStartupStorage:
     """Tests for steering startup storage wrapper."""
 
     def test_startup_storage_passes_watchdog_and_budget(self):
-        from wanctl.steering.daemon import _run_steering_startup_storage, notify_watchdog
+        from wanctl.steering.daemon import _init_steering_storage, notify_watchdog
 
         config = MagicMock()
         config.primary_wan = "spectrum"
@@ -6090,14 +6090,129 @@ class TestStartupStorage:
                 },
             ),
             patch("wanctl.steering.daemon.validate_retention_tuner_compat"),
-            patch("wanctl.storage.MetricsWriter"),
+            patch("wanctl.steering.daemon.MetricsWriter"),
             patch("wanctl.storage.record_config_snapshot"),
             patch("wanctl.storage.run_startup_maintenance", return_value={"error": None}) as mock_startup,
             patch("wanctl.storage.maintenance.maintenance_lock", _maintenance_lock),
         ):
-            _run_steering_startup_storage(config, logger)
+            _init_steering_storage(config, logger)
 
         assert mock_startup.called
         _, kwargs = mock_startup.call_args
         assert kwargs["watchdog_fn"] is notify_watchdog
         assert kwargs["max_seconds"] == 20
+
+    def test_init_storage_returns_conn_retention_interval(self):
+        from wanctl.steering.daemon import _init_steering_storage
+
+        config = MagicMock()
+        config.primary_wan = "spectrum"
+        config.data = {}
+        logger = MagicMock()
+
+        @contextmanager
+        def _maintenance_lock(*_args, **_kwargs):
+            yield True
+
+        fake_conn = MagicMock()
+        fake_writer = MagicMock()
+        fake_writer.connection = fake_conn
+
+        with (
+            patch(
+                "wanctl.steering.daemon.get_storage_config",
+                return_value={
+                    "db_path": "/tmp/metrics.db",
+                    "maintenance_interval_seconds": 300,
+                    "retention": {"raw_age_seconds": 900},
+                },
+            ),
+            patch("wanctl.steering.daemon.validate_retention_tuner_compat"),
+            patch("wanctl.steering.daemon.MetricsWriter", return_value=fake_writer),
+            patch("wanctl.storage.record_config_snapshot"),
+            patch("wanctl.storage.run_startup_maintenance", return_value={"error": None}),
+            patch("wanctl.storage.maintenance.maintenance_lock", _maintenance_lock),
+        ):
+            conn, retention, interval = _init_steering_storage(config, logger)
+
+        assert conn is fake_conn
+        assert retention == {"raw_age_seconds": 900}
+        assert interval == 300
+
+    def test_init_storage_returns_none_conn_when_no_db_path(self):
+        from wanctl.steering.daemon import _init_steering_storage
+
+        config = MagicMock()
+        config.data = {}
+        logger = MagicMock()
+
+        with (
+            patch(
+                "wanctl.steering.daemon.get_storage_config",
+                return_value={},
+            ),
+            patch("wanctl.steering.daemon.validate_retention_tuner_compat"),
+        ):
+            conn, _retention, interval = _init_steering_storage(config, logger)
+
+        assert conn is None
+        assert interval == 900  # DEFAULT_MAINTENANCE_INTERVAL
+
+
+class TestSteeringPeriodicMaintenance:
+    """Tests for steering's periodic cleanup + downsample + vacuum pass."""
+
+    def test_run_steering_maintenance_invokes_cleanup_downsample_vacuum(self):
+        from wanctl.steering.daemon import _run_steering_maintenance
+
+        conn = MagicMock()
+        retention = {
+            "raw_age_seconds": 900,
+            "aggregate_1m_age_seconds": 86400,
+            "aggregate_5m_age_seconds": 604800,
+        }
+        logger = MagicMock()
+
+        @contextmanager
+        def _maintenance_lock(*_args, **_kwargs):
+            yield True
+
+        with (
+            patch(
+                "wanctl.storage.retention.cleanup_old_metrics", return_value=42
+            ) as mock_cleanup,
+            patch(
+                "wanctl.storage.downsampler.downsample_metrics", return_value={"1m": 0, "5m": 0}
+            ) as mock_ds,
+            patch(
+                "wanctl.storage.retention.vacuum_if_needed", return_value=True
+            ) as mock_vac,
+            patch("wanctl.storage.maintenance.maintenance_lock", _maintenance_lock),
+        ):
+            _run_steering_maintenance(conn, retention, "/tmp/metrics.db", logger)
+
+        assert mock_cleanup.called
+        assert mock_ds.called
+        assert mock_vac.called
+        conn.execute.assert_any_call("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def test_run_steering_maintenance_skips_when_lock_busy(self):
+        from wanctl.steering.daemon import _run_steering_maintenance
+
+        conn = MagicMock()
+        retention = {"raw_age_seconds": 900}
+        logger = MagicMock()
+
+        @contextmanager
+        def _maintenance_lock(*_args, **_kwargs):
+            yield False
+
+        with (
+            patch(
+                "wanctl.storage.retention.cleanup_old_metrics"
+            ) as mock_cleanup,
+            patch("wanctl.storage.maintenance.maintenance_lock", _maintenance_lock),
+        ):
+            _run_steering_maintenance(conn, retention, "/tmp/metrics.db", logger)
+
+        mock_cleanup.assert_not_called()
