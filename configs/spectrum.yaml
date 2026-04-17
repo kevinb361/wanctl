@@ -74,7 +74,7 @@ continuous_monitoring:
     hard_red_bloat_ms: 100 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
     dwell_cycles: 5 # linux-cake confirmed 2026-04-02 (unchanged from REST)
     deadband_ms: 3.0 # linux-cake confirmed 2026-04-02 (unchanged from REST)
-    suppression_alert_threshold: 60 # DOCSIS jitter causes ~35/min under RRUL — 20 was too low (p157 A/B validated 2026-04-09)
+    suppression_alert_threshold: 180 # Raised from validated-60 on 2026-04-17: 40 alerts/24h noise, acceptable baseline. Revert to 60 if we lose real-congestion signal.
     # EWMA time constants (interval-independent, auto-calculated)
     baseline_time_constant_sec: 50 # Slow EWMA for baseline (50s = stable, ignores transients)
     load_time_constant_sec: 0.10 # Fast EWMA for load RTT (100ms = Phase 1: faster detection)

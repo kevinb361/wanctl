@@ -140,7 +140,7 @@ reflector_quality:
 # remains enabled, but WANController bypasses blending whenever absolute ICMP
 # and IRTT RTT disagreement exceeds ATT's green-threshold budget.
 fusion:
-  enabled: true    # Healer manages actual state (currently suspended)
+  enabled: false   # Disabled 2026-04-17: ATT carrier deprioritizes ICMP (~10ms gap), fusion mathematically bypasses every cycle. Re-enable if Protocol deprioritization log rate drops.
   icmp_weight: 0.7
 
 # Adaptive tuning (v1.20+)
