@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 from urllib.request import urlopen
 
 from tabulate import tabulate
+
+from wanctl.storage.db_utils import discover_wan_dbs
 
 
 def _decode_payload(raw: str, source: str) -> dict[str, Any]:
@@ -84,6 +88,74 @@ def format_operator_summary(payloads: list[tuple[str, dict[str, Any]]]) -> str:
     return str(tabulate(rows, headers=headers, tablefmt="simple"))
 
 
+def _format_local_timestamp(timestamp: int) -> str:
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _query_digest_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    conn.row_factory = sqlite3.Row
+    cursor = conn.execute(
+        """
+        SELECT alert_type, timestamp, details
+        FROM alerts
+        WHERE alert_type IN ('hard_red_dl', 'hard_red_ul')
+          AND timestamp >= strftime('%s', 'now', '-24 hours')
+        ORDER BY timestamp ASC
+        """
+    )
+    return list(cursor.fetchall())
+
+
+def _wan_name_from_db_path(db_path: Path) -> str:
+    if db_path.stem.startswith("metrics-"):
+        return db_path.stem.removeprefix("metrics-")
+    return db_path.stem
+
+
+def _format_digest_line(wan_name: str, rows: list[sqlite3.Row]) -> str:
+    if not rows:
+        return f"{wan_name}: no hard_red events in last 24h"
+
+    dl_count = 0
+    ul_count = 0
+    peak_delta_ms = 0.0
+    for row in rows:
+        if row["alert_type"] == "hard_red_dl":
+            dl_count += 1
+        elif row["alert_type"] == "hard_red_ul":
+            ul_count += 1
+
+        details_raw = row["details"]
+        if isinstance(details_raw, str) and details_raw:
+            try:
+                details = json.loads(details_raw)
+            except json.JSONDecodeError:
+                details = {}
+            if isinstance(details, dict):
+                delta_ms = details.get("delta_ms")
+                if isinstance(delta_ms, int | float):
+                    peak_delta_ms = max(peak_delta_ms, float(delta_ms))
+
+    first_ts = int(rows[0]["timestamp"])
+    last_ts = int(rows[-1]["timestamp"])
+    return (
+        f"{wan_name}: dl={dl_count} ul={ul_count} "
+        f"range={_format_local_timestamp(first_ts)}..{_format_local_timestamp(last_ts)} "
+        f"peak_delta_ms={peak_delta_ms:.1f}"
+    )
+
+
+def print_digest(db_paths: list[Path]) -> None:
+    if not db_paths:
+        print("no WAN DBs discovered")
+        return
+
+    for db_path in db_paths:
+        with sqlite3.connect(db_path) as conn:
+            rows = _query_digest_rows(conn)
+        print(_format_digest_line(_wan_name_from_db_path(db_path), rows))
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="wanctl-operator-summary",
@@ -91,7 +163,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "sources",
-        nargs="+",
+        nargs="*",
         help="Health JSON paths or URLs to read",
     )
     parser.add_argument(
@@ -100,12 +172,28 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output raw summary sections as JSON instead of a table",
     )
+    parser.add_argument(
+        "--digest",
+        action="store_true",
+        help="Print last-24h hard-red alert digest from discovered WAN DBs",
+    )
     return parser
 
 
 def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
+
+    if args.digest:
+        try:
+            print_digest(discover_wan_dbs())
+        except (OSError, sqlite3.DatabaseError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
+
+    if not args.sources:
+        parser.error("the following arguments are required: sources")
 
     payloads: list[tuple[str, dict[str, Any]]] = []
     try:
