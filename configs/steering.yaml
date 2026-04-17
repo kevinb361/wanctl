@@ -100,6 +100,15 @@ state:
 # today; autorate remains authoritative in the per-WAN metrics-<wan>.db files.
 storage:
   db_path: "/var/lib/wanctl/metrics.db"
+  retention:
+    # 2026-04-17: tightened from default 7d to 3d for aggregate_5m.
+    # Pre-flight confirmed no consumer depends on >3d of 5m aggregates
+    # from this DB (compare_ab.py uses minute-scale windows, wanctl-history
+    # defaults to per-WAN DBs, operator_summary doesn't touch this DB,
+    # steering daemon doesn't read its own DB). Expected ~30% file shrink.
+    raw_age_seconds: 900          # 15m (default)
+    aggregate_1m_age_seconds: 86400   # 24h (default)
+    aggregate_5m_age_seconds: 259200  # 3d (down from 7d default)
 
 # Logging (FHS compliant)
 logging:
