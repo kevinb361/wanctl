@@ -8,7 +8,7 @@
 It measures RTT and queue signals, adjusts shaping rates in real time, and runs continuously under systemd.
 
 **Type:** Production (24/7), Python 3.11+, deployed to `/opt/wanctl`
-**Version:** 1.35.0
+**Version:** 1.38.0
 **Cycle Interval:** 50ms (20Hz polling)
 
 ## Change Policy
@@ -112,11 +112,13 @@ Do not recommend threshold or bounds changes casually. First read:
 Active deployment is service-based, not timer-based.
 
 Current primary scripts:
+
 - `scripts/install.sh`
 - `scripts/deploy.sh`
 - `scripts/install-systemd.sh`
 
 Current units:
+
 - `deploy/systemd/wanctl@.service`
 - `deploy/systemd/steering.service`
 
@@ -134,6 +136,7 @@ See `docs/PRODUCTION_INTERVAL.md` for deeper background.
 ## Documentation
 
 Primary references:
+
 - `README.md`
 - `docs/GETTING-STARTED.md`
 - `docs/CONFIGURATION.md`
