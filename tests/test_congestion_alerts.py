@@ -16,6 +16,7 @@ Requirements: ALRT-01 (sustained congestion detection).
 
 import logging
 import time
+from collections import deque
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -110,7 +111,10 @@ def mock_controller():
 
     controller = MagicMock(spec=WANController)
     controller.wan_name = "spectrum"
+    controller.baseline_rtt = 10.0
     controller.load_rtt = 35.0
+    controller.warn_delta = 45.0
+    controller.hard_red_threshold = 80.0
     controller.logger = logging.getLogger("test.congestion")
 
     # Alert engine (enabled, no persistence)
@@ -128,12 +132,20 @@ def mock_controller():
     controller._ul_sustained_fired = False
     controller._dl_last_congested_zone = None
     controller._sustained_sec = 60
+    controller._dl_prev_zone = None
+    controller._ul_prev_zone = None
+    controller._dl_zone_transitions = deque()
+    controller._ul_zone_transitions = deque()
+    controller._dl_zone_hold = 0
+    controller._ul_zone_hold = 0
 
     # Bind the real methods (including extracted per-direction helpers)
     for method_name in (
         "_check_congestion_alerts",
         "_check_dl_congestion_alert",
         "_check_ul_congestion_alert",
+        "_check_hard_red_entry_alerts",
+        "_check_flapping_alerts",
     ):
         method = getattr(WANController, method_name)
         setattr(controller, method_name, method.__get__(controller, WANController))
@@ -537,6 +549,63 @@ class TestRecoveryAlerts:
 
         assert mock_controller._dl_congestion_start is None
         assert mock_controller._dl_sustained_fired is False
+
+
+# =============================================================================
+# HARD RED ENTRY ALERTS
+# =============================================================================
+
+
+class TestHardRedEntryAlerts:
+    """Tests for one-shot hard-red entry alerts with cooldown."""
+
+    def test_hard_red_dl_fires_on_entry(self, mock_controller):
+        """DL YELLOW->RED transition fires hard_red_dl."""
+        mock_controller._dl_prev_zone = "YELLOW"
+
+        with patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire:
+            mock_controller._check_hard_red_entry_alerts("RED", "GREEN")
+
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "hard_red_dl"
+        assert mock_fire.call_args.kwargs["rule_key"] == "hard_red_dl"
+
+    def test_hard_red_ul_fires_on_entry(self, mock_controller):
+        """UL YELLOW->RED transition fires hard_red_ul."""
+        mock_controller._ul_prev_zone = "YELLOW"
+
+        with patch.object(mock_controller.alert_engine, "fire", return_value=True) as mock_fire:
+            mock_controller._check_hard_red_entry_alerts("GREEN", "RED")
+
+        mock_fire.assert_called_once()
+        assert mock_fire.call_args[0][0] == "hard_red_ul"
+        assert mock_fire.call_args.kwargs["rule_key"] == "hard_red_ul"
+
+    def test_hard_red_cooldown_suppresses_rapid_reentry(self, mock_controller):
+        """Rapid RED re-entry inside 60s is suppressed by hard_red cooldown."""
+        mock_controller.alert_engine = AlertEngine(
+            enabled=True,
+            default_cooldown_sec=300,
+            rules={},
+            writer=None,
+        )
+
+        first = time.monotonic()
+        mock_controller._dl_prev_zone = "YELLOW"
+        with patch("time.monotonic", return_value=first):
+            mock_controller._check_hard_red_entry_alerts("RED", "GREEN")
+            mock_controller._check_flapping_alerts("RED", "GREEN")
+        assert mock_controller.alert_engine.fire_count == 1
+
+        # Simulate recovery out of RED before a second entry within cooldown.
+        with patch("time.monotonic", return_value=first + 10):
+            mock_controller._check_flapping_alerts("YELLOW", "GREEN")
+
+        with patch("time.monotonic", return_value=first + 30):
+            mock_controller._check_hard_red_entry_alerts("RED", "GREEN")
+            mock_controller._check_flapping_alerts("RED", "GREEN")
+
+        assert mock_controller.alert_engine.fire_count == 1
 
 
 # =============================================================================
