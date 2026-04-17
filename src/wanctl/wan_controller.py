@@ -568,6 +568,8 @@ class WANController:
         # Congestion flapping detection (ALRT-07)
         self._dl_zone_transitions: deque[float] = deque()
         self._ul_zone_transitions: deque[float] = deque()
+        self._dl_peak_transitions: int = 0
+        self._ul_peak_transitions: int = 0
         self._dl_prev_zone: str | None = None
         self._ul_prev_zone: str | None = None
         self._dl_zone_hold: int = 0  # cycles current DL zone has been held
@@ -3476,6 +3478,9 @@ class WANController:
         # Prune old transitions outside window
         while self._dl_zone_transitions and (now - self._dl_zone_transitions[0] > flap_window):
             self._dl_zone_transitions.popleft()
+        self._dl_peak_transitions = max(
+            self._dl_peak_transitions, len(self._dl_zone_transitions)
+        )
 
         if len(self._dl_zone_transitions) >= flap_threshold:
             self.alert_engine.fire(
@@ -3484,12 +3489,14 @@ class WANController:
                 self.wan_name,
                 {
                     "transition_count": len(self._dl_zone_transitions),
+                    "peak_transition_count": self._dl_peak_transitions,
                     "window_sec": flap_window,
                     "current_zone": dl_zone,
                 },
                 rule_key="congestion_flapping",
             )
             self._dl_zone_transitions.clear()
+            self._dl_peak_transitions = 0
 
         # --- Upload flapping ---
         if self._ul_prev_zone is not None and ul_zone != self._ul_prev_zone:
@@ -3504,6 +3511,9 @@ class WANController:
         # Prune old transitions outside window
         while self._ul_zone_transitions and (now - self._ul_zone_transitions[0] > flap_window):
             self._ul_zone_transitions.popleft()
+        self._ul_peak_transitions = max(
+            self._ul_peak_transitions, len(self._ul_zone_transitions)
+        )
 
         if len(self._ul_zone_transitions) >= flap_threshold:
             self.alert_engine.fire(
@@ -3512,12 +3522,14 @@ class WANController:
                 self.wan_name,
                 {
                     "transition_count": len(self._ul_zone_transitions),
+                    "peak_transition_count": self._ul_peak_transitions,
                     "window_sec": flap_window,
                     "current_zone": ul_zone,
                 },
                 rule_key="congestion_flapping",
             )
             self._ul_zone_transitions.clear()
+            self._ul_peak_transitions = 0
 
     # =========================================================================
     # PUBLIC FACADE API

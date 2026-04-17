@@ -1295,6 +1295,8 @@ def mock_flapping_controller():
     # Flapping state (initialized like __init__)
     controller._dl_zone_transitions = deque()
     controller._ul_zone_transitions = deque()
+    controller._dl_peak_transitions = 0
+    controller._ul_peak_transitions = 0
     controller._dl_prev_zone = None
     controller._ul_prev_zone = None
     controller._dl_zone_hold = 0
@@ -1372,6 +1374,21 @@ class TestFlappingDL:
         assert details["window_sec"] == 60
         assert details["current_zone"] == "GREEN"
 
+    def test_flapping_dl_includes_peak_transition_count(self, mock_flapping_controller):
+        """DL flapping payload includes the max transition count seen before fire."""
+        now = time.monotonic()
+
+        with patch.object(
+            mock_flapping_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=now + i * 5):
+                    mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        details = mock_fire.call_args[0][3]
+        assert details["peak_transition_count"] == 6
+
 
 class TestFlappingUL:
     """Tests for upload congestion zone flapping detection."""
@@ -1393,6 +1410,28 @@ class TestFlappingUL:
         mock_fire.assert_called_once()
         assert mock_fire.call_args[0][0] == "flapping_ul"
         assert mock_fire.call_args[0][1] == "warning"
+
+    def test_flapping_ul_peak_resets_after_fire(self, mock_flapping_controller):
+        """UL peak count resets after fire and does not accumulate across episodes."""
+        now = time.monotonic()
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+
+        with patch.object(
+            mock_flapping_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=now + i * 5):
+                    mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+            assert mock_fire.call_args_list[0][0][3]["peak_transition_count"] == 6
+            assert mock_flapping_controller._ul_peak_transitions == 0
+
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=now + 100 + i * 5):
+                    mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+        assert mock_fire.call_count == 2
+        assert mock_fire.call_args_list[1][0][3]["peak_transition_count"] == 6
 
 
 # =============================================================================
@@ -1885,6 +1924,8 @@ class TestFlappingCooldownKeyFix:
         )
         controller._dl_zone_transitions = deque()
         controller._ul_zone_transitions = deque()
+        controller._dl_peak_transitions = 0
+        controller._ul_peak_transitions = 0
         controller._dl_prev_zone = None
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
@@ -1937,6 +1978,8 @@ class TestFlappingDwellFilter:
         )
         controller._dl_zone_transitions = deque()
         controller._ul_zone_transitions = deque()
+        controller._dl_peak_transitions = 0
+        controller._ul_peak_transitions = 0
         controller._dl_prev_zone = None
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
@@ -3020,4 +3063,3 @@ class TestSteeringHealthAlerting:
             assert "alerting" not in data
         finally:
             server.shutdown()
-
