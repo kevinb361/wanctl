@@ -2611,6 +2611,7 @@ class WANController:
         delta = self.load_rtt - self.baseline_rtt
         self._check_congestion_alerts(dl_zone, ul_zone, dl_rate, ul_rate, delta)
         self._check_baseline_drift()
+        self._check_hard_red_entry_alerts(dl_zone, ul_zone)
         self._check_flapping_alerts(dl_zone, ul_zone)
         self._check_latency_regression_alert(dl_zone, ul_zone)
         self._check_burst_churn_alert()
@@ -3404,6 +3405,36 @@ class WANController:
                     "reference_baseline_ms": round(reference, 2),
                     "drift_percent": round(drift_pct, 1),
                 },
+            )
+
+    def _check_hard_red_entry_alerts(self, dl_zone: str, ul_zone: str) -> None:
+        """Fire critical alerts on entry into RED for download or upload."""
+        delta = float(self.load_rtt - self.baseline_rtt)
+
+        if self._dl_prev_zone != "RED" and dl_zone == "RED":
+            self.alert_engine.fire(
+                "hard_red_dl",
+                "critical",
+                self.wan_name,
+                {
+                    "delta_ms": round(delta, 1),
+                    "threshold_ms": round(float(self.hard_red_threshold), 1),
+                    "direction": "download",
+                },
+                rule_key="hard_red_dl",
+            )
+
+        if self._ul_prev_zone != "RED" and ul_zone == "RED":
+            self.alert_engine.fire(
+                "hard_red_ul",
+                "critical",
+                self.wan_name,
+                {
+                    "delta_ms": round(delta, 1),
+                    "threshold_ms": round(float(self.warn_delta), 1),
+                    "direction": "upload",
+                },
+                rule_key="hard_red_ul",
             )
 
     def _check_flapping_alerts(self, dl_zone: str, ul_zone: str) -> None:

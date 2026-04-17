@@ -22,6 +22,11 @@ from wanctl.storage.writer import MetricsWriter
 
 logger = logging.getLogger(__name__)
 
+RULE_DEFAULTS: dict[str, dict[str, Any]] = {
+    "hard_red_dl": {"cooldown_sec": 60, "severity": "critical"},
+    "hard_red_ul": {"cooldown_sec": 60, "severity": "critical"},
+}
+
 
 class AlertEngine:
     """Core alert engine with per-event cooldown suppression and SQLite persistence.
@@ -61,7 +66,10 @@ class AlertEngine:
         """
         self._enabled = enabled
         self._default_cooldown_sec = default_cooldown_sec
-        self._rules = rules
+        merged_rules = {name: dict(config) for name, config in RULE_DEFAULTS.items()}
+        for rule_name, rule_config in rules.items():
+            merged_rules.setdefault(rule_name, {}).update(rule_config)
+        self._rules = merged_rules
         self._writer = writer
         self._delivery_callback = delivery_callback
         self._cooldowns: dict[tuple[str, str], float] = {}
