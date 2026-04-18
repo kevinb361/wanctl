@@ -2206,6 +2206,12 @@ class SteeringDaemon:
         # times in 7 days on production; continuous 2Hz emission wrote ~172k
         # redundant rows/day. Always emit on first call (None cache) and on
         # any value change; consumers use last-value-before-T semantics.
+        # TEMPORARY DEBUG — remove after diagnosing why first-call emission was missing on production.
+        self.logger.info(
+            f"FIRE_ON_CHANGE_DEBUG val={steering_enabled_val!r} cache={self._last_steering_enabled_emitted!r} "
+            f"equal={steering_enabled_val == self._last_steering_enabled_emitted} "
+            f"state={self.state_mgr.state.get('current_state')!r} degraded={self.config.state_degraded!r}"
+        )
         if steering_enabled_val != self._last_steering_enabled_emitted:
             metrics_batch.append(
                 (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw")
