@@ -3,10 +3,13 @@
 import json
 import sqlite3
 import time
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
 from wanctl.metrics import metrics
+from wanctl.steering.daemon import SteeringDaemon
 from wanctl.storage import MetricsWriter
 
 
@@ -605,3 +608,68 @@ class TestPerTinMetrics:
         conn.close()
 
         assert tin_rows[0] == 0
+
+
+class TestSteeringEnabledFireOnChange:
+    """Verify steering_enabled gauge only emits when its value changes."""
+
+    def _make_daemon_stub(self, state_value: str) -> SimpleNamespace:
+        """Minimal object that satisfies _record_steering_metrics."""
+        config = MagicMock()
+        config.metrics_enabled = False
+        config.primary_wan = "spectrum"
+        config.state_degraded = "SPECTRUM_DEGRADED"
+        state_mgr = MagicMock()
+        state_mgr.state = {"current_state": state_value, "congestion_state": "GREEN"}
+        return SimpleNamespace(
+            config=config,
+            state_mgr=state_mgr,
+            _metrics_writer=MagicMock(),
+            _last_steering_enabled_emitted=None,
+            _wan_state_enabled=False,
+            _last_tin_stats=None,
+            _append_wan_awareness_metrics=lambda batch, ts: None,
+            _append_cake_tin_metrics=lambda batch, ts: None,
+        )
+
+    def _emitted_metric_names(self, write_call) -> list[str]:
+        batch = write_call.args[0]
+        return [row[2] for row in batch]
+
+    def test_first_call_emits_steering_enabled(self):
+        daemon = self._make_daemon_stub("SPECTRUM_GOOD")
+        SteeringDaemon._record_steering_metrics(daemon, 25.0, 24.0, 1.0)
+
+        daemon._metrics_writer.write_metrics_batch.assert_called_once()
+        names = self._emitted_metric_names(
+            daemon._metrics_writer.write_metrics_batch.call_args
+        )
+        assert "wanctl_steering_enabled" in names
+        assert daemon._last_steering_enabled_emitted == 0.0
+
+    def test_second_call_with_same_value_skips_emission(self):
+        daemon = self._make_daemon_stub("SPECTRUM_GOOD")
+        SteeringDaemon._record_steering_metrics(daemon, 25.0, 24.0, 1.0)
+        daemon._metrics_writer.reset_mock()
+
+        SteeringDaemon._record_steering_metrics(daemon, 25.1, 24.0, 1.1)
+
+        names = self._emitted_metric_names(
+            daemon._metrics_writer.write_metrics_batch.call_args
+        )
+        assert "wanctl_steering_enabled" not in names
+        assert "wanctl_rtt_ms" in names
+
+    def test_value_change_triggers_emission(self):
+        daemon = self._make_daemon_stub("SPECTRUM_GOOD")
+        SteeringDaemon._record_steering_metrics(daemon, 25.0, 24.0, 1.0)
+        daemon._metrics_writer.reset_mock()
+
+        daemon.state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+        SteeringDaemon._record_steering_metrics(daemon, 80.0, 24.0, 56.0)
+
+        names = self._emitted_metric_names(
+            daemon._metrics_writer.write_metrics_batch.call_args
+        )
+        assert "wanctl_steering_enabled" in names
+        assert daemon._last_steering_enabled_emitted == 1.0
