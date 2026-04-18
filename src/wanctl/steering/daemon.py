@@ -1182,6 +1182,11 @@ class SteeringDaemon:
         storage_config = get_storage_config(config.data)
         self._metrics_writer: MetricsWriter | None = None
         self._storage_db_path: str | None = None
+        # Cache of last-emitted gauge values; None means "never emitted, next
+        # record must go through". Used for fire-on-change on metrics that are
+        # almost-always flat (e.g. steering_enabled flips a handful of times
+        # per week yet was emitting ~172k rows/day).
+        self._last_steering_enabled_emitted: float | None = None
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
             self._storage_db_path = db_path
@@ -2194,9 +2199,18 @@ class SteeringDaemon:
             (ts, self.config.primary_wan, "wanctl_rtt_ms", current_rtt, None, "raw"),
             (ts, self.config.primary_wan, "wanctl_rtt_baseline_ms", baseline_rtt, None, "raw"),
             (ts, self.config.primary_wan, "wanctl_rtt_delta_ms", delta, None, "raw"),
-            (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw"),
             (ts, self.config.primary_wan, "wanctl_state", float(state_val), {"source": "steering"}, "raw"),
         ]
+
+        # Fire-on-change for steering_enabled. This boolean gauge flipped 6
+        # times in 7 days on production; continuous 2Hz emission wrote ~172k
+        # redundant rows/day. Always emit on first call (None cache) and on
+        # any value change; consumers use last-value-before-T semantics.
+        if steering_enabled_val != self._last_steering_enabled_emitted:
+            metrics_batch.append(
+                (ts, self.config.primary_wan, "wanctl_steering_enabled", steering_enabled_val, None, "raw")
+            )
+            self._last_steering_enabled_emitted = steering_enabled_val
 
         self._append_wan_awareness_metrics(metrics_batch, ts)
         self._append_cake_tin_metrics(metrics_batch, ts)
