@@ -30,6 +30,15 @@ class CakeStatsSnapshot:
     measurement_ms: float
 
 
+@dataclass
+class OverlapSnapshot:
+    """Bounded snapshot of the latest CAKE dump timing signals."""
+
+    last_dump_started_monotonic: float | None = None
+    last_dump_finished_monotonic: float | None = None
+    last_dump_elapsed_ms: float | None = None
+
+
 class BackgroundCakeStatsThread:
     """Dedicated background thread for CAKE qdisc stats reads.
 
@@ -56,6 +65,7 @@ class BackgroundCakeStatsThread:
         self._shutdown_event = shutdown_event
         self._cadence_sec = cadence_sec
         self._cached: CakeStatsSnapshot | None = None
+        self._overlap: OverlapSnapshot = OverlapSnapshot()
         self._profiler = OperationProfiler(max_samples=1200)
         self._thread: threading.Thread | None = None
 
@@ -66,6 +76,10 @@ class BackgroundCakeStatsThread:
     def get_profile_stats(self) -> dict[str, object]:
         """Return background CAKE stats timing stats."""
         return self._profiler.stats("cake_stats_background_cycle")
+
+    def get_overlap_snapshot(self) -> OverlapSnapshot:
+        """Return the latest bounded dump-overlap timing snapshot."""
+        return self._overlap
 
     def start(self) -> None:
         """Create and start the background daemon thread."""
@@ -109,11 +123,14 @@ class BackgroundCakeStatsThread:
             elapsed_s = 0.0
             try:
                 t0 = time.perf_counter()
+                self._overlap.last_dump_started_monotonic = time.monotonic()
                 ipr = dl_backend._get_ipr()
                 msgs = ipr.tc("dump")
+                self._overlap.last_dump_finished_monotonic = time.monotonic()
                 dl_stats = dl_backend._parse_cake_msg(msgs)
                 ul_stats = ul_backend._parse_cake_msg(msgs)
                 elapsed_s = time.perf_counter() - t0
+                self._overlap.last_dump_elapsed_ms = elapsed_s * 1000.0
 
                 self._cached = CakeStatsSnapshot(
                     dl_stats=dl_stats,
