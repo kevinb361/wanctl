@@ -1374,6 +1374,7 @@ class TestVerifyLocalConnectivity:
             "probe_interval_sec": 30.0,
             "recovery_count": 3,
         }
+        config.cake_stats_cadence_sec = 0.05
 
         router = MagicMock()
         router.set_limits.return_value = True
@@ -2099,6 +2100,37 @@ class TestStateLoadSave:
         assert workers["irtt"]["cadence_sec"] == pytest.approx(10.0)
         assert workers["irtt"]["stats"]["avg_ms"] == pytest.approx(40.0)
         assert workers["irtt"]["staleness_sec"] == pytest.approx(5.25)
+
+    def test_wan_controller_stores_cake_stats_cadence_sec_from_config(self, controller_with_mocks):
+        """WANController stores the background CAKE stats cadence from Config."""
+        ctrl, config, _, _ = controller_with_mocks
+
+        assert ctrl._cake_stats_cadence_sec == pytest.approx(config.cake_stats_cadence_sec)
+
+    def test_start_background_cake_stats_uses_configured_cadence(self, controller_with_mocks):
+        """BackgroundCakeStatsThread receives the configured CAKE stats cadence."""
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        ctrl, _, _, _ = controller_with_mocks
+        ctrl._cake_stats_cadence_sec = 0.25
+        ctrl._cake_signal_supported = True
+        ctrl._dl_cake_signal = CakeSignalProcessor(config=CakeSignalConfig(enabled=True))
+        ctrl._ul_cake_signal = CakeSignalProcessor(config=CakeSignalConfig(enabled=True))
+        shutdown_event = MagicMock()
+
+        adapter = MagicMock()
+        adapter.dl_backend.interface = "ifb4TestWAN"
+        adapter.ul_backend.interface = "eth0"
+        ctrl.router = adapter
+
+        with patch("wanctl.wan_controller.BackgroundCakeStatsThread") as mock_thread_cls:
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            ctrl.start_background_cake_stats(shutdown_event)
+
+        assert mock_thread_cls.call_args.kwargs["cadence_sec"] == pytest.approx(0.25)
+        mock_thread.start.assert_called_once()
 
     def test_zone_attrs_initialized_green(self, controller_with_mocks):
         """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
