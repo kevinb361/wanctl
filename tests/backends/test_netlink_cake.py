@@ -179,6 +179,11 @@ class TestIPRouteLifecycle:
 class TestSetBandwidth:
     """set_bandwidth netlink success path tests -- NLNK-01."""
 
+    def test_set_bandwidth_initial_apply_state(self, backend):
+        assert backend._last_apply_started_monotonic is None
+        assert backend._last_apply_finished_monotonic is None
+        assert backend._last_apply_was_kernel_write is False
+
     @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_set_bandwidth_calls_tc_change(self, MockIPRoute, backend):
         mock_instance = MagicMock()
@@ -212,6 +217,20 @@ class TestSetBandwidth:
         assert result is True
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_set_bandwidth_populates_apply_overlap_timestamps_on_success(
+        self, MockIPRoute, backend
+    ):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        assert backend._last_apply_started_monotonic is not None
+        assert backend._last_apply_finished_monotonic is not None
+        assert backend._last_apply_started_monotonic <= backend._last_apply_finished_monotonic
+        assert backend._last_apply_was_kernel_write is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_set_bandwidth_logs_debug_on_success(self, MockIPRoute, backend):
         mock_instance = MagicMock()
         mock_instance.link_lookup.return_value = [42]
@@ -234,6 +253,27 @@ class TestSetBandwidth:
         )
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_set_bandwidth_populates_apply_overlap_timestamps_on_skip(
+        self, MockIPRoute, backend
+    ):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        backend._last_apply_started_monotonic = -1.0
+        backend._last_apply_finished_monotonic = -1.0
+        backend._last_apply_was_kernel_write = True
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        assert backend._last_apply_started_monotonic is not None
+        assert backend._last_apply_finished_monotonic is not None
+        assert backend._last_apply_started_monotonic != -1.0
+        assert backend._last_apply_finished_monotonic != -1.0
+        assert backend._last_apply_started_monotonic <= backend._last_apply_finished_monotonic
+        assert backend._last_apply_was_kernel_write is False
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_set_bandwidth_skips_same_kbit_rate(self, MockIPRoute, backend):
         mock_instance = MagicMock()
         mock_instance.link_lookup.return_value = [42]
@@ -247,6 +287,23 @@ class TestSetBandwidth:
         )
         assert backend._last_bandwidth_bps == 500_000_000
 
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_set_bandwidth_kernel_write_flag_transitions_skip_to_success(
+        self, MockIPRoute, backend
+    ):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        assert backend._last_apply_was_kernel_write is True
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        assert backend._last_apply_was_kernel_write is False
+
+        assert backend.set_bandwidth("q", 600_000_000) is True
+        assert backend._last_apply_was_kernel_write is True
+
 
 # =============================================================================
 # TestSetBandwidthFallback (NLNK-03)
@@ -255,6 +312,25 @@ class TestSetBandwidth:
 
 class TestSetBandwidthFallback:
     """set_bandwidth fallback to subprocess on netlink failure -- NLNK-03."""
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    @patch.object(LinuxCakeBackend, "set_bandwidth", return_value=True)
+    def test_set_bandwidth_populates_apply_overlap_timestamps_on_fallback(
+        self, mock_super_set, MockIPRoute, backend
+    ):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        from pyroute2.netlink.exceptions import NetlinkError
+
+        mock_instance.tc.side_effect = NetlinkError(1, "test")
+        MockIPRoute.return_value = mock_instance
+
+        assert backend.set_bandwidth("q", 500_000_000) is True
+        mock_super_set.assert_called_once_with("q", 500_000_000)
+        assert backend._last_apply_started_monotonic is not None
+        assert backend._last_apply_finished_monotonic is not None
+        assert backend._last_apply_started_monotonic <= backend._last_apply_finished_monotonic
+        assert backend._last_apply_was_kernel_write is True
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
     @patch.object(LinuxCakeBackend, "set_bandwidth", return_value=True)
