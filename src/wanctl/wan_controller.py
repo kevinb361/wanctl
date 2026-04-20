@@ -117,23 +117,21 @@ def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
         if isinstance(sigma_descriptor, property) and sigma_descriptor.fset is not None:
             wc.signal_processor.sigma_threshold = val
         else:
-            setattr(wc.signal_processor, "_sigma_threshold", val)
+            wc.signal_processor._sigma_threshold = val
     elif param == "hampel_window_size":
         new_size = round(val)
         resize_window = getattr(type(wc.signal_processor), "resize_window", None)
         if callable(resize_window):
             wc.signal_processor.resize_window(new_size)
         else:
-            setattr(wc.signal_processor, "_window_size", new_size)
-            setattr(
-                wc.signal_processor,
-                "_window",
-                deque(getattr(wc.signal_processor, "_window"), maxlen=new_size),
+            wc.signal_processor._window_size = new_size
+            wc.signal_processor._window = deque(
+                wc.signal_processor._window,
+                maxlen=new_size,
             )
-            setattr(
-                wc.signal_processor,
-                "_outlier_window",
-                deque(getattr(wc.signal_processor, "_outlier_window"), maxlen=new_size),
+            wc.signal_processor._outlier_window = deque(
+                wc.signal_processor._outlier_window,
+                maxlen=new_size,
             )
     elif param == "load_time_constant_sec":
         # Convert time constant to alpha: alpha = cycle_interval / tc
@@ -149,7 +147,7 @@ def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
         if isinstance(min_score_descriptor, property) and min_score_descriptor.fset is not None:
             wc._reflector_scorer.min_score = val
         else:
-            setattr(wc._reflector_scorer, "_min_score", val)
+            wc._reflector_scorer._min_score = val
     else:
         return False
     return True
