@@ -23,12 +23,12 @@
 
 ### Control Safety (SAFE)
 
-- [ ] **SAFE-03**: No control threshold, EWMA alpha, dwell-cycle count, deadband value, burst detection parameter, or state-machine rule is modified during v1.39. Any PR touching those files is rejected.
+- [x] **SAFE-03**: No control threshold, EWMA alpha, dwell-cycle count, deadband value, burst detection parameter, or state-machine rule is modified during v1.39. Any PR touching those files is rejected.
 - [ ] **SAFE-04**: Immediate rate-decrease latency from congestion detection to `tc change` issuance is not increased by any timing change introduced in this milestone.
 
 ### Verification (VALN)
 
-- [ ] **VALN-02**: Each timing or scorer change is A/B-compared against the v1.38.0 baseline using at least one RRUL, one tcp_12down, and one VoIP flent run before shipping, with results captured in the phase VERIFICATION.md.
+- [x] **VALN-02**: Each timing or scorer change is A/B-compared against the v1.38.0 baseline using at least one RRUL, one tcp_12down, and one VoIP flent run before shipping, with results captured in the phase VERIFICATION.md.
 - [ ] **VALN-03**: A 24-hour production soak after merge confirms that TIME-03, TIME-04, and MEAS-06 hold, and that no regression appears in dwell-bypass responsiveness, burst detection trigger count, or fusion state transitions.
 
 ## Out of Scope
@@ -54,9 +54,9 @@
 | MEAS-05 | Phase 192 | Pending |
 | MEAS-06 | Phase 192 (+ VALN-03 soak) | Pending |
 | OPER-02 | Phase 192 | Pending |
-| SAFE-03 | Phase 191 + Phase 192 (enforced throughout) | Pending |
+| SAFE-03 | Phase 191 + Phase 192 (enforced throughout) | Complete |
 | SAFE-04 | Phase 191 | Pending |
-| VALN-02 | Phase 191 + Phase 192 | Pending |
+| VALN-02 | Phase 191 + Phase 192 | Complete |
 | VALN-03 | Phase 192 closeout soak | Pending |
 
 ---
