@@ -106,6 +106,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         super().__init__(interface=interface, logger=logger, tc_timeout=tc_timeout)
         self._ipr: Any = None  # IPRoute | None -- Any to avoid type errors when pyroute2 absent
         self._ifindex: int | None = None
+        self._last_apply_started_monotonic: float | None = None
+        self._last_apply_finished_monotonic: float | None = None
+        self._last_apply_was_kernel_write: bool = False
 
     def _get_ipr(self) -> Any:
         """Get or create singleton IPRoute connection.
@@ -159,6 +162,10 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         rate_kbit = rate_bps // 1000
         applied_rate_bps = rate_kbit * 1000
         if applied_rate_bps == self._last_bandwidth_bps:
+            now_mono = time.monotonic()
+            self._last_apply_started_monotonic = now_mono
+            self._last_apply_finished_monotonic = now_mono
+            self._last_apply_was_kernel_write = False
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = True
             self._last_write_used_fallback = False
@@ -169,16 +176,23 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             )
             return True
 
+        apply_start_mono: float | None = None
         try:
             ipr = self._get_ipr()
+            apply_start_mono = time.monotonic()
             ipr.tc("change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit")
+            apply_finish_mono = time.monotonic()
             self._last_bandwidth_bps = applied_rate_bps
+            self._last_apply_started_monotonic = apply_start_mono
+            self._last_apply_finished_monotonic = apply_finish_mono
+            self._last_apply_was_kernel_write = True
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = False
             self._last_write_used_fallback = False
             self.logger.debug("Netlink: set %s bandwidth to %skbit", self.interface, rate_kbit)
             return True
         except (NetlinkError, OSError, ImportError) as e:
+            apply_finish_mono = time.monotonic()
             self.logger.warning(
                 "Netlink tc change failed on %s: %s -- falling back to subprocess",
                 self.interface,
@@ -186,6 +200,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             )
             self._reset_ipr()
             result = super().set_bandwidth(queue, rate_bps)
+            self._last_apply_started_monotonic = apply_start_mono or apply_finish_mono
+            self._last_apply_finished_monotonic = apply_finish_mono
+            self._last_apply_was_kernel_write = True
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = False
             self._last_write_used_fallback = True
