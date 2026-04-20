@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.39
-milestone_name: Control-Path Timing & Measurement Accounting
-status: defining_requirements
-stopped_at: v1.39 milestone started
-last_updated: "2026-04-20T00:00:00.000Z"
+milestone_name: milestone
+status: executing
+stopped_at: Completed 191.1-01-PLAN.md
+last_updated: "2026-04-20T17:20:17.147Z"
 last_activity: 2026-04-20
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 8
+  completed_plans: 6
+  percent: 75
 ---
 
 # Session State
@@ -21,19 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-20)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.39 — reduce netlink-apply tail latency and fix reflector scorer blackout misattribution
+**Current focus:** Phase 191.1 — att-config-drift-resolution-and-phase-191-closure
 
 ## Position
 
 **Milestone:** v1.39 Control-Path Timing & Measurement Accounting
-**Phase:** Not started (defining requirements)
-**Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-04-20 — Milestone v1.39 started
+**Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure)
+**Plan:** 02 next (`191.1-02-validation-rerun-PLAN.md`)
+**Status:** Plan 01 complete; Phase 191.1 still executing
+**Last activity:** 2026-04-20
 
-Progress: [          ] 0%
+Progress: [###-------] 33%
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 191.1 inserted after Phase 191: ATT config drift resolution and Phase 191 closure (URGENT)
+- Phase 191 ATT validation isolated the blocker to post-`v1.38` ATT config/runtime drift rather than the narrow Phase 191 timing changes; current code plus `v1.38` ATT config restored RRUL baseline throughput
+- Phase 192 now waits on Phase 191.1 so the next soak is not confounded by unresolved ATT closure criteria
 
 - v1.34 shipped: latency/burst alerts, storage/runtime pressure monitoring, operator summary surfaces, canary checks, threshold runbook
 - v1.35 shipped: storage stabilization, clean deploy/canary, 24-hour soak closeout, verification backfill, and operator-flow alignment
@@ -77,8 +83,8 @@ Progress: [          ] 0%
 
 ## Session Continuity
 
-Stopped at: Phase 188 context gathered
-Resume file: .planning/phases/188-operator-verification-and-closeout/188-CONTEXT.md
+Stopped at: Completed 191.1-01-PLAN.md
+Resume file: None
 
 ## Decisions
 
@@ -101,9 +107,12 @@ Resume file: .planning/phases/188-operator-verification-and-closeout/188-CONTEXT
 - [Phase 187]: Plan 187-02 preserves timestamp=snapshot.timestamp on both measure_rtt() branches so measurement staleness remains honest during cached RTT reuse.
 - [Phase 187]: Plan 187-02 keeps the 5s stale cutoff and fallback path byte-identical while wiring zero-success cycle status into measure_rtt().
 - [Phase 187]: Plan 187-04 keeps the gap closure tests-only and pins the producer-side get_cycle_status() contract by driving BackgroundRTTThread._run() directly inside TestBackgroundRTTThread.
+- [Phase 191.1]: Restored ATT irtt.server and fusion.enabled together to the v1.38 baseline in one coordinated config commit.
+- [Phase 191.1]: Used a semantic YAML diff against v1.38 plus SAFE-03 token scan to prove no other ATT config keys changed.
 
 ## Performance Metrics
 
+- 2026-04-20: Phase 191.1 Plan 01 completed in 3 min across 2 tasks and 2 files.
 - 2026-04-15: Phase 187 Plan 04 completed in 4 min across 1 task and 1 test file.
 - 2026-04-15: Phase 187 Plan 02 completed in 15 min across 1 task and 1 source file.
 - 2026-04-15: Phase 187 Plan 01 completed in 10 min across 2 tasks and 1 source file.
@@ -116,3 +125,5 @@ Resume file: .planning/phases/188-operator-verification-and-closeout/188-CONTEXT
 - 2026-04-14: Phase 185 Plan 03 completed with repo-side verification evidence and `171` dashboard tests passing.
 - 2026-04-14: Milestone v1.37 archived with 5/5 requirements satisfied and 3/3 phases complete.
 - 2026-04-14: Milestone v1.37 audit refreshed to `passed`; all three milestone phases now have Nyquist-compliant validation artifacts and no blocker-level integration or flow gaps remain.
+
+**Planned Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure) — 3 plans — 2026-04-20T17:15:22.073Z

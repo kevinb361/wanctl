@@ -2,13 +2,14 @@
 
 **Milestone Goal:** Reduce systemic tail latency in the netlink apply path and fix reflector-scorer blackout misattribution without changing any control algorithms, thresholds, or state machines.
 
-**Phases:** 2 | **Requirements mapped:** 11/11 ✓
+**Phases:** 3 | **Requirements mapped:** 11/11 ✓
 
 ## Phase Summary
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 191 | Netlink Apply Timing Stabilization | Instrument and reduce `tc dump` vs `tc change` kernel RTNL contention that spikes netlink apply latency to 10–87 ms | TIME-01, TIME-02, TIME-03, TIME-04, SAFE-03, SAFE-04, VALN-02 | 5 |
+| 191.1 | ATT Config Drift Resolution and Phase 191 Closure | 1/3 | In Progress|  |
 | 192 | Reflector Scorer Blackout-Awareness + Log Hygiene | Stop misattributing path-wide ICMP blackouts to individual reflectors; trim fusion-suspended log noise | MEAS-05, MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03 | 4 |
 
 ---
@@ -42,7 +43,29 @@
 4. `write_download_ms` and `write_upload_ms` p99 logged in Slow CAKE apply warnings drop measurably on both WANs over the same window.
 5. Flent RRUL, tcp_12down, and VoIP A/B runs show no regression in bufferbloat grade, p99 latency, or VoIP jitter vs v1.38.0 baseline, captured in VERIFICATION.md.
 
+**Plans:** 5 plans
+
+Plans:
+- [ ] 191-01-PLAN.md — NetlinkCakeBackend apply-side overlap timestamps (TIME-01)
+- [ ] 191-02-PLAN.md — BackgroundCakeStatsThread dump-side OverlapSnapshot (TIME-01)
+- [ ] 191-03-PLAN.md — YAML cake_stats_cadence_sec knob + WANController wiring (TIME-02)
+- [ ] 191-04-PLAN.md — WANController overlap compute + /health rendering + slow-apply log enrichment (TIME-01, TIME-04, SAFE-03, SAFE-04)
+- [ ] 191-05-PLAN.md — Regression slice, SAFE-03/SAFE-04 diff proofs, flent A/B vs v1.38.0 (VALN-02)
+
+
 ---
+
+### Phase 191.1: ATT config drift resolution and Phase 191 closure (INSERTED)
+
+**Goal:** Restore the two proven-drifted ATT config keys (`irtt.server=104.200.21.31`, `fusion.enabled=true`) to the `v1.38` baseline together, make the phase-local SAFE-03 comparator the explicit Phase 191 closure rule, and capture a narrow ATT+Spectrum rerun so Phase 191 can close honestly (per D-11) before Phase 192 begins.
+**Requirements**: SAFE-03, VALN-02
+**Depends on:** Phase 191
+**Plans:** 1/3 plans executed
+
+Plans:
+- [x] 191.1-01-att-config-restoration-PLAN.md - restore irtt.server and fusion.enabled to v1.38 values in configs/att.yaml (single coordinated edit per D-03)
+- [ ] 191.1-02-validation-rerun-PLAN.md - deploy restored ATT config and capture ATT rrul/tcp_12down/voip plus Spectrum RRUL discriminator via scripts/phase191-flent-capture.sh
+- [ ] 191.1-03-closure-artifact-update-PLAN.md - add phase-local SAFE-03 comparator rule and restored-config rerun evidence to 191-VERIFICATION.md and 191-05-SUMMARY.md
 
 ## Phase 192: Reflector Scorer Blackout-Awareness + Log Hygiene
 
@@ -50,7 +73,7 @@
 
 **Requirements addressed:** MEAS-05, MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03
 
-**Depends on:** Phase 191 (timing fix lands first so soak results aren't confounded by two concurrent changes)
+**Depends on:** Phase 191.1 (timing closeout and ATT validation path must be resolved before the scorer soak begins)
 
 **Scope:**
 - Modify `reflector_scorer.py` so per-host score-update paths consume the same zero-success blackout gate that `rtt_measurement.py` already uses
@@ -75,6 +98,6 @@
 
 ## Ordering Rationale
 
-Phase 191 ships before Phase 192 because the timing change affects *both* WANs systemically while the scorer change only affects measurement accounting on Spectrum. Separating them also lets the 24-hour soak per change attribute regressions cleanly — if we shipped together, a regression in dwell-bypass could be blamed on either.
+Phase 191 ships before Phase 192 because the timing change affects *both* WANs systemically while the scorer change only affects measurement accounting on Spectrum. Phase 191.1 exists because ATT validation isolated a post-`v1.38` config/runtime drift issue that must be resolved before the scorer soak starts. Separating them also lets the 24-hour soak per change attribute regressions cleanly — if we shipped together, a regression in dwell-bypass could be blamed on either.
 
 *Roadmap created: 2026-04-20*
