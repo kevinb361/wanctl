@@ -8,6 +8,7 @@ Covers:
 Coverage target: lines 274-343 (_load_download_config, _load_upload_config).
 """
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -1165,3 +1166,115 @@ class TestStateFileConfig:
         config._load_state_config()
         assert config.state_file == Path("/tmp/wanctl_spectrum_state.json")
 
+
+class TestCakeStatsCadenceConfig:
+    """Tests for continuous_monitoring.cake_stats_cadence_sec loading."""
+
+    @staticmethod
+    def _build_config_yaml(cake_stats_cadence_line: str = "") -> str:
+        cadence_block = ""
+        if cake_stats_cadence_line:
+            cadence_block = f"  cake_stats_cadence_sec: {cake_stats_cadence_line}\n"
+        return f"""
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+  transport: "ssh"
+
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+{cadence_block}  ping_hosts:
+    - "1.1.1.1"
+  download:
+    floor_green_mbps: 800
+    floor_yellow_mbps: 600
+    floor_soft_red_mbps: 500
+    floor_red_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_green_mbps: 35
+    floor_yellow_mbps: 30
+    floor_red_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+
+logging:
+  main_log: "/tmp/test_autorate.log"
+  debug_log: "/tmp/test_autorate_debug.log"
+
+lock_file: "/tmp/test_autorate.lock"
+lock_timeout: 300
+"""
+
+    def _load_config(self, tmp_path: Path, cake_stats_cadence_line: str = "") -> Config:
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(self._build_config_yaml(cake_stats_cadence_line))
+        return Config(str(config_file))
+
+    def test_cake_stats_cadence_sec_default_when_missing(self, tmp_path):
+        config = self._load_config(tmp_path)
+
+        assert config.cake_stats_cadence_sec == pytest.approx(0.05)
+
+    def test_cake_stats_cadence_sec_parses_positive_float(self, tmp_path):
+        config = self._load_config(tmp_path, "0.1")
+
+        assert config.cake_stats_cadence_sec == pytest.approx(0.1)
+
+    @pytest.mark.parametrize(
+        "value_literal",
+        ["0", "-0.5", '"fast"', "true", "null", "[]"],
+    )
+    def test_cake_stats_cadence_sec_warns_and_defaults_on_invalid(
+        self, tmp_path, caplog, value_literal
+    ):
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+            config = self._load_config(tmp_path, value_literal)
+
+        assert config.cake_stats_cadence_sec == pytest.approx(0.05)
+        assert any(
+            "continuous_monitoring.cake_stats_cadence_sec must be positive number" in message
+            for message in caplog.messages
+        )
+
+    def test_cake_stats_cadence_sec_accepts_integer(self, tmp_path):
+        config = self._load_config(tmp_path, "1")
+
+        assert config.cake_stats_cadence_sec == pytest.approx(1.0)
+
+    def test_cake_stats_cadence_sec_warns_and_caps_on_absurdly_large_value(
+        self, tmp_path, caplog
+    ):
+        for value_literal in ("10.1", "100", "99999"):
+            caplog.clear()
+            with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+                config = self._load_config(tmp_path, value_literal)
+
+            assert config.cake_stats_cadence_sec == pytest.approx(10.0)
+            assert any(
+                "continuous_monitoring.cake_stats_cadence_sec value" in message
+                and "capping at 10.0" in message
+                for message in caplog.messages
+            )
+
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+            boundary_config = self._load_config(tmp_path, "10.0")
+
+        assert boundary_config.cake_stats_cadence_sec == pytest.approx(10.0)
+        assert not any("capping at" in message for message in caplog.messages)
