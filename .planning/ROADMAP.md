@@ -1,9 +1,80 @@
-# Roadmap: wanctl
+# Roadmap: wanctl v1.39 Control-Path Timing & Measurement Accounting
 
-## No Active Milestone
+**Milestone Goal:** Reduce systemic tail latency in the netlink apply path and fix reflector-scorer blackout misattribution without changing any control algorithms, thresholds, or state machines.
 
-Latest shipped milestone:
+**Phases:** 2 | **Requirements mapped:** 11/11 ✓
 
-- [v1.38 Measurement Resilience Under Load](milestones/v1.38-ROADMAP.md) — shipped 2026-04-15, 5 phases, 12 plans, 26 tasks, audit `tech_debt`
+## Phase Summary
 
-Start the next milestone with `/gsd-new-milestone`.
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 191 | Netlink Apply Timing Stabilization | Instrument and reduce `tc dump` vs `tc change` kernel RTNL contention that spikes netlink apply latency to 10–87 ms | TIME-01, TIME-02, TIME-03, TIME-04, SAFE-03, SAFE-04, VALN-02 | 5 |
+| 192 | Reflector Scorer Blackout-Awareness + Log Hygiene | Stop misattributing path-wide ICMP blackouts to individual reflectors; trim fusion-suspended log noise | MEAS-05, MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03 | 4 |
+
+---
+
+## Phase 191: Netlink Apply Timing Stabilization
+
+**Goal:** Add instrumentation to make `tc dump` vs `tc change` overlap measurable in production, then tune `cake_stats_thread` cadence (or add post-apply backoff) based on that evidence to reduce Slow CAKE apply p99 and cycle overrun rate on both Spectrum and ATT — without changing any control algorithm.
+
+**Requirements addressed:** TIME-01, TIME-02, TIME-03, TIME-04, SAFE-03, SAFE-04, VALN-02
+
+**Depends on:** —
+
+**Scope:**
+- Add timestamp + elapsed instrumentation to `cake_stats_thread` tc-dump path and `netlink_cake` tc-change apply path
+- Expose overlap evidence in `/health` (or structured logs if health-endpoint surface is too expensive) so operators can see dump-vs-change concurrency without attaching a debugger
+- Make `cake_stats_thread` cadence YAML-configurable, default preserving current 50 ms behavior until data justifies change
+- Optionally add post-apply backoff (skip next 1–2 reads after a `tc change`) if instrumentation shows that pattern helps more than cadence reduction
+- Run flent A/B (RRUL, tcp_12down, VoIP) vs v1.38.0 baseline before shipping
+
+**Out of scope (locked):**
+- Any change to state machine, EWMA alphas, dwell cycles, deadband, burst detection, or thresholds (SAFE-03)
+- User-space locks around netlink calls (can delay rate-decrease path, violates SAFE-04)
+- Atomic DL+UL write batching (unclear API, high risk)
+- Reflector scorer work (Phase 192)
+- Log hygiene (Phase 192)
+
+**Success Criteria:**
+1. Health endpoint or structured log surface exposes per-call timestamps and elapsed time for tc-dump and tc-change, enabling operators to identify overlap episodes without additional tooling.
+2. `cake_stats_thread.poll_cadence_ms` is readable from YAML; restarting the daemon with a different value changes the observed stats-read interval.
+3. Cycle overrun count per hour on both Spectrum and ATT drops measurably over a 24-hour post-merge window vs the 2026-04-20 baseline (107 Spectrum / 240 ATT cumulative, normalized to uptime).
+4. `write_download_ms` and `write_upload_ms` p99 logged in Slow CAKE apply warnings drop measurably on both WANs over the same window.
+5. Flent RRUL, tcp_12down, and VoIP A/B runs show no regression in bufferbloat grade, p99 latency, or VoIP jitter vs v1.38.0 baseline, captured in VERIFICATION.md.
+
+---
+
+## Phase 192: Reflector Scorer Blackout-Awareness + Log Hygiene
+
+**Goal:** Fix the reflector scorer so it recognizes all-host zero-success cycles as blackout events and does not decrement per-host quality windows for those cycles. Rate-limit or demote fusion-suspended "Protocol deprioritization detected" INFO log noise. Close v1.39 with a 24-hour soak confirming no regression.
+
+**Requirements addressed:** MEAS-05, MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03
+
+**Depends on:** Phase 191 (timing fix lands first so soak results aren't confounded by two concurrent changes)
+
+**Scope:**
+- Modify `reflector_scorer.py` so per-host score-update paths consume the same zero-success blackout gate that `rtt_measurement.py` already uses
+- Preserve existing cached-RTT fallback semantics verbatim — scorer change must not alter what the controller sees
+- Add unit tests covering: all-host-fail cycle (no score decrement), partial-success cycle (normal scoring), recovery after blackout, mixed quality drops that should still deprioritize
+- Demote or rate-limit `Protocol deprioritization detected` INFO logs when `fusion.state` is `disabled` or `healer_suspended`; preserve first occurrence + state transitions
+- Flent A/B before ship; 24-hour production soak after merge
+
+**Out of scope (locked):**
+- Adding a 4th reflector (deferred until MEAS-06 proves insufficient)
+- Any control threshold / state machine change (SAFE-03)
+- Changing fusion behavior itself
+- Any work covered by Phase 191
+
+**Success Criteria:**
+1. Unit test demonstrates that a zero-success cycle (all reflectors fail) leaves individual reflector scores unchanged for that cycle.
+2. Spectrum reflector scores in `/health` over a 24-hour window no longer repeatedly sink to the 0.8 deprioritize threshold during blackout episodes, verified against baseline log evidence from 2026-04-20.
+3. Spectrum "Protocol deprioritization detected" log volume over 24 hours drops meaningfully vs the 2.5k/day baseline, with first-occurrence and state-transition events still recorded.
+4. 24-hour post-merge soak confirms no regression in dwell-bypass responsiveness, burst detection trigger count, or fusion state transitions — captured in VERIFICATION.md.
+
+---
+
+## Ordering Rationale
+
+Phase 191 ships before Phase 192 because the timing change affects *both* WANs systemically while the scorer change only affects measurement accounting on Spectrum. Separating them also lets the 24-hour soak per change attribute regressions cleanly — if we shipped together, a regression in dwell-bypass could be blamed on either.
+
+*Roadmap created: 2026-04-20*
