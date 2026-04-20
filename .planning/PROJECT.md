@@ -18,10 +18,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.38 Measurement Resilience Under Load — measurement degradation is now surfaced explicitly via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability
 **Previous:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
 
-## No Active Milestone
+## Current Milestone: v1.39 Control-Path Timing & Measurement Accounting
 
-The v1.38 archive is complete. Define the next milestone with fresh requirements
-and roadmap scope before resuming phase work.
+**Goal:** Reduce systemic tail latency in the netlink apply path and fix reflector-scorer blackout misattribution without changing any control algorithms, thresholds, or state machines.
+
+**Target features:**
+- Netlink overlap instrumentation (make `tc dump` vs `tc change` contention measurable in production)
+- `cake_stats_thread` cadence tuning or post-apply backoff to reduce kernel RTNL contention
+- Reflector scorer blackout-awareness — stop decrementing per-host scores on path-wide failures
+- Log noise reduction for fusion-suspended "Protocol deprioritization detected" INFO lines
+
+**Key context:**
+- Joint Claude+Codex production audit (2026-04-20) identified two top systemic hotspots in v1.38.0: slow CAKE apply (107 Spectrum / ~240 ATT cumulative overruns) and 1735/24h Spectrum RTT blackouts being misattributed to individual reflectors.
+- Controller main thread is idle (1.4% util, 0.7ms avg). All issues live in out-of-band paths — netlink apply, scorer, logs.
+- Priority: stability > safety > clarity > elegance. Every change A/B-compared via flent (RRUL, tcp_12down, VoIP) before shipping.
 
 ## Completed Milestone: v1.38 Measurement Resilience Under Load
 
@@ -312,11 +322,11 @@ thresholds or steering behavior.
 
 ### Active
 
-- [ ] Reflector success quorum is exposed as an explicit measurement-health contract instead of passive metadata.
-- [ ] Zero-success background RTT cycles cannot silently reuse cached RTT as if it were a healthy current sample.
-- [ ] Autorate `/health` distinguishes measurement degradation from router-down and disk-pressure cases.
-- [ ] Operators can correlate `tcp_12down` latency collapse with reflector loss and protocol churn from one bounded investigation path.
-- [ ] Regression coverage protects reduced-quorum, stale-cache, and degraded-health behavior without changing core congestion thresholds.
+- [ ] Netlink `tc dump` vs `tc change` overlap is measurable in production health/metrics.
+- [ ] `cake_stats_thread` cadence is tunable at runtime and its effect on Slow CAKE apply p99 is A/B-verified.
+- [ ] Cycle overrun rate per hour drops measurably on both Spectrum and ATT vs v1.38.0 baseline.
+- [ ] Reflector scorer treats all-host zero-success cycles as path-wide blackouts and does not decrement individual host scores.
+- [ ] "Protocol deprioritization detected" INFO logs are rate-limited or demoted when fusion is suspended/disabled.
 
 ### Deferred
 
@@ -650,4 +660,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-15 after archiving v1.38 milestone_
+_Last updated: 2026-04-20 — v1.39 Control-Path Timing & Measurement Accounting milestone started_

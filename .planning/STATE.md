@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.38
-milestone_name: milestone
-status: completed
-stopped_at: v1.38 milestone archived
-last_updated: "2026-04-15T13:14:53.577Z"
-last_activity: 2026-04-15
+milestone: v1.39
+milestone_name: Control-Path Timing & Measurement Accounting
+status: defining_requirements
+stopped_at: v1.39 milestone started
+last_updated: "2026-04-20T00:00:00.000Z"
+last_activity: 2026-04-20
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-15)
+See: .planning/PROJECT.md (updated 2026-04-20)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** No active milestone - define the next one with /gsd-new-milestone
+**Current focus:** v1.39 — reduce netlink-apply tail latency and fix reflector scorer blackout misattribution
 
 ## Position
 
-**Milestone:** v1.38 archived
-**Phase:** Complete
-**Plan:** Complete
-**Status:** Ready for next milestone
-**Last activity:** 2026-04-15
+**Milestone:** v1.39 Control-Path Timing & Measurement Accounting
+**Phase:** Not started (defining requirements)
+**Plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-04-20 — Milestone v1.39 started
 
-Progress: [██████████] 100%
+Progress: [          ] 0%
 
 ## Accumulated Context
 
