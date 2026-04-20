@@ -850,6 +850,45 @@ class Config(BaseConfig):
         else:
             logger.info("IRTT: disabled (enable via irtt.enabled + irtt.server)")
 
+    def _load_cake_stats_cadence_config(self) -> None:
+        """Load background CAKE stats polling cadence.
+
+        Validates continuous_monitoring.cake_stats_cadence_sec. Invalid values
+        warn and fall back to 0.05 so the v1.38.0 50ms polling behavior stays
+        unchanged by default. Absurdly large values are capped to avoid
+        effectively disabling CAKE polling due to operator typos.
+        """
+        logger = logging.getLogger(__name__)
+        cm = self.data.get("continuous_monitoring", {})
+        if not isinstance(cm, dict):
+            cm = {}
+
+        cake_stats_cadence_sec_max = 10.0
+        cadence_sec = cm.get("cake_stats_cadence_sec", 0.05)
+        if (
+            not isinstance(cadence_sec, (int, float))
+            or isinstance(cadence_sec, bool)
+            or cadence_sec <= 0
+        ):
+            logger.warning(
+                "continuous_monitoring.cake_stats_cadence_sec must be positive number, "
+                "got %r; defaulting to 0.05",
+                cadence_sec,
+            )
+            cadence_sec = 0.05
+        elif cadence_sec > cake_stats_cadence_sec_max:
+            logger.warning(
+                "continuous_monitoring.cake_stats_cadence_sec value %r exceeds maximum "
+                "%.1f; capping at %.1f (200x default)",
+                cadence_sec,
+                cake_stats_cadence_sec_max,
+                cake_stats_cadence_sec_max,
+            )
+            cadence_sec = cake_stats_cadence_sec_max
+
+        self.cake_stats_cadence_sec: float = float(cadence_sec)
+        logger.info("CAKE stats background cadence: %ss", self.cake_stats_cadence_sec)
+
     def _load_reflector_quality_config(self) -> None:
         """Load reflector quality scoring configuration.
 
@@ -1464,6 +1503,9 @@ class Config(BaseConfig):
 
         # IRTT measurement (optional, disabled by default)
         self._load_irtt_config()
+
+        # Background CAKE stats cadence (optional, default preserves 50ms behavior)
+        self._load_cake_stats_cadence_config()
 
         # Reflector quality scoring (optional, all defaults if absent)
         self._load_reflector_quality_config()
