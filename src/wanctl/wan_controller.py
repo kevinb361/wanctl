@@ -591,6 +591,7 @@ class WANController:
         self._profiling_enabled = False
         self._overrun_count = 0
         self._cycle_interval_ms = CYCLE_INTERVAL_SECONDS * 1000.0
+        self._cake_stats_cadence_sec: float = config.cake_stats_cadence_sec
 
         # Cycle budget regression indicator (Phase 132: PERF-03)
         cm_config = config.data.get("continuous_monitoring", {}) if config.data else {}
@@ -927,7 +928,7 @@ class WANController:
             dl_interface=adapter.dl_backend.interface,
             ul_interface=adapter.ul_backend.interface,
             shutdown_event=shutdown_event,
-            cadence_sec=self._cycle_interval_ms / 1000.0,
+            cadence_sec=self._cake_stats_cadence_sec,
         )
         self._cake_stats_thread.start()
 
