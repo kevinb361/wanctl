@@ -1414,6 +1414,168 @@ class TestCycleBudgetInHealthEndpoint:
         finally:
             server.shutdown()
 
+    def test_background_workers_expose_cake_stats_overlap_with_active_now_and_last_overlap(
+        self,
+    ):
+        """Health response rounds overlap values at serialization time only."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True)
+        wan._background_workers_health = {
+            "rtt": {
+                "cadence_sec": 0.25,
+                "stats": {
+                    "avg_ms": 12.34,
+                    "p95_ms": 20.0,
+                    "p99_ms": 25.0,
+                    "max_ms": 30.0,
+                },
+                "staleness_sec": 0.01,
+            },
+            "cake_stats": {
+                "cadence_sec": 0.05,
+                "stats": {
+                    "avg_ms": 7.0,
+                    "p95_ms": 10.0,
+                    "p99_ms": 12.0,
+                    "max_ms": 15.0,
+                },
+                "staleness_sec": 0.02,
+                "overlap": {
+                    "active_now": False,
+                    "last_overlap_ms": 4.567891234,
+                    "last_overlap_monotonic": 100.123456789,
+                    "episodes": 3,
+                    "max_overlap_ms": 7.2398765,
+                    "slow_apply_with_overlap_count": 1,
+                    "last_dump_started_monotonic": 100.100001234,
+                    "last_dump_finished_monotonic": 100.110987654,
+                    "last_dump_elapsed_ms": 10.987654,
+                    "last_apply_started_monotonic": 100.105432,
+                    "last_apply_finished_monotonic": 100.112999,
+                },
+            },
+            "irtt": {
+                "cadence_sec": 10.0,
+                "stats": {},
+                "staleness_sec": None,
+            },
+        }
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            overlap = data["wans"][0]["background_workers"]["cake_stats"]["overlap"]
+            assert overlap["active_now"] is False
+            assert overlap["episodes"] == 3
+            assert overlap["max_overlap_ms"] == 7.24
+            assert overlap["last_overlap_ms"] == 4.568
+            assert overlap["last_overlap_monotonic"] == 100.123
+            assert overlap["last_dump_started_monotonic"] == 100.1
+            assert overlap["last_dump_finished_monotonic"] == 100.111
+            assert overlap["last_dump_elapsed_ms"] == 10.988
+            assert overlap["last_apply_started_monotonic"] == 100.105
+            assert overlap["last_apply_finished_monotonic"] == 100.113
+            assert overlap["slow_apply_with_overlap_count"] == 1
+        finally:
+            server.shutdown()
+
+    def test_background_workers_omit_overlap_when_not_provided(self):
+        """Missing overlap data leaves the cake_stats.overlap key absent."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True)
+        wan._background_workers_health = {
+            "cake_stats": {
+                "cadence_sec": 0.05,
+                "stats": {
+                    "avg_ms": 7.0,
+                    "p95_ms": 10.0,
+                    "p99_ms": 12.0,
+                    "max_ms": 15.0,
+                },
+                "staleness_sec": 0.02,
+            }
+        }
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            assert "overlap" not in data["wans"][0]["background_workers"]["cake_stats"]
+        finally:
+            server.shutdown()
+
+    def test_background_workers_cake_stats_overlap_active_now_true_when_in_flight(self):
+        """Renderer preserves active_now and unfinished edge markers."""
+        wan = self._make_mock_wan_controller(with_profiler_data=True)
+        wan._background_workers_health = {
+            "cake_stats": {
+                "cadence_sec": 0.05,
+                "stats": {
+                    "avg_ms": 7.0,
+                    "p95_ms": 10.0,
+                    "p99_ms": 12.0,
+                    "max_ms": 15.0,
+                },
+                "staleness_sec": 0.02,
+                "overlap": {
+                    "active_now": True,
+                    "last_overlap_ms": None,
+                    "last_overlap_monotonic": None,
+                    "episodes": 0,
+                    "max_overlap_ms": 0.0,
+                    "slow_apply_with_overlap_count": 0,
+                    "last_dump_started_monotonic": 100.100001234,
+                    "last_dump_finished_monotonic": None,
+                    "last_dump_elapsed_ms": None,
+                    "last_apply_started_monotonic": 100.105432,
+                    "last_apply_finished_monotonic": None,
+                },
+            }
+        }
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=mock_controller)
+
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+            overlap = data["wans"][0]["background_workers"]["cake_stats"]["overlap"]
+            assert overlap["active_now"] is True
+            assert overlap["last_dump_finished_monotonic"] is None
+            assert overlap["last_apply_finished_monotonic"] is None
+        finally:
+            server.shutdown()
+
 
 class TestDiskSpaceStatus:
     """Tests for _get_disk_space_status helper function."""

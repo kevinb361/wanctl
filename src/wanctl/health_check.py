@@ -492,6 +492,45 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if isinstance(cadence_sec, (int, float)) and cadence_sec > 0:
                     cadence_ms = cadence_sec * 1000.0
                     entry["utilization_pct"] = round((stats["avg_ms"] / cadence_ms) * 100.0, 1)
+            overlap = worker.get("overlap")
+            if isinstance(overlap, dict):
+                rendered_overlap: dict[str, Any] = {
+                    "active_now": bool(overlap.get("active_now", False)),
+                }
+                for ts_key in (
+                    "last_dump_started_monotonic",
+                    "last_dump_finished_monotonic",
+                    "last_apply_started_monotonic",
+                    "last_apply_finished_monotonic",
+                    "last_overlap_monotonic",
+                ):
+                    value = overlap.get(ts_key)
+                    rendered_overlap[ts_key] = (
+                        round(value, 3)
+                        if isinstance(value, (int, float)) and not isinstance(value, bool)
+                        else None
+                    )
+                for ms_key in ("last_dump_elapsed_ms", "last_overlap_ms"):
+                    value = overlap.get(ms_key)
+                    rendered_overlap[ms_key] = (
+                        round(value, 3)
+                        if isinstance(value, (int, float)) and not isinstance(value, bool)
+                        else None
+                    )
+                value = overlap.get("max_overlap_ms")
+                rendered_overlap["max_overlap_ms"] = (
+                    round(value, 3)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool)
+                    else 0.0
+                )
+                for int_key in ("episodes", "slow_apply_with_overlap_count"):
+                    value = overlap.get(int_key)
+                    rendered_overlap[int_key] = (
+                        int(value)
+                        if isinstance(value, (int, float)) and not isinstance(value, bool)
+                        else 0
+                    )
+                entry["overlap"] = rendered_overlap
             result[name] = entry
 
         return result or None
