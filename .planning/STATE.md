@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.39
 milestone_name: milestone
 status: executing
-stopped_at: Completed 191.1-01-PLAN.md
-last_updated: "2026-04-20T17:20:17.147Z"
+stopped_at: Completed 191.1-03-PLAN.md
+last_updated: "2026-04-20T17:32:16.095Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 
 **Milestone:** v1.39 Control-Path Timing & Measurement Accounting
 **Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure)
-**Plan:** 02 next (`191.1-02-validation-rerun-PLAN.md`)
-**Status:** Plan 01 complete; Phase 191.1 still executing
+**Plan:** Complete
+**Status:** Phase 191.1 complete; Phase 191 closure remains blocked on `reflector_unreachable`
 **Last activity:** 2026-04-20
 
-Progress: [###-------] 33%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -83,7 +83,7 @@ Progress: [###-------] 33%
 
 ## Session Continuity
 
-Stopped at: Completed 191.1-01-PLAN.md
+Stopped at: Completed 191.1-03-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -109,9 +109,13 @@ Resume file: None
 - [Phase 187]: Plan 187-04 keeps the gap closure tests-only and pins the producer-side get_cycle_status() contract by driving BackgroundRTTThread._run() directly inside TestBackgroundRTTThread.
 - [Phase 191.1]: Restored ATT irtt.server and fusion.enabled together to the v1.38 baseline in one coordinated config commit.
 - [Phase 191.1]: Used a semantic YAML diff against v1.38 plus SAFE-03 token scan to prove no other ATT config keys changed.
+- [Phase 191.1]: Preserved the milestone-wide SAFE-03 dirty diff as contextual debt while making the phase-local comparator the Phase 191 closure rule.
+- [Phase 191.1]: Used outcome_class=reflector_unreachable as the authoritative verdict source, yielding BLOCKED instead of PASS or FAIL.
+- [Phase 191.1]: Kept Plan 05 ATT failure history intact and added Phase 191.1 closure wording as additive evidence only.
 
 ## Performance Metrics
 
+- 2026-04-20: Phase 191.1 Plan 03 completed in 15 min across 2 tasks and 3 files.
 - 2026-04-20: Phase 191.1 Plan 01 completed in 3 min across 2 tasks and 2 files.
 - 2026-04-15: Phase 187 Plan 04 completed in 4 min across 1 task and 1 test file.
 - 2026-04-15: Phase 187 Plan 02 completed in 15 min across 1 task and 1 source file.
@@ -125,5 +129,9 @@ Resume file: None
 - 2026-04-14: Phase 185 Plan 03 completed with repo-side verification evidence and `171` dashboard tests passing.
 - 2026-04-14: Milestone v1.37 archived with 5/5 requirements satisfied and 3/3 phases complete.
 - 2026-04-14: Milestone v1.37 audit refreshed to `passed`; all three milestone phases now have Nyquist-compliant validation artifacts and no blocker-level integration or flow gaps remain.
+
+## Blockers
+
+- Phase 191 closure remains blocked: restored ATT config rerun ended with `outcome_class=reflector_unreachable` before any flent measurement started, so `VALN-02` could not produce a valid throughput verdict.
 
 **Planned Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure) — 3 plans — 2026-04-20T17:15:22.073Z
