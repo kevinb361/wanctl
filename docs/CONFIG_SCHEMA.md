@@ -213,6 +213,22 @@ continuous_monitoring:
 - **Default:** `true`
 - **Description:** Use median of multiple pings for noise reduction
 
+#### `continuous_monitoring.cake_stats_cadence_sec`
+
+- **Type:** number (seconds, float)
+- **Default:** `0.05` (preserves v1.38.0 50ms background polling behavior)
+- **Maximum:** `10.0` (values above are capped with a warning to protect against typos)
+- **Purpose:** Controls the cadence of `BackgroundCakeStatsThread`, which issues
+  `tc("dump")` calls to read CAKE qdisc statistics off the main control path.
+- **Does NOT change:** the control-loop interval. `CYCLE_INTERVAL_SECONDS` remains 50ms.
+- **Invalid values:** non-numeric, boolean, zero, and negative values warn at startup and
+  fall back to `0.05`.
+- **Absurdly large values:** values greater than `10.0` warn at startup and are capped at
+  `10.0` so polling is not effectively disabled by configuration mistakes.
+- **Tuning guidance:** increase cautiously only when A/B evidence from flent
+  (`RRUL`, `tcp_12down`, `VoIP`) plus `/health` background worker overlap data shows lower
+  slow-apply timing without latency regression.
+
 #### `continuous_monitoring.fallback_checks` (optional)
 
 Multi-protocol connectivity verification when ICMP pings fail. Prevents unnecessary watchdog restarts caused by ISP ICMP filtering or rate-limiting.
