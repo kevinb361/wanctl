@@ -1360,6 +1360,7 @@ class TestVerifyLocalConnectivity:
         config.fallback_mode = "graceful_degradation"
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
+        config.cake_stats_cadence_sec = 0.05
         config.state_file = MagicMock()
         config.alerting_config = None
         config.signal_processing_config = {
@@ -1501,6 +1502,7 @@ class TestVerifyTcpConnectivity:
         config.fallback_mode = "graceful_degradation"
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
+        config.cake_stats_cadence_sec = 0.05
         config.state_file = MagicMock()
         config.alerting_config = None
         config.signal_processing_config = {
@@ -1674,6 +1676,7 @@ class TestVerifyConnectivityFallback:
         config.fallback_mode = "graceful_degradation"
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
+        config.cake_stats_cadence_sec = 0.05
         config.state_file = MagicMock()
         config.alerting_config = None
         config.signal_processing_config = {
@@ -1831,6 +1834,7 @@ class TestStateLoadSave:
         config.fallback_mode = "graceful_degradation"
         config.fallback_max_cycles = 3
         config.metrics_enabled = False
+        config.cake_stats_cadence_sec = 0.05
         config.state_file = MagicMock()
         config.alerting_config = None
         config.signal_processing_config = {
@@ -2131,6 +2135,170 @@ class TestStateLoadSave:
 
         assert mock_thread_cls.call_args.kwargs["cadence_sec"] == pytest.approx(0.25)
         mock_thread.start.assert_called_once()
+
+    def test_update_overlap_counters_increments_on_apply_completion_with_dump_overlap(
+        self, controller_with_mocks
+    ):
+        """Apply completion records one overlap episode and stays idempotent."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl.router.dl_backend = MagicMock()
+        ctrl.router.dl_backend._last_apply_started_monotonic = 100.105
+        ctrl.router.dl_backend._last_apply_finished_monotonic = 100.112
+        ctrl.router.dl_backend._last_apply_was_kernel_write = True
+        ctrl.router.ul_backend = MagicMock()
+        ctrl.router.ul_backend._last_apply_started_monotonic = None
+        ctrl.router.ul_backend._last_apply_finished_monotonic = None
+        ctrl.router.ul_backend._last_apply_was_kernel_write = False
+        ctrl._cake_stats_thread = MagicMock()
+        ctrl._cake_stats_thread.get_overlap_snapshot.return_value = MagicMock(
+            last_dump_started_monotonic=100.100,
+            last_dump_finished_monotonic=100.110,
+        )
+
+        assert ctrl._overlap_episodes == 0
+
+        ctrl._update_overlap_counters_on_apply_completion()
+
+        assert ctrl._overlap_episodes == 1
+        assert ctrl._overlap_max_ms == pytest.approx(5.0, abs=0.01)
+        assert ctrl._last_overlap_ms == pytest.approx(5.0, abs=0.01)
+        assert ctrl._last_overlap_monotonic == pytest.approx(100.110, abs=1e-6)
+        assert ctrl._last_counted_apply_finished_monotonic == 100.112
+
+        ctrl._update_overlap_counters_on_apply_completion()
+
+        assert ctrl._overlap_episodes == 1
+        assert ctrl._overlap_max_ms == pytest.approx(5.0, abs=0.01)
+        assert ctrl._last_overlap_ms == pytest.approx(5.0, abs=0.01)
+
+    def test_update_overlap_counters_skips_when_no_kernel_write(self, controller_with_mocks):
+        """Skip-only applies do not mutate overlap counters."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl.router.dl_backend = MagicMock()
+        ctrl.router.dl_backend._last_apply_started_monotonic = 100.105
+        ctrl.router.dl_backend._last_apply_finished_monotonic = 100.112
+        ctrl.router.dl_backend._last_apply_was_kernel_write = False
+        ctrl.router.ul_backend = MagicMock()
+        ctrl.router.ul_backend._last_apply_started_monotonic = 100.106
+        ctrl.router.ul_backend._last_apply_finished_monotonic = 100.113
+        ctrl.router.ul_backend._last_apply_was_kernel_write = False
+        ctrl._cake_stats_thread = MagicMock()
+        ctrl._cake_stats_thread.get_overlap_snapshot.return_value = MagicMock(
+            last_dump_started_monotonic=100.100,
+            last_dump_finished_monotonic=100.110,
+        )
+
+        ctrl._update_overlap_counters_on_apply_completion()
+
+        assert ctrl._overlap_episodes == 0
+        assert ctrl._last_overlap_ms is None
+        assert ctrl._last_counted_apply_finished_monotonic is None
+
+    def test_get_health_data_exposes_cake_stats_overlap_pure_reader_contract(
+        self, controller_with_mocks
+    ):
+        """Health facade exposes overlap without mutating controller counters."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl._overlap_episodes = 3
+        ctrl._overlap_max_ms = 7.25
+        ctrl._slow_apply_with_overlap_count = 1
+        ctrl._last_overlap_ms = 4.5
+        ctrl._last_overlap_monotonic = 200.10
+        ctrl._cake_stats_cadence_sec = 0.2
+        ctrl.router.dl_backend = MagicMock()
+        ctrl.router.dl_backend._last_apply_started_monotonic = 199.95
+        ctrl.router.dl_backend._last_apply_finished_monotonic = 200.00
+        ctrl.router.ul_backend = MagicMock()
+        ctrl.router.ul_backend._last_apply_started_monotonic = None
+        ctrl.router.ul_backend._last_apply_finished_monotonic = None
+        ctrl._cake_stats_thread = MagicMock()
+        ctrl._cake_stats_thread.get_overlap_snapshot.return_value = MagicMock(
+            last_dump_started_monotonic=199.90,
+            last_dump_finished_monotonic=199.99,
+            last_dump_elapsed_ms=8.0,
+        )
+        ctrl._cake_stats_thread.get_latest.return_value = MagicMock(timestamp=200.0)
+        ctrl._cake_stats_thread.get_profile_stats.return_value = {"avg_ms": 7.0}
+
+        with patch("wanctl.wan_controller.time.monotonic", return_value=200.25):
+            health = ctrl.get_health_data()
+            health_again = ctrl.get_health_data()
+
+        overlap = health["background_workers"]["cake_stats"]["overlap"]
+        assert overlap["active_now"] is False
+        assert overlap["last_overlap_ms"] == pytest.approx(4.5)
+        assert overlap["last_overlap_monotonic"] == pytest.approx(200.10)
+        assert overlap["episodes"] == 3
+        assert overlap["max_overlap_ms"] == pytest.approx(7.25)
+        assert overlap["slow_apply_with_overlap_count"] == 1
+        assert overlap["last_dump_started_monotonic"] == pytest.approx(199.90)
+        assert overlap["last_dump_finished_monotonic"] == pytest.approx(199.99)
+        assert overlap["last_dump_elapsed_ms"] == pytest.approx(8.0)
+        assert overlap["last_apply_started_monotonic"] == pytest.approx(199.95)
+        assert overlap["last_apply_finished_monotonic"] == pytest.approx(200.00)
+        assert (
+            health["background_workers"]["cake_stats"]["cadence_sec"]
+            == pytest.approx(ctrl._cake_stats_cadence_sec)
+        )
+        assert (
+            health_again["background_workers"]["cake_stats"]["overlap"]["episodes"] == 3
+        )
+        assert ctrl._overlap_episodes == 3
+        assert ctrl._overlap_max_ms == pytest.approx(7.25)
+        assert ctrl._slow_apply_with_overlap_count == 1
+
+    def test_log_slow_router_apply_counts_as_overlap_when_recent_completed_overlap(
+        self, controller_with_mocks
+    ):
+        """Recent completed overlap increments the slow-apply overlap counter."""
+        ctrl, _, _, _ = controller_with_mocks
+
+        ctrl._last_overlap_ms = 3.0
+        ctrl._last_overlap_monotonic = 300.5
+        ctrl._slow_apply_with_overlap_count = 0
+        ctrl.router.dl_backend = MagicMock()
+        ctrl.router.dl_backend._last_apply_started_monotonic = 300.40
+        ctrl.router.dl_backend._last_apply_finished_monotonic = 300.45
+        ctrl.router.ul_backend = MagicMock()
+        ctrl.router.ul_backend._last_apply_started_monotonic = None
+        ctrl.router.ul_backend._last_apply_finished_monotonic = None
+        ctrl._cake_stats_thread = MagicMock()
+        ctrl._cake_stats_thread.get_overlap_snapshot.return_value = MagicMock(
+            last_dump_started_monotonic=300.30,
+            last_dump_finished_monotonic=300.35,
+            last_dump_elapsed_ms=6.0,
+        )
+
+        with patch("wanctl.wan_controller.time.monotonic", return_value=301.0):
+            ctrl._log_slow_router_apply(
+                elapsed_ms=85.0,
+                dl_rate=50_000_000,
+                ul_rate=20_000_000,
+                breakdown={
+                    "autorate_router_apply_primary": 85.0,
+                    "autorate_router_write_download": 42.0,
+                    "autorate_router_write_upload": 41.0,
+                    "autorate_router_write_skipped": 0.0,
+                    "autorate_router_write_fallback": 0.0,
+                },
+            )
+
+        assert ctrl._slow_apply_with_overlap_count == 1
+        warning_args = ctrl.logger.warning.call_args.args
+        assert "overlap=%s" in warning_args[0]
+        assert any(
+            isinstance(arg, dict) and "active_now" in arg for arg in warning_args
+        )
+        assert any(
+            isinstance(arg, dict)
+            and "write_download_ms" in arg
+            and "write_upload_ms" in arg
+            and "apply_primary_ms" in arg
+            for arg in warning_args
+        )
 
     def test_zone_attrs_initialized_green(self, controller_with_mocks):
         """New WANController has _dl_zone='GREEN' and _ul_zone='GREEN'."""
