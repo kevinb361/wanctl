@@ -43,6 +43,9 @@ cake_params:
 # Continuous monitoring - Expert-tuned for Spectrum Cable
 continuous_monitoring:
   enabled: true
+  # cake_stats_cadence_sec: 0.05  # Background tc("dump") polling cadence, seconds.
+  # Default 0.05 preserves v1.38.0 50ms behavior. Values above 10.0 are capped.
+  # Tune only with flent + /health overlap A/B evidence; see docs/CONFIG_SCHEMA.md.
 
   # Baseline RTT (seeded from production autotuning 2026-03-25)
   baseline_rtt_initial: 22 # Autotuned from 24 (1379 samples, baseline_rtt_min=19.7)
