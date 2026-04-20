@@ -398,6 +398,14 @@ class WANController:
         self._slow_router_apply_last_log_ts: float = 0.0
         self._slow_router_apply_suppressed_count: int = 0
         self._slow_router_apply_log_cooldown_sec: float = 1.0
+        # Phase 191: bounded overlap counters (event-edge ownership — mutated only by
+        # _update_overlap_counters_on_apply_completion, never by read-time code paths)
+        self._overlap_episodes: int = 0
+        self._overlap_max_ms: float = 0.0
+        self._slow_apply_with_overlap_count: int = 0
+        self._last_overlap_ms: float | None = None
+        self._last_overlap_monotonic: float | None = None
+        self._last_counted_apply_finished_monotonic: float | None = None
 
         # Fallback connectivity tracking (ICMP filtered but WAN works)
         self.icmp_unavailable_cycles = 0
@@ -1413,6 +1421,10 @@ class WANController:
 
         # Apply to router
         success = self.router.set_limits(wan=self.wan_name, down_bps=dl_rate, up_bps=ul_rate)
+        try:
+            self._update_overlap_counters_on_apply_completion()
+        except Exception:
+            self.logger.debug("overlap counter update failed", exc_info=True)
 
         if not success:
             self.logger.error(f"{self.wan_name}: Failed to apply limits")
@@ -1431,9 +1443,9 @@ class WANController:
         # applied kernel rates separately. Fall back to the requested values for
         # backends that do not expose that detail.
         applied_dl_rate, applied_ul_rate = dl_rate, ul_rate
-        applied_rates = getattr(type(self.router), "get_last_applied_limits", None)
+        applied_rates = getattr(self.router, "get_last_applied_limits", None)
         if callable(applied_rates):
-            applied = self.router.get_last_applied_limits()
+            applied = applied_rates()
             if (
                 isinstance(applied, tuple)
                 and len(applied) == 2
@@ -2875,6 +2887,123 @@ class WANController:
             "cold_start": snapshot.cold_start,
         }
 
+    def _update_overlap_counters_on_apply_completion(self) -> None:
+        """Update bounded overlap counters after a router apply attempt completes."""
+        adapter = getattr(self, "router", None)
+        apply_started: float | None = None
+        apply_finished: float | None = None
+        any_kernel_write = False
+        for backend_name in ("dl_backend", "ul_backend"):
+            backend = getattr(adapter, backend_name, None) if adapter is not None else None
+            if backend is None:
+                continue
+            started = getattr(backend, "_last_apply_started_monotonic", None)
+            finished = getattr(backend, "_last_apply_finished_monotonic", None)
+            was_kernel_write = getattr(backend, "_last_apply_was_kernel_write", False)
+            if isinstance(started, (int, float)) and not isinstance(started, bool):
+                started_value = float(started)
+                if apply_started is None or started_value > apply_started:
+                    apply_started = started_value
+            if isinstance(finished, (int, float)) and not isinstance(finished, bool):
+                finished_value = float(finished)
+                if apply_finished is None or finished_value > apply_finished:
+                    apply_finished = finished_value
+            if isinstance(was_kernel_write, bool) and was_kernel_write:
+                any_kernel_write = True
+
+        if not any_kernel_write or apply_started is None or apply_finished is None:
+            return
+        if self._last_counted_apply_finished_monotonic == apply_finished:
+            return
+
+        dump_started: float | None = None
+        dump_finished: float | None = None
+        thread = self._cake_stats_thread
+        if thread is not None and hasattr(thread, "get_overlap_snapshot"):
+            dump_snapshot = thread.get_overlap_snapshot()
+            started = getattr(dump_snapshot, "last_dump_started_monotonic", None)
+            finished = getattr(dump_snapshot, "last_dump_finished_monotonic", None)
+            if isinstance(started, (int, float)) and not isinstance(started, bool):
+                dump_started = float(started)
+            if isinstance(finished, (int, float)) and not isinstance(finished, bool):
+                dump_finished = float(finished)
+
+        self._last_counted_apply_finished_monotonic = apply_finished
+
+        if dump_started is None or dump_finished is None:
+            return
+
+        overlap_start = max(apply_started, dump_started)
+        overlap_end = min(apply_finished, dump_finished)
+        if overlap_end > overlap_start:
+            overlap_ms = (overlap_end - overlap_start) * 1000.0
+            self._overlap_episodes += 1
+            self._overlap_max_ms = max(self._overlap_max_ms, overlap_ms)
+            self._last_overlap_ms = overlap_ms
+            self._last_overlap_monotonic = overlap_end
+
+    def _compute_cake_overlap(self) -> dict[str, Any]:
+        """Return the current bounded CAKE dump/apply overlap snapshot."""
+        result: dict[str, Any] = {
+            "active_now": False,
+            "last_overlap_ms": self._last_overlap_ms,
+            "last_overlap_monotonic": self._last_overlap_monotonic,
+            "episodes": int(self._overlap_episodes),
+            "max_overlap_ms": float(self._overlap_max_ms),
+            "slow_apply_with_overlap_count": int(self._slow_apply_with_overlap_count),
+            "last_dump_started_monotonic": None,
+            "last_dump_finished_monotonic": None,
+            "last_dump_elapsed_ms": None,
+            "last_apply_started_monotonic": None,
+            "last_apply_finished_monotonic": None,
+        }
+
+        # PURE READER — no self._overlap_* mutations below this line.
+        dump_started: float | None = None
+        dump_finished: float | None = None
+        thread = self._cake_stats_thread
+        if thread is not None and hasattr(thread, "get_overlap_snapshot"):
+            dump_snapshot = thread.get_overlap_snapshot()
+            started = getattr(dump_snapshot, "last_dump_started_monotonic", None)
+            finished = getattr(dump_snapshot, "last_dump_finished_monotonic", None)
+            elapsed_ms = getattr(dump_snapshot, "last_dump_elapsed_ms", None)
+            if isinstance(started, (int, float)) and not isinstance(started, bool):
+                dump_started = float(started)
+                result["last_dump_started_monotonic"] = dump_started
+            if isinstance(finished, (int, float)) and not isinstance(finished, bool):
+                dump_finished = float(finished)
+                result["last_dump_finished_monotonic"] = dump_finished
+            if isinstance(elapsed_ms, (int, float)) and not isinstance(elapsed_ms, bool):
+                result["last_dump_elapsed_ms"] = float(elapsed_ms)
+
+        adapter = getattr(self, "router", None)
+        apply_started: float | None = None
+        apply_finished: float | None = None
+        for backend_name in ("dl_backend", "ul_backend"):
+            backend = getattr(adapter, backend_name, None) if adapter is not None else None
+            if backend is None:
+                continue
+            started = getattr(backend, "_last_apply_started_monotonic", None)
+            finished = getattr(backend, "_last_apply_finished_monotonic", None)
+            if isinstance(started, (int, float)) and not isinstance(started, bool):
+                started_value = float(started)
+                if apply_started is None or started_value > apply_started:
+                    apply_started = started_value
+            if isinstance(finished, (int, float)) and not isinstance(finished, bool):
+                finished_value = float(finished)
+                if apply_finished is None or finished_value > apply_finished:
+                    apply_finished = finished_value
+
+        if apply_started is not None:
+            result["last_apply_started_monotonic"] = apply_started
+        if apply_finished is not None:
+            result["last_apply_finished_monotonic"] = apply_finished
+
+        dump_in_progress = dump_started is not None and dump_finished is None
+        apply_in_progress = apply_started is not None and apply_finished is None
+        result["active_now"] = bool(dump_in_progress and apply_in_progress)
+        return result
+
     def _log_slow_router_apply(
         self,
         elapsed_ms: float,
@@ -2899,9 +3028,27 @@ class WANController:
                 now - last_log_ts if last_log_ts > 0 else cooldown_sec,
             )
 
+        overlap_summary = self._compute_cake_overlap()
+        counted_as_overlap = False
+        if overlap_summary.get("active_now"):
+            counted_as_overlap = True
+        else:
+            last_overlap_monotonic = overlap_summary.get("last_overlap_monotonic")
+            if (
+                isinstance(last_overlap_monotonic, (int, float))
+                and not isinstance(last_overlap_monotonic, bool)
+                and (time.monotonic() - float(last_overlap_monotonic)) <= 2.0
+            ):
+                counted_as_overlap = True
+        if counted_as_overlap:
+            self._slow_apply_with_overlap_count += 1
+            overlap_summary["slow_apply_with_overlap_count"] = int(
+                self._slow_apply_with_overlap_count
+            )
+
         self.logger.warning(
             "%s: Slow CAKE apply %.1fms (dl_rate=%.1fMbps ul_rate=%.1fMbps breakdown=%s "
-            "dl_cake=%s ul_cake=%s)",
+            "dl_cake=%s ul_cake=%s overlap=%s)",
             self.wan_name,
             elapsed_ms,
             dl_rate / 1e6,
@@ -2923,6 +3070,7 @@ class WANController:
             },
             self._format_cake_snapshot_summary(self._dl_cake_snapshot),
             self._format_cake_snapshot_summary(self._ul_cake_snapshot),
+            overlap_summary,
         )
         self._slow_router_apply_last_log_ts = now
         self._slow_router_apply_suppressed_count = 0
@@ -3629,6 +3777,12 @@ class WANController:
             storage_snapshot["pending_writes"] = self._io_worker.pending_count
         storage_files = get_storage_file_snapshot(self._storage_db_path)
         rss_bytes, swap_bytes = read_process_memory_status()
+        cake_stats_latest = (
+            self._cake_stats_thread.get_latest()
+            if self._cake_stats_thread is not None
+            else None
+        )
+        irtt_latest = self._irtt_thread.get_latest() if self._irtt_thread is not None else None
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -3690,16 +3844,20 @@ class WANController:
                     ),
                 },
                 "cake_stats": {
-                    "cadence_sec": self._cycle_interval_ms / 1000.0,
+                    "cadence_sec": self._cake_stats_cadence_sec,
                     "stats": (
                         self._cake_stats_thread.get_profile_stats()
                         if self._cake_stats_thread is not None
                         else {}
                     ),
                     "staleness_sec": (
-                        time.monotonic() - self._cake_stats_thread.get_latest().timestamp
+                        time.monotonic() - cake_stats_latest.timestamp
+                        if cake_stats_latest is not None
+                        else None
+                    ),
+                    "overlap": (
+                        self._compute_cake_overlap()
                         if self._cake_stats_thread is not None
-                        and self._cake_stats_thread.get_latest() is not None
                         else None
                     ),
                 },
@@ -3715,9 +3873,8 @@ class WANController:
                         else {}
                     ),
                     "staleness_sec": (
-                        time.monotonic() - self._irtt_thread.get_latest().timestamp
-                        if self._irtt_thread is not None
-                        and self._irtt_thread.get_latest() is not None
+                        time.monotonic() - irtt_latest.timestamp
+                        if irtt_latest is not None
                         else None
                     ),
                 },
