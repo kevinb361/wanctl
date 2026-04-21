@@ -97,6 +97,10 @@ ssh <host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'
 - Only new latency-sensitive connections are rerouted.
 - Autorate baseline RTT remains authoritative.
 
+### Health / Observability
+
+- Health and observability paths are part of the contract — do not break payload shape casually.
+
 ## Tuning Guidance
 
 Do not recommend threshold or bounds changes casually. First read:
