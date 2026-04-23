@@ -6,7 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot
+from wanctl.storage.writer import MetricsWriter
 from wanctl.wan_controller import BACKGROUND_RTT_MIN_CADENCE_SECONDS
 
 
@@ -3291,3 +3293,182 @@ class TestZeroSuccessCycle:
         mock_wan_controller.logger.info.assert_called_once()
         assert mock_wan_controller._zero_success_blackout_active is False
         assert mock_wan_controller._zero_success_blackout_cycles == 0
+
+
+class TestReflectorScorerBlackoutGate:
+    """Authoritative controller x scorer regression coverage for blackout gating."""
+
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.wan_controller import WANController
+
+        mock_autorate_config.wan_name = "TestWAN"
+        mock_autorate_config.ping_hosts = ["h1", "h2", "h3"]
+        mock_autorate_config.use_median_of_three = True
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        rtt_measurement = MagicMock()
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=rtt_measurement,
+                logger=logger,
+            )
+
+        controller._reflector_scorer = ReflectorScorer(
+            hosts=["h1", "h2", "h3"],
+            min_score=0.8,
+            window_size=50,
+            probe_interval_sec=30.0,
+            recovery_count=3,
+            logger=logger,
+            wan_name="TestWAN",
+        )
+        return controller
+
+    @staticmethod
+    def _window_lengths(controller):
+        return {host: len(controller._reflector_scorer._windows[host]) for host in ["h1", "h2", "h3"]}
+
+    @staticmethod
+    def _success_counts(controller):
+        return {host: controller._reflector_scorer._success_counts[host] for host in ["h1", "h2", "h3"]}
+
+    def test_zero_success_cycle_skips_reflector_scorer_update(self, controller):
+        snapshot = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"h1": 10.0, "h2": None, "h3": 15.0},
+            timestamp=time.monotonic(),
+            measurement_ms=30.0,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=("h1", "h3"),
+        )
+        cycle_status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        controller._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        controller._rtt_thread.get_latest.return_value = snapshot
+        controller._rtt_thread.get_cycle_status.return_value = cycle_status
+
+        before_lengths = self._window_lengths(controller)
+        before_success_counts = self._success_counts(controller)
+
+        result = controller.measure_rtt()
+
+        assert result == 11.0
+        assert self._window_lengths(controller) == before_lengths
+        assert self._success_counts(controller) == before_success_counts
+
+    def test_partial_success_cycle_still_updates_reflector_scorer(self, controller):
+        snapshot = RTTSnapshot(
+            rtt_ms=12.0,
+            per_host_results={"h1": 10.0, "h2": None, "h3": 14.0},
+            timestamp=time.monotonic(),
+            measurement_ms=30.0,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=("h1", "h3"),
+        )
+        cycle_status = RTTCycleStatus(
+            successful_count=2,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=("h1", "h3"),
+            cycle_timestamp=time.monotonic(),
+        )
+        controller._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        controller._rtt_thread.get_latest.return_value = snapshot
+        controller._rtt_thread.get_cycle_status.return_value = cycle_status
+
+        before_lengths = self._window_lengths(controller)
+
+        controller.measure_rtt()
+
+        after_lengths = self._window_lengths(controller)
+        for host in snapshot.per_host_results:
+            assert after_lengths[host] == before_lengths[host] + 1
+
+    def test_blocking_path_all_fail_skips_scorer(self, controller):
+        controller._rtt_thread = None
+        controller.rtt_measurement.ping_hosts_with_results.return_value = {
+            "h1": None,
+            "h2": None,
+            "h3": None,
+        }
+
+        before_lengths = self._window_lengths(controller)
+        before_success_counts = self._success_counts(controller)
+
+        result = controller.measure_rtt()
+
+        assert result is None
+        assert self._window_lengths(controller) == before_lengths
+        assert self._success_counts(controller) == before_success_counts
+
+    def test_blocking_path_partial_success_updates_scorer(self, controller):
+        controller._rtt_thread = None
+        controller.rtt_measurement.ping_hosts_with_results.return_value = {
+            "h1": 10.0,
+            "h2": None,
+            "h3": 14.0,
+        }
+
+        before_lengths = self._window_lengths(controller)
+
+        result = controller.measure_rtt()
+
+        assert result == 12.0
+        after_lengths = self._window_lengths(controller)
+        for host in ["h1", "h2", "h3"]:
+            assert after_lengths[host] == before_lengths[host] + 1
+
+    def test_zero_success_cycle_still_drains_pending_scorer_events(self, controller, tmp_path):
+        MetricsWriter._reset_instance()
+        controller._metrics_writer = MetricsWriter(tmp_path / "reflector-events.db")
+        controller._io_worker = None
+
+        for _ in range(10):
+            controller._reflector_scorer.record_result("h1", False)
+        assert controller._reflector_scorer.has_pending_events() is True
+
+        before_row_count = controller._metrics_writer.connection.execute(
+            "SELECT COUNT(*) FROM reflector_events"
+        ).fetchone()[0]
+
+        snapshot = RTTSnapshot(
+            rtt_ms=11.0,
+            per_host_results={"h1": 10.0, "h2": None, "h3": 15.0},
+            timestamp=time.monotonic(),
+            measurement_ms=30.0,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=("h1", "h3"),
+        )
+        cycle_status = RTTCycleStatus(
+            successful_count=0,
+            active_hosts=("h1", "h2", "h3"),
+            successful_hosts=(),
+            cycle_timestamp=time.monotonic(),
+        )
+        controller._rtt_thread = MagicMock(spec=BackgroundRTTThread)
+        controller._rtt_thread.get_latest.return_value = snapshot
+        controller._rtt_thread.get_cycle_status.return_value = cycle_status
+
+        before_lengths = self._window_lengths(controller)
+
+        controller.measure_rtt()
+
+        after_row_count = controller._metrics_writer.connection.execute(
+            "SELECT COUNT(*) FROM reflector_events"
+        ).fetchone()[0]
+        assert controller._reflector_scorer.has_pending_events() is False
+        assert after_row_count > before_row_count
+        assert self._window_lengths(controller) == before_lengths
+        MetricsWriter._reset_instance()
