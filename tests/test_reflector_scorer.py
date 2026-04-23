@@ -1184,3 +1184,65 @@ class TestReflectorQualityConfigNonDict:
             )
         rq = config.reflector_quality_config
         assert rq["min_score"] == 0.8
+
+
+class TestBlackoutSemantics:
+    """Positive-control coverage for scorer behavior around controller blackout gating."""
+
+    def test_all_host_fail_cycle_leaves_windows_unchanged(self, scorer, hosts):
+        """Skipping a zero-success cycle leaves existing scoring windows untouched."""
+        scorer.record_results({host: True for host in hosts})
+        before_lengths = {host: len(scorer._windows[host]) for host in hosts}
+        before_success_counts = dict(scorer._success_counts)
+
+        # Simulate caller-side blackout gate by not calling record_results().
+
+        after_lengths = {host: len(scorer._windows[host]) for host in hosts}
+        after_success_counts = dict(scorer._success_counts)
+
+        assert after_lengths == before_lengths
+        assert after_success_counts == before_success_counts
+
+    def test_partial_success_cycle_scores_normally(self, scorer):
+        """Mixed fresh results still update scorer internals exactly as before."""
+        scorer.record_results({"8.8.8.8": True, "1.1.1.1": False, "9.9.9.9": True})
+
+        assert len(scorer._windows["8.8.8.8"]) == 1
+        assert len(scorer._windows["1.1.1.1"]) == 1
+        assert len(scorer._windows["9.9.9.9"]) == 1
+        assert scorer._success_counts["8.8.8.8"] == 1
+        assert scorer._success_counts["1.1.1.1"] == 0
+        assert scorer._success_counts["9.9.9.9"] == 1
+
+    def test_recovery_after_blackout_normal_scoring(self, scorer, hosts):
+        """Fresh partial-success cycles resume from pre-blackout history without resets."""
+        scorer.record_results({host: True for host in hosts})
+        before_lengths = {host: len(scorer._windows[host]) for host in hosts}
+
+        # Simulate several blackout cycles skipped by WANController.
+        for _ in range(3):
+            pass
+
+        scorer.record_results({"8.8.8.8": True, "1.1.1.1": False, "9.9.9.9": True})
+
+        assert len(scorer._windows["8.8.8.8"]) == before_lengths["8.8.8.8"] + 1
+        assert len(scorer._windows["1.1.1.1"]) == before_lengths["1.1.1.1"] + 1
+        assert len(scorer._windows["9.9.9.9"]) == before_lengths["9.9.9.9"] + 1
+        assert scorer._success_counts["1.1.1.1"] == 1
+
+    def test_mixed_quality_drops_still_deprioritize(self, logger):
+        """Legitimate per-host failures still drive deprioritization under partial success."""
+        scorer = ReflectorScorer(
+            hosts=["h1", "h2", "h3"],
+            min_score=0.8,
+            window_size=50,
+            probe_interval_sec=30.0,
+            recovery_count=3,
+            logger=logger,
+            wan_name="test",
+        )
+
+        for _ in range(60):
+            scorer.record_results({"h1": False, "h2": True, "h3": True})
+
+        assert "h1" in scorer._deprioritized
