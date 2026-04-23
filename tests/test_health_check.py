@@ -45,6 +45,7 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
                 "window_start_epoch": qc_mock._window_start_time,
             },
             "cake_detection": {
+                "dwell_bypassed_count": getattr(qc_mock, "_dwell_bypassed_count", 0),
                 "backlog_suppressed_this_cycle": getattr(
                     qc_mock, "_backlog_suppressed_this_cycle", False
                 ),
@@ -2904,6 +2905,163 @@ class TestHysteresisHealth:
             assert dl["deadband_ms"] == 3.0
         finally:
             server.shutdown()
+
+
+class TestDwellBypassedCountSurfacing:
+    """Tests for additive download-only dwell_bypassed_count health surfacing."""
+
+    @pytest.fixture(autouse=True)
+    def reset_handler_state(self):
+        """Reset HealthCheckHandler class state before each test."""
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+        yield
+        HealthCheckHandler.controller = None
+        HealthCheckHandler.start_time = None
+        HealthCheckHandler.consecutive_failures = 0
+
+    @pytest.fixture
+    def mock_wan_with_dwell_bypass(self):
+        """Create a mock WAN controller with configurable cake_detection state."""
+        wan = MagicMock()
+        wan.baseline_rtt = 24.5
+        wan.load_rtt = 28.3
+        wan.download.current_rate = 800_000_000
+        wan.download.red_streak = 0
+        wan.download.soft_red_streak = 0
+        wan.download.soft_red_required = 3
+        wan.download.green_streak = 5
+        wan.download.green_required = 5
+        wan.download._yellow_dwell = 0
+        wan.download.dwell_cycles = 3
+        wan.download.deadband_ms = 3.0
+        wan.download._transitions_suppressed = 17
+        wan.download._window_suppressions = 0
+        wan.download._window_start_time = 1712345000.0
+        wan.download._dwell_bypassed_count = 42
+        wan.upload.current_rate = 35_000_000
+        wan.upload.red_streak = 0
+        wan.upload.soft_red_streak = 0
+        wan.upload.soft_red_required = 3
+        wan.upload.green_streak = 5
+        wan.upload.green_required = 5
+        wan.upload._yellow_dwell = 1
+        wan.upload.dwell_cycles = 3
+        wan.upload.deadband_ms = 3.0
+        wan.upload._transitions_suppressed = 5
+        wan.upload._window_suppressions = 0
+        wan.upload._window_start_time = 1712345000.0
+        wan.upload._dwell_bypassed_count = 7
+        wan._suppression_alert_threshold = 20
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
+        _configure_wan_health_data(wan)
+        return wan
+
+    def _make_controller(self, wan):
+        """Build a mock controller wrapping a single WAN."""
+        mock_controller = MagicMock()
+        mock_config = MagicMock()
+        mock_config.wan_name = "spectrum"
+        mock_config.irtt_config = {"enabled": False}
+        mock_controller.wan_controllers = [
+            {"controller": wan, "config": mock_config, "logger": MagicMock()}
+        ]
+        return mock_controller
+
+    def _get_health_payload(self, wan):
+        """Fetch a full /health payload for the supplied mock WAN."""
+        controller = self._make_controller(wan)
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return json.loads(response.read().decode())
+        finally:
+            server.shutdown()
+
+    def test_dwell_bypassed_count_present_in_download_hysteresis(
+        self, mock_wan_with_dwell_bypass
+    ):
+        """Download hysteresis exposes the queue-controller counter additively."""
+        data = self._get_health_payload(mock_wan_with_dwell_bypass)
+
+        assert data["wans"][0]["download"]["hysteresis"]["dwell_bypassed_count"] == 42
+
+    def test_dwell_bypassed_count_defaults_to_zero_when_cake_detection_missing(
+        self, mock_wan_with_dwell_bypass
+    ):
+        """Download hysteresis still publishes the field if cake_detection is absent."""
+
+        def _download_health_without_cake_detection():
+            return {
+                "hysteresis": {
+                    "dwell_counter": mock_wan_with_dwell_bypass.download._yellow_dwell,
+                    "dwell_cycles": mock_wan_with_dwell_bypass.download.dwell_cycles,
+                    "deadband_ms": mock_wan_with_dwell_bypass.download.deadband_ms,
+                    "transitions_suppressed": (
+                        mock_wan_with_dwell_bypass.download._transitions_suppressed
+                    ),
+                    "suppressions_per_min": (
+                        mock_wan_with_dwell_bypass.download._window_suppressions
+                    ),
+                    "window_start_epoch": (
+                        mock_wan_with_dwell_bypass.download._window_start_time
+                    ),
+                }
+            }
+
+        mock_wan_with_dwell_bypass.download.get_health_data.side_effect = (
+            _download_health_without_cake_detection
+        )
+
+        data = self._get_health_payload(mock_wan_with_dwell_bypass)
+
+        assert data["wans"][0]["download"]["hysteresis"]["dwell_bypassed_count"] == 0
+
+    def test_existing_download_hysteresis_fields_unchanged(
+        self, mock_wan_with_dwell_bypass
+    ):
+        """Download hysteresis adds exactly one new key without removing existing ones."""
+        data = self._get_health_payload(mock_wan_with_dwell_bypass)
+
+        expected_keys = {
+            "dwell_counter",
+            "dwell_cycles",
+            "deadband_ms",
+            "transitions_suppressed",
+            "suppressions_per_min",
+            "window_start_epoch",
+            "alert_threshold_per_min",
+            "green_streak",
+            "green_required",
+            "last_zone",
+            "dwell_bypassed_count",
+        }
+
+        assert set(data["wans"][0]["download"]["hysteresis"].keys()) == expected_keys
+
+    def test_upload_hysteresis_unchanged(self, mock_wan_with_dwell_bypass):
+        """Upload hysteresis must not grow the download-only dwell_bypassed_count field."""
+        data = self._get_health_payload(mock_wan_with_dwell_bypass)
+
+        assert "dwell_bypassed_count" not in data["wans"][0]["upload"]["hysteresis"]
 
 
 class TestCycleBudgetStatus:
