@@ -489,6 +489,7 @@ class WANController:
         self._irtt_deprioritization_logged: bool = False
         self._irtt_deprioritization_last_transition_ts: float = 0.0
         self._irtt_deprioritization_log_cooldown_sec: float = 5.0
+        self._fusion_suspended_log_cooldown_sec: float = 60.0
         self._last_irtt_write_ts: float | None = None  # IRTT dedup (OBSV-04)
 
         # OWD asymmetry detection (ASYM-01 through ASYM-03)
@@ -1568,9 +1569,19 @@ class WANController:
         """
         deprioritized = ratio > 1.5 or ratio < 0.67
         now = time.monotonic()
+        fusion_not_actionable = (
+            not self._fusion_enabled
+            or self._fusion_healer is None
+            or self._fusion_healer.state == HealState.SUSPENDED
+        )
+        cooldown_sec = (
+            self._fusion_suspended_log_cooldown_sec
+            if fusion_not_actionable
+            else self._irtt_deprioritization_log_cooldown_sec
+        )
         cooldown_elapsed = (
             now - self._irtt_deprioritization_last_transition_ts
-            >= self._irtt_deprioritization_log_cooldown_sec
+            >= cooldown_sec
         )
 
         if deprioritized:
