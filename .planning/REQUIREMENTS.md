@@ -108,21 +108,22 @@
 | VALN-02 | Phase 191 + Phase 192 | Complete |
 | VALN-03 | Phase 192 closeout soak | Pending |
 
-### v1.40 (traceability filled by roadmap)
+### v1.40
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARB-01      | TBD   | Pending |
-| ARB-02      | TBD   | Pending |
-| ARB-03      | TBD   | Pending |
-| ARB-04      | TBD   | Pending |
-| MEAS-07     | TBD   | Pending |
-| OBS-01      | TBD   | Pending |
-| OBS-02      | TBD   | Pending |
-| SAFE-05     | TBD   | Pending |
-| VALN-04     | TBD   | Pending |
-| VALN-05     | TBD   | Pending |
+| ARB-01      | Phase 194 | Pending |
+| ARB-02      | Phase 195 | Pending |
+| ARB-03      | Phase 195 | Pending |
+| ARB-04      | Phase 194 | Pending |
+| MEAS-07     | Phase 193 | Pending |
+| OBS-01      | Phase 193 | Pending |
+| OBS-02      | Phase 193 | Pending |
+| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 (enforced throughout) | Pending |
+| VALN-04     | Phase 196 | Pending |
+| VALN-05     | Phase 196 | Pending |
 
 ---
 *v1.39 requirements defined: 2026-04-20*
 *v1.40 requirements defined: 2026-04-23*
+*v1.40 traceability filled: 2026-04-23*
