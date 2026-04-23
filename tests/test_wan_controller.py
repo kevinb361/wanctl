@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from wanctl.fusion_healer import HealState
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot
 from wanctl.storage.writer import MetricsWriter
@@ -3050,6 +3051,198 @@ class TestBackgroundRttWiring:
         controller._cycle_interval_ms = 1000.0
 
         assert controller._background_rtt_cadence_sec() == pytest.approx(1.0)
+
+
+class TestProtocolDeprioritizationFusionAwareCooldown:
+    """Coverage for fusion-aware protocol deprioritization log cooldowns."""
+
+    def _make_controller(
+        self,
+        mock_autorate_config,
+        *,
+        fusion_enabled=True,
+        healer_present=True,
+        healer_state=HealState.ACTIVE,
+    ):
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        logger = MagicMock()
+
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=logger,
+            )
+
+        ctrl.load_rtt = 48.0
+        ctrl._irtt_thread = MagicMock()
+        ctrl._irtt_thread.get_latest.return_value = MagicMock(rtt_mean_ms=24.0)
+        ctrl._fusion_enabled = fusion_enabled
+        ctrl._fusion_healer = (
+            MagicMock(state=healer_state)
+            if healer_present
+            else None
+        )
+        return ctrl
+
+    def _install_monotonic(self, monkeypatch, start):
+        clock = {"now": float(start)}
+        monkeypatch.setattr("wanctl.wan_controller.time.monotonic", lambda: clock["now"])
+        return clock
+
+    def test_first_occurrence_emits_info_when_fusion_active(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        clock = self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+
+        assert controller.logger.info.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+        assert controller._irtt_deprioritization_last_transition_ts == pytest.approx(clock["now"])
+
+    def test_first_occurrence_emits_info_when_fusion_suspended(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(
+            mock_autorate_config,
+            healer_state=HealState.SUSPENDED,
+        )
+        self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+
+        assert controller.logger.info.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+
+    def test_recovery_path_uses_normal_cooldown_when_active(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        clock = self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
+
+        clock["now"] = 104.0
+        controller._check_protocol_correlation(1.0)
+        assert controller.logger.info.call_count == 0
+        assert controller._irtt_deprioritization_logged is False
+
+        controller.logger.reset_mock()
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+        clock["now"] = 106.0
+        controller._check_protocol_correlation(1.0)
+
+        assert controller.logger.info.call_count == 1
+        assert controller._irtt_deprioritization_logged is False
+
+    def test_recovery_path_uses_stretched_cooldown_when_suspended(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(
+            mock_autorate_config,
+            healer_state=HealState.SUSPENDED,
+        )
+        clock = self._install_monotonic(monkeypatch, 100.0)
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        clock["now"] = 110.0
+        controller._check_protocol_correlation(1.0)
+        assert controller.logger.info.call_count == 0
+        assert controller._irtt_deprioritization_logged is False
+
+        controller.logger.reset_mock()
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+        clock["now"] = 161.0
+        controller._check_protocol_correlation(1.0)
+
+        assert controller.logger.info.call_count == 1
+        assert controller._irtt_deprioritization_logged is False
+
+    def test_fusion_transition_does_not_reset_latch(self, mock_autorate_config, monkeypatch):
+        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        clock = self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
+
+        controller._fusion_healer.state = HealState.SUSPENDED
+        clock["now"] = 110.0
+        controller._check_protocol_correlation(1.8)
+
+        assert controller._irtt_deprioritization_logged is True
+        assert controller.logger.info.call_count == 0
+
+    def test_fusion_state_transitions_never_mutate_latch(self, mock_autorate_config):
+        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        controller._irtt_deprioritization_logged = True
+
+        for state in [HealState.SUSPENDED, HealState.RECOVERING, HealState.ACTIVE]:
+            controller._fusion_healer.state = state
+            assert controller._irtt_deprioritization_logged is True
+
+    def test_none_healer_treated_as_not_actionable(self, mock_autorate_config, monkeypatch):
+        controller = self._make_controller(
+            mock_autorate_config,
+            healer_present=False,
+        )
+        clock = self._install_monotonic(monkeypatch, 100.0)
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        clock["now"] = 110.0
+        controller._check_protocol_correlation(1.0)
+        assert controller.logger.info.call_count == 0
+
+        controller.logger.reset_mock()
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+        clock["now"] = 161.0
+        controller._check_protocol_correlation(1.0)
+        assert controller.logger.info.call_count == 1
+
+    def test_fusion_disabled_treated_as_not_actionable(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(
+            mock_autorate_config,
+            fusion_enabled=False,
+            healer_state=HealState.ACTIVE,
+        )
+        clock = self._install_monotonic(monkeypatch, 100.0)
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        clock["now"] = 110.0
+        controller._check_protocol_correlation(1.0)
+        assert controller.logger.info.call_count == 0
+
+    def test_healer_recovering_treated_as_actionable(self, mock_autorate_config, monkeypatch):
+        controller = self._make_controller(
+            mock_autorate_config,
+            healer_state=HealState.RECOVERING,
+        )
+        clock = self._install_monotonic(monkeypatch, 100.0)
+        controller._irtt_deprioritization_logged = True
+        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        clock["now"] = 106.0
+        controller._check_protocol_correlation(1.0)
+
+        assert controller.logger.info.call_count == 1
+        assert controller._irtt_deprioritization_logged is False
 
 
 class TestZeroSuccessCycle:
