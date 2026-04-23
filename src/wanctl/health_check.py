@@ -248,10 +248,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "baseline_rtt_ms": round(wan_controller.baseline_rtt, 2),
             "load_rtt_ms": round(wan_controller.load_rtt, 2),
             "download": self._build_rate_hysteresis_section(
-                wan_controller.download, health_data
+                wan_controller.download, health_data, direction="download"
             ),
             "upload": self._build_rate_hysteresis_section(
-                wan_controller.upload, health_data
+                wan_controller.upload, health_data, direction="upload"
             ),
             "router_connectivity": wan_controller.router_connectivity.to_dict(),
         }
@@ -293,7 +293,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return wan_health
 
     def _build_rate_hysteresis_section(
-        self, qc: Any, health_data: dict[str, Any]
+        self, qc: Any, health_data: dict[str, Any], direction: str
     ) -> dict[str, Any]:
         """Build rate and hysteresis status for a queue controller."""
         qc_health = qc.get_health_data()
@@ -301,7 +301,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         last_zone = getattr(qc, "_last_zone", "GREEN")
         if not isinstance(last_zone, str):
             last_zone = "GREEN"
-        return {
+        result = {
             "current_rate_mbps": round(qc.current_rate / 1e6, 1),
             "state": _get_current_state(qc),
             "state_reason": _get_current_state_reason(qc, qc_health),
@@ -318,6 +318,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "last_zone": last_zone,
             },
         }
+        if direction == "download":
+            cake_detection = qc_health.get("cake_detection", {})
+            result["hysteresis"]["dwell_bypassed_count"] = int(
+                cake_detection.get("dwell_bypassed_count", 0) or 0
+            )
+        return result
 
     def _build_signal_quality_section(
         self, health_data: dict[str, Any]
