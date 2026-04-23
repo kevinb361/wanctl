@@ -2855,7 +2855,7 @@ class TestHysteresisHealth:
             server.shutdown()
 
     def test_health_hysteresis_keys_complete(self, mock_wan_with_hysteresis):
-        """Both download and upload hysteresis dicts expose full recovery context."""
+        """Download/upload hysteresis dicts expose the expected recovery context."""
         controller = self._make_controller(mock_wan_with_hysteresis)
         port = find_free_port()
         server = start_health_server(host="127.0.0.1", port=port, controller=controller)
@@ -2863,15 +2863,16 @@ class TestHysteresisHealth:
             url = f"http://127.0.0.1:{port}/health"
             with urllib.request.urlopen(url, timeout=5) as response:
                 data = json.loads(response.read().decode())
-            expected_keys = {
+            expected_upload_keys = {
                 "dwell_counter", "dwell_cycles", "deadband_ms", "transitions_suppressed",
                 "suppressions_per_min", "window_start_epoch", "alert_threshold_per_min",
                 "green_streak", "green_required", "last_zone",
             }
+            expected_download_keys = expected_upload_keys | {"dwell_bypassed_count"}
             dl_keys = set(data["wans"][0]["download"]["hysteresis"].keys())
             ul_keys = set(data["wans"][0]["upload"]["hysteresis"].keys())
-            assert dl_keys == expected_keys
-            assert ul_keys == expected_keys
+            assert dl_keys == expected_download_keys
+            assert ul_keys == expected_upload_keys
         finally:
             server.shutdown()
 
