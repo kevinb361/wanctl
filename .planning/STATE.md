@@ -1,41 +1,53 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.39
-milestone_name: milestone
-status: executing
-stopped_at: Completed 191.1-03-PLAN.md
-last_updated: "2026-04-20T17:32:16.095Z"
-last_activity: 2026-04-20
+milestone: v1.40
+milestone_name: Queue-Primary Signal Arbitration
+status: defining requirements
+stopped_at: Milestone opened 2026-04-23
+last_updated: "2026-04-23T00:00:00.000Z"
+last_activity: 2026-04-23
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-20)
+See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 191.1 — att-config-drift-resolution-and-phase-191-closure
+**Current focus:** v1.40 Queue-Primary Signal Arbitration — defining requirements, roadmap pending. v1.39 Phase 191 ATT closure + Phase 192 reflector scorer run in parallel.
 
 ## Position
 
-**Milestone:** v1.39 Control-Path Timing & Measurement Accounting
-**Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure)
-**Plan:** Complete
-**Status:** Phase 191.1 complete; Phase 191 closure remains blocked on `reflector_unreachable`
-**Last activity:** 2026-04-20
+**Milestone:** v1.40 Queue-Primary Signal Arbitration
+**Phase:** Not started (defining requirements)
+**Plan:** —
+**Status:** Defining requirements
+**Last activity:** 2026-04-23 — Milestone v1.40 opened; joint Claude + Codex architectural review agreed on queue-primary DL distress, RTT demotion, DL-only scope, serialized Spectrum soak calendar
 
-Progress: [██████████] 100%
+Progress: [──────────] 0%
+
+## Parallel Milestone
+
+**v1.39 Control-Path Timing & Measurement Accounting** — pending closure
+- Phase 191: blocked on ATT RRUL weather-rerun
+- Phase 192: Reflector Scorer Blackout + Log Hygiene — planned, unexecuted (owns MEAS-06/VALN-03 24h Spectrum soak)
+- Serialized Spectrum soak rule: Phase 192 24h soak must land before v1.40 Phase 196 2×24h soak; no concurrent Spectrum experiments
 
 ## Accumulated Context
 
 ### Roadmap Evolution
+
+- 2026-04-23: v1.40 Queue-Primary Signal Arbitration opened in parallel with unclosed v1.39. v1.39 Phase 192 stays reserved at its number. v1.40 phases continue at 193 onward.
+- 2026-04-23: Joint Claude + Codex architectural decision — Spectrum DOCSIS ~280 Mbps under wanctl vs 591 Mbps CAKE-only static floor is a measurement-architecture problem, not a tuning problem. Primary signal changes from RTT delta to kernel-provided `avg_delay_us - base_delay_us` under load. RTT becomes confidence-gated secondary. Scope is DL-only; UL stays RTT-led because UL is healthy.
+- 2026-04-23: Codex pushback retained in plan — use kernel `base_delay_us`, not Python-learned baseline; `avg_delay_us` not `peak_delay_us` as primary (peak too spike-prone, stays as burst corroborator); healer bypass gate is categorical direction-alignment over 6 cycles, never a µs/ms magnitude ratio; new `signal_arbitration` /health block is additive, not nested under `download.hysteresis`.
+- 2026-04-23: Implementation order agreed — v1.40 Phase 193 (obs-only) → Phase 194 (DL classification) → v1.39 Phase 192 (scorer + 24h soak) → v1.40 Phase 195 (RTT demotion on corrected scorer) → v1.40 Phase 196 (2×24h Spectrum A/B + ATT canary after 191 closes).
 
 - Phase 191.1 inserted after Phase 191: ATT config drift resolution and Phase 191 closure (URGENT)
 - Phase 191 ATT validation isolated the blocker to post-`v1.38` ATT config/runtime drift rather than the narrow Phase 191 timing changes; current code plus `v1.38` ATT config restored RRUL baseline throughput
@@ -110,12 +122,18 @@ Resume file: None
 - [Phase 191.1]: Restored ATT irtt.server and fusion.enabled together to the v1.38 baseline in one coordinated config commit.
 - [Phase 191.1]: Used a semantic YAML diff against v1.38 plus SAFE-03 token scan to prove no other ATT config keys changed.
 - [Phase 191.1]: Preserved the milestone-wide SAFE-03 dirty diff as contextual debt while making the phase-local comparator the Phase 191 closure rule.
-- [Phase 191.1]: Used outcome_class=reflector_unreachable as the authoritative verdict source, yielding BLOCKED instead of PASS or FAIL.
+- [Phase 191.1]: Rejected the TCP `nc` probe as a false negative because IRTT uses UDP; manual `irtt client` validation to `104.200.21.31:2112` succeeded from `cake-shaper`.
+- [Phase 191.1]: Used outcome_class=valid_result plus the ATT RRUL comparator, yielding `VALN-02 verdict: FAIL` at `63.83 Mbps` versus the `78.29 Mbps` baseline.
+- [Phase 191.1]: Operator context after execution indicates the `2026-04-20` ATT rerun likely happened during severe rain, so the FAIL stays recorded but is now treated as weather-confounded until Plan `191.1-02` is repeated in normal conditions.
+- [Phase 191.1]: A second rerun on `2026-04-21` improved ATT RRUL to `74.03 Mbps` but still missed the comparator by `0.44` percentage points, and the Spectrum discriminator sample was clearly bad (`283.40 Mbps`, `733.67 ms` ping p99), so that run is also treated as environment-confounded.
+- [Phase 191.1]: A third rerun on `2026-04-21b` dropped ATT RRUL back to `67.83 Mbps` while Spectrum remained degraded (`309.04 Mbps`, `375.64 ms` ping p99), reinforcing that the rerun environment was still unstable.
+- [Phase 191.1]: A fourth rerun on `2026-04-23` re-verified the ATT source path cleanly after removing the AI-VM ATT policy (`10.10.110.233` => `99.126.115.47`, `10.10.110.226` => `70.123.224.169`) and produced ATT RRUL `64.40 Mbps`, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so the overall sample remains environment-confounded.
 - [Phase 191.1]: Kept Plan 05 ATT failure history intact and added Phase 191.1 closure wording as additive evidence only.
 
 ## Performance Metrics
 
 - 2026-04-20: Phase 191.1 Plan 03 completed in 15 min across 2 tasks and 3 files.
+- 2026-04-20: Phase 191.1 Plan 02 completed in 22 min across deploy verification, ATT rrul/tcp_12down/voip rerun, and Spectrum RRUL discriminator capture.
 - 2026-04-20: Phase 191.1 Plan 01 completed in 3 min across 2 tasks and 2 files.
 - 2026-04-15: Phase 187 Plan 04 completed in 4 min across 1 task and 1 test file.
 - 2026-04-15: Phase 187 Plan 02 completed in 15 min across 1 task and 1 source file.
@@ -132,6 +150,6 @@ Resume file: None
 
 ## Blockers
 
-- Phase 191 closure remains blocked: restored ATT config rerun ended with `outcome_class=reflector_unreachable` before any flent measurement started, so `VALN-02` could not produce a valid throughput verdict.
+- Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), and `2026-04-23` (`64.40 Mbps`) FAIL samples. The `2026-04-23` run is the first one with the ATT source path re-verified clean after removing the AI-VM ATT policy, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so all four runs are still treated as environment-confounded and Plan `191.1-02` should be repeated again in a cleaner window before treating the FAIL as stable attribution.
 
 **Planned Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure) — 3 plans — 2026-04-20T17:15:22.073Z
