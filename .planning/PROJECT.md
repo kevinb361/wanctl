@@ -18,20 +18,33 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.38 Measurement Resilience Under Load — measurement degradation is now surfaced explicitly via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability
 **Previous:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
 
-## Current Milestone: v1.39 Control-Path Timing & Measurement Accounting
+## Current Milestone: v1.40 Queue-Primary Signal Arbitration
 
-**Goal:** Reduce systemic tail latency in the netlink apply path and fix reflector-scorer blackout misattribution without changing any control algorithms, thresholds, or state machines.
+**Goal:** Replace RTT-primary DL congestion classification with kernel-local CAKE queue-delay as the primary signal under load, demoting RTT to a confidence-gated secondary. Restore Spectrum DOCSIS throughput without making the controller vulnerable to carrier ICMP/UDP deprioritization. DL-only scope; UL stays RTT-led.
 
 **Target features:**
-- Netlink overlap instrumentation (make `tc dump` vs `tc change` contention measurable in production)
-- `cake_stats_thread` cadence tuning or post-apply backoff to reduce kernel RTNL contention
-- Reflector scorer blackout-awareness — stop decrementing per-host scores on path-wide failures
-- Log noise reduction for fusion-suspended "Protocol deprioritization detected" INFO lines
+- Queue-delay delta (`avg_delay_us - base_delay_us` from CAKE) as DL distress primary signal under load
+- RTT demoted to confidence-gated secondary; rtt_confidence derived from ICMP/UDP agreement + queue direction agreement
+- Fusion healer bypass requires BOTH queue-distress AND RTT-distress aligned for 6 cycles; single-path flips never bypass
+- New `/health` `signal_arbitration` block + numeric Prometheus metrics (no string labels)
+- Spectrum A/B soak: 24h rtt-blend baseline then 24h cake-primary on same deployment; ATT canary gated on Phase 191 closure
 
 **Key context:**
-- Joint Claude+Codex production audit (2026-04-20) identified two top systemic hotspots in v1.38.0: slow CAKE apply (107 Spectrum / ~240 ATT cumulative overruns) and 1735/24h Spectrum RTT blackouts being misattributed to individual reflectors.
-- Controller main thread is idle (1.4% util, 0.7ms avg). All issues live in out-of-band paths — netlink apply, scorer, logs.
-- Priority: stability > safety > clarity > elegance. Every change A/B-compared via flent (RRUL, tcp_12down, VoIP) before shipping.
+- 2026-04-23 production measurements: Spectrum DOCSIS 940/40 delivers ~280 Mbps with wanctl active vs 591 Mbps CAKE-only static floor. ATT fusion already disabled (2026-04-17) for same root cause; fusion disabled on Spectrum 2026-04-23 as a workaround. Neither workaround recovers throughput.
+- Root cause: carrier deprioritizes BOTH ICMP and UDP/irtt at different times (ICMP/UDP ratio flipped 1.96 → 0.54 within minutes same test). Fusion.healer correctly suspends on anti-correlation then controller falls back to ICMP-only and clamps on phantom bloat. No YAML tuning recovers because signal itself is carrier-jittered.
+- Architectural decision: CAKE kernel-local queue delay is not vulnerable to carrier deprioritization. Use `base_delay_us` from CAKE (kernel-computed idle reference) — no Python-learned baseline.
+- Parallel milestone: v1.39 remains open. Phase 191 closure pending ATT weather-rerun. Phase 192 (reflector scorer blackout-awareness + log hygiene) still planned and required by MEAS-06/VALN-03 24h soak.
+- Priority: stability > safety > clarity > elegance. No state-machine, threshold, EWMA, dwell, deadband, or burst-detection changes. Arbitration changes input to classification, not classification rules themselves.
+
+## In Progress: v1.39 Control-Path Timing & Measurement Accounting
+
+**Status:** Pending closure. Runs in parallel with v1.40 implementation; Spectrum soak calendar is serialized (no concurrent soaks).
+
+**Remaining work:**
+- Phase 191 closure — ATT RRUL rerun in normal weather to confirm timing changes meet TIME-03/TIME-04 comparator
+- Phase 192 — Reflector scorer blackout-awareness + log hygiene, plus MEAS-06/VALN-03 24h Spectrum soak (must complete before v1.40 Phase 196 soak)
+
+**Sequencing:** v1.40 Phase 193 (observability-only) → 194 (DL classification) → v1.39 Phase 192 (scorer + 24h soak) → v1.40 Phase 195 (RTT demotion builds on corrected scorer) → v1.40 Phase 196 (2×24h Spectrum A/B + ATT canary after 191 closes).
 
 ## Completed Milestone: v1.38 Measurement Resilience Under Load
 
@@ -660,4 +673,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-20 — v1.39 Control-Path Timing & Measurement Accounting milestone started_
+_Last updated: 2026-04-23 — v1.40 Queue-Primary Signal Arbitration milestone started; v1.39 remains open in parallel pending Phase 191 closure and Phase 192 execution_
