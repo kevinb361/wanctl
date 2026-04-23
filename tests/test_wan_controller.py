@@ -3123,6 +3123,53 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
         assert controller.logger.info.call_count == 1
         assert controller._irtt_deprioritization_logged is True
 
+    def test_normal_cooldown_5s_when_fusion_active(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        clock = self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
+
+        clock["now"] = 104.0
+        controller._check_protocol_correlation(1.9)
+        assert controller.logger.info.call_count == 0
+        assert controller.logger.debug.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+
+        controller.logger.reset_mock()
+        clock["now"] = 106.0
+        controller._check_protocol_correlation(2.0)
+        assert controller.logger.info.call_count == 0
+        assert controller.logger.debug.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+
+    def test_stretched_cooldown_60s_when_fusion_suspended(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(
+            mock_autorate_config,
+            healer_state=HealState.SUSPENDED,
+        )
+        clock = self._install_monotonic(monkeypatch, 100.0)
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
+
+        clock["now"] = 110.0
+        controller._check_protocol_correlation(1.9)
+        assert controller.logger.info.call_count == 0
+        assert controller.logger.debug.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+
+        controller.logger.reset_mock()
+        clock["now"] = 170.0
+        controller._check_protocol_correlation(2.0)
+        assert controller.logger.info.call_count == 0
+        assert controller.logger.debug.call_count == 1
+        assert controller._irtt_deprioritization_logged is True
+
     def test_recovery_path_uses_normal_cooldown_when_active(
         self, mock_autorate_config, monkeypatch
     ):
@@ -3199,19 +3246,14 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
             healer_present=False,
         )
         clock = self._install_monotonic(monkeypatch, 100.0)
-        controller._irtt_deprioritization_logged = True
-        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
 
         clock["now"] = 110.0
-        controller._check_protocol_correlation(1.0)
+        controller._check_protocol_correlation(1.9)
         assert controller.logger.info.call_count == 0
-
-        controller.logger.reset_mock()
-        controller._irtt_deprioritization_logged = True
-        controller._irtt_deprioritization_last_transition_ts = 100.0
-        clock["now"] = 161.0
-        controller._check_protocol_correlation(1.0)
-        assert controller.logger.info.call_count == 1
+        assert controller.logger.debug.call_count == 1
 
     def test_fusion_disabled_treated_as_not_actionable(
         self, mock_autorate_config, monkeypatch
@@ -3222,12 +3264,14 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
             healer_state=HealState.ACTIVE,
         )
         clock = self._install_monotonic(monkeypatch, 100.0)
-        controller._irtt_deprioritization_logged = True
-        controller._irtt_deprioritization_last_transition_ts = 100.0
+
+        controller._check_protocol_correlation(1.8)
+        controller.logger.reset_mock()
 
         clock["now"] = 110.0
-        controller._check_protocol_correlation(1.0)
+        controller._check_protocol_correlation(1.9)
         assert controller.logger.info.call_count == 0
+        assert controller.logger.debug.call_count == 1
 
     def test_healer_recovering_treated_as_actionable(self, mock_autorate_config, monkeypatch):
         controller = self._make_controller(
