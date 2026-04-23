@@ -3061,6 +3061,7 @@ class TestZeroSuccessCycle:
         wc.wan_name = "spectrum"
         wc.logger = MagicMock()
         wc._reflector_scorer = MagicMock()
+        wc._should_skip_scorer_update = lambda cycle_status: cycle_status.successful_count == 0
         wc._rtt_thread = MagicMock(spec=BackgroundRTTThread)
         wc._persist_reflector_events = MagicMock()
         wc._last_raw_rtt = None
@@ -3206,8 +3207,8 @@ class TestZeroSuccessCycle:
         assert kwargs["successful_hosts"] == ["a", "b", "c"]
         assert kwargs["active_hosts"] == ["a", "b", "c"]
 
-    def test_reflector_scorer_not_double_counted_on_zero_success(self, mock_wan_controller):
-        """Scorer should still record cached per-host results exactly once."""
+    def test_reflector_scorer_skipped_on_zero_success(self, mock_wan_controller):
+        """Zero-success cycles should not replay cached per-host results into the scorer."""
         from wanctl.wan_controller import WANController
 
         snap = RTTSnapshot(
@@ -3229,7 +3230,7 @@ class TestZeroSuccessCycle:
 
         WANController.measure_rtt(mock_wan_controller)
 
-        assert mock_wan_controller._reflector_scorer.record_results.call_count == 1
+        assert mock_wan_controller._reflector_scorer.record_results.call_count == 0
 
     def test_zero_success_log_is_rate_limited_during_blackout(self, mock_wan_controller):
         """Repeated zero-success cycles should not spam warning logs every controller cycle."""
