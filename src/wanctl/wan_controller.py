@@ -45,6 +45,7 @@ from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.routeros_interface import RouterOS
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
+    RTTCycleStatus,
     RTTMeasurement,
 )
 from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_memory_status
@@ -969,13 +970,14 @@ class WANController:
         if age > 0.5:  # Soft warning per D-04
             self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
 
-        # Record per-host results for quality scoring (same as before)
-        self._reflector_scorer.record_results(
-            {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
-        )
+        # Skip stale cached attribution during zero-success blackout cycles.
+        if not (cycle_status and self._should_skip_scorer_update(cycle_status)):
+            self._reflector_scorer.record_results(
+                {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
+            )
         self._persist_reflector_events()
         now = time.monotonic()
-        if cycle_status is not None and cycle_status.successful_count == 0:
+        if cycle_status is not None and self._should_skip_scorer_update(cycle_status):
             active_hosts = list(cycle_status.active_hosts)
             successful_hosts: list[str] = []
             blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0)) + 1
@@ -1038,6 +1040,19 @@ class WANController:
 
         return snapshot.rtt_ms
 
+    def _should_skip_scorer_update(self, cycle_status: RTTCycleStatus) -> bool:
+        """Return True only for a strict zero-success RTT cycle.
+
+        Caller must provide a real RTTCycleStatus object. The background path
+        uses the one already published by BackgroundRTTThread. None is not a
+        valid input and will raise AttributeError — this is intentional.
+
+        Returns True only when the current cycle reported zero successful
+        reflectors. Probe traffic is scored separately and is not routed
+        through this helper.
+        """
+        return cycle_status.successful_count == 0
+
     def _measure_rtt_blocking(self) -> float | None:
         """
         Measure RTT via blocking ICMP (fallback when background thread unavailable).
@@ -1061,10 +1076,18 @@ class WANController:
             hosts=active_hosts, count=1, timeout=3.0
         )
 
-        # Record per-host results for quality scoring
-        self._reflector_scorer.record_results(
-            {host: rtt_val is not None for host, rtt_val in results.items()}
+        local_cycle_status = RTTCycleStatus(
+            successful_count=sum(1 for rtt_val in results.values() if rtt_val is not None),
+            active_hosts=tuple(active_hosts),
+            successful_hosts=tuple(
+                host for host, rtt_val in results.items() if rtt_val is not None
+            ),
+            cycle_timestamp=time.monotonic(),
         )
+        if not self._should_skip_scorer_update(local_cycle_status):
+            self._reflector_scorer.record_results(
+                {host: rtt_val is not None for host, rtt_val in results.items()}
+            )
 
         # Persist any deprioritization/recovery events
         self._persist_reflector_events()
