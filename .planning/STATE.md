@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: defining requirements
-stopped_at: Milestone opened 2026-04-23
+status: roadmap complete
+stopped_at: v1.40 roadmap written 2026-04-23
 last_updated: "2026-04-23T00:00:00.000Z"
 last_activity: 2026-04-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.40 Queue-Primary Signal Arbitration — defining requirements, roadmap pending. v1.39 Phase 191 ATT closure + Phase 192 reflector scorer run in parallel.
+**Current focus:** v1.40 Queue-Primary Signal Arbitration — roadmap complete (4 phases: 193, 194, 195, 196). v1.39 Phase 191 ATT closure + Phase 192 reflector scorer run in parallel; Phase 192 gates Phase 195 input quality and Phase 196 soak calendar.
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** Not started (defining requirements)
+**Phase:** Not started (roadmap complete, awaiting `/gsd-plan-phase 193`)
 **Plan:** —
-**Status:** Defining requirements
-**Last activity:** 2026-04-23 — Milestone v1.40 opened; joint Claude + Codex architectural review agreed on queue-primary DL distress, RTT demotion, DL-only scope, serialized Spectrum soak calendar
+**Status:** Roadmap complete — 4 phases, 10/10 requirements mapped
+**Last activity:** 2026-04-23 — v1.40 roadmap written: Phase 193 (telemetry-only), Phase 194 (DL queue-primary classification), Phase 195 (RTT confidence + healer containment, depends on v1.39 Phase 192), Phase 196 (Spectrum A/B soak + ATT canary, depends on v1.39 Phase 192 and Phase 191 closure)
 
-Progress: [──────────] 0%
+Progress: [──────────] 0% (0/4 phases complete, 0/0 plans — plans materialized per phase)
 
 ## Parallel Milestone
 
@@ -39,11 +39,13 @@ Progress: [──────────] 0%
 - Phase 191: blocked on ATT RRUL weather-rerun
 - Phase 192: Reflector Scorer Blackout + Log Hygiene — planned, unexecuted (owns MEAS-06/VALN-03 24h Spectrum soak)
 - Serialized Spectrum soak rule: Phase 192 24h soak must land before v1.40 Phase 196 2×24h soak; no concurrent Spectrum experiments
+- Cross-milestone dependencies: v1.40 Phase 195 depends on v1.39 Phase 192 (corrected blackout-aware scorer feeds rtt_confidence); v1.40 Phase 196 depends on v1.39 Phase 192 (serialized Spectrum soak) and v1.39 Phase 191 closure (ATT canary gate)
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
+- 2026-04-23: v1.40 roadmap finalized with 4 phases (193, 194, 195, 196), 10/10 v1.40 REQ-IDs mapped. SAFE-05 is cross-cutting across all four phases. Phase numbering starts at 193 because v1.39 owns 191, 191.1, and 192.
 - 2026-04-23: v1.40 Queue-Primary Signal Arbitration opened in parallel with unclosed v1.39. v1.39 Phase 192 stays reserved at its number. v1.40 phases continue at 193 onward.
 - 2026-04-23: Joint Claude + Codex architectural decision — Spectrum DOCSIS ~280 Mbps under wanctl vs 591 Mbps CAKE-only static floor is a measurement-architecture problem, not a tuning problem. Primary signal changes from RTT delta to kernel-provided `avg_delay_us - base_delay_us` under load. RTT becomes confidence-gated secondary. Scope is DL-only; UL stays RTT-led because UL is healthy.
 - 2026-04-23: Codex pushback retained in plan — use kernel `base_delay_us`, not Python-learned baseline; `avg_delay_us` not `peak_delay_us` as primary (peak too spike-prone, stays as burst corroborator); healer bypass gate is categorical direction-alignment over 6 cycles, never a µs/ms magnitude ratio; new `signal_arbitration` /health block is additive, not nested under `download.hysteresis`.
@@ -95,11 +97,16 @@ Progress: [──────────] 0%
 
 ## Session Continuity
 
-Stopped at: Completed 191.1-03-PLAN.md
+Stopped at: v1.40 ROADMAP.md section written; traceability filled; STATE.md updated
 Resume file: None
 
 ## Decisions
 
+- [v1.40 Roadmap]: Phase 193 is telemetry-only; zero control-behavior change is a hard requirement so that v1.39 replay remains byte-identical against the Phase 193 build.
+- [v1.40 Roadmap]: Phase 195 depends on v1.39 Phase 192 because blackout-aware reflector scoring is a direct input to ICMP-agreement side of rtt_confidence; without it, rtt_confidence would read falsely low during carrier blackouts and the new healer bypass gate would calibrate on a polluted signal.
+- [v1.40 Roadmap]: Phase 196 Spectrum A/B is strictly serialized against v1.39 Phase 192's 24h soak (VALN-04); ATT canary is strictly gated on v1.39 Phase 191 closure.
+- [v1.40 Roadmap]: SAFE-05 is cross-cutting and listed under every phase's Requirements addressed; arbitration changes classification input, not classification rules.
+- [v1.40 Roadmap]: Plan materialization is deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/193-*` directories created during roadmap phase.
 - Phase 184-01 keeps history fetch-state classification in `src/wanctl/dashboard/widgets/history_state.py` so future tests can cover the state matrix without mounting Textual.
 - History tab source framing is always mounted in the widget via dedicated banner/detail/handoff/diagnostic `Static` children.
 - Success-state detail and exact diagnostic formatting are intentionally deferred to Plan 184-02; this plan only establishes the shared routing and locked copy surface.
@@ -132,6 +139,7 @@ Resume file: None
 
 ## Performance Metrics
 
+- 2026-04-23: v1.40 roadmap written in single pass — 4 phases, 10/10 REQ-IDs mapped, appended to ROADMAP.md without disturbing v1.39 content.
 - 2026-04-20: Phase 191.1 Plan 03 completed in 15 min across 2 tasks and 3 files.
 - 2026-04-20: Phase 191.1 Plan 02 completed in 22 min across deploy verification, ATT rrul/tcp_12down/voip rerun, and Spectrum RRUL discriminator capture.
 - 2026-04-20: Phase 191.1 Plan 01 completed in 3 min across 2 tasks and 2 files.
@@ -152,4 +160,4 @@ Resume file: None
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), and `2026-04-23` (`64.40 Mbps`) FAIL samples. The `2026-04-23` run is the first one with the ATT source path re-verified clean after removing the AI-VM ATT policy, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so all four runs are still treated as environment-confounded and Plan `191.1-02` should be repeated again in a cleaner window before treating the FAIL as stable attribution.
 
-**Planned Phase:** 191.1 (att-config-drift-resolution-and-phase-191-closure) — 3 plans — 2026-04-20T17:15:22.073Z
+**Planned Phase:** 193 (queue-signal-contract-and-arbitration-telemetry) — TBD plans — 2026-04-23
