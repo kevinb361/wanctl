@@ -2446,6 +2446,123 @@ class TestPhase193MetricsBatch:
         dl_key = (("direction", "download"),)
         assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
 
+    def test_dl_metrics_emit_queue_primary_when_selector_active(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+        controller._ul_cake_snapshot = None
+        controller._last_arbitration_primary = "queue"
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
+            float(ARBITRATION_PRIMARY_ENCODING["queue"])
+        )
+
+    def test_dl_metrics_emit_rtt_primary_in_fallback(self, controller):
+        controller._cake_signal_supported = False
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+        controller._ul_cake_snapshot = None
+        controller._last_arbitration_primary = "rtt"
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
+            float(ARBITRATION_PRIMARY_ENCODING["rtt"])
+        )
+
+    def test_ul_metrics_block_textually_unchanged_label_anchored(self):
+        import re
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "diff", "src/wanctl/wan_controller.py"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        offending = [
+            line
+            for line in result.stdout.splitlines()
+            if re.match(
+                r'^[+-].*"wanctl_cake_(drop_rate|total_drop_rate|backlog_bytes|peak_delay_us)".*self\._upload_labels',
+                line,
+            )
+        ]
+        assert offending == [], f"UL metrics block was modified: {offending}"
+
+    def test_get_health_data_signal_arbitration_shape(self, controller):
+        arb = controller.get_health_data()["signal_arbitration"]
+
+        assert set(arb) == {
+            "active_primary_signal",
+            "rtt_confidence",
+            "control_decision_reason",
+            "cake_av_delay_delta_us",
+        }
+        assert arb["rtt_confidence"] is None
+
+    def test_get_health_data_signal_arbitration_cold_start_av_delta_is_none(
+        self, controller
+    ):
+        controller._last_arbitration_primary = "queue"
+        controller._last_arbitration_reason = "queue_distress"
+        controller._dl_cake_snapshot = None
+
+        missing_snapshot_arb = controller.get_health_data()["signal_arbitration"]
+        assert missing_snapshot_arb["cake_av_delay_delta_us"] is None
+
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=True, max_delay_delta_us=9999
+        )
+        cold_start_arb = controller.get_health_data()["signal_arbitration"]
+        assert cold_start_arb["cake_av_delay_delta_us"] is None
+
+    def test_get_health_data_signal_arbitration_relays_queue_primary(self, controller):
+        controller._last_arbitration_primary = "queue"
+        controller._last_arbitration_reason = "queue_distress"
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+
+        arb = controller.get_health_data()["signal_arbitration"]
+
+        assert arb["active_primary_signal"] == "queue"
+        assert arb["control_decision_reason"] == "queue_distress"
+        assert arb["cake_av_delay_delta_us"] == 20000
+
 
 class TestPhase194DLSelector:
     @pytest.fixture
