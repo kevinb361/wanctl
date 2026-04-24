@@ -33,6 +33,10 @@ pair:
 - `mode_gate_status: pass` is absent; current value is `mode_gate_status: blocked`.
 - `decision: ready-for-spectrum-a-leg` is absent; current value is `decision: blocked-do-not-start-soak`.
 
+Task 2 skipped: preflight gate failed. No `phase196-soak-capture.sh`
+`rtt-blend-start` or `rtt-blend-finish` capture was run, and no 24-hour soak
+was started.
+
 | Evidence | Status | Artifact |
 | --- | --- | --- |
 | Start capture | pending | `soak/rtt-blend/` |
