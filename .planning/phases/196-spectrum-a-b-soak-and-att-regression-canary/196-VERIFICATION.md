@@ -95,16 +95,22 @@ Task 4 skipped: no valid A-leg. No A/B operational comparison was run, no
 
 ## ATT Canary Gate
 
-Status: blocked
+Status: blocked - Phase 191 closure remains blocked
 
-Phase 191 remains blocked, so the ATT canary must not run. This gate can only
-move to pending/runnable after Phase 191 closure is recorded outside Phase 196
-Plan 01.
+ATT canary blocked by Phase 191.
+
+Phase 191 remains blocked, so the ATT canary must not run. The gate artifact
+records `decision: blocked-do-not-run-att-canary`, and the canary can only move
+to pending/runnable after Phase 191 closure is recorded outside Phase 196 Plan
+04.
+
+skipped_gate_blocked
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Phase 191 closure | blocked | `STATE.md` and `196-PREFLIGHT.md` record Phase 191 closure as blocked. |
-| ATT `cake-primary` canary | blocked | Not authorized while Phase 191 is blocked. |
+| Phase 191 closure | blocked | `STATE.md`, `196-PREFLIGHT.md`, `191-VERIFICATION.md`, `191.1-rerun-results.json`, and `192-PRECONDITION-WAIVER.md` record Phase 191 closure as blocked/open. |
+| ATT `cake-primary` canary | blocked | Not authorized while Phase 191 is blocked; no ATT flent load, mode switch, `att-canary-summary.json`, or `att-mode-proof.json` was produced. |
+| Gate artifact | recorded | `soak/att-canary/att-canary-gate.md` contains `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`. |
 
 ## SAFE-05 Source Guard
 
