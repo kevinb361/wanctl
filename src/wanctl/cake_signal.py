@@ -73,6 +73,9 @@ class TinSnapshot:
         backlog_bytes: Current queue backlog in bytes.
         peak_delay_us: Peak sojourn delay in microseconds.
         ecn_marked_packets: Cumulative ECN CE-marked packets.
+        avg_delay_us: Average sojourn delay in microseconds.
+        base_delay_us: Kernel-reported baseline queue delay in microseconds.
+        delay_delta_us: Per-tin max(0, avg_delay_us - base_delay_us).
     """
 
     name: str
@@ -81,6 +84,9 @@ class TinSnapshot:
     backlog_bytes: int
     peak_delay_us: int
     ecn_marked_packets: int
+    avg_delay_us: int = 0
+    base_delay_us: int = 0
+    delay_delta_us: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +102,9 @@ class CakeSignalSnapshot:
         peak_delay_us: Max peak_delay across BestEffort+Video+Voice tins.
         tins: Per-tin snapshots (tuple for immutability).
         cold_start: True on first update (delta not yet available).
+        avg_delay_us: Max avg_delay across BestEffort+Video+Voice tins.
+        base_delay_us: Max base_delay across BestEffort+Video+Voice tins.
+        max_delay_delta_us: Max per-tin max(0, avg_delay_us - base_delay_us).
     """
 
     drop_rate: float
@@ -104,6 +113,14 @@ class CakeSignalSnapshot:
     peak_delay_us: int
     tins: tuple[TinSnapshot, ...]
     cold_start: bool
+    # NOTE (Phase 193, REVIEWS concern 4): avg_delay_us and base_delay_us are
+    # independent max()-over-tins aggregations retained for diagnostic parity with
+    # peak_delay_us. They MUST NOT be subtracted to derive a delta. Consumers
+    # wanting "the queue-delay delta scalar" must read max_delay_delta_us, which
+    # is computed per-tin before aggregation and is per-tin faithful.
+    avg_delay_us: int = 0
+    base_delay_us: int = 0
+    max_delay_delta_us: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,6 +240,13 @@ class CakeSignalProcessor:
                     backlog_bytes=tins_raw[i].get("backlog_bytes", 0),
                     peak_delay_us=tins_raw[i].get("peak_delay_us", 0),
                     ecn_marked_packets=tins_raw[i].get("ecn_marked_packets", 0),
+                    avg_delay_us=tins_raw[i].get("avg_delay_us", 0),
+                    base_delay_us=tins_raw[i].get("base_delay_us", 0),
+                    delay_delta_us=max(
+                        0,
+                        tins_raw[i].get("avg_delay_us", 0)
+                        - tins_raw[i].get("base_delay_us", 0),
+                    ),
                 )
                 for i in range(len(tins_raw))
             )
@@ -235,6 +259,25 @@ class CakeSignalProcessor:
                 (tins_raw[i].get("peak_delay_us", 0) for i in range(1, len(tins_raw))),
                 default=0,
             )
+            active_avg_delay = max(
+                (tins_raw[i].get("avg_delay_us", 0) for i in range(1, len(tins_raw))),
+                default=0,
+            )
+            active_base_delay = max(
+                (tins_raw[i].get("base_delay_us", 0) for i in range(1, len(tins_raw))),
+                default=0,
+            )
+            active_max_delay_delta = max(
+                (
+                    max(
+                        0,
+                        tins_raw[i].get("avg_delay_us", 0)
+                        - tins_raw[i].get("base_delay_us", 0),
+                    )
+                    for i in range(1, len(tins_raw))
+                ),
+                default=0,
+            )
 
             snapshot = CakeSignalSnapshot(
                 drop_rate=0.0,
@@ -243,6 +286,9 @@ class CakeSignalProcessor:
                 peak_delay_us=active_peak_delay,
                 tins=tin_snapshots,
                 cold_start=True,
+                avg_delay_us=active_avg_delay,
+                base_delay_us=active_base_delay,
+                max_delay_delta_us=active_max_delay_delta,
             )
             self._last_snapshot = snapshot
             return snapshot
@@ -283,6 +329,13 @@ class CakeSignalProcessor:
                 backlog_bytes=tins_raw[i].get("backlog_bytes", 0),
                 peak_delay_us=tins_raw[i].get("peak_delay_us", 0),
                 ecn_marked_packets=tins_raw[i].get("ecn_marked_packets", 0),
+                avg_delay_us=tins_raw[i].get("avg_delay_us", 0),
+                base_delay_us=tins_raw[i].get("base_delay_us", 0),
+                delay_delta_us=max(
+                    0,
+                    tins_raw[i].get("avg_delay_us", 0)
+                    - tins_raw[i].get("base_delay_us", 0),
+                ),
             )
             for i in range(len(tins_raw))
         )
@@ -295,6 +348,25 @@ class CakeSignalProcessor:
             (tins_raw[i].get("peak_delay_us", 0) for i in range(1, len(tins_raw))),
             default=0,
         )
+        active_avg_delay = max(
+            (tins_raw[i].get("avg_delay_us", 0) for i in range(1, len(tins_raw))),
+            default=0,
+        )
+        active_base_delay = max(
+            (tins_raw[i].get("base_delay_us", 0) for i in range(1, len(tins_raw))),
+            default=0,
+        )
+        active_max_delay_delta = max(
+            (
+                max(
+                    0,
+                    tins_raw[i].get("avg_delay_us", 0)
+                    - tins_raw[i].get("base_delay_us", 0),
+                )
+                for i in range(1, len(tins_raw))
+            ),
+            default=0,
+        )
 
         self._cold_start = False
         snapshot = CakeSignalSnapshot(
@@ -304,6 +376,9 @@ class CakeSignalProcessor:
             peak_delay_us=active_peak_delay,
             tins=tin_snapshots,
             cold_start=False,
+            avg_delay_us=active_avg_delay,
+            base_delay_us=active_base_delay,
+            max_delay_delta_us=active_max_delay_delta,
         )
         self._last_snapshot = snapshot
         return snapshot
