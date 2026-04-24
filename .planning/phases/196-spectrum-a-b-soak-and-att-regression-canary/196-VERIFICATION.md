@@ -24,7 +24,14 @@ No Phase 196 soak should start until the mode gate is proven and this section is
 
 ## Spectrum A-Leg: rtt-blend
 
-Status: pending
+Status: blocked - preflight gate failed
+
+Plan 196-02 Task 1 blocked before any mode switch, soak capture, or flent
+baseline because `196-PREFLIGHT.md` does not contain the required go/no-go
+pair:
+
+- `mode_gate_status: pass` is absent; current value is `mode_gate_status: blocked`.
+- `decision: ready-for-spectrum-a-leg` is absent; current value is `decision: blocked-do-not-start-soak`.
 
 | Evidence | Status | Artifact |
 | --- | --- | --- |
