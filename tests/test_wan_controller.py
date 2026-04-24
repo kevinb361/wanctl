@@ -2800,6 +2800,164 @@ class TestPhase194DLSelector:
         assert controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
 
 
+class TestPhase195Arbitration:
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._cake_signal_supported = True
+        controller.baseline_rtt = 25.0
+        controller.load_rtt = 55.0
+        controller.green_threshold = 15.0
+        controller._last_rtt_confidence = 0.7
+        controller._last_queue_direction = "worsening"
+        controller._last_rtt_direction = "worsening"
+        return controller
+
+    @staticmethod
+    def _make_snapshot(*, cold_start: bool = False, max_delay_delta_us: int = 500):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=10.0,
+            total_drop_rate=12.0,
+            backlog_bytes=4096,
+            peak_delay_us=500,
+            tins=(),
+            cold_start=cold_start,
+            avg_delay_us=max_delay_delta_us,
+            base_delay_us=0,
+            max_delay_delta_us=max_delay_delta_us,
+        )
+
+    def test_queue_distress_remains_authoritative_under_high_confidence_rtt(
+        self, controller
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_QUEUE_DISTRESS
+
+        controller.load_rtt = 55.0
+        controller._last_rtt_confidence = 1.0
+        snapshot = self._make_snapshot(max_delay_delta_us=20_000)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert (primary, reason) == ("queue", ARBITRATION_REASON_QUEUE_DISTRESS)
+        assert load_for_classifier == pytest.approx(45.0)
+
+    @pytest.mark.parametrize(
+        ("confidence", "queue_dir", "rtt_dir", "rtt_delta_ms"),
+        [
+            (0.3, "worsening", "worsening", 30.0),
+            (1.0, "worsening", "improving", 30.0),
+            (1.0, "worsening", "worsening", 5.0),
+            (0.7, "worsening", "unknown", 30.0),
+            (None, "worsening", "worsening", 30.0),
+        ],
+    )
+    def test_queue_green_rtt_veto_gate_blocks_on_missing_condition(
+        self, controller, confidence, queue_dir, rtt_dir, rtt_delta_ms
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller.load_rtt = controller.baseline_rtt + rtt_delta_ms
+        controller._last_rtt_confidence = confidence
+        controller._last_queue_direction = queue_dir
+        controller._last_rtt_direction = rtt_dir
+        snapshot = self._make_snapshot(max_delay_delta_us=500)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert (primary, reason) == ("queue", ARBITRATION_REASON_GREEN_STABLE)
+        assert load_for_classifier == pytest.approx(controller.baseline_rtt + 0.5)
+
+    @pytest.mark.parametrize("confidence", [0.6, 0.7])
+    def test_queue_green_rtt_veto_gate_passes_at_high_confidence(
+        self, controller, confidence
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_RTT_VETO
+
+        controller.load_rtt = 55.0
+        controller._last_rtt_confidence = confidence
+        controller._last_queue_direction = "worsening"
+        controller._last_rtt_direction = "worsening"
+        snapshot = self._make_snapshot(max_delay_delta_us=500)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert (primary, reason) == ("rtt", ARBITRATION_REASON_RTT_VETO)
+        assert load_for_classifier == pytest.approx(controller.load_rtt)
+
+    def test_held_direction_counts_as_rtt_veto_agreement(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_RTT_VETO
+
+        controller.load_rtt = 55.0
+        controller._last_rtt_confidence = 0.7
+        controller._last_queue_direction = "held"
+        controller._last_rtt_direction = "held"
+        snapshot = self._make_snapshot(max_delay_delta_us=500)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert (primary, reason) == ("rtt", ARBITRATION_REASON_RTT_VETO)
+        assert load_for_classifier == pytest.approx(controller.load_rtt)
+
+    def test_cake_unsupported_fallback_ignores_rtt_veto_gate(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller._cake_signal_supported = False
+        controller.load_rtt = 55.0
+        controller._last_rtt_confidence = 1.0
+        snapshot = self._make_snapshot(max_delay_delta_us=500)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert (primary, reason) == ("rtt", ARBITRATION_REASON_GREEN_STABLE)
+        assert load_for_classifier == pytest.approx(controller.load_rtt)
+
+    def test_selector_tuple_shape_stays_stable(self, controller):
+        snapshot = self._make_snapshot(max_delay_delta_us=500)
+
+        result = controller._select_dl_primary_scalar_ms(snapshot)
+
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        primary, load_for_classifier, reason = result
+        assert primary in {"queue", "rtt"}
+        assert isinstance(load_for_classifier, float)
+        assert isinstance(reason, str)
+
+
 class TestPhase195Confidence:
     @pytest.fixture
     def controller(self, mock_autorate_config):
