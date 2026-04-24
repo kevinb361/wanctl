@@ -2699,6 +2699,116 @@ class TestPhase194DLSelector:
         assert controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
 
 
+class TestPhase195Confidence:
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller.baseline_rtt = 25.0
+        controller.load_rtt = 42.0
+        controller.green_threshold = 15.0
+        controller.soft_red_threshold = 45.0
+        controller.hard_red_threshold = 80.0
+        controller.target_delta = 15.0
+        controller.warn_delta = 45.0
+        return controller
+
+    def test_healer_bypass_constant(self):
+        from wanctl.wan_controller import ARBITRATION_REASON_HEALER_BYPASS
+
+        assert ARBITRATION_REASON_HEALER_BYPASS == "healer_bypass"
+
+    def test_initial_confidence_stashes(self, controller):
+        assert controller._last_rtt_confidence is None
+        assert controller._last_queue_direction == "unknown"
+        assert controller._last_rtt_direction == "unknown"
+        assert controller._prev_queue_delta_ms is None
+        assert controller._prev_rtt_delta_ms is None
+        assert controller._healer_aligned_streak == 0
+
+    @pytest.mark.parametrize(
+        ("previous", "current", "expected"),
+        [
+            (None, 10.0, "unknown"),
+            (5.0, 10.0, "worsening"),
+            (10.0, 5.0, "improving"),
+            (5.0, 5.0, "held"),
+        ],
+    )
+    def test_classify_direction(self, controller, previous, current, expected):
+        assert controller._classify_direction(previous, current) == expected
+
+    @pytest.mark.parametrize(
+        ("ratio", "queue_direction", "rtt_direction", "expected"),
+        [
+            (0.3, "worsening", "worsening", 0.0),
+            (1.0, "worsening", "improving", 0.0),
+            (1.0, "worsening", "worsening", 1.0),
+            (None, "worsening", "worsening", 0.5),
+            (1.0, "unknown", "worsening", 0.5),
+        ],
+    )
+    def test_derive_rtt_confidence(
+        self, controller, ratio, queue_direction, rtt_direction, expected
+    ):
+        controller._irtt_correlation = ratio
+
+        assert controller._derive_rtt_confidence(
+            queue_direction, rtt_direction
+        ) == pytest.approx(expected)
+
+    def test_direction_and_confidence_helpers_are_pure(self, controller):
+        controller._last_rtt_confidence = None
+        controller._last_queue_direction = "unknown"
+        controller._last_rtt_direction = "unknown"
+        controller._prev_queue_delta_ms = None
+        controller._prev_rtt_delta_ms = None
+        controller._healer_aligned_streak = 0
+        before = {
+            "_last_rtt_confidence": controller._last_rtt_confidence,
+            "_last_queue_direction": controller._last_queue_direction,
+            "_last_rtt_direction": controller._last_rtt_direction,
+            "_prev_queue_delta_ms": controller._prev_queue_delta_ms,
+            "_prev_rtt_delta_ms": controller._prev_rtt_delta_ms,
+            "_healer_aligned_streak": controller._healer_aligned_streak,
+        }
+
+        assert controller._classify_direction(1.0, 2.0) == "worsening"
+        controller._irtt_correlation = 1.0
+        assert controller._derive_rtt_confidence("worsening", "worsening") == 1.0
+
+        after = {
+            "_last_rtt_confidence": controller._last_rtt_confidence,
+            "_last_queue_direction": controller._last_queue_direction,
+            "_last_rtt_direction": controller._last_rtt_direction,
+            "_prev_queue_delta_ms": controller._prev_queue_delta_ms,
+            "_prev_rtt_delta_ms": controller._prev_rtt_delta_ms,
+            "_healer_aligned_streak": controller._healer_aligned_streak,
+        }
+        assert after == before
+
+
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
 
