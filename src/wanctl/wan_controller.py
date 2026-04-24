@@ -965,6 +965,8 @@ class WANController:
 
         snapshot = self._rtt_thread.get_latest()
         cycle_status = self._rtt_thread.get_cycle_status()
+        if not isinstance(cycle_status, RTTCycleStatus):
+            cycle_status = None
         if snapshot is None:
             self.logger.warning(
                 f"{self.wan_name}: No RTT data available (background thread starting)"

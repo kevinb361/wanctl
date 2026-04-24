@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.40
-milestone_name: Queue-Primary Signal Arbitration
-status: roadmap complete
-stopped_at: v1.40 roadmap written 2026-04-23
-last_updated: "2026-04-23T00:00:00.000Z"
-last_activity: 2026-04-23
+milestone: v1.39
+milestone_name: milestone
+status: completed
+stopped_at: Completed 193-01-PLAN.md
+last_updated: "2026-04-24T13:14:24.195Z"
+last_activity: 2026-04-24
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 11
+  completed_plans: 10
+  percent: 91
 ---
 
 # Session State
@@ -21,23 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.40 Queue-Primary Signal Arbitration — roadmap complete (4 phases: 193, 194, 195, 196). v1.39 Phase 191 ATT closure + Phase 192 reflector scorer run in parallel; Phase 192 gates Phase 195 input quality and Phase 196 soak calendar.
+**Current focus:** Phase 194 — download-queue-primary-distress-classification
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** Not started (roadmap complete, awaiting `/gsd-plan-phase 193`)
-**Plan:** —
-**Status:** Roadmap complete — 4 phases, 10/10 requirements mapped
-**Last activity:** 2026-04-23 — v1.40 roadmap written: Phase 193 (telemetry-only), Phase 194 (DL queue-primary classification), Phase 195 (RTT confidence + healer containment, depends on v1.39 Phase 192), Phase 196 (Spectrum A/B soak + ATT canary, depends on v1.39 Phase 192 and Phase 191 closure)
+**Phase:** 194
+**Plan:** Not started
+**Status:** Milestone complete
+**Last activity:** 2026-04-24
 
 Progress: [──────────] 0% (0/4 phases complete, 0/0 plans — plans materialized per phase)
 
 ## Parallel Milestone
 
-**v1.39 Control-Path Timing & Measurement Accounting** — pending closure
+**v1.39 Control-Path Timing & Measurement Accounting** — Phase 192 shipped under waiver; Phase 191 remains open
+
 - Phase 191: blocked on ATT RRUL weather-rerun
-- Phase 192: Reflector Scorer Blackout + Log Hygiene — planned, unexecuted (owns MEAS-06/VALN-03 24h Spectrum soak)
+- Phase 192: Reflector Scorer Blackout + Log Hygiene — shipped to production as `1.39.0` under `192-PRECONDITION-WAIVER.md`; D-08/OPER-02 pre/post soak capture passed against the live 24h journal window
 - Serialized Spectrum soak rule: Phase 192 24h soak must land before v1.40 Phase 196 2×24h soak; no concurrent Spectrum experiments
 - Cross-milestone dependencies: v1.40 Phase 195 depends on v1.39 Phase 192 (corrected blackout-aware scorer feeds rtt_confidence); v1.40 Phase 196 depends on v1.39 Phase 192 (serialized Spectrum soak) and v1.39 Phase 191 closure (ATT canary gate)
 
@@ -53,7 +54,7 @@ Progress: [──────────] 0% (0/4 phases complete, 0/0 plans �
 
 - Phase 191.1 inserted after Phase 191: ATT config drift resolution and Phase 191 closure (URGENT)
 - Phase 191 ATT validation isolated the blocker to post-`v1.38` ATT config/runtime drift rather than the narrow Phase 191 timing changes; current code plus `v1.38` ATT config restored RRUL baseline throughput
-- Phase 192 now waits on Phase 191.1 so the next soak is not confounded by unresolved ATT closure criteria
+- Phase 192 originally waited on Phase 191.1 so the next soak would not be confounded by unresolved ATT closure criteria; on 2026-04-24 the operator explicitly waived that precondition for Phase 192 only after another restored-config rerun narrowed the blocker to the old ATT RRUL download comparator.
 
 - v1.34 shipped: latency/burst alerts, storage/runtime pressure monitoring, operator summary surfaces, canary checks, threshold runbook
 - v1.35 shipped: storage stabilization, clean deploy/canary, 24-hour soak closeout, verification backfill, and operator-flow alignment
@@ -136,6 +137,7 @@ Resume file: None
 - [Phase 191.1]: A third rerun on `2026-04-21b` dropped ATT RRUL back to `67.83 Mbps` while Spectrum remained degraded (`309.04 Mbps`, `375.64 ms` ping p99), reinforcing that the rerun environment was still unstable.
 - [Phase 191.1]: A fourth rerun on `2026-04-23` re-verified the ATT source path cleanly after removing the AI-VM ATT policy (`10.10.110.233` => `99.126.115.47`, `10.10.110.226` => `70.123.224.169`) and produced ATT RRUL `64.40 Mbps`, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so the overall sample remains environment-confounded.
 - [Phase 191.1]: Kept Plan 05 ATT failure history intact and added Phase 191.1 closure wording as additive evidence only.
+- [Phase 191.1]: A sixth rerun on `2026-04-24` produced ATT RRUL `70.95 Mbps`, ATT tcp_12down `72.95 Mbps`, ATT VoIP one-way p99 `28.02 ms`, and Spectrum RRUL `343.83 Mbps` with poor `653.68 ms` ping p99. Phase 191 remains blocked, but the operator waived the Phase 191 closure precondition for Phase 192 only in `192-PRECONDITION-WAIVER.md`.
 - [Phase 193]: Phase 193-01 keeps queue-delay plumbing additive and observability-only; classifier and control-path behavior remain untouched.
 - [Phase 193]: Phase 193-01 exposes max_delay_delta_us as the authoritative queue-delay scalar computed per tin before aggregation.
 
@@ -160,6 +162,6 @@ Resume file: None
 
 ## Blockers
 
-- Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), and `2026-04-23` (`64.40 Mbps`) FAIL samples. The `2026-04-23` run is the first one with the ATT source path re-verified clean after removing the AI-VM ATT policy, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so all four runs are still treated as environment-confounded and Plan `191.1-02` should be repeated again in a cleaner window before treating the FAIL as stable attribution.
+- Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 
 **Planned Phase:** 193 (Queue Signal Contract and Arbitration Telemetry) — 3 plans — 2026-04-24T01:10:12.744Z
