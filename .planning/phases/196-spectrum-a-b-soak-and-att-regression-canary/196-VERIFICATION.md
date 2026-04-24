@@ -37,6 +37,10 @@ Task 2 skipped: preflight gate failed. No `phase196-soak-capture.sh`
 `rtt-blend-start` or `rtt-blend-finish` capture was run, and no 24-hour soak
 was started.
 
+Task 3 skipped: preflight gate failed. No Spectrum rtt-blend flent baseline
+was run, and no `phase196_rtt_blend_tcp12` or
+`phase196_rtt_blend_rrul_voip` manifest was produced.
+
 | Evidence | Status | Artifact |
 | --- | --- | --- |
 | Start capture | pending | `soak/rtt-blend/` |
