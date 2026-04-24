@@ -120,8 +120,8 @@
 | OBS-01      | Phase 193 | Pending |
 | OBS-02      | Phase 193 | Pending |
 | SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 (enforced throughout) | Complete |
-| VALN-04     | Phase 196 | Pending |
-| VALN-05     | Phase 196 | Pending |
+| VALN-04     | Phase 196 | Blocked |
+| VALN-05     | Phase 196 | Blocked |
 
 ---
 *v1.39 requirements defined: 2026-04-20*

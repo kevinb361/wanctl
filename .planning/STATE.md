@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.39
-milestone_name: milestone
-status: completed
+milestone: v1.40
+milestone_name: Queue-Primary Signal Arbitration
+status: blocked
 stopped_at: Completed 193-01-PLAN.md
-last_updated: "2026-04-24T18:49:15.526Z"
+last_updated: "2026-04-24T21:01:58Z"
 last_activity: 2026-04-24
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 11
-  completed_plans: 13
-  percent: 100
+  total_phases: 7
+  completed_phases: 6
+  total_plans: 23
+  completed_plans: 22
+  percent: 96
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 195 — rtt-confidence-demotion-and-fusion-healer-containment
+**Current focus:** Phase 196 — spectrum-a-b-soak-and-att-regression-canary
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** 195
-**Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 196
+**Plan:** 196-04
+**Status:** Phase 196 blocked after closeout; VALN-04/VALN-05 evidence is incomplete
 **Last activity:** 2026-04-24
 
-Progress: [──────────] 0% (0/4 phases complete, 0/0 plans — plans materialized per phase)
+Progress: [███████───] 75% (3/4 phases complete, 12/12 v1.40 plans executed; Phase 196 blocked)
 
 ## Parallel Milestone
 
@@ -140,6 +140,7 @@ Resume file: None
 - [Phase 191.1]: A sixth rerun on `2026-04-24` produced ATT RRUL `70.95 Mbps`, ATT tcp_12down `72.95 Mbps`, ATT VoIP one-way p99 `28.02 ms`, and Spectrum RRUL `343.83 Mbps` with poor `653.68 ms` ping p99. Phase 191 remains blocked, but the operator waived the Phase 191 closure precondition for Phase 192 only in `192-PRECONDITION-WAIVER.md`.
 - [Phase 193]: Phase 193-01 keeps queue-delay plumbing additive and observability-only; classifier and control-path behavior remain untouched.
 - [Phase 193]: Phase 193-01 exposes max_delay_delta_us as the authoritative queue-delay scalar computed per tin before aggregation.
+- [Phase 196]: Final closeout records Phase 196 as blocked, not passed: Spectrum A/B evidence is absent because the reversible mode gate is blocked, and ATT canary blocked by Phase 191.
 
 ## Performance Metrics
 
@@ -163,5 +164,6 @@ Resume file: None
 ## Blockers
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
+- Phase 196 remains blocked after Plan 196-04 closeout: no Spectrum A/B validation evidence exists because the reversible `rtt-blend` / `cake-primary` mode gate is blocked, and ATT canary remains blocked by Phase 191 closure. VALN-04 and VALN-05 stay blocked; SAFE-05 remains satisfied.
 
-**Planned Phase:** 195 (rtt-confidence-demotion-and-fusion-healer-containment) — 3 plans — 2026-04-24T14:42:14.399Z
+**Planned Phase:** 196 (spectrum-a-b-soak-and-att-regression-canary) — 4 plans — 2026-04-24T19:50:03Z

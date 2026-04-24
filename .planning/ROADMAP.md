@@ -124,7 +124,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 | 193 | Queue Signal Contract and Arbitration Telemetry | 1/3 | In Progress|  |
 | 194 | Download Queue-Primary Distress Classification | 2/2 | Complete    | 2026-04-24 |
 | 195 | RTT Confidence Demotion and Fusion-Healer Containment | 3/3 | Complete    | 2026-04-24 |
-| 196 | Spectrum A/B Soak and ATT Regression Canary | Sequential 24h rtt-blend then 24h cake-primary Spectrum soak; ATT canary after Phase 191 closure; Spectrum DL recovers to ≥90% of 591 Mbps CAKE-only static floor without RTT-distress regression | VALN-04, VALN-05, SAFE-05 | 4 |
+| 196 | Spectrum A/B Soak and ATT Regression Canary | 4/4 | Blocked | 2026-04-24 |
 
 ---
 
@@ -270,7 +270,18 @@ Plans:
 3. Spectrum DL `tcp_12down` 30s median throughput under cake-primary is ≥ 532 Mbps (90% of 591 Mbps floor from 2026-04-23), captured at least once before Phase 196 ships. Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg.
 4. After v1.39 Phase 191 closure, the ATT `tcp_12down` canary under cake-primary runs and either (a) passes at ≥95% of last passing ATT baseline, clearing ATT for cake-primary enablement, or (b) fails and ATT is rolled back to rtt-blend with a recorded follow-up phase — no silent ATT regression reaches production.
 
-**Plans:** TBD (created by `/gsd-plan-phase 196`)
+**Plans:** 4/4 plans executed - phase blocked pending missing validation evidence
+
+Plans:
+- [x] 196-01-PLAN.md — Preflight, mode-gate validation, capture tooling, and verification scaffold (VALN-04, VALN-05, SAFE-05)
+- [x] 196-02-PLAN.md — Spectrum 24h `rtt-blend` A-leg baseline with full-window primary-signal audit (VALN-04, SAFE-05)
+- [x] 196-03-PLAN.md — Spectrum 24h `cake-primary` B-leg, throughput acceptance, and A/B comparison (VALN-04, VALN-05, SAFE-05)
+- [x] 196-04-PLAN.md — ATT canary gate, optional ATT `cake-primary` canary, rollback/follow-up, and closeout (VALN-05, SAFE-05)
+
+Closeout status: Phase 196 is blocked, not passed. Spectrum A/B evidence is
+missing because the reversible mode gate is still blocked, and ATT canary
+blocked by Phase 191. VALN-04 and VALN-05 remain blocked; SAFE-05 remains
+complete.
 
 ---
 
