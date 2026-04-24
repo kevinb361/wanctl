@@ -97,7 +97,7 @@ Progress: [──────────] 0% (0/4 phases complete, 0/0 plans �
 
 ## Session Continuity
 
-Stopped at: v1.40 ROADMAP.md section written; traceability filled; STATE.md updated
+Stopped at: Completed 193-01-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -136,6 +136,8 @@ Resume file: None
 - [Phase 191.1]: A third rerun on `2026-04-21b` dropped ATT RRUL back to `67.83 Mbps` while Spectrum remained degraded (`309.04 Mbps`, `375.64 ms` ping p99), reinforcing that the rerun environment was still unstable.
 - [Phase 191.1]: A fourth rerun on `2026-04-23` re-verified the ATT source path cleanly after removing the AI-VM ATT policy (`10.10.110.233` => `99.126.115.47`, `10.10.110.226` => `70.123.224.169`) and produced ATT RRUL `64.40 Mbps`, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so the overall sample remains environment-confounded.
 - [Phase 191.1]: Kept Plan 05 ATT failure history intact and added Phase 191.1 closure wording as additive evidence only.
+- [Phase 193]: Phase 193-01 keeps queue-delay plumbing additive and observability-only; classifier and control-path behavior remain untouched.
+- [Phase 193]: Phase 193-01 exposes max_delay_delta_us as the authoritative queue-delay scalar computed per tin before aggregation.
 
 ## Performance Metrics
 
@@ -160,4 +162,4 @@ Resume file: None
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), and `2026-04-23` (`64.40 Mbps`) FAIL samples. The `2026-04-23` run is the first one with the ATT source path re-verified clean after removing the AI-VM ATT policy, but the matching Spectrum discriminator was still degraded (`286.42 Mbps`, `812.33 ms` ping p99), so all four runs are still treated as environment-confounded and Plan `191.1-02` should be repeated again in a cleaner window before treating the FAIL as stable attribution.
 
-**Planned Phase:** 193 (queue-signal-contract-and-arbitration-telemetry) — TBD plans — 2026-04-23
+**Planned Phase:** 193 (Queue Signal Contract and Arbitration Telemetry) — 3 plans — 2026-04-24T01:10:12.744Z

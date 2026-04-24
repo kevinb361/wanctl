@@ -114,7 +114,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 193 | Queue Signal Contract and Arbitration Telemetry | Expose `avg_delay_us` and `base_delay_us` through the signal pipeline and publish the `signal_arbitration` /health block + numeric metrics with zero control-behavior change | MEAS-07, OBS-01, OBS-02, SAFE-05 | 4 |
+| 193 | Queue Signal Contract and Arbitration Telemetry | 1/3 | In Progress|  |
 | 194 | Download Queue-Primary Distress Classification | Make DL distress classification consume `queue_delay_delta_us` as primary under load; fall back to v1.39 RTT-primary byte-identically when cake_signal is unavailable; UL untouched | ARB-01, ARB-04, SAFE-05 | 4 |
 | 195 | RTT Confidence Demotion and Fusion-Healer Containment | Derive `rtt_confidence` from ICMP/UDP agreement and queue-direction agreement; require sustained queue+RTT 6-cycle direction alignment for healer bypass; single-path flips never bypass | ARB-02, ARB-03, SAFE-05 | 4 |
 | 196 | Spectrum A/B Soak and ATT Regression Canary | Sequential 24h rtt-blend then 24h cake-primary Spectrum soak; ATT canary after Phase 191 closure; Spectrum DL recovers to ≥90% of 591 Mbps CAKE-only static floor without RTT-distress regression | VALN-04, VALN-05, SAFE-05 | 4 |
@@ -148,7 +148,12 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 3. Per-cycle queries against the metrics SQLite store return numeric values for `wanctl_cake_avg_delay_delta_us`, `wanctl_rtt_confidence`, and `wanctl_arbitration_active_primary` (with `active_primary == 2` for "rtt" throughout this phase) under real load.
 4. Offline replay of a v1.38/v1.39 production trace through the Phase 193 build produces byte-identical classifier transitions and rate-apply sequences to the pre-Phase-193 build, proving SAFE-05 — classification input unchanged, classification output unchanged.
 
-**Plans:** TBD (created by `/gsd-plan-phase 193`)
+**Plans:** 1/3 plans executed
+
+Plans:
+- [x] 193-01-PLAN.md — Extend CakeSignalSnapshot/TinSnapshot with avg_delay_us + base_delay_us; wire cold-start + steady-state construction sites (MEAS-07, SAFE-05)
+- [ ] 193-02-PLAN.md — Add /health signal_arbitration block + extend DL CAKE metrics batch (OBS-01, OBS-02, SAFE-05)
+- [ ] 193-03-PLAN.md — SAFE-05 replay-equivalence harness + 193-VERIFICATION.md (SAFE-05)
 
 ---
 
