@@ -829,7 +829,7 @@ class TestFusionFallback:
         assert result == 30.0
 
     def test_irtt_offset_beyond_green_threshold_returns_filtered_rtt(self, mock_controller):
-        """Large absolute ICMP/IRTT disagreement bypasses fusion."""
+        """Large absolute ICMP/IRTT disagreement returns filtered RTT without bypass."""
         irtt_thread = MagicMock()
         irtt_thread.get_latest.return_value = _make_irtt_result(rtt_ms=39.5, age_offset=1.0)
         irtt_thread.cadence_sec = 10.0
@@ -839,10 +839,10 @@ class TestFusionFallback:
         result = mock_controller._compute_fused_rtt(30.0)
 
         assert result == 30.0
-        assert mock_controller._fusion_bypass_active is True
-        assert mock_controller._fusion_bypass_reason == "absolute_disagreement"
+        assert mock_controller._fusion_bypass_active is False
+        assert mock_controller._fusion_bypass_reason is None
         assert mock_controller._fusion_bypass_offset_ms == pytest.approx(9.5)
-        assert mock_controller._fusion_bypass_count == 1
+        assert mock_controller._fusion_bypass_count == 0
 
     def test_irtt_offset_within_green_threshold_still_fuses(self, mock_controller):
         """Small absolute ICMP/IRTT disagreement still allows fusion."""
