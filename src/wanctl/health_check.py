@@ -285,9 +285,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         cake_signal = self._build_cake_signal_section(health_data)
         if cake_signal is not None:
             wan_health["cake_signal"] = cake_signal
-        wan_health["signal_arbitration"] = self._build_signal_arbitration_section(
-            health_data
-        )
+        wan_health["signal_arbitration"] = self._build_signal_arbitration_section(health_data)
 
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
         wan_health["storage"] = self._build_storage_section(health_data)
@@ -759,18 +757,30 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def _build_signal_arbitration_section(
         self, health_data: dict[str, Any]
     ) -> dict[str, Any]:
-        """Build signal_arbitration per-WAN block (Phase 193, OBS-01)."""
+        """Build signal_arbitration per-WAN block.
+
+        Phase 193 introduced this block as observability-only with hardcoded
+        ``active_primary_signal == "rtt"``. Phase 194 sources active_primary_signal
+        and control_decision_reason from controller-owned arbitration state set by
+        WANController._run_congestion_assessment. ``rtt_confidence`` remains null
+        until Phase 195. This renderer keeps a legacy fallback for callers that
+        construct health_data without controller-owned arbitration state (e.g.,
+        legacy tests, MagicMock controllers).
+        """
+        arb = health_data.get("signal_arbitration") or {}
         cake_data = health_data.get("cake_signal") or {}
         dl_snap = cake_data.get("download")
-        if dl_snap is None:
-            av_delta: int | None = None
+        if dl_snap is not None and not getattr(dl_snap, "cold_start", True):
+            av_delta_fallback: int | None = int(dl_snap.max_delay_delta_us)
         else:
-            av_delta = int(dl_snap.max_delay_delta_us)
+            av_delta_fallback = None
         return {
-            "active_primary_signal": "rtt",
-            "rtt_confidence": None,
-            "cake_av_delay_delta_us": av_delta,
-            "control_decision_reason": "rtt_primary_operating_normally",
+            "active_primary_signal": arb.get("active_primary_signal", "rtt"),
+            "rtt_confidence": arb.get("rtt_confidence"),
+            "cake_av_delay_delta_us": arb.get(
+                "cake_av_delay_delta_us", av_delta_fallback
+            ),
+            "control_decision_reason": arb.get("control_decision_reason", "rtt_primary_operating_normally"),
         }
 
     def _build_tuning_section(
