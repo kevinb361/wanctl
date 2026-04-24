@@ -10,7 +10,10 @@ from wanctl.fusion_healer import HealState
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot
 from wanctl.storage.writer import MetricsWriter
-from wanctl.wan_controller import BACKGROUND_RTT_MIN_CADENCE_SECONDS
+from wanctl.wan_controller import (
+    ARBITRATION_PRIMARY_ENCODING,
+    BACKGROUND_RTT_MIN_CADENCE_SECONDS,
+)
 
 
 class TestHandleIcmpFailure:
@@ -2253,6 +2256,7 @@ class TestStateLoadSave:
         assert ctrl._overlap_max_ms == pytest.approx(7.25)
         assert ctrl._slow_apply_with_overlap_count == 1
 
+
     def test_log_slow_router_apply_counts_as_overlap_when_recent_completed_overlap(
         self, controller_with_mocks
     ):
@@ -2309,6 +2313,138 @@ class TestStateLoadSave:
 
         assert ctrl._dl_zone == "GREEN"
         assert ctrl._ul_zone == "GREEN"
+
+
+class TestPhase193MetricsBatch:
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        controller._metrics_writer = MagicMock()
+        controller._io_worker = None
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        return controller
+
+    @staticmethod
+    def _make_snapshot(*, cold_start: bool, max_delay_delta_us: int):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=10.0,
+            total_drop_rate=12.0,
+            backlog_bytes=4096,
+            peak_delay_us=500,
+            tins=(),
+            cold_start=cold_start,
+            avg_delay_us=5000,
+            base_delay_us=200,
+            max_delay_delta_us=max_delay_delta_us,
+        )
+
+    @staticmethod
+    def _metrics_by_name(batch):
+        return {
+            (metric_name, tuple(sorted((labels or {}).items()))): value
+            for _, _, metric_name, value, labels, _ in batch
+        }
+
+    def test_dl_metrics_batch_includes_phase_193_metrics_with_values(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=4800
+        )
+        controller._ul_cake_snapshot = None
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_cake_avg_delay_delta_us", dl_key)] == pytest.approx(4800.0)
+        assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
+            float(ARBITRATION_PRIMARY_ENCODING["rtt"])
+        )
+        assert str(metrics[("wanctl_rtt_confidence", dl_key)]).lower() == "nan"
+
+    def test_dl_metrics_batch_uses_nan_sentinels_when_snapshot_missing(self, controller):
+        controller._dl_cake_snapshot = None
+        controller._ul_cake_snapshot = None
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
+        assert str(metrics[("wanctl_rtt_confidence", dl_key)]).lower() == "nan"
+
+    def test_dl_metrics_batch_uses_nan_delta_when_snapshot_is_cold_start(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=True, max_delay_delta_us=9999
+        )
+        controller._ul_cake_snapshot = None
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
 
 
 class TestMeasureRttMedianOfThree:

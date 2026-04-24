@@ -285,6 +285,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         cake_signal = self._build_cake_signal_section(health_data)
         if cake_signal is not None:
             wan_health["cake_signal"] = cake_signal
+        wan_health["signal_arbitration"] = self._build_signal_arbitration_section(
+            health_data
+        )
 
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
         wan_health["storage"] = self._build_storage_section(health_data)
@@ -752,6 +755,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             }
 
         return result
+
+    def _build_signal_arbitration_section(
+        self, health_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Build signal_arbitration per-WAN block (Phase 193, OBS-01)."""
+        cake_data = health_data.get("cake_signal") or {}
+        dl_snap = cake_data.get("download")
+        if dl_snap is None:
+            av_delta: int | None = None
+        else:
+            av_delta = int(dl_snap.max_delay_delta_us)
+        return {
+            "active_primary_signal": "rtt",
+            "rtt_confidence": None,
+            "cake_av_delay_delta_us": av_delta,
+            "control_decision_reason": "rtt_primary_operating_normally",
+        }
 
     def _build_tuning_section(
         self, health_data: dict[str, Any], wan_controller: Any

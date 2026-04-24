@@ -4359,6 +4359,174 @@ class TestBuildCakeSignalSection:
         assert result is None
 
 
+class TestBuildSignalArbitrationSection:
+    """Tests for _build_signal_arbitration_section in HealthCheckHandler."""
+
+    def _make_handler(self) -> HealthCheckHandler:
+        return HealthCheckHandler.__new__(HealthCheckHandler)
+
+    @staticmethod
+    def _make_snapshot(**overrides):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        values = {
+            "drop_rate": 0.0,
+            "total_drop_rate": 0.0,
+            "backlog_bytes": 0,
+            "peak_delay_us": 0,
+            "tins": (),
+            "cold_start": False,
+            "avg_delay_us": 0,
+            "base_delay_us": 0,
+            "max_delay_delta_us": 0,
+        }
+        values.update(overrides)
+        return CakeSignalSnapshot(**values)
+
+    def test_phase_193_active_primary_is_rtt(self) -> None:
+        handler = self._make_handler()
+        result = handler._build_signal_arbitration_section(
+            {
+                "cake_signal": {
+                    "download": self._make_snapshot(max_delay_delta_us=4800),
+                }
+            }
+        )
+
+        assert result["active_primary_signal"] == "rtt"
+        assert result["rtt_confidence"] is None
+        assert isinstance(result["cake_av_delay_delta_us"], int)
+        assert result["control_decision_reason"] == "rtt_primary_operating_normally"
+
+    def test_cake_av_delay_delta_reads_authoritative_max_delay_delta_us(self) -> None:
+        handler = self._make_handler()
+        result = handler._build_signal_arbitration_section(
+            {
+                "cake_signal": {
+                    "download": self._make_snapshot(
+                        avg_delay_us=10000,
+                        base_delay_us=2800,
+                        max_delay_delta_us=9800,
+                    ),
+                }
+            }
+        )
+
+        assert result["cake_av_delay_delta_us"] == 9800
+        assert result["cake_av_delay_delta_us"] != 7200
+
+    def test_cake_av_delay_delta_is_none_when_snapshot_missing(self) -> None:
+        handler = self._make_handler()
+        result = handler._build_signal_arbitration_section(
+            {"cake_signal": {"download": None}}
+        )
+
+        assert result["active_primary_signal"] == "rtt"
+        assert result["rtt_confidence"] is None
+        assert result["cake_av_delay_delta_us"] is None
+        assert result["control_decision_reason"] == "rtt_primary_operating_normally"
+
+    def test_cake_av_delay_delta_is_none_when_cake_signal_key_missing_entirely(self) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section({})
+
+        assert result["cake_av_delay_delta_us"] is None
+
+    def test_cake_av_delay_delta_is_zero_when_max_delay_delta_us_is_zero(self) -> None:
+        handler = self._make_handler()
+        result = handler._build_signal_arbitration_section(
+            {"cake_signal": {"download": self._make_snapshot(max_delay_delta_us=0)}}
+        )
+
+        assert result["cake_av_delay_delta_us"] == 0
+
+    def test_signal_arbitration_is_sibling_of_cake_signal_in_wan_health(self) -> None:
+        handler = self._make_handler()
+        wan_controller = MagicMock()
+        wan_controller.baseline_rtt = 10.0
+        wan_controller.load_rtt = 12.0
+        wan_controller.router_connectivity.to_dict.return_value = {"reachable": True}
+        wan_controller.get_health_data.return_value = {
+            "cycle_budget": {
+                "profiler": MagicMock(stats=MagicMock(return_value=None)),
+                "overrun_count": 0,
+                "cycle_interval_ms": 50.0,
+                "warning_threshold_pct": 80.0,
+            },
+            "suppression_alert": {"threshold": 0},
+            "signal_result": None,
+            "measurement": {},
+            "irtt": {"thread": None},
+            "cake_signal": {"download": self._make_snapshot(max_delay_delta_us=1234)},
+            "tuning": {"enabled": False, "state": None},
+            "storage": {},
+            "runtime": {},
+            "asymmetry_gate": {
+                "enabled": False,
+                "active": False,
+                "downstream_streak": 0,
+                "damping_factor": 1.0,
+                "last_result_age_sec": None,
+            },
+        }
+        wan_controller.download.current_rate = 100_000_000
+        wan_controller.upload.current_rate = 20_000_000
+        wan_controller.download.red_streak = 0
+        wan_controller.download.soft_red_streak = 0
+        wan_controller.download.green_streak = 1
+        wan_controller.download.soft_red_required = 3
+        wan_controller.download.green_required = 5
+        wan_controller.upload.red_streak = 0
+        wan_controller.upload.soft_red_streak = 0
+        wan_controller.upload.green_streak = 1
+        wan_controller.upload.soft_red_required = 3
+        wan_controller.upload.green_required = 5
+        wan_controller.download.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 0,
+                "deadband_ms": 0.0,
+                "transitions_suppressed": 0,
+                "suppressions_per_min": 0.0,
+                "window_start_epoch": 0,
+            },
+            "cake_detection": {"dwell_bypassed_count": 0},
+        }
+        wan_controller.upload.get_health_data.return_value = {
+            "hysteresis": {
+                "dwell_counter": 0,
+                "dwell_cycles": 0,
+                "deadband_ms": 0.0,
+                "transitions_suppressed": 0,
+                "suppressions_per_min": 0.0,
+                "window_start_epoch": 0,
+            }
+        }
+        config = MagicMock()
+        config.wan_name = "wan-a"
+
+        with (
+            patch.object(handler, "_build_measurement_section", return_value={}),
+            patch.object(handler, "_build_background_workers_section", return_value=None),
+            patch.object(handler, "_build_irtt_section", return_value={}),
+            patch.object(handler, "_build_reflector_section", return_value={}),
+            patch.object(handler, "_build_fusion_section", return_value={}),
+            patch.object(handler, "_build_asymmetry_gate_section", return_value={}),
+            patch.object(handler, "_build_cake_signal_section", return_value={"download": {}}),
+            patch.object(handler, "_build_tuning_section", return_value={}),
+            patch.object(handler, "_build_storage_section", return_value={}),
+            patch.object(handler, "_build_runtime_section", return_value={}),
+        ):
+            wan_health = handler._build_wan_status(
+                {"controller": wan_controller, "config": config}
+            )
+
+        assert wan_health["signal_arbitration"]["cake_av_delay_delta_us"] == 1234
+        assert "signal_arbitration" not in wan_health["download"]["hysteresis"]
+        assert "cake_signal" in wan_health
+
+
 class TestOperatorSummaryContract:
     """Tests for compact operator-facing health summaries."""
 
