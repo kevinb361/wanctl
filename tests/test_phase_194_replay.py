@@ -21,6 +21,7 @@ Plus:
 
 from __future__ import annotations
 
+# ruff: noqa: I001
 import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -263,12 +264,12 @@ class TestPhase194IntegratedFallbackEndToEnd:
             ctrl._ul_refractory_remaining = 0
             ctrl._dl_burst_pending = False
 
-            def tracking_dl_adjust(*args, **kwargs):
-                apply_call_order.append(("download.adjust_4state", cycle_idx))
+            def tracking_dl_adjust(*args, cycle=cycle_idx, **kwargs):
+                apply_call_order.append(("download.adjust_4state", cycle))
                 return real_dl_adjust(*args, **kwargs)
 
-            def tracking_ul_adjust(*args, **kwargs):
-                apply_call_order.append(("upload.adjust", cycle_idx))
+            def tracking_ul_adjust(*args, cycle=cycle_idx, **kwargs):
+                apply_call_order.append(("upload.adjust", cycle))
                 return real_ul_adjust(*args, **kwargs)
 
             with (
@@ -454,6 +455,7 @@ class TestPhase194UplinkParity:
 
     def test_ul_call_site_signature_unchanged(self) -> None:
         src = Path("src/wanctl/wan_controller.py").read_text()
+        # ARB-04 guard targets the production self.upload.adjust call site.
         pattern = re.compile(
             r"ul_zone, ul_rate, ul_transition_reason = self\.upload\.adjust\(\s*"
             r"self\.baseline_rtt,\s*effective_ul_load_rtt,\s*self\.target_delta,\s*self\.warn_delta,\s*"
