@@ -123,7 +123,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 |---|-------|------|--------------|------------------|
 | 193 | Queue Signal Contract and Arbitration Telemetry | 1/3 | In Progress|  |
 | 194 | Download Queue-Primary Distress Classification | 2/2 | Complete    | 2026-04-24 |
-| 195 | RTT Confidence Demotion and Fusion-Healer Containment | Derive `rtt_confidence` from ICMP/UDP agreement and queue-direction agreement; require sustained queue+RTT 6-cycle direction alignment for healer bypass; single-path flips never bypass | ARB-02, ARB-03, SAFE-05 | 4 |
+| 195 | RTT Confidence Demotion and Fusion-Healer Containment | 3/3 | Complete    | 2026-04-24 |
 | 196 | Spectrum A/B Soak and ATT Regression Canary | Sequential 24h rtt-blend then 24h cake-primary Spectrum soak; ATT canary after Phase 191 closure; Spectrum DL recovers to ≥90% of 591 Mbps CAKE-only static floor without RTT-distress regression | VALN-04, VALN-05, SAFE-05 | 4 |
 
 ---
@@ -230,12 +230,12 @@ Plans:
 3. A traced single-path flip (e.g., ICMP-only anti-correlation event with queue GREEN for 6 cycles) does NOT enter healer bypass — `control_decision_reason` never shows `healer_bypass` in that window, matching the direction-alignment gate.
 4. A replay of the 2026-04-23 Spectrum production event (ICMP/UDP ratio flipping 1.96→0.54, fusion.healer suspending, wanctl clamping on phantom bloat in v1.39) through the Phase 195 build produces queue-primary distress only where the kernel queue-delta actually grew — not on RTT-only phantom bloat — and healer bypass does not trip on the single-path flip.
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 195-01-PLAN.md — Confidence derivation + observability (SAFE-05)
-- [ ] 195-02-PLAN.md — RTT veto + 6-cycle healer bypass containment (ARB-02, ARB-03, SAFE-05)
-- [ ] 195-03-PLAN.md — Replay harness + 2026-04-23 Spectrum event + 195-VERIFICATION.md (ARB-02, ARB-03, SAFE-05)
+- [x] 195-01-PLAN.md — Confidence derivation + observability (SAFE-05)
+- [x] 195-02-PLAN.md — RTT veto + 6-cycle healer bypass containment (ARB-02, ARB-03, SAFE-05)
+- [x] 195-03-PLAN.md — Replay harness + 2026-04-23 Spectrum event + 195-VERIFICATION.md (ARB-02, ARB-03, SAFE-05)
 
 ---
 
