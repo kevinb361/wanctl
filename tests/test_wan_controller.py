@@ -2958,6 +2958,294 @@ class TestPhase195Arbitration:
         assert isinstance(reason, str)
 
 
+class TestPhase195HealerBypass:
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._cake_signal_supported = True
+        controller.baseline_rtt = 25.0
+        controller.load_rtt = 45.0
+        controller.green_threshold = 15.0
+        controller.soft_red_threshold = 45.0
+        controller.hard_red_threshold = 80.0
+        controller.target_delta = 15.0
+        controller.warn_delta = 45.0
+        return controller
+
+    @staticmethod
+    def _make_snapshot(*, max_delay_delta_us: int = 500):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=10.0,
+            total_drop_rate=12.0,
+            backlog_bytes=4096,
+            peak_delay_us=max_delay_delta_us,
+            tins=(),
+            cold_start=False,
+            avg_delay_us=max_delay_delta_us,
+            base_delay_us=0,
+            max_delay_delta_us=max_delay_delta_us,
+        )
+
+    @staticmethod
+    def _stub_assessment_io(controller):
+        controller._dl_refractory_remaining = 0
+        controller._ul_refractory_remaining = 0
+        controller._dl_burst_pending = False
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+
+    def _run_phase195_cycle(
+        self,
+        controller,
+        *,
+        queue_delta_ms: float,
+        rtt_delta_ms: float,
+        correlation: float | None = 1.0,
+    ):
+        controller._irtt_correlation = correlation
+        controller._dl_cake_snapshot = self._make_snapshot(
+            max_delay_delta_us=int(queue_delta_ms * 1000)
+        )
+        controller._ul_cake_snapshot = None
+        controller.load_rtt = controller.baseline_rtt + rtt_delta_ms
+        return controller._run_congestion_assessment()
+
+    def _seed_worsening_history(
+        self, controller, *, queue_delta_ms: float = 16.0, rtt_delta_ms: float = 20.0
+    ):
+        controller._prev_queue_delta_ms = queue_delta_ms - 1.0
+        controller._prev_rtt_delta_ms = rtt_delta_ms - 1.0
+
+    def _prime_aligned_streak(self, controller, *, cycles: int = 5):
+        self._stub_assessment_io(controller)
+        self._seed_worsening_history(controller)
+        for offset in range(cycles):
+            self._run_phase195_cycle(
+                controller,
+                queue_delta_ms=16.0 + offset,
+                rtt_delta_ms=20.0 + offset,
+                correlation=1.0,
+            )
+
+    def test_healer_bypass_streak_starts_inactive(self, controller):
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+
+    def test_single_path_flip_never_trips_healer_bypass(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_HEALER_BYPASS
+
+        self._stub_assessment_io(controller)
+        controller._prev_queue_delta_ms = 0.5
+        controller._prev_rtt_delta_ms = 39.0
+
+        for _ in range(10):
+            self._run_phase195_cycle(
+                controller,
+                queue_delta_ms=0.5,
+                rtt_delta_ms=40.0,
+                correlation=0.3,
+            )
+            assert controller._healer_aligned_streak == 0
+            assert controller._fusion_bypass_active is False
+            assert controller._last_arbitration_reason != ARBITRATION_REASON_HEALER_BYPASS
+
+    def test_aligned_distress_trips_healer_bypass_at_six_cycles(self, controller):
+        from wanctl.wan_controller import (
+            ARBITRATION_REASON_HEALER_BYPASS,
+            ARBITRATION_REASON_QUEUE_DISTRESS,
+            ARBITRATION_REASON_RTT_VETO,
+        )
+
+        self._stub_assessment_io(controller)
+        self._seed_worsening_history(controller)
+
+        for offset in range(5):
+            self._run_phase195_cycle(
+                controller,
+                queue_delta_ms=16.0 + offset,
+                rtt_delta_ms=20.0 + offset,
+                correlation=1.0,
+            )
+            assert controller._healer_aligned_streak == offset + 1
+            assert controller._fusion_bypass_active is False
+            assert controller._last_arbitration_reason in {
+                ARBITRATION_REASON_QUEUE_DISTRESS,
+                ARBITRATION_REASON_RTT_VETO,
+            }
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=21.0,
+            rtt_delta_ms=25.0,
+            correlation=1.0,
+        )
+
+        assert controller._healer_aligned_streak == 6
+        assert controller._fusion_bypass_active is True
+        assert controller._fusion_bypass_reason == "queue_rtt_aligned_distress"
+        assert controller._fusion_bypass_count == 1
+        assert controller._fusion_bypass_offset_ms == pytest.approx(25.0)
+        assert controller._last_arbitration_reason == ARBITRATION_REASON_HEALER_BYPASS
+
+    def test_held_direction_counts_toward_healer_bypass_streak(self, controller):
+        self._stub_assessment_io(controller)
+        controller._prev_queue_delta_ms = 16.0
+        controller._prev_rtt_delta_ms = 20.0
+
+        for _ in range(6):
+            self._run_phase195_cycle(
+                controller,
+                queue_delta_ms=16.0,
+                rtt_delta_ms=20.0,
+                correlation=1.0,
+            )
+
+        assert controller._healer_aligned_streak == 6
+        assert controller._fusion_bypass_active is True
+        assert controller._fusion_bypass_reason == "queue_rtt_aligned_distress"
+
+    def test_direction_flip_resets_healer_bypass_streak(self, controller):
+        self._prime_aligned_streak(controller, cycles=5)
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=21.0,
+            rtt_delta_ms=10.0,
+            correlation=1.0,
+        )
+
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+
+    def test_confidence_drop_resets_healer_bypass_streak(self, controller):
+        self._prime_aligned_streak(controller, cycles=5)
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=21.0,
+            rtt_delta_ms=25.0,
+            correlation=None,
+        )
+
+        assert controller._last_rtt_confidence == pytest.approx(0.5)
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+
+    def test_queue_green_resets_healer_bypass_streak_and_releases_active_bypass(
+        self, controller
+    ):
+        self._prime_aligned_streak(controller, cycles=6)
+        assert controller._fusion_bypass_active is True
+        assert controller._fusion_bypass_count == 1
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=0.5,
+            rtt_delta_ms=26.0,
+            correlation=1.0,
+        )
+
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+        assert controller._fusion_bypass_reason is None
+        assert controller._fusion_bypass_count == 1
+
+    def test_rtt_below_yellow_resets_healer_bypass_streak(self, controller):
+        self._prime_aligned_streak(controller, cycles=5)
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=21.0,
+            rtt_delta_ms=5.0,
+            correlation=1.0,
+        )
+
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+
+    def test_unknown_direction_never_counts_toward_healer_bypass(self, controller):
+        self._stub_assessment_io(controller)
+        controller._prev_queue_delta_ms = 15.0
+        controller._prev_rtt_delta_ms = None
+
+        self._run_phase195_cycle(
+            controller,
+            queue_delta_ms=16.0,
+            rtt_delta_ms=20.0,
+            correlation=1.0,
+        )
+
+        assert controller._last_rtt_direction == "unknown"
+        assert controller._healer_aligned_streak == 0
+        assert controller._fusion_bypass_active is False
+
+    def test_compute_fused_rtt_no_longer_emits_absolute_disagreement(
+        self, controller
+    ):
+        from types import SimpleNamespace
+
+        controller._fusion_enabled = True
+        controller._irtt_thread = MagicMock(cadence_sec=10.0)
+        controller._irtt_thread.get_latest.return_value = SimpleNamespace(
+            timestamp=time.monotonic(),
+            rtt_mean_ms=100.0,
+        )
+
+        result = controller._compute_fused_rtt(20.0)
+
+        assert result == pytest.approx(20.0)
+        assert controller._fusion_bypass_active is False
+        assert controller._fusion_bypass_reason != "absolute_disagreement"
+
+    def test_phase195_source_keeps_ul_call_site_and_avoids_magnitude_ratio(self):
+        import re
+        from pathlib import Path
+
+        source = Path("src/wanctl/wan_controller.py").read_text()
+
+        assert re.search(
+            r"self\.upload\.adjust\(\s*"
+            r"self\.baseline_rtt,\s*effective_ul_load_rtt,\s*"
+            r"self\.target_delta,\s*self\.warn_delta,\s*"
+            r"cake_snapshot=ul_cake,\s*\)",
+            source,
+        )
+        assert not re.search(
+            r"max_delay_delta_us\s*/\s*(?:self\.)?load_rtt",
+            source,
+        )
+        assert not re.search(
+            r"(?:self\.)?load_rtt\s*/\s*.*max_delay_delta_us",
+            source,
+        )
+
+
 class TestPhase195Confidence:
     @pytest.fixture
     def controller(self, mock_autorate_config):
