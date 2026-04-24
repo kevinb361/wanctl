@@ -61,6 +61,10 @@ capture, or flent run because the required A-leg artifact is absent:
 - No `soak/cake-primary/manifest.json` was created, and no B-leg capture was
   started.
 
+Task 2 skipped: no valid A-leg. No `phase196-soak-capture.sh`
+`cake-primary-start` or `cake-primary-finish` capture was run, and no 24-hour
+cake-primary soak was started.
+
 | Evidence | Status | Artifact |
 | --- | --- | --- |
 | Start capture | pending | `soak/cake-primary/` |
